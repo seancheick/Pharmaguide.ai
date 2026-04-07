@@ -1,0 +1,30 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# Secrets
+.env
+.env.*
+*.keystore
+*.jks
+
+# Generated
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+pubspec.lock
