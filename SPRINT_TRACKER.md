@@ -86,6 +86,10 @@ Key objectives:
 - [ ] Create main.dart + app.dart with proper initialization order
 - [ ] Write database schema tests (verify tables exist, columns match export schema)
 - [ ] Write profile persistence tests
+- [ ] Splash screen (flutter_native_splash, brand color #0A7D6F, logo, 1.5s)
+- [ ] App icon design (teal shield, white checkmark/pill)
+- [ ] Design system: WCAG AA color palette (light + dark mode tokens)
+- [ ] Design system: Inter font family + 8dp spacing grid
 
 ### Definition of Done
 
@@ -140,6 +144,9 @@ Key objectives:
 - [ ] Write TaxonomyService tests verifying exact condition/drug class counts and IDs
 - [ ] Implement scan_limit_service.dart stub (guest: 10 scans lifetime, signed-in: 20/day)
 - [ ] Create test fixtures directory with representative JSON blobs
+- [ ] Offline mode indicator (header status bar: online/offline/syncing)
+- [ ] Freemium gating service (Hive for guest: 10 lifetime scans, Supabase user_usage for signed-in: 20/day)
+- [ ] Guest mode support (app usable without sign-in, limited features)
 
 ### Definition of Done
 
@@ -191,6 +198,9 @@ Key objectives:
 - [ ] Implement category filter chips (omega-3, probiotic, multivitamin, etc. from primary_category)
 - [ ] Write search tests: empty query, partial match, no results, special characters
 - [ ] Write scan tests: valid UPC, unknown UPC, camera permission denied
+- [ ] Product not found flow (submission modal with photo + manual entry)
+- [ ] Decision-first scan result (color flash + haptic feedback on scan)
+- [ ] Home screen as modular widgets (SearchBar, StackHealth, RecentScansCarousel, ProfileCompleteness)
 
 ### Definition of Done
 
@@ -252,6 +262,9 @@ Key objectives:
 - [ ] Write widget tests for all verdict states
 - [ ] Write widget tests for B0 gate
 - [ ] Write integration test for scan-to-detail flow
+- [ ] Score education overlay ("What does this score mean?")
+- [ ] BLOCKED product handling: no score displayed, red banner with reason + FDA links
+- [ ] Better Alternatives section (similar products with higher scores)
 
 ### Definition of Done
 
@@ -265,6 +278,8 @@ Key objectives:
 - `flutter analyze` reports 0 issues
 - No emojis used as structural UI elements (Lucide icons only)
 - Reduced motion: animations respect system accessibility settings
+- BLOCKED products display red banner with blocking reason and FDA source URLs — no score number shown
+- Score education overlay appears on first product view
 
 ### Acceptance Criteria
 
@@ -353,6 +368,10 @@ Key objectives:
 - [ ] Build stack summary view (total daily supplement load)
 - [ ] Write sync tests: add while offline, sync on reconnect, conflict resolution
 - [ ] Write stack persistence tests
+- [ ] Stack wishlist sub-tab (My Stack | Wishlist)
+- [ ] Full Stack Analysis report (nutrient breakdown, interactions, timing, goals, "What If" scenarios)
+- [ ] Add-to-stack scheduling flow (time, supply tracking, reminders — all skippable)
+- [ ] Undo after stack delete (5s snackbar)
 
 ### Definition of Done
 
@@ -448,6 +467,7 @@ Key objectives:
 - [ ] Handle deep link edge cases: app not installed, invalid product ID, expired link
 - [ ] Write deep link routing tests
 - [ ] Write share content generation tests
+- [ ] Stack share ("Export PDF for Doctor", "Share List")
 
 ### Definition of Done
 
@@ -500,6 +520,16 @@ Key objectives:
 - [ ] Write auth flow tests (sign in, sign out, guest-to-auth migration)
 - [ ] Write OTA update tests (success, failure, rollback)
 - [ ] Write usage limit tests
+- [ ] Account & Security section (email, password, login/logout)
+- [ ] Health Profile editing (all fields from onboarding, re-editable)
+- [ ] Privacy Controls (data usage prefs, transparency dashboard, privacy score)
+- [ ] Stack Analysis History (last 3 saved reports, view/email/share/delete)
+- [ ] Settings: theme (light/dark/system), language, units
+- [ ] Settings: notification controls (reminders, alerts, insights, refills)
+- [ ] Settings: accessibility (dynamic type, high contrast, VoiceOver, reduce motion)
+- [ ] Settings: offline mode (auto-download, sync frequency)
+- [ ] Settings: advanced (export data, clear cache, reset tutorials, delete account)
+- [ ] About section (version, ToS, privacy policy, support, rate app)
 
 ### Definition of Done
 
@@ -512,6 +542,9 @@ Key objectives:
 - Limits: guest blocked after 10 lifetime scans with upgrade prompt
 - Limits: signed-in user sees count reset at UTC midnight
 - `flutter analyze` reports 0 issues
+- Profile tab has all 6 sections: Account, Health Profile, Privacy, Analysis History, Settings, About
+- Privacy transparency dashboard shows device vs cloud data locations
+- Theme switching (light/dark/system) works with preview
 
 ### Acceptance Criteria
 
@@ -562,6 +595,9 @@ Key objectives:
 - [ ] Final security audit: no PHI in analytics, AI disclaimers visible, no hardcoded keys
 - [ ] Medical disclaimer on all score/recommendation screens
 - [ ] Gemini AI quota verification (5/day server-side enforcement)
+- [ ] Coach marks / feature tour (overlay system)
+- [ ] "Try Demo Mode" (preloaded dummy scan)
+- [ ] Haptic feedback verification across all interactions
 
 ### Definition of Done
 
@@ -577,6 +613,8 @@ Key objectives:
 - No crashes in 1-hour manual testing session per platform
 - Privacy policy URL resolves and content is accurate
 - Store screenshots for both platforms ready
+- Coach marks tour completes all 4 highlights without crash
+- Demo mode shows full scan result for mock product
 
 ### Acceptance Criteria
 
