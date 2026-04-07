@@ -1,0 +1,208 @@
+{
+  "_metadata": {
+    "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
+    "purpose": "interaction_alert_taxonomy",
+    "schema_version": "5.1.0",
+    "last_updated": "2026-03-17",
+    "total_entries": 36
+  },
+  "conditions": [
+    {
+      "id": "pregnancy",
+      "label": "Pregnancy",
+      "category": "reproductive",
+      "display_priority": 1
+    },
+    {
+      "id": "lactation",
+      "label": "Breastfeeding",
+      "category": "reproductive",
+      "display_priority": 2
+    },
+    {
+      "id": "ttc",
+      "label": "Trying to Conceive",
+      "category": "reproductive",
+      "display_priority": 3
+    },
+    {
+      "id": "surgery_scheduled",
+      "label": "Upcoming Surgery",
+      "category": "perioperative",
+      "display_priority": 4
+    },
+    {
+      "id": "hypertension",
+      "label": "High Blood Pressure",
+      "category": "cardiovascular",
+      "display_priority": 5
+    },
+    {
+      "id": "heart_disease",
+      "label": "Heart Disease",
+      "category": "cardiovascular",
+      "display_priority": 6
+    },
+    {
+      "id": "diabetes",
+      "label": "Diabetes",
+      "category": "metabolic",
+      "display_priority": 7,
+      "note": "Covers type 1 and type 2. Merged from diabetes_type1/diabetes_type2 — supplement interactions are the same for both types (blood sugar impact, hypoglycemic risk)."
+    },
+    {
+      "id": "bleeding_disorders",
+      "label": "Bleeding Disorders",
+      "category": "hematologic",
+      "display_priority": 8
+    },
+    {
+      "id": "kidney_disease",
+      "label": "Kidney Disease",
+      "category": "renal",
+      "display_priority": 9
+    },
+    {
+      "id": "liver_disease",
+      "label": "Liver Disease",
+      "category": "hepatic",
+      "display_priority": 10
+    },
+    {
+      "id": "thyroid_disorder",
+      "label": "Thyroid Condition",
+      "category": "endocrine",
+      "display_priority": 11
+    },
+    {
+      "id": "autoimmune",
+      "label": "Autoimmune Condition",
+      "category": "immunologic",
+      "display_priority": 12
+    },
+    {
+      "id": "seizure_disorder",
+      "label": "Epilepsy/Seizures",
+      "category": "neurologic",
+      "display_priority": 13
+    },
+    {
+      "id": "high_cholesterol",
+      "label": "High Cholesterol",
+      "category": "cardiovascular",
+      "display_priority": 14
+    }
+  ],
+  "drug_classes": [
+    {
+      "id": "anticoagulants",
+      "label": "Anticoagulants",
+      "category": "hematology",
+      "display_priority": 1
+    },
+    {
+      "id": "antiplatelets",
+      "label": "Antiplatelet Agents",
+      "category": "hematology",
+      "display_priority": 2
+    },
+    {
+      "id": "nsaids",
+      "label": "NSAIDs",
+      "category": "pain",
+      "display_priority": 3
+    },
+    {
+      "id": "antihypertensives",
+      "label": "Antihypertensives",
+      "category": "cardiovascular",
+      "display_priority": 4
+    },
+    {
+      "id": "hypoglycemics",
+      "label": "Glucose-Lowering Medications",
+      "category": "metabolic",
+      "display_priority": 5
+    },
+    {
+      "id": "thyroid_medications",
+      "label": "Thyroid Medications",
+      "category": "endocrine",
+      "display_priority": 6
+    },
+    {
+      "id": "sedatives",
+      "label": "Sedatives",
+      "category": "neurologic",
+      "display_priority": 7
+    },
+    {
+      "id": "immunosuppressants",
+      "label": "Immunosuppressants",
+      "category": "immunology",
+      "display_priority": 8
+    },
+    {
+      "id": "statins",
+      "label": "Statins",
+      "category": "cardiovascular",
+      "display_priority": 9
+    }
+  ],
+  "severity_levels": [
+    {
+      "id": "contraindicated",
+      "label": "Do Not Use",
+      "color": "red",
+      "weight": 5
+    },
+    {
+      "id": "avoid",
+      "label": "Avoid",
+      "color": "orange",
+      "weight": 4
+    },
+    {
+      "id": "caution",
+      "label": "Use with Caution",
+      "color": "yellow",
+      "weight": 3
+    },
+    {
+      "id": "monitor",
+      "label": "Monitor",
+      "color": "blue",
+      "weight": 2
+    },
+    {
+      "id": "info",
+      "label": "Informational",
+      "color": "gray",
+      "weight": 1
+    }
+  ],
+  "evidence_levels": [
+    {
+      "id": "established",
+      "description": "Well-documented in human clinical literature and major references"
+    },
+    {
+      "id": "probable",
+      "description": "Strong case reports or mechanistic evidence with partial human support"
+    },
+    {
+      "id": "theoretical",
+      "description": "Biological plausibility with limited direct human evidence"
+    },
+    {
+      "id": "insufficient",
+      "description": "Insufficient evidence for a firm interaction conclusion"
+    }
+  ],
+  "sources": [
+    "https://www.nccih.nih.gov/health/know-science/how-medications-and-supplements-can-interact/some-medication-supplement-interactions-can-be-serious",
+    "https://www.nccih.nih.gov/health/safety",
+    "https://ods.od.nih.gov/HealthInformation/healthinformation.aspx",
+    "https://www.ncbi.nlm.nih.gov/books/NBK547438/"
+  ]
+}

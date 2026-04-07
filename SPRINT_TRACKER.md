@@ -13,6 +13,7 @@ related:
   - "[[flutter-patterns]]"
   - "[[debugging-playbook]]"
 ---
+
 # PharmaGuide Flutter — Sprint Tracker
 
 > [!info] Related Docs
@@ -36,6 +37,7 @@ Update rules:
 - Do not mark a task `Done` without fresh verification evidence.
 
 Status legend:
+
 - `[x]` = `Done`
 - `[-]` = `In Progress` or `Review`
 - `[ ]` = `Ready` or `Backlog`
@@ -59,6 +61,7 @@ Status legend:
 Status: IN PROGRESS
 
 Key objectives:
+
 - Flutter project scaffolding with Riverpod 3.x, GoRouter, Drift
 - Core constants (severity, colors, schema IDs) and models (InteractionResult, FitScoreResult, StackSafetyScore)
 - Both Drift databases created (pharmaguide_core.db + user_data.db)
@@ -73,6 +76,7 @@ Key objectives:
 ## NEXT UP
 
 **Sprint 1: Database + Core Services** (Week 3-4)
+
 - Reference data repository + JSON helpers
 - Offline mode indicator
 - Freemium gating service (guest: 10 scans, free: 20/day)
@@ -80,6 +84,7 @@ Key objectives:
 - Guest mode support
 
 **Sprint 2: Product Catalog + Search** (Week 5-6)
+
 - FTS search with 300ms debounce, LIMIT 50, latest-query-wins
 - Modular home screen widgets (SearchBar, StackHealth, RecentScans, ProfileCompleteness)
 - Product card with verdict badges
@@ -88,6 +93,7 @@ Key objectives:
 - Decision-first scan result (color flash + haptics)
 
 **Sprint 3: Product Detail + Score Transparency** (Week 7-8)
+
 - Result screen with score ring, verdict banner, grade
 - Section score cards (Ingredient Quality, Safety, Evidence, Brand Trust)
 - Detail blob fetch + cache + shimmer states
@@ -691,15 +697,15 @@ Key objectives:
 
 ## VERSION ROADMAP
 
-| Version | Identity | Sprints | Key Features |
-|---------|----------|---------|-------------|
-| **V1.0** | Core Product | 0-8 | Scan, score, FitScore, stack safety, social sharing, full profile tab |
-| **V1.1** | Medication Intelligence | 9-11 | RxNorm medication stack, StackSafetyEngine, depletion checker, product comparison |
-| **V1.2** | Trust & Transparency | 12-13 | FitScore explanation layer, recompute strategy, trust layer UI, doctor PDF |
-| **V2.0** | AI Intelligence | 14-19 | Gate-based AI chat, alternative suggestions, nutrient gap analysis, prescription OCR |
-| **V2.1** | Engagement & Retention | 20-22 | Dose reminders, reorder alerts, starter stacks, FDA notifications, feedback loop |
-| **V3.0** | Platform & Ecosystem | 23-27 | B2B REST API, white-label SDK, "Verified" badge, family profiles, practitioner portal |
-| **V3.1** | Premium Intelligence | 28-30 | Lab integration, interaction matrix, clinical governance, drug-drug interactions |
+| Version  | Identity                | Sprints | Key Features                                                                          |
+| -------- | ----------------------- | ------- | ------------------------------------------------------------------------------------- |
+| **V1.0** | Core Product            | 0-8     | Scan, score, FitScore, stack safety, social sharing, full profile tab                 |
+| **V1.1** | Medication Intelligence | 9-11    | RxNorm medication stack, StackSafetyEngine, depletion checker, product comparison     |
+| **V1.2** | Trust & Transparency    | 12-13   | FitScore explanation layer, recompute strategy, trust layer UI, doctor PDF            |
+| **V2.0** | AI Intelligence         | 14-19   | Gate-based AI chat, alternative suggestions, nutrient gap analysis, prescription OCR  |
+| **V2.1** | Engagement & Retention  | 20-22   | Dose reminders, reorder alerts, starter stacks, FDA notifications, feedback loop      |
+| **V3.0** | Platform & Ecosystem    | 23-27   | B2B REST API, white-label SDK, "Verified" badge, family profiles, practitioner portal |
+| **V3.1** | Premium Intelligence    | 28-30   | Lab integration, interaction matrix, clinical governance, drug-drug interactions      |
 
 ---
 
@@ -717,9 +723,9 @@ Key objectives:
 
 ## CHANGELOG
 
-| Date | Sprint | Change |
-|------|--------|--------|
-| 2026-04-07 | -- | Initial sprint tracker created |
-| 2026-04-07 | 0 | Tasks 1-6 complete: project init, constants, models, JSON helpers, ref data, both Drift DBs (25 tests passing) |
-| 2026-04-07 | -- | Expanded all sprints with missing MVP features (+31 tasks) |
-| 2026-04-07 | -- | Aligned format with Obsidian vault (YAML frontmatter, wikilinks, status legend) |
+| Date       | Sprint | Change                                                                                                         |
+| ---------- | ------ | -------------------------------------------------------------------------------------------------------------- |
+| 2026-04-07 | --     | Initial sprint tracker created                                                                                 |
+| 2026-04-07 | 0      | Tasks 1-6 complete: project init, constants, models, JSON helpers, ref data, both Drift DBs (25 tests passing) |
+| 2026-04-07 | --     | Expanded all sprints with missing MVP features (+31 tasks)                                                     |
+| 2026-04-07 | --     | Aligned format with Obsidian vault (YAML frontmatter, wikilinks, status legend)                                |

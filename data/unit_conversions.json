@@ -1,0 +1,435 @@
+{
+  "_metadata": {
+    "description": "Unit conversion factors for supplement dosing normalization",
+    "purpose": "dosing_normalization",
+    "schema_version": "5.0.0",
+    "last_updated": "2026-02-16",
+    "version": "1.0.0",
+    "statistics": {
+      "vitamin_conversions": 20,
+      "form_detection_categories": 2,
+      "total_conversion_rules": 37,
+      "mcg_only_nutrients": 7,
+      "notes": "Added B12, Selenium, Chromium, Biotin, Iodine, Molybdenum for AC4 compliance"
+    },
+    "total_entries": 20,
+    "total_entries_note": "Count of vitamin_conversions rules; mass_conversions has 6 rules, probiotic_conversions is 1 section, form_detection_patterns has 2 vitamin patterns"
+  },
+  "vitamin_conversions": {
+    "vitamin_d3": {
+      "id": "CONV_VITAMIN_D3",
+      "standard_name": "Vitamin D3 (Cholecalciferol)",
+      "aliases": [
+        "cholecalciferol",
+        "D3",
+        "vitamin D-3"
+      ],
+      "conversions": {
+        "iu_to_mcg": 0.025,
+        "mcg_to_iu": 40
+      },
+      "canonical_unit": "mcg",
+      "fda_label_unit": "mcg",
+      "notes": "FDA requires mcg on labels since 2020; IU may appear in parentheses",
+      "source": "FDA Guidance 2020"
+    },
+    "vitamin_d2": {
+      "id": "CONV_VITAMIN_D2",
+      "standard_name": "Vitamin D2 (Ergocalciferol)",
+      "aliases": [
+        "ergocalciferol",
+        "D2",
+        "vitamin D-2"
+      ],
+      "conversions": {
+        "iu_to_mcg": 0.025,
+        "mcg_to_iu": 40
+      },
+      "canonical_unit": "mcg",
+      "notes": "Same conversion factor as D3",
+      "source": "FDA Guidance 2020"
+    },
+    "vitamin_e_d_alpha_tocopherol": {
+      "id": "CONV_VITAMIN_E_NATURAL",
+      "standard_name": "Vitamin E (d-alpha-tocopherol, natural)",
+      "aliases": [
+        "d-alpha-tocopherol",
+        "d-alpha tocopherol",
+        "natural vitamin E",
+        "RRR-alpha-tocopherol",
+        "d-alpha-tocopheryl acetate",
+        "d-alpha-tocopheryl succinate"
+      ],
+      "conversions": {
+        "iu_to_mg": 0.67,
+        "mg_to_iu": 1.49
+      },
+      "canonical_unit": "mg",
+      "bioavailability": "high",
+      "notes": "Natural form has higher bioavailability than synthetic",
+      "source": "NIH ODS"
+    },
+    "vitamin_e_dl_alpha_tocopherol": {
+      "id": "CONV_VITAMIN_E_SYNTHETIC",
+      "standard_name": "Vitamin E (dl-alpha-tocopherol, synthetic)",
+      "aliases": [
+        "dl-alpha-tocopherol",
+        "dl-alpha tocopherol",
+        "synthetic vitamin E",
+        "all-rac-alpha-tocopherol",
+        "dl-alpha-tocopheryl acetate"
+      ],
+      "conversions": {
+        "iu_to_mg": 0.45,
+        "mg_to_iu": 2.22
+      },
+      "canonical_unit": "mg",
+      "bioavailability": "lower",
+      "notes": "Synthetic form - approximately 50% bioavailability of natural",
+      "source": "NIH ODS"
+    },
+    "vitamin_a_retinol": {
+      "id": "CONV_VITAMIN_A_RETINOL",
+      "standard_name": "Vitamin A (Retinol/Preformed)",
+      "aliases": [
+        "retinol",
+        "retinyl palmitate",
+        "retinyl acetate",
+        "preformed vitamin A",
+        "vitamin A palmitate",
+        "vitamin A acetate"
+      ],
+      "conversions": {
+        "iu_to_mcg_rae": 0.3,
+        "mcg_rae_to_iu": 3.33
+      },
+      "canonical_unit": "mcg RAE",
+      "ul_applies": true,
+      "warnings": [
+        "UL of 3000 mcg RAE applies to preformed vitamin A only",
+        "Pregnant women should not exceed 3000 mcg RAE",
+        "High doses may increase fracture risk"
+      ],
+      "source": "NIH ODS"
+    },
+    "vitamin_a_beta_carotene_supplement": {
+      "id": "CONV_VITAMIN_A_BETA_CAROTENE_SUPP",
+      "standard_name": "Vitamin A (Beta-carotene from supplements)",
+      "aliases": [
+        "beta-carotene",
+        "beta carotene",
+        "provitamin A",
+        "carotenoid"
+      ],
+      "conversions": {
+        "iu_to_mcg_rae": 0.1,
+        "mcg_rae_to_iu": 10,
+        "mcg_beta_carotene_to_mcg_rae": 0.5
+      },
+      "canonical_unit": "mcg RAE",
+      "ul_applies": false,
+      "notes": "Beta-carotene from supplements has no established UL; body regulates conversion",
+      "source": "NIH ODS"
+    },
+    "vitamin_a_beta_carotene_food": {
+      "id": "CONV_VITAMIN_A_BETA_CAROTENE_FOOD",
+      "standard_name": "Vitamin A (Beta-carotene from food)",
+      "aliases": [],
+      "conversions": {
+        "iu_to_mcg_rae": 0.05,
+        "mcg_rae_to_iu": 20,
+        "mcg_beta_carotene_to_mcg_rae": 0.083
+      },
+      "canonical_unit": "mcg RAE",
+      "notes": "Food-source beta-carotene has lower conversion efficiency than supplements",
+      "source": "NIH ODS"
+    },
+    "vitamin_a_unknown": {
+      "id": "CONV_VITAMIN_A_UNKNOWN",
+      "standard_name": "Vitamin A (Form Unknown)",
+      "aliases": [
+        "vitamin A"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg RAE",
+      "handling": "flag_for_review",
+      "notes": "If vitamin A form cannot be determined, flag product for manual review",
+      "warnings": [
+        "Cannot safely convert without knowing form - retinol vs beta-carotene matters for UL"
+      ]
+    },
+    "folate_folic_acid": {
+      "id": "CONV_FOLATE_FOLIC_ACID",
+      "standard_name": "Folate (as Folic Acid)",
+      "aliases": [
+        "folic acid",
+        "pteroylmonoglutamic acid"
+      ],
+      "conversions": {
+        "mcg_to_mcg_dfe": 1.7,
+        "mcg_dfe_to_mcg": 0.588
+      },
+      "canonical_unit": "mcg DFE",
+      "notes": "Folic acid on empty stomach: 1 mcg = 1.7 mcg DFE; with food: 1 mcg = 1 mcg DFE",
+      "source": "NIH ODS"
+    },
+    "folate_methylfolate": {
+      "id": "CONV_FOLATE_METHYL",
+      "standard_name": "Folate (as Methylfolate/5-MTHF)",
+      "aliases": [
+        "methylfolate",
+        "5-MTHF",
+        "5-methyltetrahydrofolate",
+        "L-methylfolate",
+        "Metafolin",
+        "Quatrefolic"
+      ],
+      "conversions": {
+        "mcg_to_mcg_dfe": 1.7
+      },
+      "canonical_unit": "mcg DFE",
+      "notes": "Active form - same DFE conversion as folic acid",
+      "source": "NIH ODS"
+    },
+    "folate_food": {
+      "id": "CONV_FOLATE_FOOD",
+      "standard_name": "Folate (from food)",
+      "aliases": [
+        "food folate",
+        "natural folate"
+      ],
+      "conversions": {
+        "mcg_to_mcg_dfe": 1.0
+      },
+      "canonical_unit": "mcg DFE",
+      "notes": "Food folate: 1 mcg = 1 mcg DFE",
+      "source": "NIH ODS"
+    },
+    "niacin": {
+      "id": "CONV_NIACIN",
+      "standard_name": "Niacin (Vitamin B3)",
+      "aliases": [
+        "nicotinic acid",
+        "nicotinamide",
+        "niacinamide",
+        "vitamin B3"
+      ],
+      "conversions": {
+        "mg_to_mg_ne": 1.0,
+        "tryptophan_mg_to_mg_ne": 0.0167
+      },
+      "canonical_unit": "mg NE",
+      "notes": "NE = Niacin Equivalents; 60 mg tryptophan = 1 mg NE",
+      "source": "NIH ODS"
+    },
+    "vitamin_k1": {
+      "id": "CONV_VITAMIN_K1",
+      "standard_name": "Vitamin K1 (Phylloquinone)",
+      "aliases": [
+        "phylloquinone",
+        "K1",
+        "vitamin K-1"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - always measured in mcg"
+    },
+    "vitamin_k2": {
+      "id": "CONV_VITAMIN_K2",
+      "standard_name": "Vitamin K2 (Menaquinone)",
+      "aliases": [
+        "menaquinone",
+        "MK-4",
+        "MK-7",
+        "K2",
+        "vitamin K-2"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - always measured in mcg; MK-7 has longer half-life than MK-4"
+    },
+    "vitamin_b12": {
+      "id": "CONV_VITAMIN_B12",
+      "standard_name": "Vitamin B12 (Cobalamin)",
+      "aliases": [
+        "cobalamin",
+        "cyanocobalamin",
+        "methylcobalamin",
+        "adenosylcobalamin",
+        "hydroxocobalamin",
+        "B12",
+        "vitamin B-12"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - measured in mcg; forms include cyanocobalamin (most common), methylcobalamin (active), adenosylcobalamin",
+      "source": "NIH ODS"
+    },
+    "selenium": {
+      "id": "CONV_SELENIUM",
+      "standard_name": "Selenium",
+      "aliases": [
+        "selenomethionine",
+        "sodium selenite",
+        "sodium selenate",
+        "selenium yeast",
+        "L-selenomethionine"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - measured in mcg; forms include selenomethionine, sodium selenite, sodium selenate",
+      "source": "NIH ODS"
+    },
+    "chromium": {
+      "id": "CONV_CHROMIUM",
+      "standard_name": "Chromium",
+      "aliases": [
+        "chromium picolinate",
+        "chromium polynicotinate",
+        "chromium chloride",
+        "chromium GTF",
+        "GTF chromium"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - measured in mcg; picolinate form most common in supplements",
+      "source": "NIH ODS"
+    },
+    "biotin": {
+      "id": "CONV_BIOTIN",
+      "standard_name": "Biotin (Vitamin B7)",
+      "aliases": [
+        "vitamin B7",
+        "vitamin H",
+        "d-biotin",
+        "B7"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - measured in mcg; also known as vitamin H or vitamin B7",
+      "source": "NIH ODS"
+    },
+    "iodine": {
+      "id": "CONV_IODINE",
+      "standard_name": "Iodine",
+      "aliases": [
+        "potassium iodide",
+        "sodium iodide",
+        "kelp iodine",
+        "iodine from kelp"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - measured in mcg; common forms include potassium iodide and kelp-derived",
+      "source": "NIH ODS"
+    },
+    "molybdenum": {
+      "id": "CONV_MOLYBDENUM",
+      "standard_name": "Molybdenum",
+      "aliases": [
+        "sodium molybdate",
+        "ammonium molybdate",
+        "molybdenum glycinate"
+      ],
+      "conversions": null,
+      "canonical_unit": "mcg",
+      "notes": "No IU conversion - measured in mcg",
+      "source": "NIH ODS"
+    }
+  },
+  "mass_conversions": {
+    "_description": "Standard mass unit conversions (nutrient-independent)",
+    "rules": {
+      "g_to_mg": 1000,
+      "mg_to_mcg": 1000,
+      "g_to_mcg": 1000000,
+      "mcg_to_mg": 0.001,
+      "mg_to_g": 0.001,
+      "mcg_to_g": 1e-06
+    },
+    "unit_aliases": {
+      "g": [
+        "gram",
+        "grams",
+        "gm"
+      ],
+      "mg": [
+        "milligram",
+        "milligrams"
+      ],
+      "mcg": [
+        "microgram",
+        "micrograms",
+        "ug",
+        "µg"
+      ]
+    }
+  },
+  "probiotic_conversions": {
+    "_description": "CFU (Colony Forming Units) normalization",
+    "rules": {
+      "billion_cfu_to_cfu": 1000000000,
+      "million_cfu_to_cfu": 1000000,
+      "trillion_cfu_to_cfu": 1000000000000
+    },
+    "aliases": {
+      "cfu": [
+        "CFU",
+        "CFUs",
+        "colony forming units",
+        "colony-forming units"
+      ],
+      "billion_cfu": [
+        "billion CFU",
+        "B CFU",
+        "billion CFUs"
+      ],
+      "viable_cells": [
+        "viable cells",
+        "live cells",
+        "active cells"
+      ]
+    },
+    "viable_cells_equals_cfu": true,
+    "canonical_unit": "CFU",
+    "display_unit": "billion CFU",
+    "notes": "1 billion CFU = 10^9 CFU; 'viable cells' and 'CFU' are equivalent"
+  },
+  "form_detection_patterns": {
+    "_description": "Regex patterns to detect vitamin forms from ingredient names",
+    "vitamin_e": {
+      "natural_patterns": [
+        "\\bd-alpha",
+        "\\bRRR-alpha",
+        "\\bnatural\\s+(vitamin\\s+)?E\\b",
+        "\\bd-alpha-tocopherol",
+        "\\bd-alpha-tocopheryl"
+      ],
+      "synthetic_patterns": [
+        "\\bdl-alpha",
+        "\\ball-rac",
+        "\\bsynthetic\\s+(vitamin\\s+)?E\\b",
+        "\\bdl-alpha-tocopherol",
+        "\\bdl-alpha-tocopheryl"
+      ],
+      "default_if_unknown": "synthetic",
+      "notes": "If form cannot be determined, assume synthetic (conservative)"
+    },
+    "vitamin_a": {
+      "retinol_patterns": [
+        "\\bretinol\\b",
+        "\\bretinyl\\s+palmitate",
+        "\\bretinyl\\s+acetate",
+        "\\bpreformed\\s+(vitamin\\s+)?A\\b",
+        "\\bvitamin\\s+A\\s+(palmitate|acetate)\\b"
+      ],
+      "beta_carotene_patterns": [
+        "\\bbeta[- ]?carotene\\b",
+        "\\bprovitamin\\s+A\\b",
+        "\\bcarotenoid"
+      ],
+      "default_if_unknown": "flag_for_review",
+      "notes": "Do NOT default - flag for review if form unknown (UL implications)"
+    }
+  }
+}

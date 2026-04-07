@@ -1,0 +1,1813 @@
+{
+  "_metadata": {
+    "description": "Deterministic ingredient-level interaction rules keyed by canonical database identity",
+    "purpose": "interaction_alert_rules",
+    "schema_version": "5.1.0",
+    "last_updated": "2026-03-18",
+    "total_entries": 45,
+    "structure_note": "One entry per ingredient (or per form-scoped variant). All conditions, drug classes, and dose thresholds for that ingredient are in one object."
+  },
+  "interaction_rules": [
+    {
+      "id": "RULE_BANNED_7KETO_DHEA_PREGNANCY",
+      "subject_ref": {
+        "db": "banned_recalled_ingredients",
+        "canonical_id": "BANNED_7_KETO_DHEA"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "probable",
+          "mechanism": "7-Keto DHEA has hormonal activity concerns and is not established as safe during pregnancy.",
+          "action": "Do not use during pregnancy unless directed by an obstetric specialist.",
+          "sources": [
+            "https://www.fda.gov/food/dietary-supplements/dietary-supplement-ingredient-directory",
+            "https://www.fda.gov/food/hfp-constituent-updates/fda-launches-new-directory-ingredients-used-products-marketed"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "probable",
+        "mechanism": "Hormonal activity and limited lactation safety data support avoiding use.",
+        "notes": "Avoid during lactation due to insufficient safety evidence and endocrine-active profile.",
+        "sources": [
+          "https://www.fda.gov/food/dietary-supplements/dietary-supplement-ingredient-directory"
+        ]
+      },
+      "last_reviewed": "2026-03-01",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_BANNED_EPHEDRA_PREGNANCY",
+      "subject_ref": {
+        "db": "banned_recalled_ingredients",
+        "canonical_id": "BANNED_EPHEDRA"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "established",
+          "mechanism": "Ephedra has serious cardiovascular and neurologic risks and is FDA-banned as a supplement ingredient.",
+          "action": "Do not use in pregnancy.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/ephedra",
+            "https://www.fda.gov/food/dietary-supplements/information-select-dietary-supplement-ingredients-and-other-substances"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Adrenergic stimulation can antagonize blood-pressure control therapies.",
+          "action": "Avoid use with antihypertensives.",
+          "sources": ["https://www.nccih.nih.gov/health/ephedra"]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "established",
+        "mechanism": "Serious toxicity risk profile and regulatory prohibition for supplement use.",
+        "notes": "Ephedra-containing supplements should not be used.",
+        "sources": ["https://www.nccih.nih.gov/health/ephedra"]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_BANNED_BITTER_ORANGE_HYPERTENSION",
+      "subject_ref": {
+        "db": "banned_recalled_ingredients",
+        "canonical_id": "RISK_BITTER_ORANGE"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Synephrine is structurally similar to ephedrine, acts on adrenergic receptors, and significantly increases systolic and diastolic blood pressure, especially when combined with caffeine.",
+          "action": "Avoid bitter orange / synephrine supplements. Commonly found in weight-loss and pre-workout products as an ephedra substitute.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/23397375/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Sympathomimetic effects directly counteract blood pressure-lowering therapy.",
+          "action": "Avoid combination with antihypertensive medications.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/23397375/"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_BANNED_YOHIMBE_CONTRA",
+      "subject_ref": {
+        "db": "banned_recalled_ingredients",
+        "canonical_id": "RISK_YOHIMBE"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "contraindicated",
+          "evidence_level": "established",
+          "mechanism": "Adrenergic stimulation can raise blood pressure and heart rate.",
+          "action": "Do not use in hypertension or cardiovascular risk settings.",
+          "sources": [
+            "https://www.fda.gov/consumers/health-fraud-scams/health-fraud-product-database"
+          ]
+        },
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "probable",
+          "mechanism": "Stimulant profile and hemodynamic effects present maternal-fetal risk concerns.",
+          "action": "Do not use during pregnancy.",
+          "sources": ["https://www.nccih.nih.gov/health/safety"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Yohimbe can counter blood pressure-lowering therapy.",
+          "action": "Avoid combination with antihypertensive medications.",
+          "sources": ["https://www.nccih.nih.gov/health/safety"]
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "probable",
+        "mechanism": "Safety data are limited and stimulant effects are concerning.",
+        "notes": "Avoid in pregnancy and lactation.",
+        "sources": ["https://www.nccih.nih.gov/health/safety"]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_HARM_PROPYLENE_GLYCOL_RENAL",
+      "subject_ref": {
+        "db": "harmful_additives",
+        "canonical_id": "ADD_PROPYLENE_GLYCOL"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "kidney_disease",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Propylene glycol is metabolized to lactic acid via alcohol dehydrogenase and ~40-50% is renally excreted. Renal impairment reduces clearance, leading to accumulation and lactic acidosis.",
+          "action": "Prefer products without propylene glycol when chronic kidney disease is present.",
+          "sources": [
+            "https://www.fda.gov/consumers/health-fraud-scams/health-fraud-product-database"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_INGREDIENT_ALOE_VERA",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "aloe_vera"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Oral aloe (gel/latex/whole leaf extract) has safety concerns and may be unsafe in pregnancy.",
+          "action": "Avoid oral aloe supplements during pregnancy.",
+          "sources": ["https://www.nccih.nih.gov/health/aloe-vera"]
+        },
+        {
+          "condition_id": "diabetes",
+          "severity": "monitor",
+          "evidence_level": "theoretical",
+          "mechanism": "Aloe gel polysaccharides (acemannan) may stimulate insulin secretion and improve glucose uptake. Limited clinical evidence but preclinical data is suggestive.",
+          "action": "Monitor glucose if combining oral aloe supplements with diabetes medications.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/36220193/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "monitor",
+          "evidence_level": "theoretical",
+          "mechanism": "Possible additive glucose-lowering. Oral aloe may also alter drug absorption via laxative effects.",
+          "action": "Monitor glucose and GI symptoms.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/36220193/"]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "avoid",
+        "evidence_level": "established",
+        "mechanism": "NCCIH indicates oral aloe may be unsafe in pregnancy and breastfeeding.",
+        "notes": "This rule is intended for oral/systemic supplement use, not topical-only products.",
+        "sources": ["https://www.nccih.nih.gov/health/aloe-vera"]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_ALPHA_LIPOIC_ACID_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "alpha_lipoic_acid"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Enhances insulin-stimulated glucose uptake via GLUT4 translocation and reduces oxidative stress-mediated insulin resistance. May potentiate glucose-lowering effects of diabetes medications.",
+          "action": "Monitor blood glucose when initiating ALA at doses >= 600 mg/day alongside diabetes medications.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know",
+            "https://pubmed.ncbi.nlm.nih.gov/34853508/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Additive insulin-sensitizing effect may increase hypoglycemia risk, especially with insulin and sulfonylureas.",
+          "action": "Monitor glucose and adjust medication only under clinician supervision.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know"
+          ]
+        }
+      ],
+      "dose_thresholds": [
+        {
+          "scope": "condition",
+          "target_id": "diabetes",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 600,
+          "unit": "mg",
+          "severity_if_met": "avoid",
+          "severity_if_not_met": "caution"
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_BERBERINE_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "berberine_supplement"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Berberine activates AMPK, increases insulin sensitivity, and stimulates GLP-1 secretion. Produces glucose-lowering effects comparable to metformin. Additive hypoglycemia risk is clinically significant.",
+          "action": "Do not combine with diabetes medications without physician oversight. Monitor blood glucose closely.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know",
+            "https://pubmed.ncbi.nlm.nih.gov/26312811/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Additive glucose-lowering comparable to metformin. Also inhibits CYP3A4/CYP2D6, potentially increasing drug levels of co-administered medications.",
+          "action": "Avoid unsupervised co-administration. Requires clinician-guided glucose monitoring and potential dose adjustment.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know"
+          ]
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "avoid",
+        "evidence_level": "established",
+        "mechanism": "Berberine (as in goldenseal) has documented neonatal bilirubin/kernicterus risk concerns.",
+        "notes": "Avoid berberine-containing supplements during pregnancy and lactation.",
+        "sources": [
+          "https://www.nccih.nih.gov/health/providers/digest/herb-drug-interactions-science"
+        ]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_BITTER_MELON_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "bitter_melon"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Contains charantin, polypeptide-p (plant insulin analog), and vicine which stimulate beta cells and increase glucose utilization. RCT showed significant fasting glucose reduction.",
+          "action": "Additive hypoglycemia risk with diabetes medications. Do not use as a substitute for prescribed medications. Monitor glucose.",
+          "sources": [
+            "https://pubmed.ncbi.nlm.nih.gov/32750587/",
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Additive glucose-lowering effect, especially with sulfonylureas and insulin.",
+          "action": "Monitor for hypoglycemia and coordinate with prescriber.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know"
+          ]
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "avoid",
+        "evidence_level": "probable",
+        "mechanism": "Animal studies suggest abortifacient and embryotoxic effects.",
+        "notes": "Avoid during pregnancy and lactation.",
+        "sources": ["https://www.nccih.nih.gov/health/safety"]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_BLACK_COHOSH_PREGNANCY",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "black_cohosh"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Black cohosh may have uterotonic/hormonal effects and is not considered safe in pregnancy.",
+          "action": "Avoid use during pregnancy unless explicitly directed by obstetric care team.",
+          "sources": ["https://www.nccih.nih.gov/health/black-cohosh"]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "caution",
+        "evidence_level": "probable",
+        "mechanism": "Pregnancy safety is uncertain and potential adverse effects are described in safety guidance.",
+        "notes": "Avoid in pregnancy; lactation evidence is limited.",
+        "sources": ["https://www.nccih.nih.gov/health/black-cohosh"]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_INGREDIENT_CAFFEINE",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "caffeine"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "monitor",
+          "evidence_level": "established",
+          "mechanism": "Caffeine crosses the placenta and higher daily intake is associated with pregnancy risk concerns.",
+          "action": "Keep supplemental caffeine low and account for all dietary caffeine sources.",
+          "sources": [
+            "https://www.acog.org/womens-health/experts-and-stories/ask-acog/how-much-coffee-can-i-drink-while-pregnant"
+          ]
+        },
+        {
+          "condition_id": "hypertension",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "Caffeine causes acute blood pressure elevation (3-15 mmHg systolic) through adenosine receptor antagonism and sympathetic stimulation.",
+          "action": "Limit caffeine-containing supplements. Monitor BP when starting caffeine supplements.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/23871889/"]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [
+        {
+          "scope": "condition",
+          "target_id": "pregnancy",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 200,
+          "unit": "mg",
+          "severity_if_met": "avoid",
+          "severity_if_not_met": "monitor"
+        },
+        {
+          "scope": "condition",
+          "target_id": "hypertension",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 400,
+          "unit": "mg",
+          "severity_if_met": "avoid",
+          "severity_if_not_met": "caution"
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "monitor",
+        "lactation_category": "caution",
+        "evidence_level": "established",
+        "mechanism": "High caffeine exposure can affect maternal-fetal and infant outcomes.",
+        "notes": "This threshold applies to supplemental caffeine only; total daily caffeine from beverages/foods should be considered.",
+        "sources": [
+          "https://www.acog.org/womens-health/experts-and-stories/ask-acog/how-much-coffee-can-i-drink-while-pregnant"
+        ]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_CHROMIUM_GLUCOSE",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "chromium"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Chromium can alter glucose metabolism and insulin sensitivity.",
+          "action": "Use with glucose monitoring if on diabetes treatment.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Chromium-HealthProfessional/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Potential additive glucose-lowering effect.",
+          "action": "Adjust medication only under clinician supervision.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Chromium-HealthProfessional/"
+          ]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_CINNAMON_GLUCOSE",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "cinnamon"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Cinnamon may lower blood glucose in some individuals.",
+          "action": "Track glucose trends when adding supplemental cinnamon.",
+          "sources": ["https://www.nccih.nih.gov/health/cinnamon"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Potential additive glucose-lowering effect with diabetes medications.",
+          "action": "Monitor for hypoglycemia and coordinate with prescriber.",
+          "sources": ["https://www.nccih.nih.gov/health/cinnamon"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_DONG_QUAI_PREGNANCY",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "dong_quai"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Dong quai is traditionally associated with uterine and hormone-active effects; pregnancy safety is not established.",
+          "action": "Avoid during pregnancy unless specifically directed by obstetric clinician.",
+          "sources": ["https://www.nccih.nih.gov/health/safety"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Dong quai contains coumarin derivatives (osthole, ferulic acid) that inhibit platelet aggregation. Case report documented >2-fold INR elevation in warfarin-stabilized patient after 4 weeks of dong quai.",
+          "action": "Use caution with anticoagulant therapy. Monitor INR closely.",
+          "sources": [
+            "https://pubmed.ncbi.nlm.nih.gov/10417036/",
+            "https://www.nccih.nih.gov/health/safety"
+          ]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "caution",
+        "evidence_level": "probable",
+        "mechanism": "Clinical pregnancy/lactation safety data are limited and precautionary avoidance is recommended.",
+        "notes": "Use only with clinician oversight during pregnancy or lactation.",
+        "sources": ["https://www.nccih.nih.gov/health/safety"]
+      },
+      "last_reviewed": "2026-03-01",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_FENUGREEK_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "fenugreek"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Galactomannan fiber delays carbohydrate absorption and 4-hydroxyisoleucine stimulates insulin secretion. Meta-analysis shows FBG reduction of 0.96 mmol/L.",
+          "action": "Additive blood sugar lowering with diabetes medications. Separate dosing from oral medications by 2 hours (fiber impairs drug absorption). Monitor glucose.",
+          "sources": [
+            "https://pubmed.ncbi.nlm.nih.gov/24378636/",
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Additive glucose-lowering and fiber-mediated delay of oral medication absorption.",
+          "action": "Separate dosing from oral hypoglycemics by 2 hours. Monitor for hypoglycemia.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/24378636/"]
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "caution",
+        "evidence_level": "probable",
+        "mechanism": "Traditional concern for uterotonic effects. May also lower blood sugar in pregnant women on glucose management.",
+        "notes": "Avoid during pregnancy.",
+        "sources": ["https://www.nccih.nih.gov/health/safety"]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_FEVERFEW_PREGNANCY",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "feverfew"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "established",
+          "mechanism": "Tanacetum parthenium parthenolide inhibits platelet aggregation and has demonstrated uterotonic activity. Historical emmenagogue use is well-documented. Cochrane and ACOG recommend avoidance during pregnancy.",
+          "action": "Do not use during pregnancy.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/feverfew",
+            "https://pubmed.ncbi.nlm.nih.gov/25630523/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Parthenolide inhibits platelet aggregation via thromboxane synthase; additive bleeding risk with anticoagulant/antiplatelet therapy.",
+          "action": "Monitor for increased bleeding tendency.",
+          "sources": ["https://www.nccih.nih.gov/health/feverfew"]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "established",
+        "mechanism": "Parthenolide crosses biological membranes and has uterotonic and anti-platelet effects. No safety data in lactation.",
+        "notes": "Feverfew is contraindicated in pregnancy per NCCIH and traditional classification as emmenagogue. Avoid during lactation due to insufficient safety data.",
+        "sources": [
+          "https://www.nccih.nih.gov/health/feverfew",
+          "https://pubmed.ncbi.nlm.nih.gov/25630523/"
+        ]
+      },
+      "form_scope": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_GLUCOMANNAN_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "fiber"
+      },
+      "form_scope": ["konjac glucomannan"],
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Viscous soluble fiber delays gastric emptying and slows glucose absorption. Meta-analysis of 6 RCTs showed significant reductions in FBG (-1.08 mmol/L) and 2h postprandial glucose.",
+          "action": "Separate from oral diabetes medications by at least 2 hours (fiber delays drug absorption). Take with adequate water.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/36771367/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Fiber delays absorption of co-administered oral medications including metformin and sulfonylureas.",
+          "action": "Separate glucomannan from oral diabetes medications by at least 2 hours.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/36771367/"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_INGREDIENT_GARLIC",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "garlic"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "surgery_scheduled",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Garlic can reduce platelet aggregation and increase bleeding tendency around procedures.",
+          "action": "Stop before elective surgery unless clinician directs otherwise.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/know-science/how-medications-and-supplements-can-interact/some-medication-supplement-interactions-can-be-serious"
+          ]
+        },
+        {
+          "condition_id": "hypertension",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Garlic lowers blood pressure via hydrogen sulfide-mediated vasodilation and ACE inhibition (8-10 mmHg systolic). Additive effect with antihypertensives may cause symptomatic hypotension.",
+          "action": "Inform prescriber if taking garlic supplements alongside BP medications. Monitor for dizziness or orthostatic hypotension.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/garlic",
+            "https://pubmed.ncbi.nlm.nih.gov/15133406/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Potential additive anticoagulant/antiplatelet effects.",
+          "action": "Use only with clinician monitoring for bleeding signs.",
+          "sources": ["https://www.nccih.nih.gov/health/garlic"]
+        },
+        {
+          "drug_class_id": "antiplatelets",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Potential additive platelet inhibition.",
+          "action": "Monitor for bruising or bleeding.",
+          "sources": ["https://www.nccih.nih.gov/health/garlic"]
+        },
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Additive blood pressure lowering may cause symptomatic hypotension.",
+          "action": "Monitor BP when combining garlic supplements with antihypertensive medications.",
+          "sources": ["https://www.nccih.nih.gov/health/garlic"]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_GINGER_BLEEDING",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "ginger"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "surgery_scheduled",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Ginger may influence platelet function at supplemental doses.",
+          "action": "Discuss use before surgery.",
+          "sources": ["https://www.nccih.nih.gov/health/ginger"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Potential additive bleeding risk with anticoagulants.",
+          "action": "Use with monitoring and clinician input.",
+          "sources": ["https://www.nccih.nih.gov/health/ginger"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_GINKGO_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "ginkgo"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Ginkgo biloba increases hepatic CYP450 activity, accelerating metabolism of calcium channel blockers (nicardipine studied) and reducing their antihypertensive effect.",
+          "action": "Inform prescriber. Blood pressure may be less well-controlled. Dose adjustment may be needed.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/ginkgo",
+            "https://pubmed.ncbi.nlm.nih.gov/14598602/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Increases metabolism of calcium channel blockers, reducing their plasma levels and antihypertensive effect.",
+          "action": "Monitor BP control when combining with calcium channel blockers.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/14598602/"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_INGREDIENT_GINSENG",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "ginseng"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "NCCIH reports some evidence of pregnancy safety concerns and expert caution for use.",
+          "action": "Avoid routine use during pregnancy unless clinician-directed.",
+          "sources": ["https://www.nccih.nih.gov/health/asian-ginseng"]
+        },
+        {
+          "condition_id": "diabetes",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Ginsenosides improve insulin sensitivity and increase pancreatic beta-cell insulin secretion. RCTs show significant postprandial glucose reduction.",
+          "action": "Monitor glucose levels when combining with diabetes medications.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/25063071/"]
+        },
+        {
+          "condition_id": "surgery_scheduled",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Ginseng may affect platelet aggregation and coagulation parameters. Case reports of reduced warfarin INR documented.",
+          "action": "Stop ginseng at least 7 days before elective surgery. Inform surgeon.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/asian-ginseng",
+            "https://pubmed.ncbi.nlm.nih.gov/15266021/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Mild additive glucose-lowering effect.",
+          "action": "Monitor for hypoglycemia symptoms.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/25063071/"]
+        },
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Case reports documented reduced warfarin INR with concurrent ginseng use, possibly via CYP enzyme induction.",
+          "action": "Monitor INR closely if combining with warfarin. Inform prescriber.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/15266021/"]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "caution",
+        "lactation_category": "caution",
+        "evidence_level": "probable",
+        "mechanism": "Pregnancy/lactation safety data are limited and concerns are noted in safety reviews.",
+        "notes": "Prefer avoidance unless obstetric team approves.",
+        "sources": ["https://www.nccih.nih.gov/health/asian-ginseng"]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_GOLDENSEAL_PREGNANCY",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "goldenseal"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Goldenseal (berberine-containing) safety concern includes newborn bilirubin/kernicterus risk and should not be used in pregnancy.",
+          "action": "Avoid goldenseal during pregnancy.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/providers/digest/herb-drug-interactions-science"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "avoid",
+        "evidence_level": "established",
+        "mechanism": "NCCIH safety summary advises against use in pregnancy and breastfeeding.",
+        "notes": "Avoid use in pregnancy and breastfeeding.",
+        "sources": [
+          "https://www.nccih.nih.gov/health/providers/digest/herb-drug-interactions-science"
+        ]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_GREEN_TEA_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "green_tea_extract"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Green tea catechins (EGCG) inhibit intestinal OATP transporters, reducing oral bioavailability of nadolol and potentially other beta-blockers, diminishing BP control.",
+          "action": "Avoid taking green tea extract supplements close in time to beta-blockers. Separate doses by several hours.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/25312732/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "EGCG inhibits OATP transporters, reducing beta-blocker absorption and potentially compromising BP control.",
+          "action": "Separate green tea extract from beta-blocker dosing by at least 2-3 hours.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/25312732/"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_GYMNEMA_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "gymnema_sylvestre"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Gymnemic acids reduce intestinal glucose absorption and may stimulate beta-cell regeneration and insulin secretion. Clinical studies show FBG and HbA1c reductions.",
+          "action": "Additive hypoglycemia risk with oral hypoglycemics and insulin. Dose adjustments may be necessary. Monitor glucose.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Additive glucose-lowering effect via multiple mechanisms.",
+          "action": "Monitor blood glucose closely when combining with diabetes medications.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/diabetes-and-dietary-supplements-what-you-need-to-know"
+          ]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_HAWTHORN_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "hawthorn"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Hawthorn extract has mild antihypertensive properties via endothelium-dependent vasodilation and mild ACE-inhibitory activity.",
+          "action": "Inform prescriber. Additive BP lowering may occur with antihypertensives.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/hawthorn",
+            "https://pubmed.ncbi.nlm.nih.gov/11807965/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Additive blood pressure lowering from mild ACE-inhibitory and vasodilatory activity.",
+          "action": "Monitor BP regularly during concurrent use.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/11807965/"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_IODINE_PREGNANCY_EXCESS",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "iodine"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "monitor",
+          "evidence_level": "established",
+          "mechanism": "Iodine is essential in pregnancy, but excessive intake can adversely affect maternal/fetal thyroid function.",
+          "action": "Keep total iodine intake within guideline ranges; avoid excess supplementation.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Iodine-HealthProfessional/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "thyroid_medications",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "High iodine intake can alter thyroid physiology and therapy response.",
+          "action": "Coordinate iodine supplements with thyroid medication management.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Iodine-HealthProfessional/"
+          ]
+        }
+      ],
+      "dose_thresholds": [
+        {
+          "scope": "condition",
+          "target_id": "pregnancy",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 1100,
+          "unit": "mcg",
+          "severity_if_met": "avoid",
+          "severity_if_not_met": "monitor"
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "monitor",
+        "lactation_category": "monitor",
+        "evidence_level": "established",
+        "mechanism": "Both deficiency and excess can be harmful; UL and recommended intake should guide use.",
+        "notes": "Threshold escalates only on excess; baseline reflects required-but-dose-sensitive nutrient status.",
+        "sources": [
+          "https://ods.od.nih.gov/factsheets/Iodine-HealthProfessional/"
+        ]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_IRON_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "iron"
+      },
+      "condition_rules": [],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "Iron chelates with methyldopa and certain ACE inhibitors (captopril) in the GI tract, reducing drug absorption and bioavailability.",
+          "action": "Separate iron supplement from methyldopa or captopril by at least 2 hours.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+          ]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_L_ARGININE_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "l_arginine"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "L-arginine increases nitric oxide production, causing vasodilation and BP reduction (5-7 mmHg systolic). Additive effect with antihypertensives risks excessive hypotension.",
+          "action": "Use with caution alongside antihypertensives. Start low and monitor BP.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/15133406/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Additive vasodilatory effect may enhance hypotensive action beyond intended levels.",
+          "action": "Monitor for dizziness or lightheadedness. Discuss with prescriber.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/15133406/"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_LICORICE_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "licorice"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Glycyrrhizin can increase sodium retention and blood pressure.",
+          "action": "Avoid in uncontrolled blood pressure unless deglycyrrhizinated form is confirmed.",
+          "sources": ["https://www.nccih.nih.gov/health/licorice-root"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "May blunt blood pressure control from antihypertensive therapy.",
+          "action": "Monitor blood pressure and review supplement use with clinician.",
+          "sources": ["https://www.nccih.nih.gov/health/licorice-root"]
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "caution",
+        "evidence_level": "established",
+        "mechanism": "Glycyrrhizin inhibits placental 11-beta-HSD2, allowing excess maternal cortisol to reach the fetus. Finnish cohort studies documented >2-fold preterm delivery risk and neurodevelopmental harm (IQ reduction, ADHD risk) with heavy glycyrrhizin exposure.",
+        "notes": "Avoid during pregnancy. Even confectionery licorice at sustained intake poses risk.",
+        "sources": [
+          "https://www.nccih.nih.gov/health/licorice-root",
+          "https://pubmed.ncbi.nlm.nih.gov/28133296/"
+        ]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_MAGNESIUM_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "magnesium"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Magnesium acts as a natural calcium channel blocker, producing modest BP reductions (2-4 mmHg systolic). Additive effect with pharmaceutical calcium channel blockers may enhance hypotensive action.",
+          "action": "Generally safe at recommended doses. Inform prescriber if supplementing alongside calcium channel blockers. Monitor for dizziness.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "monitor",
+          "evidence_level": "probable",
+          "mechanism": "Additive blood pressure lowering from natural calcium channel blocking activity.",
+          "action": "Monitor BP when supplementing alongside antihypertensives.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+          ]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_POTASSIUM_HYPERTENSION",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "potassium"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "hypertension",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "Potassium supplements combined with ACE inhibitors, ARBs, or potassium-sparing diuretics can cause life-threatening hyperkalemia.",
+          "action": "Do not take potassium supplements without physician approval if on ACE inhibitors, ARBs, or potassium-sparing diuretics.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Potassium-HealthProfessional/"
+          ]
+        },
+        {
+          "condition_id": "kidney_disease",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Impaired renal potassium excretion greatly increases hyperkalemia risk with supplemental potassium.",
+          "action": "Avoid potassium supplements with kidney disease unless directed by nephrologist.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Potassium-HealthProfessional/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "ACE inhibitors and ARBs reduce aldosterone, decreasing renal potassium excretion. Adding exogenous potassium raises serum K+ to dangerous levels.",
+          "action": "Requires serum potassium monitoring. Do not supplement without clinician supervision.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/Potassium-HealthProfessional/"
+          ]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_PSYLLIUM_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "psyllium"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "monitor",
+          "evidence_level": "established",
+          "mechanism": "Soluble viscous fiber delays gastric emptying and slows carbohydrate absorption, reducing postprandial glucose spikes. RCT showed 11% reduction in all-day postprandial glucose.",
+          "action": "Separate dosing from oral diabetes medications by at least 2 hours (fiber delays drug absorption). Monitor glucose.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/10479204/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "monitor",
+          "evidence_level": "established",
+          "mechanism": "Fiber delays absorption of co-administered oral medications including metformin and sulfonylureas.",
+          "action": "Separate psyllium from oral diabetes medications by at least 2 hours.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/10479204/"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_INGREDIENT_ST_JOHNS_WORT",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "st_johns_wort"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "NCCIH notes potential increased birth-defect risk and major drug interaction potential.",
+          "action": "Avoid St. John’s wort during pregnancy unless specialist-supervised.",
+          "sources": ["https://www.nccih.nih.gov/health/st-johns-wort"]
+        },
+        {
+          "condition_id": "hypertension",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "St. John's Wort induces CYP3A4 and P-glycoprotein, reducing plasma levels of calcium channel blockers (nifedipine, amlodipine, verapamil) and potentially other antihypertensives.",
+          "action": "Avoid if taking calcium channel blockers or other CYP3A4-metabolized BP medications.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/st-johns-wort",
+            "https://pubmed.ncbi.nlm.nih.gov/24472406/"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Potent CYP3A4/P-gp induction reduces plasma levels of calcium channel blockers and other CYP3A4-metabolized antihypertensives, compromising BP control.",
+          "action": "Avoid combination. If SJW is discontinued, BP medications may suddenly become more potent, risking hypotension.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/st-johns-wort",
+            "https://pubmed.ncbi.nlm.nih.gov/24472406/"
+          ]
+        },
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "CYP3A4/P-gp induction reduces warfarin plasma levels, decreasing anticoagulant effect. Documented INR reductions requiring warfarin dose increases.",
+          "action": "Avoid combination with warfarin and other anticoagulants.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/st-johns-wort",
+            "https://pubmed.ncbi.nlm.nih.gov/24472406/"
+          ]
+        },
+        {
+          "drug_class_id": "immunosuppressants",
+          "severity": "contraindicated",
+          "evidence_level": "established",
+          "mechanism": "CYP3A4 induction dramatically reduces cyclosporine, tacrolimus, and other immunosuppressant levels. Documented transplant rejections attributed to SJW co-administration.",
+          "action": "Do not use with immunosuppressants. Risk of organ transplant rejection.",
+          "sources": ["https://www.nccih.nih.gov/health/st-johns-wort"]
+        },
+        {
+          "drug_class_id": "statins",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "CYP3A4 induction reduces plasma levels of simvastatin, atorvastatin, and other CYP3A4-metabolized statins.",
+          "action": "Avoid with CYP3A4-metabolized statins or monitor lipid levels closely.",
+          "sources": ["https://www.nccih.nih.gov/health/st-johns-wort"]
+        },
+        {
+          "drug_class_id": "sedatives",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "CYP3A4 induction reduces levels of benzodiazepines (alprazolam, midazolam). Also risk of serotonin syndrome if combined with SSRIs/SNRIs.",
+          "action": "Avoid unsupervised combination with sedatives or antidepressants.",
+          "sources": ["https://www.nccih.nih.gov/health/st-johns-wort"]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "caution",
+        "evidence_level": "probable",
+        "mechanism": "Potential fetal risk and broad CYP/P-gp interactions.",
+        "notes": "Use in pregnancy should be avoided outside specialist care.",
+        "sources": ["https://www.nccih.nih.gov/health/st-johns-wort"]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_VANADIUM_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "vanadyl_sulfate"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Vanadium is insulin-mimetic: activates insulin receptor substrate, inhibits PTP-1B, and reduces hepatic glucose production. Clinical studies showed FBG and HbA1c reductions at 150 mg/day.",
+          "action": "Additive hypoglycemia risk with insulin and oral hypoglycemics. GI side effects common. Use only under medical supervision.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/11176247/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Insulin-mimetic activity creates additive hypoglycemia risk. Narrow therapeutic window.",
+          "action": "Use only under clinician supervision with glucose monitoring.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/11176247/"]
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "avoid",
+        "lactation_category": "avoid",
+        "evidence_level": "probable",
+        "mechanism": "Limited safety data and insulin-mimetic activity present risk concerns.",
+        "notes": "Avoid during pregnancy and lactation.",
+        "sources": [
+          "https://ods.od.nih.gov/factsheets/Vanadium-HealthProfessional/"
+        ]
+      },
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_VITAMIN_A_PREGNANCY_DOSE",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "vitamin_a"
+      },
+      "form_scope": [
+        "retinol",
+        "retinyl palmitate",
+        "retinyl acetate",
+        "micellized vitamin A",
+        "liposomal vitamin A",
+        "vitamin A from cod liver oil",
+        "vitamin a (unspecified)"
+      ],
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "Excess preformed vitamin A intake in pregnancy is associated with teratogenic risk.",
+          "action": "Avoid high-dose preformed vitamin A in pregnancy unless clinician-directed.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/",
+            "https://ods.od.nih.gov/factsheets/Pregnancy-HealthProfessional/"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [
+        {
+          "scope": "condition",
+          "target_id": "pregnancy",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 10000,
+          "unit": "iu",
+          "severity_if_met": "contraindicated",
+          "severity_if_not_met": "caution"
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "caution",
+        "lactation_category": "monitor",
+        "evidence_level": "established",
+        "mechanism": "Dose and form dependent risk is primarily tied to preformed retinoids.",
+        "notes": "Applies to preformed vitamin A forms; carotenoids are not handled by this threshold rule.",
+        "sources": [
+          "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/"
+        ]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_NIACIN_DIABETES",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "vitamin_b3_niacin"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "diabetes",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "At pharmacologic doses (>=1g/day), niacin increases hepatic glucose output and decreases insulin sensitivity. FPG increases of 4-5% and HbA1c increases up to 0.3% documented.",
+          "action": "Can worsen glycemic control. Monitor glucose after initiating niacin or increasing dose. Low-dose niacin in multivitamins is not a concern.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/18381752/"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "hypoglycemics",
+          "severity": "caution",
+          "evidence_level": "established",
+          "mechanism": "Niacin can raise blood glucose, potentially requiring adjustment of diabetes medication doses.",
+          "action": "Monitor glucose closely. Diabetes medication dose adjustment may be needed.",
+          "sources": ["https://pubmed.ncbi.nlm.nih.gov/18381752/"]
+        }
+      ],
+      "dose_thresholds": [
+        {
+          "scope": "condition",
+          "target_id": "diabetes",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 1000,
+          "unit": "mg",
+          "severity_if_met": "avoid",
+          "severity_if_not_met": "monitor"
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-03-18",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_VITAMIN_C_PREGNANCY_EXCESS",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "vitamin_c"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "monitor",
+          "evidence_level": "established",
+          "mechanism": "Vitamin C is essential, but excessive supplemental intake above UL is not recommended in pregnancy.",
+          "action": "Keep vitamin C intake within guideline ranges; avoid high-dose supplementation without clinical need.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
+            "https://ods.od.nih.gov/factsheets/Pregnancy-HealthProfessional/"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [
+        {
+          "scope": "condition",
+          "target_id": "pregnancy",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 2000,
+          "unit": "mg",
+          "severity_if_met": "avoid",
+          "severity_if_not_met": "monitor"
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "monitor",
+        "lactation_category": "monitor",
+        "evidence_level": "established",
+        "mechanism": "Dose-dependent tolerability; excessive daily intake can increase adverse-effect risk.",
+        "notes": "Threshold escalates only when intake exceeds adult UL.",
+        "sources": [
+          "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
+          "https://ods.od.nih.gov/factsheets/Pregnancy-HealthProfessional/"
+        ]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_VITAMIN_E_PREGNANCY_EXCESS",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "vitamin_e"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "monitor",
+          "evidence_level": "established",
+          "mechanism": "Vitamin E is essential, but excessive supplemental intake above established UL is not recommended in pregnancy.",
+          "action": "Keep total daily vitamin E intake within guideline ranges and avoid megadosing.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/",
+            "https://ods.od.nih.gov/factsheets/Pregnancy-HealthProfessional/"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [
+        {
+          "scope": "condition",
+          "target_id": "pregnancy",
+          "basis": "per_day",
+          "comparator": ">",
+          "value": 1000,
+          "unit": "mg",
+          "severity_if_met": "avoid",
+          "severity_if_not_met": "monitor"
+        }
+      ],
+      "pregnancy_lactation": {
+        "pregnancy_category": "monitor",
+        "lactation_category": "monitor",
+        "evidence_level": "established",
+        "mechanism": "Dose-dependent risk profile; high intake can increase adverse-effect risk.",
+        "notes": "Threshold escalates only when intake exceeds adult UL.",
+        "sources": [
+          "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/",
+          "https://ods.od.nih.gov/factsheets/Pregnancy-HealthProfessional/"
+        ]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_INGREDIENT_VITAMIN_K",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "vitamin_k"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "surgery_scheduled",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Vitamin K intake changes coagulation balance around perioperative anticoagulation management.",
+          "action": "Coordinate supplement use with surgeon and stop unless explicitly instructed to continue.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/know-science/how-medications-and-supplements-can-interact/some-medication-supplement-interactions-can-be-serious"
+          ]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "avoid",
+          "evidence_level": "established",
+          "mechanism": "Vitamin K can oppose anticoagulant therapy and alter INR control.",
+          "action": "Do not start/stop without clinician-guided anticoagulation monitoring.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"
+          ]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_VITAMIN_K_MK7_FORM_ONLY",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "vitamin_k"
+      },
+      "form_scope": ["menaquinone_7_mk7"],
+      "condition_rules": [],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Longer half-life menaquinone forms may have prolonged interaction potential with anticoagulants.",
+          "action": "Escalate anticoagulant interaction warning for MK-7 forms.",
+          "sources": [
+            "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"
+          ]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_IQM_YOHIMBE_PREGNANCY",
+      "subject_ref": {
+        "db": "ingredient_quality_map",
+        "canonical_id": "yohimbe"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "probable",
+          "mechanism": "Yohimbe has stimulant and hemodynamic effects with concerning maternal-fetal risk profile.",
+          "action": "Do not use during pregnancy.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/safety",
+            "https://www.fda.gov/consumers/health-fraud-scams/health-fraud-product-database"
+          ]
+        },
+        {
+          "condition_id": "hypertension",
+          "severity": "contraindicated",
+          "evidence_level": "probable",
+          "mechanism": "Adrenergic stimulation may increase blood pressure and cardiovascular risk.",
+          "action": "Do not use in hypertension or cardiovascular risk settings.",
+          "sources": ["https://www.nccih.nih.gov/health/safety"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "antihypertensives",
+          "severity": "avoid",
+          "evidence_level": "probable",
+          "mechanism": "Yohimbe can counter blood pressure-lowering effects.",
+          "action": "Avoid co-use with antihypertensive medications.",
+          "sources": ["https://www.nccih.nih.gov/health/safety"]
+        }
+      ],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "probable",
+        "mechanism": "Safety data are limited and stimulant effects raise risk concerns.",
+        "notes": "Avoid in pregnancy and lactation.",
+        "sources": ["https://www.nccih.nih.gov/health/safety"]
+      },
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_OTHER_GINGER_EXTRACT_BLEEDING",
+      "subject_ref": {
+        "db": "other_ingredients",
+        "canonical_id": "NHA_GINGER_EXTRACT"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "surgery_scheduled",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Concentrated ginger extracts may affect platelet function.",
+          "action": "Review pre-op supplement use.",
+          "sources": ["https://www.nccih.nih.gov/health/ginger"]
+        }
+      ],
+      "drug_class_rules": [
+        {
+          "drug_class_id": "anticoagulants",
+          "severity": "caution",
+          "evidence_level": "probable",
+          "mechanism": "Potential additive bleeding tendency.",
+          "action": "Monitor with clinician guidance.",
+          "sources": ["https://www.nccih.nih.gov/health/ginger"]
+        }
+      ],
+      "pregnancy_lactation": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_BOTAN_BLUE_COHOSH_PREGNANCY",
+      "subject_ref": {
+        "db": "botanical_ingredients",
+        "canonical_id": "blue_cohosh"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "established",
+          "mechanism": "Caulophyllum thalictroides contains caulosaponin and methylcytisine, which stimulate uterine contractions. Case reports document neonatal stroke, heart failure, and multi-organ injury following maternal use near term.",
+          "action": "Do not use during pregnancy.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/blue-cohosh",
+            "https://pubmed.ncbi.nlm.nih.gov/9600579/",
+            "https://pubmed.ncbi.nlm.nih.gov/15070161/"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "established",
+        "mechanism": "Uterotonic glycosides (caulosaponin) and nicotinic alkaloids (methylcytisine) pose direct fetal risk including cardiac toxicity and CNS injury.",
+        "notes": "Multiple case reports of serious neonatal adverse events. ACOG and NCCIH advise against use in pregnancy.",
+        "sources": [
+          "https://www.nccih.nih.gov/health/blue-cohosh",
+          "https://pubmed.ncbi.nlm.nih.gov/9600579/"
+        ]
+      },
+      "form_scope": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_BOTAN_MUGWORT_PREGNANCY",
+      "subject_ref": {
+        "db": "botanical_ingredients",
+        "canonical_id": "mugwort"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "probable",
+          "mechanism": "Artemisia vulgaris contains thujone and other volatile terpenoids with emmenagogue and abortifacient activity. Animal studies demonstrate uterotonic effects.",
+          "action": "Do not use during pregnancy.",
+          "sources": [
+            "https://www.nccih.nih.gov/health/safety",
+            "https://pubmed.ncbi.nlm.nih.gov/16236036/"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "probable",
+        "mechanism": "Thujone-containing Artemisia species have documented emmenagogue activity. Traditional abortifacient use is well-described historically.",
+        "notes": "Avoid all Artemisia vulgaris preparations during pregnancy and lactation.",
+        "sources": [
+          "https://www.nccih.nih.gov/health/safety",
+          "https://pubmed.ncbi.nlm.nih.gov/16236036/"
+        ]
+      },
+      "form_scope": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    },
+    {
+      "id": "RULE_BOTAN_RUE_PREGNANCY",
+      "subject_ref": {
+        "db": "botanical_ingredients",
+        "canonical_id": "rue"
+      },
+      "condition_rules": [
+        {
+          "condition_id": "pregnancy",
+          "severity": "contraindicated",
+          "evidence_level": "probable",
+          "mechanism": "Ruta graveolens contains furanoquinoline alkaloids (dictamnine, skimmianine) and furanocoumarins with established abortifacient activity. Animal studies confirm embryotoxic and teratogenic effects at moderate doses.",
+          "action": "Do not use during pregnancy.",
+          "sources": [
+            "https://pubmed.ncbi.nlm.nih.gov/12495553/",
+            "https://pubmed.ncbi.nlm.nih.gov/19146936/"
+          ]
+        }
+      ],
+      "drug_class_rules": [],
+      "dose_thresholds": [],
+      "pregnancy_lactation": {
+        "pregnancy_category": "contraindicated",
+        "lactation_category": "avoid",
+        "evidence_level": "probable",
+        "mechanism": "Ruta alkaloids cause uterine smooth muscle contraction and have embryotoxic effects demonstrated in animal models.",
+        "notes": "Rue is a well-documented traditional abortifacient. Avoid all preparations during pregnancy and lactation.",
+        "sources": [
+          "https://pubmed.ncbi.nlm.nih.gov/12495553/",
+          "https://pubmed.ncbi.nlm.nih.gov/19146936/"
+        ]
+      },
+      "form_scope": null,
+      "last_reviewed": "2026-02-28",
+      "review_owner": "pharmaguide_clinical_team"
+    }
+  ]
+}
