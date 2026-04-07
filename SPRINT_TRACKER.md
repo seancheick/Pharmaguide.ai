@@ -100,31 +100,42 @@ Key objectives:
 
 ## Sprint 0: Foundation + Profile Setup
 
-**Status:** NOT STARTED  
-**Timeline:** Week 1-2  
+**Status:** IN PROGRESS
+**Timeline:** Week 1-2
 **Effort estimate:** 15-25 pts
 
 ### Tasks
 
-- [ ] Initialize Flutter project with correct package name and bundle ID
-- [ ] Configure pubspec.yaml with all V1.0 dependencies (riverpod, go_router, drift, supabase_flutter, mobile_scanner, share_plus, cached_network_image, background_downloader, flutter_local_notifications, lucide_icons)
-- [ ] Set up app_theme.dart with light + dark mode (colors, typography, shadows, spacing -- no colors outside theme)
+- [x] Initialize Flutter project with correct package name and bundle ID (`com.pharmaguide.app`, iOS+Android only)
+- [x] Configure pubspec.yaml with all V1.0 dependencies (riverpod, go_router, drift, supabase_flutter, mobile_scanner, share_plus, etc.)
+- [x] Create CLAUDE.md with project rules and architecture overview
+- [x] Core constants: Severity enum (5 levels, weights, e2cPenalty, colors) + EvidenceLevel enum
+- [x] Core constants: AppColors (severity, score, UI tokens)
+- [x] Core constants: SchemaIds (frozen 14 conditions, 9 drug classes, 18 goals, 5 age brackets with labels)
+- [x] Core models: InteractionResult with stackPenaltyFor(), InteractionType, InteractionSource enums
+- [x] Core models: FitScoreResult with displayText formatting
+- [x] Core models: StackSafetyScore with RiskTier enum (5 tiers from score)
+- [x] Core models: SynergyResult and TimingOptimization
+- [x] SafeJson extensions (safeString, safeDouble, safeInt, safeBool, safeStringList, safeMap)
+- [x] ReferenceDataRepository (lazy-cached loaders for 4 bundled JSON files)
+- [x] Bundle reference data from pipeline (rda_optimal_uls, goals, taxonomy, timing placeholder)
+- [x] Create core_database.dart (Drift schema for pharmaguide_core.db — 88 columns, read-only)
+- [x] Create user_database.dart (Drift schema for user_data.db — profile, stack, favorites, cache, history)
+- [x] Run Drift code generation (build_runner)
+- [x] 25 tests passing, flutter analyze clean
+- [ ] Set up app_theme.dart with light + dark mode (WCAG AA colors, Inter typography, 8dp grid)
 - [ ] Set up GoRouter with ShellRoute for five tabs (Home, Scan, Stack, Chat, Profile)
-- [ ] Create reference_db.dart (Drift schema for pharmaguide_core.db -- read-only)
-- [ ] Create user_db.dart (Drift schema for user_data.db -- read/write)
-- [ ] Create db_asset_loader.dart to load bundled pharmaguide_core.db from assets
 - [ ] Create supabase_client.dart with initialization
 - [ ] Create crash_reporting_service.dart stub (Crashlytics or Sentry)
 - [ ] Create analytics_service.dart stub
-- [ ] Create reference_data_cache.dart (load reference_data table once at startup)
-- [ ] Create taxonomy_service.dart with debug asserts for condition/drug class counts
+- [ ] Create main.dart + app.dart with proper initialization order (ProviderScope, Supabase init, theme)
+- [ ] Build profile setup flow: basic info (nickname, age bracket, sex)
+- [ ] Build profile setup flow: health goals (18 goals, max 2, conflict detection)
 - [ ] Build profile setup flow: conditions checklist (14 conditions from clinical_risk_taxonomy)
-- [ ] Build profile setup flow: drug class checklist (9 drug classes)
-- [ ] Build profile setup flow: allergen selection (Big 8)
-- [ ] Build profile setup flow: basic info (age range, biological sex for dosing)
+- [ ] Build profile setup flow: drug class checklist (9 drug classes with user-friendly labels)
+- [ ] Build profile setup flow: allergen selection (17 food/supplement allergens)
+- [ ] Build profile setup flow: review & save with completeness score
 - [ ] Store profile in user_data.db user_profile table
-- [ ] Create main.dart + app.dart with proper initialization order
-- [ ] Write database schema tests (verify tables exist, columns match export schema)
 - [ ] Write profile persistence tests
 - [ ] Splash screen (flutter_native_splash, brand color #0A7D6F, logo, 1.5s)
 - [ ] App icon design (teal shield, white checkmark/pill)
@@ -709,3 +720,6 @@ Key objectives:
 | Date | Sprint | Change |
 |------|--------|--------|
 | 2026-04-07 | -- | Initial sprint tracker created |
+| 2026-04-07 | 0 | Tasks 1-6 complete: project init, constants, models, JSON helpers, ref data, both Drift DBs (25 tests passing) |
+| 2026-04-07 | -- | Expanded all sprints with missing MVP features (+31 tasks) |
+| 2026-04-07 | -- | Aligned format with Obsidian vault (YAML frontmatter, wikilinks, status legend) |
