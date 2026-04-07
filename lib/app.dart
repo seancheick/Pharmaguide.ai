@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
+import 'package:pharmaguide/features/scanner/scanner_screen.dart';
+import 'package:pharmaguide/features/search/search_screen.dart';
 
 // Placeholder screens — will be replaced by real implementations
 class _PlaceholderScreen extends StatelessWidget {
@@ -23,18 +26,10 @@ class _PlaceholderScreen extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const _PlaceholderScreen(title: 'Home');
-}
-
 class ScanScreen extends StatelessWidget {
   const ScanScreen({super.key});
   @override
-  Widget build(BuildContext context) =>
-      const _PlaceholderScreen(title: 'Scan');
+  Widget build(BuildContext context) => const ScannerScreen();
 }
 
 class StackScreen extends StatelessWidget {
@@ -79,6 +74,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/profile/setup',
       builder: (_, __) => const ProfileSetupScreen(),
+    ),
+    GoRoute(
+      path: '/search',
+      builder: (_, __) => const SearchScreen(),
     ),
     GoRoute(
       path: '/product/:dsldId',
