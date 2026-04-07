@@ -1,7 +1,19 @@
+---
+tags:
+  - moc
+  - knowledge-base
+aliases:
+  - Knowledge Base
+  - Second Brain
+related:
+  - "[[SPRINT_TRACKER]]"
+  - "[[lessons-learned]]"
+  - "[[architecture-decisions]]"
+---
 # PharmaGuide Knowledge Base
 
-> Map of Content (MOC) for the PharmaGuide Flutter app project.  
-> This vault contains institutional knowledge, architectural decisions, and operational patterns.  
+> Map of Content (MOC) for the PharmaGuide Flutter app project.
+> This vault contains institutional knowledge, architectural decisions, and operational patterns.
 > Updated: 2026-04-07
 
 ---

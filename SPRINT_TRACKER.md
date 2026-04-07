@@ -1,60 +1,100 @@
-# PharmaGuide Flutter MVP — Sprint Tracker
+---
+tags:
+  - sprints
+  - execution
+  - tracking
+aliases:
+  - Sprint Board
+related:
+  - "[[ROADMAP]]"
+  - "[[LESSONS_LEARNED]]"
+  - "[[architecture-decisions]]"
+  - "[[pipeline-reference]]"
+  - "[[flutter-patterns]]"
+  - "[[debugging-playbook]]"
+---
+# PharmaGuide Flutter — Sprint Tracker
 
-> **Version:** V1.0  
-> **Updated:** 2026-04-07  
-> **Current Sprint:** Sprint 0  
-> **Overall Status:** IN PROGRESS
+> [!info] Related Docs
+>
+> - [[ROADMAP]] — Complete roadmap V1.0 through V3.1 (`docs/superpowers/specs/2026-04-07-flutter-complete-roadmap-design.md`)
+> - [[lessons-learned]] — What we learned each sprint
+> - [[architecture-decisions]] — ADR log with rationale
+> - [[pipeline-reference]] — Pipeline data structures, schemas, enums
+> - [[flutter-patterns]] — Conventions for this Flutter app
+> - [[debugging-playbook]] — Common issues and fixes
+
+**Version:** V1.0
+**Updated:** 2026-04-07
+**Current Sprint:** Sprint 0
+**Overall Status:** IN PROGRESS
+
+Update rules:
+
+- Update this file during implementation.
+- Mirror status/sprint changes to [[lessons-learned]] when unexpected.
+- Do not mark a task `Done` without fresh verification evidence.
+
+Status legend:
+- `[x]` = `Done`
+- `[-]` = `In Progress` or `Review`
+- `[ ]` = `Ready` or `Backlog`
 
 ---
 
 ## AGENT RULES
 
-1. **NEVER mark a task as done unless ALL Definition of Done criteria pass.**
+1. **NEVER mark a task `[x]` unless ALL Definition of Done criteria pass.**
 2. **Run verification commands BEFORE marking complete.**
-3. **If a test fails, the task is NOT DONE -- fix it first.**
+3. **If a test fails, the task is NOT done — fix it first.**
 4. **Update this file after every completed task.**
-5. **Add lessons learned when something unexpected happens.**
-6. **Do not skip Definition of Done verification steps. Partial completion is NOT completion.**
+5. **Add to [[lessons-learned]] when something unexpected happens.**
+6. **Partial completion is NOT completion. Use `[-]` for in-progress.**
 
 ---
 
 ## CURRENT SPRINT
 
-**Sprint 0: Foundation + Profile Setup** (Week 1-2)  
-Status: NOT STARTED
+**Sprint 0: Foundation + Profile Setup** (Week 1-2)
+Status: IN PROGRESS
 
 Key objectives:
 - Flutter project scaffolding with Riverpod 3.x, GoRouter, Drift
+- Core constants (severity, colors, schema IDs) and models (InteractionResult, FitScoreResult, StackSafetyScore)
 - Both Drift databases created (pharmaguide_core.db + user_data.db)
-- Theme system (light + dark)
+- Theme system (light + dark) with WCAG AA colors
 - Five-tab shell navigation
 - Supabase client initialized
-- Crash reporting + analytics stubs
+- Splash screen + app icon
 - Profile setup flow (conditions, drug classes, allergens)
 
 ---
 
 ## NEXT UP
 
-**Sprint 1: Database + Core Services** (Week 3-4)  
-- ScoreFitCalculator with full test coverage
-- Sealed Warning types + DetailBlob model
-- Parser smoke tests with real-shaped JSON fixtures
-- TaxonomyService with 14 conditions + 9 drug classes
-- SafeJson extensions for all JSON parsing
+**Sprint 1: Database + Core Services** (Week 3-4)
+- Reference data repository + JSON helpers
+- Offline mode indicator
+- Freemium gating service (guest: 10 scans, free: 20/day)
+- Supabase sync service
+- Guest mode support
 
-**Sprint 2: Product Catalog + Search** (Week 5-6)  
+**Sprint 2: Product Catalog + Search** (Week 5-6)
 - FTS search with 300ms debounce, LIMIT 50, latest-query-wins
-- Home screen with carousels (top-rated, recently scanned)
-- Product list/grid views with verdict badges
+- Modular home screen widgets (SearchBar, StackHealth, RecentScans, ProfileCompleteness)
+- Product card with verdict badges
 - Barcode scan flow (camera permissions, UPC lookup)
+- Product not found submission flow
+- Decision-first scan result (color flash + haptics)
 
-**Sprint 3: Product Detail + Score Transparency** (Week 7-8)  
+**Sprint 3: Product Detail + Score Transparency** (Week 7-8)
 - Result screen with score ring, verdict banner, grade
-- Five pillar cards (Ingredient Quality, Safety, Evidence, Brand Trust, Dose Adequacy)
+- Section score cards (Ingredient Quality, Safety, Evidence, Brand Trust)
 - Detail blob fetch + cache + shimmer states
-- B0 gate (banned/recalled hard-stop screen)
-- Condition alert banners from interaction_summary_hint
+- BLOCKED product handling: no score, red banner with FDA links
+- Score education overlay
+- Better Alternatives section
+- Interaction warnings with severity + evidence + clickable PMIDs
 
 ---
 
@@ -640,15 +680,15 @@ Key objectives:
 
 ## VERSION ROADMAP
 
-| Version | Codename | Description |
-|---------|----------|-------------|
-| **V1.0** | MVP | Core scan, search, score transparency, FitScore, stack safety, social sharing (Sprints 0-8) |
-| V1.1 | Refinement | Drug class derived from stack (remove profile checklist), enhanced interaction rules, Pro paywall |
-| V1.2 | Intelligence | AI-powered supplement recommendations, wishlist interaction analysis, comparisons |
-| V2.0 | Platform | Server-side search, PowerSync real-time sync, delta DB updates, community features |
-| V2.1 | Social | User reviews, supplement journals, community stacks |
-| V3.0 | Enterprise | Healthcare provider portal, pharmacy integration, insurance partnerships |
-| V3.1 | Global | International regulatory databases (EU EFSA, Health Canada, TGA), multi-language |
+| Version | Identity | Sprints | Key Features |
+|---------|----------|---------|-------------|
+| **V1.0** | Core Product | 0-8 | Scan, score, FitScore, stack safety, social sharing, full profile tab |
+| **V1.1** | Medication Intelligence | 9-11 | RxNorm medication stack, StackSafetyEngine, depletion checker, product comparison |
+| **V1.2** | Trust & Transparency | 12-13 | FitScore explanation layer, recompute strategy, trust layer UI, doctor PDF |
+| **V2.0** | AI Intelligence | 14-19 | Gate-based AI chat, alternative suggestions, nutrient gap analysis, prescription OCR |
+| **V2.1** | Engagement & Retention | 20-22 | Dose reminders, reorder alerts, starter stacks, FDA notifications, feedback loop |
+| **V3.0** | Platform & Ecosystem | 23-27 | B2B REST API, white-label SDK, "Verified" badge, family profiles, practitioner portal |
+| **V3.1** | Premium Intelligence | 28-30 | Lab integration, interaction matrix, clinical governance, drug-drug interactions |
 
 ---
 
