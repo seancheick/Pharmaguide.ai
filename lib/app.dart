@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
+import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 
 // Placeholder screens — will be replaced by real implementations
 class _PlaceholderScreen extends StatelessWidget {
@@ -72,11 +74,11 @@ final _router = GoRouter(
     // Routes outside the shell (no bottom nav)
     GoRoute(
       path: '/onboarding',
-      builder: (_, __) => const _PlaceholderScreen(title: 'Onboarding'),
+      builder: (_, __) => const OnboardingScreen(),
     ),
     GoRoute(
       path: '/profile/setup',
-      builder: (_, __) => const _PlaceholderScreen(title: 'Profile Setup'),
+      builder: (_, __) => const ProfileSetupScreen(),
     ),
     GoRoute(
       path: '/product/:dsldId',
