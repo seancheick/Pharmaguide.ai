@@ -6,6 +6,7 @@ import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
+import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
 // Placeholder screens — will be replaced by real implementations
@@ -40,12 +41,6 @@ class ChatScreen extends StatelessWidget {
       const _PlaceholderScreen(title: 'AI Pharmacist');
 }
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const _PlaceholderScreen(title: 'Profile');
-}
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -57,7 +52,7 @@ final _router = GoRouter(
         GoRoute(path: '/scan', builder: (_, __) => const ScanScreen()),
         GoRoute(path: '/stack', builder: (_, __) => const StackScreen()),
         GoRoute(path: '/chat', builder: (_, __) => const ChatScreen()),
-        GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+        GoRoute(path: '/profile', builder: (_, __) => const SettingsScreen()),
       ],
     ),
     // Routes outside the shell (no bottom nav)
