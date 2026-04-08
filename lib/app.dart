@@ -6,6 +6,7 @@ import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
+import 'package:pharmaguide/features/stack/stack_screen.dart';
 
 // Placeholder screens — will be replaced by real implementations
 class _PlaceholderScreen extends StatelessWidget {
@@ -30,13 +31,6 @@ class ScanScreen extends StatelessWidget {
   const ScanScreen({super.key});
   @override
   Widget build(BuildContext context) => const ScannerScreen();
-}
-
-class StackScreen extends StatelessWidget {
-  const StackScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const _PlaceholderScreen(title: 'My Stack');
 }
 
 class ChatScreen extends StatelessWidget {
