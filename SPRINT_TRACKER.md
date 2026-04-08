@@ -60,7 +60,7 @@ Status legend:
 **Wiring Phase** — Connecting built scaffolding to real data + remaining polish
 Status: IN PROGRESS
 
-Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffolded, all core logic built and tested. Now connecting everything together.
+Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffolded, all core logic built and tested. Code review complete (15 fixes). Schema migration + first-launch DB download wired. App runs on device with real Supabase data. Now: FitScore UI integration + stack wiring.
 
 ---
 
@@ -713,3 +713,8 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 | 2026-04-08 | 2      | Sprint 2 DONE: searchProducts() LIKE query wired (300ms debounce, latest-query-wins), scanner→findByUpc() wired, recent searches (SharedPreferences), list/grid toggle, product-not-found bottom sheet, verdict flash + haptic |
 | 2026-04-08 | 3      | Sprint 3 DONE: coreDatabaseProvider wired at startup, detail blob 24h cache, condition alert banner, score education overlay, BetterAlternatives, 800ms score ring animation, NOT_SCORED grey circle, citation links via url_launcher |
 | 2026-04-08 | --     | **TOTAL: 97 tests passing, 57 source files, 0 analysis issues**                                                 |
+| 2026-04-08 | --     | Code review: 15 fixes (3 critical, 5 high, 6 medium, 4 low). Hardcoded colors→AppTheme.brandTeal, AppColors.of(context) for dark mode, unified scoreColor thresholds, narrowed catch clauses, const constructors, strict analysis_options.yaml |
+| 2026-04-08 | --     | Schema resilience: 26 missing v1.3.0 columns added via _ensureV130Columns() migration. All integer flags now nullable. Pipeline DB has 61 cols, Drift defines 88 — migration bridges the gap. |
+| 2026-04-08 | --     | First-launch fix: SyncService corrected bucket (pharmaguide) + versioned path from export_manifest. main.dart downloads core DB on first launch if missing. App tested on simulator with 783 live products from Supabase. |
+| 2026-04-08 | --     | Infra: iOS Podfile platform set to 13.0 + minimum deployment target enforced. dart fix --apply (24 const fixes). Polished README pushed to github.com/seancheick/Pharmaguide.ai |
+| 2026-04-08 | --     | **TOTAL: 97 tests passing, 63 source files, 0 analysis errors, 21 commits** |
