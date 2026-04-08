@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
@@ -35,21 +34,21 @@ void main() {
   group('InteractionWarning sorting', () {
     test('sorts by severity weight descending', () {
       final warnings = [
-        InteractionWarning(
+        const InteractionWarning(
           severity: Severity.monitor,
           evidenceLevel: EvidenceLevel.theoretical,
           title: 'Low',
           mechanism: '',
           management: '',
         ),
-        InteractionWarning(
+        const InteractionWarning(
           severity: Severity.contraindicated,
           evidenceLevel: EvidenceLevel.established,
           title: 'Critical',
           mechanism: '',
           management: '',
         ),
-        InteractionWarning(
+        const InteractionWarning(
           severity: Severity.caution,
           evidenceLevel: EvidenceLevel.probable,
           title: 'Medium',

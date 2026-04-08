@@ -26,9 +26,9 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-07
-**Current Sprint:** Sprint 2-3 (wiring phase — connecting scaffolding to real data)
-**Overall Status:** Foundation complete. 86 tests, 46 source files. Wiring + polish remaining.
+**Updated:** 2026-04-08
+**Current Sprint:** Sprint 4 (FitScore UI integration) / Sprint 5a (Stack wiring)
+**Overall Status:** Sprints 0-3 fully done. 97 tests, 57 source files. Core scan→detail flow fully wired. FitScore UI + stack wiring remaining.
 
 Update rules:
 
@@ -66,21 +66,16 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 
 ## NEXT UP
 
-**Wiring tasks (highest priority):**
-- Wire FTS search to CoreDatabase (debounced, LIMIT 50, latest-query-wins)
-- Wire barcode scan to CoreDatabase.findByUpc()
-- Wire product detail to CoreDatabase.findById() + detail blob cache
-- Wire FitScore calculators into product detail screen
-- Wire stack add flow through StackInteractionChecker -> safety modal -> persist
-- Wire profile save to UserDatabase
-- Freemium gating (guest: 10 scans, free: 20/day)
-- Offline mode indicator
+**Sprint 4 remaining (FitScore UI):**
+- Integrate FitScore into product detail screen UI
+- Build FitScore explanation UI (which profile factors affected score)
+- Build "personalized for you" badge
+- FitScore recalculation on profile change
 
-**Polish tasks:**
-- Splash screen + app icon
-- WCAG AA theme (light + dark, Inter font, 8dp grid)
-- Crash reporting + analytics stubs
-- Score education overlay, coach marks, haptics
+**Sprint 5a remaining (Stack wiring):**
+- Wire add-to-stack from product detail (trigger safety check first)
+- Wire remove-from-stack with undo snackbar
+- Supabase sync for stack changes (write local first)
 
 **Then Sprint 8: Testing + QA + Ship**
 
@@ -122,14 +117,14 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 - [x] Build profile setup flow: review & save with completeness score
 - [x] ProfileNotifier with StateNotifier (toggle methods, max-2 goals enforcement)
 - [x] 86 tests passing, flutter analyze clean
-- [ ] Set up app_theme.dart with WCAG AA colors (light + dark), Inter typography, 8dp grid
-- [ ] Create crash_reporting_service.dart stub (Crashlytics or Sentry)
-- [ ] Create analytics_service.dart stub
-- [ ] Store profile in user_data.db user_profile table (DB persistence wiring)
-- [ ] Write profile persistence tests (read back from DB after save)
-- [ ] Splash screen (flutter_native_splash, brand color #0A7D6F, logo, 1.5s)
-- [ ] App icon design (teal shield, white checkmark/pill)
-- [ ] Design system: Inter font family + 8dp spacing grid
+- [x] Set up app_theme.dart with WCAG AA colors (light + dark), Inter typography, 8dp grid
+- [x] Create crash_reporting_service.dart stub (Crashlytics or Sentry)
+- [x] Create analytics_service.dart stub
+- [x] Store profile in user_data.db user_profile table (DB persistence wiring)
+- [x] Write profile persistence tests (read back from DB after save)
+- [x] Splash screen (flutter_native_splash, brand color #0A7D6F, logo, 1.5s)
+- [x] App icon design (teal shield, white checkmark/pill)
+- [x] Design system: Inter font family + 8dp spacing grid
 
 ### Definition of Done
 
@@ -166,9 +161,10 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 
 ## Sprint 1: Database + Core Services
 
-**Status:** MOSTLY DONE (via Sprint 0 acceleration)
+**Status:** DONE
 **Timeline:** Week 3-4
-**Note:** Most Sprint 1 tasks were completed during Sprint 0 build — SafeJson, ReferenceDataRepository, Drift DBs, Supabase client all done.
+**Completed:** 2026-04-08
+**Note:** Most Sprint 1 tasks were completed during Sprint 0 build — SafeJson, ReferenceDataRepository, Drift DBs, Supabase client all done. Remaining items (offline indicator, freemium gating, guest mode, test fixtures, scan limit service) completed 2026-04-08.
 
 ### Tasks
 
@@ -179,11 +175,11 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 - [x] Supabase client with env-var config (completed in Sprint 0)
 - [x] SyncService with atomic DB swap + rollback (completed in Sprint 0)
 - [x] DetailBlobService for on-demand fetch (completed in Sprint 0)
-- [ ] Offline mode indicator (header status bar: online/offline/syncing)
-- [ ] Freemium gating service (Hive for guest: 10 lifetime scans, Supabase user_usage for signed-in: 20/day)
-- [ ] Guest mode support (app usable without sign-in, limited features)
-- [ ] Create test fixtures directory with representative JSON blobs
-- [ ] Implement scan_limit_service.dart stub
+- [x] Offline mode indicator (header status bar: online/offline/syncing)
+- [x] Freemium gating service (SharedPreferences for guest: 10 lifetime scans, Supabase user_usage for signed-in: 20/day)
+- [x] Guest mode support (app usable without sign-in, limited features)
+- [x] Create test fixtures directory with representative JSON blobs
+- [x] Implement scan_limit_service.dart stub
 
 ### Definition of Done
 
@@ -216,8 +212,9 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 
 ## Sprint 2: Product Catalog + Search
 
-**Status:** MOSTLY DONE (scaffolding complete, DB wiring pending)
+**Status:** DONE
 **Timeline:** Week 5-6
+**Completed:** 2026-04-08
 
 ### Tasks
 
@@ -228,12 +225,12 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 - [x] Home screen greeting (time-based with nickname)
 - [x] Profile completeness banner (shows when < 60%)
 - [x] Search + scan + home widget tests (8 tests)
-- [ ] Wire FTS search to CoreDatabase (debounced 300ms, LIMIT 50, latest-query-wins)
-- [ ] Wire barcode scan to CoreDatabase.findByUpc()
-- [ ] Implement recent searches (Hive local storage)
-- [ ] Build product list/grid toggle view
-- [ ] Product not found flow (submission modal with photo + manual entry)
-- [ ] Decision-first scan result (color flash + haptic feedback on scan)
+- [x] Wire FTS search to CoreDatabase (debounced 300ms, LIMIT 50, latest-query-wins) — LIKE-based searchProducts() since no FTS virtual table needed
+- [x] Wire barcode scan to CoreDatabase.findByUpc() — ConsumerStatefulWidget with loading overlay
+- [x] Implement recent searches (SharedPreferences-backed, max 10, deduplication)
+- [x] Build product list/grid toggle view — list/grid toggle with result count header
+- [x] Product not found flow (bottom sheet with UPC, "Scan Another" + "Search Instead" buttons)
+- [x] Decision-first scan result (500ms verdict color flash + HapticFeedback.mediumImpact before navigation)
 
 ### Definition of Done
 
@@ -269,8 +266,9 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 
 ## Sprint 3: Product Detail + Score Transparency
 
-**Status:** MOSTLY DONE (core widgets built, detail blob wiring + polish pending)
+**Status:** DONE
 **Timeline:** Week 7-8
+**Completed:** 2026-04-08
 
 ### Tasks
 
@@ -282,14 +280,14 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 - [x] BLOCKED product handling: no score displayed, red banner with reason + FDA source URLs
 - [x] Shimmer loading for detail blob sections
 - [x] Product detail tests: score breakdown (4 labels, values, null handling), interaction warnings (sorting, parsing)
-- [ ] Wire to real CoreDatabase provider (currently uses placeholder)
-- [ ] Implement detail blob fetch + cache in user_data.db
-- [ ] Build condition alert banner from interaction_summary_hint
-- [ ] Score education overlay ("What does this score mean?")
-- [ ] Better Alternatives section (similar products with higher scores)
-- [ ] Score ring animation (animated count from 0 to score)
-- [ ] Handle NOT_SCORED products (no ring, explanation text)
-- [ ] Clinical citation links (WebView for PMID URLs)
+- [x] Wire to real CoreDatabase provider — coreDatabaseProvider added to database_providers.dart, overridden at app startup in main.dart
+- [x] Implement detail blob fetch + cache in user_data.db — 24h TTL via getCachedDetail()/cacheDetail(), Supabase fetch on miss
+- [x] Build condition alert banner from interaction_summary_hint — amber _ConditionAlertBanner from SQLite field (no network needed)
+- [x] Score education overlay ("What does this score mean?") — _ScoreEducationSheet modal explaining 4 pillars + verdicts
+- [x] Better Alternatives section — BetterAlternativesSection widget using findAlternatives() same-category higher-scored products
+- [x] Score ring animation — AnimationController 800ms easeOutCubic, Tween 0→score
+- [x] Handle NOT_SCORED products — grey _NotScoredCircle with "N/A" and explanation text
+- [x] Clinical citation links — url_launcher LaunchMode.externalApplication (no WebView needed)
 
 ### Definition of Done
 
@@ -710,4 +708,8 @@ Foundation complete: 86 tests, 46 source files, 15 commits. All screens scaffold
 | 2026-04-08 | 5b     | Sprint 5b DONE: StackInteractionChecker + StackSafetyScorer with 10 tests.                                     |
 | 2026-04-08 | 6      | Sprint 6 partial: ShareService built (product + stack sharing). Deep links pending.                             |
 | 2026-04-08 | 7      | Sprint 7 partial: Full SettingsScreen (6 sections + privacy dashboard). Auth + OTA pending.                     |
-| 2026-04-08 | --     | **TOTAL: 86 tests passing, 46 source files, 15 commits, 0 analysis issues**                                    |
+| 2026-04-08 | 0      | Sprint 0 FULLY DONE: app_theme.dart (WCAG AA), crash/analytics stubs, profile DB persistence + 8 tests, splash + icon config |
+| 2026-04-08 | 1      | Sprint 1 DONE: offline indicator, freemium gating, guest mode, scan_limit_service, test fixtures (5 JSON blobs) |
+| 2026-04-08 | 2      | Sprint 2 DONE: searchProducts() LIKE query wired (300ms debounce, latest-query-wins), scanner→findByUpc() wired, recent searches (SharedPreferences), list/grid toggle, product-not-found bottom sheet, verdict flash + haptic |
+| 2026-04-08 | 3      | Sprint 3 DONE: coreDatabaseProvider wired at startup, detail blob 24h cache, condition alert banner, score education overlay, BetterAlternatives, 800ms score ring animation, NOT_SCORED grey circle, citation links via url_launcher |
+| 2026-04-08 | --     | **TOTAL: 97 tests passing, 57 source files, 0 analysis issues**                                                 |

@@ -10,7 +10,7 @@ class ProductsCore extends Table {
   TextColumn get upcSku => text().named('upc_sku').nullable()();
   TextColumn get imageUrl => text().named('image_url').nullable()();
   IntColumn get imageIsPdf =>
-      integer().named('image_is_pdf').withDefault(const Constant(0))();
+      integer().named('image_is_pdf').nullable()();
   TextColumn get thumbnailKey =>
       text().named('thumbnail_key').nullable()();
   TextColumn get detailBlobSha256 =>
@@ -78,60 +78,60 @@ class ProductsCore extends Table {
 
   // Dietary flags
   IntColumn get isGlutenFree =>
-      integer().named('is_gluten_free').withDefault(const Constant(0))();
+      integer().named('is_gluten_free').nullable()();
   IntColumn get isDairyFree =>
-      integer().named('is_dairy_free').withDefault(const Constant(0))();
+      integer().named('is_dairy_free').nullable()();
   IntColumn get isSoyFree =>
-      integer().named('is_soy_free').withDefault(const Constant(0))();
+      integer().named('is_soy_free').nullable()();
   IntColumn get isVegan =>
-      integer().named('is_vegan').withDefault(const Constant(0))();
+      integer().named('is_vegan').nullable()();
   IntColumn get isVegetarian =>
-      integer().named('is_vegetarian').withDefault(const Constant(0))();
+      integer().named('is_vegetarian').nullable()();
   IntColumn get isOrganic =>
-      integer().named('is_organic').withDefault(const Constant(0))();
+      integer().named('is_organic').nullable()();
   IntColumn get isNonGmo =>
-      integer().named('is_non_gmo').withDefault(const Constant(0))();
+      integer().named('is_non_gmo').nullable()();
 
   // Safety flags
   IntColumn get hasBannedSubstance => integer()
       .named('has_banned_substance')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get hasRecalledIngredient => integer()
       .named('has_recalled_ingredient')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get hasHarmfulAdditives => integer()
       .named('has_harmful_additives')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get hasAllergenRisks => integer()
       .named('has_allergen_risks')
-      .withDefault(const Constant(0))();
+      .nullable()();
   TextColumn get blockingReason =>
       text().named('blocking_reason').nullable()();
 
   // Health-specific
   IntColumn get isProbiotic =>
-      integer().named('is_probiotic').withDefault(const Constant(0))();
+      integer().named('is_probiotic').nullable()();
   IntColumn get containsSugar =>
-      integer().named('contains_sugar').withDefault(const Constant(0))();
+      integer().named('contains_sugar').nullable()();
   IntColumn get containsSodium =>
-      integer().named('contains_sodium').withDefault(const Constant(0))();
+      integer().named('contains_sodium').nullable()();
   IntColumn get diabetesFriendly => integer()
       .named('diabetes_friendly')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get hypertensionFriendly => integer()
       .named('hypertension_friendly')
-      .withDefault(const Constant(0))();
+      .nullable()();
 
   // Manufacturer
   IntColumn get isTrustedManufacturer => integer()
       .named('is_trusted_manufacturer')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get hasThirdPartyTesting => integer()
       .named('has_third_party_testing')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get hasFullDisclosure => integer()
       .named('has_full_disclosure')
-      .withDefault(const Constant(0))();
+      .nullable()();
 
   // JSON arrays (stored as TEXT, parsed in Dart)
   TextColumn get certPrograms =>
@@ -148,13 +148,13 @@ class ProductsCore extends Table {
       text().named('key_nutrients_summary').nullable()();
   IntColumn get containsStimulants => integer()
       .named('contains_stimulants')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get containsSedatives => integer()
       .named('contains_sedatives')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get containsBloodThinners => integer()
       .named('contains_blood_thinners')
-      .withDefault(const Constant(0))();
+      .nullable()();
 
   // v1.3.0: Social Sharing
   TextColumn get shareTitle =>
@@ -173,19 +173,19 @@ class ProductsCore extends Table {
       text().named('secondary_categories').nullable()();
   IntColumn get containsOmega3 => integer()
       .named('contains_omega3')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get containsProbiotics => integer()
       .named('contains_probiotics')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get containsCollagen => integer()
       .named('contains_collagen')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get containsAdaptogens => integer()
       .named('contains_adaptogens')
-      .withDefault(const Constant(0))();
+      .nullable()();
   IntColumn get containsNootropics => integer()
       .named('contains_nootropics')
-      .withDefault(const Constant(0))();
+      .nullable()();
   TextColumn get keyIngredientTags =>
       text().named('key_ingredient_tags').nullable()();
 

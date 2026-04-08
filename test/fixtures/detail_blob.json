@@ -1,0 +1,68 @@
+{
+  "dsld_id": "TEST_001",
+  "product_name": "Nature's Best Vitamin D3 5000 IU",
+  "brand_name": "Nature's Best",
+  "ingredients": [
+    {
+      "name": "Vitamin D3 (Cholecalciferol)",
+      "amount": 5000,
+      "unit": "IU",
+      "rda_male_19_30": 600,
+      "rda_female_19_30": 600,
+      "ul_19_30": 4000,
+      "highest_ul": 4000,
+      "mapped_name": "vitamin_d3",
+      "is_active": true,
+      "evidence_level": "established",
+      "clinical_notes": "Above UL but within therapeutic range for deficiency correction"
+    },
+    {
+      "name": "Olive Oil",
+      "amount": null,
+      "unit": null,
+      "mapped_name": "olive_oil",
+      "is_active": false,
+      "evidence_level": null,
+      "clinical_notes": null
+    }
+  ],
+  "interactions": [
+    {
+      "type": "condition",
+      "target": "kidney_disease",
+      "severity": "caution",
+      "evidence_level": "established",
+      "message": "High-dose Vitamin D may increase calcium levels in kidney disease patients",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/example"
+    }
+  ],
+  "certifications": ["USP Verified", "Non-GMO Project"],
+  "manufacturer_info": {
+    "name": "Nature's Best Inc.",
+    "third_party_tested": true,
+    "gmp_certified": true,
+    "country": "USA"
+  },
+  "scoring_breakdown": {
+    "ingredient_quality": {
+      "score": 22.0,
+      "max": 25.0,
+      "details": "Active ingredient well-dosed, good bioavailability form"
+    },
+    "safety_purity": {
+      "score": 27.0,
+      "max": 30.0,
+      "details": "USP verified, no harmful additives, no contaminant flags"
+    },
+    "evidence_research": {
+      "score": 18.5,
+      "max": 20.0,
+      "details": "Strong clinical evidence for Vitamin D supplementation"
+    },
+    "brand_trust": {
+      "score": 5.0,
+      "max": 5.0,
+      "details": "Trusted manufacturer with third-party testing"
+    }
+  }
+}

@@ -38,7 +38,7 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             // Search bar
-            SliverToBoxAdapter(child: SearchBarWidget()),
+            const SliverToBoxAdapter(child: SearchBarWidget()),
             // Profile completeness banner
             if (profile.completeness < 60)
               SliverToBoxAdapter(

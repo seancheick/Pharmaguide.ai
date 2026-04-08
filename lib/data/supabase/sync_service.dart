@@ -30,15 +30,30 @@ class SyncService {
   }
 
   /// Download the core database from Supabase storage.
-  /// Downloads to a staging file, verifies, then atomically swaps.
+  /// Fetches the current version from export_manifest, then downloads
+  /// from the `pharmaguide` bucket at `v{db_version}/pharmaguide_core.db`.
   Future<void> downloadCoreDb() async {
     final dbPath = await getCoreDbPath();
     final stagingPath = '$dbPath.staging';
 
     try {
+      // Look up current DB version from export_manifest.
+      final manifest = await supabase
+          .from('export_manifest')
+          .select('db_version')
+          .eq('is_current', true)
+          .limit(1)
+          .maybeSingle();
+
+      final dbVersion = manifest?['db_version'] as String?;
+      if (dbVersion == null) {
+        throw Exception('No current export_manifest entry found');
+      }
+
+      final storagePath = 'v$dbVersion/pharmaguide_core.db';
       final bytes = await supabase.storage
-          .from('databases')
-          .download('pharmaguide_core.db');
+          .from('pharmaguide')
+          .download(storagePath);
 
       await File(stagingPath).writeAsBytes(bytes);
 

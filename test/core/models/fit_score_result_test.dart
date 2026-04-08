@@ -4,7 +4,7 @@ import 'package:pharmaguide/core/models/fit_score_result.dart';
 void main() {
   group('FitScoreResult', () {
     test('displayText with complete profile', () {
-      final result = FitScoreResult(
+      const result = FitScoreResult(
         scoreFit20: 15.0,
         scoreCombined100: 85.0,
         e1: 5.0,
@@ -18,7 +18,7 @@ void main() {
     });
 
     test('displayText with missing fields', () {
-      final result = FitScoreResult(
+      const result = FitScoreResult(
         scoreFit20: 8.0,
         scoreCombined100: 73.0,
         e1: 5.0,

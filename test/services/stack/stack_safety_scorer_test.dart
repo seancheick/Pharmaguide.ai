@@ -53,7 +53,7 @@ void main() {
       final result = scorer.compute(
         issues: [_issue(Severity.monitor)],
         synergies: [
-          SynergyResult(
+          const SynergyResult(
             ingredient1: 'D3',
             ingredient2: 'K2',
             description: 'Enhanced absorption',

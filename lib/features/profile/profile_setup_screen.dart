@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
@@ -37,9 +38,20 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
   }
 
-  void _save() {
-    // TODO: Persist to UserDatabase
-    context.go('/');
+  Future<void> _save() async {
+    try {
+      await ref.read(profileProvider.notifier).saveToDb();
+      if (!mounted) return;
+      context.go('/');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to save profile. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _skip() {
@@ -85,7 +97,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             value: (_currentStep + 1) / _totalSteps,
             backgroundColor: AppColors.border,
             valueColor:
-                const AlwaysStoppedAnimation<Color>(Color(0xFF0A7D6F)),
+                const AlwaysStoppedAnimation<Color>(AppTheme.brandTeal),
           ),
           // Steps
           Expanded(
@@ -112,7 +124,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     ? null // Disable until age selected
                     : _nextStep,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0A7D6F),
+                  backgroundColor: AppTheme.brandTeal,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -242,8 +254,8 @@ class _GoalsStep extends ConsumerWidget {
                 label: Text(label),
                 selected: selected,
                 onSelected: atMax ? null : (_) => notifier.toggleGoal(goalId),
-                selectedColor: const Color(0xFFE6F7F5),
-                checkmarkColor: const Color(0xFF0A7D6F),
+                selectedColor: AppTheme.brandTeal.withAlpha(25),
+                checkmarkColor: AppTheme.brandTeal,
               );
             }).toList(),
           ),
@@ -296,8 +308,8 @@ class _HealthProfileStep extends ConsumerWidget {
                 label: Text(label),
                 selected: selected,
                 onSelected: (_) => notifier.toggleCondition(condId),
-                selectedColor: const Color(0xFFE6F7F5),
-                checkmarkColor: const Color(0xFF0A7D6F),
+                selectedColor: AppTheme.brandTeal.withAlpha(25),
+                checkmarkColor: AppTheme.brandTeal,
               );
             }).toList(),
           ),
@@ -319,7 +331,7 @@ class _HealthProfileStep extends ConsumerWidget {
               title: Text(label),
               value: selected,
               onChanged: (_) => notifier.toggleDrugClass(dcId),
-              activeColor: const Color(0xFF0A7D6F),
+              activeColor: AppTheme.brandTeal,
               controlAffinity: ListTileControlAffinity.leading,
               dense: true,
             );
@@ -414,8 +426,8 @@ class _AllergensStep extends ConsumerWidget {
                 label: Text(label),
                 selected: selected,
                 onSelected: (_) => notifier.toggleAllergen(allergenId),
-                selectedColor: const Color(0xFFE6F7F5),
-                checkmarkColor: const Color(0xFF0A7D6F),
+                selectedColor: AppTheme.brandTeal.withAlpha(25),
+                checkmarkColor: AppTheme.brandTeal,
               );
             }).toList(),
           ),
@@ -447,7 +459,7 @@ class _ReviewStep extends ConsumerWidget {
                   style: const TextStyle(
                     fontSize: 48,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0A7D6F),
+                    color: AppTheme.brandTeal,
                   ),
                 ),
                 Text(

@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 
-class ScannerScreen extends StatefulWidget {
+class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
   @override
-  State<ScannerScreen> createState() => _ScannerScreenState();
+  ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final _scannerController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
   );
   bool _hasScanned = false;
+  bool _isLookingUp = false;
+
+  // Verdict flash overlay state
+  Color? _flashColor;
+  bool _showFlash = false;
 
   @override
   void dispose() {
@@ -34,42 +44,129 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (value == null || value.isEmpty) return;
 
     setState(() => _hasScanned = true);
-
-    // TODO: Look up product by UPC via CoreDatabase.findByUpc()
-    // For now, show the scanned barcode
-    _showScanResult(value);
+    _lookUpProduct(value);
   }
 
-  void _showScanResult(String upc) {
+  Future<void> _lookUpProduct(String upc) async {
+    setState(() => _isLookingUp = true);
+
+    try {
+      final db = ref.read(coreDatabaseProvider);
+      final product = await db.findByUpc(upc);
+
+      if (!mounted) return;
+
+      setState(() => _isLookingUp = false);
+
+      if (product != null) {
+        await _showVerdictFlashAndNavigate(product);
+      } else {
+        _showProductNotFound(upc);
+      }
+    } on Exception {
+      if (!mounted) return;
+      setState(() => _isLookingUp = false);
+      _showProductNotFound(upc);
+    }
+  }
+
+  /// Returns the verdict flash color based on the product verdict string.
+  Color _verdictColor(String? verdict) {
+    switch (verdict?.toUpperCase()) {
+      case 'RECOMMENDED':
+        return AppColors.scoreExceptional;
+      case 'GOOD':
+        return AppColors.scoreExcellent;
+      case 'REVIEW':
+      case 'MODERATE':
+        return AppColors.orange;
+      case 'BLOCKED':
+      case 'UNSAFE':
+        return AppColors.red;
+      default:
+        return AppColors.scoreExcellent; // Default to green
+    }
+  }
+
+  /// Flash the verdict color briefly, trigger haptic feedback, then navigate.
+  Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
+    HapticFeedback.mediumImpact();
+
+    final color = _verdictColor(product.verdict);
+    setState(() {
+      _flashColor = color;
+      _showFlash = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    setState(() => _showFlash = false);
+    context.push('/product/${product.dsldId}');
+  }
+
+  void _showProductNotFound(String upc) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
+      builder: (ctx) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle,
-                color: Color(0xFF0A7D6F), size: 48),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.orange.withAlpha(30),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.search_off,
+                  color: AppColors.orange, size: 28),
+            ),
             const SizedBox(height: 16),
-            Text('Barcode scanned: $upc',
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w600)),
+            const Text(
+              'Product Not Found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
-            const Text('Product lookup will be connected in Sprint 2',
-                style: TextStyle(color: AppColors.textSecondary)),
+            Text(
+              'UPC: $upc',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'This product is not in our database yet.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pop(ctx);
                       setState(() => _hasScanned = false);
                     },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                     child: const Text('Scan Another'),
                   ),
                 ),
@@ -77,14 +174,14 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 Expanded(
                   child: FilledButton(
                     onPressed: () {
-                      Navigator.pop(context);
-                      // TODO: Navigate to product detail when DB lookup works
-                      // context.push('/product/$dsldId');
+                      Navigator.pop(ctx);
+                      context.push('/search');
                     },
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0A7D6F),
+                      backgroundColor: AppTheme.brandTeal,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('View Details'),
+                    child: const Text('Search Instead'),
                   ),
                 ),
               ],
@@ -93,7 +190,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ],
         ),
       ),
-    );
+    ).whenComplete(() {
+      // If bottom sheet is dismissed (e.g. swipe down), allow re-scan
+      if (mounted) {
+        setState(() => _hasScanned = false);
+      }
+    });
   }
 
   @override
@@ -160,6 +262,44 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          // Loading indicator
+          if (_isLookingUp)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text(
+                      'Looking up product...',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // Verdict flash overlay — always in tree so AnimatedOpacity can animate
+          IgnorePointer(
+            ignoring: !_showFlash,
+            child: AnimatedOpacity(
+              opacity: _showFlash ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Container(
+                color: (_flashColor ?? Colors.transparent).withAlpha(180),
+                child: Center(
+                  child: Icon(
+                    _flashColor == AppColors.red
+                        ? Icons.warning_rounded
+                        : Icons.check_circle_rounded,
+                    color: Colors.white,
+                    size: 80,
+                  ),
+                ),
+              ),
             ),
           ),
         ],

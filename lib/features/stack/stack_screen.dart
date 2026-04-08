@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 
 /// My Stack screen — shows all products in the user's supplement stack
 /// with Stack Safety Score and interaction alerts.
@@ -47,7 +48,7 @@ class _StackTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.layers_outlined,
+            const Icon(Icons.layers_outlined,
                 size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
             const Text(
@@ -66,7 +67,7 @@ class _StackTab extends StatelessWidget {
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('Scan a Product'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF0A7D6F),
+                backgroundColor: AppTheme.brandTeal,
               ),
             ),
           ],
@@ -81,21 +82,21 @@ class _WishlistTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.bookmark_border,
                 size: 64, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'No saved products',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Save products from search results to compare later',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary),

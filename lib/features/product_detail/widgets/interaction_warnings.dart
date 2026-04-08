@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// A single interaction warning entry parsed from the detail blob.
 class InteractionWarning {
@@ -247,19 +249,22 @@ class _SourceUrlLink extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4),
       child: GestureDetector(
         onTap: () {
-          // TODO: launch url via url_launcher when wired up
+          final uri = Uri.tryParse(url);
+          if (uri != null) {
+            launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
         },
         child: Row(
           children: [
             const Icon(Icons.open_in_new,
-                size: 12, color: Color(0xFF0A7D6F)),
+                size: 12, color: AppTheme.brandTeal),
             const SizedBox(width: 4),
             Expanded(
               child: Text(
                 url,
                 style: const TextStyle(
                   fontSize: 11,
-                  color: Color(0xFF0A7D6F),
+                  color: AppTheme.brandTeal,
                   decoration: TextDecoration.underline,
                   overflow: TextOverflow.ellipsis,
                 ),

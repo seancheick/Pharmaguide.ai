@@ -28,3 +28,14 @@ build/
 *.freezed.dart
 *.mocks.dart
 pubspec.lock
+
+# Continue.dev cache
+.continue/.cache/
+.continue/index/
+.continue/sessions/
+
+# Aider
+.aider*
+
+# OpenCode
+.opencode/

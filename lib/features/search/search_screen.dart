@@ -1,6 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/core/constants/score_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/services/recent_searches_service.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final String? initialCategory;
@@ -13,22 +22,97 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
-  String _query = '';
 
-  // TODO: Replace with real database queries when CoreDatabase is wired via provider
-  // For now, show search UI with empty results
+  String _query = '';
+  List<ProductsCoreData>? _results;
+  bool _loading = false;
+  bool _isGridView = false;
+  List<String> _recentSearches = [];
+
+  Timer? _debounce;
+  int _searchVersion = 0;
 
   @override
   void initState() {
     super.initState();
     _focusNode.requestFocus();
+    _loadRecentSearches();
+  }
+
+  RecentSearchesService get _recentService =>
+      ref.read(recentSearchesServiceProvider);
+
+  Future<void> _loadRecentSearches() async {
+    final recent = await _recentService.getRecent();
+    if (mounted) setState(() => _recentSearches = recent);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    setState(() => _query = value);
+
+    if (value.trim().isEmpty) {
+      setState(() {
+        _results = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _executeSearch(value.trim());
+    });
+  }
+
+  Future<void> _executeSearch(String query) async {
+    final version = ++_searchVersion;
+    final db = ref.read(coreDatabaseProvider);
+
+    try {
+      final results = await db.searchProducts(query, limit: 50);
+
+      // Latest-query-wins: discard if a newer search was issued.
+      if (version != _searchVersion) return;
+
+      if (!mounted) return;
+      setState(() {
+        _results = results;
+        _loading = false;
+      });
+
+      // Save successful search to recent
+      if (results.isNotEmpty) {
+        _recentService.addSearch(query);
+        _loadRecentSearches();
+      }
+    } on Exception {
+      if (version != _searchVersion) return;
+      if (!mounted) return;
+      setState(() {
+        _results = [];
+        _loading = false;
+      });
+    }
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _controller.clear();
+    setState(() {
+      _query = '';
+      _results = null;
+      _loading = false;
+    });
   }
 
   @override
@@ -42,58 +126,314 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             hintText: 'Search supplements...',
             border: InputBorder.none,
           ),
-          onChanged: (value) {
-            setState(() => _query = value);
-            // TODO: Debounced FTS query (300ms)
-          },
+          onChanged: _onQueryChanged,
         ),
         actions: [
           if (_query.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear),
-              onPressed: () {
-                _controller.clear();
-                setState(() => _query = '');
-              },
+              onPressed: _clearSearch,
             ),
         ],
       ),
-      body: _query.isEmpty ? _buildEmptyState() : _buildSearchResults(),
+      body: _buildBody(),
     );
   }
 
+  Widget _buildBody() {
+    if (_query.isEmpty) return _buildEmptyState();
+    if (_loading) return _buildLoadingState();
+    if (_results == null || _results!.isEmpty) return _buildNoResultsState();
+    return _buildResultsList();
+  }
+
   Widget _buildEmptyState() {
-    return Center(
+    if (_recentSearches.isNotEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Recent Searches',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
+              TextButton(
+                onPressed: () async {
+                  await _recentService.clearAll();
+                  _loadRecentSearches();
+                },
+                child: const Text('Clear'),
+              ),
+            ],
+          ),
+          ..._recentSearches.map(
+            (term) => ListTile(
+              leading: const Icon(Icons.history, color: AppColors.textSecondary),
+              title: Text(term),
+              trailing: IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: () async {
+                  await _recentService.removeSearch(term);
+                  _loadRecentSearches();
+                },
+              ),
+              onTap: () {
+                _controller.text = term;
+                _onQueryChanged(term);
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search, size: 64, color: AppColors.textSecondary),
-          const SizedBox(height: 16),
-          const Text('Search by product name or brand',
+          Icon(Icons.search, size: 64, color: AppColors.textSecondary),
+          SizedBox(height: 16),
+          Text('Search by product name or brand',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
-          const SizedBox(height: 8),
-          const Text('Or scan a barcode for instant results',
+          SizedBox(height: 8),
+          Text('Or scan a barcode for instant results',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
         ],
       ),
     );
   }
 
-  Widget _buildSearchResults() {
-    // Placeholder — will be populated when CoreDatabase provider is wired
+  Widget _buildLoadingState() {
+    return const Center(child: CircularProgressIndicator());
+  }
+
+  Widget _buildNoResultsState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search,
+          const Icon(Icons.search_off,
               size: 48, color: AppColors.textSecondary),
           const SizedBox(height: 16),
-          Text('Searching for "$_query"...',
-              style: const TextStyle(color: AppColors.textSecondary)),
+          Text('No results for "$_query"',
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 16)),
           const SizedBox(height: 8),
-          const Text('Database queries will be connected in Sprint 2',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          const Text('Try a different spelling or brand name',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildResultsList() {
+    return Column(
+      children: [
+        // Results header with count and view toggle
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_results!.length} result${_results!.length == 1 ? '' : 's'}',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.view_list,
+                        color: !_isGridView
+                            ? AppTheme.brandTeal
+                            : AppColors.textSecondary,
+                        size: 22),
+                    onPressed: () => setState(() => _isGridView = false),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.grid_view,
+                        color: _isGridView
+                            ? AppTheme.brandTeal
+                            : AppColors.textSecondary,
+                        size: 22),
+                    onPressed: () => setState(() => _isGridView = true),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Results content
+        Expanded(
+          child: _isGridView ? _buildGridResults() : _buildListResults(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildListResults() {
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      itemCount: _results!.length,
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, color: AppColors.border),
+      itemBuilder: (context, index) {
+        final product = _results![index];
+        return _SearchResultTile(
+          product: product,
+          onTap: () => context.push('/product/${product.dsldId}'),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridResults() {
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: _results!.length,
+      itemBuilder: (context, index) {
+        final product = _results![index];
+        return _SearchGridCard(product: product);
+      },
+    );
+  }
+}
+
+class _SearchResultTile extends StatelessWidget {
+  final ProductsCoreData product;
+  final VoidCallback onTap;
+
+  const _SearchResultTile({required this.product, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final score = product.score100Equivalent;
+    final verdict = product.verdict;
+
+    return ListTile(
+      onTap: onTap,
+      title: Text(
+        product.productName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        product.brandName ?? '',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (score != null)
+            Text(
+              score.round().toString(),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: _scoreColor(score),
+              ),
+            ),
+          if (verdict != null) ...[
+            const SizedBox(width: 8),
+            VerdictBadge(verdict: verdict),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _scoreColor(double score) => scoreColor(score);
+}
+
+
+class _SearchGridCard extends StatelessWidget {
+  final ProductsCoreData product;
+
+  const _SearchGridCard({required this.product});
+
+  Color _scoreColor(double? score) => scoreColor(score);
+
+  @override
+  Widget build(BuildContext context) {
+    final score = product.score100Equivalent;
+    final color = _scoreColor(score);
+
+    return GestureDetector(
+      onTap: () => context.push('/product/${product.dsldId}'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withAlpha(20),
+                  border: Border.all(color: color.withAlpha(80)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  score?.toStringAsFixed(0) ?? '--',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              product.productName,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            if (product.brandName != null && product.brandName!.isNotEmpty)
+              Text(
+                product.brandName!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
       ),
     );
   }

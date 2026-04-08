@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 /// Profile tab — the user's personal control panel.
@@ -22,7 +23,7 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionDivider(),
 
           // 1. Account & Security
-          _SectionHeader(title: 'Account & Security'),
+          const _SectionHeader(title: 'Account & Security'),
           _SettingsTile(
             icon: Icons.email_outlined,
             title: 'Email',
@@ -37,7 +38,7 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionDivider(),
 
           // 2. Health Profile
-          _SectionHeader(title: 'Health Profile'),
+          const _SectionHeader(title: 'Health Profile'),
           _SettingsTile(
             icon: Icons.person_outline,
             title: 'Edit Profile',
@@ -47,7 +48,7 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionDivider(),
 
           // 3. Privacy Controls
-          _SectionHeader(title: 'Privacy & Data'),
+          const _SectionHeader(title: 'Privacy & Data'),
           _SettingsTile(
             icon: Icons.shield_outlined,
             title: 'Privacy Dashboard',
@@ -64,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionDivider(),
 
           // 4. Stack Analysis History
-          _SectionHeader(title: 'Analysis History'),
+          const _SectionHeader(title: 'Analysis History'),
           _SettingsTile(
             icon: Icons.history,
             title: 'Saved Reports',
@@ -74,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionDivider(),
 
           // 5. Settings & Customization
-          _SectionHeader(title: 'Settings'),
+          const _SectionHeader(title: 'Settings'),
           _SettingsTile(
             icon: Icons.palette_outlined,
             title: 'Theme',
@@ -115,7 +116,7 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionDivider(),
 
           // 6. About
-          _SectionHeader(title: 'About'),
+          const _SectionHeader(title: 'About'),
           _SettingsTile(
             icon: Icons.info_outline,
             title: 'Version',
@@ -160,17 +161,17 @@ class SettingsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
+      builder: (context) => const Padding(
+        padding: EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Your Data Location',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             _PrivacyItem(
               icon: Icons.phone_android,
               label: 'STAYS ON YOUR DEVICE',
@@ -181,7 +182,7 @@ class SettingsScreen extends ConsumerWidget {
                 'Personal notes & reminders',
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             _PrivacyItem(
               icon: Icons.cloud_outlined,
               label: 'SYNCED TO CLOUD (If Enabled)',
@@ -191,7 +192,7 @@ class SettingsScreen extends ConsumerWidget {
                 'Anonymous usage analytics',
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             _PrivacyItem(
               icon: Icons.block,
               label: 'NEVER SHARED',
@@ -199,7 +200,7 @@ class SettingsScreen extends ConsumerWidget {
                 'Personal health information',
               ],
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
           ],
         ),
       ),
@@ -229,7 +230,7 @@ class _ProfileSummaryCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0A7D6F),
+                color: AppTheme.brandTeal,
               ),
             ),
           ),
@@ -270,7 +271,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.textSecondary,
@@ -336,7 +337,7 @@ class _PrivacyItem extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: 20, color: const Color(0xFF0A7D6F)),
+            Icon(icon, size: 20, color: AppTheme.brandTeal),
             const SizedBox(width: 8),
             Text(
               label,

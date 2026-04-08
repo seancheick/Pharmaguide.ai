@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -77,7 +78,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 padding: const EdgeInsets.all(16),
                 child: TextButton(
                   onPressed: _skip,
-                  child: Text(
+                  child: const Text(
                     'Skip',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
@@ -114,7 +115,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         height: 8,
                         decoration: BoxDecoration(
                           color: index == _currentPage
-                              ? const Color(0xFF0A7D6F)
+                              ? AppTheme.brandTeal
                               : AppColors.border,
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -125,7 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   FilledButton(
                     onPressed: _next,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0A7D6F),
+                      backgroundColor: AppTheme.brandTeal,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -171,7 +172,7 @@ class _OnboardingPage extends StatelessWidget {
           Icon(
             data.icon,
             size: 80,
-            color: const Color(0xFF0A7D6F),
+            color: AppTheme.brandTeal,
           ),
           const SizedBox(height: 40),
           Text(

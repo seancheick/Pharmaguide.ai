@@ -14,7 +14,62 @@ class CoreDatabase extends _$CoreDatabase {
       : super(NativeDatabase(dbFile, logStatements: false));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (migrator, from, to) async {
+          // Not used — pre-built DB, no versioned migrations.
+        },
+        beforeOpen: (details) async {
+          // The pre-built DB from the pipeline may lack v1.3.0 columns.
+          // Add any missing columns so Drift queries don't crash.
+          await _ensureV130Columns();
+        },
+      );
+
+  /// Add v1.3.0 columns if they don't exist in the pre-built DB.
+  /// Safe to call multiple times — uses IF NOT EXISTS pattern.
+  Future<void> _ensureV130Columns() async {
+    const columns = [
+      'image_is_pdf INTEGER',
+      'detail_blob_sha256 TEXT',
+      'interaction_summary_hint TEXT',
+      'decision_highlights TEXT',
+      'ingredient_fingerprint TEXT',
+      'key_nutrients_summary TEXT',
+      'contains_stimulants INTEGER',
+      'contains_sedatives INTEGER',
+      'contains_blood_thinners INTEGER',
+      'share_title TEXT',
+      'share_description TEXT',
+      'share_highlights TEXT',
+      'share_og_image_url TEXT',
+      'primary_category TEXT',
+      'secondary_categories TEXT',
+      'contains_omega3 INTEGER',
+      'contains_probiotics INTEGER',
+      'contains_collagen INTEGER',
+      'contains_adaptogens INTEGER',
+      'contains_nootropics INTEGER',
+      'key_ingredient_tags TEXT',
+      'goal_matches TEXT',
+      'goal_match_confidence REAL',
+      'dosing_summary TEXT',
+      'servings_per_container INTEGER',
+      'allergen_summary TEXT',
+    ];
+
+    for (final col in columns) {
+      final name = col.split(' ').first;
+      try {
+        await customStatement(
+            'ALTER TABLE products_core ADD COLUMN $col');
+      } catch (_) {
+        // Column already exists — safe to ignore.
+      }
+    }
+  }
 
   /// Open a pre-built database file (downloaded from Supabase).
   static CoreDatabase open(String dbPath) {
@@ -51,6 +106,54 @@ class CoreDatabase extends _$CoreDatabase {
     return (select(productsCore)
           ..where((t) => t.dsldId.equals(dsldId)))
         .getSingleOrNull();
+  }
+
+  /// Text search by product name or brand name using LIKE.
+  /// Debounced at the UI layer (300ms). Returns at most [limit] results,
+  /// sorted by score descending.
+  Future<List<ProductsCoreData>> searchProducts(
+    String query, {
+    int limit = 50,
+  }) {
+    final pattern = '%${query.trim()}%';
+    return (select(productsCore)
+          ..where((t) =>
+              t.productName.like(pattern) | t.brandName.like(pattern))
+          ..orderBy([
+            (t) => OrderingTerm(
+                  expression: t.scoreQuality80,
+                  mode: OrderingMode.desc,
+                ),
+          ])
+          ..limit(limit))
+        .get();
+  }
+
+  /// Find products with higher scores in the same category. Used for
+  /// "Better Alternatives" on the product detail screen.
+  Future<List<ProductsCoreData>> findAlternatives(
+    String category,
+    double minScore, {
+    String? excludeDsldId,
+    int limit = 5,
+  }) {
+    return (select(productsCore)
+          ..where((t) {
+            var expr = t.primaryCategory.equals(category) &
+                t.scoreQuality80.isBiggerOrEqualValue(minScore);
+            if (excludeDsldId != null) {
+              expr = expr & t.dsldId.equals(excludeDsldId).not();
+            }
+            return expr;
+          })
+          ..orderBy([
+            (t) => OrderingTerm(
+                  expression: t.scoreQuality80,
+                  mode: OrderingMode.desc,
+                ),
+          ])
+          ..limit(limit))
+        .get();
   }
 
   /// Category / attribute filter query. All parameters are optional.

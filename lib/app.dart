@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
+import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
@@ -43,36 +45,36 @@ class ChatScreen extends StatelessWidget {
 
 
 final _router = GoRouter(
-  initialLocation: '/',
+  initialLocation: Routes.home,
   routes: [
     ShellRoute(
       builder: (context, state, child) => _AppShell(child: child),
       routes: [
-        GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
-        GoRoute(path: '/scan', builder: (_, __) => const ScanScreen()),
-        GoRoute(path: '/stack', builder: (_, __) => const StackScreen()),
-        GoRoute(path: '/chat', builder: (_, __) => const ChatScreen()),
-        GoRoute(path: '/profile', builder: (_, __) => const SettingsScreen()),
+        GoRoute(path: Routes.home, builder: (_, __) => const HomeScreen()),
+        GoRoute(path: Routes.scan, builder: (_, __) => const ScanScreen()),
+        GoRoute(path: Routes.stack, builder: (_, __) => const StackScreen()),
+        GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
+        GoRoute(path: Routes.profile, builder: (_, __) => const SettingsScreen()),
       ],
     ),
     // Routes outside the shell (no bottom nav)
     GoRoute(
-      path: '/onboarding',
+      path: Routes.onboarding,
       builder: (_, __) => const OnboardingScreen(),
     ),
     GoRoute(
-      path: '/profile/setup',
+      path: Routes.profileSetup,
       builder: (_, __) => const ProfileSetupScreen(),
     ),
     GoRoute(
-      path: '/search',
+      path: Routes.search,
       builder: (_, __) => const SearchScreen(),
     ),
     GoRoute(
-      path: '/product/:dsldId',
+      path: '${Routes.product}/:dsldId',
       builder: (context, state) {
         final dsldId = state.pathParameters['dsldId'] ?? '';
-        return _PlaceholderScreen(title: 'Product $dsldId');
+        return ProductDetailScreen(dsldId: dsldId);
       },
     ),
   ],
@@ -84,10 +86,10 @@ class _AppShell extends StatelessWidget {
 
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/scan')) return 1;
-    if (location.startsWith('/stack')) return 2;
-    if (location.startsWith('/chat')) return 3;
-    if (location.startsWith('/profile')) return 4;
+    if (location.startsWith(Routes.scan)) return 1;
+    if (location.startsWith(Routes.stack)) return 2;
+    if (location.startsWith(Routes.chat)) return 3;
+    if (location.startsWith(Routes.profile)) return 4;
     return 0;
   }
 
@@ -100,15 +102,15 @@ class _AppShell extends StatelessWidget {
         onDestinationSelected: (index) {
           switch (index) {
             case 0:
-              context.go('/');
+              context.go(Routes.home);
             case 1:
-              context.go('/scan');
+              context.go(Routes.scan);
             case 2:
-              context.go('/stack');
+              context.go(Routes.stack);
             case 3:
-              context.go('/chat');
+              context.go(Routes.chat);
             case 4:
-              context.go('/profile');
+              context.go(Routes.profile);
           }
         },
         destinations: const [
@@ -151,23 +153,8 @@ class PharmaGuideApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'PharmaGuide',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0A7D6F),
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: AppColors.background,
-        fontFamily: 'Inter',
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0A7D6F),
-          brightness: Brightness.dark,
-        ),
-        fontFamily: 'Inter',
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: _router,
     );

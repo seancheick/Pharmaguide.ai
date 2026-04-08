@@ -1,0 +1,9 @@
+{
+  "nickname": "TestUser",
+  "age_bracket": "19-30",
+  "sex": "Male",
+  "goals": ["GOAL_SLEEP_QUALITY", "GOAL_INCREASE_ENERGY"],
+  "conditions": ["diabetes", "hypertension"],
+  "drug_classes": ["statins", "antihypertensives"],
+  "allergens": ["ALLERGEN_SOY", "ALLERGEN_GLUTEN"]
+}

@@ -23,6 +23,9 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase(File dbFile)
       : super(NativeDatabase(dbFile, logStatements: false));
 
+  /// In-memory database for testing.
+  UserDatabase.memory() : super(NativeDatabase.memory());
+
   @override
   int get schemaVersion => 1;
 

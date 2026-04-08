@@ -5,7 +5,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 void main() {
   group('InteractionResult', () {
     test('creates from valid data', () {
-      final result = InteractionResult(
+      const result = InteractionResult(
         id: 'TEST_001',
         type: InteractionType.conditionSupplement,
         severity: Severity.caution,

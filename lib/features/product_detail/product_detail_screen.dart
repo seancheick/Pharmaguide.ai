@@ -1,12 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/constants/score_colors.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
+import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknown_ingredient_banner.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Product detail screen.
 /// Receives [dsldId] from route params (e.g. `/product/12345`).
@@ -15,36 +23,80 @@ import 'package:shimmer/shimmer.dart';
 /// - Header data (name, score, verdict) comes from local `products_core` DB —
 ///   zero network latency, instant render.
 /// - Detail blob (ingredients, interactions, evidence) loaded async from
-///   Supabase and cached in memory for the session.
-///
-/// TODO: Replace [_mockProduct] with a real CoreDatabase provider lookup.
-/// TODO: Replace [_detailBlobService] with a Riverpod-managed singleton.
-class ProductDetailScreen extends StatefulWidget {
+///   Supabase and cached in UserDatabase for 24h.
+class ProductDetailScreen extends ConsumerStatefulWidget {
   final String dsldId;
 
   const ProductDetailScreen({super.key, required this.dsldId});
 
   @override
-  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+  ConsumerState<ProductDetailScreen> createState() =>
+      _ProductDetailScreenState();
 }
 
-class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  // TODO: Replace with Riverpod provider injection once CoreDatabase is wired.
+class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
+    with SingleTickerProviderStateMixin {
   final _blobService = DetailBlobService();
 
-  // Cached detail blob for this session.
+  // Product from CoreDatabase.
+  ProductsCoreData? _product;
+  bool _productLoading = true;
+
+  // Cached detail blob.
   Map<String, dynamic>? _detailBlob;
   bool _blobLoading = true;
   bool _blobError = false;
 
-  // TODO: Replace with `ref.watch(coreDatabaseProvider).findById(widget.dsldId)`
-  // when the CoreDatabase Riverpod provider is set up.
-  ProductsCoreData? get _product => null; // placeholder
+  // Score ring animation.
+  late AnimationController _scoreAnimController;
+  late Animation<double> _scoreAnimation;
+
+  /// 24-hour cache TTL for detail blobs.
+  static const _cacheTtl = Duration(hours: 24);
 
   @override
   void initState() {
     super.initState();
+    _scoreAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _scoreAnimation = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(
+        parent: _scoreAnimController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+    _loadProduct();
     _loadDetailBlob();
+  }
+
+  @override
+  void dispose() {
+    _scoreAnimController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProduct() async {
+    final coreDb = ref.read(coreDatabaseProvider);
+    final product = await coreDb.findById(widget.dsldId);
+    if (mounted) {
+      setState(() {
+        _product = product;
+        _productLoading = false;
+      });
+      // Start score animation if we have a score.
+      final score = product?.score100Equivalent;
+      if (score != null && !_isNotScored(product)) {
+        _scoreAnimation = Tween<double>(begin: 0, end: score).animate(
+          CurvedAnimation(
+            parent: _scoreAnimController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+        _scoreAnimController.forward();
+      }
+    }
   }
 
   Future<void> _loadDetailBlob() async {
@@ -52,15 +104,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       _blobLoading = true;
       _blobError = false;
     });
+
     try {
+      final userDb = ref.read(userDatabaseProvider);
+
+      // Check local cache first.
+      final cached = await userDb.getCachedDetail(widget.dsldId);
+      if (cached != null) {
+        final age = DateTime.now().difference(cached.cachedAt);
+        if (age < _cacheTtl) {
+          if (mounted) {
+            setState(() {
+              _detailBlob = jsonDecode(cached.blobJson) as Map<String, dynamic>;
+              _blobLoading = false;
+            });
+          }
+          return;
+        }
+      }
+
+      // Cache miss or stale — fetch from network.
       final blob = await _blobService.fetchDetailBlob(widget.dsldId);
       if (mounted) {
+        if (blob != null) {
+          // Store in cache.
+          final blobJson = jsonEncode(blob);
+          await userDb.cacheDetail(widget.dsldId, blobJson, null);
+        }
         setState(() {
           _detailBlob = blob;
           _blobLoading = false;
         });
       }
-    } catch (_) {
+    } on Exception {
       if (mounted) {
         setState(() {
           _blobLoading = false;
@@ -70,11 +146,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
+  bool _isNotScored(ProductsCoreData? product) {
+    if (product == null) return false;
+    final verdict = product.verdict ?? '';
+    final score = product.score100Equivalent;
+    final isBlocked =
+        verdict == 'BLOCKED' || verdict == 'UNSAFE';
+    return (verdict == 'NOT_SCORED' ||
+            (score == null && !isBlocked));
+  }
+
   @override
   Widget build(BuildContext context) {
-    // TODO: Replace with real product data from CoreDatabase provider.
-    // For now we use a mock product to allow the screen to render while
-    // the provider integration is pending.
+    if (_productLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final productName = _product?.productName ?? 'Product ${widget.dsldId}';
     final brandName = _product?.brandName ?? '';
     final formFactor = _product?.formFactor ?? '';
@@ -84,6 +180,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final grade = _product?.grade ?? '';
     final mappedCoverage = _product?.mappedCoverage ?? 1.0;
     final percentileLabel = _product?.percentileLabel ?? '';
+    final interactionHint = _product?.interactionSummaryHint ?? '';
 
     // Section scores
     final ingredientQuality = _product?.scoreIngredientQuality;
@@ -100,6 +197,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     final isBlocked =
         verdict == 'BLOCKED' || verdict == 'UNSAFE';
+    final isNotScored = _isNotScored(_product);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -150,9 +248,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               percentileLabel: percentileLabel,
               dietaryTags: dietaryTags,
               isBlocked: isBlocked,
+              isNotScored: isNotScored,
               topWarnings: _topWarnings(),
+              scoreAnimation: _scoreAnimation,
+              onScoreInfoTap: () => _showScoreEducation(context),
             ),
           ),
+
+          // ----------------------------------------------------------------
+          // Condition alert banner (interaction summary hint)
+          // ----------------------------------------------------------------
+          if (interactionHint.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _ConditionAlertBanner(hint: interactionHint),
+            ),
 
           // ----------------------------------------------------------------
           // Coverage / blend banners
@@ -174,9 +283,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
 
           // ----------------------------------------------------------------
-          // Score breakdown (hidden for BLOCKED / UNSAFE)
+          // Score breakdown (hidden for BLOCKED / UNSAFE / NOT_SCORED)
           // ----------------------------------------------------------------
-          if (!isBlocked)
+          if (!isBlocked && !isNotScored)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -207,6 +316,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
+          // Better Alternatives
+          // ----------------------------------------------------------------
+          if (!isBlocked)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: BetterAlternativesSection(
+                  currentDsldId: widget.dsldId,
+                  category: _product?.primaryCategory,
+                  currentScore: score100,
+                ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
           // Action buttons
           // ----------------------------------------------------------------
           SliverToBoxAdapter(
@@ -224,7 +348,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final raw = _product?.topWarnings;
     if (raw == null || raw.isEmpty) return [];
     try {
-      // topWarnings is stored as JSON text in the DB
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.whereType<Map<String, dynamic>>().toList();
+      }
       return [];
     } catch (_) {
       return [];
@@ -252,6 +379,267 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         .map(InteractionWarning.fromJson)
         .toList();
   }
+
+  void _showScoreEducation(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _ScoreEducationSheet(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Score education overlay
+// ---------------------------------------------------------------------------
+
+class _ScoreEducationSheet extends StatelessWidget {
+  const _ScoreEducationSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      minChildSize: 0.4,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (context, scrollController) {
+        return SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'What does this score mean?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // How We Score
+              const Text(
+                'How We Score',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Every product receives a FitScore from 0 to 100 based on '
+                'four evidence-based pillars. The score is computed fresh '
+                'each time using your profile and the latest data — it is '
+                'never cached or pre-assigned.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // The 4 Pillars
+              const Text(
+                'The 4 Pillars',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _pillarRow('Ingredient Quality', 'Up to 30 pts',
+                  'Dosage accuracy, bioavailability, form quality'),
+              _pillarRow('Safety & Purity', 'Up to 25 pts',
+                  'Third-party testing, contaminant risk, interactions'),
+              _pillarRow('Evidence & Research', 'Up to 25 pts',
+                  'Clinical studies, evidence strength, claim support'),
+              _pillarRow('Brand Trust', 'Up to 20 pts',
+                  'Manufacturing standards, transparency, track record'),
+              const SizedBox(height: 20),
+
+              // Verdict Meanings
+              const Text(
+                'Verdict Meanings',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _verdictRow('RECOMMENDED', '85-100',
+                  AppColors.scoreExceptional),
+              _verdictRow('GOOD', '70-84', AppColors.scoreExcellent),
+              _verdictRow('MODERATE', '55-69', AppColors.scoreGood),
+              _verdictRow('REVIEW', '40-54', AppColors.scoreFair),
+              _verdictRow('BLOCKED / UNSAFE', 'N/A', AppColors.red),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static Widget _pillarRow(
+      String name, String points, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 6, right: 10),
+            decoration: const BoxDecoration(
+              color: AppColors.scoreExcellent,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '  $points',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _verdictRow(String label, String range, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color.withAlpha(30),
+              border: Border.all(color: color, width: 1.5),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            range,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Condition alert banner
+// ---------------------------------------------------------------------------
+
+class _ConditionAlertBanner extends StatelessWidget {
+  final String hint;
+
+  const _ConditionAlertBanner({required this.hint});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.orange.withAlpha(15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.orange.withAlpha(80)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.orange,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                hint,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +657,10 @@ class _HeaderSection extends StatelessWidget {
   final String percentileLabel;
   final List<String> dietaryTags;
   final bool isBlocked;
+  final bool isNotScored;
   final List<Map<String, dynamic>> topWarnings;
+  final Animation<double> scoreAnimation;
+  final VoidCallback onScoreInfoTap;
 
   const _HeaderSection({
     required this.productName,
@@ -282,18 +673,13 @@ class _HeaderSection extends StatelessWidget {
     required this.percentileLabel,
     required this.dietaryTags,
     required this.isBlocked,
+    required this.isNotScored,
     required this.topWarnings,
+    required this.scoreAnimation,
+    required this.onScoreInfoTap,
   });
 
-  Color _scoreColor(double? score) {
-    if (score == null) return AppColors.textSecondary;
-    if (score >= 85) return AppColors.scoreExceptional;
-    if (score >= 70) return AppColors.scoreExcellent;
-    if (score >= 55) return AppColors.scoreGood;
-    if (score >= 40) return AppColors.scoreFair;
-    if (score >= 25) return AppColors.scoreBelowAvg;
-    return AppColors.scoreLow;
-  }
+  Color _scoreColor(double? score) => scoreColor(score);
 
   @override
   Widget build(BuildContext context) {
@@ -343,15 +729,67 @@ class _HeaderSection extends StatelessWidget {
               blockingReason: blockingReason,
               topWarnings: topWarnings,
             )
+          else if (isNotScored)
+            // NOT_SCORED — grey circle with N/A
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const _NotScoredCircle(),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      VerdictBadge(verdict: verdict),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Not enough data to score this product',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
           else
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Score circle
-                _ScoreCircle(
-                  score: score100,
-                  grade: grade,
-                  color: scoreColor,
+                // Animated score circle with info button
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _AnimatedScoreCircle(
+                      animation: scoreAnimation,
+                      targetScore: score100,
+                      grade: grade,
+                      color: scoreColor,
+                    ),
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: GestureDetector(
+                        onTap: onScoreInfoTap,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: AppColors.border, width: 1),
+                          ),
+                          child: const Icon(
+                            Icons.info_outline,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -359,7 +797,7 @@ class _HeaderSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Verdict badge
-                      _VerdictBadge(verdict: verdict),
+                      VerdictBadge(verdict: verdict),
                       if (percentileLabel.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text(
@@ -413,24 +851,31 @@ class _HeaderSection extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Score circle widget
+// Animated score circle widget
 // ---------------------------------------------------------------------------
 
-class _ScoreCircle extends StatelessWidget {
-  final double? score;
+class _AnimatedScoreCircle extends AnimatedWidget {
+  final Animation<double> animation;
+  final double? targetScore;
   final String grade;
   final Color color;
 
-  const _ScoreCircle({
-    required this.score,
+  const _AnimatedScoreCircle({
+    required this.animation,
+    required this.targetScore,
     required this.grade,
     required this.color,
-  });
+  }) : super(listenable: animation);
 
   @override
   Widget build(BuildContext context) {
-    final displayScore =
-        score != null ? score!.toStringAsFixed(0) : '--';
+    final animValue = animation.value;
+    final displayScore = targetScore != null
+        ? animValue.toStringAsFixed(0)
+        : '--';
+    final progress = targetScore != null
+        ? (animValue / 100).clamp(0.0, 1.0)
+        : 0.0;
 
     return SizedBox(
       width: 72,
@@ -439,7 +884,7 @@ class _ScoreCircle extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           CircularProgressIndicator(
-            value: score != null ? (score! / 100).clamp(0.0, 1.0) : 0,
+            value: progress,
             strokeWidth: 6,
             backgroundColor: AppColors.border,
             valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -473,51 +918,36 @@ class _ScoreCircle extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Verdict badge
+// NOT_SCORED grey circle
 // ---------------------------------------------------------------------------
 
-class _VerdictBadge extends StatelessWidget {
-  final String verdict;
-
-  const _VerdictBadge({required this.verdict});
-
-  Color _colorFor(String v) {
-    switch (v.toUpperCase()) {
-      case 'RECOMMENDED':
-        return AppColors.scoreExceptional;
-      case 'GOOD':
-        return AppColors.scoreExcellent;
-      case 'REVIEW':
-        return AppColors.scoreFair;
-      case 'MODERATE':
-        return AppColors.scoreBelowAvg;
-      case 'UNSAFE':
-      case 'BLOCKED':
-        return AppColors.red;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
+class _NotScoredCircle extends StatelessWidget {
+  const _NotScoredCircle();
 
   @override
   Widget build(BuildContext context) {
-    if (verdict.isEmpty) return const SizedBox.shrink();
-    final color = _colorFor(verdict);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withAlpha(80)),
-      ),
-      child: Text(
-        verdict.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: color,
-          letterSpacing: 0.5,
-        ),
+    return const SizedBox(
+      width: 72,
+      height: 72,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: 0,
+            strokeWidth: 6,
+            backgroundColor: AppColors.border,
+            valueColor:
+                AlwaysStoppedAnimation<Color>(AppColors.textSecondary),
+          ),
+          Text(
+            'N/A',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -620,8 +1050,11 @@ class _BlockedBanner extends StatelessWidget {
       ),
       ...links.map(
         (url) => GestureDetector(
-          onTap: () {
-            // TODO: launch url via url_launcher when wired up
+          onTap: () async {
+            final uri = Uri.tryParse(url);
+            if (uri != null) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
           },
           child: Padding(
             padding: const EdgeInsets.only(top: 4),
