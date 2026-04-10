@@ -43,42 +43,109 @@ class ChatScreen extends StatelessWidget {
       const _PlaceholderScreen(title: 'AI Pharmacist');
 }
 
+class CatalogUnavailableScreen extends StatelessWidget {
+  final String? message;
+  final VoidCallback? onRetry;
 
-final _router = GoRouter(
-  initialLocation: Routes.home,
-  routes: [
-    ShellRoute(
-      builder: (context, state, child) => _AppShell(child: child),
-      routes: [
-        GoRoute(path: Routes.home, builder: (_, __) => const HomeScreen()),
-        GoRoute(path: Routes.scan, builder: (_, __) => const ScanScreen()),
-        GoRoute(path: Routes.stack, builder: (_, __) => const StackScreen()),
-        GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
-        GoRoute(path: Routes.profile, builder: (_, __) => const SettingsScreen()),
-      ],
-    ),
-    // Routes outside the shell (no bottom nav)
-    GoRoute(
-      path: Routes.onboarding,
-      builder: (_, __) => const OnboardingScreen(),
-    ),
-    GoRoute(
-      path: Routes.profileSetup,
-      builder: (_, __) => const ProfileSetupScreen(),
-    ),
-    GoRoute(
-      path: Routes.search,
-      builder: (_, __) => const SearchScreen(),
-    ),
-    GoRoute(
-      path: '${Routes.product}/:dsldId',
-      builder: (context, state) {
-        final dsldId = state.pathParameters['dsldId'] ?? '';
-        return ProductDetailScreen(dsldId: dsldId);
-      },
-    ),
-  ],
-);
+  const CatalogUnavailableScreen({
+    super.key,
+    this.message,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Catalog Unavailable')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 56),
+              const SizedBox(height: 16),
+              Text(
+                message ??
+                    'The verified supplement catalog is not available on this device yet.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => context.go(Routes.profile),
+                child: const Text('Open Profile'),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: onRetry,
+                  child: const Text('Retry Catalog Download'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+GoRouter _buildRouter({
+  required bool catalogAvailable,
+  String? catalogUnavailableReason,
+  VoidCallback? onRetryCatalogLoad,
+}) {
+  Widget catalogRoute(Widget child) {
+    if (catalogAvailable) return child;
+    return CatalogUnavailableScreen(
+      message: catalogUnavailableReason,
+      onRetry: onRetryCatalogLoad,
+    );
+  }
+
+  return GoRouter(
+    initialLocation: Routes.home,
+    routes: [
+      ShellRoute(
+        builder: (context, state, child) => _AppShell(child: child),
+        routes: [
+          GoRoute(
+              path: Routes.home,
+              builder: (_, __) => catalogRoute(const HomeScreen())),
+          GoRoute(
+              path: Routes.scan,
+              builder: (_, __) => catalogRoute(const ScanScreen())),
+          GoRoute(
+              path: Routes.stack,
+              builder: (_, __) => catalogRoute(const StackScreen())),
+          GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
+          GoRoute(path: Routes.profile, builder: (_, __) => const SettingsScreen()),
+        ],
+      ),
+      GoRoute(
+        path: Routes.onboarding,
+        builder: (_, __) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: Routes.profileSetup,
+        builder: (_, __) => const ProfileSetupScreen(),
+      ),
+      GoRoute(
+        path: Routes.search,
+        builder: (_, state) => catalogRoute(
+          SearchScreen(initialCategory: state.uri.queryParameters['category']),
+        ),
+      ),
+      GoRoute(
+        path: '${Routes.product}/:dsldId',
+        builder: (context, state) {
+          final dsldId = state.pathParameters['dsldId'] ?? '';
+          return catalogRoute(ProductDetailScreen(dsldId: dsldId));
+        },
+      ),
+    ],
+  );
+}
 
 class _AppShell extends StatelessWidget {
   final Widget child;
@@ -146,7 +213,16 @@ class _AppShell extends StatelessWidget {
 }
 
 class PharmaGuideApp extends StatelessWidget {
-  const PharmaGuideApp({super.key});
+  final bool catalogAvailable;
+  final String? catalogUnavailableReason;
+  final VoidCallback? onRetryCatalogLoad;
+
+  const PharmaGuideApp({
+    super.key,
+    this.catalogAvailable = true,
+    this.catalogUnavailableReason,
+    this.onRetryCatalogLoad,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +232,11 @@ class PharmaGuideApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      routerConfig: _router,
+      routerConfig: _buildRouter(
+        catalogAvailable: catalogAvailable,
+        catalogUnavailableReason: catalogUnavailableReason,
+        onRetryCatalogLoad: onRetryCatalogLoad,
+      ),
     );
   }
 }

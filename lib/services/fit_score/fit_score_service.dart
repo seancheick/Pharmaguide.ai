@@ -76,10 +76,16 @@ class FitScoreService {
     List<String> conditions,
   ) {
     double max = 80.0; // Base quality
-    max += 7.0; // E1 always available (even in degraded mode)
+    max += _maxPossibleE1(ageBracket, sex);
     if (goals.isNotEmpty) max += 2.0; // E2a
     if (ageBracket != null) max += 3.0; // E2b
     max += 8.0; // E2c always runs (no conditions = full points)
     return max;
+  }
+
+  double _maxPossibleE1(String? ageBracket, String? sex) {
+    if (ageBracket == null) return 4.0;
+    if (sex == null) return 0.0;
+    return 7.0;
   }
 }

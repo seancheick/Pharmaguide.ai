@@ -59,14 +59,14 @@ void main() {
         e2c: E2cMedicalCalculator(),
       );
 
-      // No profile: max = 80 + 7 + 8 = 95 (no E2a, no E2b)
+      // No profile: max = 80 + 4 + 8 = 92 (E1 baseline mode, no E2a, no E2b)
       final empty = service.calculate(
         scoreQuality80: 65.0,
         nutrients: [],
         productClusters: [],
         interactionSummary: {},
       );
-      expect(empty.maxPossible, 95.0);
+      expect(empty.maxPossible, 92.0);
 
       // Full profile: max = 80 + 7 + 2 + 3 + 8 = 100
       final full = service.calculate(
@@ -79,6 +79,25 @@ void main() {
         userGoals: ['GOAL_SLEEP_QUALITY'],
       );
       expect(full.maxPossible, 100.0);
+    });
+
+    test('maxPossible reflects degraded E1 behavior when age exists without sex', () {
+      final service = FitScoreService(
+        e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
+        e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
+        e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
+        e2c: E2cMedicalCalculator(),
+      );
+
+      final partial = service.calculate(
+        scoreQuality80: 65.0,
+        nutrients: const [],
+        productClusters: const [],
+        interactionSummary: const {},
+        ageBracket: '19-30',
+      );
+
+      expect(partial.maxPossible, 91.0);
     });
   });
 }

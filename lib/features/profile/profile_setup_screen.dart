@@ -38,20 +38,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
   }
 
-  Future<void> _save() async {
-    try {
-      await ref.read(profileProvider.notifier).saveToDb();
-      if (!mounted) return;
-      context.go('/');
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to save profile. Please try again.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+  void _save() {
+    ref.read(profileProvider.notifier).saveToDb();
+    context.go('/');
   }
 
   void _skip() {
@@ -67,6 +56,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider);
+    final colors = AppColors.of(context);
     final stepLabels = [
       'Basic Info',
       'Health Goals',
@@ -95,7 +85,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           // Progress bar
           LinearProgressIndicator(
             value: (_currentStep + 1) / _totalSteps,
-            backgroundColor: AppColors.border,
+            backgroundColor: colors.border,
             valueColor:
                 const AlwaysStoppedAnimation<Color>(AppTheme.brandTeal),
           ),
@@ -218,6 +208,7 @@ class _GoalsStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     final notifier = ref.read(profileProvider.notifier);
+    final colors = AppColors.of(context);
 
     // Sort goals by priority: high > medium > low
     final sortedGoals = List<String>.from(SchemaIds.goals)
@@ -238,9 +229,9 @@ class _GoalsStep extends ConsumerWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Powers smart interaction warnings and personalized insights',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -254,7 +245,7 @@ class _GoalsStep extends ConsumerWidget {
                 label: Text(label),
                 selected: selected,
                 onSelected: atMax ? null : (_) => notifier.toggleGoal(goalId),
-                selectedColor: AppTheme.brandTeal.withAlpha(25),
+                selectedColor: AppTheme.brandTeal.withValues(alpha: 0.12),
                 checkmarkColor: AppTheme.brandTeal,
               );
             }).toList(),
@@ -282,6 +273,7 @@ class _HealthProfileStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     final notifier = ref.read(profileProvider.notifier);
+    final colors = AppColors.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -293,9 +285,9 @@ class _HealthProfileStep extends ConsumerWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Ensures safe recommendations based on your conditions',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -308,7 +300,7 @@ class _HealthProfileStep extends ConsumerWidget {
                 label: Text(label),
                 selected: selected,
                 onSelected: (_) => notifier.toggleCondition(condId),
-                selectedColor: AppTheme.brandTeal.withAlpha(25),
+                selectedColor: AppTheme.brandTeal.withValues(alpha: 0.12),
                 checkmarkColor: AppTheme.brandTeal,
               );
             }).toList(),
@@ -319,9 +311,9 @@ class _HealthProfileStep extends ConsumerWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Select types of medication you currently take',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
           ),
           const SizedBox(height: 12),
           ...SchemaIds.drugClasses.map((dcId) {
@@ -400,6 +392,7 @@ class _AllergensStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     final notifier = ref.read(profileProvider.notifier);
+    final colors = AppColors.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -411,9 +404,9 @@ class _AllergensStep extends ConsumerWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Prevents recommendations that could trigger allergies',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -426,7 +419,7 @@ class _AllergensStep extends ConsumerWidget {
                 label: Text(label),
                 selected: selected,
                 onSelected: (_) => notifier.toggleAllergen(allergenId),
-                selectedColor: AppTheme.brandTeal.withAlpha(25),
+                selectedColor: AppTheme.brandTeal.withValues(alpha: 0.12),
                 checkmarkColor: AppTheme.brandTeal,
               );
             }).toList(),

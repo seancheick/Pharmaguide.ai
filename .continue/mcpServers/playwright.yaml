@@ -1,0 +1,10 @@
+name: Playwright MCP
+version: 1.0.0
+schema: v1
+
+mcpServers:
+  - name: Playwright MCP
+    type: stdio
+    command: npx
+    args:
+      - "@playwright/mcp@latest"

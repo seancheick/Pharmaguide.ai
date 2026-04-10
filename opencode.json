@@ -1,0 +1,42 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "google": {
+      "apiKey": "AIzaSyAZuHhT7U2XB4fXilNgBBxzr2Of6wJ29GE",
+      "models": {
+        "gemini-2.5-flash": {
+          "name": "Gemini 2.5 Flash"
+        },
+        "gemini-2.5-pro": {
+          "name": "Gemini 2.5 Pro"
+        }
+      }
+    },
+    "groq": {
+      "models": {
+        "llama-3.3-70b-versatile": {
+          "name": "Groq Llama 3.3 70B"
+        }
+      }
+    },
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "gemma4:latest": {
+          "name": "Gemma4 8B (tools+thinking, 128K ctx)"
+        },
+        "qwen2.5-coder:14b": {
+          "name": "Qwen 2.5 Coder 14B (code-specialized)"
+        },
+        "qwen3.5:latest": {
+          "name": "Qwen 3.5 10B (256K ctx)"
+        }
+      }
+    }
+  },
+  "model": "google/gemini-2.5-flash"
+}

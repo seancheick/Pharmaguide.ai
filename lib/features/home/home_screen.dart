@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -10,6 +11,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
+    final colors = AppColors.of(context);
 
     return Scaffold(
       body: SafeArea(
@@ -28,10 +30,10 @@ class HomeScreen extends ConsumerWidget {
                           fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Know What You Take',
                       style: TextStyle(
-                          fontSize: 14, color: AppColors.textSecondary),
+                          fontSize: 14, color: colors.textSecondary),
                     ),
                   ],
                 ),
@@ -73,6 +75,7 @@ class SearchBarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GestureDetector(
@@ -80,17 +83,18 @@ class SearchBarWidget extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: colors.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: colors.border),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.search, color: AppColors.textSecondary),
-              SizedBox(width: 12),
-              Text('Search supplements...',
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 16)),
+              Icon(Icons.search, color: colors.textSecondary),
+              const SizedBox(width: 12),
+              Text(
+                'Search supplements...',
+                style: TextStyle(color: colors.textSecondary, fontSize: 16),
+              ),
             ],
           ),
         ),
@@ -105,12 +109,13 @@ class ProfileCompletenessBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFE6F7F5),
+          color: AppTheme.brandTeal.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -124,8 +129,8 @@ class ProfileCompletenessBanner extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                       '$completeness% complete — add health info for personalized scores',
-                      style: const TextStyle(
-                          fontSize: 13, color: AppColors.textSecondary)),
+                      style: TextStyle(
+                          fontSize: 13, color: colors.textSecondary)),
                 ],
               ),
             ),
@@ -144,12 +149,12 @@ class CategoryFilterChips extends StatelessWidget {
   const CategoryFilterChips({super.key});
 
   static const _categories = [
-    ('Omega-3', Icons.water_drop_outlined),
-    ('Probiotics', Icons.biotech_outlined),
-    ('Multivitamin', Icons.medication_outlined),
-    ('Collagen', Icons.spa_outlined),
-    ('Adaptogens', Icons.eco_outlined),
-    ('Nootropics', Icons.psychology_outlined),
+    ('Omega-3', 'omega_3', Icons.water_drop_outlined),
+    ('Probiotics', 'probiotic', Icons.biotech_outlined),
+    ('Multivitamin', 'multivitamin', Icons.medication_outlined),
+    ('Collagen', 'collagen', Icons.spa_outlined),
+    ('Adaptogens', 'adaptogen', Icons.eco_outlined),
+    ('Nootropics', 'nootropic', Icons.psychology_outlined),
   ];
 
   @override
@@ -162,12 +167,11 @@ class CategoryFilterChips extends StatelessWidget {
         itemCount: _categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          final (label, icon) = _categories[index];
+          final (label, category, icon) = _categories[index];
           return ActionChip(
             avatar: Icon(icon, size: 18),
             label: Text(label),
-            onPressed: () =>
-                context.push('/search?category=${label.toLowerCase()}'),
+            onPressed: () => context.push('/search?category=$category'),
           );
         },
       ),
@@ -180,6 +184,7 @@ class RecentScansWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -191,18 +196,18 @@ class RecentScansWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: colors.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: colors.border),
             ),
             child: Center(
               child: Column(
                 children: [
-                  const Icon(Icons.qr_code_scanner,
-                      size: 48, color: AppColors.textSecondary),
+                  Icon(Icons.qr_code_scanner,
+                      size: 48, color: colors.textSecondary),
                   const SizedBox(height: 12),
-                  const Text('No scans yet',
-                      style: TextStyle(color: AppColors.textSecondary)),
+                  Text('No scans yet',
+                      style: TextStyle(color: colors.textSecondary)),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () => context.go('/scan'),
@@ -223,14 +228,15 @@ class StackHealthWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,10 +244,9 @@ class StackHealthWidget extends StatelessWidget {
             const Text('Stack Health',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            const Text(
+            Text(
                 'Add supplements to your stack to see health insights',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 14)),
+                style: TextStyle(color: colors.textSecondary, fontSize: 14)),
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => context.go('/stack'),

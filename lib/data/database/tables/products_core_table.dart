@@ -1,7 +1,22 @@
 import 'package:drift/drift.dart';
 
-/// Products core table — 88 columns matching pipeline export schema v1.3.0.
+/// Products core table — 90 columns matching pipeline export schema v1.3.2.
 /// This table is READ-ONLY in the app (populated by pipeline via Supabase).
+///
+/// v1.3.1 added (2026-04): net_contents_quantity, net_contents_unit
+///   Powers the refill-reminder feature. `net_contents_quantity` is the
+///   physical unit count in the bottle (e.g. 60 for a 60-capsule bottle);
+///   `net_contents_unit` is the verbatim label unit ("Capsule(s)", "mL",
+///   "Gram(s)", etc.). Compute days_until_empty =
+///     net_contents_quantity / (servingSizes[0].maxQuantity *
+///                              servingSizes[0].maxDailyServings)
+///
+/// v1.3.2 added (2026-04): calories_per_serving
+///   Hybrid nutrition surface: calories is the highest-value user filter
+///   so it lives as its own column. The other four macros
+///   (total_carbohydrates_g, total_fat_g, protein_g, dietary_fiber_g) are
+///   in the detail_blob under `nutrition_detail` for forward compat without
+///   schema bloat. Promote them to columns later if usage justifies it.
 class ProductsCore extends Table {
   // Identity
   TextColumn get dsldId => text().named('dsld_id')();
@@ -201,9 +216,20 @@ class ProductsCore extends Table {
   IntColumn get servingsPerContainer =>
       integer().named('servings_per_container').nullable()();
 
+  // v1.3.1: Net Contents (refill reminder feature)
+  RealColumn get netContentsQuantity =>
+      real().named('net_contents_quantity').nullable()();
+  TextColumn get netContentsUnit =>
+      text().named('net_contents_unit').nullable()();
+
   // v1.3.0: Allergen
   TextColumn get allergenSummary =>
       text().named('allergen_summary').nullable()();
+
+  // v1.3.2: Nutrition hybrid — calories is the one filter column;
+  // carbs/fat/protein/fiber live in detail_blob.nutrition_detail
+  RealColumn get caloriesPerServing =>
+      real().named('calories_per_serving').nullable()();
 
   // Metadata
   TextColumn get scoringVersion =>

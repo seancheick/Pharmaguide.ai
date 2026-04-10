@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -94,7 +95,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
             curve: Curves.easeOutCubic,
           ),
         );
-        _scoreAnimController.forward();
+        unawaited(_scoreAnimController.forward());
       }
     }
   }
@@ -381,7 +382,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
   }
 
   void _showScoreEducation(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
@@ -448,9 +449,11 @@ class _ScoreEducationSheet extends StatelessWidget {
               const SizedBox(height: 8),
               const Text(
                 'Every product receives a FitScore from 0 to 100 based on '
-                'four evidence-based pillars. The score is computed fresh '
-                'each time using your profile and the latest data — it is '
-                'never cached or pre-assigned.',
+                'the core product data in our reference catalog. This screen '
+                'currently explains the core product score, not your '
+                'personalized FitScore. Personalized adjustments should be '
+                'shown as a separate layer so product evidence and personal '
+                'fit are not conflated.',
                 style: TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,
@@ -469,13 +472,13 @@ class _ScoreEducationSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              _pillarRow('Ingredient Quality', 'Up to 30 pts',
+              _pillarRow('Ingredient Quality', 'Up to 25 pts',
                   'Dosage accuracy, bioavailability, form quality'),
-              _pillarRow('Safety & Purity', 'Up to 25 pts',
+              _pillarRow('Safety & Purity', 'Up to 30 pts',
                   'Third-party testing, contaminant risk, interactions'),
-              _pillarRow('Evidence & Research', 'Up to 25 pts',
+              _pillarRow('Evidence & Research', 'Up to 20 pts',
                   'Clinical studies, evidence strength, claim support'),
-              _pillarRow('Brand Trust', 'Up to 20 pts',
+              _pillarRow('Brand Trust', 'Up to 5 pts',
                   'Manufacturing standards, transparency, track record'),
               const SizedBox(height: 20),
 

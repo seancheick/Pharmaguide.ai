@@ -155,7 +155,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showPrivacyDashboard(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -187,8 +187,7 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.cloud_outlined,
               label: 'SYNCED TO CLOUD (If Enabled)',
               items: [
-                'Account preferences',
-                'Backup of encrypted stack data',
+                'App settings and account preferences',
                 'Anonymous usage analytics',
               ],
             ),
@@ -216,13 +215,14 @@ class _ProfileSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           CircleAvatar(
             radius: 32,
-            backgroundColor: const Color(0xFFE6F7F5),
+            backgroundColor: AppTheme.brandTeal.withValues(alpha: 0.12),
             child: Text(
               (profile.nickname?.isNotEmpty == true)
                   ? profile.nickname![0].toUpperCase()
@@ -250,7 +250,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                 ),
                 Text(
                   'Profile ${profile.completenessLabel} (${profile.completeness}%)',
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: colors.textSecondary),
                 ),
               ],
             ),

@@ -24,6 +24,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _focusNode = FocusNode();
 
   String _query = '';
+  String? _activeCategory;
   List<ProductsCoreData>? _results;
   bool _loading = false;
   bool _isGridView = false;
@@ -35,8 +36,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _activeCategory = widget.initialCategory;
     _focusNode.requestFocus();
     _loadRecentSearches();
+    if (_activeCategory != null && _activeCategory!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadCategoryResults(_activeCategory!);
+      });
+    }
   }
 
   RecentSearchesService get _recentService =>
@@ -45,6 +52,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Future<void> _loadRecentSearches() async {
     final recent = await _recentService.getRecent();
     if (mounted) setState(() => _recentSearches = recent);
+  }
+
+  Future<void> _loadCategoryResults(String category) async {
+    setState(() => _loading = true);
+    final db = ref.read(coreDatabaseProvider);
+    final results = await db.filterProducts(
+      category: category,
+      limit: 50,
+      sortBy: 'score',
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _results = results;
+      _loading = false;
+    });
   }
 
   @override
@@ -57,13 +80,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
-    setState(() => _query = value);
+    setState(() {
+      _query = value;
+      if (value.trim().isNotEmpty) {
+        _activeCategory = null;
+      }
+    });
 
     if (value.trim().isEmpty) {
       setState(() {
-        _results = null;
+        _results = _activeCategory == null ? null : _results;
         _loading = false;
       });
+      if (_activeCategory != null && _activeCategory!.isNotEmpty) {
+        _loadCategoryResults(_activeCategory!);
+      }
       return;
     }
 
@@ -92,8 +123,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
       // Save successful search to recent
       if (results.isNotEmpty) {
-        _recentService.addSearch(query);
-        _loadRecentSearches();
+        await _recentService.addSearch(query);
+        await _loadRecentSearches();
       }
     } on Exception {
       if (version != _searchVersion) return;
@@ -112,6 +143,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _query = '';
       _results = null;
       _loading = false;
+      _activeCategory = null;
     });
   }
 
@@ -141,6 +173,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildBody() {
+    if (_query.isEmpty && _activeCategory != null) {
+      if (_loading) return _buildLoadingState();
+      if (_results == null || _results!.isEmpty) return _buildNoResultsState();
+      return _buildResultsList();
+    }
     if (_query.isEmpty) return _buildEmptyState();
     if (_loading) return _buildLoadingState();
     if (_results == null || _results!.isEmpty) return _buildNoResultsState();
@@ -163,7 +200,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               TextButton(
                 onPressed: () async {
                   await _recentService.clearAll();
-                  _loadRecentSearches();
+                  await _loadRecentSearches();
                 },
                 child: const Text('Clear'),
               ),
@@ -177,7 +214,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 icon: const Icon(Icons.close, size: 18),
                 onPressed: () async {
                   await _recentService.removeSearch(term);
-                  _loadRecentSearches();
+                  await _loadRecentSearches();
                 },
               ),
               onTap: () {
@@ -212,6 +249,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildNoResultsState() {
+    final title = _activeCategory != null && _query.isEmpty
+        ? 'No products found in ${_activeCategory!.replaceAll('_', ' ')}'
+        : 'No results for "$_query"';
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -219,7 +260,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           const Icon(Icons.search_off,
               size: 48, color: AppColors.textSecondary),
           const SizedBox(height: 16),
-          Text('No results for "$_query"',
+          Text(title,
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 16)),
           const SizedBox(height: 8),
@@ -240,7 +281,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${_results!.length} result${_results!.length == 1 ? '' : 's'}',
+                _resultsHeaderText(),
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSecondary),
               ),
@@ -309,6 +350,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return _SearchGridCard(product: product);
       },
     );
+  }
+
+  String _resultsHeaderText() {
+    if (_activeCategory != null && _query.isEmpty) {
+      final label = _activeCategory!.replaceAll('_', ' ');
+      return '${_results!.length} $label result${_results!.length == 1 ? '' : 's'}';
+    }
+    return '${_results!.length} result${_results!.length == 1 ? '' : 's'}';
   }
 }
 

@@ -39,3 +39,4 @@ pubspec.lock
 
 # OpenCode
 .opencode/
+*.DS_Store

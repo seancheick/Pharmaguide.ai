@@ -1,0 +1,203 @@
+name: PharmaGuide Agent
+version: 2.0.0
+schema: v1
+
+# ============================================================
+# MODEL STACK (April 2026)
+#
+# API keys are read from environment variables — NEVER commit them here.
+# Source the project .env file before launching Continue, e.g.:
+#
+#     set -a && source .env && set +a && code .
+#
+# Required env vars: GEMINI_API_KEY, GROQ_API_KEY
+# Rotate at https://aistudio.google.com/ and https://console.groq.com/keys
+# if these ever leak. See also: .env (gitignored) for local values.
+#
+# Routing policy:
+#   1. Gemini 2.5 Flash — free cloud, highest rate limit (10 RPM, 250 req/day)
+#   2. Gemini 2.5 Pro   — free cloud, best quality (5 RPM, 100 req/day)
+#   3. Groq Llama 3.3   — free cloud, ultra-fast (800 tok/s), 30 RPM
+#   4. Local 14B        — offline fallback, no rate limits
+#   5. Local 1.5B       — autocomplete only (always-on)
+# ============================================================
+
+models:
+  # --- PRIMARY: Gemini 2.5 Flash (free: 10 RPM, 250 req/day) ---
+  - name: Gemini 2.5 Flash (Free)
+    provider: gemini
+    model: gemini-2.5-flash
+    apiKey: ${GEMINI_API_KEY}
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      temperature: 0.1
+      contextLength: 65536
+
+  # --- QUALITY: Gemini 2.5 Pro (free: 5 RPM, 100 req/day) ---
+  - name: Gemini 2.5 Pro (Free)
+    provider: gemini
+    model: gemini-2.5-pro
+    apiKey: ${GEMINI_API_KEY}
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      temperature: 0.1
+      contextLength: 65536
+
+  # --- FAST CLOUD: Groq (free: 30 RPM, 1000 req/day, 800 tok/s) ---
+  - name: Groq Llama 3.3 70B (Free)
+    provider: groq
+    model: llama-3.3-70b-versatile
+    apiKey: ${GROQ_API_KEY}
+    roles:
+      - chat
+      - edit
+    defaultCompletionOptions:
+      temperature: 0.1
+      contextLength: 32768
+
+  # --- LOCAL AGENT: Best coding model for 16GB RAM ---
+  - name: Local Agent 14B
+    provider: ollama
+    model: qwen2.5-coder:14b
+    apiBase: http://127.0.0.1:11434
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      temperature: 0.1
+      contextLength: 16384
+
+  # --- AUTOCOMPLETE: Fast, always-on tab completion ---
+  - name: Local Autocomplete 1.5B
+    provider: ollama
+    model: qwen2.5-coder:1.5b
+    apiBase: http://127.0.0.1:11434
+    roles:
+      - autocomplete
+    defaultCompletionOptions:
+      temperature: 0.0
+      contextLength: 4096
+
+  # --- EMBEDDINGS: For codebase indexing and search ---
+  - name: Local Embeddings
+    provider: ollama
+    model: nomic-embed-text:v1.5
+    apiBase: http://127.0.0.1:11434
+    roles:
+      - embed
+
+# ============================================================
+# PROMPTS
+# ============================================================
+
+prompts:
+  - name: sprint_plan_mode
+    description: Read-only planning prompt for Sprint Tracker execution
+    prompt: |
+      You are working on the PharmaGuide Flutter app.
+      Read SPRINT_TRACKER.md first.
+      Identify the next incomplete task in the current sprint.
+      Extract:
+      - task name
+      - dependencies
+      - definition of done
+      - acceptance criteria
+      - likely files to inspect
+      Do not edit files.
+      Do not run terminal commands.
+      Produce:
+      1. current understanding
+      2. exact files to inspect
+      3. minimal implementation plan
+      4. risks / unknowns
+
+  - name: sprint_execute_mode
+    description: Controlled execution prompt for local agent
+    prompt: |
+      You are working on the PharmaGuide Flutter app.
+      Follow SPRINT_TRACKER.md as the source of truth.
+      Before editing:
+      - summarize the task
+      - list exact files to change
+      - explain why each file is needed
+      Then implement the smallest safe patch.
+      Do not touch unrelated files.
+      After edits:
+      - run `flutter analyze` and relevant `flutter test` commands
+      - summarize what changed
+      - do NOT mark complete unless all verification passes
+
+  - name: verify_task
+    description: Verify a task against its Definition of Done
+    prompt: |
+      Re-check the implementation against the task's Definition of Done and Acceptance Criteria from SPRINT_TRACKER.md.
+      State exactly:
+      1. what is complete
+      2. what is incomplete
+      3. what evidence proves completion (command output, test results)
+      4. what still blocks marking the task done
+
+  - name: file_target
+    description: Identify files before editing
+    prompt: |
+      For the current task from SPRINT_TRACKER.md:
+      1. List every file that needs to change
+      2. For each file, explain WHY it needs to change
+      3. If a new file is required, explain why it must exist
+      4. Do NOT edit anything yet
+
+# ============================================================
+# CONTEXT PROVIDERS
+# ============================================================
+
+context:
+  - provider: code
+  - provider: docs
+  - provider: file
+    params:
+      path: ./SPRINT_TRACKER.md
+  - provider: file
+    params:
+      path: ./CLAUDE.md
+  - provider: file
+    params:
+      path: ./AGENTS.md
+
+# ============================================================
+# RULES (auto-loaded from .continue/rules/)
+# ============================================================
+
+rules:
+  - uses: .continue/rules/00-pharmaguide-core.md
+  - uses: .continue/rules/01-pharmaguide-sprint.md
+  - uses: .continue/rules/02-pharmaguide-safety.md
+  - uses: .continue/rules/03-pharmaguide-flutter.md
+  - uses: .continue/rules/04-pharmaguide-file-targeting.md
+
+# ============================================================
+# MCP SERVERS
+# ============================================================
+
+mcpServers:
+  - name: Playwright MCP
+    type: stdio
+    command: npx
+    args:
+      - "@playwright/mcp@latest"
+
+# ============================================================
+# DOCS (indexed for @docs context)
+# ============================================================
+
+docs:
+  - name: sprint-tracker
+    startUrl: ./SPRINT_TRACKER.md
+  - name: claude-rules
+    startUrl: ./CLAUDE.md

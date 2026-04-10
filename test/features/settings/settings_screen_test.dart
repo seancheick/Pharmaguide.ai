@@ -68,5 +68,31 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Privacy Dashboard'), findsOneWidget);
     });
+
+    testWidgets('privacy dashboard does not claim health data syncs to the cloud',
+        (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Privacy Dashboard'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Backup of encrypted stack data', skipOffstage: false),
+          findsNothing);
+      expect(
+        find.textContaining(
+          'App settings and account preferences',
+          skipOffstage: false,
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining(
+          'Personal health information',
+          skipOffstage: false,
+        ),
+        findsWidgets,
+      );
+    });
   });
 }

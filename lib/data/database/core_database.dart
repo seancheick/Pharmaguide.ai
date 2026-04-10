@@ -13,6 +13,8 @@ class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
       : super(NativeDatabase(dbFile, logStatements: false));
 
+  CoreDatabase.memory() : super(NativeDatabase.memory());
+
   @override
   int get schemaVersion => 2;
 
@@ -61,7 +63,6 @@ class CoreDatabase extends _$CoreDatabase {
     ];
 
     for (final col in columns) {
-      final name = col.split(' ').first;
       try {
         await customStatement(
             'ALTER TABLE products_core ADD COLUMN $col');
@@ -74,6 +75,43 @@ class CoreDatabase extends _$CoreDatabase {
   /// Open a pre-built database file (downloaded from Supabase).
   static CoreDatabase open(String dbPath) {
     return CoreDatabase(File(dbPath));
+  }
+
+  /// Returns the export version embedded in the current catalog snapshot.
+  Future<String?> readExportVersion() async {
+    final row = await customSelect(
+      'SELECT export_version FROM products_core '
+      'WHERE export_version IS NOT NULL AND export_version != "" '
+      'LIMIT 1',
+      readsFrom: {productsCore},
+    ).getSingleOrNull();
+
+    return row?.data['export_version'] as String?;
+  }
+
+  /// Returns the number of products currently available in the catalog.
+  Future<int> countProducts() async {
+    final row = await customSelect(
+      'SELECT COUNT(*) AS count FROM products_core',
+      readsFrom: {productsCore},
+    ).getSingle();
+
+    return row.read<int>('count');
+  }
+
+  /// Ensures the opened catalog snapshot is structurally usable by the app.
+  Future<String> validateCatalogSnapshot() async {
+    final productCount = await countProducts();
+    if (productCount <= 0) {
+      throw StateError('Catalog snapshot is empty');
+    }
+
+    final exportVersion = await readExportVersion();
+    if (exportVersion == null || exportVersion.isEmpty) {
+      throw StateError('Catalog snapshot is missing export_version');
+    }
+
+    return exportVersion;
   }
 
   // ---------------------------------------------------------------------------
