@@ -77,7 +77,12 @@ class CoreDatabase extends _$CoreDatabase {
     return CoreDatabase(File(dbPath));
   }
 
-  /// Returns the export version embedded in the current catalog snapshot.
+  /// Returns the export schema version (e.g. "1.3.2") embedded on every
+  /// `products_core` row.
+  ///
+  /// This is the SCHEMA version — it tells the app which column set to
+  /// expect. For catalog freshness comparisons against remote manifests,
+  /// use [readDbVersion] instead.
   Future<String?> readExportVersion() async {
     final row = await customSelect(
       'SELECT export_version FROM products_core '
@@ -87,6 +92,25 @@ class CoreDatabase extends _$CoreDatabase {
     ).getSingleOrNull();
 
     return row?.data['export_version'] as String?;
+  }
+
+  /// Returns the catalog build version (e.g. "2026.04.10.222555") from the
+  /// in-SQLite `export_manifest` key-value table written by the pipeline's
+  /// `build_final_db.py`.
+  ///
+  /// This is the BUILD version — it tells the app whether the catalog is
+  /// fresh relative to a remote manifest. Compare this against
+  /// `SyncService.fetchCurrentDbVersion()` when deciding whether to pull
+  /// an OTA update.
+  ///
+  /// Returns null if the embedded table is missing (e.g. the DB was not
+  /// produced by the pipeline).
+  Future<String?> readDbVersion() async {
+    final row = await customSelect(
+      "SELECT value FROM export_manifest WHERE key = 'db_version' LIMIT 1",
+    ).getSingleOrNull();
+
+    return row?.data['value'] as String?;
   }
 
   /// Returns the number of products currently available in the catalog.
@@ -100,6 +124,12 @@ class CoreDatabase extends _$CoreDatabase {
   }
 
   /// Ensures the opened catalog snapshot is structurally usable by the app.
+  ///
+  /// Returns the BUILD version (`db_version` from the embedded export_manifest
+  /// table) when it is present, falling back to the SCHEMA version
+  /// (`export_version` from products_core) so older DBs built before v1.3.2
+  /// still validate. The returned value is what callers should compare
+  /// against the remote manifest's `db_version` for freshness checks.
   Future<String> validateCatalogSnapshot() async {
     final productCount = await countProducts();
     if (productCount <= 0) {
@@ -111,6 +141,14 @@ class CoreDatabase extends _$CoreDatabase {
       throw StateError('Catalog snapshot is missing export_version');
     }
 
+    final dbVersion = await readDbVersion();
+    if (dbVersion != null && dbVersion.isNotEmpty) {
+      return dbVersion;
+    }
+
+    // Older catalogs without the embedded export_manifest table still pass
+    // validation via the schema version — they just can't participate in
+    // freshness comparisons against remote manifests.
     return exportVersion;
   }
 

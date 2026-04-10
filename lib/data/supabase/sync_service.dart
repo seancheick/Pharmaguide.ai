@@ -131,6 +131,16 @@ class SyncService {
     }
   }
 
+  /// Validates that a freshly-downloaded staging DB matches the version we
+  /// thought we were downloading.
+  ///
+  /// [expectedVersion] is the `db_version` build timestamp (e.g.
+  /// `"2026.04.10.222555"`) pulled from the remote `export_manifest` table.
+  /// [CoreDatabase.validateCatalogSnapshot] reads the same `db_version`
+  /// field from the DB's embedded `export_manifest` key-value table, so the
+  /// two values must match byte-for-byte. A mismatch means Supabase Storage
+  /// served us a file that disagrees with its own manifest row — we refuse
+  /// to activate it.
   Future<String> _validateStagedDatabase(
     String dbPath, {
     required String expectedVersion,
@@ -141,7 +151,8 @@ class SyncService {
       if (validatedVersion != expectedVersion) {
         throw StateError(
           'Downloaded catalog version mismatch: '
-          'expected $expectedVersion, got $validatedVersion',
+          'expected db_version $expectedVersion, got $validatedVersion. '
+          'The remote Storage file disagrees with the remote manifest row.',
         );
       }
       return validatedVersion;

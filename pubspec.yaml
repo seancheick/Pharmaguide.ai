@@ -86,3 +86,9 @@ flutter:
   assets:
     - assets/reference_data/
     - assets/images/
+    # Catalog bundle — produced by the DSLD pipeline release bridge
+    # (scripts/import_catalog_artifact.sh). Contains the full SQLite
+    # products_core snapshot the app copies to documents on first launch.
+    # *.db is tracked via Git LFS; see .gitattributes.
+    - assets/db/pharmaguide_core.db
+    - assets/db/export_manifest.json
