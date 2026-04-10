@@ -23,6 +23,10 @@ build/
 *.keystore
 *.jks
 
+# Catalog rollback backups (created by scripts/import_catalog_artifact.sh).
+# These are one-command rollback points, not tracked release artifacts.
+assets/db/*.previous
+
 # Generated
 *.g.dart
 *.freezed.dart
