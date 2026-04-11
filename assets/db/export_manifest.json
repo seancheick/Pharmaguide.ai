@@ -1,12 +1,12 @@
 {
-  "checksum": "sha256:91d21db9a361bd58da116f41a0c61cb5dda4cf4abcf26f1c15b8727c7ec3002b",
-  "checksum_sha256": "91d21db9a361bd58da116f41a0c61cb5dda4cf4abcf26f1c15b8727c7ec3002b",
-  "db_version": "2026.04.11.024941",
+  "checksum": "sha256:67ac3cddd0c3b205b61e2eb466050c41a35981c882291edcf0a756bc61634fb1",
+  "checksum_sha256": "67ac3cddd0c3b205b61e2eb466050c41a35981c882291edcf0a756bc61634fb1",
+  "db_version": "2026.04.11.040818",
   "detail_blob_count": 5231,
   "detail_blob_unique_count": 5231,
-  "detail_index_checksum": "sha256:88d84cca0de390d1c456277e9bd72314f5ba67013ae02c12a8ce5997bc9d7e31",
+  "detail_index_checksum": "sha256:e74c56bbd5b88d65790ca00061835208ef27fee299fe9d38005119dcfc58a587",
   "errors": [],
-  "generated_at": "2026-04-11T02:49:41.907106+00:00",
+  "generated_at": "2026-04-11T04:08:18.008526+00:00",
   "integrity": {
     "contract_failures": 0,
     "coverage_pct": 100.0,
@@ -18,7 +18,7 @@
     "has_recalled_ingredient": 0,
     "scored_input_count": 5231,
     "scored_only_count": 0,
-    "scoring_config_checksum": "sha256:ab19147cf9cbfa24063302dfefda55d2f1ff849de44a01206d79860075736012",
+    "scoring_config_checksum": "sha256:4bd747ffc53c06bd8033998f71c4140befb4325cacf8528994e9e0da974652d1",
     "skipped_count": 0,
     "strict_mode": false,
     "verdict_blocked": 50,
@@ -28,8 +28,8 @@
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
   "product_count": 5231,
-  "release_staged_at": "2026-04-11T02:55:59Z",
+  "release_staged_at": "2026-04-11T04:08:43Z",
   "schema_version": "1.3.2",
-  "scoring_config_checksum": "sha256:ab19147cf9cbfa24063302dfefda55d2f1ff849de44a01206d79860075736012",
+  "scoring_config_checksum": "sha256:4bd747ffc53c06bd8033998f71c4140befb4325cacf8528994e9e0da974652d1",
   "scoring_version": "3.4.0"
 }
