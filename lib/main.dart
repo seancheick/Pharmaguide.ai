@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
@@ -33,10 +34,32 @@ void main() async {
   }
 
   final userDb = await openUserDatabase();
+
+  // Materialize the bundled interaction DB and open it. Soft-fail: if the
+  // bundle is missing or corrupt, we still launch the app — interaction
+  // checks degrade to "no curated data available" rather than blocking the
+  // user from scanning products. The release-gate test
+  // `bundled_interaction_db_test.dart` makes a missing bundle a build
+  // failure, so we should never see this branch in shipped builds.
+  InteractionDatabase? interactionDb;
+  final interactionLoadStopwatch = Stopwatch()..start();
+  try {
+    interactionDb = await openInteractionDatabase();
+    interactionLoadStopwatch.stop();
+    debugPrint(
+      '[interaction-db] bootstrap load: '
+      '${interactionLoadStopwatch.elapsedMilliseconds}ms',
+    );
+  } on Object catch (e) {
+    interactionLoadStopwatch.stop();
+    debugPrint('[interaction-db] bootstrap failed: $e');
+  }
+
   final hasSeenOnboarding = await OnboardingPrefs.hasSeen();
 
   runApp(PharmaGuideBootstrap(
     userDb: userDb,
+    interactionDb: interactionDb,
     supabaseReady: supabaseReady,
     hasSeenOnboarding: hasSeenOnboarding,
   ));
@@ -44,12 +67,14 @@ void main() async {
 
 class PharmaGuideBootstrap extends StatefulWidget {
   final UserDatabase userDb;
+  final InteractionDatabase? interactionDb;
   final bool supabaseReady;
   final bool hasSeenOnboarding;
 
   const PharmaGuideBootstrap({
     super.key,
     required this.userDb,
+    required this.interactionDb,
     required this.supabaseReady,
     required this.hasSeenOnboarding,
   });
@@ -80,6 +105,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   void dispose() {
     _catalogRefreshTimer?.cancel();
     unawaited(_coreDb?.close());
+    unawaited(widget.interactionDb?.close());
     unawaited(widget.userDb.close());
     super.dispose();
   }
@@ -247,6 +273,8 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       overrides: [
         userDatabaseProvider.overrideWithValue(widget.userDb),
         if (_coreDb != null) coreDatabaseProvider.overrideWithValue(_coreDb!),
+        if (widget.interactionDb != null)
+          interactionDatabaseProvider.overrideWithValue(widget.interactionDb!),
       ],
       // Register the stack sync auto-listener as soon as the ProviderScope
       // mounts. The Consumer reads [stackSyncListenerProvider] once; the
