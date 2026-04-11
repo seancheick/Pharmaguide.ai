@@ -21,30 +21,50 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Visible without scrolling
-      expect(find.text('Account & Security'), findsOneWidget);
-      expect(find.text('Health Profile'), findsOneWidget);
-      expect(find.text('Privacy & Data'), findsOneWidget);
+      // Scroll progressively to reveal each section header. The full
+      // list of 6 groups doesn't fit in the default 800×600 viewport,
+      // so we walk the scroll position to each header in turn.
+      final scrollable = find.byType(Scrollable).first;
 
-      // Scroll down to reveal remaining sections
       await tester.scrollUntilVisible(
-        find.text('Analysis History'),
+        find.text('Account & security'),
         200,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: scrollable,
       );
-      expect(find.text('Analysis History'), findsOneWidget);
+      expect(find.text('Account & security'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Health profile'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Health profile'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Privacy & data'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Privacy & data'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Analysis history'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(find.text('Analysis history'), findsOneWidget);
 
       await tester.scrollUntilVisible(
         find.text('Settings'),
         200,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: scrollable,
       );
       expect(find.text('Settings'), findsOneWidget);
 
       await tester.scrollUntilVisible(
         find.text('About'),
         200,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: scrollable,
       );
       expect(find.text('About'), findsOneWidget);
     });
@@ -60,13 +80,13 @@ void main() {
     testWidgets('shows Guest User when no nickname', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
-      expect(find.text('Guest User'), findsOneWidget);
+      expect(find.text('Guest'), findsOneWidget);
     });
 
     testWidgets('shows privacy dashboard button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
-      expect(find.text('Privacy Dashboard'), findsOneWidget);
+      expect(find.text('Privacy dashboard'), findsOneWidget);
     });
 
     testWidgets('privacy dashboard does not claim health data syncs to the cloud',
@@ -74,7 +94,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Privacy Dashboard'));
+      await tester.tap(find.text('Privacy dashboard'));
       await tester.pumpAndSettle();
 
       expect(find.text('Backup of encrypted stack data', skipOffstage: false),

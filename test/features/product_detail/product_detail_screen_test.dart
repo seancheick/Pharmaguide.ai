@@ -78,7 +78,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Guided Vitamin D'), findsWidgets);
-    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.byIcon(Icons.info_outline_rounded));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

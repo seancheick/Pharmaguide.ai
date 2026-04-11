@@ -26,10 +26,10 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Ingredient Quality'), findsOneWidget);
-      expect(find.text('Safety & Purity'), findsOneWidget);
-      expect(find.text('Evidence & Research'), findsOneWidget);
-      expect(find.text('Brand Trust'), findsOneWidget);
+      expect(find.text('Ingredient quality'), findsOneWidget);
+      expect(find.text('Safety & purity'), findsOneWidget);
+      expect(find.text('Evidence & research'), findsOneWidget);
+      expect(find.text('Brand trust'), findsOneWidget);
     });
 
     testWidgets('shows score values when provided', (tester) async {
@@ -51,10 +51,10 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('--/25'), findsOneWidget);
-      expect(find.text('--/30'), findsOneWidget);
-      expect(find.text('--/20'), findsOneWidget);
-      expect(find.text('--/5'), findsOneWidget);
+      expect(find.text('—/25'), findsOneWidget);
+      expect(find.text('—/30'), findsOneWidget);
+      expect(find.text('—/20'), findsOneWidget);
+      expect(find.text('—/5'), findsOneWidget);
     });
 
     testWidgets('renders 4 progress bars', (tester) async {

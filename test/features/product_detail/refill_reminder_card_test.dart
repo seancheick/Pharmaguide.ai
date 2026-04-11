@@ -147,7 +147,7 @@ void main() {
     testWidgets('renders nothing when addedAt is null', (tester) async {
       await _pump(
         tester,
-        RefillReminderCard(
+        const RefillReminderCard(
           servingsPerContainer: 60,
           netContentsQuantity: 60.0,
           netContentsUnit: 'Capsule(s)',

@@ -35,13 +35,16 @@ void main() {
 
     test('loads rda_optimal_uls with nutrient data', () async {
       final rda = await repo.loadRdaOptimalUls();
-      expect(rda['nutrient_recommendations'], isA<List>());
-      expect((rda['nutrient_recommendations'] as List).isNotEmpty, true);
+      expect(rda['nutrient_recommendations'], isA<List<dynamic>>());
+      expect(
+        (rda['nutrient_recommendations']! as List<dynamic>).isNotEmpty,
+        true,
+      );
     });
 
     test('loads timing_rules placeholder', () async {
       final timing = await repo.loadTimingRules();
-      expect(timing['timing_rules'], isA<List>());
+      expect(timing['timing_rules'], isA<List<dynamic>>());
     });
 
     test('caches after first load', () async {

@@ -15,9 +15,10 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Step 1 of 5: Basic Info'), findsOneWidget);
-      expect(find.text('Age Bracket *'), findsOneWidget);
-      expect(find.text('Sex *'), findsOneWidget);
+      // Step title is sentence-case after PG migration
+      expect(find.text('Step 1 of 5: Basic info'), findsOneWidget);
+      expect(find.text('Age bracket'), findsOneWidget);
+      expect(find.text('Sex'), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
     });
 

@@ -17,7 +17,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Know What You Take'), findsOneWidget);
+      expect(find.text('Know what you take'), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
     });
@@ -38,7 +38,7 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Personalized Safety'), findsOneWidget);
+      expect(find.text('Personalized safety'), findsOneWidget);
     });
 
     testWidgets('tapping Next twice shows third page with Get Started',
@@ -51,8 +51,8 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Your Data Stays Private'), findsOneWidget);
-      expect(find.text('Get Started'), findsOneWidget);
+      expect(find.text('Your data stays private'), findsOneWidget);
+      expect(find.text('Get started'), findsOneWidget);
     });
   });
 }

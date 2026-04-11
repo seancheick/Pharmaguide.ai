@@ -9,17 +9,23 @@ void main() {
   group('FitScoreService', () {
     test('calculates combined score with full profile', () {
       final service = FitScoreService(
-        e1: E1DosageCalculator({'nutrient_recommendations': []}),
-        e2a: E2aGoalCalculator({'user_goal_mappings': []}),
-        e2b: E2bAgeCalculator({'nutrient_recommendations': []}),
+        e1: E1DosageCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
+        e2a: E2aGoalCalculator(const <String, dynamic>{
+          'user_goal_mappings': <dynamic>[],
+        }),
+        e2b: E2bAgeCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
         e2c: E2cMedicalCalculator(),
       );
 
       final result = service.calculate(
         scoreQuality80: 65.0,
-        nutrients: [],
-        productClusters: [],
-        interactionSummary: {},
+        nutrients: const <Map<String, dynamic>>[],
+        productClusters: const <String>[],
+        interactionSummary: const <String, dynamic>{},
         ageBracket: '19-30',
         sex: 'Male',
         userGoals: ['GOAL_SLEEP_QUALITY'],
@@ -33,17 +39,23 @@ void main() {
 
     test('reports missing fields', () {
       final service = FitScoreService(
-        e1: E1DosageCalculator({'nutrient_recommendations': []}),
-        e2a: E2aGoalCalculator({'user_goal_mappings': []}),
-        e2b: E2bAgeCalculator({'nutrient_recommendations': []}),
+        e1: E1DosageCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
+        e2a: E2aGoalCalculator(const <String, dynamic>{
+          'user_goal_mappings': <dynamic>[],
+        }),
+        e2b: E2bAgeCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
         e2c: E2cMedicalCalculator(),
       );
 
       final result = service.calculate(
         scoreQuality80: 65.0,
-        nutrients: [],
-        productClusters: [],
-        interactionSummary: {},
+        nutrients: const <Map<String, dynamic>>[],
+        productClusters: const <String>[],
+        interactionSummary: const <String, dynamic>{},
       );
 
       expect(result.missingFields, contains('age'));
@@ -53,30 +65,36 @@ void main() {
 
     test('maxPossible adjusts based on profile', () {
       final service = FitScoreService(
-        e1: E1DosageCalculator({'nutrient_recommendations': []}),
-        e2a: E2aGoalCalculator({'user_goal_mappings': []}),
-        e2b: E2bAgeCalculator({'nutrient_recommendations': []}),
+        e1: E1DosageCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
+        e2a: E2aGoalCalculator(const <String, dynamic>{
+          'user_goal_mappings': <dynamic>[],
+        }),
+        e2b: E2bAgeCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
         e2c: E2cMedicalCalculator(),
       );
 
       // No profile: max = 80 + 4 + 8 = 92 (E1 baseline mode, no E2a, no E2b)
       final empty = service.calculate(
         scoreQuality80: 65.0,
-        nutrients: [],
-        productClusters: [],
-        interactionSummary: {},
+        nutrients: const <Map<String, dynamic>>[],
+        productClusters: const <String>[],
+        interactionSummary: const <String, dynamic>{},
       );
       expect(empty.maxPossible, 92.0);
 
       // Full profile: max = 80 + 7 + 2 + 3 + 8 = 100
       final full = service.calculate(
         scoreQuality80: 65.0,
-        nutrients: [],
-        productClusters: [],
-        interactionSummary: {},
+        nutrients: const <Map<String, dynamic>>[],
+        productClusters: const <String>[],
+        interactionSummary: const <String, dynamic>{},
         ageBracket: '19-30',
         sex: 'Male',
-        userGoals: ['GOAL_SLEEP_QUALITY'],
+        userGoals: const ['GOAL_SLEEP_QUALITY'],
       );
       expect(full.maxPossible, 100.0);
     });
