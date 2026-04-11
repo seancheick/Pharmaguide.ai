@@ -1,24 +1,33 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
-import 'package:pharmaguide/core/constants/score_colors.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
+import 'package:pharmaguide/core/widgets/pg_fitscore_badge.dart';
+import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
+import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
+import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
+import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
+import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
+import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/product_detail/widgets/refill_reminder_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unmapped_actives_disclosure.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknown_ingredient_banner.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Product detail screen.
@@ -39,8 +48,7 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
       _ProductDetailScreenState();
 }
 
-class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
-    with SingleTickerProviderStateMixin {
+class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   final _blobService = DetailBlobService();
 
   // Product from CoreDatabase.
@@ -56,26 +64,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
   // refill-reminder card; we need addedAt for the days-remaining math.
   UserStacksLocalData? _stackEntry;
 
-  // Score ring animation.
-  late AnimationController _scoreAnimController;
-  late Animation<double> _scoreAnimation;
-
   /// 24-hour cache TTL for detail blobs.
   static const _cacheTtl = Duration(hours: 24);
 
   @override
   void initState() {
     super.initState();
-    _scoreAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _scoreAnimation = Tween<double>(begin: 0, end: 0).animate(
-      CurvedAnimation(
-        parent: _scoreAnimController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
     _loadProduct();
     _loadDetailBlob();
     _loadStackEntry();
@@ -99,12 +93,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _scoreAnimController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadProduct() async {
     final coreDb = ref.read(coreDatabaseProvider);
     final product = await coreDb.findById(widget.dsldId);
@@ -113,17 +101,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
         _product = product;
         _productLoading = false;
       });
-      // Start score animation if we have a score.
-      final score = product?.score100Equivalent;
-      if (score != null && !_isNotScored(product)) {
-        _scoreAnimation = Tween<double>(begin: 0, end: score).animate(
-          CurvedAnimation(
-            parent: _scoreAnimController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
-        unawaited(_scoreAnimController.forward());
-      }
     }
   }
 
@@ -266,6 +243,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
           // ----------------------------------------------------------------
           SliverToBoxAdapter(
             child: _HeaderSection(
+              dsldId: widget.dsldId,
               productName: productName,
               brandName: brandName,
               formFactor: formFactor,
@@ -278,7 +256,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
               isBlocked: isBlocked,
               isNotScored: isNotScored,
               topWarnings: _topWarnings(),
-              scoreAnimation: _scoreAnimation,
               onScoreInfoTap: () => _showScoreEducation(context),
             ),
           ),
@@ -412,12 +389,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
             ),
 
           // ----------------------------------------------------------------
-          // Action buttons
+          // Action buttons (Add to Stack with safety check, Share, Save)
           // ----------------------------------------------------------------
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              child: _ActionButtons(dsldId: widget.dsldId),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space20,
+                0,
+                AppTheme.space20,
+                AppTheme.space32,
+              ),
+              child: PGStackActionButtons(dsldId: widget.dsldId),
             ),
           ),
         ],
@@ -434,7 +416,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
         return decoded.whereType<Map<String, dynamic>>().toList();
       }
       return [];
-    } catch (_) {
+    } on FormatException {
       return [];
     }
   }
@@ -683,53 +665,218 @@ class _ScoreEducationSheet extends StatelessWidget {
 // Condition alert banner
 // ---------------------------------------------------------------------------
 
-class _ConditionAlertBanner extends StatelessWidget {
+/// Parses the pipeline's `interaction_summary_hint` JSON blob and renders
+/// a banner **only when relevant to this user**.
+///
+/// The hint field stores a JSON dict like:
+/// ```json
+/// {"has_any": true, "highest_severity": "avoid",
+///  "condition_ids": ["hypertension", "surgery_scheduled"],
+///  "drug_class_ids": ["anticoagulants", "statins"]}
+/// ```
+///
+/// Rendering rules:
+///   - `has_any == false` → nothing (no banner at all)
+///   - User has matching conditions/drug classes → specific warning with
+///     only the matched items, tone matches `highest_severity`
+///   - User has profile data but no matches → nothing (no personal risk)
+///   - User has NO profile data → generic "has interactions, complete
+///     your profile" nudge in neutral tone
+class _ConditionAlertBanner extends ConsumerWidget {
   final String hint;
 
   const _ConditionAlertBanner({required this.hint});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final parsed = _parseHint(hint);
+    if (parsed == null || parsed.hasAny != true) {
+      return const SizedBox.shrink();
+    }
+
+    final profile = ref.watch(profileProvider);
+    final hasProfile =
+        profile.conditions.isNotEmpty || profile.drugClasses.isNotEmpty;
+
+    final matchedConditions = parsed.conditionIds
+        .where(profile.conditions.contains)
+        .toList(growable: false);
+    final matchedDrugClasses = parsed.drugClassIds
+        .where(profile.drugClasses.contains)
+        .toList(growable: false);
+
+    final hasMatches =
+        matchedConditions.isNotEmpty || matchedDrugClasses.isNotEmpty;
+
+    // Profile is populated but nothing overlaps — this product has known
+    // interactions but none apply to this user. Show nothing.
+    if (hasProfile && !hasMatches) {
+      return const SizedBox.shrink();
+    }
+
+    // No profile at all — show generic nudge so the user knows personalization
+    // is available.
+    if (!hasProfile) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          AppTheme.space8,
+          AppTheme.space20,
+          AppTheme.space12,
+        ),
+        child: PGSeverityBanner(
+          tone: PGBannerTone.neutral,
+          title: 'This product has known interactions',
+          body: 'Add your health conditions and medications to get '
+              'warnings personalized to your profile.',
+          actionLabel: 'Complete profile',
+          onAction: () => GoRouter.of(context).push(Routes.profileSetup),
+        ),
+      );
+    }
+
+    // Profile populated AND matches found — show specific warning.
+    final tone = _toneFor(parsed.highestSeverity);
+    final title = _titleFor(parsed.highestSeverity);
+    final body = _buildMatchBody(
+      matchedConditions: matchedConditions,
+      matchedDrugClasses: matchedDrugClasses,
+    );
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.orange.withAlpha(15),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.orange.withAlpha(80)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(
-              Icons.warning_amber_rounded,
-              color: AppColors.orange,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                hint,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space20,
+        AppTheme.space8,
+        AppTheme.space20,
+        AppTheme.space12,
+      ),
+      child: PGSeverityBanner(
+        tone: tone,
+        title: title,
+        body: body,
       ),
     );
   }
+
+  static _InteractionHint? _parseHint(String raw) {
+    if (raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      final map = Map<String, dynamic>.from(decoded);
+      return _InteractionHint(
+        hasAny: map['has_any'] == true,
+        highestSeverity:
+            (map['highest_severity'] as String?)?.toLowerCase() ?? '',
+        conditionIds: _listOfStrings(map['condition_ids']),
+        drugClassIds: _listOfStrings(map['drug_class_ids']),
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static List<String> _listOfStrings(Object? raw) {
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList(growable: false);
+    }
+    return const [];
+  }
+
+  static PGBannerTone _toneFor(String severity) {
+    switch (severity) {
+      case 'contraindicated':
+      case 'avoid':
+        return PGBannerTone.danger;
+      case 'caution':
+        return PGBannerTone.caution;
+      case 'monitor':
+        return PGBannerTone.info;
+      default:
+        return PGBannerTone.caution;
+    }
+  }
+
+  static String _titleFor(String severity) {
+    switch (severity) {
+      case 'contraindicated':
+        return 'Do not use — contraindicated for your profile';
+      case 'avoid':
+        return 'Avoid — conflicts with your profile';
+      case 'caution':
+        return 'Use with caution — relevant to your profile';
+      case 'monitor':
+        return 'Worth monitoring — relevant to your profile';
+      default:
+        return 'Relevant to your profile';
+    }
+  }
+
+  static String _buildMatchBody({
+    required List<String> matchedConditions,
+    required List<String> matchedDrugClasses,
+  }) {
+    final parts = <String>[];
+    if (matchedConditions.isNotEmpty) {
+      final labels = matchedConditions.map(_humanLabel).join(', ');
+      parts.add('Conditions: $labels');
+    }
+    if (matchedDrugClasses.isNotEmpty) {
+      final labels = matchedDrugClasses.map(_humanLabel).join(', ');
+      parts.add('Medications: $labels');
+    }
+    return parts.join('  •  ');
+  }
+
+  /// snake_case → Title Case with known medical-term overrides so the
+  /// generic transform doesn't produce "Ttc" or "Nsaids".
+  static String _humanLabel(String id) {
+    const overrides = {
+      'ttc': 'Trying to conceive',
+      'nsaids': 'NSAIDs',
+      'ssris': 'SSRIs',
+      'snris': 'SNRIs',
+      'maois': 'MAOIs',
+      'gi_disorders': 'GI disorders',
+      'gerd': 'GERD',
+      'ibs': 'IBS',
+      'ibd': 'IBD',
+      'copd': 'COPD',
+      'pcos': 'PCOS',
+      'adhd': 'ADHD',
+      'hiv_aids': 'HIV/AIDS',
+    };
+    final lower = id.toLowerCase();
+    if (overrides.containsKey(lower)) return overrides[lower]!;
+    return lower
+        .split('_')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+}
+
+/// Lightweight value type for the parsed interaction hint.
+class _InteractionHint {
+  final bool hasAny;
+  final String highestSeverity;
+  final List<String> conditionIds;
+  final List<String> drugClassIds;
+
+  const _InteractionHint({
+    required this.hasAny,
+    required this.highestSeverity,
+    required this.conditionIds,
+    required this.drugClassIds,
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Header section
 // ---------------------------------------------------------------------------
 
-class _HeaderSection extends StatelessWidget {
+class _HeaderSection extends ConsumerWidget {
+  final String dsldId;
   final String productName;
   final String brandName;
   final String formFactor;
@@ -742,10 +889,10 @@ class _HeaderSection extends StatelessWidget {
   final bool isBlocked;
   final bool isNotScored;
   final List<Map<String, dynamic>> topWarnings;
-  final Animation<double> scoreAnimation;
   final VoidCallback onScoreInfoTap;
 
   const _HeaderSection({
+    required this.dsldId,
     required this.productName,
     required this.brandName,
     required this.formFactor,
@@ -758,38 +905,46 @@ class _HeaderSection extends StatelessWidget {
     required this.isBlocked,
     required this.isNotScored,
     required this.topWarnings,
-    required this.scoreAnimation,
     required this.onScoreInfoTap,
   });
 
-  Color _scoreColor(double? score) => scoreColor(score);
-
   @override
-  Widget build(BuildContext context) {
-    final scoreColor = isBlocked ? AppColors.red : _scoreColor(score100);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    // FitScore integration — async, shows a "personalized for you" pill
+    // next to the score ring. Null while loading or when the product has
+    // no base score; the badge handles that by rendering nothing.
+    final fitScoreAsync = ref.watch(fitScoreForProductProvider(dsldId));
 
     return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      color: scheme.surface,
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space20,
+        AppTheme.space16,
+        AppTheme.space20,
+        AppTheme.space20,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Product name + brand
           Text(
             productName,
-            style: const TextStyle(
-              fontSize: 20,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
+              height: 1.22,
             ),
           ),
           if (brandName.isNotEmpty) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               brandName,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -797,13 +952,12 @@ class _HeaderSection extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               formFactor,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: AppTheme.space16),
 
           // BLOCKED / UNSAFE banner — replaces score circle
           if (isBlocked)
@@ -812,83 +966,81 @@ class _HeaderSection extends StatelessWidget {
               blockingReason: blockingReason,
               topWarnings: topWarnings,
             )
-          else if (isNotScored)
-            // NOT_SCORED — grey circle with N/A
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const _NotScoredCircle(),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      VerdictBadge(verdict: verdict),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Not enough data to score this product',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            )
           else
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Animated score circle with info button
+                // Score ring — animated, tabular figure, "–" for NOT_SCORED
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    _AnimatedScoreCircle(
-                      animation: scoreAnimation,
-                      targetScore: score100,
-                      grade: grade,
-                      color: scoreColor,
+                    PGScoreRing(
+                      score: isNotScored ? null : score100,
+                      size: 76,
+                      strokeWidth: 5,
+                      label: isNotScored ? null : grade,
                     ),
+                    // Info button as floating action
                     Positioned(
-                      top: -4,
-                      right: -4,
+                      top: -2,
+                      right: -2,
                       child: GestureDetector(
                         onTap: onScoreInfoTap,
                         child: Container(
-                          padding: const EdgeInsets.all(2),
+                          width: 22,
+                          height: 22,
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
+                            color: scheme.surface,
                             shape: BoxShape.circle,
                             border: Border.all(
-                                color: AppColors.border, width: 1),
+                              color: scheme.outlineVariant,
+                              width: 0.8,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.info_outline,
-                            size: 14,
-                            color: AppColors.textSecondary,
+                          child: Icon(
+                            Icons.info_outline_rounded,
+                            size: 13,
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppTheme.space16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Verdict badge
                       VerdictBadge(verdict: verdict),
-                      if (percentileLabel.isNotEmpty) ...[
+                      if (isNotScored) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Not enough data to score this product',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ] else if (percentileLabel.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text(
                           percentileLabel,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
                           ),
+                        ),
+                      ],
+                      // FitScore badge — Sprint 4 personalization layer
+                      if (!isNotScored) ...[
+                        const SizedBox(height: AppTheme.space8),
+                        PGFitScoreBadge(
+                          result: fitScoreAsync.asData?.value,
+                          onTap: fitScoreAsync.asData?.value == null
+                              ? null
+                              : () => showFitScoreSheet(
+                                    context,
+                                    fitScoreAsync.asData!.value!,
+                                  ),
                         ),
                       ],
                     ],
@@ -934,110 +1086,8 @@ class _HeaderSection extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Animated score circle widget
-// ---------------------------------------------------------------------------
-
-class _AnimatedScoreCircle extends AnimatedWidget {
-  final Animation<double> animation;
-  final double? targetScore;
-  final String grade;
-  final Color color;
-
-  const _AnimatedScoreCircle({
-    required this.animation,
-    required this.targetScore,
-    required this.grade,
-    required this.color,
-  }) : super(listenable: animation);
-
-  @override
-  Widget build(BuildContext context) {
-    final animValue = animation.value;
-    final displayScore = targetScore != null
-        ? animValue.toStringAsFixed(0)
-        : '--';
-    final progress = targetScore != null
-        ? (animValue / 100).clamp(0.0, 1.0)
-        : 0.0;
-
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CircularProgressIndicator(
-            value: progress,
-            strokeWidth: 6,
-            backgroundColor: AppColors.border,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                displayScore,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
-              ),
-              if (grade.isNotEmpty)
-                Text(
-                  grade,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// NOT_SCORED grey circle
-// ---------------------------------------------------------------------------
-
-class _NotScoredCircle extends StatelessWidget {
-  const _NotScoredCircle();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 72,
-      height: 72,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CircularProgressIndicator(
-            value: 0,
-            strokeWidth: 6,
-            backgroundColor: AppColors.border,
-            valueColor:
-                AlwaysStoppedAnimation<Color>(AppColors.textSecondary),
-          ),
-          Text(
-            'N/A',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Blocked / Unsafe full-width banner
+// Blocked / Unsafe full-width banner — uses PGSeverityBanner for the base
+// surface and adds FDA source links inline.
 // ---------------------------------------------------------------------------
 
 class _BlockedBanner extends StatelessWidget {
@@ -1053,61 +1103,80 @@ class _BlockedBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final reasonText = blockingReason.isNotEmpty
         ? blockingReason
         : 'No scoring available for this product.';
+    final fdaLinks = _extractFdaLinks(topWarnings);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.red.withAlpha(15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.red.withAlpha(80)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.block, color: AppColors.red, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                verdict.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.red,
-                  letterSpacing: 0.5,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PGSeverityBanner(
+          tone: PGBannerTone.danger,
+          title: verdict.toUpperCase(),
+          body: reasonText,
+        ),
+        if (fdaLinks.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.space4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'FDA sources',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.severityContraindicated,
+                    letterSpacing: 0.3,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'This product cannot be scored due to:',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.red.withAlpha(180),
+                const SizedBox(height: 4),
+                ...fdaLinks.map((url) => InkWell(
+                      onTap: () async {
+                        final uri = Uri.tryParse(url);
+                        if (uri != null) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.open_in_new_rounded,
+                              size: 11,
+                              color: AppTheme.severityContraindicated,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                url,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: AppTheme.severityContraindicated,
+                                  decoration: TextDecoration.underline,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            reasonText,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.red,
-            ),
-          ),
-          // FDA source links from top_warnings
-          ..._fdaLinks(topWarnings),
         ],
-      ),
+      ],
     );
   }
 
-  List<Widget> _fdaLinks(List<Map<String, dynamic>> warnings) {
+  List<String> _extractFdaLinks(List<Map<String, dynamic>> warnings) {
     final links = <String>[];
     for (final w in warnings) {
       final urls = w['source_urls'];
@@ -1120,41 +1189,7 @@ class _BlockedBanner extends StatelessWidget {
         }
       }
     }
-    if (links.isEmpty) return [];
-    return [
-      const SizedBox(height: 10),
-      const Text(
-        'FDA Links:',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.red,
-        ),
-      ),
-      ...links.map(
-        (url) => GestureDetector(
-          onTap: () async {
-            final uri = Uri.tryParse(url);
-            if (uri != null) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              url,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.red,
-                decoration: TextDecoration.underline,
-                overflow: TextOverflow.ellipsis,
-              ),
-              maxLines: 1,
-            ),
-          ),
-        ),
-      ),
-    ];
+    return links;
   }
 }
 
@@ -1226,38 +1261,23 @@ class _DetailShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: AppColors.border,
-      highlightColor: AppColors.surface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _shimmerBox(height: 20, width: 120),
-          const SizedBox(height: 10),
-          _shimmerBox(height: 14),
-          const SizedBox(height: 6),
-          _shimmerBox(height: 14),
-          const SizedBox(height: 6),
-          _shimmerBox(height: 14, width: 240),
-          const SizedBox(height: 20),
-          _shimmerBox(height: 20, width: 160),
-          const SizedBox(height: 10),
-          _shimmerBox(height: 80),
-          const SizedBox(height: 12),
-          _shimmerBox(height: 80),
-        ],
-      ),
-    );
-  }
-
-  Widget _shimmerBox({double height = 16, double? width}) {
-    return Container(
-      width: width ?? double.infinity,
-      height: height,
-      decoration: BoxDecoration(
-        color: AppColors.border,
-        borderRadius: BorderRadius.circular(6),
-      ),
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PGShimmerBox(height: 18, width: 120),
+        SizedBox(height: AppTheme.space12),
+        PGShimmerBox(height: 14),
+        SizedBox(height: 6),
+        PGShimmerBox(height: 14),
+        SizedBox(height: 6),
+        PGShimmerBox(height: 14, width: 240),
+        SizedBox(height: AppTheme.space24),
+        PGShimmerBox(height: 18, width: 160),
+        SizedBox(height: AppTheme.space12),
+        PGShimmerCard(height: 96),
+        SizedBox(height: AppTheme.space12),
+        PGShimmerCard(height: 96),
+      ],
     );
   }
 }
@@ -1273,85 +1293,17 @@ class _DetailErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.border.withAlpha(60),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.cloud_off_outlined,
-              color: AppColors.textSecondary, size: 20),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Could not load product details.',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
+    return PGEmptyState(
+      icon: Icons.cloud_off_outlined,
+      title: 'Could not load details',
+      description:
+          'Pull to refresh, or try again once you have connectivity.',
+      actionLabel: 'Retry',
+      onAction: onRetry,
+      variant: PGEmptyStateVariant.offline,
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Action buttons
-// ---------------------------------------------------------------------------
-
-class _ActionButtons extends StatelessWidget {
-  final String dsldId;
-
-  const _ActionButtons({required this.dsldId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FilledButton.icon(
-          onPressed: () {
-            // TODO: add product to user stack via StackProvider
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Add to Stack'),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  // TODO: trigger share_plus with product share data
-                },
-                icon: const Icon(Icons.share_outlined),
-                label: const Text('Share'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  // TODO: save to favorites via FavoritesProvider
-                },
-                icon: const Icon(Icons.bookmark_border_outlined),
-                label: const Text('Save'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
+// Old _ActionButtons removed — replaced by [PGStackActionButtons] which
+// handles safety check, add/remove, and undo snackbar.

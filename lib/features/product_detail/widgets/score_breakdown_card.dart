@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_card.dart';
 
-/// Displays the four scoring section bars for a product.
-/// Each section shows label, score/max, and a colored progress bar.
+/// Score breakdown card — four sub-section bars for a product's base score.
+///
+/// Uses [PGCard] + dynamic color bands: each bar's color comes from
+/// `score/max` ratio, NOT the category. A 5/5 Brand Trust now renders
+/// green (exceptional), not orange.
 class ScoreBreakdownCard extends StatelessWidget {
   final double? ingredientQuality;
   final double? safetyPurity;
@@ -19,55 +23,45 @@ class ScoreBreakdownCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Score Breakdown',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
+    final theme = Theme.of(context);
+
+    return PGCard(
+      padding: const EdgeInsets.all(AppTheme.space16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Score breakdown',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.15,
             ),
-            const SizedBox(height: 16),
-            _SectionBar(
-              label: 'Ingredient Quality',
-              score: ingredientQuality,
-              max: 25,
-              color: AppColors.scoreExcellent,
-            ),
-            const SizedBox(height: 12),
-            _SectionBar(
-              label: 'Safety & Purity',
-              score: safetyPurity,
-              max: 30,
-              color: AppColors.scoreGood,
-            ),
-            const SizedBox(height: 12),
-            _SectionBar(
-              label: 'Evidence & Research',
-              score: evidenceResearch,
-              max: 20,
-              color: AppColors.scoreFair,
-            ),
-            const SizedBox(height: 12),
-            _SectionBar(
-              label: 'Brand Trust',
-              score: brandTrust,
-              max: 5,
-              color: AppColors.scoreBelowAvg,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: AppTheme.space16),
+          _SectionBar(
+            label: 'Ingredient quality',
+            score: ingredientQuality,
+            max: 25,
+          ),
+          const SizedBox(height: AppTheme.space12),
+          _SectionBar(
+            label: 'Safety & purity',
+            score: safetyPurity,
+            max: 30,
+          ),
+          const SizedBox(height: AppTheme.space12),
+          _SectionBar(
+            label: 'Evidence & research',
+            score: evidenceResearch,
+            max: 20,
+          ),
+          const SizedBox(height: AppTheme.space12),
+          _SectionBar(
+            label: 'Brand trust',
+            score: brandTrust,
+            max: 5,
+          ),
+        ],
       ),
     );
   }
@@ -77,20 +71,30 @@ class _SectionBar extends StatelessWidget {
   final String label;
   final double? score;
   final int max;
-  final Color color;
 
   const _SectionBar({
     required this.label,
     required this.score,
     required this.max,
-    required this.color,
   });
+
+  /// Same color bands as [PGScoreRing] — percent-of-max thresholds.
+  static Color _colorFor(double fraction) {
+    if (fraction >= 0.85) return AppTheme.scoreExceptional;
+    if (fraction >= 0.70) return AppTheme.scoreExcellent;
+    if (fraction >= 0.55) return AppTheme.scoreGood;
+    if (fraction >= 0.40) return AppTheme.scoreFair;
+    if (fraction >= 0.25) return AppTheme.scoreBelowAvg;
+    return AppTheme.scoreLow;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final value = score ?? 0.0;
     final fraction = (value / max).clamp(0.0, 1.0);
-    final scoreText = score != null ? '${value.toStringAsFixed(1)}/$max' : '--/$max';
+    final color = _colorFor(fraction);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,29 +104,33 @@ class _SectionBar extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: theme.textTheme.labelLarge?.copyWith(
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
               ),
             ),
             Text(
-              scoreText,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+              score != null
+                  ? '${value.toStringAsFixed(1)}/$max'
+                  : '—/$max',
+              style: AppTheme.numeric(
+                theme.textTheme.labelMedium!.copyWith(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 6),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
           child: LinearProgressIndicator(
             value: fraction,
-            minHeight: 8,
-            backgroundColor: AppColors.border,
+            minHeight: 6,
+            backgroundColor: scheme.surfaceContainerHigh,
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),

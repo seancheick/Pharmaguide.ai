@@ -1,230 +1,181 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
 /// Reusable product list item used in search results, category browsing, etc.
+///
+/// Uses [PGScoreRing] for the score visualization and [VerdictBadge] for the
+/// verdict pill. Tap routes to the product detail screen via go_router.
 class ProductListItem extends StatelessWidget {
   final ProductsCoreData product;
+  final EdgeInsetsGeometry padding;
 
-  const ProductListItem({super.key, required this.product});
-
-  Color _scoreColor(double? score) {
-    if (score == null) return AppColors.textSecondary;
-    if (score >= 85) return AppColors.scoreExceptional;
-    if (score >= 70) return AppColors.scoreExcellent;
-    if (score >= 55) return AppColors.scoreGood;
-    if (score >= 40) return AppColors.scoreFair;
-    if (score >= 25) return AppColors.scoreBelowAvg;
-    return AppColors.scoreLow;
-  }
-
-  Color _verdictColor(String? verdict) {
-    switch (verdict?.toUpperCase()) {
-      case 'RECOMMENDED':
-        return AppColors.scoreExceptional;
-      case 'GOOD':
-        return AppColors.scoreExcellent;
-      case 'REVIEW':
-        return AppColors.scoreFair;
-      case 'MODERATE':
-        return AppColors.scoreBelowAvg;
-      case 'UNSAFE':
-      case 'BLOCKED':
-        return AppColors.red;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
+  const ProductListItem({
+    super.key,
+    required this.product,
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: AppTheme.space16,
+      vertical: AppTheme.space12,
+    ),
+  });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final score = product.score100Equivalent;
-    final color = _scoreColor(score);
-    final verdictColor = _verdictColor(product.verdict);
 
-    return InkWell(
-      onTap: () => context.push('/product/${product.dsldId}'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            // Score circle
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withAlpha(20),
-                border: Border.all(color: color.withAlpha(80), width: 2),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/product/${product.dsldId}'),
+        splashColor: scheme.primary.withValues(alpha: 0.08),
+        highlightColor: scheme.primary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        child: Padding(
+          padding: padding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Animated score ring
+              PGScoreRing(
+                score: score,
+                size: 52,
+                strokeWidth: 4,
               ),
-              alignment: Alignment.center,
-              child: Text(
-                score?.toStringAsFixed(0) ?? '--',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            // Product info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.productName,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  if (product.brandName != null &&
-                      product.brandName!.isNotEmpty)
+              const SizedBox(width: AppTheme.space16),
+              // Text column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      product.brandName!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                      product.productName,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  const SizedBox(height: 4),
-                  // Verdict + category
-                  Row(
-                    children: [
-                      if (product.verdict != null &&
-                          product.verdict!.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: verdictColor.withAlpha(20),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            product.verdict!.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: verdictColor,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
+                    if (product.brandName != null &&
+                        product.brandName!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        product.brandName!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.3,
                         ),
-                      if (product.primaryCategory != null &&
-                          product.primaryCategory!.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          product.primaryCategory!,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
-                  ),
-                ],
+                    if (product.verdict != null &&
+                        product.verdict!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          VerdictBadge(verdict: product.verdict!),
+                          if (product.primaryCategory != null &&
+                              product.primaryCategory!.isNotEmpty) ...[
+                            const SizedBox(width: AppTheme.space8),
+                            Flexible(
+                              child: Text(
+                                product.primaryCategory!,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  letterSpacing: 0.1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right,
-                color: AppColors.textSecondary, size: 20),
-          ],
+              const SizedBox(width: AppTheme.space8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant,
+                size: 20,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Grid-view version of a product card.
+/// Grid-view version of a product card. Uses [PGCard] for the surface and
+/// [PGScoreRing] for the score.
 class ProductGridItem extends StatelessWidget {
   final ProductsCoreData product;
 
   const ProductGridItem({super.key, required this.product});
 
-  Color _scoreColor(double? score) {
-    if (score == null) return AppColors.textSecondary;
-    if (score >= 85) return AppColors.scoreExceptional;
-    if (score >= 70) return AppColors.scoreExcellent;
-    if (score >= 55) return AppColors.scoreGood;
-    if (score >= 40) return AppColors.scoreFair;
-    if (score >= 25) return AppColors.scoreBelowAvg;
-    return AppColors.scoreLow;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final score = product.score100Equivalent;
-    final color = _scoreColor(score);
 
-    return GestureDetector(
+    return PGCard(
       onTap: () => context.push('/product/${product.dsldId}'),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Score badge
-            Align(
-              alignment: Alignment.topRight,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withAlpha(20),
-                  border: Border.all(color: color.withAlpha(80)),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  score?.toStringAsFixed(0) ?? '--',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
-                ),
+      padding: const EdgeInsets.all(AppTheme.space12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top row — score ring + verdict badge
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PGScoreRing(
+                score: score,
+                size: 44,
+                strokeWidth: 3.5,
               ),
+              const Spacer(),
+              if (product.verdict != null && product.verdict!.isNotEmpty)
+                VerdictBadge(verdict: product.verdict!),
+            ],
+          ),
+          const Spacer(),
+          // Product name
+          Text(
+            product.productName,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
+              height: 1.3,
             ),
-            const Spacer(),
-            // Product name
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (product.brandName != null && product.brandName!.isNotEmpty) ...[
+            const SizedBox(height: 2),
             Text(
-              product.productName,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+              product.brandName!,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
-            if (product.brandName != null && product.brandName!.isNotEmpty)
-              Text(
-                product.brandName!,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
           ],
-        ),
+        ],
       ),
     );
   }

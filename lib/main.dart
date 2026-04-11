@@ -11,6 +11,7 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/onboarding_prefs.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,17 +32,25 @@ void main() async {
   }
 
   final userDb = await openUserDatabase();
-  runApp(PharmaGuideBootstrap(userDb: userDb, supabaseReady: supabaseReady));
+  final hasSeenOnboarding = await OnboardingPrefs.hasSeen();
+
+  runApp(PharmaGuideBootstrap(
+    userDb: userDb,
+    supabaseReady: supabaseReady,
+    hasSeenOnboarding: hasSeenOnboarding,
+  ));
 }
 
 class PharmaGuideBootstrap extends StatefulWidget {
   final UserDatabase userDb;
   final bool supabaseReady;
+  final bool hasSeenOnboarding;
 
   const PharmaGuideBootstrap({
     super.key,
     required this.userDb,
     required this.supabaseReady,
+    required this.hasSeenOnboarding,
   });
 
   @override
@@ -242,6 +251,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         catalogAvailable: _catalogAvailable,
         catalogUnavailableReason: _catalogUnavailableReason,
         onRetryCatalogLoad: _retryCatalogLoad,
+        hasSeenOnboarding: widget.hasSeenOnboarding,
       ),
     );
   }

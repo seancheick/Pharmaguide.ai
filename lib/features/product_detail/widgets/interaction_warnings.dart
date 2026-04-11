@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_interaction_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// A single interaction warning entry parsed from the detail blob.
+///
+/// This class is public because [product_detail_screen.dart] parses it
+/// directly from the detail blob and passes a `List<InteractionWarning>`
+/// into [InteractionWarningsList].
 class InteractionWarning {
   final Severity severity;
   final EvidenceLevel evidenceLevel;
@@ -55,21 +61,65 @@ class InteractionWarningsList extends StatelessWidget {
     return sorted;
   }
 
+  void _showCitations(BuildContext context, InteractionWarning warning) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) => _CitationsSheet(warning: warning),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    // -----------------------------------------------------------------
+    // Empty state — "no known interactions." This is GOOD news in a
+    // pharma app, so treat it as a positive-tinted card, not a dry
+    // single line of gray text.
+    // -----------------------------------------------------------------
     if (warnings.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+      return PGCard(
+        variant: PGCardVariant.recessed,
+        padding: const EdgeInsets.all(AppTheme.space16),
         child: Row(
           children: [
-            const Icon(Icons.check_circle_outline,
-                color: AppColors.green, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'No known interactions found.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppTheme.severitySafe.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: AppTheme.severitySafe,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: AppTheme.space12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No known interactions',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Based on your current health profile and this product.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -81,199 +131,200 @@ class InteractionWarningsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Interaction Warnings',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+        // Section header row with count pill
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.space12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Interaction warnings',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
               ),
+              const SizedBox(width: AppTheme.space8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  border: Border.all(
+                    color: scheme.outlineVariant,
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  '${sorted.length}',
+                  style: AppTheme.numeric(
+                    TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        ...sorted.map((w) => _WarningCard(warning: w)),
+
+        // Stack of interaction cards with breathing room between
+        ...List.generate(sorted.length, (i) {
+          final w = sorted[i];
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: i == sorted.length - 1 ? 0 : AppTheme.space12,
+            ),
+            child: PGInteractionCard(
+              severity: w.severity,
+              evidenceLevel: w.evidenceLevel,
+              title: w.title,
+              mechanism: w.mechanism,
+              management: w.management,
+              sources: w.sourceUrls,
+              // Top-severity card starts expanded — user sees the worst
+              // interaction's full details without needing to tap.
+              initiallyExpanded: i == 0 && w.severity.weight >= 3,
+              onSourceTap: w.sourceUrls.isEmpty
+                  ? null
+                  : () => _showCitations(context, w),
+            ),
+          );
+        }),
       ],
     );
   }
 }
 
-class _WarningCard extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// Citations bottom sheet — shown when user taps the "N sources" chip.
+// ---------------------------------------------------------------------------
+
+class _CitationsSheet extends StatelessWidget {
   final InteractionWarning warning;
 
-  const _WarningCard({required this.warning});
+  const _CitationsSheet({required this.warning});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Badges row
-            Row(
-              children: [
-                _SeverityBadge(severity: warning.severity),
-                const SizedBox(width: 8),
-                _EvidenceBadge(level: warning.evidenceLevel),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Title
-            if (warning.title.isNotEmpty)
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) {
+        return SingleChildScrollView(
+          controller: scrollController,
+          // Bottom padding clears the frosted nav bar.
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space8,
+            AppTheme.space20,
+            AppTheme.space32 + kPGNavBarHeight,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
               Text(
-                warning.title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                'Sources',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            // Mechanism
-            if (warning.mechanism.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
-                warning.mechanism,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
+                'Clinical references backing this interaction warning.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
-            ],
-            // Management guidance
-            if (warning.management.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline,
-                        size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        warning.management,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
+              const SizedBox(height: AppTheme.space20),
+              // Each source as its own tappable PGCard
+              ...warning.sourceUrls.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final url = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.space8),
+                  child: PGCard(
+                    padding: const EdgeInsets.all(AppTheme.space12),
+                    onTap: () {
+                      final uri = Uri.tryParse(url);
+                      if (uri != null) {
+                        launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHigh,
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusFull),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${idx + 1}',
+                            style: AppTheme.numeric(
+                              theme.textTheme.labelLarge!.copyWith(
+                                fontSize: 13,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: AppTheme.space12),
+                        Expanded(
+                          child: Text(
+                            _prettyHost(url),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: AppTheme.space8),
+                        Icon(
+                          Icons.open_in_new_rounded,
+                          size: 16,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              }),
             ],
-            // Source URLs
-            if (warning.sourceUrls.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ...warning.sourceUrls.map(
-                (url) => _SourceUrlLink(url: url),
-              ),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
-}
 
-class _SeverityBadge extends StatelessWidget {
-  final Severity severity;
-
-  const _SeverityBadge({required this.severity});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: severity.color.withAlpha(25),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: severity.color.withAlpha(80)),
-      ),
-      child: Text(
-        severity.label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: severity.color,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
-
-class _EvidenceBadge extends StatelessWidget {
-  final EvidenceLevel level;
-
-  const _EvidenceBadge({required this.level});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.border,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        level.label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _SourceUrlLink extends StatelessWidget {
-  final String url;
-
-  const _SourceUrlLink({required this.url});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: GestureDetector(
-        onTap: () {
-          final uri = Uri.tryParse(url);
-          if (uri != null) {
-            launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-        },
-        child: Row(
-          children: [
-            const Icon(Icons.open_in_new,
-                size: 12, color: AppTheme.brandTeal),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                url,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.brandTeal,
-                  decoration: TextDecoration.underline,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                maxLines: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Returns a prettier label for a URL — host + last path segment, so
+  /// `https://pubmed.ncbi.nlm.nih.gov/12345678/abc` becomes
+  /// `pubmed.ncbi.nlm.nih.gov / abc`.
+  String _prettyHost(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return url;
+    final host = uri.host.isEmpty ? url : uri.host;
+    final lastSeg = uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.lastWhere((s) => s.isNotEmpty, orElse: () => '')
+        : '';
+    if (lastSeg.isEmpty) return host;
+    return '$host  ·  $lastSeg';
   }
 }

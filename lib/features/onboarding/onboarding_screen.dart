@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/services/onboarding_prefs.dart';
 
+/// 3-slide onboarding intro — first thing users see on a fresh install.
+///
+/// Premium design language: soft-tinted icon wells, tight letter-spacing
+/// on the display title, smooth animated page indicator. Pulls styling
+/// exclusively from [Theme.of] + [AppTheme] tokens so it adapts to
+/// light/dark mode and respects Dynamic Type.
+///
+/// Persists `hasSeenOnboarding = true` via [OnboardingPrefs] before
+/// navigating away so the app never shows this screen twice.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -16,44 +27,49 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _pages = [
     _OnboardingPageData(
-      title: 'Know What You Take',
+      title: 'Know what you take',
       description:
-          'Scan any supplement barcode for an instant clinical-grade safety score backed by real research.',
-      icon: Icons.qr_code_scanner,
+          'Scan any supplement barcode for an instant clinical-grade safety '
+          'score backed by real research.',
+      icon: Icons.qr_code_scanner_rounded,
     ),
     _OnboardingPageData(
-      title: 'Personalized Safety',
+      title: 'Personalized safety',
       description:
-          'Add your health conditions and medications. Get warnings tailored to your unique profile.',
+          'Add your health conditions and medications. Get warnings tailored '
+          'to your unique profile.',
       icon: Icons.shield_outlined,
     ),
     _OnboardingPageData(
-      title: 'Your Data Stays Private',
+      title: 'Your data stays private',
       description:
-          'All health information is encrypted on your device. We never upload your personal data.',
-      icon: Icons.lock_outline,
+          'All health information is encrypted on your device. We never '
+          'upload your personal data.',
+      icon: Icons.lock_outline_rounded,
     ),
   ];
 
-  void _next() {
+  Future<void> _next() async {
     if (_currentPage < _pages.length - 1) {
-      _controller.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+      await _controller.nextPage(
+        duration: AppMotion.medium,
+        curve: AppMotion.standard,
       );
     } else {
-      _complete();
+      await _complete();
     }
   }
 
-  void _complete() {
-    // TODO: Save hasSeenOnboarding = true to SharedPreferences/Hive
-    context.go('/profile/setup');
+  Future<void> _complete() async {
+    await OnboardingPrefs.markSeen();
+    if (!mounted) return;
+    GoRouter.of(context).go(Routes.profileSetup);
   }
 
-  void _skip() {
-    // TODO: Save hasSeenOnboarding = true
-    context.go('/');
+  Future<void> _skip() async {
+    await OnboardingPrefs.markSeen();
+    if (!mounted) return;
+    GoRouter.of(context).go(Routes.home);
   }
 
   @override
@@ -64,24 +80,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final isLast = _currentPage == _pages.length - 1;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
+            // Skip button — top-right, tertiary text style
             Align(
               alignment: Alignment.topRight,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20,
+                  AppTheme.space12,
+                  AppTheme.space20,
+                  0,
+                ),
                 child: TextButton(
                   onPressed: _skip,
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(color: AppColors.textSecondary),
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.onSurfaceVariant,
                   ),
+                  child: const Text('Skip'),
                 ),
               ),
             ),
@@ -92,48 +114,51 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 itemCount: _pages.length,
                 onPageChanged: (index) =>
                     setState(() => _currentPage = index),
-                itemBuilder: (context, index) {
-                  final page = _pages[index];
-                  return _OnboardingPage(data: page);
-                },
+                itemBuilder: (context, index) => _OnboardingPage(
+                  data: _pages[index],
+                ),
               ),
             ),
-            // Dots + button
+            // Dots + primary button
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 48),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space24,
+                AppTheme.space16,
+                AppTheme.space24,
+                AppTheme.space48,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Page dots
+                  // Animated page dots — active dot elongates
                   Row(
-                    children: List.generate(
-                      _pages.length,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                    children: List.generate(_pages.length, (index) {
+                      final selected = index == _currentPage;
+                      return AnimatedContainer(
+                        duration: AppMotion.medium,
+                        curve: AppMotion.standard,
                         margin: const EdgeInsets.only(right: 8),
-                        width: index == _currentPage ? 24 : 8,
+                        width: selected ? 24 : 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: index == _currentPage
-                              ? AppTheme.brandTeal
-                              : AppColors.border,
+                          color: selected
+                              ? scheme.primary
+                              : scheme.outlineVariant,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
                   ),
-                  // Next / Get Started button
+                  // Next / Get Started
                   FilledButton(
                     onPressed: _next,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.brandTeal,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        horizontal: AppTheme.space32,
                       ),
+                      minimumSize: const Size(0, 52),
                     ),
-                    child: Text(isLast ? 'Get Started' : 'Next'),
+                    child: Text(isLast ? 'Get started' : 'Next'),
                   ),
                 ],
               ),
@@ -164,33 +189,49 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.space32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            data.icon,
-            size: 80,
-            color: AppTheme.brandTeal,
+          // Soft-tinted icon well — the premium alternative to a naked icon
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              border: Border.all(
+                color: scheme.primary.withValues(alpha: 0.22),
+                width: 1.2,
+              ),
+            ),
+            child: Icon(
+              data.icon,
+              size: 52,
+              color: scheme.primary,
+            ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: AppTheme.space40),
           Text(
             data.title,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+            style: theme.textTheme.headlineLarge?.copyWith(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.6,
+              height: 1.18,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppTheme.space16),
           Text(
             data.description,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary,
-              height: 1.5,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.55,
             ),
             textAlign: TextAlign.center,
           ),

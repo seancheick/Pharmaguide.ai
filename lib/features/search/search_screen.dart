@@ -2,15 +2,24 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
-import 'package:pharmaguide/core/widgets/verdict_badge.dart';
-import 'package:pharmaguide/core/constants/score_colors.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
+import 'package:pharmaguide/core/widgets/pg_filter_chip.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_search_field.dart';
+import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
+import 'package:pharmaguide/core/widgets/product_list_item.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 
+/// Search screen — fully migrated to the PG design system.
+///
+/// Composition: PGSearchField in the app bar, recent-search rows as
+/// PGCard rows, category results list via ProductListItem (already PG),
+/// grid mode via ProductGridItem (already PG), and PGEmptyState for the
+/// no-results and first-open states.
 class SearchScreen extends ConsumerStatefulWidget {
   final String? initialCategory;
   const SearchScreen({super.key, this.initialCategory});
@@ -21,7 +30,6 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
-  final _focusNode = FocusNode();
 
   String _query = '';
   String? _activeCategory;
@@ -37,7 +45,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void initState() {
     super.initState();
     _activeCategory = widget.initialCategory;
-    _focusNode.requestFocus();
     _loadRecentSearches();
     if (_activeCategory != null && _activeCategory!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -62,7 +69,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       limit: 50,
       sortBy: 'score',
     );
-
     if (!mounted) return;
     setState(() {
       _results = results;
@@ -74,7 +80,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
@@ -82,9 +87,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _debounce?.cancel();
     setState(() {
       _query = value;
-      if (value.trim().isNotEmpty) {
-        _activeCategory = null;
-      }
+      if (value.trim().isNotEmpty) _activeCategory = null;
     });
 
     if (value.trim().isEmpty) {
@@ -99,7 +102,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     setState(() => _loading = true);
-
     _debounce = Timer(const Duration(milliseconds: 300), () {
       _executeSearch(value.trim());
     });
@@ -111,17 +113,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     try {
       final results = await db.searchProducts(query, limit: 50);
-
-      // Latest-query-wins: discard if a newer search was issued.
-      if (version != _searchVersion) return;
-
+      if (version != _searchVersion) return; // latest-query-wins
       if (!mounted) return;
       setState(() {
         _results = results;
         _loading = false;
       });
-
-      // Save successful search to recent
       if (results.isNotEmpty) {
         await _recentService.addSearch(query);
         await _loadRecentSearches();
@@ -130,7 +127,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (version != _searchVersion) return;
       if (!mounted) return;
       setState(() {
-        _results = [];
+        _results = <ProductsCoreData>[];
         _loading = false;
       });
     }
@@ -149,54 +146,104 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final mq = MediaQuery.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          decoration: const InputDecoration(
-            hintText: 'Search supplements...',
-            border: InputBorder.none,
-          ),
-          onChanged: _onQueryChanged,
-        ),
-        actions: [
-          if (_query.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              onPressed: _clearSearch,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Top area with back button + search field
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space8,
+                AppTheme.space8,
+                AppTheme.space16,
+                AppTheme.space8,
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back_rounded,
+                      color: scheme.onSurface,
+                    ),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                  Expanded(
+                    child: PGSearchField(
+                      controller: _controller,
+                      autofocus: true,
+                      onChanged: _onQueryChanged,
+                      trailing: _query.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              onPressed: _clearSearch,
+                              visualDensity: VisualDensity.compact,
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
             ),
-        ],
+
+            // Body content
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: mq.padding.bottom + kPGNavBarHeight,
+                ),
+                child: _buildBody(),
+              ),
+            ),
+          ],
+        ),
       ),
-      body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
     if (_query.isEmpty && _activeCategory != null) {
-      if (_loading) return _buildLoadingState();
+      if (_loading) return const _SearchLoadingList();
       if (_results == null || _results!.isEmpty) return _buildNoResultsState();
       return _buildResultsList();
     }
     if (_query.isEmpty) return _buildEmptyState();
-    if (_loading) return _buildLoadingState();
+    if (_loading) return const _SearchLoadingList();
     if (_results == null || _results!.isEmpty) return _buildNoResultsState();
     return _buildResultsList();
   }
 
   Widget _buildEmptyState() {
     if (_recentSearches.isNotEmpty) {
+      final theme = Theme.of(context);
+      final scheme = theme.colorScheme;
       return ListView(
-        padding: const EdgeInsets.all(16),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          AppTheme.space8,
+          AppTheme.space20,
+          AppTheme.space16,
+        ),
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Recent Searches',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary)),
+              Text(
+                'Recent searches',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.15,
+                ),
+              ),
               TextButton(
                 onPressed: () async {
                   await _recentService.clearAll();
@@ -206,111 +253,133 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ],
           ),
+          const SizedBox(height: AppTheme.space8),
           ..._recentSearches.map(
-            (term) => ListTile(
-              leading: const Icon(Icons.history, color: AppColors.textSecondary),
-              title: Text(term),
-              trailing: IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: () async {
-                  await _recentService.removeSearch(term);
-                  await _loadRecentSearches();
+            (term) => Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.space8),
+              child: PGCard(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space12,
+                  AppTheme.space12,
+                  AppTheme.space8,
+                  AppTheme.space12,
+                ),
+                onTap: () {
+                  _controller.text = term;
+                  _onQueryChanged(term);
                 },
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.history_rounded,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppTheme.space12),
+                    Expanded(
+                      child: Text(
+                        term,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 16,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () async {
+                        await _recentService.removeSearch(term);
+                        await _loadRecentSearches();
+                      },
+                    ),
+                  ],
+                ),
               ),
-              onTap: () {
-                _controller.text = term;
-                _onQueryChanged(term);
-              },
-              contentPadding: EdgeInsets.zero,
             ),
           ),
         ],
       );
     }
 
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search, size: 64, color: AppColors.textSecondary),
-          SizedBox(height: 16),
-          Text('Search by product name or brand',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
-          SizedBox(height: 8),
-          Text('Or scan a barcode for instant results',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-        ],
+    return const Padding(
+      padding: EdgeInsets.all(AppTheme.space20),
+      child: PGEmptyState(
+        icon: Icons.search_rounded,
+        title: 'Search supplements',
+        description:
+            'Type a product name or brand to find instantly — or scan a '
+            'barcode from the scan tab for the fastest lookup.',
+        variant: PGEmptyStateVariant.info,
       ),
     );
-  }
-
-  Widget _buildLoadingState() {
-    return const Center(child: CircularProgressIndicator());
   }
 
   Widget _buildNoResultsState() {
     final title = _activeCategory != null && _query.isEmpty
-        ? 'No products found in ${_activeCategory!.replaceAll('_', ' ')}'
+        ? 'No products in ${_activeCategory!.replaceAll('_', ' ')}'
         : 'No results for "$_query"';
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.search_off,
-              size: 48, color: AppColors.textSecondary),
-          const SizedBox(height: 16),
-          Text(title,
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 16)),
-          const SizedBox(height: 8),
-          const Text('Try a different spelling or brand name',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-        ],
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.space20),
+      child: PGEmptyState(
+        icon: Icons.search_off_rounded,
+        title: title,
+        description: 'Try a different spelling or brand name.',
       ),
     );
   }
 
+  // (const-construct helper removed; empty state now const-built)
+
   Widget _buildResultsList() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Column(
       children: [
-        // Results header with count and view toggle
+        // Header: count + view toggle
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space8,
+            AppTheme.space12,
+            AppTheme.space8,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 _resultsHeaderText(),
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.view_list,
-                        color: !_isGridView
-                            ? AppTheme.brandTeal
-                            : AppColors.textSecondary,
-                        size: 22),
-                    onPressed: () => setState(() => _isGridView = false),
-                    visualDensity: VisualDensity.compact,
+                  PGFilterChip(
+                    label: 'List',
+                    icon: Icons.view_list_rounded,
+                    selected: !_isGridView,
+                    onTap: () => setState(() => _isGridView = false),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.grid_view,
-                        color: _isGridView
-                            ? AppTheme.brandTeal
-                            : AppColors.textSecondary,
-                        size: 22),
-                    onPressed: () => setState(() => _isGridView = true),
-                    visualDensity: VisualDensity.compact,
+                  const SizedBox(width: 6),
+                  PGFilterChip(
+                    label: 'Grid',
+                    icon: Icons.grid_view_rounded,
+                    selected: _isGridView,
+                    onTap: () => setState(() => _isGridView = true),
                   ),
                 ],
               ),
             ],
           ),
         ),
+
         // Results content
         Expanded(
           child: _isGridView ? _buildGridResults() : _buildListResults(),
@@ -320,169 +389,74 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildListResults() {
+    final scheme = Theme.of(context).colorScheme;
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(top: AppTheme.space4),
       itemCount: _results!.length,
-      separatorBuilder: (_, __) =>
-          const Divider(height: 1, color: AppColors.border),
-      itemBuilder: (context, index) {
-        final product = _results![index];
-        return _SearchResultTile(
-          product: product,
-          onTap: () => context.push('/product/${product.dsldId}'),
-        );
-      },
+      separatorBuilder: (_, __) => Divider(
+        height: 0.5,
+        thickness: 0.5,
+        indent: 84,
+        endIndent: AppTheme.space16,
+        color: scheme.outlineVariant,
+      ),
+      itemBuilder: (context, index) => ProductListItem(
+        product: _results![index],
+      ),
     );
   }
 
   Widget _buildGridResults() {
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space20,
+        vertical: AppTheme.space8,
+      ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        crossAxisSpacing: AppTheme.space12,
+        mainAxisSpacing: AppTheme.space12,
         childAspectRatio: 0.85,
       ),
       itemCount: _results!.length,
-      itemBuilder: (context, index) {
-        final product = _results![index];
-        return _SearchGridCard(product: product);
-      },
+      itemBuilder: (context, index) => ProductGridItem(
+        product: _results![index],
+      ),
     );
   }
 
   String _resultsHeaderText() {
+    final count = _results!.length;
     if (_activeCategory != null && _query.isEmpty) {
       final label = _activeCategory!.replaceAll('_', ' ');
-      return '${_results!.length} $label result${_results!.length == 1 ? '' : 's'}';
+      return '$count $label result${count == 1 ? '' : 's'}';
     }
-    return '${_results!.length} result${_results!.length == 1 ? '' : 's'}';
+    return '$count result${count == 1 ? '' : 's'}';
   }
 }
 
-class _SearchResultTile extends StatelessWidget {
-  final ProductsCoreData product;
-  final VoidCallback onTap;
+// ---------------------------------------------------------------------------
+// Loading state — skeleton list
+// ---------------------------------------------------------------------------
 
-  const _SearchResultTile({required this.product, required this.onTap});
+class _SearchLoadingList extends StatelessWidget {
+  const _SearchLoadingList();
 
   @override
   Widget build(BuildContext context) {
-    final score = product.score100Equivalent;
-    final verdict = product.verdict;
-
-    return ListTile(
-      onTap: onTap,
-      title: Text(
-        product.productName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      subtitle: Text(
-        product.brandName ?? '',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+    return const Padding(
+      padding: EdgeInsets.only(top: AppTheme.space8),
+      child: Column(
         children: [
-          if (score != null)
-            Text(
-              score.round().toString(),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: _scoreColor(score),
-              ),
-            ),
-          if (verdict != null) ...[
-            const SizedBox(width: 8),
-            VerdictBadge(verdict: verdict),
-          ],
+          PGShimmerListRow(),
+          PGShimmerListRow(),
+          PGShimmerListRow(),
+          PGShimmerListRow(),
+          PGShimmerListRow(),
+          PGShimmerListRow(),
         ],
-      ),
-    );
-  }
-
-  Color _scoreColor(double score) => scoreColor(score);
-}
-
-
-class _SearchGridCard extends StatelessWidget {
-  final ProductsCoreData product;
-
-  const _SearchGridCard({required this.product});
-
-  Color _scoreColor(double? score) => scoreColor(score);
-
-  @override
-  Widget build(BuildContext context) {
-    final score = product.score100Equivalent;
-    final color = _scoreColor(score);
-
-    return GestureDetector(
-      onTap: () => context.push('/product/${product.dsldId}'),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withAlpha(20),
-                  border: Border.all(color: color.withAlpha(80)),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  score?.toStringAsFixed(0) ?? '--',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
-                ),
-              ),
-            ),
-            const Spacer(),
-            Text(
-              product.productName,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            if (product.brandName != null && product.brandName!.isNotEmpty)
-              Text(
-                product.brandName!,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
-        ),
       ),
     );
   }

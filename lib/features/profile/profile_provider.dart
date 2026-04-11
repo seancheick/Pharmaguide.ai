@@ -216,8 +216,10 @@ final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>(
     UserDatabase? db;
     try {
       db = ref.watch(userDatabaseProvider);
-    } catch (_) {
+    } on Object {
       // userDatabaseProvider not overridden (e.g. in tests) — no persistence.
+      // Catches Error (UnimplementedError from the default provider stub)
+      // AND Exception — both map to "no DB available" here.
     }
     final notifier = ProfileNotifier(db);
     // Kick off load — consumers can check notifier.isLoaded if needed.

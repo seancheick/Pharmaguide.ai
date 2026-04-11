@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -71,26 +72,27 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   /// Returns the verdict flash color based on the product verdict string.
+  /// All tokens come from [AppTheme] so a future theme tweak propagates.
   Color _verdictColor(String? verdict) {
     switch (verdict?.toUpperCase()) {
       case 'RECOMMENDED':
-        return AppColors.scoreExceptional;
+        return AppTheme.scoreExceptional;
       case 'GOOD':
-        return AppColors.scoreExcellent;
+        return AppTheme.scoreExcellent;
       case 'REVIEW':
       case 'MODERATE':
-        return AppColors.orange;
+        return AppTheme.severityCaution;
       case 'BLOCKED':
       case 'UNSAFE':
-        return AppColors.red;
+        return AppTheme.severityContraindicated;
       default:
-        return AppColors.scoreExcellent; // Default to green
+        return AppTheme.scoreExcellent; // Default to green
     }
   }
 
   /// Flash the verdict color briefly, trigger haptic feedback, then navigate.
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
-    HapticFeedback.mediumImpact();
+    unawaited(HapticFeedback.mediumImpact());
 
     final color = _verdictColor(product.verdict);
     setState(() {
@@ -98,98 +100,98 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       _showFlash = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
 
     setState(() => _showFlash = false);
-    context.push('/product/${product.dsldId}');
+    unawaited(context.push('/product/${product.dsldId}'));
   }
 
   void _showProductNotFound(String upc) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.orange.withAlpha(30),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.search_off,
-                  color: AppColors.orange, size: 28),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Product Not Found',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'UPC: $upc',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                fontFamily: 'monospace',
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'This product is not in our database yet.',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      setState(() => _hasScanned = false);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text('Scan Another'),
-                  ),
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final scheme = theme.colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space24,
+            AppTheme.space16,
+            AppTheme.space24,
+            AppTheme.space24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppTheme.severityCaution.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      context.push('/search');
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.brandTeal,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text('Search Instead'),
-                  ),
+                child: const Icon(
+                  Icons.search_off_rounded,
+                  color: AppTheme.severityCaution,
+                  size: 28,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+              ),
+              const SizedBox(height: AppTheme.space16),
+              Text(
+                'Product not found',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppTheme.space8),
+              Text(
+                'UPC: $upc',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const SizedBox(height: AppTheme.space8),
+              Text(
+                "This product isn't in our database yet.",
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppTheme.space24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        setState(() => _hasScanned = false);
+                      },
+                      child: const Text('Scan another'),
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.space12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        context.push('/search');
+                      },
+                      child: const Text('Search instead'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.space16),
+            ],
+          ),
+        );
+      },
     ).whenComplete(() {
       // If bottom sheet is dismissed (e.g. swipe down), allow re-scan
       if (mounted) {
@@ -292,7 +294,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 color: (_flashColor ?? Colors.transparent).withAlpha(180),
                 child: Center(
                   child: Icon(
-                    _flashColor == AppColors.red
+                    _flashColor == AppTheme.severityContraindicated
                         ? Icons.warning_rounded
                         : Icons.check_circle_rounded,
                     color: Colors.white,

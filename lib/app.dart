@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
@@ -92,6 +93,7 @@ class CatalogUnavailableScreen extends StatelessWidget {
 
 GoRouter _buildRouter({
   required bool catalogAvailable,
+  required bool hasSeenOnboarding,
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
 }) {
@@ -104,7 +106,10 @@ GoRouter _buildRouter({
   }
 
   return GoRouter(
-    initialLocation: Routes.home,
+    // Fresh installs start at onboarding; returning users go straight to
+    // home. `OnboardingPrefs.markSeen()` is called in the onboarding
+    // screen's Next/Skip handlers so this only fires once per device.
+    initialLocation: hasSeenOnboarding ? Routes.home : Routes.onboarding,
     routes: [
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
@@ -160,50 +165,58 @@ class _AppShell extends StatelessWidget {
     return 0;
   }
 
+  void _onDestinationSelected(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.go(Routes.home);
+      case 1:
+        context.go(Routes.scan);
+      case 2:
+        context.go(Routes.stack);
+      case 3:
+        context.go(Routes.chat);
+      case 4:
+        context.go(Routes.profile);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // `extendBody: true` lets scrollable content flow *under* the frosted
+      // nav bar so the BackdropFilter has pixels to blur — this is what
+      // makes the Apple-style glass effect actually visible. Each modal
+      // bottom sheet is responsible for adding bottom padding equal to
+      // [kPGNavBarHeight] so its content doesn't sit behind the nav bar.
+      extendBody: true,
       body: child,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: PGFrostedNavBar(
         selectedIndex: _selectedIndex(context),
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go(Routes.home);
-            case 1:
-              context.go(Routes.scan);
-            case 2:
-              context.go(Routes.stack);
-            case 3:
-              context.go(Routes.chat);
-            case 4:
-              context.go(Routes.profile);
-          }
-        },
+        onDestinationSelected: (i) => _onDestinationSelected(context, i),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+            selectedIcon: Icon(Icons.home_rounded),
             label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(Icons.qr_code_scanner_outlined),
-            selectedIcon: Icon(Icons.qr_code_scanner),
+            selectedIcon: Icon(Icons.qr_code_scanner_rounded),
             label: 'Scan',
           ),
           NavigationDestination(
             icon: Icon(Icons.layers_outlined),
-            selectedIcon: Icon(Icons.layers),
+            selectedIcon: Icon(Icons.layers_rounded),
             label: 'Stack',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_outlined),
-            selectedIcon: Icon(Icons.chat),
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome_rounded),
             label: 'Chat',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
             label: 'Profile',
           ),
         ],
@@ -216,12 +229,14 @@ class PharmaGuideApp extends StatelessWidget {
   final bool catalogAvailable;
   final String? catalogUnavailableReason;
   final VoidCallback? onRetryCatalogLoad;
+  final bool hasSeenOnboarding;
 
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
     this.catalogUnavailableReason,
     this.onRetryCatalogLoad,
+    this.hasSeenOnboarding = true,
   });
 
   @override
@@ -234,6 +249,7 @@ class PharmaGuideApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       routerConfig: _buildRouter(
         catalogAvailable: catalogAvailable,
+        hasSeenOnboarding: hasSeenOnboarding,
         catalogUnavailableReason: catalogUnavailableReason,
         onRetryCatalogLoad: onRetryCatalogLoad,
       ),
