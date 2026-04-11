@@ -66,8 +66,9 @@ class CoreDatabase extends _$CoreDatabase {
       try {
         await customStatement(
             'ALTER TABLE products_core ADD COLUMN $col');
-      } catch (_) {
-        // Column already exists — safe to ignore.
+      } on Exception {
+        // Column already exists — safe to ignore. Drift wraps the
+        // underlying SqliteException in a generic Exception for this path.
       }
     }
   }
@@ -84,10 +85,13 @@ class CoreDatabase extends _$CoreDatabase {
   /// expect. For catalog freshness comparisons against remote manifests,
   /// use [readDbVersion] instead.
   Future<String?> readExportVersion() async {
+    // NOTE: SQLite uses single quotes for string literals. Double quotes are
+    // interpreted as identifiers (column names), which is why the previous
+    // `!= ""` form raised `no such column: ""` at runtime.
     final row = await customSelect(
-      'SELECT export_version FROM products_core '
-      'WHERE export_version IS NOT NULL AND export_version != "" '
-      'LIMIT 1',
+      "SELECT export_version FROM products_core "
+      "WHERE export_version IS NOT NULL AND export_version != '' "
+      "LIMIT 1",
       readsFrom: {productsCore},
     ).getSingleOrNull();
 
@@ -156,25 +160,52 @@ class CoreDatabase extends _$CoreDatabase {
   // Query methods
   // ---------------------------------------------------------------------------
 
-  /// Barcode lookup with deterministic ordering:
+  /// Barcode lookup that tolerates real-world UPC formatting variance.
+  ///
+  /// The bundled catalog stores UPCs with human-readable spaces
+  /// (`0 50428 38139 7`), while mobile scanners return pure digits
+  /// (`050428381397`). Additionally, a product labelled UPC-A (12 digits)
+  /// may be reported as EAN-13 (13 digits with a leading zero) depending
+  /// on the symbology the scanner detected.
+  ///
+  /// This method normalizes both sides:
+  ///   1. Strips the scanner input to digits only.
+  ///   2. Tries the raw digits, with a leading zero, and without.
+  ///   3. Uses `REPLACE(upc_sku, ' ', '')` in SQL so the stored spaces
+  ///      don't prevent the match.
+  ///
+  /// Ordering when multiple products share a UPC (private-label duplicates):
   ///   1. Active products first
-  ///   2. Highest score wins ties
-  Future<ProductsCoreData?> findByUpc(String upc) {
-    return (select(productsCore)
-          ..where((t) => t.upcSku.equals(upc))
-          ..orderBy([
-            (t) => OrderingTerm(
-                  expression:
-                      t.productStatus.equals('active').cast<int>(),
-                  mode: OrderingMode.desc,
-                ),
-            (t) => OrderingTerm(
-                  expression: t.scoreQuality80,
-                  mode: OrderingMode.desc,
-                ),
-          ])
-          ..limit(1))
-        .getSingleOrNull();
+  ///   2. Highest `score_quality_80` wins ties
+  Future<ProductsCoreData?> findByUpc(String upc) async {
+    final digits = upc.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return null;
+
+    // Build candidate list — dedup to avoid running the query twice
+    // for a 12-digit UPC that doesn't need adjustment.
+    final candidates = <String>{digits};
+    if (digits.length == 13 && digits.startsWith('0')) {
+      candidates.add(digits.substring(1)); // UPC-A fallback
+    }
+    if (digits.length == 12) {
+      candidates.add('0$digits'); // EAN-13 variant
+    }
+
+    for (final candidate in candidates) {
+      final row = await customSelect(
+        "SELECT * FROM products_core "
+        "WHERE REPLACE(upc_sku, ' ', '') = ? "
+        "ORDER BY (product_status = 'active') DESC, "
+        "         COALESCE(score_quality_80, 0) DESC "
+        "LIMIT 1",
+        variables: [Variable.withString(candidate)],
+        readsFrom: {productsCore},
+      ).getSingleOrNull();
+      if (row != null) {
+        return productsCore.map(row.data);
+      }
+    }
+    return null;
   }
 
   /// Find a single product by its DSLD ID (primary key).

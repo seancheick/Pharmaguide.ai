@@ -33,7 +33,9 @@ extension SafeJson on Map<String, dynamic> {
       try {
         final decoded = jsonDecode(v);
         if (decoded is List) return decoded.map((e) => e.toString()).toList();
-      } catch (_) {}
+      } on FormatException {
+        // Non-JSON string — fall through to empty list.
+      }
     }
     return [];
   }
@@ -45,7 +47,9 @@ extension SafeJson on Map<String, dynamic> {
       try {
         final decoded = jsonDecode(v);
         if (decoded is Map<String, dynamic>) return decoded;
-      } catch (_) {}
+      } on FormatException {
+        // Non-JSON string — fall through to empty map.
+      }
     }
     return {};
   }

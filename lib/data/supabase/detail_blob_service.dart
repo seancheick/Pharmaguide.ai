@@ -5,6 +5,11 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 class DetailBlobService {
   /// Fetch a detail blob by DSLD ID.
   /// Returns parsed JSON map or null if not found.
+  ///
+  /// Catches broadly ([Object]) because Supabase storage can throw
+  /// StorageException, FormatException, network errors, or type-cast
+  /// failures — all of which should map to "no blob available" so the
+  /// caller falls back to the bundled data.
   Future<Map<String, dynamic>?> fetchDetailBlob(String dsldId) async {
     try {
       final bytes = await supabase.storage
@@ -12,7 +17,7 @@ class DetailBlobService {
           .download('$dsldId.json');
       final json = utf8.decode(bytes);
       return jsonDecode(json) as Map<String, dynamic>;
-    } catch (_) {
+    } on Object {
       return null;
     }
   }
@@ -26,7 +31,7 @@ class DetailBlobService {
           .download('$prefix/$sha256.json');
       final json = utf8.decode(bytes);
       return jsonDecode(json) as Map<String, dynamic>;
-    } catch (_) {
+    } on Object {
       return null;
     }
   }

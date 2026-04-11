@@ -80,10 +80,22 @@ class E1DosageCalculator {
     return null;
   }
 
-  Map<String, dynamic>? _findNutrientEntry(List<dynamic> recommendations, String name) {
+  /// Schema-drift fix (Sprint 17 carryover): the pipeline JSON uses
+  /// `standard_name` for the nutrient key, not `nutrient`. Reading the
+  /// wrong key silently caused every lookup to miss, which is why
+  /// per-product RDA tier scoring was always falling through to the
+  /// highest_ul baseline.
+  Map<String, dynamic>? _findNutrientEntry(
+      List<dynamic> recommendations, String name) {
     for (final entry in recommendations) {
       if (entry is! Map<String, dynamic>) continue;
-      final entryName = (entry['nutrient'] ?? '').toString().toLowerCase();
+      // Prefer `standard_name` (current schema), fall back to legacy
+      // `nutrient` so older test fixtures still work.
+      final entryName =
+          (entry['standard_name'] ?? entry['nutrient'] ?? '')
+              .toString()
+              .toLowerCase();
+      if (entryName.isEmpty) continue;
       if (entryName == name ||
           entryName.contains(name) ||
           name.contains(entryName)) {
@@ -93,31 +105,40 @@ class E1DosageCalculator {
     return null;
   }
 
-  double? _getUl(Map<String, dynamic> entry, String? ageBracket, String? sex) {
-    // Try age/sex-specific first, fall back to highest_ul
-    final data = entry['data'] as List? ?? [];
+  /// Schema-drift fix: groups use `age_range`, not `age_bracket`, and the
+  /// RDA/AI value is stored under a single `rda_ai` key instead of
+  /// `rda`/`ai`. The sex field IS still called `group` in the JSON (not
+  /// `sex`) which is why we read `group['group']`.
+  double? _getUl(
+      Map<String, dynamic> entry, String? ageBracket, String? sex) {
+    final data = entry['data'] as List? ?? <dynamic>[];
     for (final group in data) {
       if (group is! Map<String, dynamic>) continue;
-      if (ageBracket != null && group['age_bracket'] == ageBracket) {
+      final ageMatch = (group['age_range'] ?? group['age_bracket']);
+      if (ageBracket != null && ageMatch == ageBracket) {
         if (sex != null && group['group'] == sex) {
           final ul = group['ul'];
           if (ul is num) return ul.toDouble();
         }
       }
     }
-    // Fallback: highest_ul
+    // Fallback: highest_ul (always available, used when profile is absent)
     final highest = entry['highest_ul'];
     if (highest is num) return highest.toDouble();
     return null;
   }
 
-  double? _getRda(Map<String, dynamic> entry, String? ageBracket, String? sex) {
-    final data = entry['data'] as List? ?? [];
+  double? _getRda(
+      Map<String, dynamic> entry, String? ageBracket, String? sex) {
+    final data = entry['data'] as List? ?? <dynamic>[];
     for (final group in data) {
       if (group is! Map<String, dynamic>) continue;
-      if (ageBracket != null && group['age_bracket'] == ageBracket) {
+      final ageMatch = (group['age_range'] ?? group['age_bracket']);
+      if (ageBracket != null && ageMatch == ageBracket) {
         if (sex != null && group['group'] == sex) {
-          final rda = group['rda'] ?? group['ai'];
+          // Prefer `rda_ai` (current schema), fall back to legacy
+          // `rda` / `ai`.
+          final rda = group['rda_ai'] ?? group['rda'] ?? group['ai'];
           if (rda is num) return rda.toDouble();
         }
       }

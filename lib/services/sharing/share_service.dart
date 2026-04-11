@@ -17,7 +17,7 @@ class ShareService {
       try {
         final list = jsonDecode(shareHighlights) as List;
         highlights = list.map((e) => '- $e').join('\n');
-      } catch (_) {
+      } on FormatException {
         highlights = '';
       }
     }

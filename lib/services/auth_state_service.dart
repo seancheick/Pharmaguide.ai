@@ -18,8 +18,11 @@ class AuthStateService extends StateNotifier<AuthMode> {
     try {
       final session = supabase.auth.currentSession;
       state = session != null ? AuthMode.signedIn : AuthMode.guest;
-    } catch (_) {
-      // Supabase not initialized (offline/placeholder) — stay guest.
+    } on StateError {
+      // Supabase.initialize() was not called successfully — stay guest.
+      state = AuthMode.guest;
+    } on Exception {
+      // Any other runtime error — default to guest so the app stays usable.
       state = AuthMode.guest;
     }
   }
