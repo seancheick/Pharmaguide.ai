@@ -8,6 +8,19 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Pharmaguide</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PharmaGuide uses the camera to scan supplement barcodes so you can check safety and interactions instantly.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>PharmaGuide saves shared safety reports and stack summaries to your photo library when you choose to share them.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>mailto</string>
+		<string>tel</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
