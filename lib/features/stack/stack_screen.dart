@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 
 /// My Stack screen — shows all products in the user's supplement stack
 /// with Stack Safety Score and interaction alerts.
@@ -41,37 +42,46 @@ class _StackTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Replace with real stack data
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.layers_outlined,
-                size: 64, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
-            const Text(
-              'Your stack is empty',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+    // The nutrient accumulation panel renders only when the user has
+    // products in their stack (it auto-collapses to SizedBox.shrink
+    // for empty stacks). The empty-state CTA below is the only thing
+    // visible until the first product is added.
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const NutrientAccumulationPanel(),
+          Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.layers_outlined,
+                    size: 64, color: AppColors.textSecondary),
+                const SizedBox(height: 16),
+                const Text(
+                  'Your stack is empty',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Scan a supplement barcode or search to add products to your stack',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: () => context.go('/scan'),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Scan a Product'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.brandTeal,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Scan a supplement barcode or search to add products to your stack',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => context.go('/scan'),
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Scan a Product'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.brandTeal,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
