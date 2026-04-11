@@ -7,12 +7,16 @@ import 'package:pharmaguide/core/constants/app_colors.dart';
 import 'package:pharmaguide/core/constants/score_colors.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
+import 'package:pharmaguide/features/product_detail/widgets/refill_reminder_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
+import 'package:pharmaguide/features/product_detail/widgets/unmapped_actives_disclosure.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknown_ingredient_banner.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -48,6 +52,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
   bool _blobLoading = true;
   bool _blobError = false;
 
+  // User stack entry for this product (null = not in stack). Powers the
+  // refill-reminder card; we need addedAt for the days-remaining math.
+  UserStacksLocalData? _stackEntry;
+
   // Score ring animation.
   late AnimationController _scoreAnimController;
   late Animation<double> _scoreAnimation;
@@ -70,6 +78,25 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
     );
     _loadProduct();
     _loadDetailBlob();
+    _loadStackEntry();
+  }
+
+  /// Look up whether the user has this product in their stack — needed
+  /// for the refill-reminder card's days-remaining computation. Silent
+  /// failure: if the lookup throws, the card just won't render.
+  Future<void> _loadStackEntry() async {
+    try {
+      final userDb = ref.read(userDatabaseProvider);
+      final entry = await userDb.findStackEntryByDsldId(widget.dsldId);
+      if (mounted) {
+        setState(() {
+          _stackEntry = entry;
+        });
+      }
+    } on Exception {
+      // Stack lookup failure is non-fatal — leave _stackEntry null,
+      // the refill card will simply not render.
+    }
   }
 
   @override
@@ -315,6 +342,59 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                         ),
             ),
           ),
+
+          // ----------------------------------------------------------------
+          // v1.3.2 Nutrition Facts (calories column + nutrition_detail blob)
+          // Auto-hides when the product has no nutrition data.
+          // ----------------------------------------------------------------
+          if (!_blobLoading && !_blobError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: NutritionPanel(
+                  caloriesPerServing: _product?.caloriesPerServing,
+                  nutritionDetail: _detailBlob?['nutrition_detail']
+                      as Map<String, dynamic>?,
+                ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
+          // v1.3.1 Refill reminder — only shown when the product is in
+          // the user's stack AND we have net contents data. Auto-hides
+          // otherwise. The card uses servings_per_container + dosing
+          // frequency parsed from dosing_summary + the stack entry's
+          // addedAt to estimate days remaining and color-code urgency.
+          // ----------------------------------------------------------------
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: RefillReminderCard(
+                servingsPerContainer: _product?.servingsPerContainer,
+                netContentsQuantity: _product?.netContentsQuantity,
+                netContentsUnit: _product?.netContentsUnit,
+                dosingSummary: _product?.dosingSummary,
+                addedAt: _stackEntry?.addedAt,
+              ),
+            ),
+          ),
+
+          // ----------------------------------------------------------------
+          // v1.3.2 Unmapped actives transparency — only shown when the
+          // pipeline left at least one ingredient unmapped (long-tail
+          // exotic extracts, typos, etc.). Auto-hides for the 99.5%+ of
+          // products with full coverage.
+          // ----------------------------------------------------------------
+          if (!_blobLoading && !_blobError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: UnmappedActivesDisclosure(
+                  unmappedActives: _detailBlob?['unmapped_actives']
+                      as Map<String, dynamic>?,
+                ),
+              ),
+            ),
 
           // ----------------------------------------------------------------
           // Better Alternatives

@@ -65,6 +65,18 @@ class UserDatabase extends _$UserDatabase {
         .get();
   }
 
+  /// Returns the active (non-deleted) stack entry for a given DSLD product
+  /// id, or null if the user has not added that product to their stack.
+  ///
+  /// Used by the product detail screen to show the refill-reminder card —
+  /// the card needs the entry's `addedAt` to compute days remaining.
+  Future<UserStacksLocalData?> findStackEntryByDsldId(String dsldId) {
+    return (select(userStacksLocal)
+          ..where((t) => t.dsldId.equals(dsldId) & t.deletedAt.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   /// Add a supplement or medication to the stack.
   Future<void> addToStack(UserStacksLocalCompanion item) {
     return into(userStacksLocal).insert(item);
