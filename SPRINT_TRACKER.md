@@ -26,9 +26,18 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-08
-**Current Sprint:** Sprint 4 (FitScore UI integration) / Sprint 5a (Stack wiring)
-**Overall Status:** Sprints 0-3 fully done. 97 tests, 57 source files. Core scan→detail flow fully wired. FitScore UI + stack wiring remaining.
+**Updated:** 2026-04-11
+**Current Sprint:** Sprint 9 (Catalog v3.4.x DONE) → Sprint 10 (Stack Nutrient Safety M1 DONE) → Sprint 11 (Interaction DB pipeline) → Sprint 8 (ship gate)
+**Overall Status:** Sprints 0-3, 9, 10 fully done. **204 Flutter tests + 3,259 pipeline tests** all green. M1 stack nutrient accumulation panel shipped. Interaction DB spec v2.1 written. Target: complete Sprints 4-15 by 2026-05-11 (4 weeks) for V1.0 ship.
+
+## TARGET: Complete Sprints 4–15 by 2026-05-11
+
+| Week | Focus | Sprints |
+|---|---|---|
+| Wk 1 | Wrap M1 polish + display widgets + FitScore UI | 4 (FitScore UI), 13 (Display widgets), 17 (e1 bug fix) |
+| Wk 2 | Interaction DB pipeline + Flutter binding | 11 (M2), 12 (M3) |
+| Wk 3 | Stack interaction engine + product-scan warnings | 14 (M4), 15 (M5) |
+| Wk 4 | Sprint 5a stack wiring, Sprint 6 deep links, Sprint 7 auth/OTA, Sprint 8 ship gate | 5a, 6, 7, 8 |
 
 Update rules:
 
@@ -666,6 +675,297 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 
 ---
 
+## Sprint 9: Catalog Pipeline v3.4.x + v1.3.2 Schema
+
+**Status:** DONE
+**Timeline:** 2026-04-09 to 2026-04-11
+**Completed:** 2026-04-11
+**Repo:** Pipeline (peaceful-ritchie)
+
+### Tasks
+
+- [x] Sugar penalty B1_dietary_sugar_penalty wired into scorer
+- [x] Nutrition hybrid model (calories_per_serving column + nutrition_detail blob)
+- [x] Unmapped actives transparency (detail_blob.unmapped_actives with names/total/excluding_banned_exact_alias)
+- [x] B0 immediate-fail config-driven penalties (high_risk + watchlist tiers)
+- [x] L1 enrollment bands → config-driven (already done, verified)
+- [x] L2 D4 high_standard_region promoted to object with accepted_regions list
+- [x] L3 B0 high_risk and watchlist penalties read from config
+- [x] R2 orphan flag probiotic_bonus_applies_before_ceiling deleted
+- [x] A1_bioavailability_form.max raised 15 → 18 (stop compressing enricher's 0-18 raw score)
+- [x] A2_premium_forms.max raised 3 → 5 (reward stackers)
+- [x] omega3_dose_bonus.max raised 2 → 3 (restore pre-merge value)
+- [x] omega3 bands retuned: prescription_dose 2→3, high_clinical 2→2.5, aha_cvd 1.5→2
+- [x] B1_harmful_additives.cap raised 8 → 15 (5 critical additives now count fully)
+- [x] probiotic_bonus _caps_note added for audit clarity
+- [x] Legacy section_E_dose_adequacy synced with new omega3 values
+- [x] Catalog rebuilt across 8 brands → 5,231 products, 0 errors, max A: 21 → 25, max score_80 ~50 → 68.5
+- [x] release_catalog_artifact.py staging script with 9 validation gates
+- [x] import_catalog_artifact.sh Flutter bridge with 10 validation gates
+- [x] Catalog bundled into Flutter via Git LFS (assets/db/pharmaguide_core.db, 11.75 MB)
+- [x] Supabase OTA round-trip: upload + manifest insert + anon-read verify (three-way checksum match)
+- [x] Pre-existing API key leak: scrubbed from git history via interactive rebase
+
+### Definition of Done
+
+- All pipeline tests pass: `pytest scripts/tests/` → 3,259 passed, 4 skipped
+- Real catalog max Section A reaches 25 (was 21 — ceiling now reachable)
+- Three-way checksum match: pipeline dist / Supabase remote / Flutter bundled
+- Score field naming frozen: `score_quality_80`, `score_display_100_equivalent` (no "section A-E" in exports)
+- All scoring config changes have lockdown tests in TestShipNowConfigLockdown
+
+### Definition of Done (verified)
+
+- Pipeline test suite: 3,259/3,259 passed
+- Catalog: 5,231 products, 100% coverage, 0 errors
+- Supabase manifest current row: db_version=2026.04.11.040818, schema=1.3.2, products=5,231
+
+### Commits
+
+- Pipeline: `7569689` (B0 hardcoded values), `9e22aef` (probiotic bonus), `4b9fa2e` (probiotic+B0 hardening), `5ddbdfb` (dashboard fix), `601a8c1` (L2/L3/R2), `a4892a6` (v3.4.x recalibration)
+- Flutter: `5717db0` (3 detail widgets), `8f6b68f` (catalog v2026.04.10.235036), `621d3f2` (catalog v2026.04.11.040818)
+
+---
+
+## Sprint 10: Stack Nutrient Safety (M1)
+
+**Status:** DONE (service + provider + widgets + integration)
+**Timeline:** 2026-04-11
+**Completed:** 2026-04-11
+**Repo:** Flutter (PharmaGuide ai)
+
+### Tasks
+
+- [x] StackNutrientAggregator (pure function, ~200 LOC) with defensive field-name fallback
+- [x] StackUlChecker with 7-tier classification (noRda → exceedsUl) and 15 nutrient-specific warnings
+- [x] NutrientTier enum + NutrientTotal/NutrientStatus value types
+- [x] 21 aggregator tests (skip rules, field fallbacks, unit conflict, zinc stacking spec scenario)
+- [x] 22 UL checker tests (every tier, demographic lookup, fuzzy name match, malformed data)
+- [x] stackNutrientStatusesProvider FutureProvider that loads stack → blobs → aggregates → classifies
+- [x] _detailBlobByDsldIdProvider with 24h cache TTL (matches product detail screen)
+- [x] NutrientProgressBar widget (single-row, 7-tier color ladder, warning chip)
+- [x] NutrientAccumulationPanel widget (header + alert badge + sorted rows)
+- [x] 8 progress bar widget tests + 6 panel widget tests
+- [x] Integrated into stack_screen.dart `_StackTab` (auto-collapses when stack is empty)
+- [x] Full Flutter test suite: 204/204 passed
+- [x] Dart analyze: zero issues on all 6 new files
+
+### Definition of Done
+
+- Aggregator handles every pipeline schema variant (mapped_name | canonical_id | standard_name | normalized_key)
+- UL checker reads correct rda_optimal_uls.json field names (rda_ai, age_range, NOT the broken e1_dosage_calculator names)
+- Anonymous users still get UL check via highest_ul fallback
+- Unit conflicts flagged but NEVER silently converted
+- Zinc stacking scenario from spec (52 mg from 3 products, 130% UL) fires red warning
+- PHI rule preserved: medications stay local-only
+
+### Commits
+
+- Flutter: `9cd0fc8` (M1 service layer + 43 tests), `a5f2747` (M1 provider + widgets + integration + 14 tests)
+
+### Pending polish (Sprint 17)
+
+- [ ] Manual device QA on real iOS + Android (the 52 mg zinc red banner)
+- [ ] Golden-image tests for the 7-tier color ladder (visual regression)
+- [ ] "Complete your profile" prompt when ageBracket is null
+- [ ] Tap-to-expand contributions row in the progress bar
+
+---
+
+## Sprint 11: Interaction DB Pipeline (M2)
+
+**Status:** READY
+**Timeline:** Week 2 of next month
+**Repo:** Pipeline
+**Spec:** `docs/INTERACTION_DB_SPEC.md` v2.1.0
+
+### Tasks
+
+- [ ] Create `scripts/data/curated_interactions/interactions_drafts_v0.json` from user's hand-drafted JSON
+- [ ] Drop supp.ai dump into `scripts/data/suppai_import/` (5 files: cui_metadata, interaction_id_dict, sentence_dict, paper_metadata, meta)
+- [ ] Build `scripts/data/drug_classes.json` (24 classes from RxClass API)
+- [ ] Write `scripts/api_audit/verify_interactions.py` (~300 LOC) — JSON schema, dup detection, RXCUI verify, CUI verify, canonical_id mapping, drug class expansion, direction normalization, severity normalization (4-tier → 5-tier), Major+ evidence gate, PMID extraction
+- [ ] Write `scripts/build_interaction_db.py` (~400 LOC) — load drafts + supp.ai + overrides, dedup, conflict resolution (more cautious wins), apply overrides, emit interaction_db.sqlite + manifest + audit report
+- [ ] Write `scripts/ingest_suppai.py` — filter pairs by canonical_id mapping, prefer human studies, top 3 sentences per pair, NEVER ship paper_metadata.json
+- [ ] Schema: interactions table + research_pairs table + drug_class_map + interaction_db_metadata, all 12 indexes per spec §6.4
+- [ ] ≥20 tests for verify_interactions, ≥15 tests for build_interaction_db
+- [ ] Live API integration tests (RxNorm + UMLS) gated on `--live` flag
+- [ ] Blocked-build demo: deliberately broken Major+ entry must fail build
+- [ ] Output size validation: interaction_db.sqlite < 10 MB
+- [ ] Auto-enrich curated entries with supp.ai PMIDs at build time
+
+### Definition of Done
+
+- `python scripts/build_interaction_db.py` produces `scripts/dist/interaction_db.sqlite` with all curated entries verified
+- supp.ai 59,096 pairs filter down to ~5–10k after canonical_id matching
+- Every Major+ entry has at least one source URL or PMID
+- CUI corrections logged to audit report (the Vit K vs Vit D bug we already spotted)
+- Pipeline test suite stays green
+
+### Dependencies
+
+- User must paste curated JSON into `interactions_drafts_v0.json`
+- supp.ai dump must be at `/Users/seancheick/Downloads/Supp ai DB/`
+- UMLS API key in pipeline `.env` (already present)
+
+---
+
+## Sprint 12: Interaction DB Flutter Binding (M3)
+
+**Status:** READY (blocked by Sprint 11)
+**Timeline:** Week 2 of next month
+**Repo:** Flutter
+
+### Tasks
+
+- [ ] `lib/data/database/tables/interactions_table.dart` (Drift, mirrors §6.4 schema)
+- [ ] `lib/data/database/interaction_database.dart` with 5 public lookup methods: lookupByCanonicalId, lookupByRxcui, lookupByDrugClass, lookupPair, rxcuisForDrugClass, getMetadata
+- [ ] `dart run build_runner build` to regenerate `.g.dart`
+- [ ] Bundle `assets/db/interaction_db.sqlite` via Git LFS
+- [ ] Add `assets/db/interaction_db_manifest.json` with version + checksum
+- [ ] Extend `scripts/import_catalog_artifact.sh` to also bundle interaction DB with 5 new validation gates
+- [ ] Drift code-gen passes
+- [ ] All 5 lookup methods covered by unit tests against a fixture DB
+- [ ] App startup loads bundled DB in <200ms
+
+### Definition of Done
+
+- Bundled interaction_db.sqlite passes integrity_check
+- All required tables present (interactions, research_pairs, drug_class_map, interaction_db_metadata)
+- Drift queries return expected rows for fixture data
+- Flutter test suite stays green
+
+---
+
+## Sprint 13: Stack Interaction Engine (M4)
+
+**Status:** READY (blocked by Sprint 12)
+**Timeline:** Week 3 of next month
+**Repo:** Flutter
+
+### Tasks
+
+- [ ] Add `effectType` (inhibitor | enhancer | additive | neutral) to `InteractionResult` model
+- [ ] Extend `StackInteractionChecker` with two new methods: `checkMedicationInteractions` and `checkSupplementPairInteractions`
+- [ ] New `lib/services/stack/stack_safety_report.dart` aggregating M1 nutrient statuses + stack interactions + medication interactions + category warnings
+- [ ] New `lib/services/medications/rxnorm_api_service.dart` (NLM RxNorm REST client, 20 req/sec cap, in-memory LRU cache)
+- [ ] New `lib/features/medications/medication_entry_screen.dart` with autocomplete + RxNorm + offline drug-class fallback
+- [ ] New `lib/features/stack/widgets/stack_safety_banner.dart` rendering severity-tinted warnings
+- [ ] PHI build-time assertion: grep test fails the build if `type='medication'` reaches any sync code path
+- [ ] ≥15 tests per checker method, golden-path test for safety report aggregation
+- [ ] Live RxNorm integration test
+
+### Definition of Done
+
+- User can enter a medication via autocomplete and it stores in `user_stacks_local` with `type='medication'` + `rxcui` + `drug_classes`
+- Adding a fish oil to a stack containing warfarin fires the AVOID-tier interaction warning
+- Adding a calcium product to a stack containing levothyroxine fires the absorption-interference warning
+- All medication rows are unreachable from any Supabase sync path (verified by grep test)
+- Flutter test suite stays green
+
+---
+
+## Sprint 14: Product Scan Interaction Warnings (M5)
+
+**Status:** READY (blocked by Sprint 13)
+**Timeline:** Week 3 of next month
+**Repo:** Flutter
+
+### Tasks
+
+- [ ] New `lib/features/product_detail/widgets/interaction_warning_card.dart` (~180 LOC)
+- [ ] On scan, query interaction DB for each ingredient's canonical_id
+- [ ] Cross-reference against current stack medications + supplements
+- [ ] Render warnings sorted by severity at the top of product detail
+- [ ] Each warning shows: severity chip, "Because you're taking X", mechanism, management, expandable source URLs
+- [ ] Widget tests for 0 / 1 / N warnings
+- [ ] Integration test against real bundled interaction_db.sqlite fixture
+
+### Definition of Done
+
+- Scan a fish oil while warfarin is in stack → AVOID banner fires with bleeding risk message
+- Scan a turmeric while aspirin is in stack → CAUTION banner fires
+- Scan a clean product → no banner, no jank
+- Flutter test suite stays green
+
+---
+
+## Sprint 15: Display Widgets — Form & Absorption / Why-this-score / Certifications / Pairs-with
+
+**Status:** READY
+**Timeline:** Week 1 of next month (parallel with M1 polish)
+**Repo:** Flutter
+**Note:** All four widgets surface data that's ALREADY in `detail_blob` — no pipeline changes required.
+
+### Tasks
+
+- [ ] **"Form & Absorption" widget** — surfaces `ingredients[].bio_score`, `matched_form`, `absorption %`, and `notes` so the user sees that magnesium glycinate (bio_score 14) absorbs better than oxide (bio_score 6). Data is already in the blob.
+- [ ] **"Why this score" widget** — renders `score_bonuses[]` and `score_penalties[]` with their `id`, `label`, `score`, and `detail`. Data is already in the blob.
+- [ ] **"Certifications" widget** — renders `certification_detail.third_party_programs.programs[]` (NSF Sport, USP Verified, etc.) as gold badges. Data is already in the blob.
+- [ ] **"Pairs well with your stack" widget** — uses `synergy_cluster.json` (already bundled) to surface positive ingredient synergies against the user's current stack
+- [ ] Each widget gets ≥4 tests (loading, empty, populated, edge case)
+- [ ] Slot all four into `product_detail_screen.dart` between scoring sections and Better Alternatives
+- [ ] Defer SVG rendering of certification logos to a later sprint (text + icon for v1.0)
+
+### Definition of Done
+
+- All four widgets render with real bundled data on at least 5 sample products
+- Widgets gracefully hide when underlying field is empty
+- No pipeline changes required (verified)
+- Flutter test suite stays green
+
+---
+
+## Sprint 16: Heavy Metal Risk + Excipient Density (v1.4 features, optional ship)
+
+**Status:** READY (deferred — only ship if Sprints 11-15 close early)
+**Timeline:** Week 4 stretch
+**Repo:** Both pipeline + Flutter
+
+### Tasks
+
+- [ ] New `scripts/data/heavy_metal_limits.json` reference file with Prop 65 / EPA / GOED limits for fish_oil, turmeric, kelp, rice_protein, cocoa, etc.
+- [ ] New scorer section `B8_contaminant_risk` in safety & purity (or fold into B0 gate)
+- [ ] New `lib/features/product_detail/widgets/heavy_metal_warning_card.dart`
+- [ ] Excipient density calculator: parse `inactive_ingredients`, compute `active_mass_percent = sum(active_mg) / total_capsule_mg`
+- [ ] New scorer micro-metric `A7_formulation_density` with 3 bands: ≥85% → +2, 60–85% → +1, <60% → 0
+- [ ] New `lib/features/product_detail/widgets/excipient_density_card.dart`
+- [ ] Catalog rebuild required after scorer changes
+
+### Definition of Done
+
+- Heavy metal warnings fire on at least 5 known-contaminated raw materials
+- Excipient density visible on every scored product
+- Pipeline test suite stays green
+
+---
+
+## Sprint 17: Tech Debt + Polish
+
+**Status:** READY (parallel with all other sprints)
+**Timeline:** Throughout next month
+**Repo:** Flutter (mostly)
+
+### Tasks
+
+- [ ] **Fix pre-existing `e1_dosage_calculator.dart` bug** — it reads `entry['nutrient']` (should be `standard_name`), `group['age_bracket']` (should be `age_range`), `group['rda']` (should be `rda_ai`). Currently always falls through to `highest_ul`. This silently broke per-product RDA tier scoring. M1 documented it but did not fix. File is read by FitScoreService E1 calculator, so the fix has cascading test updates.
+- [ ] **Manual device QA for M1** — physical iPhone + Android, real stack with 3 zinc products, verify the red banner fires
+- [ ] **Golden-image tests** for nutrient progress bar in all 7 tiers (visual regression gate)
+- [ ] **"Complete your profile" prompt** in nutrient panel header when `ageBracket == null` — drives onboarding completion
+- [ ] **Tap-to-expand contributions** in progress bar showing which products contributed
+- [ ] **Telemetry on UL breaches** — log locally only (privacy), expose via "Data export" in settings
+- [ ] **Catalog rollback dashboard card** — surface the rollback backup count for ops visibility
+- [ ] **Fix markdownlint warnings** in `docs/INTERACTION_DB_SPEC.md` (cosmetic, code-fence languages, table spacing)
+
+### Definition of Done
+
+- e1_dosage_calculator no longer falls through to highest_ul for users with profile data
+- M1 panel passes manual QA on both platforms
+- Golden tests catch any future color tier regression
+- All Flutter tests stay green
+
+---
+
 ## VERSION ROADMAP
 
 | Version  | Identity                | Sprints | Key Features                                                                          |
@@ -689,6 +989,13 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 - [2026-04-07] data: Always verify API enrichment results case-by-case before writing to data files. Plant/compound collapses and preparation mismatches are common. (Root cause: bulk API enrichment applied results without human verification, creating incorrect mappings)
 - [2026-04-07] arch: Drug class checklist is needed in profile for V1.0 E2c scoring -- do not remove prematurely. Will be derived from stack in V1.1. (Root cause: premature optimization suggestion to remove manual entry before automated alternative was built)
 - [2026-04-07] data: 9 of 14 conditions had zero interaction rules in pipeline data -- always verify data coverage before claiming a feature works. (Root cause: assumed all taxonomy conditions had corresponding interaction data, but only 5 had rules written)
+- [2026-04-11] data: supp.ai is an evidence corpus, not a curated interaction set. 59,096 pairs are extractive sentences from PubMed with NO severity, mechanism, or management fields. Treat it as a secondary research_pairs table, not a warning source. (Root cause: assumed supp.ai matched the user's curated draft format)
+- [2026-04-11] arch: Flutter detail_blob lives in Supabase Storage, not in the bundled SQLite. Any new feature reading detail_blob must be async and cache-first. The aggregator must stay sync; the loader provider handles async. (Root cause: spec assumed detail_blob was inline in pharmaguide_core.db)
+- [2026-04-11] data: e1_dosage_calculator.dart reads field names that don't exist in rda_optimal_uls.json (`nutrient`, `age_bracket`, `rda`/`ai`). Real fields are `standard_name`, `age_range`, `rda_ai`. Always falls through to highest_ul, silently breaking per-product RDA tier scoring. (Root cause: pipeline schema drift between when the calculator was written and when the reference data was finalized; no contract test caught it)
+- [2026-04-11] arch: PharmaGuide v1.3.x scoring max Section A is 21/25 in real data — ZERO products hit the ceiling. Raising A1 from 15 to 18 unblocked the compression and pushed top products from 21 → 25. The ceiling was never the bottleneck; the sub-cap math was. Always inspect distributions before changing maxes. (Root cause: spec proposed raising the section max without checking real-data ceilings)
+- [2026-04-11] testing: Unit conflict detection in nutrient aggregation must NEVER silent-convert. First-seen unit wins for the sum, mismatched contributions stay in the list with `hasUnitConflict: true` flag. Silent mg-to-mcg conversion is exactly how medical-grade bugs ship. (Root cause: convenience-driven design temptation to "just convert")
+- [2026-04-11] arch: Flutter already had Severity (5 tiers), InteractionResult model, StackInteractionChecker (119 LOC), and UserStacksLocal with `type='medication'` + `rxcui` + `drug_classes` columns BEFORE the v2.0 interaction spec was written. Always inspect existing primitives before specifying new ones. (Root cause: subagent wrote spec without reading the Flutter repo)
+- [2026-04-11] security: Medications in `user_stacks_local` (type='medication') are PHI and must NEVER sync to Supabase. Enforce with a build-time grep test that fails the build if any sync code path reads rows with `type='medication'`. (Root cause: PHI is easy to leak by extending an existing sync path)
 
 ---
 
@@ -717,4 +1024,12 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 | 2026-04-08 | --     | Schema resilience: 26 missing v1.3.0 columns added via _ensureV130Columns() migration. All integer flags now nullable. Pipeline DB has 61 cols, Drift defines 88 — migration bridges the gap. |
 | 2026-04-08 | --     | First-launch fix: SyncService corrected bucket (pharmaguide) + versioned path from export_manifest. main.dart downloads core DB on first launch if missing. App tested on simulator with 783 live products from Supabase. |
 | 2026-04-08 | --     | Infra: iOS Podfile platform set to 13.0 + minimum deployment target enforced. dart fix --apply (24 const fixes). Polished README pushed to github.com/seancheick/Pharmaguide.ai |
+| 2026-04-09 | --     | Pipeline v1.3.0 → v1.3.2 export schema: sugar penalty wired into B1, nutrition hybrid model (calories_per_serving column + nutrition_detail blob), unmapped actives transparency. Three new Flutter detail widgets (NutritionPanel, RefillReminderCard, UnmappedActivesDisclosure) with 39 widget tests. |
+| 2026-04-10 | --     | Catalog rebuild + LFS bundle: 5,231 products across 8 brands, 11.79 MB pharmaguide_core.db committed via Git LFS to Flutter assets/db/. release_catalog_artifact.py (9 gates) + import_catalog_artifact.sh (10 gates) bridge scripts. API key leak scrubbed from git history via interactive rebase. |
+| 2026-04-10 | --     | Pipeline backlog cleanup (L1, L2, L3, R2): config-driven D4 high_standard_region with accepted_regions list, B0 high_risk and watchlist penalties from config, orphan probiotic_bonus_applies_before_ceiling flag deleted. 10 new lockdown tests in TestShipNowConfigLockdown / TestD4HighStandardRegionConfigLockdown / TestB0ConfigDrivenPenalties / TestR2OrphanFlagRemoved. |
+| 2026-04-11 | 9      | **Sprint 9 DONE: v3.4.x scoring recalibration** — A1.max 15→18 (stop compressing enricher's 0-18 raw score), A2.max 3→5, omega3.max 2→3 with band redistribution, B1 cap 8→15, probiotic_bonus _caps_note. Real-data impact: max Section A 21→25 (ceiling now reachable), max score_80 ~50→68.5 (+37%). 11 cascade test updates + 7 new lockdown tests. **3,259 pipeline tests passing.** |
+| 2026-04-11 | --     | Supabase OTA round-trip verified end-to-end: upload pharmaguide_core.db v2026.04.11.040818 to bucket, insert export_manifest row with is_current=true, anon-read returns new manifest, storage HEAD returns SQLite magic bytes. **Three-way checksum match: pipeline dist / Supabase remote / Flutter bundled** all carry sha256:67ac3cdd...634fb1. |
+| 2026-04-11 | --     | docs: INTERACTION_DB_SPEC.md v2.0 (978 → 1054 lines) full rewrite with Next-Agent Start-Here block, M1-M5 build order, and reuse list of 5 existing Flutter primitives (Severity enum, InteractionResult, StackInteractionChecker, UserStacksLocal, E1DosageCalculator). Then v2.1.0 (1140 lines) corrected supp.ai understanding: it is an evidence corpus (4,910 entities + 59,096 pairs from PubMed), NOT a curated interaction set. Two-tier data model: curated `interactions` table + supp.ai `research_pairs` table. |
+| 2026-04-11 | 10     | **Sprint 10 DONE: M1 Stack Nutrient Safety** — Service layer (StackNutrientAggregator + StackUlChecker + models, ~600 LOC) with 43 tests. Riverpod glue (`stackNutrientStatusesProvider` with 24h cache TTL, _detailBlobByDsldIdProvider). NutrientProgressBar widget (7-tier color ladder, warning chip) + NutrientAccumulationPanel widget (sorted by severity, alert badge) with 14 widget tests. Integrated into stack_screen.dart `_StackTab`. **204 Flutter tests passing**, 0 analyzer issues. Closes the biggest medical-grade gap: per-stack UL totals. |
+| 2026-04-11 | --     | Sprints 9-17 added to tracker. **Target: complete Sprints 4–15 by 2026-05-11 (4 weeks)** for V1.0 ship readiness. Wk1: M1 polish + display widgets + FitScore UI. Wk2: M2+M3 (interaction DB pipeline + Flutter binding). Wk3: M4+M5 (stack interaction engine + product-scan warnings). Wk4: Sprint 5a stack wiring + Sprint 6 deep links + Sprint 7 auth/OTA + Sprint 8 ship gate. |
 | 2026-04-08 | --     | **TOTAL: 97 tests passing, 63 source files, 0 analysis errors, 21 commits** |
