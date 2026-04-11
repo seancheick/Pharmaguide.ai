@@ -89,6 +89,13 @@ flutter:
     # Catalog bundle — produced by the DSLD pipeline release bridge
     # (scripts/import_catalog_artifact.sh). Contains the full SQLite
     # products_core snapshot the app copies to documents on first launch.
-    # *.db is tracked via Git LFS; see .gitattributes.
+    # *.db and *.sqlite are tracked via Git LFS; see .gitattributes.
     - assets/db/pharmaguide_core.db
     - assets/db/export_manifest.json
+    # Interaction DB bundle — produced by the pipeline's
+    # release_interaction_artifact.py. Read-only Drift database that
+    # powers stack/medication interaction warnings (M3-M5). Coexists
+    # with the catalog DB; both are bundled as static assets and
+    # opened directly without copying to app documents.
+    - assets/db/interaction_db.sqlite
+    - assets/db/interaction_db_manifest.json

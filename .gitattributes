@@ -1,1 +1,2 @@
 assets/db/*.db filter=lfs diff=lfs merge=lfs -text
+assets/db/*.sqlite filter=lfs diff=lfs merge=lfs -text
