@@ -9,6 +9,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
+import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
@@ -247,11 +248,21 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         userDatabaseProvider.overrideWithValue(widget.userDb),
         if (_coreDb != null) coreDatabaseProvider.overrideWithValue(_coreDb!),
       ],
-      child: PharmaGuideApp(
-        catalogAvailable: _catalogAvailable,
-        catalogUnavailableReason: _catalogUnavailableReason,
-        onRetryCatalogLoad: _retryCatalogLoad,
-        hasSeenOnboarding: widget.hasSeenOnboarding,
+      // Register the stack sync auto-listener as soon as the ProviderScope
+      // mounts. The Consumer reads [stackSyncListenerProvider] once; the
+      // provider itself calls `ref.keepAlive()` so its auth + connectivity
+      // subscriptions survive disposal of this Consumer.
+      child: Consumer(
+        builder: (context, ref, child) {
+          ref.watch(stackSyncListenerProvider);
+          return child!;
+        },
+        child: PharmaGuideApp(
+          catalogAvailable: _catalogAvailable,
+          catalogUnavailableReason: _catalogUnavailableReason,
+          onRetryCatalogLoad: _retryCatalogLoad,
+          hasSeenOnboarding: widget.hasSeenOnboarding,
+        ),
       ),
     );
   }

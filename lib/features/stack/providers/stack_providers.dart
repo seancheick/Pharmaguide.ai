@@ -15,6 +15,7 @@
 //   mutation, all dependent providers are invalidated so the UI updates
 //   within a frame.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
@@ -23,6 +24,7 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 
 /// All non-deleted stack entries, newest first.
@@ -146,6 +148,7 @@ class StackActions {
       ),
     );
     _invalidate();
+    _triggerSync();
     return id;
   }
 
@@ -154,6 +157,7 @@ class StackActions {
     final userDb = _ref.read(userDatabaseProvider);
     await userDb.removeFromStack(entryId);
     _invalidate();
+    _triggerSync();
   }
 
   /// Reverse a soft-delete — clears `deletedAt` so the entry re-appears.
@@ -169,6 +173,7 @@ class StackActions {
       ),
     );
     _invalidate();
+    _triggerSync();
   }
 
   void _invalidate() {
@@ -178,6 +183,15 @@ class StackActions {
     // rebuilds its "in stack?" state.
     _ref.invalidate(stackEntryForDsldIdProvider);
     _ref.invalidate(safetyCheckForAddProvider);
+  }
+
+  /// Fire-and-forget sync attempt after every mutation. Silently skips
+  /// when offline / guest — the [stackSyncListenerProvider] will catch up
+  /// later when the user signs in or connectivity returns.
+  void _triggerSync() {
+    final service = _ref.read(stackSyncServiceProvider);
+    unawaited(service.pushAll());
+    _ref.invalidate(pendingSyncCountProvider);
   }
 }
 
