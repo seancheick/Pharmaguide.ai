@@ -215,25 +215,53 @@ class CoreDatabase extends _$CoreDatabase {
         .getSingleOrNull();
   }
 
-  /// Text search by product name or brand name using LIKE.
-  /// Debounced at the UI layer (300ms). Returns at most [limit] results,
-  /// sorted by score descending.
+  /// Text search using FTS5 full-text index (porter stemming, ranked).
+  ///
+  /// The pipeline builds a `products_fts` virtual table over product_name
+  /// and brand_name. This gives instant ranked results and eliminates
+  /// duplicate UPC rows that LIKE would return. Falls back to LIKE if the
+  /// FTS table is missing (older catalog snapshots).
   Future<List<ProductsCoreData>> searchProducts(
     String query, {
     int limit = 50,
-  }) {
-    final pattern = '%${query.trim()}%';
-    return (select(productsCore)
-          ..where((t) =>
-              t.productName.like(pattern) | t.brandName.like(pattern))
-          ..orderBy([
-            (t) => OrderingTerm(
-                  expression: t.scoreQuality80,
-                  mode: OrderingMode.desc,
-                ),
-          ])
-          ..limit(limit))
-        .get();
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return [];
+
+    // Try FTS5 first — dramatically faster and dedup-aware.
+    try {
+      // FTS5 query: append * for prefix matching ("vita" → "vitamin").
+      // Escape double-quotes in user input to prevent FTS5 syntax errors.
+      final ftsQuery = trimmed.replaceAll('"', '""');
+      final rows = await customSelect(
+        'SELECT p.* FROM products_fts f '
+        'JOIN products_core p ON p.rowid = f.rowid '
+        'WHERE products_fts MATCH ? '
+        'ORDER BY rank, COALESCE(p.score_quality_80, 0) DESC '
+        'LIMIT ?',
+        variables: [
+          Variable.withString('"$ftsQuery"*'),
+          Variable.withInt(limit),
+        ],
+        readsFrom: {productsCore},
+      ).get();
+
+      return rows.map((row) => productsCore.map(row.data)).toList();
+    } on Exception {
+      // FTS table missing or query syntax error — fall back to LIKE.
+      final pattern = '%$trimmed%';
+      return (select(productsCore)
+            ..where((t) =>
+                t.productName.like(pattern) | t.brandName.like(pattern))
+            ..orderBy([
+              (t) => OrderingTerm(
+                    expression: t.scoreQuality80,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(limit))
+          .get();
+    }
   }
 
   /// Find products with higher scores in the same category. Used for

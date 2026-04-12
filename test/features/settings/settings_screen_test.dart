@@ -1,101 +1,124 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 
 void main() {
-  Widget buildTestWidget() {
-    return const ProviderScope(
-      child: MaterialApp(home: SettingsScreen()),
+  // DBs are created and closed inside each test body (not via setUp/tearDown).
+  // Drift's close() hangs when called from tearDown after the fake-async
+  // zone has drained — closing inside the body avoids the shutdown race.
+
+  Widget buildTestWidget(UserDatabase userDb) {
+    return ProviderScope(
+      overrides: [
+        userDatabaseProvider.overrideWithValue(userDb),
+      ],
+      child: const MaterialApp(home: SettingsScreen()),
     );
   }
 
   group('SettingsScreen', () {
     testWidgets('shows Profile title', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
+      final userDb = UserDatabase.memory();
+
+      await tester.pumpWidget(buildTestWidget(userDb));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
       expect(find.text('Profile'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await userDb.close();
     });
 
     testWidgets('shows all 6 section headers', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
+      final userDb = UserDatabase.memory();
 
-      // Scroll progressively to reveal each section header. The full
-      // list of 6 groups doesn't fit in the default 800×600 viewport,
-      // so we walk the scroll position to each header in turn.
+      await tester.pumpWidget(buildTestWidget(userDb));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Verify all 6 headers exist by scrolling through the list.
+      // Use skipOffstage: false to find text even if not yet visible.
+      final headers = [
+        'Account & security',
+        'Health profile',
+        'Privacy & data',
+        'Analysis history',
+        'Settings',
+        'About',
+      ];
+
       final scrollable = find.byType(Scrollable).first;
 
-      await tester.scrollUntilVisible(
-        find.text('Account & security'),
-        200,
-        scrollable: scrollable,
-      );
-      expect(find.text('Account & security'), findsOneWidget);
+      for (final header in headers) {
+        // Scroll until the header is visible, or rely on skipOffstage.
+        while (find.text(header).evaluate().isEmpty) {
+          await tester.drag(scrollable, const Offset(0, -200));
+          await tester.pump();
+        }
+        expect(find.text(header), findsOneWidget);
+      }
 
-      await tester.scrollUntilVisible(
-        find.text('Health profile'),
-        200,
-        scrollable: scrollable,
-      );
-      expect(find.text('Health profile'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Privacy & data'),
-        200,
-        scrollable: scrollable,
-      );
-      expect(find.text('Privacy & data'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Analysis history'),
-        200,
-        scrollable: scrollable,
-      );
-      expect(find.text('Analysis history'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Settings'),
-        200,
-        scrollable: scrollable,
-      );
-      expect(find.text('Settings'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('About'),
-        200,
-        scrollable: scrollable,
-      );
-      expect(find.text('About'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await userDb.close();
     });
 
     testWidgets('shows profile completeness', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-      // Default empty profile = 0% (appears in summary card and Edit Profile subtitle)
+      final userDb = UserDatabase.memory();
+
+      await tester.pumpWidget(buildTestWidget(userDb));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Default empty profile = 0%
       expect(find.textContaining('0%'), findsWidgets);
       expect(find.textContaining('Incomplete (0%)'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await userDb.close();
     });
 
     testWidgets('shows Guest User when no nickname', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
+      final userDb = UserDatabase.memory();
+
+      await tester.pumpWidget(buildTestWidget(userDb));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
       expect(find.text('Guest'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await userDb.close();
     });
 
     testWidgets('shows privacy dashboard button', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
+      final userDb = UserDatabase.memory();
+
+      await tester.pumpWidget(buildTestWidget(userDb));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
       expect(find.text('Privacy dashboard'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await userDb.close();
     });
 
-    testWidgets('privacy dashboard does not claim health data syncs to the cloud',
+    testWidgets(
+        'privacy dashboard does not claim health data syncs to the cloud',
         (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
+      final userDb = UserDatabase.memory();
+
+      await tester.pumpWidget(buildTestWidget(userDb));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       await tester.tap(find.text('Privacy dashboard'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Backup of encrypted stack data', skipOffstage: false),
           findsNothing);
@@ -113,6 +136,9 @@ void main() {
         ),
         findsWidgets,
       );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await userDb.close();
     });
   });
 }

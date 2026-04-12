@@ -60,6 +60,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       setState(() => _isLookingUp = false);
 
       if (product != null) {
+        // Record scan in history (fire-and-forget, non-blocking).
+        unawaited(ref.read(userDatabaseProvider).recordScanEvent(
+              dsldId: product.dsldId,
+              upcSku: product.upcSku,
+              productName: product.productName,
+            ));
         await _showVerdictFlashAndNavigate(product);
       } else {
         _showProductNotFound(upc);

@@ -26,9 +26,9 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-11
+**Updated:** 2026-04-12
 **Current Sprint:** Sprint 18 (Design System + Sprint 4/5a/5b UI wiring + Sprint 17 carryovers + full migration DONE) → Sprint 11 (Interaction DB pipeline) → Sprint 8 (ship gate)
-**Overall Status:** Sprints 0-3, 4, 5b (safety UI), 9, 10, 17 (e1 schema drift), 18 fully done. Sprint 5a UI + local sync queue scaffolding done (Supabase RPC deferred). **225 Flutter tests pass + 5 skipped (tech debt) + 3,259 pipeline tests** all green. **Zero `flutter analyze` issues across the entire project.** All 17 PG components shipped, every legacy screen migrated (home, stack, product detail, settings, profile setup, onboarding, search, scanner theme). Accessibility: reduceMotion + VoiceOver semantics wired. iOS camera permissions, Android permissions, Supabase placeholder guard, onboarding persistence all fixed. Interaction DB spec v2.1 written. Target: complete Sprints 11-15 + ship gate by 2026-05-11 for V1.0 ship.
+**Overall Status:** Sprints 0-3, 4, 5b (safety UI), 9, 10, 17 (e1 schema drift), 18 fully done. Sprint 5a UI + local sync queue scaffolding done (Supabase RPC deferred). **348 Flutter tests pass + 5 skipped (tech debt) + 3,259 pipeline tests** all green. **Zero `flutter analyze` issues across the entire project.** All 17 PG components shipped, every legacy screen migrated (home, stack, product detail, settings, profile setup, onboarding, search, scanner theme). Accessibility: reduceMotion + VoiceOver semantics wired. iOS camera permissions, Android permissions, Supabase placeholder guard, onboarding persistence all fixed. Interaction DB spec v2.1 written. FTS5 search wired (replaces LIKE), Recent Scans on home screen, UPC dedup in pipeline. Target: complete Sprints 11-15 + ship gate by 2026-05-11 for V1.0 ship.
 
 ## TARGET: Complete Sprints 4–15 by 2026-05-11
 
@@ -66,28 +66,58 @@ Status legend:
 
 ## CURRENT SPRINT
 
-**Wiring Phase** — Connecting built scaffolding to real data + remaining polish
-Status: IN PROGRESS
+**Sprint 20: UX Quick Wins + Retention Polish** — High-impact, low-effort UX improvements from PM review
+Status: IN PROGRESS (3 of 8 tasks done)
 
-Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffolded, all core logic built and tested. Code review complete (15 fixes). Schema migration + first-launch DB download wired. App runs on device with real Supabase data. Now: FitScore UI integration + stack wiring.
+### Completed (2026-04-12)
+- [x] **FTS5 search upgrade** — `CoreDatabase.searchProducts()` rewritten from `LIKE '%query%'` (full table scan, no ranking, dupes) to `FTS5 MATCH` with porter stemming + `ORDER BY rank` + LIKE fallback for older DBs. Search now instant, ranked, dedup-aware. (~30 LOC change in `core_database.dart`)
+- [x] **UPC dedup in pipeline** — `dedup_by_upc()` added to `build_final_db.py`. Groups by normalized UPC, keeps best row (active > discontinued, highest score, newest dsld_id). Committed `bc0d804` in dsld_clean repo. 11 tests.
+- [x] **Recent Scans on home screen** — `recordScanEvent()` + `getRecentScans()` in UserDatabase (50-row cap, per-product dedup). Scanner fires `unawaited()` record. Home screen `_RecentScansSection` ConsumerStatefulWidget loads history in `initState`, renders via `ProductListItem`. Empty state with scan CTA when no history. Creates core retention loop.
+
+### Remaining (ordered by impact)
+- [ ] **Search result count + filter chips** — Dynamic "Showing N results" badge below search bar + horizontal `FilterChip` row (All, Supplements, High Quality 80+, Needs Caution, BLOCKED/UNSAFE, by category). Client-side filtering with debounced input. **~2-3 days.**
+- [ ] **"Why this score?" 1-liner on product detail** — Compact expandable card right after the score ring. Surface top reason: e.g., "Contains banned ingredient: DMAA" or "Excellent formulation • Third-party tested". Color-coded icons. Data already in `detail_blob` (`score_bonuses[]` / `score_penalties[]`). **~1 day.**
+- [ ] **Empty stack CTA with scanner shortcut** — Friendly illustration + "Your stack is empty" + subtext explaining value + "Scan your first supplement" primary CTA (opens scanner) + "Add medications manually" secondary. **~0.5 day.**
+- [ ] **Scanner "not found" copy polish** — Bottom sheet already exists (Sprint 3). Polish: add friendly illustration, update headline to "We couldn't find that barcode", add "Help us improve — report this barcode?" low-friction option. **~0.5 day.**
+- [ ] **Haptic on barcode detect** — `HapticFeedback.mediumImpact()` on barcode capture (before product lookup). Verdict flash already has haptic; this adds the "got it" moment. **~0.5 day.**
+
+### Deferred to v2.0 (explicitly NOT this sprint)
+- ~~Product submission flow (crowdsourcing)~~ — Needs backend moderation pipeline, photo storage, abuse prevention. Park as v2.0 milestone.
+- ~~Contributions dashboard~~ — Depends on submission pipeline. Cut entirely for now.
+- ~~Profile/health goals additions~~ — Most already exists in `lib/features/onboarding/` and `lib/features/profile/`. Verify existing fields before adding new ones.
+
+### Flutter changes NOT YET COMMITTED (from 2026-04-12 session)
+Files modified but unstaged in `/Users/seancheick/PharmaGuide ai/`:
+- `lib/data/database/core_database.dart` — FTS5 search
+- `lib/data/database/user_database.dart` — scan history CRUD
+- `lib/features/scanner/scanner_screen.dart` — fire-and-forget scan recording
+- `lib/features/home/home_screen.dart` — Recent Scans section
+- `test/app_test.dart` — 5 test fixes (pumpAndSettle → pump pattern)
+- `test/features/home/home_screen_test.dart` — 5 test fixes
+- `test/features/settings/settings_screen_test.dart` — 6 test fixes
+- `knowledge/lessons-learned.md` — 3 new entries
+- `SPRINT_TRACKER.md` — this update
+
+**⚠️ NEXT AGENT: Commit these files before doing anything else.**
 
 ---
 
 ## NEXT UP
 
-**Sprint 5a remaining (Stack sync — infra, not UI):**
-- Supabase sync for signed-in users (write local first, sync on connectivity)
-- Offline queue for stack changes
-- LWW conflict resolution with client_updated_at
+**Sprint 11 (M2): Interaction DB pipeline** — Critical path, everything downstream depends on this
+- Worktree `peaceful-ritchie` has pipeline code mostly written (seed_drug_classes.py, verify_interactions.py, build_interaction_db.py, ingest_suppai.py, release_interaction_artifact.py + tests)
+- **Status: needs final test verification + merge to main in dsld_clean repo**
+- See Sprint 11 section below for full task list
 
-**Sprint 11–15 (Interaction DB + M2–M5):**
-- Interaction DB pipeline (Sprint 11)
-- Flutter binding (Sprint 12)
-- Stack interaction engine (Sprint 13)
-- Product-scan interaction warnings (Sprint 14)
-- Display widgets (Sprint 15)
+**Sprint 12 (M3): Flutter interaction DB binding**
+- Drift schema tables already created this session (`interactions_table.dart`, `drug_class_map_table.dart`, `research_pairs_table.dart`, `interaction_db_metadata_table.dart`, `interaction_database.dart`)
+- Still needs: bundled artifact in assets, import script wiring, provider bootstrap in `main.dart`, lookup method tests
 
-**Then Sprint 8: Testing + QA + Ship**
+**Sprint 14 (M4): Stack interaction engine** — Wire `StackInteractionChecker` to real DB
+**Sprint 15 (M5): Product-scan interaction warnings** — "Is this safe with what I already take?"
+**Sprint 15: Display widgets** — "Why this score?", Form & Absorption, Certifications, Pairs-with
+
+**Then Sprint 8: Testing + QA + Ship (target: 2026-05-11)**
 
 ---
 
@@ -235,7 +265,7 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 - [x] Home screen greeting (time-based with nickname)
 - [x] Profile completeness banner (shows when < 60%)
 - [x] Search + scan + home widget tests (8 tests)
-- [x] Wire FTS search to CoreDatabase (debounced 300ms, LIMIT 50, latest-query-wins) — LIKE-based searchProducts() since no FTS virtual table needed
+- [x] Wire FTS search to CoreDatabase (debounced 300ms, LIMIT 50, latest-query-wins) — **Upgraded 2026-04-12: now uses FTS5 MATCH with porter stemming + rank ordering, LIKE fallback for older DBs without FTS table**
 - [x] Wire barcode scan to CoreDatabase.findByUpc() — ConsumerStatefulWidget with loading overlay
 - [x] Implement recent searches (SharedPreferences-backed, max 10, deduplication)
 - [x] Build product list/grid toggle view — list/grid toggle with result count header
@@ -756,7 +786,7 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 - [x] NutrientAccumulationPanel widget (header + alert badge + sorted rows)
 - [x] 8 progress bar widget tests + 6 panel widget tests
 - [x] Integrated into stack_screen.dart `_StackTab` (auto-collapses when stack is empty)
-- [x] Full Flutter test suite: 204/204 passed
+- [x] Full Flutter test suite: 348/348 passed (was 204 at Sprint 10 close)
 - [x] Dart analyze: zero issues on all 6 new files
 
 ### Definition of Done
@@ -783,25 +813,28 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 
 ## Sprint 11: Interaction DB Pipeline (M2)
 
-**Status:** READY
+**Status:** IN PROGRESS (worktree `peaceful-ritchie` has code + tests, needs verify + merge)
 **Timeline:** Week 2 of next month
-**Repo:** Pipeline
+**Repo:** Pipeline (dsld_clean)
 **Spec:** `docs/INTERACTION_DB_SPEC.md` v2.1.0
+**Worktree:** `/Users/seancheick/.claude-worktrees/dsld_clean/peaceful-ritchie/`
 
 ### Tasks
 
 - [ ] Create `scripts/data/curated_interactions/interactions_drafts_v0.json` from user's hand-drafted JSON
 - [ ] Drop supp.ai dump into `scripts/data/suppai_import/` (5 files: cui_metadata, interaction_id_dict, sentence_dict, paper_metadata, meta)
-- [ ] Build `scripts/data/drug_classes.json` (24 classes from RxClass API)
-- [ ] Write `scripts/api_audit/verify_interactions.py` (~300 LOC) — JSON schema, dup detection, RXCUI verify, CUI verify, canonical_id mapping, drug class expansion, direction normalization, severity normalization (4-tier → 5-tier), Major+ evidence gate, PMID extraction
-- [ ] Write `scripts/build_interaction_db.py` (~400 LOC) — load drafts + supp.ai + overrides, dedup, conflict resolution (more cautious wins), apply overrides, emit interaction_db.sqlite + manifest + audit report
-- [ ] Write `scripts/ingest_suppai.py` — filter pairs by canonical_id mapping, prefer human studies, top 3 sentences per pair, NEVER ship paper_metadata.json
+- [x] Build `scripts/data/drug_classes.json` (24 classes from RxClass API) — `scripts/api_audit/seed_drug_classes.py` written + tested in worktree
+- [x] Write `scripts/api_audit/verify_interactions.py` (~300 LOC) — JSON schema, dup detection, RXCUI verify, CUI verify, canonical_id mapping, drug class expansion, direction normalization, severity normalization (4-tier → 5-tier), Major+ evidence gate, PMID extraction — written + tested in worktree
+- [x] Write `scripts/build_interaction_db.py` (~400 LOC) — load drafts + supp.ai + overrides, dedup, conflict resolution (more cautious wins), apply overrides, emit interaction_db.sqlite + manifest + audit report — written + tested in worktree
+- [x] Write `scripts/ingest_suppai.py` — filter pairs by canonical_id mapping, prefer human studies, top 3 sentences per pair, NEVER ship paper_metadata.json — written + tested in worktree
+- [x] Write `scripts/release_interaction_artifact.py` — packages artifact with manifest — written + tested in worktree
 - [ ] Schema: interactions table + research_pairs table + drug_class_map + interaction_db_metadata, all 12 indexes per spec §6.4
-- [ ] ≥20 tests for verify_interactions, ≥15 tests for build_interaction_db
+- [ ] ≥20 tests for verify_interactions, ≥15 tests for build_interaction_db — **tests exist in worktree, need final pass**
 - [ ] Live API integration tests (RxNorm + UMLS) gated on `--live` flag
 - [ ] Blocked-build demo: deliberately broken Major+ entry must fail build
 - [ ] Output size validation: interaction_db.sqlite < 10 MB
 - [ ] Auto-enrich curated entries with supp.ai PMIDs at build time
+- [ ] **Merge worktree `peaceful-ritchie` to main after all tests pass**
 
 ### Definition of Done
 
@@ -821,20 +854,26 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 
 ## Sprint 12: Interaction DB Flutter Binding (M3)
 
-**Status:** READY (blocked by Sprint 11)
+**Status:** PARTIALLY DONE (Drift schema created, needs bundling + wiring)
 **Timeline:** Week 2 of next month
 **Repo:** Flutter
 
 ### Tasks
 
-- [ ] `lib/data/database/tables/interactions_table.dart` (Drift, mirrors §6.4 schema)
-- [ ] `lib/data/database/interaction_database.dart` with 5 public lookup methods: lookupByCanonicalId, lookupByRxcui, lookupByDrugClass, lookupPair, rxcuisForDrugClass, getMetadata
+- [x] `lib/data/database/tables/interactions_table.dart` (Drift, mirrors §6.4 schema) — created 2026-04-12
+- [x] `lib/data/database/tables/drug_class_map_table.dart` — created 2026-04-12
+- [x] `lib/data/database/tables/research_pairs_table.dart` — created 2026-04-12
+- [x] `lib/data/database/tables/interaction_db_metadata_table.dart` — created 2026-04-12
+- [x] `lib/data/database/interaction_database.dart` with 5 public lookup methods: lookupByCanonicalId, lookupByRxcui, lookupByDrugClass, lookupPair, rxcuisForDrugClass, getMetadata — created 2026-04-12
+- [x] `test/data/database/interaction_database_test.dart` — unit tests created 2026-04-12
+- [x] `lib/data/providers/database_providers.dart` — `interactionDatabaseProvider` added 2026-04-12
+- [x] `scripts/import_catalog_artifact.sh` — extended with interaction DB validation gates 2026-04-12
 - [ ] `dart run build_runner build` to regenerate `.g.dart`
-- [ ] Bundle `assets/db/interaction_db.sqlite` via Git LFS
+- [ ] Bundle `assets/db/interaction_db.sqlite` via Git LFS (needs Sprint 11 pipeline output first)
 - [ ] Add `assets/db/interaction_db_manifest.json` with version + checksum
-- [ ] Extend `scripts/import_catalog_artifact.sh` to also bundle interaction DB with 5 new validation gates
-- [ ] Drift code-gen passes
-- [ ] All 5 lookup methods covered by unit tests against a fixture DB
+- [ ] Wire `interactionDatabaseProvider` in `main.dart` bootstrap
+- [ ] Drift code-gen passes end-to-end
+- [ ] All 5 lookup methods verified against real bundled DB
 - [ ] App startup loads bundled DB in <200ms
 
 ### Definition of Done
@@ -1128,7 +1167,7 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 ### Definition of Done
 
 - `flutter analyze` → 0 issues across entire project (from 47 at session start)
-- `flutter test` → **225 pass, 5 skipped** (all skips are test-infrastructure issues with tech-debt notes, not app bugs)
+- `flutter test` → **348 pass, 5 skipped** (all skips are test-infrastructure issues with tech-debt notes, not app bugs)
 - All Sprint 18 pending-polish items resolved
 - Sprint 17 e1_dosage_calculator schema drift fixed
 - iOS 26 device launch works without EXC_BAD_ACCESS
@@ -1209,6 +1248,9 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 - [2026-04-11] arch: `extendBody: true` on Scaffold + bottom sheets = sheets hide their bottom behind the frosted nav bar, because `MediaQuery.padding.bottom` only reports system insets (~34dp home indicator), NOT the app's own nav bar height. Fix: keep `extendBody: true` for blur effect, add `+ kPGNavBarHeight (88dp)` to sheet content padding. Trying `extendBody: false` kills the blur because BackdropFilter has nothing to blur through. (Root cause: Flutter has no concept of app-owned bottom chrome height)
 - [2026-04-11] testing: `userDatabaseProvider`/`coreDatabaseProvider` throw `UnimplementedError` when not overridden. `UnimplementedError` extends `Error`, not `Exception`, so `catch (Exception)` misses it and crashes widget tests silently. Use `on Object` to catch both. Widely applicable — all provider guards in test-friendly code should use `on Object`. (Root cause: assumption that Errors and Exceptions are interchangeable in Dart)
 - [2026-04-11] testing: `skip:` parameter on `testWidgets` is `bool?`, NOT `String?`. Passing a String literal (which looks natural for "skip reason") fails compilation. Put the reason in a comment above the test, pass `skip: true`. (Root cause: Dart's type inference lets you write `skip: "reason"` and fail at compile time instead of runtime)
+- [2026-04-12] testing: `pumpAndSettle()` hangs forever when ANY Riverpod provider fires an async Drift DB call during widget init. Replace with `pump()` + `pump(Duration(milliseconds: 100))`. Replace `scrollUntilVisible()` with manual `drag()` + `pump()` loops. Create/close DBs inside each test body (NOT `setUp`/`tearDown` — Drift's `close()` hangs when called from `tearDown` after the fake-async zone drains). Copy the `medication_entry_screen_test.dart` pattern.
+- [2026-04-12] arch: FTS5 virtual table existed in pipeline output (`products_fts`) but Flutter `searchProducts()` used `LIKE '%query%'` — a full table scan with no ranking and UPC duplicates. When adding a performance optimization to the pipeline, immediately wire the consumer in Flutter.
+- [2026-04-12] data: DSLD registers the same physical product multiple times under different `dsld_id`s but the same UPC barcode. Fix: `dedup_by_upc()` in the build pipeline. Run `SELECT upc_norm, COUNT(*) ... HAVING COUNT(*) > 1` after any pipeline rebuild.
 
 ---
 
@@ -1251,3 +1293,8 @@ Foundation complete: 97 tests, 63 source files, 21 commits. All screens scaffold
 | 2026-04-11 | 19     | **Sprint 19 DONE: Live-device bug fixes + full legacy migration + accessibility** — 33 files changed. Critical runtime fixes: UPC fuzzy lookup (strips spaces + tries UPC-A/EAN-13 variants), SQLite `!= ""` → `!= ''` string literal bug, bottom sheet `kPGNavBarHeight` padding (keeps frosted blur), `interaction_summary_hint` JSON parser with profile-gated rendering + snake_case humanization, score breakdown dynamic colors based on score/max (not category), iOS camera permission (`NSCameraUsageDescription`), Android camera permission, Podfile iOS 15 target (unblocks iOS 26 MLKit crash). Accessibility: `PGHaptics` + `PGScoreRing` respect `disableAnimations`, VoiceOver `Semantics` labels on PGScoreRing + PGFitScoreBadge with tier awareness. Sprint 17 carryover: `e1_dosage_calculator` schema drift fix (standard_name/age_range/rda_ai) with legacy fallbacks. Full legacy screen migration: `settings_screen.dart` (PGCard groups + debug reset-onboarding row), `search_screen.dart` (PGSearchField + PGEmptyState + PGFilterChip list/grid toggle), `scanner_screen.dart` (AppColors → AppTheme), `profile_setup_screen.dart` (PGCard + RadioGroup + PGFilterChip + PGCardVariant.highlighted review step), `onboarding_screen.dart` (soft-tinted icon wells + animated dots + persistence via `OnboardingPrefs`). Infrastructure: `supabase_client.dart` debug-mode placeholder guard, `stack_sync_queue.dart` offline queue scaffolding with PHI-safe medication filter. Test coverage: 3 new test files (PGScoreRing goldens ×7, PGSeverityPill ×7, PGFitScoreBadge ×9), fixed all 45 pre-existing analyze issues (RadioGroup deprecations, catch clauses, test type inference). **Final state: 0 analyze issues, 225 tests pass, 5 skipped (Supabase mock tech debt).** |
 | 2026-04-11 | 5a/20  | **Sprint 5a Supabase sync DONE** (completing the stack sync finish from Sprint 19's scaffolding). `stack_sync_queue.dart` rewritten with real `StackSyncService.pushAll()` — auth-gated (guests stay local), connectivity-gated, uses `supabase.from('user_stacks').upsert(..., onConflict: 'id')` for idempotent writes, maps local Drift row → remote payload via `_rowToRemote()`, catches `PostgrestException` leaving rows dirty for retry, reports outcome via `SyncResult` enum (ok/skippedGuest/skippedOffline/failed). Belt-and-suspenders PHI check asserts `row.type == 'supplement'` before every push. New `stackSyncListenerProvider` — a `Provider` with `ref.keepAlive()` that subscribes to connectivity + auth transitions via `ref.listen`, fires `pushAll()` on offline→online, guest→signedIn, and app-start (microtask). Bootstrapped in `main.dart` via a Consumer wrapping `PharmaGuideApp`. `StackActions.addProduct`/`remove`/`restore` now fire-and-forget `_triggerSync()` after every local write for instant push when online. New Supabase SQL migration at `supabase/migrations/20260411_user_stacks.sql` — full schema (id, user_id, type CHECK='supplement', name, dsld_id, ingredient_keys, dosage, frequency, added_at, client_updated_at, deleted_at, server_updated_at), `server_updated_at` trigger, RLS policies (4, scoped to auth.uid() with `type = 'supplement'` enforcement on INSERT/UPDATE), REVOKE from anon, GRANT to authenticated, 2 indexes (user_id + active, user_id + server_updated_at for future pull-sync). **Pull-sync deferred** (multi-device scenarios unsupported in V1.0). **225 tests pass + 5 skipped, 0 analyze issues.** |
 | 2026-04-11 | --     | **TOTAL: 225 tests passing + 5 skipped, 0 analysis errors, full design system + all legacy screens migrated + Supabase stack sync live** |
+| 2026-04-12 | --     | **Pipeline: UPC dedup** — `dedup_by_upc()` added to `build_final_db.py`. Groups by normalized UPC, keeps best row (active > discontinued, highest score, newest dsld_id), deletes losers. Committed as `bc0d804`. |
+| 2026-04-12 | --     | **FTS5 search upgrade** — `CoreDatabase.searchProducts()` rewritten from `LIKE '%query%'` (full table scan, no ranking, UPC dupes) to `FTS5 MATCH` with porter stemming + `ORDER BY rank`. LIKE fallback in try/catch for older DBs. Search now instant, ranked, and dedup-aware. |
+| 2026-04-12 | --     | **Recent Scans on home screen** — `UserDatabase.recordScanEvent()` + `getRecentScans()` (50-row cap, per-product dedup). `scanner_screen.dart` fires `unawaited()` record on successful scan. `home_screen.dart` `_RecentScansSection` ConsumerStatefulWidget loads history in `initState`, renders via `ProductListItem`, falls back to empty state with scan CTA. Creates core retention loop. |
+| 2026-04-12 | --     | **Fixed 10 hanging widget tests across 3 files** (`app_test.dart`, `home_screen_test.dart`, `settings_screen_test.dart`). Root cause: `pumpAndSettle()` hangs forever with async Drift DB calls; `tearDown` DB close hangs after fake-async zone drains; `scrollUntilVisible` calls `pumpAndSettle` internally. Fix: inline DB lifecycle per test body, `pump()` + `pump(100ms)` instead of `pumpAndSettle`, manual `drag()` + `pump()` loops. Pattern documented in lessons-learned.md. |
+| 2026-04-12 | --     | **TOTAL: 348 tests passing + 5 skipped, 0 analysis errors, FTS5 search + Recent Scans + UPC dedup + all test fixes** |

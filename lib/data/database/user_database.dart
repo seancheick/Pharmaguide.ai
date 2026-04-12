@@ -122,6 +122,49 @@ class UserDatabase extends _$UserDatabase {
   }
 
   // ---------------------------------------------------------------------------
+  // Scan History
+  // ---------------------------------------------------------------------------
+
+  /// Record a barcode scan. Duplicate dsld_ids create new rows (each scan
+  /// is a distinct event). The table is capped at 50 rows — oldest rows
+  /// are pruned after insert to keep storage bounded.
+  Future<void> recordScanEvent({
+    required String dsldId,
+    String? upcSku,
+    String? productName,
+  }) async {
+    await into(scanHistory).insert(ScanHistoryCompanion(
+      dsldId: Value(dsldId),
+      upcSku: Value(upcSku),
+      productName: Value(productName),
+    ));
+
+    // Prune old rows beyond the 50-row cap.
+    await customStatement(
+      'DELETE FROM user_scan_history '
+      'WHERE id NOT IN ('
+      '  SELECT id FROM user_scan_history ORDER BY scanned_at DESC LIMIT 50'
+      ')',
+    );
+  }
+
+  /// Returns the most recent scans (unique products), newest first.
+  /// De-duplicates by dsld_id, keeping only the latest scan per product.
+  Future<List<ScanHistoryData>> getRecentScans({int limit = 10}) async {
+    final rows = await customSelect(
+      'SELECT * FROM user_scan_history '
+      'WHERE id IN ('
+      '  SELECT MAX(id) FROM user_scan_history GROUP BY dsld_id'
+      ') '
+      'ORDER BY scanned_at DESC '
+      'LIMIT ?',
+      variables: [Variable.withInt(limit)],
+      readsFrom: {scanHistory},
+    ).get();
+    return rows.map((r) => scanHistory.map(r.data)).toList();
+  }
+
+  // ---------------------------------------------------------------------------
   // Detail Cache
   // ---------------------------------------------------------------------------
 

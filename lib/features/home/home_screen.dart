@@ -9,6 +9,9 @@ import 'package:pharmaguide/core/widgets/pg_citation_strip.dart';
 import 'package:pharmaguide/core/widgets/pg_filter_chip.dart';
 import 'package:pharmaguide/core/widgets/pg_search_field.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
+import 'package:pharmaguide/core/widgets/product_list_item.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 /// The home screen.
@@ -149,7 +152,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SliverPadding(
             padding: EdgeInsets.symmetric(horizontal: AppTheme.space20),
-            sliver: SliverToBoxAdapter(child: _RecentScansEmpty()),
+            sliver: SliverToBoxAdapter(child: _RecentScansSection()),
           ),
 
           // ----------------------------------------------------------------
@@ -582,17 +585,59 @@ class _StackHealthCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Recent scans empty state
+// Recent scans — loads from user_scan_history, falls back to empty state
 // ---------------------------------------------------------------------------
 
-class _RecentScansEmpty extends StatelessWidget {
-  const _RecentScansEmpty();
+class _RecentScansSection extends ConsumerStatefulWidget {
+  const _RecentScansSection();
+
+  @override
+  ConsumerState<_RecentScansSection> createState() =>
+      _RecentScansSectionState();
+}
+
+class _RecentScansSectionState extends ConsumerState<_RecentScansSection> {
+  List<_RecentScanDisplay>? _scans;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScans();
+  }
+
+  Future<void> _loadScans() async {
+    final userDb = ref.read(userDatabaseProvider);
+    final coreDb = ref.read(coreDatabaseProvider);
+    final history = await userDb.getRecentScans(limit: 10);
+    final results = <_RecentScanDisplay>[];
+    for (final scan in history) {
+      final product = await coreDb.findById(scan.dsldId);
+      if (product != null) {
+        results.add(
+          _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
+        );
+      }
+    }
+    if (mounted) setState(() => _scans = results);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
+    if (_scans == null || _scans!.isEmpty) {
+      return _buildEmptyState(theme, scheme, context);
+    }
+    return Column(
+      children: [
+        for (final scan in _scans!)
+          ProductListItem(product: scan.product),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme, ColorScheme scheme, BuildContext context) {
     return PGCard(
       variant: PGCardVariant.recessed,
       padding: const EdgeInsets.fromLTRB(
@@ -603,7 +648,6 @@ class _RecentScansEmpty extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Dashed circle icon holder
           Container(
             width: 56,
             height: 56,
@@ -644,6 +688,13 @@ class _RecentScansEmpty extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Pairs a resolved product with its scan timestamp for display.
+class _RecentScanDisplay {
+  final ProductsCoreData product;
+  final DateTime scannedAt;
+  const _RecentScanDisplay({required this.product, required this.scannedAt});
 }
 
 class _OutlineScanButton extends StatelessWidget {
