@@ -63,6 +63,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
+      // Scroll past Quick Check CTA + profile card to reach categories.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -250));
+      await tester.pump();
+
       expect(find.text('Omega-3'), findsOneWidget);
       expect(find.text('Probiotics'), findsOneWidget);
 

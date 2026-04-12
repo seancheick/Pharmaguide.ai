@@ -81,6 +81,71 @@ class HomeScreen extends ConsumerWidget {
           ),
 
           // ----------------------------------------------------------------
+          // Quick Check CTA — "Safe to Take Together?"
+          // ----------------------------------------------------------------
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space12,
+              AppTheme.space20,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: PGCard(
+                onTap: () => GoRouter.of(context).push(Routes.quickCheck),
+                padding: const EdgeInsets.all(AppTheme.space16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.severityCaution.withValues(alpha: 0.12),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusMedium),
+                      ),
+                      child: const Icon(
+                        Icons.compare_arrows_rounded,
+                        color: AppTheme.severityCaution,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Safe to take together?',
+                            style:
+                                Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Check any two products for interactions',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ----------------------------------------------------------------
           // Profile completeness (conditional, highlighted card)
           // ----------------------------------------------------------------
           if (profile.completeness < 60)
