@@ -70,7 +70,8 @@ class RecalledIngredientViolation {
     if (recalledIngredients.isEmpty) return '';
     if (recalledIngredients.length == 1) {
       final ing = recalledIngredients.first;
-      return '${ing.statusLabel} — $productName contains ${ing.commonNames.first}';
+      final name = ing.commonNames.isNotEmpty ? ing.commonNames.first : ing.canonicalId;
+      return '${ing.statusLabel} — $productName contains $name';
     }
     return '${recalledIngredients.first.statusLabel} — $productName contains ${recalledIngredients.length} recalled ingredient(s)';
   }

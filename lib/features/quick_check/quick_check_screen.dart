@@ -35,6 +35,8 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
 
   List<InteractionResult>? _results;
   bool _checking = false;
+  bool _checkError = false;
+  bool _insufficientData = false;
   Timer? _debounce1;
   Timer? _debounce2;
 
@@ -96,10 +98,26 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
     setState(() {
       _checking = true;
       _results = null;
+      _checkError = false;
+      _insufficientData = false;
     });
 
     try {
       final interactionDb = ref.read(interactionDatabaseProvider);
+
+      // Check if both products have ingredient data to check against.
+      final idsA = _extractCanonicalIds(_product1!.ingredientFingerprint);
+      final idsB = _extractCanonicalIds(_product2!.ingredientFingerprint);
+      if (idsA.isEmpty || idsB.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _insufficientData = true;
+            _checking = false;
+          });
+        }
+        return;
+      }
+
       final results = await _runPairCheck(
         _product1!,
         _product2!,
@@ -111,13 +129,11 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
           _checking = false;
         });
       }
-    } on Object {
-      if (mounted) {
-        setState(() {
-          _results = const [];
-          _checking = false;
-        });
-      }
+    } on UnimplementedError {
+      // Provider stub not overridden (test environment).
+      if (mounted) setState(() { _checkError = true; _checking = false; });
+    } on Exception {
+      if (mounted) setState(() { _checkError = true; _checking = false; });
     }
   }
 
@@ -255,8 +271,42 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
             ),
             const SizedBox(height: AppTheme.space24),
 
-            // Results
-            if (_results != null) _buildResults(theme, scheme),
+            // Results — distinguish clean check vs error vs insufficient data
+            if (_checkError)
+              PGCard(
+                padding: const EdgeInsets.all(AppTheme.space20),
+                child: Column(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppTheme.severityAvoid, size: 48),
+                    const SizedBox(height: AppTheme.space12),
+                    Text('Interaction check unavailable',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: AppTheme.space8),
+                    Text('The interaction database could not be loaded. Please try again later.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                        textAlign: TextAlign.center),
+                  ],
+                ),
+              )
+            else if (_insufficientData)
+              PGCard(
+                padding: const EdgeInsets.all(AppTheme.space20),
+                child: Column(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppTheme.severityCaution, size: 48),
+                    const SizedBox(height: AppTheme.space12),
+                    Text('Insufficient ingredient data',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: AppTheme.space8),
+                    Text('One or both products lack detailed ingredient data. '
+                        'We cannot reliably check for interactions.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                        textAlign: TextAlign.center),
+                  ],
+                ),
+              )
+            else if (_results != null)
+              _buildResults(theme, scheme),
           ],
         ),
       ),

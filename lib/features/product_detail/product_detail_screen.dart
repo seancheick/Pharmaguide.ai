@@ -393,7 +393,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // ----------------------------------------------------------------
           // "Why this score?" — compact 1-liner above the fold
           // ----------------------------------------------------------------
-          if (!isBlocked && !isNotScored && score100 != null)
+          // Safety rule: only show score explainer when mappedCoverage >= 0.3
+          if (!isBlocked && !isNotScored && score100 != null && mappedCoverage >= 0.3)
             SliverToBoxAdapter(
               child: _ScoreExplainerCard(
                 score100: score100,

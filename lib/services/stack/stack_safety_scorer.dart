@@ -11,6 +11,8 @@ import 'package:pharmaguide/core/models/timing_optimization.dart';
 ///   Hard-stop: contraindicated caps at 25, avoid caps at 50
 ///   Floor: 25 (max deduction 75), Ceiling: 100 (max bonus 15)
 class StackSafetyScorer {
+  const StackSafetyScorer();
+
   StackSafetyScore compute({
     required List<InteractionResult> issues,
     List<SynergyResult> synergies = const [],

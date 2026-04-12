@@ -22,7 +22,7 @@ InteractionResult _issue(Severity severity) => InteractionResult(
 
 void main() {
   late StackSafetyScorer scorer;
-  setUp(() => scorer = StackSafetyScorer());
+  setUp(() => scorer = const StackSafetyScorer());
 
   group('StackSafetyScorer', () {
     test('empty stack scores 100', () {

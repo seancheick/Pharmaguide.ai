@@ -7,7 +7,9 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
@@ -189,8 +191,9 @@ class _StackSummaryCard extends ConsumerWidget {
     final medicationCount =
         stack.where((e) => e.type == 'medication').length;
 
-    // Aggregate stack health score from safety report.
+    // Aggregate stack health score from safety report + synergy bonuses.
     final reportAsync = ref.watch(stackSafetyReportProvider);
+    final synergyAsync = ref.watch(synergyReportProvider);
     final safetyScore = reportAsync.whenOrNull(
       data: (report) {
         final allIssues = <InteractionResult>[
@@ -199,7 +202,24 @@ class _StackSummaryCard extends ConsumerWidget {
           ...report.stackInteractions,
           ...report.categoryWarnings,
         ];
-        return StackSafetyScorer().compute(issues: allIssues);
+        // Convert SynergyMatch → SynergyResult for the scorer.
+        final synergies = synergyAsync.whenOrNull(
+          data: (synergyReport) => synergyReport.matches
+              .map((m) => SynergyResult(
+                    ingredient1: m.matchedIngredients.isNotEmpty
+                        ? m.matchedIngredients.first : m.clusterId,
+                    ingredient2: m.matchedIngredients.length > 1
+                        ? m.matchedIngredients[1] : m.clusterName,
+                    description: m.mechanism,
+                    evidenceLevel: EvidenceLevel.established,
+                    bonus: m.bonusPoints,
+                  ))
+              .toList(),
+        ) ?? const <SynergyResult>[];
+        return const StackSafetyScorer().compute(
+          issues: allIssues,
+          synergies: synergies,
+        );
       },
     );
 
