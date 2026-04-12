@@ -56,7 +56,7 @@ const _maxBootMaterializeMs = 200;
 // by the metadata-agreement test below via `getMetadata()`.
 const _requiredManifestKeys = <String>[
   'built_at',
-  'checksum_sha256',
+  'checksum',
   'schema_version',
   'db_version',
   'total_interactions',
@@ -105,14 +105,14 @@ void main() {
           );
         }
 
-        // Sanity: checksum is 64 hex chars (raw sha256, no "sha256:" prefix).
-        final checksum = manifest['checksum_sha256'] as String;
+        // Sanity: checksum is "sha256:" prefix + 64 hex chars.
+        final checksum = manifest['checksum'] as String;
         expect(
-          RegExp(r'^[0-9a-f]{64}$').hasMatch(checksum),
+          RegExp(r'^sha256:[0-9a-f]{64}$').hasMatch(checksum),
           isTrue,
           reason:
-              'checksum_sha256 in bundled interaction manifest is not a '
-              '64-char hex string: "$checksum"',
+              'checksum in bundled interaction manifest is not a valid '
+              'sha256 hash string: "$checksum"',
         );
       },
     );

@@ -37,27 +37,42 @@ import 'package:pharmaguide/data/database/interaction_database.dart';
 // ---------------------------------------------------------------------------
 
 /// Curated row id for calcium ↔ iron — supplement-on-supplement, severity
-/// "caution". Stored with calcium as agent1 (CUI C0006675) and iron as
-/// agent2 (CUI C0302583).
-const _calciumIronInteractionId = 'DDI_IRON_CALCIUM';
+/// "caution". Stored with iron as agent1 and calcium as agent2.
+const _calciumIronInteractionId = 'SSI_IRON_CALCIUM';
 
 /// Curated row id for ACE inhibitors (drug class) ↔ potassium. Demonstrates
 /// the class-as-agent shape: agent1_type='drug_class', agent1_id matches
 /// the class id, agent1_drug_class is null.
-const _aceInhibitorsPotassiumId = 'DDI_ACE_POTASSIUM';
+const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
 
 /// Number of live (non-tombstoned) interaction rows in the current bundle.
-const _expectedLiveInteractionCount = 20;
+/// Updated from 20 (golden fixture) → 128 (full curated v1.0.0).
+const _expectedLiveInteractionCount = 128;
 
-/// Pipeline-built drug classes that the current bundle ships (not all 24
-/// will have curated interaction rows in v1; only this subset does).
+/// Pipeline-built drug classes that the current bundle ships.
+/// v1.0.0 has 21 classes with curated interaction rows.
 const _classesWithLiveInteractions = <String>{
   'class:ace_inhibitors',
+  'class:antacids',
+  'class:anticoagulants',
+  'class:anticonvulsants',
+  'class:antihypertensives',
+  'class:antipsychotics',
+  'class:benzodiazepines',
+  'class:beta_blockers',
+  'class:calcium_channel_blockers',
+  'class:corticosteroids',
+  'class:diabetes_meds',
   'class:diuretics',
+  'class:hiv_protease_inhibitors',
+  'class:immunosuppressants',
   'class:maois',
   'class:nsaids',
+  'class:oral_contraceptives',
+  'class:sedatives',
   'class:ssris',
   'class:statins',
+  'class:triptans',
 };
 
 void main() {
@@ -152,18 +167,20 @@ void main() {
   });
 
   group('lookupByDrugClass', () {
-    test('finds the class-as-agent row for ACE inhibitors', () async {
+    test('finds the class-as-agent rows for ACE inhibitors', () async {
       final rows = await db.lookupByDrugClass('class:ace_inhibitors');
-      expect(rows.length, 1);
-      expect(rows.single.id, _aceInhibitorsPotassiumId);
-      // Confirm the class lives on the agent_id side, not the
-      // agent_drug_class tag column.
-      final row = rows.single;
-      final classOnAgent = (row.agent1Type == 'drug_class' &&
-              row.agent1Id == 'class:ace_inhibitors') ||
-          (row.agent2Type == 'drug_class' &&
-              row.agent2Id == 'class:ace_inhibitors');
-      expect(classOnAgent, isTrue);
+      expect(rows.length, greaterThanOrEqualTo(1));
+      final ids = rows.map((r) => r.id).toSet();
+      expect(ids, contains(_aceInhibitorsPotassiumId));
+      // Confirm every returned row has the class on the agent_id side,
+      // not the agent_drug_class tag column.
+      for (final row in rows) {
+        final classOnAgent = (row.agent1Type == 'drug_class' &&
+                row.agent1Id == 'class:ace_inhibitors') ||
+            (row.agent2Type == 'drug_class' &&
+                row.agent2Id == 'class:ace_inhibitors');
+        expect(classOnAgent, isTrue, reason: 'row ${row.id} missing class agent');
+      }
     });
 
     test('every drug_class agent in the bundle has at least one live row',
@@ -179,9 +196,8 @@ void main() {
 
     test('returns empty for a class id with no curated interactions',
         () async {
-      // class:antacids exists in drug_class_map but has no curated
-      // interaction rows in v1.
-      final rows = await db.lookupByDrugClass('class:antacids');
+      // Use a class that exists in drug_class_map but has no curated rows.
+      final rows = await db.lookupByDrugClass('class:thyroid_medications');
       expect(rows, isEmpty);
     });
   });
