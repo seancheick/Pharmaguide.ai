@@ -161,12 +161,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted && warnings.isNotEmpty) {
         setState(() => _personalizedWarnings = warnings);
       }
-    } on Object {
+    } on UnimplementedError {
+      // Provider stub not overridden (test environment) — fall back to
+      // blob-only warnings. This is the only Error we intentionally catch.
+    } on Exception {
       // Non-fatal — personalized warnings are a bonus on top of blob
-      // warnings. If the interaction DB is missing/corrupt or the
-      // provider isn't overridden (tests), we silently fall back to
-      // blob-only. Catches both Exception and Error (UnimplementedError
-      // from the provider stub).
+      // warnings. If the interaction DB is missing or corrupt, we
+      // silently fall back to blob-only.
     }
   }
 
@@ -298,7 +299,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final blockingReason = _product?.blockingReason ?? '';
     final score100 = _product?.score100Equivalent;
     final grade = _product?.grade ?? '';
-    final mappedCoverage = _product?.mappedCoverage ?? 1.0;
+    // Safety rule: NEVER display "safe" when mapped_coverage < 0.3.
+    // Default to 0.0 (conservative) when coverage is unknown.
+    final mappedCoverage = _product?.mappedCoverage ?? 0.0;
     final percentileLabel = _product?.percentileLabel ?? '';
     final interactionHint = _product?.interactionSummaryHint ?? '';
 
@@ -313,15 +316,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     // Detail blob data + personalized interaction warnings from live DB.
     // Personalized warnings (from InteractionDatabase) appear first,
-    // followed by generic blob warnings — deduped by title to avoid
-    // showing the same mechanism twice.
+    // followed by generic blob warnings — deduped by (mechanism, severity)
+    // to avoid showing the same interaction twice from different sources.
     final blobWarnings = _parseWarnings();
-    final seenTitles = <String>{
-      for (final w in _personalizedWarnings) w.title,
+    final seenKeys = <String>{
+      for (final w in _personalizedWarnings)
+        '${w.severity.name}:${w.mechanism}',
     };
     final warnings = <InteractionWarning>[
       ..._personalizedWarnings,
-      ...blobWarnings.where((w) => !seenTitles.contains(w.title)),
+      ...blobWarnings.where(
+          (w) => !seenKeys.contains('${w.severity.name}:${w.mechanism}')),
     ];
     final hasProprietaryBlends = _detailBlob?['has_proprietary_blends'] == true;
 

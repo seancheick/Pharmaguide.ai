@@ -138,7 +138,13 @@ class ProductGridItem extends StatelessWidget {
     final scheme = theme.colorScheme;
     final score = product.score100Equivalent;
 
-    return PGCard(
+    final gridScoreLabel = score != null ? ', score ${score.round()} out of 100' : '';
+    final gridBrandLabel = product.brandName != null ? ' by ${product.brandName}' : '';
+
+    return Semantics(
+      button: true,
+      label: '${product.productName}$gridBrandLabel$gridScoreLabel. Tap to view details.',
+      child: PGCard(
       onTap: () => context.push('/product/${product.dsldId}'),
       padding: const EdgeInsets.all(AppTheme.space12),
       child: Column(
@@ -184,6 +190,7 @@ class ProductGridItem extends StatelessWidget {
           ],
         ],
       ),
+    ),
     );
   }
 }

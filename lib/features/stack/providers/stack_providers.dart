@@ -572,7 +572,7 @@ List<String> _canonicalIdsForProduct(ProductsCoreData product) {
     final decoded = jsonDecode(raw);
     if (decoded is Map) {
       return decoded.keys
-          .map((k) => k.toString())
+          .map((k) => k.toString().toLowerCase())
           .where((s) => s.isNotEmpty)
           .toList(growable: false);
     }

@@ -12,9 +12,7 @@ import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
-import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
-import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
@@ -548,9 +546,9 @@ class _StackErrorView extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Recall alert — checks if any stack product contains a recalled ingredient.
-// Hydrates dsldIds from core DB, filters has_recalled_ingredient == 1,
-// shows a danger PGSeverityBanner listing affected product names.
+// Recall alert — watches recalledIngredientsReportProvider (canonical provider)
+// instead of duplicating DB lookups via FutureBuilder. Shows a danger banner
+// when any stack product contains a recalled ingredient.
 // ---------------------------------------------------------------------------
 
 class _RecallAlertSlot extends ConsumerWidget {
@@ -559,14 +557,13 @@ class _RecallAlertSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final coreDb = ref.watch(coreDatabaseProvider);
-    return FutureBuilder<List<String>>(
-      future: _findRecalledProducts(coreDb),
-      builder: (context, snapshot) {
-        final recalled = snapshot.data;
-        if (recalled == null || recalled.isEmpty) {
-          return const SizedBox.shrink();
-        }
+    final reportAsync = ref.watch(recalledIngredientsReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (report.isEmpty) return const SizedBox.shrink();
+        final names = report.violations
+            .map((v) => v.productName)
+            .toList(growable: false);
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             AppTheme.space20,
@@ -577,32 +574,17 @@ class _RecallAlertSlot extends ConsumerWidget {
           child: PGSeverityBanner(
             tone: PGBannerTone.danger,
             title: 'Recall Alert',
-            body: recalled.length == 1
-                ? '${recalled.first} contains a recalled ingredient. '
+            body: names.length == 1
+                ? '${names.first} contains a recalled ingredient. '
                     'Consider removing it from your stack.'
-                : '${recalled.length} products contain recalled ingredients: '
-                    '${recalled.join(", ")}.',
+                : '${names.length} products contain recalled ingredients: '
+                    '${names.join(", ")}.',
           ),
         );
       },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
-  }
-
-  Future<List<String>> _findRecalledProducts(CoreDatabase coreDb) async {
-    final names = <String>[];
-    for (final entry in stack) {
-      final id = entry.dsldId;
-      if (id == null || id.isEmpty) continue;
-      try {
-        final product = await coreDb.findById(id);
-        if (product != null && product.hasRecalledIngredient == 1) {
-          names.add(entry.name);
-        }
-      } on Exception {
-        // Skip broken entries.
-      }
-    }
-    return names;
   }
 }
 

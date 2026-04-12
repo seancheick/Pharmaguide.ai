@@ -94,7 +94,10 @@ class HomeScreen extends ConsumerWidget {
               child: PGCard(
                 onTap: () => GoRouter.of(context).push(Routes.quickCheck),
                 padding: const EdgeInsets.all(AppTheme.space16),
-                child: Row(
+                child: Semantics(
+                  button: true,
+                  label: 'Check if two supplements or medications are safe to take together',
+                  child: Row(
                   children: [
                     Container(
                       width: 40,
@@ -140,6 +143,7 @@ class HomeScreen extends ConsumerWidget {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ],
+                ),
                 ),
               ),
             ),
@@ -675,19 +679,24 @@ class _RecentScansSectionState extends ConsumerState<_RecentScansSection> {
   }
 
   Future<void> _loadScans() async {
-    final userDb = ref.read(userDatabaseProvider);
-    final coreDb = ref.read(coreDatabaseProvider);
-    final history = await userDb.getRecentScans(limit: 10);
-    final results = <_RecentScanDisplay>[];
-    for (final scan in history) {
-      final product = await coreDb.findById(scan.dsldId);
-      if (product != null) {
-        results.add(
-          _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
-        );
+    try {
+      final userDb = ref.read(userDatabaseProvider);
+      final coreDb = ref.read(coreDatabaseProvider);
+      final history = await userDb.getRecentScans(limit: 10);
+      final results = <_RecentScanDisplay>[];
+      for (final scan in history) {
+        final product = await coreDb.findById(scan.dsldId);
+        if (product != null) {
+          results.add(
+            _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
+          );
+        }
       }
+      if (mounted) setState(() => _scans = results);
+    } on Exception {
+      // DB failure is non-fatal — show empty recent scans.
+      if (mounted) setState(() => _scans = []);
     }
-    if (mounted) setState(() => _scans = results);
   }
 
   @override
