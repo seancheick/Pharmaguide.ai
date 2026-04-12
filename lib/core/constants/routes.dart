@@ -15,4 +15,7 @@ abstract final class Routes {
 
   /// Build a product detail path with dsldId.
   static String productDetail(String dsldId) => '/product/$dsldId';
+
+  /// "Safe to Take Together?" quick pair interaction check.
+  static const quickCheck = '/quick-check';
 }

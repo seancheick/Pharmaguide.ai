@@ -9,6 +9,7 @@ import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
+import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
@@ -140,6 +141,10 @@ GoRouter _buildRouter({
         builder: (_, state) => catalogRoute(
           SearchScreen(initialCategory: state.uri.queryParameters['category']),
         ),
+      ),
+      GoRoute(
+        path: Routes.quickCheck,
+        builder: (_, __) => catalogRoute(const QuickCheckScreen()),
       ),
       GoRoute(
         path: '${Routes.product}/:dsldId',

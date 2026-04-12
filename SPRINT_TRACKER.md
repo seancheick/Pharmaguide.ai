@@ -104,36 +104,31 @@ Files modified but unstaged in `/Users/seancheick/PharmaGuide ai/`:
 
 ## CURRENT SPRINT — Sprint 21: Feature Blitz
 
-**Sprint 21: Synergy + Recalls + M5 Fix + Stack Health + Quick Check**
-Status: IN PROGRESS
-**Pipeline parallel work:** Building `medication_depletions.json` + `timing_rules.json` (separate agent)
+**Sprint 21: Synergy + Recalls + M5 Fix + Stack Health + Quick Check + Pipeline Data**
+Status: IN PROGRESS (5 of 7 tasks done, T6 + T8 remaining)
+**Pipeline data:** `medication_depletions.json` (68 entries) + `timing_rules.json` (39 rules) — ✅ BUILT + bundled
 
 ### Tasks (ordered by implementation sequence)
 
-- [ ] **T1: Synergy Detection UI** — Wire `synergy_cluster.json` (54 clusters, already in reference_data) to stack view. Show green "Pairs well" badges when stack contains synergistic ingredients. Display on product detail too ("Pairs well with Vitamin D in your stack"). ~2 days.
-- [ ] **T2: Recall Alerts in Stack** — Filter `has_recalled_ingredient == 1` from stack products. Show danger banner on stack screen + product detail. "⚠️ [Product] contains a recalled ingredient — consider removing." ~1 day.
-- [ ] **T3: M5 Fix — Live InteractionDatabase lookup on product detail** — Replace blob-only parsing in `interaction_warnings.dart` with real `InteractionDatabase` queries against user's stack. Surface "Because you're taking [X]" personalized warnings. Spec §9.2. ~2-3 days.
-- [ ] **T4: checkMedicationPairInteractions** — Add med↔med pair checking to `StackInteractionChecker`. Add `medicationPairInteractions` list to `StackSafetyReport`. Wire in `stackSafetyReportProvider`. Spec §0.2. ~1 day.
-- [ ] **T5: Stack Health Score (aggregate)** — Compute combined quality score from all stack products. Display as prominent score ring at top of `_StackSummaryCard` (replace counts-only view). "Your stack scores 78/100 — 2 issues found." ~1-2 days.
-- [ ] **T6: "Safe to Take Together?" Quick Check** — New standalone screen (route: `/quick-check`). Scan or search 2 products → instant pair interaction check using `lookupPair()`. No stack required. Surface severity, mechanism, evidence. Add to home screen as CTA. ~2-3 days.
-- [ ] **T7: Run full test suite + analyze** — All changes verified, 0 analyze issues, 0 test regressions.
+- [x] **T1: Synergy Detection** — `synergyReportProvider` matches stack ingredients against 54 synergy clusters. Evidence-tiered matching with PMID citations. `synergy_cluster.json` + `banned_recalled_ingredients.json` bundled in assets. Shipped `857b827`.
+- [x] **T2: Recall Alerts in Stack** — `_RecallAlertSlot` on stack screen: danger `PGSeverityBanner` when `has_recalled_ingredient == 1`. `recalledIngredientsReportProvider` checks canonical IDs against `banned_recalled_ingredients.json`. Shipped `857b827`.
+- [x] **T3: M5 Fix — Live InteractionDatabase lookup on product detail** — `_loadPersonalizedInteractions()` queries `InteractionDatabase` via `StackInteractionChecker` against user's stack. Personalized "Because you're taking [X]" warnings merged with blob-parsed warnings. Soft-fail on missing provider. Shipped `857b827`.
+- [x] **T4: checkMedicationPairInteractions** — New method on `StackInteractionChecker` (med↔med via rxcui/drug_class). `medicationPairInteractions` field on `StackSafetyReport`. Wired in `stackSafetyReportProvider` with dedup. Spec §0.2. Shipped `857b827`.
+- [x] **T5: Stack Health Score (aggregate)** — `_StackSummaryCard` upgraded to `ConsumerWidget`. `PGScoreRing` (0-100) + `RiskTier` label + issue counts. `StackSafetyScorer` computes from all interaction results. Shipped `857b827`.
+- [ ] **T6: "Safe to Take Together?" Quick Check** — New standalone screen (route: `/quick-check`). Scan or search 2 products → instant pair interaction check using `lookupPair()`. No stack required. Surface severity, mechanism, evidence. Add to home screen as CTA. ~2-3 hrs.
+- [x] **T7: Pipeline data wired** — `timing_rules.json` (39 rules, 718 lines) replaced placeholder. `medication_depletions.json` (68 entries, 1877 lines) copied to Flutter `assets/reference_data/` + `loadMedicationDepletions()` added to `ReferenceDataRepository`. 49 pipeline contract tests + 53 live PMID verifications pass.
+- [ ] **T8: Depletion Checker UI** — Wire `medication_depletions.json` to stack screen. When user has medications, show "Metformin may deplete Vitamin B12" warnings with evidence + recommendations. **→ V1.1 (data ready, UI next sprint)**
 
 ### Definition of Done
 
-- Synergy badges visible on stack screen when synergistic pairs exist
-- Recall banner fires on stack/detail when `has_recalled_ingredient == 1`
-- Product detail interaction warnings are personalized to user's stack ("Because you're taking X")
-- Med↔med pair check runs on medication save + in safety report
-- Stack summary shows aggregate health score (0-100) with issue count
-- Quick Check screen accessible from home, returns pair interaction for any 2 products
-- All tests pass, 0 analyze issues
-
-### Dependencies
-
-- `synergy_cluster.json` already bundled in reference_data — no pipeline work needed
-- `has_recalled_ingredient` already in products_core — no pipeline work needed
-- `InteractionDatabase` bundled + provider wired — no pipeline work needed
-- **Pipeline parallel:** `medication_depletions.json` + `timing_rules.json` being built for V1.1 features
+- [x] Synergy provider matches stack ingredients against clusters
+- [x] Recall banner fires on stack when `has_recalled_ingredient == 1`
+- [x] Product detail interaction warnings are personalized to user's stack
+- [x] Med↔med pair check runs in safety report
+- [x] Stack summary shows aggregate health score (0-100) with issue count
+- [ ] Quick Check screen accessible from home
+- [x] Pipeline data files bundled + loaders wired
+- [x] 299 tests pass, 0 analyze issues
 
 ---
 

@@ -1,0 +1,1877 @@
+{
+  "_metadata": {
+    "description": "Drug-induced nutrient depletions — maps medications/drug classes to nutrients they deplete",
+    "purpose": "depletion_checker",
+    "schema_version": "5.0.0",
+    "last_updated": "2026-04-12",
+    "total_entries": 68,
+    "data_sources": [
+      "NIH Office of Dietary Supplements",
+      "Drug-Induced Nutrient Depletion Handbook (Pelton et al.)",
+      "Clinical pharmacology literature",
+      "FDA Drug Safety Communications"
+    ],
+    "clinical_disclaimer": "Informational only. Consult healthcare provider before supplementing.",
+    "notes": "Two entries (DEP_BETABLOCKERS_MELATONIN, DEP_BENZODIAZEPINES_MELATONIN) reference canonical_id 'melatonin' which is not in rda_optimal_uls.json. These are valid clinical depletions; rda_optimal_uls.json should be extended to include melatonin if depletion checker requires canonical_id resolution."
+  },
+  "depletions": [
+    {
+      "id": "DEP_STATINS_COQ10",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:statins",
+        "display_name": "Statins (cholesterol-lowering medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Coenzyme Q10",
+        "canonical_id": "coenzyme_q10"
+      },
+      "severity": "significant",
+      "mechanism": "Statins inhibit HMG-CoA reductase, which is required not only for cholesterol synthesis but also for the mevalonate pathway that produces ubiquinone (CoQ10). Blocking this enzyme reduces endogenous CoQ10 biosynthesis.",
+      "clinical_impact": "CoQ10 depletion may contribute to statin-associated myopathy (muscle pain, weakness), fatigue, and reduced mitochondrial energy production. Cardiac CoQ10 is particularly affected.",
+      "recommendation": "Many clinicians recommend 100–200 mg CoQ10 daily when taking statins, particularly if you experience muscle aches or fatigue. Discuss with your doctor.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider checking CoQ10 plasma levels if experiencing unexplained muscle symptoms on statin therapy.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Rundek T et al. Atorvastatin decreases the coenzyme Q10 level in the blood of patients at risk for cardiovascular disease and stroke. Arch Neurol. 2004",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15339854/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Banach M et al. Statin therapy and plasma coenzyme Q10 concentrations. Pharmacol Res. 2015",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26482868/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_STATINS_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:statins",
+        "display_name": "Statins (cholesterol-lowering medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "moderate",
+      "mechanism": "Statins may impair hepatic hydroxylation of vitamin D by competing for CYP450 enzymes involved in vitamin D metabolism. Cholesterol is also a substrate for vitamin D synthesis, so its reduction may limit precursor availability.",
+      "clinical_impact": "Suboptimal vitamin D is associated with musculoskeletal pain, immune dysregulation, and increased fracture risk — symptoms that can overlap with or worsen statin side effects.",
+      "recommendation": "Have your vitamin D (25-OH-D) level checked annually. Supplement with vitamin D3 if levels are below optimal range, typically 1,000–2,000 IU daily unless directed otherwise.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Test serum 25-hydroxyvitamin D annually, especially in winter months or low-sunlight climates.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Pérez-Castrillón JL et al. Effects of atorvastatin on vitamin D levels in patients with acute ischemic heart disease. Am J Cardiol. 2007",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17437748/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Lajous M et al. Statins and Vitamin D. Am J Med. 2012",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22153731/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTACIDS_VITAMINB12",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antacids",
+        "display_name": "PPIs and antacids (acid-reducing medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B12",
+        "canonical_id": "vitamin_b12"
+      },
+      "severity": "significant",
+      "mechanism": "Gastric acid and pepsin are required to cleave vitamin B12 from food proteins. PPIs and H2 blockers suppress acid secretion, impairing this liberation step and reducing B12 absorption from dietary sources (though crystalline B12 supplements are unaffected).",
+      "clinical_impact": "B12 deficiency causes megaloblastic anemia, peripheral neuropathy, cognitive decline, and elevated homocysteine. Risk increases significantly with long-term (>2 years) PPI use.",
+      "recommendation": "If taking acid reducers long-term, consider a sublingual or methylcobalamin B12 supplement (1,000 mcg/day) which bypasses the acid-dependent absorption step. Ask your doctor about periodic B12 testing.",
+      "onset_timeline": "years",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum B12 levels every 1–2 years with long-term PPI use. Methylmalonic acid is a more sensitive functional marker.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH ODS — Vitamin B12 Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Lam JR et al. Proton pump inhibitor and histamine 2 receptor antagonist use and vitamin B12 deficiency. JAMA. 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24327038/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTACIDS_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antacids",
+        "display_name": "PPIs and antacids (acid-reducing medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "significant",
+      "mechanism": "Long-term PPI use impairs active magnesium transport in the intestine, likely by interfering with TRPM6/TRPM7 channels responsible for intestinal magnesium absorption. The exact mechanism is not fully elucidated.",
+      "clinical_impact": "Hypomagnesemia from PPIs can cause muscle cramps, tremors, cardiac arrhythmias, and — by impairing PTH secretion — secondary hypocalcemia and hypokalemia that are refractory to replacement until magnesium is corrected.",
+      "recommendation": "If you have been on a PPI for more than one year, ask your doctor to check your magnesium level. A magnesium glycinate or citrate supplement (200–400 mg/day) may be appropriate.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "FDA issued a Drug Safety Communication in 2011 requiring magnesium monitoring for patients on long-term PPIs. Check serum magnesium at baseline and periodically.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Danziger J et al. Proton-pump inhibitor use is associated with low serum magnesium concentrations. Kidney Int. 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22762246/"
+        },
+        {
+          "source_type": "reference",
+          "label": "FDA Drug Safety Communication: Low magnesium levels can be associated with long-term use of PPIs. 2011",
+          "url": "https://www.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-low-magnesium-levels-can-be-associated-long-term-use-proton-pump"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTACIDS_CALCIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antacids",
+        "display_name": "PPIs and antacids (acid-reducing medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Calcium",
+        "canonical_id": "calcium"
+      },
+      "severity": "significant",
+      "mechanism": "Gastric acid converts insoluble calcium salts into ionized calcium for absorption in the small intestine. Acid suppression impairs this conversion, reducing absorption of calcium carbonate specifically. Calcium citrate is less affected.",
+      "clinical_impact": "Long-term impaired calcium absorption increases fracture risk. Multiple studies and an FDA label update link long-term PPI use to hip, wrist, and spine fractures.",
+      "recommendation": "Take calcium citrate rather than calcium carbonate (citrate does not need acid for absorption). Ensure adequate intake of 1,000–1,200 mg/day from diet and supplements combined.",
+      "onset_timeline": "years",
+      "evidence_level": "established",
+      "monitoring_note": "Consider DEXA scan for bone density assessment with long-term PPI use, especially postmenopausal women.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Yu EW et al. Proton pump inhibitors and risk of fractures: a meta-analysis of 11 international studies. Am J Med. 2011",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20610041/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTACIDS_IRON",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antacids",
+        "display_name": "PPIs and antacids (acid-reducing medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Iron",
+        "canonical_id": "iron"
+      },
+      "severity": "moderate",
+      "mechanism": "Gastric acid is required to reduce dietary non-heme iron (Fe³⁺) to the absorbable ferrous form (Fe²⁺) and to release iron from food complexes. Acid suppression impairs both steps, reducing non-heme iron bioavailability.",
+      "clinical_impact": "Chronic iron depletion can cause iron-deficiency anemia, fatigue, reduced exercise capacity, and impaired immune function. Most concerning in premenopausal women and individuals with marginal iron intake.",
+      "recommendation": "If you are on long-term acid reducers, consider periodic iron/ferritin testing. Take iron supplements (if needed) at least 2 hours away from antacid medication, and use ferrous bisglycinate which is better absorbed at higher pH.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum ferritin and CBC annually with long-term PPI use, especially in women of childbearing age.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Hutchinson C et al. Proton pump inhibitors suppress absorption of dietary non-haem iron in hereditary haemochromatosis. Gut. 2007",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17008369/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Sarzynski E et al. Association between proton pump inhibitor use and anemia. Dig Dis Sci. 2011",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/25208642/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTACIDS_VITAMINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antacids",
+        "display_name": "PPIs and antacids (acid-reducing medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin C",
+        "canonical_id": "vitamin_c"
+      },
+      "severity": "mild",
+      "mechanism": "The acidic gastric environment normally stabilizes vitamin C (ascorbic acid). Elevated gastric pH from acid suppression accelerates oxidation of ascorbic acid to dehydroascorbic acid, reducing its bioavailability. Gastric secretion of vitamin C is also reduced.",
+      "clinical_impact": "Mild vitamin C depletion may impair immune function, collagen synthesis, and antioxidant defenses. The clinical significance is generally modest in individuals with adequate dietary intake.",
+      "recommendation": "Ensure adequate vitamin C intake from fruits and vegetables. If supplementing, take vitamin C away from antacid doses to minimize pH-related degradation.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTACIDS_ZINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antacids",
+        "display_name": "PPIs and antacids (acid-reducing medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "mild",
+      "mechanism": "Zinc absorption from food is partially dependent on gastric acid solubilization. Elevated gastric pH impairs the release of zinc from food-bound complexes, reducing bioavailability of dietary zinc.",
+      "clinical_impact": "Zinc deficiency affects immune function, wound healing, taste and smell, and reproductive health. Long-term marginal zinc depletion is most concerning in elderly patients with already-borderline intake.",
+      "recommendation": "Ensure dietary zinc adequacy. If on long-term antacids, consider a modest zinc supplement (10–15 mg/day as zinc glycinate). Avoid taking zinc simultaneously with the acid-reducing medication.",
+      "onset_timeline": "months",
+      "evidence_level": "possible",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_METFORMIN_VITAMINB12",
+      "drug_ref": {
+        "type": "drug",
+        "id": "860974",
+        "display_name": "Metformin (type 2 diabetes medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B12",
+        "canonical_id": "vitamin_b12"
+      },
+      "severity": "significant",
+      "mechanism": "Metformin impairs B12 absorption by interfering with a calcium-dependent intrinsic factor-B12 receptor complex on the ileal mucosa. This disrupts the final step of B12 uptake from the small intestine. The effect is dose-dependent and reverses with calcium supplementation in some patients.",
+      "clinical_impact": "Up to 30% of long-term metformin users develop B12 deficiency. This causes peripheral neuropathy (which may be misattributed to diabetic neuropathy), megaloblastic anemia, and cognitive changes. Deficiency may develop insidiously over years.",
+      "recommendation": "The ADA recommends periodic B12 monitoring for all patients on metformin. Supplement with sublingual methylcobalamin 1,000 mcg/day if levels are borderline or low.",
+      "onset_timeline": "years",
+      "evidence_level": "established",
+      "monitoring_note": "ADA Standards of Care recommend checking B12 levels every 2–3 years in all metformin-treated patients. Methylmalonic acid is a sensitive functional marker for early deficiency.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Adams JF et al. Malabsorption of vitamin B12 and intrinsic factor secretion during biguanide therapy. Diabetologia. 1983",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/6400498/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "de Jager J et al. Long term treatment with metformin in patients with type 2 diabetes and risk of vitamin B-12 deficiency. BMJ. 2010",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20488910/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Bauman WA et al. Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin. Diabetes Care. 2000",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10977010/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_METFORMIN_FOLATE",
+      "drug_ref": {
+        "type": "drug",
+        "id": "860974",
+        "display_name": "Metformin (type 2 diabetes medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Folate",
+        "canonical_id": "folate"
+      },
+      "severity": "moderate",
+      "mechanism": "Metformin may reduce plasma folate levels through inhibition of intestinal folate transport. Some studies also suggest AMPK activation by metformin alters folate-dependent one-carbon metabolism.",
+      "clinical_impact": "Reduced folate elevates homocysteine, increasing cardiovascular risk, and may impair DNA methylation and cell division. Particularly important in women of childbearing age (neural tube defect risk).",
+      "recommendation": "Ensure adequate folate intake through diet and/or a daily multivitamin with 400–800 mcg folate (or methylfolate for those with MTHFR variants).",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Consider checking plasma homocysteine as a functional marker of folate/B12 adequacy in long-term metformin users.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH ODS — Folate Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "de Jager J et al. Long term treatment with metformin in patients with type 2 diabetes and risk of vitamin B-12 deficiency. BMJ. 2010",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20488910/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_OCP_VITAMINB6",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:oral_contraceptives",
+        "display_name": "Oral contraceptives (birth control pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B6",
+        "canonical_id": "vitamin_b6"
+      },
+      "severity": "significant",
+      "mechanism": "Estrogen in oral contraceptives increases tryptophan oxygenase activity, shunting tryptophan toward kynurenine pathway metabolism, which increases demand for vitamin B6 as a cofactor. This accelerated B6 utilization depletes plasma pyridoxal phosphate levels.",
+      "clinical_impact": "B6 deficiency causes depression, irritability, cognitive changes, peripheral neuropathy, and impaired immune function. The mood symptoms associated with some OCP use may partly reflect B6 depletion.",
+      "recommendation": "Consider a B-complex supplement or a daily multivitamin providing 25–50 mg of B6. Women on OCPs who experience mood changes may particularly benefit.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_OCP_VITAMINB12",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:oral_contraceptives",
+        "display_name": "Oral contraceptives (birth control pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B12",
+        "canonical_id": "vitamin_b12"
+      },
+      "severity": "moderate",
+      "mechanism": "Oral contraceptives appear to reduce serum B12 by lowering plasma binding proteins (transcobalamin I and II), redistributing B12 into tissues and reducing measured serum levels. Intestinal absorption is not significantly impaired.",
+      "clinical_impact": "Low serum B12, even if partially artifactual from protein binding changes, may contribute to fatigue, mood disturbances, and elevated homocysteine. Women planning pregnancy after stopping OCPs should ensure B12 repletion.",
+      "recommendation": "Include B12-rich foods (meat, fish, dairy, eggs) in your diet, or take a B-complex supplement. Particularly important when transitioning off OCPs and planning pregnancy.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_OCP_FOLATE",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:oral_contraceptives",
+        "display_name": "Oral contraceptives (birth control pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Folate",
+        "canonical_id": "folate"
+      },
+      "severity": "significant",
+      "mechanism": "Estrogen components of OCPs impair folate metabolism and reduce serum folate levels. The mechanism involves altered folate binding protein expression and possibly impaired intestinal folate absorption.",
+      "clinical_impact": "Folate depletion increases homocysteine and neural tube defect risk. Women stopping OCPs who become pregnant within months may have insufficient folate stores during critical early fetal development.",
+      "recommendation": "Take a daily multivitamin with 400–800 mcg folate (methylfolate preferred) throughout OCP use. This is especially critical for anyone who may become pregnant after stopping.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider starting 5-methyltetrahydrofolate supplementation at least 3 months before attempting conception after stopping OCPs.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_OCP_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:oral_contraceptives",
+        "display_name": "Oral contraceptives (birth control pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "moderate",
+      "mechanism": "Estrogen and progesterone in OCPs promote cellular uptake and urinary excretion of magnesium, resulting in lower plasma magnesium levels. Hormonal effects on renal magnesium handling are also implicated.",
+      "clinical_impact": "Magnesium deficiency contributes to muscle cramps, headaches/migraines, anxiety, poor sleep, and insulin resistance. Low magnesium is also associated with worsening PMS symptoms.",
+      "recommendation": "Consider a daily magnesium glycinate or citrate supplement (200–400 mg). Magnesium may also help with OCP-related headaches and mood changes.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_OCP_ZINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:oral_contraceptives",
+        "display_name": "Oral contraceptives (birth control pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "moderate",
+      "mechanism": "Estrogens increase plasma zinc-binding proteins, redistributing zinc from plasma to tissues and reducing measurable serum zinc. Urinary zinc excretion may also increase with estrogen use.",
+      "clinical_impact": "Reduced zinc availability affects immune function, skin health, wound healing, and hormonal balance. Zinc is also important for reproductive health when planning pregnancy after stopping OCPs.",
+      "recommendation": "Ensure adequate dietary zinc (meat, shellfish, legumes, seeds) or take a modest zinc supplement (10–15 mg/day as zinc glycinate). Do not exceed 40 mg/day from all sources.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_OCP_VITAMINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:oral_contraceptives",
+        "display_name": "Oral contraceptives (birth control pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin C",
+        "canonical_id": "vitamin_c"
+      },
+      "severity": "mild",
+      "mechanism": "Estrogens increase the rate of vitamin C catabolism and may compete with vitamin C for cellular transport via SVCT transporters. Plasma ascorbic acid levels are consistently lower in OCP users.",
+      "clinical_impact": "Mild reduction in vitamin C status may subtly impair antioxidant defenses and collagen synthesis. The clinical significance is typically modest in women with adequate dietary intake.",
+      "recommendation": "Ensure daily vitamin C intake of at least 75 mg (the RDA for women) through fruits and vegetables, or supplement with 250–500 mg daily.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_OCP_VITAMINE",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:oral_contraceptives",
+        "display_name": "Oral contraceptives (birth control pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin E",
+        "canonical_id": "vitamin_e"
+      },
+      "severity": "mild",
+      "mechanism": "OCP use is associated with lower plasma alpha-tocopherol levels, possibly due to increased oxidative stress from estrogen-driven lipid peroxidation consuming vitamin E as a fat-soluble antioxidant.",
+      "clinical_impact": "Mild vitamin E reduction has limited overt clinical symptoms but may contribute to increased oxidative stress and slightly impaired immune response over time.",
+      "recommendation": "A balanced diet rich in nuts, seeds, and vegetable oils generally provides sufficient vitamin E. A low-dose daily supplement (15 mg/day) may be considered for women on long-term OCPs.",
+      "onset_timeline": "months",
+      "evidence_level": "possible",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_DIURETICS_POTASSIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:diuretics",
+        "display_name": "Diuretics (water pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Potassium",
+        "canonical_id": "potassium"
+      },
+      "severity": "significant",
+      "mechanism": "Loop diuretics (furosemide, bumetanide) and thiazide diuretics (hydrochlorothiazide, chlorthalidone) increase urine volume and renal potassium wasting. They inhibit sodium reabsorption, which increases tubular flow and potassium secretion in the collecting duct.",
+      "clinical_impact": "Hypokalemia causes muscle weakness, leg cramps, fatigue, constipation, and dangerously abnormal heart rhythms (arrhythmias). Particularly serious in patients also taking digoxin, where hypokalemia increases toxicity risk.",
+      "recommendation": "Potassium-sparing foods (bananas, potatoes, spinach) are often recommended, but many patients require potassium supplementation (typically 20–40 mEq/day as prescribed). Regular monitoring is essential.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum potassium at baseline and within 1–2 weeks of starting or dose-changing a diuretic. Ongoing monitoring frequency depends on dose and clinical stability.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Brater DC. Diuretic therapy. N Engl J Med. 1998;339:387-395",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9691107/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_DIURETICS_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:diuretics",
+        "display_name": "Diuretics (water pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "significant",
+      "mechanism": "Loop and thiazide diuretics increase renal magnesium excretion by inhibiting magnesium reabsorption in the thick ascending limb of Henle and distal tubule. The increased tubular flow rate also washes out magnesium.",
+      "clinical_impact": "Magnesium depletion makes potassium replacement difficult (refractory hypokalemia) and increases arrhythmia risk. Muscle cramps, weakness, and tremors are common symptoms.",
+      "recommendation": "Supplement with magnesium glycinate or citrate (200–400 mg/day). Correcting magnesium is often required to successfully replete potassium in diuretic-treated patients.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Serum magnesium should be checked alongside potassium in patients on diuretics. Note that serum magnesium can be normal despite intracellular depletion.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Altura BM, Altura BT. New perspectives on the role of magnesium in the pathophysiology of the cardiovascular system. Magnesium. 1985",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/3003511/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_DIURETICS_ZINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:diuretics",
+        "display_name": "Diuretics (water pills)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "moderate",
+      "mechanism": "Increased urinary volume from diuretics enhances renal zinc excretion. Thiazide diuretics also reduce proximal tubular zinc reabsorption. Cumulative urinary zinc losses over time deplete body stores.",
+      "clinical_impact": "Zinc deficiency impairs wound healing, immune function, taste acuity, and testosterone production. Particularly relevant in elderly patients on long-term diuretics who already have borderline zinc intake.",
+      "recommendation": "Consider a modest zinc supplement (10–15 mg/day as zinc glycinate). Ensure dietary zinc from meat, shellfish, legumes, or a multivitamin.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_DIURETICS_CALCIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:diuretics",
+        "display_name": "Diuretics (water pills) — loop diuretics specifically"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Calcium",
+        "canonical_id": "calcium"
+      },
+      "severity": "significant",
+      "mechanism": "Loop diuretics (furosemide, torsemide, ethacrynic acid) inhibit the NKCC2 transporter in the thick ascending limb, which is also required for calcium reabsorption, causing substantial urinary calcium losses. Note: thiazide diuretics spare calcium (may actually increase retention).",
+      "clinical_impact": "Chronic calcium wasting from loop diuretics increases risk of osteoporosis and fractures, particularly in elderly patients. It also contributes to hypocalcemia in susceptible individuals.",
+      "recommendation": "Ensure adequate calcium intake (1,000–1,200 mg/day) from diet and supplements if on long-term loop diuretics. This depletion applies specifically to loop diuretics, not thiazides.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum calcium and consider bone density assessment in patients on long-term loop diuretic therapy.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Quamme GA. Renal handling of magnesium: drug and hormone interactions. Magnesium. 1986",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/3537199/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_DIURETICS_THIAMINE",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:diuretics",
+        "display_name": "Diuretics (water pills) — especially furosemide"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Thiamin",
+        "canonical_id": "thiamin"
+      },
+      "severity": "significant",
+      "mechanism": "Furosemide (loop diuretic) significantly increases renal thiamine excretion through urinary losses. The mechanism involves displacement of thiamine from plasma protein binding and increased proximal tubular secretion. Chronic high-dose furosemide use commonly produces thiamine deficiency.",
+      "clinical_impact": "Thiamine deficiency in heart failure patients on furosemide causes Wernicke encephalopathy risk, worsens cardiac function (wet beriberi contributes to heart failure), and may worsen prognosis. This depletion is clinically significant and underrecognized.",
+      "recommendation": "Patients on furosemide, especially for heart failure, should take a thiamine supplement (100 mg/day) or at minimum ensure a B-complex with adequate thiamine. Discuss with your cardiologist or prescribing physician.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider measuring whole-blood thiamine in heart failure patients on chronic high-dose furosemide, especially those with poor nutritional status.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Seligmann H et al. Thiamine deficiency in patients with congestive heart failure receiving long-term furosemide therapy. Am J Med. 1991",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/1952159/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Rieck J et al. Urinary loss of thiamine is increased by low doses of furosemide in healthy volunteers. J Lab Clin Med. 1999",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/16832143/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_DIURETICS_FOLATE",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:diuretics",
+        "display_name": "Diuretics — triamterene specifically"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Folate",
+        "canonical_id": "folate"
+      },
+      "severity": "moderate",
+      "mechanism": "Triamterene (a potassium-sparing diuretic) is a structural analog of folate and acts as a dihydrofolate reductase inhibitor, impairing folate metabolism. It also reduces renal tubular reabsorption of folate.",
+      "clinical_impact": "Folate depletion causes elevated homocysteine, increased cardiovascular risk, megaloblastic anemia, and is particularly dangerous in pregnant women (neural tube defects). The combination of triamterene with methotrexate is especially hazardous.",
+      "recommendation": "Patients on triamterene-containing products (e.g., Dyazide, Maxzide) should take a folic acid supplement (400–800 mcg/day). Discuss with your doctor if you take methotrexate.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum folate and homocysteine in patients on long-term triamterene therapy.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CORTICOSTEROIDS_CALCIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:corticosteroids",
+        "display_name": "Corticosteroids (prednisone, prednisolone, dexamethasone)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Calcium",
+        "canonical_id": "calcium"
+      },
+      "severity": "significant",
+      "mechanism": "Corticosteroids reduce intestinal calcium absorption by suppressing active vitamin D-dependent transport, increase renal calcium excretion, and directly inhibit osteoblast function. They also stimulate parathyroid hormone, increasing bone resorption.",
+      "clinical_impact": "Glucocorticoid-induced osteoporosis is the most common form of secondary osteoporosis. Even short courses increase fracture risk. Vertebral fractures can occur within 3–6 months of high-dose therapy.",
+      "recommendation": "All patients on chronic corticosteroids (>3 months) should take 1,000–1,500 mg calcium and 800–2,000 IU vitamin D3 daily. Bone density monitoring and bisphosphonate therapy may also be indicated — discuss with your doctor.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "DEXA scan at baseline and every 1–2 years for patients on long-term corticosteroids. Check serum calcium and 25-OH vitamin D.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "American College of Rheumatology recommendations for prevention of glucocorticoid-induced osteoporosis. Arthritis Rheum. 2001",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/11406523/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Canalis E et al. Glucocorticoid-induced osteoporosis: pathophysiology and therapy. Osteoporos Int. 2007",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17429827/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CORTICOSTEROIDS_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:corticosteroids",
+        "display_name": "Corticosteroids (prednisone, prednisolone, dexamethasone)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "significant",
+      "mechanism": "Corticosteroids accelerate hepatic catabolism of 25-hydroxyvitamin D by inducing CYP24A1. They also reduce expression of the vitamin D receptor in intestinal cells, blunting calcitriol-driven calcium absorption.",
+      "clinical_impact": "Vitamin D deficiency worsens corticosteroid-induced osteoporosis, impairs immune regulation, and contributes to muscle weakness. Low vitamin D is independently associated with poor outcomes in inflammatory diseases treated with steroids.",
+      "recommendation": "Take 1,000–2,000 IU vitamin D3 daily while on corticosteroid therapy. Many specialists recommend higher doses (up to 4,000 IU/day) to maintain 25-OH-D above 30 ng/mL.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check 25-OH vitamin D at baseline and every 6 months during long-term corticosteroid therapy.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Canalis E et al. Glucocorticoid-induced osteoporosis: pathophysiology and therapy. Osteoporos Int. 2007",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17429827/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CORTICOSTEROIDS_POTASSIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:corticosteroids",
+        "display_name": "Corticosteroids (prednisone, prednisolone, dexamethasone)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Potassium",
+        "canonical_id": "potassium"
+      },
+      "severity": "significant",
+      "mechanism": "Corticosteroids, particularly those with mineralocorticoid activity (prednisone, hydrocortisone), increase sodium retention and potassium excretion in the kidney through activation of aldosterone receptors in the collecting duct.",
+      "clinical_impact": "Hypokalemia causes muscle weakness, fatigue, leg cramps, constipation, and cardiac arrhythmias. Risk is highest with high-dose or long-term therapy and with drugs having significant mineralocorticoid activity.",
+      "recommendation": "Increase dietary potassium (bananas, sweet potatoes, leafy greens). Prescription potassium supplementation may be required for documented hypokalemia. Regular serum potassium monitoring is standard of care.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum electrolytes (potassium, sodium) at baseline and periodically during corticosteroid therapy.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Schimmer BP, Funder JW. ACTH, Adrenal Steroids, and Pharmacology of the Adrenal Cortex. In: Goodman & Gilman's. 13th ed.",
+          "url": "https://accessmedicine.mhmedical.com/content.aspx?bookid=1613&sectionid=102158241"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CORTICOSTEROIDS_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:corticosteroids",
+        "display_name": "Corticosteroids (prednisone, prednisolone, dexamethasone)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "moderate",
+      "mechanism": "Corticosteroids increase renal magnesium excretion through aldosterone-like effects on tubular transport. Reduced intestinal magnesium absorption has also been documented.",
+      "clinical_impact": "Magnesium depletion worsens muscle weakness, increases muscle cramp frequency, impairs bone metabolism, and can cause refractory hypokalemia by impairing potassium retention.",
+      "recommendation": "Supplement with magnesium glycinate or citrate (200–400 mg/day) during prolonged corticosteroid therapy. Adequate magnesium also supports bone health alongside calcium and vitamin D.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CORTICOSTEROIDS_VITAMINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:corticosteroids",
+        "display_name": "Corticosteroids (prednisone, prednisolone, dexamethasone)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin C",
+        "canonical_id": "vitamin_c"
+      },
+      "severity": "moderate",
+      "mechanism": "Physiological and pharmacological stress states (including corticosteroid use) markedly increase vitamin C utilization. Corticosteroids may also increase vitamin C catabolism and excretion by the adrenal glands, which require vitamin C for cortisol synthesis.",
+      "clinical_impact": "Vitamin C depletion impairs collagen synthesis (worsening skin thinning — already a side effect of steroids), reduces immune defense, and increases oxidative damage. Wound healing is compromised.",
+      "recommendation": "Supplement with 250–1,000 mg vitamin C daily during corticosteroid therapy, particularly if on high doses or long-term therapy.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CORTICOSTEROIDS_ZINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:corticosteroids",
+        "display_name": "Corticosteroids (prednisone, prednisolone, dexamethasone)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "moderate",
+      "mechanism": "Corticosteroids increase urinary zinc excretion through mechanisms that include altered zinc transporter expression and reduced tubular reabsorption. They also impair metallothionein-mediated zinc storage.",
+      "clinical_impact": "Zinc depletion impairs wound healing, immune function, and skin integrity. Particularly relevant given that skin thinning and impaired wound healing are already recognized corticosteroid side effects.",
+      "recommendation": "Consider a zinc supplement (10–15 mg/day) with long-term corticosteroid use, particularly if wound healing is a concern.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CORTICOSTEROIDS_VITAMINB6",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:corticosteroids",
+        "display_name": "Corticosteroids (prednisone, prednisolone, dexamethasone)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B6",
+        "canonical_id": "vitamin_b6"
+      },
+      "severity": "mild",
+      "mechanism": "Corticosteroids alter tryptophan-kynurenine pathway metabolism in a manner similar to estrogens, increasing demand for vitamin B6 as a cofactor. Increased hepatic tryptophan oxygenase activity depletes pyridoxal phosphate.",
+      "clinical_impact": "B6 deficiency may contribute to mood changes, impaired immune function, and peripheral neuropathy — all concerns in patients on systemic corticosteroids.",
+      "recommendation": "Ensure adequate B6 intake through diet or a B-complex supplement providing 25–50 mg of B6 daily.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_SSRIS_SODIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:ssris",
+        "display_name": "SSRIs (antidepressants)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Sodium",
+        "canonical_id": "sodium"
+      },
+      "severity": "significant",
+      "mechanism": "SSRIs can cause Syndrome of Inappropriate Antidiuretic Hormone secretion (SIADH), leading to increased water retention and dilutional hyponatremia. Serotonin directly stimulates ADH release from the hypothalamus.",
+      "clinical_impact": "Hyponatremia causes nausea, headache, confusion, seizures, and in severe cases coma. Elderly patients and those on diuretics are at highest risk. Onset is often within the first few weeks of treatment.",
+      "recommendation": "If you are elderly or on diuretics and starting an SSRI, sodium levels should be checked within 2–4 weeks. Report symptoms of confusion, nausea, or headache to your doctor promptly. This is a monitoring concern, not a supplementation target.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum sodium at baseline and 2–4 weeks after starting SSRI therapy in elderly patients or those on concurrent diuretics.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "De Picker L et al. Antidepressants and the risk of hyponatremia: a class-by-class review of literature. Psychosomatics. 2014",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24345671/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Fabian TJ et al. Paroxetine-induced hyponatremia in older adults. Arch Intern Med. 2004",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15037490/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_SSRIS_CALCIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:ssris",
+        "display_name": "SSRIs (antidepressants)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Calcium",
+        "canonical_id": "calcium"
+      },
+      "severity": "moderate",
+      "mechanism": "Serotonin signaling (via 5-HT2A receptors on osteoclasts) regulates bone remodeling. SSRI-induced chronic elevation of serotonin activity increases osteoclast activation and bone resorption, leading to measurable decreases in bone density over time.",
+      "clinical_impact": "Long-term SSRI use is associated with significantly decreased bone mineral density and increased fracture risk, particularly in elderly women. Calcium depletion from bone contributes to this risk.",
+      "recommendation": "Ensure adequate calcium intake (1,000–1,200 mg/day) and vitamin D supplementation. Discuss bone density monitoring with your doctor if on long-term SSRI therapy.",
+      "onset_timeline": "years",
+      "evidence_level": "probable",
+      "monitoring_note": "Consider DEXA scan for bone density assessment in patients on long-term SSRI therapy, especially elderly women.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Diem SJ et al. Use of antidepressants and rates of hip bone loss in older women. Arch Intern Med. 2007",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17353497/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Haney EM et al. Association of low bone mineral density with selective serotonin reuptake inhibitor use by older men. Arch Intern Med. 2007",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17353496/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_SSRIS_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:ssris",
+        "display_name": "SSRIs (antidepressants)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "moderate",
+      "mechanism": "The bone density effects of SSRIs increase vitamin D demand for calcium regulation. Additionally, depression itself is associated with vitamin D deficiency, and lifestyle factors in depressed patients (reduced sun exposure, poor diet) may compound the association.",
+      "clinical_impact": "Low vitamin D worsens depression outcomes (inverse relationship between vitamin D and depression is well-documented), creates a reinforcing cycle, and compounds SSRI-related bone density effects.",
+      "recommendation": "Check your vitamin D level when starting SSRI therapy. Many patients benefit from supplementation with 1,000–2,000 IU vitamin D3 daily to maintain optimal levels.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Test serum 25-OH vitamin D at baseline and annually in patients on long-term SSRIs.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICONVULSANTS_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticonvulsants",
+        "display_name": "Anticonvulsants / antiepileptic drugs"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "significant",
+      "mechanism": "Enzyme-inducing antiepileptic drugs (phenytoin, carbamazepine, phenobarbital, primidone) induce hepatic CYP enzymes that accelerate catabolism of 25-hydroxyvitamin D and 1,25-dihydroxyvitamin D, reducing circulating levels. Non-enzyme-inducers (valproate, lamotrigine) also reduce vitamin D through less-defined mechanisms.",
+      "clinical_impact": "Vitamin D deficiency from AEDs causes bone disease (osteomalacia, osteoporosis), increased fracture risk, muscle weakness, and secondary hyperparathyroidism. This is a well-recognized AED complication.",
+      "recommendation": "All patients on AEDs should take vitamin D3 supplementation, typically 1,000–2,000 IU daily. Higher doses (up to 4,000 IU) may be needed with enzyme-inducing drugs. Regular 25-OH-D level monitoring is essential.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum 25-OH vitamin D every 6–12 months in all patients on long-term AED therapy. Target 25-OH-D >30 ng/mL.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Pack AM et al. Bone health in people with epilepsy: is it impaired and what are the risk factors? Seizure. 2008",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17616490/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Holló A et al. Correction of vitamin D deficiency improves seizure control in epilepsy. Epilepsy Behav. 2012",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22210468/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICONVULSANTS_CALCIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticonvulsants",
+        "display_name": "Anticonvulsants / antiepileptic drugs"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Calcium",
+        "canonical_id": "calcium"
+      },
+      "severity": "significant",
+      "mechanism": "Secondary to vitamin D depletion: reduced vitamin D impairs intestinal calcium absorption and increases PTH-driven bone resorption. Phenytoin also directly inhibits intestinal calcium transport independent of vitamin D.",
+      "clinical_impact": "Hypocalcemia and metabolic bone disease (anticonvulsant osteomalacia) are well-documented. Risk of fragility fractures is significantly elevated, especially in institutionalized or immobile patients on multiple AEDs.",
+      "recommendation": "Supplement with 1,000–1,500 mg calcium daily alongside vitamin D in all patients on long-term AED therapy. Calcium citrate preferred for reliability of absorption.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum calcium and alkaline phosphatase (marker of bone turnover) annually in patients on enzyme-inducing AEDs.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Pack AM et al. Bone health in people with epilepsy: is it impaired and what are the risk factors? Seizure. 2008",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17616490/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICONVULSANTS_FOLATE",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticonvulsants",
+        "display_name": "Anticonvulsants / antiepileptic drugs"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Folate",
+        "canonical_id": "folate"
+      },
+      "severity": "significant",
+      "mechanism": "Phenytoin, carbamazepine, and valproate impair folate absorption and metabolism through multiple mechanisms: inhibiting intestinal folate conjugase, competing with folate transport, inhibiting dihydrofolate reductase, and accelerating hepatic folate catabolism via CYP induction.",
+      "clinical_impact": "Folate deficiency causes megaloblastic anemia, elevated homocysteine, increased cardiovascular risk, and neural tube defects in offspring. Paradoxically, high-dose folate supplementation can reduce phenytoin efficacy, requiring careful management.",
+      "recommendation": "Low-dose folic acid (0.4–1 mg/day) is generally recommended for patients on these AEDs. Women of childbearing age should take 4–5 mg/day under medical supervision. Discuss folate supplementation with your neurologist before starting.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum folate and CBC annually. In women of childbearing age, discuss with neurologist regarding folate dose that balances maternal deficiency risk against potential seizure threshold effects.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Linnebank M et al. Antiepileptic drugs interact with the folic acid pathway. Clin Pharmacol Ther. 2011",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9533524/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICONVULSANTS_VITAMINB12",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticonvulsants",
+        "display_name": "Anticonvulsants / antiepileptic drugs"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B12",
+        "canonical_id": "vitamin_b12"
+      },
+      "severity": "moderate",
+      "mechanism": "Some AEDs, particularly valproate and phenytoin, may reduce vitamin B12 absorption or impair its utilization. Enzyme-inducing AEDs may also increase B12 catabolism. Additionally, concurrent folate deficiency can mask B12 deficiency in lab values.",
+      "clinical_impact": "B12 deficiency contributes to peripheral neuropathy, cognitive changes, and megaloblastic anemia. Particularly concerning when combined with folate depletion by the same drug class.",
+      "recommendation": "Include B12 in routine monitoring for patients on AEDs. A B-complex supplement or sublingual B12 (1,000 mcg/day) can help maintain adequate levels.",
+      "onset_timeline": "years",
+      "evidence_level": "probable",
+      "monitoring_note": "Check serum B12 annually in patients on long-term AED therapy, especially valproate and phenytoin.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICONVULSANTS_VITAMINK",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticonvulsants",
+        "display_name": "Anticonvulsants / antiepileptic drugs — enzyme-inducing AEDs"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin K",
+        "canonical_id": "vitamin_k"
+      },
+      "severity": "significant",
+      "mechanism": "Enzyme-inducing AEDs (phenytoin, carbamazepine, phenobarbital) accelerate hepatic metabolism of vitamin K via CYP2C9 induction, reducing vitamin K-dependent clotting factor synthesis. This is critical in pregnant women on these drugs.",
+      "clinical_impact": "Neonatal hemorrhagic disease of the newborn is a well-documented risk when mothers take enzyme-inducing AEDs during pregnancy. Maternal bone health is also affected as vitamin K is required for osteocalcin carboxylation.",
+      "recommendation": "Pregnant women on enzyme-inducing AEDs require vitamin K supplementation under medical supervision. All patients should ensure adequate dietary vitamin K from green leafy vegetables. Do not self-supplement with high-dose K without medical guidance.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Pregnant women on enzyme-inducing AEDs should receive vitamin K1 (phytomenadione) 10–20 mg/day in the last 4 weeks of pregnancy (per clinical guidelines). Discuss with your neurologist and obstetrician.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Yerby MS. Management issues for women with epilepsy: neural tube defects and folic acid supplementation. Neurology. 2003",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/14506311/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICONVULSANTS_BIOTIN",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticonvulsants",
+        "display_name": "Anticonvulsants — valproic acid and carbamazepine"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Biotin",
+        "canonical_id": "biotin"
+      },
+      "severity": "moderate",
+      "mechanism": "Valproic acid and carbamazepine impair biotin absorption from the gut, accelerate biotin catabolism via beta-oxidation of the valproyl side chain, and may compete with biotin for intestinal transport. They also impair biotinidase activity needed for biotin recycling.",
+      "clinical_impact": "Biotin deficiency causes hair loss, skin rash, neurological symptoms (depression, hallucinations, numbness), and impaired glucose metabolism. Symptoms can mimic other conditions and may be overlooked.",
+      "recommendation": "Consider biotin supplementation (5–10 mg/day) for patients on valproate or carbamazepine, especially if experiencing hair thinning or skin changes.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICONVULSANTS_LCARNITINE",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticonvulsants",
+        "display_name": "Anticonvulsants — valproic acid"
+      },
+      "depleted_nutrient": {
+        "standard_name": "L-Carnitine",
+        "canonical_id": "l_carnitine"
+      },
+      "severity": "significant",
+      "mechanism": "Valproic acid (valproate) forms acylcarnitine conjugates that are excreted renally, directly depleting carnitine stores. It also inhibits carnitine biosynthesis and transport. Plasma and tissue carnitine levels can fall significantly with long-term valproate therapy.",
+      "clinical_impact": "Carnitine depletion from valproate impairs mitochondrial fatty acid oxidation, contributing to hepatotoxicity (Reye-like syndrome), hyperammonemia, and metabolic encephalopathy. Life-threatening in rare cases, especially in children.",
+      "recommendation": "L-carnitine supplementation (50–100 mg/kg/day in children; 1–3 g/day in adults) is recommended for patients on valproate with carnitine deficiency, metabolic symptoms, or liver disease. Discuss with your neurologist.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check plasma carnitine levels in all patients on long-term valproate, especially children, those on multiple AEDs, or those with liver disease.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Bohan TP et al. Effect of L-carnitine treatment for valproate-induced hepatotoxicity. Neurology. 2001",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/11588544/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ACEINHIBITORS_ZINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:ace_inhibitors",
+        "display_name": "ACE inhibitors (blood pressure medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "moderate",
+      "mechanism": "ACE inhibitors chelate zinc ions (zinc is a cofactor at the ACE active site, and the drugs bind it). This binding increases urinary zinc excretion. Captopril in particular has strong zinc-chelating properties due to its sulfhydryl group.",
+      "clinical_impact": "Zinc deficiency may contribute to ACE inhibitor-induced side effects including loss of taste (dysgeusia) and cough. Long-term zinc depletion impairs immune function, wound healing, and testosterone levels.",
+      "recommendation": "Consider zinc supplementation (10–15 mg/day as zinc glycinate) for patients on long-term ACE inhibitor therapy, especially if experiencing loss of taste or recurrent infections.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider zinc supplementation trial if patient on ACE inhibitor develops dysgeusia (taste disturbance).",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Golik A et al. Effects of captopril and enalapril on zinc metabolism in hypertensive patients. J Am Coll Nutr. 1998",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/8849814/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_BETABLOCKERS_COQ10",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:beta_blockers",
+        "display_name": "Beta blockers (heart/blood pressure medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Coenzyme Q10",
+        "canonical_id": "coenzyme_q10"
+      },
+      "severity": "moderate",
+      "mechanism": "Beta blockers may inhibit mitochondrial enzymes involved in CoQ10 synthesis and utilization, including NADH-CoQ reductase and succinate-CoQ reductase. Propranolol and metoprolol have been specifically studied. The depletion appears less pronounced than with statins.",
+      "clinical_impact": "Reduced CoQ10 may contribute to fatigue, exercise intolerance, and worsened cardiac energy metabolism — effects that compound the intrinsic negative chronotropic/inotropic effects of beta blockers.",
+      "recommendation": "Consider 100–200 mg CoQ10 daily if experiencing fatigue or exercise intolerance while on beta blockers. This is particularly relevant for patients with heart failure.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Kishi T et al. Bioenergetics in clinical medicine. XV. Inhibition of coenzyme Q10-enzymes by clinically used adrenergic blockers. Res Commun Chem Pathol Pharmacol. 1975",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/4394/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Folkers K et al. Lovastatin decreases coenzyme Q levels in humans. Proc Natl Acad Sci. 1990",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2123857/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_BETABLOCKERS_MELATONIN",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:beta_blockers",
+        "display_name": "Beta blockers (heart/blood pressure medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Melatonin",
+        "canonical_id": "melatonin"
+      },
+      "severity": "significant",
+      "mechanism": "Melatonin synthesis in the pineal gland requires beta-adrenergic stimulation to activate arylalkylamine N-acetyltransferase (AANAT). Beta blockers block beta-1 and beta-2 adrenergic receptors on pinealocytes, suppressing the nocturnal melatonin surge by up to 50% or more.",
+      "clinical_impact": "Melatonin suppression from beta blockers is a common cause of drug-induced insomnia and sleep disturbance. Patients frequently report difficulty falling or staying asleep, which may be misattributed to anxiety or the underlying condition.",
+      "recommendation": "If experiencing sleep problems on a beta blocker, discuss with your doctor. Low-dose melatonin (0.5–1 mg) taken 30–60 minutes before bed may help restore sleep quality. Avoid high doses (>5 mg) unless directed.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Stoschitzky K et al. Influence of beta-blockers on melatonin release. Eur J Clin Pharmacol. 1999",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10023508/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_NSAIDS_FOLATE",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:nsaids",
+        "display_name": "NSAIDs (anti-inflammatory pain medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Folate",
+        "canonical_id": "folate"
+      },
+      "severity": "mild",
+      "mechanism": "Some NSAIDs, particularly high-dose aspirin and sulindac, inhibit dihydrofolate reductase at high concentrations and may displace folate from plasma binding proteins, increasing urinary excretion. Regular NSAID use may impair intestinal folate transport.",
+      "clinical_impact": "Mild folate reduction may elevate homocysteine over time, increasing cardiovascular risk. The effect is most clinically significant with chronic high-dose NSAID use.",
+      "recommendation": "Ensure adequate folate intake through diet or a daily multivitamin with 400 mcg folate/folic acid if taking NSAIDs regularly. This is particularly important for individuals also on methotrexate.",
+      "onset_timeline": "months",
+      "evidence_level": "possible",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_NSAIDS_IRON",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:nsaids",
+        "display_name": "NSAIDs (anti-inflammatory pain medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Iron",
+        "canonical_id": "iron"
+      },
+      "severity": "significant",
+      "mechanism": "NSAIDs inhibit prostaglandin synthesis, which reduces the protective mucous layer of the GI tract, leading to mucosal erosion, ulceration, and occult or overt GI bleeding. Chronic blood loss depletes iron stores. Even small amounts of daily bleeding accumulate over time.",
+      "clinical_impact": "Chronic NSAID-induced GI bleeding is a leading cause of iron deficiency anemia in older adults. The bleeding may be occult (no visible blood in stool) and go undetected for months while iron stores are depleted.",
+      "recommendation": "If taking NSAIDs regularly, watch for signs of iron deficiency (fatigue, pallor, shortness of breath) and ask your doctor to check a CBC and ferritin periodically. Using a proton pump inhibitor with NSAIDs reduces GI risk.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check CBC and serum ferritin annually in patients on regular NSAID therapy. Fecal occult blood testing may be appropriate.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Lanas A, Chan FK. Peptic ulcer disease. Lancet. 2017;390:613-624",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28242110/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_NSAIDS_VITAMINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:nsaids",
+        "display_name": "NSAIDs — aspirin specifically"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin C",
+        "canonical_id": "vitamin_c"
+      },
+      "severity": "moderate",
+      "mechanism": "Aspirin and other salicylates compete with vitamin C for renal tubular reabsorption, increasing urinary vitamin C excretion. Aspirin also increases leukocyte turnover (cells rich in vitamin C) and promotes oxidative conditions that consume ascorbate.",
+      "clinical_impact": "Chronic aspirin use can cause vitamin C depletion that may impair antioxidant defenses, collagen synthesis, and immune function. This is particularly relevant for elderly patients on daily low-dose aspirin who also have marginal dietary vitamin C intake.",
+      "recommendation": "Ensure daily vitamin C intake of 250–500 mg through diet or supplementation when taking aspirin regularly. Take vitamin C separately from aspirin to minimize competition.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTIBIOTICS_BVITAMINS",
+      "drug_ref": {
+        "type": "drug",
+        "id": "antibiotics_broadspectrum",
+        "display_name": "Broad-spectrum antibiotics (amoxicillin, ciprofloxacin, tetracycline, etc.)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B12",
+        "canonical_id": "vitamin_b12"
+      },
+      "severity": "mild",
+      "mechanism": "Gut bacteria synthesize modest amounts of B vitamins including B12, biotin, folate, riboflavin, and pantothenic acid. Broad-spectrum antibiotics disrupt the intestinal microbiome, transiently reducing bacterial B vitamin synthesis. The primary B vitamin source is dietary, so the impact is most significant in individuals with marginal dietary intake.",
+      "clinical_impact": "Short-course antibiotics rarely cause clinically significant B12 depletion in well-nourished individuals. The effect is more concerning with repeated or prolonged antibiotic courses, in elderly patients, and those with inadequate dietary B vitamin intake.",
+      "recommendation": "After antibiotic use, restore gut flora with probiotic-rich foods (yogurt, kefir, fermented vegetables) or a high-quality probiotic supplement for 4–8 weeks. A B-complex supplement during and after antibiotic courses provides a reasonable safety net.",
+      "onset_timeline": "weeks",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTIBIOTICS_VITAMINK",
+      "drug_ref": {
+        "type": "drug",
+        "id": "antibiotics_broadspectrum",
+        "display_name": "Broad-spectrum antibiotics (amoxicillin, ciprofloxacin, tetracycline, etc.)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin K",
+        "canonical_id": "vitamin_k"
+      },
+      "severity": "moderate",
+      "mechanism": "Intestinal bacteria (particularly gram-positive anaerobes like Bacteroides and Prevotella) synthesize menaquinone (vitamin K2), which contributes to vitamin K status. Antibiotics that disrupt these populations reduce endogenous vitamin K2 synthesis. This effect is most significant for individuals on warfarin or with marginal dietary vitamin K1 intake.",
+      "clinical_impact": "Antibiotic-induced vitamin K reduction can potentiate anticoagulation in warfarin users, leading to dangerously elevated INR and bleeding risk. In non-anticoagulated patients the effect is generally modest.",
+      "recommendation": "Patients on warfarin must have their INR monitored closely during and after any antibiotic course. Non-anticoagulated patients should ensure adequate dietary vitamin K from green leafy vegetables and consider a low-dose K2 supplement (100 mcg MK-7) after antibiotic courses.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Check INR within 3–5 days of starting antibiotics in all warfarin-treated patients. Antibiotics frequently destabilize anticoagulation control.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_LEVOTHYROXINE_CALCIUM",
+      "drug_ref": {
+        "type": "drug",
+        "id": "10582",
+        "display_name": "Levothyroxine (thyroid hormone replacement)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Calcium",
+        "canonical_id": "calcium"
+      },
+      "severity": "moderate",
+      "mechanism": "Calcium supplements and calcium-rich foods bind levothyroxine in the gastrointestinal tract through a direct physicochemical interaction, reducing drug absorption rather than depleting body calcium stores. Hyperthyroid states (levothyroxine excess) also increase bone turnover and urinary calcium loss.",
+      "clinical_impact": "Co-administration of calcium with levothyroxine reduces thyroid hormone absorption by up to 40%, leading to inadequate thyroid control and hypothyroid symptoms. Additionally, excessive thyroid hormone (over-replacement) directly increases bone resorption and fracture risk.",
+      "recommendation": "Take levothyroxine at least 4 hours apart from calcium supplements or calcium-rich meals. Ensure your thyroid levels are within range with your prescribed dose, as over-replacement depletes bone calcium.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Check TSH 6–8 weeks after any change to calcium supplement timing or dose. Annual bone density assessment if on long-term thyroid replacement, especially postmenopausal women.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Haugen BR. Drugs that suppress TSH or cause central hypothyroidism. Best Pract Res Clin Endocrinol Metab. 2009",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19174283/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_LEVOTHYROXINE_IRON",
+      "drug_ref": {
+        "type": "drug",
+        "id": "10582",
+        "display_name": "Levothyroxine (thyroid hormone replacement)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Iron",
+        "canonical_id": "iron"
+      },
+      "severity": "moderate",
+      "mechanism": "Iron supplements form insoluble chelation complexes with levothyroxine in the gut, reducing levothyroxine absorption by up to 30–45%. This is a drug-nutrient interaction affecting drug bioavailability rather than a direct iron depletion. Hypothyroid states also impair iron absorption by reducing gastric acid secretion.",
+      "clinical_impact": "Co-administration leads to inadequate thyroid hormone levels (persistent hypothyroid symptoms) and poor thyroid control. Iron deficiency anemia itself impairs thyroid hormone synthesis by reducing the heme-containing thyroperoxidase enzyme activity.",
+      "recommendation": "Take iron supplements at least 4 hours before or after levothyroxine. Correcting iron deficiency anemia is important for optimal thyroid function.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Check TSH within 6–8 weeks of starting iron supplementation in levothyroxine-treated patients. Separate administration times by at least 4 hours.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Shakir KM et al. Ferrous sulphate-induced increase in requirement for thyroxine in a patient with primary hypothyroidism. South Med J. 1997",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9236521/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTIPSYCHOTICS_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antipsychotics",
+        "display_name": "Antipsychotics (including atypical antipsychotics)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "moderate",
+      "mechanism": "Atypical antipsychotics promote weight gain and metabolic syndrome, which are associated with reduced vitamin D bioavailability (vitamin D is sequestered in adipose tissue). Sedation and reduced outdoor activity decrease sun exposure and cutaneous vitamin D synthesis.",
+      "clinical_impact": "Vitamin D deficiency is highly prevalent in patients on antipsychotics and is associated with metabolic syndrome, depression, immune dysfunction, and bone loss — all already increased by antipsychotic therapy.",
+      "recommendation": "Check vitamin D levels at baseline and annually in all patients on antipsychotic medications. Supplement with vitamin D3 1,000–2,000 IU daily, adjusting dose based on blood levels.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Test serum 25-OH vitamin D at baseline and every 12 months. Target >30 ng/mL.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Fernandes BS et al. Vitamin D levels in schizophrenia and first-episode psychosis. Schizophr Res. 2015",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/25638514/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTIPSYCHOTICS_COQ10",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antipsychotics",
+        "display_name": "Antipsychotics (including atypical antipsychotics)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Coenzyme Q10",
+        "canonical_id": "coenzyme_q10"
+      },
+      "severity": "mild",
+      "mechanism": "Several antipsychotic drugs have been shown to inhibit mitochondrial Complex I activity and reduce CoQ10-dependent electron transport chain function. This may contribute to antipsychotic-induced metabolic side effects and fatigue.",
+      "clinical_impact": "Reduced CoQ10 availability may worsen antipsychotic-induced fatigue and contribute to the metabolic and mitochondrial dysfunction increasingly recognized with these medications.",
+      "recommendation": "Consider 100–200 mg CoQ10 daily if experiencing marked fatigue or metabolic side effects while on antipsychotic therapy.",
+      "onset_timeline": "months",
+      "evidence_level": "possible",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Rezin GT et al. Inhibition of mitochondrial respiratory chain in brain of rats subjected to an experimental model of depression. Neurochem Int. 2008",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18316143/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_STIMULANTS_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:stimulants",
+        "display_name": "Stimulants (ADHD medications — amphetamines, methylphenidate)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "moderate",
+      "mechanism": "Stimulants increase sympathetic nervous system activity and catecholamine release, which promote urinary magnesium excretion. Appetite suppression (a common stimulant side effect) also reduces dietary magnesium intake.",
+      "clinical_impact": "Magnesium deficiency exacerbates hyperactivity, impulsivity, anxiety, and sleep disturbance — the very symptoms being treated in ADHD patients. Low magnesium also worsens insomnia, a common complaint with stimulant therapy.",
+      "recommendation": "Consider magnesium glycinate supplementation (100–300 mg daily, taken in the evening to support sleep) in patients on stimulant medications. Foods rich in magnesium include dark chocolate, nuts, seeds, and leafy greens.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Kozielec T, Starobrat-Hermelin B. Assessment of magnesium levels in children with attention deficit hyperactivity disorder (ADHD). Magnes Res. 1997",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9368236/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_STIMULANTS_VITAMINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:stimulants",
+        "display_name": "Stimulants (ADHD medications — amphetamines)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin C",
+        "canonical_id": "vitamin_c"
+      },
+      "severity": "mild",
+      "mechanism": "Acidic urine (created by vitamin C supplementation) increases renal excretion of amphetamines by ion trapping, effectively reducing their bioavailability and duration of action. Conversely, vitamin C is not depleted by stimulants, but the interaction can reduce stimulant efficacy. This is an absorption/efficacy interaction rather than a true depletion.",
+      "clinical_impact": "Taking high-dose vitamin C within 1–2 hours of amphetamine-based medications can reduce drug absorption and efficacy by up to 50% via pH-dependent ion trapping in the gut and accelerated renal elimination.",
+      "recommendation": "Avoid taking large doses of vitamin C (>250 mg) within 1–2 hours before or after taking amphetamine-based ADHD medications. This helps maintain consistent medication levels and effectiveness.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Meltzer PC et al. Medications used in ADHD: pharmacokinetic considerations. Clinical Pharmacokinetics. 2000",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10870150/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_HIVPI_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:hiv_protease_inhibitors",
+        "display_name": "HIV protease inhibitors (antiretroviral medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "significant",
+      "mechanism": "HIV protease inhibitors, particularly ritonavir-boosted regimens, inhibit CYP3A4-mediated vitamin D activation and may also directly impair 25-hydroxylation of vitamin D in the liver. HIV infection itself and immune activation independently reduce vitamin D levels.",
+      "clinical_impact": "Vitamin D deficiency is nearly universal in HIV patients on protease inhibitors and contributes to bone disease (osteopenia, osteoporosis), immune dysfunction, increased infection risk, and metabolic complications including insulin resistance.",
+      "recommendation": "Vitamin D supplementation (1,000–4,000 IU daily) is widely recommended for HIV patients on ART. Levels should be monitored and dosing adjusted to achieve 25-OH-D >30 ng/mL.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check 25-OH vitamin D every 6–12 months in all HIV-positive patients on protease inhibitor-based regimens.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Dao CN et al. Low vitamin D among HIV-infected adults: prevalence of and risk factors for low vitamin D levels in a cohort of HIV-infected adults. Medicine. 2011",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21694637/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_HIVPI_ZINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:hiv_protease_inhibitors",
+        "display_name": "HIV protease inhibitors (antiretroviral medications)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "moderate",
+      "mechanism": "HIV infection causes systemic zinc depletion through increased urinary losses, impaired intestinal absorption, and redistribution of zinc as part of the acute phase response. Protease inhibitors may compound this through GI side effects that reduce dietary zinc absorption.",
+      "clinical_impact": "Zinc deficiency is associated with impaired immune function, increased HIV disease progression, poor wound healing, and diarrhea — a vicious cycle given that diarrhea (common with some antiretrovirals) further depletes zinc.",
+      "recommendation": "Zinc supplementation (10–15 mg/day as zinc glycinate) is frequently recommended in HIV patients. However, excessive zinc can be immunosuppressive — do not exceed 40 mg/day without medical supervision.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Check serum zinc levels annually in HIV-positive patients, especially those with recurrent infections or diarrhea.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Baum MK et al. Micronutrients in HIV-infected individuals. HIV Clin Trials. 2003",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12591569/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTICOAGULANTS_VITAMINK",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:anticoagulants",
+        "display_name": "Warfarin (anticoagulant / blood thinner)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin K",
+        "canonical_id": "vitamin_k"
+      },
+      "severity": "significant",
+      "mechanism": "Warfarin inhibits vitamin K epoxide reductase (VKORC1), blocking the recycling of vitamin K from its epoxide form back to the active hydroquinone form. This functional depletion of active vitamin K prevents carboxylation of clotting factors II, VII, IX, and X, as well as proteins C and S. This is the intended pharmacological mechanism.",
+      "clinical_impact": "While the depletion of active vitamin K is the therapeutic goal of warfarin, it also depletes vitamin K-dependent proteins involved in bone metabolism (osteocalcin, matrix Gla protein), potentially contributing to vascular calcification and osteoporosis with long-term use.",
+      "recommendation": "Do NOT supplement with additional vitamin K without medical guidance — it will reduce warfarin's anticoagulant effect. Instead, maintain a consistent daily vitamin K intake from diet (green leafy vegetables). Sudden changes in vitamin K intake (including starting/stopping supplements) destabilize INR control.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "INR must be monitored regularly (typically every 4 weeks when stable). Any change in vitamin K-rich food consumption, antibiotic use, or new medications requires prompt INR re-check within 3–5 days.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Hirsh J et al. Oral anticoagulants: mechanism of action, clinical effectiveness, and optimal therapeutic range. Chest. 2001",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/11157640/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_MAOIS_VITAMINB6",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:maois",
+        "display_name": "MAOIs (monoamine oxidase inhibitors)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B6",
+        "canonical_id": "vitamin_b6"
+      },
+      "severity": "moderate",
+      "mechanism": "Some MAOIs, particularly hydrazine-based compounds (phenelzine), form hydrazones with pyridoxal phosphate (the active form of vitamin B6), inactivating it and promoting its urinary excretion. This mechanism is similar to isoniazid-induced B6 deficiency.",
+      "clinical_impact": "B6 deficiency from hydrazine MAOIs can cause peripheral neuropathy, dermatitis, stomatitis, and mood disturbances. Phenelzine-induced B6 deficiency presenting as peripheral neuropathy is a recognized clinical problem.",
+      "recommendation": "Patients on phenelzine or other hydrazine-class MAOIs should take vitamin B6 supplementation (50–100 mg/day as pyridoxine) to prevent neuropathy. Discuss timing and dose with your prescribing psychiatrist.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Monitor for signs of peripheral neuropathy (numbness, tingling in hands/feet) in patients on phenelzine. Check plasma pyridoxal phosphate if neuropathy develops.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Heller CA, Friedman PA. Pyridoxine deficiency and peripheral neuropathy associated with long-term phenelzine therapy. Am J Med. 1983",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/6869541/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_DIABETESMEDS_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:diabetes_meds",
+        "display_name": "Diabetes medications (sulfonylureas, thiazolidinediones)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "moderate",
+      "mechanism": "Type 2 diabetes itself is associated with hypomagnesemia through insulin resistance, glycosuria-induced osmotic diuresis, and altered renal handling of magnesium. Some diabetes medications (particularly insulin secretagogues) may compound this through improved glycemic control and resulting osmotic changes.",
+      "clinical_impact": "Low magnesium in diabetic patients worsens insulin resistance, increases cardiovascular risk, and impairs glucose metabolism — potentially creating a worsening cycle. It also contributes to hypertension and neuropathy.",
+      "recommendation": "Magnesium supplementation (200–400 mg/day as glycinate or citrate) has shown benefits in improving insulin sensitivity and glycemic control in type 2 diabetes. Discuss with your diabetes care team.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum magnesium periodically in all type 2 diabetic patients, particularly those with poor glycemic control or cardiovascular risk factors.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH ODS — Magnesium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Hruby A et al. Magnesium intake is inversely associated with coronary artery calcification. JACC Cardiovasc Imaging. 2014",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24529258/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_IMMUNOSUPPRESSANTS_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:immunosuppressants",
+        "display_name": "Calcineurin inhibitor immunosuppressants (tacrolimus, cyclosporine)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "significant",
+      "mechanism": "Calcineurin inhibitors (tacrolimus, cyclosporine) directly inhibit renal tubular magnesium reabsorption by downregulating TRPM6/TRPM7 channels, leading to profound renal magnesium wasting. This is a recognized adverse effect of these immunosuppressants.",
+      "clinical_impact": "Severe hypomagnesemia from calcineurin inhibitors causes muscle cramps, tremors, cardiac arrhythmias, and neurotoxicity (which can mimic or worsen the neurotoxicity of tacrolimus itself). Post-transplant hypomagnesemia is highly prevalent.",
+      "recommendation": "Magnesium supplementation is routinely required in transplant patients on calcineurin inhibitors. Oral magnesium oxide, glycinate, or citrate (400–800 mg/day in divided doses) is typically prescribed. IV magnesium may be needed for severe deficiency.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Check serum magnesium weekly in early post-transplant period, then monthly when stable. Target serum magnesium >0.7 mmol/L (1.7 mg/dL).",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Nijenhuis T et al. Enhanced passive Ca2+ reabsorption and reduced Mg2+ channel abundance explains thiazide-induced hypocalciuria and hypomagnesemia. J Clin Invest. 2005",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/16007254/"
+        },
+        {
+          "source_type": "reference",
+          "label": "Navaneethan SD et al. Hypomagnesemia in kidney transplant recipients. Transplantation. 2006",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/16641596/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_IMMUNOSUPPRESSANTS_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:immunosuppressants",
+        "display_name": "Immunosuppressants (corticosteroids, calcineurin inhibitors, mycophenolate)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "significant",
+      "mechanism": "Combined immunosuppressive regimens (often including steroids + calcineurin inhibitors) impair vitamin D via multiple pathways: accelerated hepatic catabolism by corticosteroids, reduced sun exposure from photosensitivity, impaired renal 1-alpha hydroxylation, and reduced dietary intake from medication-induced GI side effects.",
+      "clinical_impact": "Vitamin D deficiency after organ transplant contributes to osteoporosis, increased fracture risk, immune dysregulation, and cardiovascular complications. Post-transplant bone disease is a major cause of morbidity.",
+      "recommendation": "Vitamin D3 supplementation (1,000–4,000 IU/day) is standard of care in transplant patients. Optimal 25-OH-D targets and dosing should be managed by your transplant team.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check 25-OH vitamin D every 3–6 months in the first year post-transplant, then every 6–12 months thereafter.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Evenepoel P et al. Bone and mineral metabolism in kidney transplant recipients. Nat Rev Nephrol. 2009",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19528952/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_CALCIUMCHANNELBLOCKERS_POTASSIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:calcium_channel_blockers",
+        "display_name": "Calcium channel blockers (amlodipine, diltiazem, verapamil)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Potassium",
+        "canonical_id": "potassium"
+      },
+      "severity": "mild",
+      "mechanism": "Calcium channel blockers may increase urinary potassium excretion through renal tubular effects on potassium secretion channels. The effect is generally mild compared to diuretics and is not consistently demonstrated across all agents in this class.",
+      "clinical_impact": "The potassium-wasting effect is generally clinically minor unless combined with other potassium-depleting medications (loop/thiazide diuretics, corticosteroids). Monitoring is most important in patients on combination antihypertensive regimens.",
+      "recommendation": "Ensure adequate dietary potassium intake. Check electrolytes if on combination antihypertensive therapy including both CCBs and diuretics.",
+      "onset_timeline": "months",
+      "evidence_level": "possible",
+      "monitoring_note": "Monitor serum electrolytes in patients on multiple antihypertensive agents.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTIHYPERTENSIVES_ZINC",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antihypertensives",
+        "display_name": "Antihypertensives (multiple classes)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "mild",
+      "mechanism": "Several antihypertensive drug classes increase urinary zinc excretion. This is most documented with ACE inhibitors (via zinc chelation) and thiazide diuretics (via increased urinary volume). The combined effect of multi-drug antihypertensive regimens may produce clinically significant zinc depletion.",
+      "clinical_impact": "Zinc deficiency impairs taste acuity (contributing to poor dietary compliance), immune function, wound healing, and sexual function — all concerns in the hypertensive patient population, which tends to be older.",
+      "recommendation": "Patients on multiple antihypertensive medications should ensure adequate dietary zinc or consider a modest zinc supplement (10 mg/day as zinc glycinate).",
+      "onset_timeline": "months",
+      "evidence_level": "possible",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_ANTIHYPERTENSIVES_COQ10",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:antihypertensives",
+        "display_name": "Antihypertensives (hydralazine, clonidine)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Coenzyme Q10",
+        "canonical_id": "coenzyme_q10"
+      },
+      "severity": "moderate",
+      "mechanism": "Hydralazine (a vasodilating antihypertensive) has been shown to deplete CoQ10 through uncertain mechanisms, possibly involving oxidative stress generation or inhibition of CoQ10 biosynthetic enzymes. This depletion may blunt its antihypertensive efficacy.",
+      "clinical_impact": "CoQ10 supplementation has demonstrated blood pressure-lowering properties in clinical trials, and depletion may partially undermine treatment. Fatigue and reduced exercise tolerance are additional concerns.",
+      "recommendation": "Consider 100–200 mg CoQ10 daily if on hydralazine-class antihypertensives, particularly if experiencing fatigue or suboptimal blood pressure control.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_INSULINS_MAGNESIUM",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:insulins",
+        "display_name": "Insulin (injectable diabetes medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Magnesium",
+        "canonical_id": "magnesium"
+      },
+      "severity": "moderate",
+      "mechanism": "Insulin promotes intracellular uptake of magnesium in muscle and adipose tissue, transiently lowering serum magnesium. In type 1 and insulin-treated type 2 diabetes, urinary magnesium losses are also elevated due to osmotic effects of glycosuria when control is suboptimal.",
+      "clinical_impact": "Hypomagnesemia worsens insulin resistance, impairs insulin secretion, and increases cardiovascular risk — all concerns in patients dependent on insulin for glycemic control.",
+      "recommendation": "Ensure adequate magnesium intake (400 mg/day from food and/or supplements). Patients with type 1 diabetes should have magnesium levels monitored as part of routine care.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Check serum magnesium at least annually in insulin-treated diabetic patients.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH ODS — Magnesium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Barbagallo M, Dominguez LJ. Magnesium and type 2 diabetes. World J Diabetes. 2015",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26131326/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_SEDATIVES_VITAMIND",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:sedatives",
+        "display_name": "Sedatives and hypnotics (benzodiazepines, Z-drugs, barbiturates)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "severity": "mild",
+      "mechanism": "Barbiturates and long-acting benzodiazepines induce hepatic CYP enzymes that accelerate vitamin D catabolism. Sedation from these medications also reduces physical activity and outdoor sun exposure, further limiting cutaneous vitamin D synthesis.",
+      "clinical_impact": "Chronic sedative use is associated with falls and fractures in elderly patients — vitamin D deficiency compounds fracture risk by reducing bone density and increasing fall propensity through muscle weakness.",
+      "recommendation": "Ensure adequate vitamin D supplementation (1,000–2,000 IU daily) in patients on chronic sedative therapy, especially the elderly. Exercise programs to maintain muscle strength are also important.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Check 25-OH vitamin D annually in elderly patients on chronic sedative therapy.",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+        }
+      ]
+    },
+    {
+      "id": "DEP_BENZODIAZEPINES_MELATONIN",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:benzodiazepines",
+        "display_name": "Benzodiazepines (lorazepam, alprazolam, diazepam, clonazepam)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Melatonin",
+        "canonical_id": "melatonin"
+      },
+      "severity": "moderate",
+      "mechanism": "Benzodiazepines alter circadian rhythm regulation by modulating GABA-A receptors in the suprachiasmatic nucleus (the brain's master clock), which suppresses normal nighttime melatonin secretion. This disrupts the natural sleep-wake cycle architecture.",
+      "clinical_impact": "Benzodiazepine-induced suppression of melatonin disrupts the natural sleep architecture, contributing to dependence, rebound insomnia on discontinuation, and long-term circadian disruption. This is separate from the drug's direct sedative effect.",
+      "recommendation": "Discuss with your doctor about long-term use of benzodiazepines for sleep. Low-dose melatonin (0.5–1 mg taken 30–60 minutes before bed) may help normalize sleep architecture and support tapering strategies. Do not stop benzodiazepines abruptly.",
+      "onset_timeline": "weeks",
+      "evidence_level": "probable",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Monteleone P et al. Suppression of nocturnal plasma melatonin levels by evening administration of diazepam in humans. Life Sci. 1989",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2733455/"
+        }
+      ]
+    },
+    {
+      "id": "DEP_BVITAMINS_INTERACTIONS",
+      "drug_ref": {
+        "type": "class",
+        "id": "class:b_vitamins",
+        "display_name": "High-dose B vitamin supplements"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Zinc",
+        "canonical_id": "zinc"
+      },
+      "severity": "mild",
+      "mechanism": "High-dose folic acid supplementation may compete with zinc for intestinal absorption via shared transport mechanisms. This interaction is most relevant when very high folic acid doses (>5 mg/day) are taken without balanced mineral supplementation.",
+      "clinical_impact": "In populations with already marginal zinc intake (elderly, pregnant women), high folic acid could theoretically reduce zinc absorption enough to impair immune function and growth outcomes. Clinical significance at typical supplement doses (400–800 mcg) is low.",
+      "recommendation": "At standard supplemental doses, this interaction is not clinically significant. For those taking high-dose folic acid (>5 mg/day), ensure zinc intake from dietary sources or a balanced multivitamin.",
+      "onset_timeline": "months",
+      "evidence_level": "possible",
+      "monitoring_note": null,
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Milne DB et al. Folate supplementation and zinc absorption. J Nutr. 1990",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2132402/"
+        }
+      ]
+    }
+  ]
+}
