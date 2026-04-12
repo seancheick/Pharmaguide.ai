@@ -29,7 +29,13 @@ class ProductListItem extends StatelessWidget {
     final scheme = theme.colorScheme;
     final score = product.score100Equivalent;
 
-    return Material(
+    final scoreLabel = score != null ? ', score ${score.round()} out of 100' : '';
+    final brandLabel = product.brandName != null ? ' by ${product.brandName}' : '';
+
+    return Semantics(
+      button: true,
+      label: '${product.productName}$brandLabel$scoreLabel. Tap to view details.',
+      child: Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => context.push('/product/${product.dsldId}'),
@@ -114,6 +120,7 @@ class ProductListItem extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

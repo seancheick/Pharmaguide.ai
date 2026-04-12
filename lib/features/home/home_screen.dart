@@ -343,7 +343,10 @@ class _ScanCta extends StatelessWidget {
     final clampedScaler = MediaQuery.textScalerOf(context)
         .clamp(minScaleFactor: 1.0, maxScaleFactor: 1.3);
 
-    return Material(
+    return Semantics(
+      button: true,
+      label: 'Scan a supplement barcode to check its quality and safety',
+      child: Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
       clipBehavior: Clip.antiAlias,
@@ -443,6 +446,7 @@ class _ScanCta extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }
