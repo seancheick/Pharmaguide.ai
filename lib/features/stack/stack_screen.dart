@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 
@@ -468,6 +469,18 @@ class _StackEmptyView extends StatelessWidget {
             AppTheme.space32,
             AppTheme.space20,
             AppTheme.space24,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space8),
+        Center(
+          child: TextButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const MedicationEntryScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.medication_outlined, size: 18),
+            label: const Text('Add medications manually'),
           ),
         ),
       ],

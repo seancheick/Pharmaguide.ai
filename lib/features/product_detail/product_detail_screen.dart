@@ -261,6 +261,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
+          // "Why this score?" — compact 1-liner above the fold
+          // ----------------------------------------------------------------
+          if (!isBlocked && !isNotScored && score100 != null)
+            SliverToBoxAdapter(
+              child: _ScoreExplainerCard(
+                score100: score100,
+                ingredientQuality: ingredientQuality,
+                safetyPurity: safetyPurity,
+                evidenceResearch: evidenceResearch,
+                brandTrust: brandTrust,
+              ),
+            ),
+
+          // ----------------------------------------------------------------
           // Condition alert banner (interaction summary hint)
           // ----------------------------------------------------------------
           if (interactionHint.isNotEmpty)
@@ -1307,3 +1321,108 @@ class _DetailErrorBanner extends StatelessWidget {
 
 // Old _ActionButtons removed — replaced by [PGStackActionButtons] which
 // handles safety check, add/remove, and undo snackbar.
+
+// ---------------------------------------------------------------------------
+// "Why this score?" — compact explainer card
+// ---------------------------------------------------------------------------
+
+class _ScoreExplainerCard extends StatelessWidget {
+  final double score100;
+  final double? ingredientQuality;
+  final double? safetyPurity;
+  final double? evidenceResearch;
+  final double? brandTrust;
+
+  const _ScoreExplainerCard({
+    required this.score100,
+    this.ingredientQuality,
+    this.safetyPurity,
+    this.evidenceResearch,
+    this.brandTrust,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final summary = _buildSummary();
+    final color = _scoreColor();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space12,
+          vertical: AppTheme.space8,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              _scoreIcon(),
+              size: 16,
+              color: color,
+            ),
+            const SizedBox(width: AppTheme.space8),
+            Expanded(
+              child: Text(
+                summary,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _buildSummary() {
+    final scores = <String, double>{
+      if (ingredientQuality != null) 'Ingredient quality': ingredientQuality!,
+      if (safetyPurity != null) 'Safety & purity': safetyPurity!,
+      if (evidenceResearch != null) 'Evidence': evidenceResearch!,
+      if (brandTrust != null) 'Brand trust': brandTrust!,
+    };
+
+    if (scores.isEmpty) return 'Score based on available data.';
+
+    if (score100 >= 80) {
+      final best = scores.entries.reduce(
+        (a, b) => a.value >= b.value ? a : b,
+      );
+      return 'Strong overall quality \u2022 ${best.key} rated highest';
+    }
+
+    if (score100 >= 50) {
+      final weakest = scores.entries.reduce(
+        (a, b) => a.value <= b.value ? a : b,
+      );
+      return 'Moderate quality \u2022 ${weakest.key} could be stronger';
+    }
+
+    final weakest = scores.entries.reduce(
+      (a, b) => a.value <= b.value ? a : b,
+    );
+    return 'Quality concerns \u2022 Low ${weakest.key.toLowerCase()} score';
+  }
+
+  Color _scoreColor() {
+    if (score100 >= 80) return AppTheme.severitySafe;
+    if (score100 >= 50) return AppTheme.severityCaution;
+    return AppTheme.severityAvoid;
+  }
+
+  IconData _scoreIcon() {
+    if (score100 >= 80) return Icons.check_circle_outline;
+    if (score100 >= 50) return Icons.info_outline;
+    return Icons.warning_amber_rounded;
+  }
+}

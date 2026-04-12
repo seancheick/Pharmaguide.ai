@@ -37,6 +37,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _loading = false;
   bool _isGridView = false;
   List<String> _recentSearches = [];
+  _SearchFilter _activeFilter = _SearchFilter.all;
 
   Timer? _debounce;
   int _searchVersion = 0;
@@ -193,6 +194,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ],
               ),
             ),
+
+            // Quality filter chips — only visible when results exist
+            if (_results != null && _results!.isNotEmpty)
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.space16,
+                  ),
+                  children: _SearchFilter.values.map((filter) {
+                    final selected = _activeFilter == filter;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(filter.label),
+                        selected: selected,
+                        onSelected: (_) => setState(() {
+                          _activeFilter = selected
+                              ? _SearchFilter.all
+                              : filter;
+                        }),
+                        visualDensity: VisualDensity.compact,
+                        showCheckmark: false,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
 
             // Body content
             Expanded(
@@ -390,10 +420,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildListResults() {
     final scheme = Theme.of(context).colorScheme;
+    final items = _filteredResults;
     return ListView.separated(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(top: AppTheme.space4),
-      itemCount: _results!.length,
+      itemCount: items.length,
       separatorBuilder: (_, __) => Divider(
         height: 0.5,
         thickness: 0.5,
@@ -402,12 +433,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         color: scheme.outlineVariant,
       ),
       itemBuilder: (context, index) => ProductListItem(
-        product: _results![index],
+        product: items[index],
       ),
     );
   }
 
   Widget _buildGridResults() {
+    final items = _filteredResults;
     return GridView.builder(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(
@@ -420,15 +452,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         mainAxisSpacing: AppTheme.space12,
         childAspectRatio: 0.85,
       ),
-      itemCount: _results!.length,
+      itemCount: items.length,
       itemBuilder: (context, index) => ProductGridItem(
-        product: _results![index],
+        product: items[index],
       ),
     );
   }
 
+  List<ProductsCoreData> get _filteredResults {
+    final results = _results;
+    if (results == null) return [];
+    if (_activeFilter == _SearchFilter.all) return results;
+    return results.where(_activeFilter.matches).toList();
+  }
+
   String _resultsHeaderText() {
-    final count = _results!.length;
+    final filtered = _filteredResults;
+    final total = _results!.length;
+    final count = filtered.length;
+    if (_activeFilter != _SearchFilter.all) {
+      return '$count of $total result${total == 1 ? '' : 's'}';
+    }
     if (_activeCategory != null && _query.isEmpty) {
       final label = _activeCategory!.replaceAll('_', ' ');
       return '$count $label result${count == 1 ? '' : 's'}';
@@ -459,5 +503,36 @@ class _SearchLoadingList extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Search quality filter
+// ---------------------------------------------------------------------------
+
+enum _SearchFilter {
+  all('All'),
+  highQuality('High Quality (80+)'),
+  needsCaution('Needs Caution'),
+  thirdPartyTested('Third-Party Tested'),
+  organic('Organic');
+
+  const _SearchFilter(this.label);
+  final String label;
+
+  bool matches(ProductsCoreData p) {
+    switch (this) {
+      case _SearchFilter.all:
+        return true;
+      case _SearchFilter.highQuality:
+        return (p.score100Equivalent ?? 0) >= 80;
+      case _SearchFilter.needsCaution:
+        final v = (p.verdict ?? '').toLowerCase();
+        return v == 'caution' || v == 'avoid' || v == 'contraindicated';
+      case _SearchFilter.thirdPartyTested:
+        return p.hasThirdPartyTesting == 1;
+      case _SearchFilter.organic:
+        return p.isOrganic == 1;
+    }
   }
 }

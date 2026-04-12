@@ -45,6 +45,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     if (value == null || value.isEmpty) return;
 
     setState(() => _hasScanned = true);
+    unawaited(HapticFeedback.lightImpact());
     _lookUpProduct(value);
   }
 
@@ -148,10 +149,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               ),
               const SizedBox(height: AppTheme.space16),
               Text(
-                'Product not found',
+                "We couldn't find that barcode",
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppTheme.space8),
               Text(
@@ -163,7 +165,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               ),
               const SizedBox(height: AppTheme.space8),
               Text(
-                "This product isn't in our database yet.",
+                'It might be a new product or private label. '
+                'Try searching by name instead.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -178,7 +181,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Navigator.pop(ctx);
                         setState(() => _hasScanned = false);
                       },
-                      child: const Text('Scan another'),
+                      child: const Text('Try again'),
                     ),
                   ),
                   const SizedBox(width: AppTheme.space12),
@@ -188,7 +191,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Navigator.pop(ctx);
                         context.push('/search');
                       },
-                      child: const Text('Search instead'),
+                      child: const Text('Search by name'),
                     ),
                   ),
                 ],
