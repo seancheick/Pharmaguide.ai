@@ -397,7 +397,7 @@ final synergyReportProvider = FutureProvider<SynergyReport>((ref) async {
   if (stackCanonicalIds.isEmpty) return SynergyReport.empty();
 
   // Load synergy clusters and find matches.
-  late Map<String, dynamic> clustersData;
+  final Map<String, dynamic> clustersData;
   try {
     clustersData = await refDataRepo.loadSynergyClusters();
   } on Object {
@@ -448,7 +448,6 @@ final synergyReportProvider = FutureProvider<SynergyReport>((ref) async {
   return SynergyReport(
     matches: matches,
     totalBonusPoints: totalBonus,
-    isEmpty: matches.isEmpty,
   );
 });
 
@@ -469,7 +468,7 @@ final recalledIngredientsReportProvider =
   if (supplements.isEmpty) return RecalledIngredientsReport.empty();
 
   // Load banned/recalled ingredients data.
-  late Map<String, dynamic> recallData;
+  final Map<String, dynamic> recallData;
   try {
     recallData = await refDataRepo.loadBannedRecalledIngredients();
   } on Object {
@@ -551,7 +550,6 @@ final recalledIngredientsReportProvider =
 
   return RecalledIngredientsReport(
     violations: violations,
-    isEmpty: violations.isEmpty,
   );
 });
 

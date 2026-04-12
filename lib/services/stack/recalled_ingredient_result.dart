@@ -80,17 +80,16 @@ class RecalledIngredientViolation {
 /// Aggregated recall status for a user's stack.
 class RecalledIngredientsReport {
   final List<RecalledIngredientViolation> violations;
-  final bool isEmpty;
+
+  bool get isEmpty => violations.isEmpty;
 
   RecalledIngredientsReport({
     required this.violations,
-    required this.isEmpty,
   });
 
   factory RecalledIngredientsReport.empty() {
     return RecalledIngredientsReport(
-      violations: [],
-      isEmpty: true,
+      violations: const [],
     );
   }
 

@@ -81,7 +81,7 @@ class _StackTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stackAsync = ref.watch(activeStackProvider);
-    final mq = MediaQuery.of(context);
+    final mq = MediaQuery.paddingOf(context);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -111,7 +111,7 @@ class _StackTab extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: EdgeInsets.only(bottom: mq.padding.bottom + 96),
+            padding: EdgeInsets.only(bottom: mq.bottom + 96),
             children: [
               // Summary card — total count, quick stats
               Padding(

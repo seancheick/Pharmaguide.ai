@@ -149,7 +149,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final mq = MediaQuery.of(context);
+    final mq = MediaQuery.paddingOf(context);
 
     return Scaffold(
       body: SafeArea(
@@ -228,7 +228,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Expanded(
               child: Padding(
                 padding: EdgeInsets.only(
-                  bottom: mq.padding.bottom + kPGNavBarHeight,
+                  bottom: mq.bottom + kPGNavBarHeight,
                 ),
                 child: _buildBody(),
               ),

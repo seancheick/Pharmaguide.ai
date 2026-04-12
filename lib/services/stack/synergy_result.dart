@@ -51,19 +51,18 @@ class SynergyMatch {
 class SynergyReport {
   final List<SynergyMatch> matches;
   final int totalBonusPoints;
-  final bool isEmpty;
+
+  bool get isEmpty => matches.isEmpty;
 
   SynergyReport({
     required this.matches,
     required this.totalBonusPoints,
-    required this.isEmpty,
   });
 
   factory SynergyReport.empty() {
     return SynergyReport(
-      matches: [],
+      matches: const [],
       totalBonusPoints: 0,
-      isEmpty: true,
     );
   }
 

@@ -467,6 +467,7 @@ class _ProductSearchField extends StatelessWidget {
               itemBuilder: (context, index) {
                 final product = suggestions[index];
                 return ListTile(
+                  key: ValueKey(product.dsldId),
                   dense: true,
                   title: Text(
                     product.productName,
