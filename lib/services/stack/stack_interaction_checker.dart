@@ -354,6 +354,83 @@ class StackInteractionChecker {
     return results;
   }
 
+  /// Checks medication × medication pair interactions.
+  ///
+  /// For each medication in [newMedications], fans against every other
+  /// medication in [existingMedications] using rxcui and drug_class lookups.
+  /// Dedup by row id so the same interaction from both rxcui and class
+  /// only surfaces once. Spec §0.2.
+  Future<List<InteractionResult>> checkMedicationPairInteractions({
+    required List<UserStacksLocalData> newMedications,
+    required List<UserStacksLocalData> existingMedications,
+    required InteractionDatabase db,
+  }) async {
+    if (newMedications.isEmpty || existingMedications.isEmpty) {
+      return const <InteractionResult>[];
+    }
+
+    final results = <InteractionResult>[];
+    final seenRowIds = <String>{};
+
+    for (final newMed in newMedications) {
+      final newRxcui = newMed.rxcui?.trim();
+      if (newRxcui == null || newRxcui.isEmpty) continue;
+
+      // Lookup rows by the new medication's rxcui.
+      final rows = await db.lookupByRxcui(newRxcui);
+
+      // Build a set of rxcuis + classes from the existing medications
+      // to match the OTHER side of each row.
+      final existingRxcuis = <String, String>{};
+      final existingClasses = <String, String>{};
+      for (final med in existingMedications) {
+        if (med.rxcui == newMed.rxcui) continue; // skip self
+        final rx = med.rxcui?.trim();
+        if (rx != null && rx.isNotEmpty) {
+          existingRxcuis.putIfAbsent(rx, () => med.name);
+        }
+        for (final cls in _drugClassesFor(med)) {
+          existingClasses.putIfAbsent(cls, () => med.name);
+        }
+      }
+
+      for (final row in rows) {
+        if (seenRowIds.contains(row.id)) continue;
+
+        // Identify the OTHER side relative to the new medication.
+        final String? otherType;
+        final String? otherId;
+        if (row.agent1Id == newRxcui) {
+          otherType = row.agent2Type;
+          otherId = row.agent2Id;
+        } else if (row.agent2Id == newRxcui) {
+          otherType = row.agent1Type;
+          otherId = row.agent1Id;
+        } else {
+          continue;
+        }
+
+        String? matchedName;
+        if (otherType == 'drug') {
+          matchedName = existingRxcuis[otherId];
+        } else if (otherType == 'drug_class') {
+          matchedName = existingClasses[otherId];
+        }
+        if (matchedName == null) continue;
+
+        seenRowIds.add(row.id);
+        results.add(InteractionResult.fromRow(
+          row,
+          source: InteractionSource.pipeline,
+          agent1NameOverride: newMed.name,
+          agent2NameOverride: matchedName,
+        ));
+      }
+    }
+
+    return results;
+  }
+
   /// Returns the canonical id of whichever side of [row] is NOT [newId].
   /// Returns null if neither canonical column equals [newId] (shouldn't
   /// happen since the caller obtained [row] via

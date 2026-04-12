@@ -27,8 +27,8 @@ related:
 
 **Version:** V1.0
 **Updated:** 2026-04-12
-**Current Sprint:** Sprint 20 (UX Quick Wins DONE) → Sprint 8 (ship gate)
-**Overall Status:** Sprints 0-3, 4, 5b (safety UI), 9, 10, 11 (M2), 12 (M3), 13 (M4), 14 (M5), 17, 18, 20 fully done. Sprint 5a UI + local sync queue scaffolding done (Supabase RPC deferred). **348 Flutter tests pass + 5 skipped (tech debt) + 3,584 pipeline tests** all green. **Zero `flutter analyze` issues across the entire project.** All 17 PG components shipped, every legacy screen migrated. Interaction DB pipeline merged to PharmaGuide_Pipeline, 8MB bundled artifact in assets, all 5 lookup methods verified (18 interaction DB tests pass). StackInteractionChecker wired to real DB — curated supplement×supplement and medication×supplement pair lookups live. Stack safety banner renders severity-sorted warnings. Product detail shows interaction warnings from detail_blob. FTS5 search, filter chips, score explainer, scan haptics, not-found polish all shipped. Target: Sprint 8 ship gate by 2026-05-11 for V1.0 ship.
+**Current Sprint:** Sprint 21 (Feature Blitz — Synergy, Recalls, M5 Fix, Stack Health, Quick Check) → Sprint 8 (ship gate)
+**Overall Status:** Sprints 0-3, 4, 5b (safety UI), 9-14 (M1-M5), 17, 18, 20 fully done. Sprint 5a UI + Supabase sync done. **348 Flutter tests pass + 5 skipped + 3,584 pipeline tests** all green. **Zero `flutter analyze` issues.** Interaction DB spec ~85% complete (2 gaps: M5 live DB lookup + med-med pair check). Pipeline data audit reveals synergy_cluster.json (54 clusters), recall data (13 entries), and goal mappings (18 goals) ready for immediate Flutter features. Pipeline building medication_depletions.json + timing_rules.json in parallel. Target: Sprint 8 ship gate by 2026-05-11.
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -66,8 +66,8 @@ Status legend:
 
 ## CURRENT SPRINT
 
-**Sprint 20: UX Quick Wins + Retention Polish** — High-impact, low-effort UX improvements from PM review
-Status: IN PROGRESS (3 of 8 tasks done)
+**Sprint 20: UX Quick Wins + Retention Polish** — ✅ DONE (all 8 tasks shipped 2026-04-12)
+Status: DONE
 
 ### Completed (2026-04-12)
 - [x] **FTS5 search upgrade** — `CoreDatabase.searchProducts()` rewritten from `LIKE '%query%'` (full table scan, no ranking, dupes) to `FTS5 MATCH` with porter stemming + `ORDER BY rank` + LIKE fallback for older DBs. Search now instant, ranked, dedup-aware. (~30 LOC change in `core_database.dart`)
@@ -98,19 +98,54 @@ Files modified but unstaged in `/Users/seancheick/PharmaGuide ai/`:
 - `knowledge/lessons-learned.md` — 3 new entries
 - `SPRINT_TRACKER.md` — this update
 
-**⚠️ NEXT AGENT: Commit these files before doing anything else.**
+**All Sprint 20 Flutter changes committed in `87fe6d2`. Tracker cleanup committed in `053938b`.**
 
 ---
 
-## NEXT UP
+## CURRENT SPRINT — Sprint 21: Feature Blitz
+
+**Sprint 21: Synergy + Recalls + M5 Fix + Stack Health + Quick Check**
+Status: IN PROGRESS
+**Pipeline parallel work:** Building `medication_depletions.json` + `timing_rules.json` (separate agent)
+
+### Tasks (ordered by implementation sequence)
+
+- [ ] **T1: Synergy Detection UI** — Wire `synergy_cluster.json` (54 clusters, already in reference_data) to stack view. Show green "Pairs well" badges when stack contains synergistic ingredients. Display on product detail too ("Pairs well with Vitamin D in your stack"). ~2 days.
+- [ ] **T2: Recall Alerts in Stack** — Filter `has_recalled_ingredient == 1` from stack products. Show danger banner on stack screen + product detail. "⚠️ [Product] contains a recalled ingredient — consider removing." ~1 day.
+- [ ] **T3: M5 Fix — Live InteractionDatabase lookup on product detail** — Replace blob-only parsing in `interaction_warnings.dart` with real `InteractionDatabase` queries against user's stack. Surface "Because you're taking [X]" personalized warnings. Spec §9.2. ~2-3 days.
+- [ ] **T4: checkMedicationPairInteractions** — Add med↔med pair checking to `StackInteractionChecker`. Add `medicationPairInteractions` list to `StackSafetyReport`. Wire in `stackSafetyReportProvider`. Spec §0.2. ~1 day.
+- [ ] **T5: Stack Health Score (aggregate)** — Compute combined quality score from all stack products. Display as prominent score ring at top of `_StackSummaryCard` (replace counts-only view). "Your stack scores 78/100 — 2 issues found." ~1-2 days.
+- [ ] **T6: "Safe to Take Together?" Quick Check** — New standalone screen (route: `/quick-check`). Scan or search 2 products → instant pair interaction check using `lookupPair()`. No stack required. Surface severity, mechanism, evidence. Add to home screen as CTA. ~2-3 days.
+- [ ] **T7: Run full test suite + analyze** — All changes verified, 0 analyze issues, 0 test regressions.
+
+### Definition of Done
+
+- Synergy badges visible on stack screen when synergistic pairs exist
+- Recall banner fires on stack/detail when `has_recalled_ingredient == 1`
+- Product detail interaction warnings are personalized to user's stack ("Because you're taking X")
+- Med↔med pair check runs on medication save + in safety report
+- Stack summary shows aggregate health score (0-100) with issue count
+- Quick Check screen accessible from home, returns pair interaction for any 2 products
+- All tests pass, 0 analyze issues
+
+### Dependencies
+
+- `synergy_cluster.json` already bundled in reference_data — no pipeline work needed
+- `has_recalled_ingredient` already in products_core — no pipeline work needed
+- `InteractionDatabase` bundled + provider wired — no pipeline work needed
+- **Pipeline parallel:** `medication_depletions.json` + `timing_rules.json` being built for V1.1 features
+
+---
+
+## COMPLETED SPRINTS
 
 **Sprint 11 (M2): Interaction DB pipeline** — ✅ DONE (merged to PharmaGuide_Pipeline 2026-04-12, 325 pipeline tests pass)
 **Sprint 12 (M3): Flutter interaction DB binding** — ✅ DONE (8MB artifact bundled, 18 interaction DB tests pass, provider wired in main.dart)
 **Sprint 13 (M4): Stack interaction engine** — ✅ DONE (StackInteractionChecker wired to real DB, 132 tests pass, safety banner renders)
-**Sprint 14 (M5): Product-scan interaction warnings** — ✅ DONE (InteractionWarningsList on product detail, 3 tests pass)
+**Sprint 14 (M5): Product-scan interaction warnings** — ✅ DONE (InteractionWarningsList on product detail, 3 tests pass — M5 blob-parse done, live DB lookup in Sprint 21 T3)
 **Sprint 20: UX Quick Wins** — ✅ DONE (filter chips, score explainer, haptics, not-found polish, empty stack CTA)
 
-**Next: Sprint 8: Testing + QA + Ship (target: 2026-05-11)**
+**After Sprint 21: Sprint 8 (V1.0-beta ship gate) → V1.0-release (auth) → V1.1 (depletion checker, doctor PDF, deep links)**
 
 ---
 

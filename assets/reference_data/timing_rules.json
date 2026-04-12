@@ -1,1 +1,718 @@
-{"_metadata":{"description":"Supplement timing and absorption rules","schema_version":"1.0.0","total_entries":0},"timing_rules":[]}
+{
+  "_metadata": {
+    "description": "Supplement timing and absorption interaction rules for optimal nutrient uptake",
+    "purpose": "timing_optimization",
+    "schema_version": "5.0.0",
+    "last_updated": "2026-04-12",
+    "total_entries": 39
+  },
+  "timing_rules": [
+    {
+      "id": "timing_iron_calcium_separate",
+      "ingredient1": "iron",
+      "ingredient2": "calcium",
+      "rule_type": "separate",
+      "advice": "Take iron and calcium at least 2 hours apart — calcium significantly reduces iron absorption.",
+      "mechanism": "Calcium competitively inhibits the divalent metal transporter-1 (DMT1) and reduces non-heme iron uptake at the intestinal brush border.",
+      "separation_hours": 2,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Hallberg L et al. — Calcium: effect of different amounts on nonheme- and heme-iron absorption in humans",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2507689/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Cook JD et al. — Effect of calcium on nonheme iron absorption",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/1600930/"
+        }
+      ]
+    },
+    {
+      "id": "timing_iron_zinc_separate",
+      "ingredient1": "iron",
+      "ingredient2": "zinc",
+      "rule_type": "separate",
+      "advice": "Take iron and zinc at least 2 hours apart — they compete for the same intestinal transporter and reduce each other's absorption.",
+      "mechanism": "Both iron and zinc are divalent cations absorbed via DMT1; high molar ratios of one suppress the other's uptake in a dose-dependent manner.",
+      "separation_hours": 2,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Sandström B — Micronutrient interactions: effects of dietary composition on zinc and other trace elements",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/11160590/"
+        }
+      ]
+    },
+    {
+      "id": "timing_zinc_copper_separate",
+      "ingredient1": "zinc",
+      "ingredient2": "copper",
+      "rule_type": "separate",
+      "advice": "Take zinc and copper at least 2 hours apart — high zinc doses induce metallothionein, which sequesters copper and can cause deficiency.",
+      "mechanism": "Zinc induces intestinal metallothionein synthesis; copper binds avidly to metallothionein and is lost in mucosal cell turnover rather than entering systemic circulation.",
+      "separation_hours": 2,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Fischer PW et al. — Effect of zinc supplementation on copper status in adult man",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2407097/"
+        }
+      ]
+    },
+    {
+      "id": "timing_calcium_magnesium_separate",
+      "ingredient1": "calcium",
+      "ingredient2": "magnesium",
+      "rule_type": "separate",
+      "advice": "At high doses, take calcium and magnesium at least 2 hours apart — they compete for intestinal absorption at the same transporter.",
+      "mechanism": "Calcium and magnesium share divalent cation transport channels in the small intestine; at supplemental doses exceeding 200–250 mg each, mutual absorption interference is measurable.",
+      "separation_hours": 2,
+      "score_impact": -1,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Schaafsma G — The protein digestibility-corrected amino acid score (PDCAAS) and mineral absorption",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15113710/"
+        }
+      ]
+    },
+    {
+      "id": "timing_iron_magnesium_separate",
+      "ingredient1": "iron",
+      "ingredient2": "magnesium",
+      "rule_type": "separate",
+      "advice": "Take iron and magnesium at least 2 hours apart — magnesium can reduce non-heme iron absorption.",
+      "mechanism": "Magnesium at high supplemental doses competes with non-heme iron for divalent mineral transporters in the proximal small intestine.",
+      "separation_hours": 2,
+      "score_impact": -1,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_iron_calcium_zinc_separate",
+      "ingredient1": "iron",
+      "ingredient2": "calcium",
+      "rule_type": "separate",
+      "advice": "Avoid taking iron, calcium, and zinc together — all three compete for the same absorption pathway and significantly reduce each other's uptake.",
+      "mechanism": "Trivalent competition at DMT1 and related transporters; aggregate inhibition at the intestinal brush border is additive when all three minerals are present simultaneously.",
+      "separation_hours": 2,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Mineral Interactions",
+          "url": "https://lpi.oregonstate.edu/mic/minerals"
+        }
+      ]
+    },
+    {
+      "id": "timing_iron_vitamin_c_together",
+      "ingredient1": "iron",
+      "ingredient2": "vitamin c",
+      "rule_type": "take_together",
+      "advice": "Take iron and vitamin C together — vitamin C enhances non-heme iron absorption by 2 to 6 times.",
+      "mechanism": "Ascorbic acid reduces ferric iron (Fe³⁺) to ferrous iron (Fe²⁺), the form transported by DMT1, and forms a soluble chelate that resists inhibition by phytate and tannins.",
+      "separation_hours": null,
+      "score_impact": 1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Hallberg L et al. — The role of vitamin C in iron absorption",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2507689/"
+        }
+      ]
+    },
+    {
+      "id": "timing_calcium_vitamin_d_together",
+      "ingredient1": "calcium",
+      "ingredient2": "vitamin d",
+      "rule_type": "take_together",
+      "advice": "Take calcium and vitamin D together — vitamin D is required for active calcium absorption in the small intestine.",
+      "mechanism": "1,25-dihydroxyvitamin D upregulates the epithelial calcium channel TRPV6 and calbindin-D9K, enabling transcellular calcium transport that passive diffusion alone cannot match.",
+      "separation_hours": null,
+      "score_impact": 1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Christakos S et al. — Vitamin D and intestinal calcium absorption",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21118827/"
+        }
+      ]
+    },
+    {
+      "id": "timing_fat_soluble_vitamins_with_food",
+      "ingredient1": "vitamin a",
+      "ingredient2": "dietary fat",
+      "rule_type": "take_with_food",
+      "advice": "Take vitamins A, D, E, and K with a meal containing fat — these fat-soluble vitamins require dietary lipids for absorption.",
+      "mechanism": "Fat-soluble vitamins are incorporated into mixed micelles formed from bile salts and dietary fatty acids; without fat in the GI lumen, micelle formation is insufficient and lymphatic absorption is markedly impaired.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Vitamin D Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_vitamin_d_with_food",
+      "ingredient1": "vitamin d",
+      "ingredient2": "dietary fat",
+      "rule_type": "take_with_food",
+      "advice": "Take vitamin D with your largest or fattiest meal of the day for best absorption.",
+      "mechanism": "Vitamin D3 (cholecalciferol) is a fat-soluble secosteroid; co-ingestion with fat increases micellar solubilization and lymphatic uptake, measurably raising serum 25(OH)D compared to fasted dosing.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Vitamin D",
+          "url": "https://lpi.oregonstate.edu/mic/vitamins/vitamin-D"
+        }
+      ]
+    },
+    {
+      "id": "timing_vitamin_b12_folate_together",
+      "ingredient1": "vitamin b12",
+      "ingredient2": "folate",
+      "rule_type": "take_together",
+      "advice": "Vitamin B12 and folate work synergistically and can be taken together at any time of day.",
+      "mechanism": "Both vitamins are required for the methionine synthase reaction that converts homocysteine to methionine; B12 regenerates tetrahydrofolate from 5-methyltetrahydrofolate, making co-supplementation mutually supportive.",
+      "separation_hours": null,
+      "score_impact": 1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Folate Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_magnesium_evening",
+      "ingredient1": "magnesium",
+      "ingredient2": "sleep",
+      "rule_type": "time_of_day",
+      "advice": "Take magnesium in the evening — it supports muscle relaxation and sleep quality.",
+      "mechanism": "Magnesium modulates NMDA receptor activity and GABA signaling; evening supplementation may reduce cortisol and enhance adenosine-driven sleep pressure, consistent with its role in circadian regulation.",
+      "separation_hours": null,
+      "score_impact": 0,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Abbasi B et al. — The effect of magnesium supplementation on primary insomnia in elderly",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22232754/"
+        }
+      ]
+    },
+    {
+      "id": "timing_b_vitamins_morning",
+      "ingredient1": "vitamin b complex",
+      "ingredient2": "sleep",
+      "rule_type": "time_of_day",
+      "advice": "Take B vitamins in the morning — they support energy metabolism and may cause alertness that disrupts sleep if taken at night.",
+      "mechanism": "B vitamins are cofactors in mitochondrial ATP synthesis; B6 (pyridoxine) is also a cofactor in serotonin and dopamine synthesis, and anecdotal evidence plus several case reports associate high-dose B6 with vivid dreaming and sleep disruption.",
+      "separation_hours": null,
+      "score_impact": 0,
+      "evidence_level": "possible",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Vitamin B6",
+          "url": "https://lpi.oregonstate.edu/mic/vitamins/vitamin-B6"
+        }
+      ]
+    },
+    {
+      "id": "timing_vitamin_d_morning",
+      "ingredient1": "vitamin d",
+      "ingredient2": "melatonin",
+      "rule_type": "time_of_day",
+      "advice": "Take vitamin D in the morning — evening doses may suppress melatonin and interfere with sleep onset.",
+      "mechanism": "Vitamin D receptors are expressed in the pineal gland; animal and preliminary human data suggest D3 modulates melatonin synthesis, with potential circadian disruption when taken close to bedtime.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "possible",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Gominak SC & Stumpf WE — The world epidemic of sleep disorders is linked to vitamin D deficiency (Med Hypotheses, 2012)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22583560/"
+        }
+      ]
+    },
+    {
+      "id": "timing_melatonin_before_bed",
+      "ingredient1": "melatonin",
+      "ingredient2": "sleep",
+      "rule_type": "time_of_day",
+      "advice": "Take melatonin 30 to 60 minutes before your target bedtime for best effect on sleep onset.",
+      "mechanism": "Exogenous melatonin binds MT1/MT2 receptors in the SCN to reinforce the circadian sleep-wake signal; the 30–60 min window aligns with endogenous dim-light melatonin onset and the descending phase of core body temperature.",
+      "separation_hours": null,
+      "score_impact": 0,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Arendt J & Skene DJ — Melatonin as a chronobiotic (Sleep Med Rev, 2005)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15585768/"
+        }
+      ]
+    },
+    {
+      "id": "timing_iron_empty_stomach",
+      "ingredient1": "iron",
+      "ingredient2": "food",
+      "rule_type": "take_on_empty_stomach",
+      "advice": "Take iron on an empty stomach for maximum absorption — if it causes stomach upset, take it with a small amount of food (but avoid dairy, tea, or coffee).",
+      "mechanism": "Gastric acid in the fasted state reduces Fe³⁺ to the more soluble Fe²⁺ form; food (especially calcium, phytates, and polyphenols) in the GI lumen significantly inhibits non-heme iron uptake.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_probiotics_empty_stomach",
+      "ingredient1": "probiotics",
+      "ingredient2": "food",
+      "rule_type": "take_on_empty_stomach",
+      "advice": "Take probiotics on an empty stomach or 30 minutes before a meal so bacteria pass through gastric acid quickly and reach the intestine viable.",
+      "mechanism": "Gastric pH drops below 2 postprandially and during active digestion; fasted gastric transit is faster, reducing acid exposure time. Some enteric-coated formulas are exceptions — follow label instructions.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Probiotics",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/probiotics"
+        }
+      ]
+    },
+    {
+      "id": "timing_coq10_with_food",
+      "ingredient1": "coq10",
+      "ingredient2": "dietary fat",
+      "rule_type": "take_with_food",
+      "advice": "Take CoQ10 with a meal containing fat — it is fat-soluble and absorption increases significantly with dietary lipids.",
+      "mechanism": "Coenzyme Q10 is highly lipophilic; co-ingestion with fat enhances micellar solubilization in the GI lumen and facilitates chylomicron-mediated absorption into the lymphatic system.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Coenzyme Q10",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/coenzyme-Q10"
+        }
+      ]
+    },
+    {
+      "id": "timing_omega3_with_meal",
+      "ingredient1": "omega-3",
+      "ingredient2": "dietary fat",
+      "rule_type": "take_with_food",
+      "advice": "Take omega-3 fish oil with your largest meal of the day — fat in the meal enhances absorption and reduces fishy burps.",
+      "mechanism": "EPA and DHA are long-chain polyunsaturated fatty acids incorporated into chylomicrons during lipid digestion; dietary fat stimulates bile secretion and pancreatic lipase activity, both required for fatty acid emulsification and uptake.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Omega-3 Fatty Acids Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_curcumin_with_fat_and_pepper",
+      "ingredient1": "turmeric",
+      "ingredient2": "dietary fat",
+      "rule_type": "take_with_food",
+      "advice": "Take turmeric or curcumin with a fatty meal and alongside black pepper (piperine) to dramatically increase absorption.",
+      "mechanism": "Curcumin is hydrophobic with very low oral bioavailability; dietary fat promotes micellar solubilization, while piperine inhibits hepatic and intestinal glucuronidation, together increasing systemic curcumin exposure by up to 2,000%.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Curcumin",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/curcumin"
+        }
+      ]
+    },
+    {
+      "id": "timing_fiber_minerals_separate",
+      "ingredient1": "fiber",
+      "ingredient2": "minerals",
+      "rule_type": "separate",
+      "advice": "Take fiber supplements at least 2 hours away from minerals like iron, calcium, and zinc — fiber binds minerals and reduces their absorption.",
+      "mechanism": "Soluble fiber (psyllium, guar gum, inulin) forms a viscous gel in the GI lumen that chelates divalent and trivalent cations, physically trapping minerals and preventing contact with absorptive epithelium.",
+      "separation_hours": 2,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_egcg_iron_separate",
+      "ingredient1": "green tea extract",
+      "ingredient2": "iron",
+      "rule_type": "separate",
+      "advice": "Take green tea (EGCG) and iron at least 2 hours apart — polyphenols in green tea strongly inhibit non-heme iron absorption.",
+      "mechanism": "EGCG and other catechins form insoluble iron-polyphenol complexes in the GI lumen; this chelation prevents DMT1-mediated ferrous iron uptake and can reduce iron absorption by up to 90% at typical tea-drinking doses.",
+      "separation_hours": 2,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Zijp IM et al. — Effect of tea and other dietary factors on iron absorption",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17344507/"
+        }
+      ]
+    },
+    {
+      "id": "timing_coffee_iron_separate",
+      "ingredient1": "caffeine",
+      "ingredient2": "iron",
+      "rule_type": "separate",
+      "advice": "Avoid taking iron with coffee — tannins in coffee can reduce iron absorption by 40% or more.",
+      "mechanism": "Chlorogenic acid and tannins in coffee bind non-heme iron in the GI lumen forming poorly soluble complexes; the inhibitory effect is dose-dependent and persists for up to one hour after coffee consumption.",
+      "separation_hours": 1,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Morck TA et al. — Inhibiting effects of coffee on iron absorption",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/6402915/"
+        }
+      ]
+    },
+    {
+      "id": "timing_nac_zinc_separate",
+      "ingredient1": "nac",
+      "ingredient2": "zinc",
+      "rule_type": "separate",
+      "advice": "Take NAC and zinc at least 2 hours apart — NAC can chelate zinc and reduce its absorption.",
+      "mechanism": "N-acetylcysteine contains a free thiol (-SH) group that forms stable coordinate bonds with zinc(II); the resulting NAC-zinc complex is less well absorbed than free ionic zinc.",
+      "separation_hours": 2,
+      "score_impact": -1,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Brumas V et al. — NAC and zinc complex formation",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18533287/"
+        }
+      ]
+    },
+    {
+      "id": "timing_thyroid_med_minerals_separate",
+      "ingredient1": "levothyroxine",
+      "ingredient2": "calcium",
+      "rule_type": "separate",
+      "advice": "If taking thyroid medication, keep calcium, iron, and magnesium supplements at least 4 hours away — they significantly impair thyroid hormone absorption.",
+      "mechanism": "Calcium, iron, and magnesium form insoluble complexes with levothyroxine (T4) in the GI tract, reducing systemic bioavailability by 20–40%; FDA labeling explicitly warns of this interaction.",
+      "separation_hours": 4,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "FDA Drug Label — Levothyroxine Drug Interactions",
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2020/021402s043lbl.pdf"
+        }
+      ]
+    },
+    {
+      "id": "timing_thyroid_med_iron_separate",
+      "ingredient1": "levothyroxine",
+      "ingredient2": "iron",
+      "rule_type": "separate",
+      "advice": "Keep iron supplements at least 4 hours away from thyroid medication — iron markedly reduces thyroid hormone absorption.",
+      "mechanism": "Ferrous iron directly binds levothyroxine in the GI lumen, forming insoluble ferrous-levothyroxine complexes that are not absorbed; this interaction is clinically significant even at standard supplement doses.",
+      "separation_hours": 4,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Campbell NR & Hasinoff BB — Iron supplements: a common cause of drug interactions",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/1769395/"
+        }
+      ]
+    },
+    {
+      "id": "timing_berberine_b_vitamins_separate",
+      "ingredient1": "berberine",
+      "ingredient2": "vitamin b12",
+      "rule_type": "separate",
+      "advice": "Take berberine and B vitamins (especially B12) at different times — berberine may reduce B12 absorption with long-term use.",
+      "mechanism": "Berberine inhibits intestinal PCFT (proton-coupled folate transporter) and may impair active B12 absorption via its effects on gut motility and intestinal enzyme activity; metformin-like effects on intrinsic factor pathway are plausible but less well characterized.",
+      "separation_hours": 2,
+      "score_impact": -1,
+      "evidence_level": "possible",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Berberine",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/berberine"
+        }
+      ]
+    },
+    {
+      "id": "timing_ala_empty_stomach",
+      "ingredient1": "alpha-lipoic acid",
+      "ingredient2": "food",
+      "rule_type": "take_on_empty_stomach",
+      "advice": "Take alpha-lipoic acid on an empty stomach — food reduces its peak plasma concentration.",
+      "mechanism": "ALA is absorbed via active sodium-dependent transporter (SMVT); food in the GI tract slows gastric emptying and competes for transporter capacity, reducing Cmax by approximately 30–40% compared to fasted dosing.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Alpha-Lipoic Acid",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/alpha-lipoic-acid"
+        }
+      ]
+    },
+    {
+      "id": "timing_collagen_empty_stomach",
+      "ingredient1": "collagen peptides",
+      "ingredient2": "food",
+      "rule_type": "take_on_empty_stomach",
+      "advice": "Take collagen peptides on an empty stomach for optimal absorption — competing dietary proteins can reduce uptake of specific collagen-derived dipeptides.",
+      "mechanism": "Collagen-derived di- and tripeptides (hydroxyproline-proline, proline-hydroxyproline) are absorbed intact via peptide transporters (PEPT1); a protein-rich meal saturates these transporters and reduces the proportion of intact collagen peptides that reach systemic circulation.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "possible",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Hydrolyzed Collagen",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/collagen"
+        }
+      ]
+    },
+    {
+      "id": "timing_vitamin_e_vitamin_k_separate",
+      "ingredient1": "vitamin e",
+      "ingredient2": "vitamin k",
+      "rule_type": "separate",
+      "advice": "High-dose vitamin E supplements (above 400 IU/day) may antagonize vitamin K — take them at different times and inform your healthcare provider if you are on anticoagulants.",
+      "mechanism": "High-dose alpha-tocopherol inhibits vitamin K-dependent carboxylase activity and may deplete vitamin K by competing for gamma-glutamyl carboxylase, potentially impairing synthesis of clotting factors II, VII, IX, and X.",
+      "separation_hours": 2,
+      "score_impact": -2,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Vitamin E Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_quercetin_vitamin_c_together",
+      "ingredient1": "quercetin",
+      "ingredient2": "vitamin c",
+      "rule_type": "take_together",
+      "advice": "Take quercetin and vitamin C together — vitamin C enhances quercetin absorption and both have complementary antioxidant activity.",
+      "mechanism": "Ascorbic acid regenerates oxidized quercetin (quercetin semiquinone) back to the active reduced form, extending its antioxidant half-life; vitamin C also improves quercetin solubility in the GI lumen and may upregulate cellular uptake.",
+      "separation_hours": null,
+      "score_impact": 1,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Quercetin",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/quercetin"
+        }
+      ]
+    },
+    {
+      "id": "timing_bromelain_timing_by_purpose",
+      "ingredient1": "bromelain",
+      "ingredient2": "food",
+      "rule_type": "take_on_empty_stomach",
+      "advice": "Take bromelain on an empty stomach for systemic anti-inflammatory effects, or with meals if you want it to aid protein digestion.",
+      "mechanism": "In the fasted state, bromelain is absorbed intact through intestinal epithelium into systemic circulation to exert anti-inflammatory and fibrinolytic effects; with food, its proteolytic activity is consumed in GI digestion before systemic absorption can occur.",
+      "separation_hours": null,
+      "score_impact": 0,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Bromelain",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/bromelain"
+        }
+      ]
+    },
+    {
+      "id": "timing_ashwagandha_with_food",
+      "ingredient1": "ashwagandha",
+      "ingredient2": "food",
+      "rule_type": "take_with_food",
+      "advice": "Take ashwagandha with food to minimize gastrointestinal discomfort — most GI side effects occur when taken on an empty stomach.",
+      "mechanism": "Withanolides and other steroidal lactones in ashwagandha root extract can irritate gastric mucosa in susceptible individuals; food delays gastric emptying, dilutes the extract, and buffers mucosal contact.",
+      "separation_hours": null,
+      "score_impact": 0,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "Linus Pauling Institute — Ashwagandha",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/ashwagandha"
+        }
+      ]
+    },
+    {
+      "id": "timing_l_theanine_caffeine_together",
+      "ingredient1": "l-theanine",
+      "ingredient2": "caffeine",
+      "rule_type": "take_together",
+      "advice": "Take L-theanine and caffeine together for synergistic focus and reduced jitteriness — the combination is well-supported by clinical research.",
+      "mechanism": "L-theanine promotes alpha brain wave activity and modulates GABA/glutamate signaling, blunting caffeine's sympathomimetic side effects while preserving and enhancing its pro-attentional effects via adenosine antagonism.",
+      "separation_hours": null,
+      "score_impact": 1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Owen GN et al. — The combined effects of L-theanine and caffeine on cognitive performance",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18681988/"
+        }
+      ]
+    },
+    {
+      "id": "timing_vitamin_k_anticoagulants_consistency",
+      "ingredient1": "vitamin k",
+      "ingredient2": "warfarin",
+      "rule_type": "take_with_food",
+      "advice": "Maintain a consistent daily intake of vitamin K if you take warfarin — sudden changes in vitamin K intake can destabilize your INR and change your clotting status.",
+      "mechanism": "Warfarin inhibits vitamin K epoxide reductase (VKORC1); fluctuating vitamin K intake directly competes with this mechanism. Consistency, not avoidance, is the clinical recommendation.",
+      "separation_hours": null,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Vitamin K Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_vitamin_e_with_food",
+      "ingredient1": "vitamin e",
+      "ingredient2": "dietary fat",
+      "rule_type": "take_with_food",
+      "advice": "Take vitamin E with a fat-containing meal — as a fat-soluble vitamin, it requires dietary lipids for proper absorption.",
+      "mechanism": "Alpha-tocopherol is incorporated into mixed micelles in the GI lumen alongside dietary fatty acids and bile salts; micellar solubilization is the rate-limiting step for its lymphatic uptake.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Vitamin E Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_vitamin_k_with_food",
+      "ingredient1": "vitamin k",
+      "ingredient2": "dietary fat",
+      "rule_type": "take_with_food",
+      "advice": "Take vitamin K with a meal containing fat — it is fat-soluble and absorption is minimal without dietary lipids.",
+      "mechanism": "Phylloquinone (K1) and menaquinones (K2) are fat-soluble; co-ingestion with fat significantly increases their micellar incorporation and subsequent chylomicron-mediated absorption from the small intestine.",
+      "separation_hours": null,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Vitamin K Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_calcium_iron_thyroid_separate",
+      "ingredient1": "calcium",
+      "ingredient2": "levothyroxine",
+      "rule_type": "separate",
+      "advice": "Take calcium supplements at least 4 hours away from thyroid medication — calcium chelates thyroid hormone and reduces its absorption.",
+      "mechanism": "Calcium carbonate and calcium citrate both form insoluble complexes with levothyroxine in the stomach at physiologic pH; this interaction is well-documented in pharmacokinetic studies and is included in official FDA prescribing information.",
+      "separation_hours": 4,
+      "score_impact": -2,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Schneyer CR — Calcium carbonate and reduction of levothyroxine efficacy",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9598957/"
+        }
+      ]
+    },
+    {
+      "id": "timing_zinc_with_food",
+      "ingredient1": "zinc",
+      "ingredient2": "food",
+      "rule_type": "take_with_food",
+      "advice": "Take zinc with a small amount of food to prevent nausea — zinc on an empty stomach commonly causes GI upset.",
+      "mechanism": "Zinc salts (sulfate, gluconate, bisglycinate) can irritate the gastric mucosa and trigger nausea via local zinc ion-induced prostaglandin release; a small amount of food buffers this effect without significantly impairing overall zinc bioavailability.",
+      "separation_hours": null,
+      "score_impact": 0,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "NIH Office of Dietary Supplements — Zinc Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
+        }
+      ]
+    }
+  ]
+}

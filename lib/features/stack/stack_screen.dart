@@ -7,8 +7,14 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
+import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
+import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
@@ -118,6 +124,10 @@ class _StackTab extends ConsumerWidget {
                 child: _StackSummaryCard(stack: stack),
               ),
 
+              // Recall alert — danger banner if any stack product
+              // contains a recalled ingredient.
+              _RecallAlertSlot(stack: stack),
+
               // M4 aggregated safety banner — consumes the
               // stackSafetyReportProvider and renders itself as
               // SizedBox.shrink when the report is clean, so a
@@ -168,18 +178,32 @@ class _StackTab extends ConsumerWidget {
 // Summary card — shows total count and daily supplement load
 // ---------------------------------------------------------------------------
 
-class _StackSummaryCard extends StatelessWidget {
+class _StackSummaryCard extends ConsumerWidget {
   final List<UserStacksLocalData> stack;
   const _StackSummaryCard({required this.stack});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final supplementCount =
         stack.where((e) => e.type == 'supplement').length;
     final medicationCount =
         stack.where((e) => e.type == 'medication').length;
+
+    // Aggregate stack health score from safety report.
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    final safetyScore = reportAsync.whenOrNull(
+      data: (report) {
+        final allIssues = <InteractionResult>[
+          ...report.medicationPairInteractions,
+          ...report.medicationInteractions,
+          ...report.stackInteractions,
+          ...report.categoryWarnings,
+        ];
+        return StackSafetyScorer().compute(issues: allIssues);
+      },
+    );
 
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -188,18 +212,12 @@ class _StackSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-                child: Icon(
-                  Icons.layers_rounded,
-                  color: scheme.primary,
-                  size: 20,
-                ),
+              // Stack Health Score ring
+              PGScoreRing(
+                score: safetyScore?.score.toDouble(),
+                size: 56,
+                strokeWidth: 4,
+                label: 'Safety',
               ),
               const SizedBox(width: AppTheme.space12),
               Expanded(
@@ -207,7 +225,7 @@ class _StackSummaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Daily supplement load',
+                      safetyScore?.riskTier.label ?? 'Analyzing stack\u2026',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -224,7 +242,21 @@ class _StackSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.space16),
+          const SizedBox(height: AppTheme.space12),
+          // Issue counts (only shown when score is computed)
+          if (safetyScore != null &&
+              (safetyScore.seriousCount > 0 ||
+                  safetyScore.moderateCount > 0)) ...[
+            Text(
+              '${safetyScore.seriousCount} serious \u00B7 '
+              '${safetyScore.moderateCount} cautions \u00B7 '
+              '${safetyScore.monitorCount} monitor',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space12),
+          ],
           Row(
             children: [
               _CountChip(
@@ -512,6 +544,65 @@ class _StackErrorView extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Recall alert — checks if any stack product contains a recalled ingredient.
+// Hydrates dsldIds from core DB, filters has_recalled_ingredient == 1,
+// shows a danger PGSeverityBanner listing affected product names.
+// ---------------------------------------------------------------------------
+
+class _RecallAlertSlot extends ConsumerWidget {
+  const _RecallAlertSlot({required this.stack});
+  final List<UserStacksLocalData> stack;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final coreDb = ref.watch(coreDatabaseProvider);
+    return FutureBuilder<List<String>>(
+      future: _findRecalledProducts(coreDb),
+      builder: (context, snapshot) {
+        final recalled = snapshot.data;
+        if (recalled == null || recalled.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space12,
+            AppTheme.space20,
+            0,
+          ),
+          child: PGSeverityBanner(
+            tone: PGBannerTone.danger,
+            title: 'Recall Alert',
+            body: recalled.length == 1
+                ? '${recalled.first} contains a recalled ingredient. '
+                    'Consider removing it from your stack.'
+                : '${recalled.length} products contain recalled ingredients: '
+                    '${recalled.join(", ")}.',
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<String>> _findRecalledProducts(CoreDatabase coreDb) async {
+    final names = <String>[];
+    for (final entry in stack) {
+      final id = entry.dsldId;
+      if (id == null || id.isEmpty) continue;
+      try {
+        final product = await coreDb.findById(id);
+        if (product != null && product.hasRecalledIngredient == 1) {
+          names.add(entry.name);
+        }
+      } on Exception {
+        // Skip broken entries.
+      }
+    }
+    return names;
   }
 }
 

@@ -30,6 +30,7 @@ class StackSafetyReport {
     this.nutrientStatuses = const <NutrientStatus>[],
     this.stackInteractions = const <InteractionResult>[],
     this.medicationInteractions = const <InteractionResult>[],
+    this.medicationPairInteractions = const <InteractionResult>[],
     this.categoryWarnings = const <InteractionResult>[],
   });
 
@@ -48,6 +49,11 @@ class StackSafetyReport {
   /// PHI-bound — must never be persisted outside the device.
   final List<InteractionResult> medicationInteractions;
 
+  /// M4 §0.2 medication-pair interactions
+  /// (`StackInteractionChecker.checkMedicationPairInteractions`).
+  /// Drug × drug pairs from the curated interaction DB. PHI-bound.
+  final List<InteractionResult> medicationPairInteractions;
+
   /// Heuristic category warnings from the legacy
   /// `StackInteractionChecker.checkSafety` path (stim/sed antagonism,
   /// blood-thinner stacking, duplicate active ingredients).
@@ -58,6 +64,7 @@ class StackSafetyReport {
       _flaggedNutrients.isEmpty &&
       stackInteractions.isEmpty &&
       medicationInteractions.isEmpty &&
+      medicationPairInteractions.isEmpty &&
       categoryWarnings.isEmpty;
 
   /// Highest severity across every flagged signal. [Severity.safe] when
@@ -149,6 +156,7 @@ class StackSafetyReport {
   // ---------------------------------------------------------------------------
 
   Iterable<InteractionResult> get _allInteractions sync* {
+    yield* medicationPairInteractions;
     yield* medicationInteractions;
     yield* stackInteractions;
     yield* categoryWarnings;

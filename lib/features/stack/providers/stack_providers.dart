@@ -29,11 +29,14 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 /// All non-deleted stack entries, newest first.
 final activeStackProvider = FutureProvider<List<UserStacksLocalData>>((ref) {
@@ -314,11 +317,241 @@ final stackSafetyReportProvider =
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // 4. Medication × medication pair checks (§0.2).
+  //    Each medication is fanned against every other medication.
+  //    Dedupe by curated row id.
+  // ---------------------------------------------------------------------------
+  final medicationPairInteractions = <InteractionResult>[];
+  final seenMedPairIds = <String>{};
+  if (medications.length >= 2) {
+    for (var i = 0; i < medications.length; i++) {
+      final self = [medications[i]];
+      final others = [
+        for (var j = 0; j < medications.length; j++)
+          if (j != i) medications[j],
+      ];
+      List<InteractionResult> hits;
+      try {
+        hits = await checker.checkMedicationPairInteractions(
+          newMedications: self,
+          existingMedications: others,
+          db: interactionDb,
+        );
+      } on Object {
+        continue;
+      }
+      for (final r in hits) {
+        if (seenMedPairIds.add(r.id)) medicationPairInteractions.add(r);
+      }
+    }
+  }
+
   return StackSafetyReport(
     nutrientStatuses: nutrientStatuses,
     stackInteractions: stackInteractions,
     medicationInteractions: medicationInteractions,
+    medicationPairInteractions: medicationPairInteractions,
     categoryWarnings: categoryWarnings,
+  );
+});
+
+/// Synergy detection: finds ingredient clusters in the user's stack and
+/// returns a [SynergyReport] with matching clusters sorted by evidence tier.
+final synergyReportProvider = FutureProvider<SynergyReport>((ref) async {
+  final coreDb = ref.watch(coreDatabaseProvider);
+  final refDataRepo = ReferenceDataRepository();
+
+  // Take a dependency on the active stack so any mutation invalidates us.
+  final stack = await ref.watch(activeStackProvider.future);
+  if (stack.isEmpty) return SynergyReport.empty();
+
+  final supplements =
+      stack.where((e) => e.type == 'supplement').toList(growable: false);
+  if (supplements.isEmpty) return SynergyReport.empty();
+
+  // Hydrate each supplement to get ingredient fingerprints.
+  final hydrated = <_HydratedSupplement>[];
+  for (final entry in supplements) {
+    final id = entry.dsldId;
+    if (id == null || id.isEmpty) continue;
+    ProductsCoreData? product;
+    try {
+      product = await coreDb.findById(id);
+    } on Exception {
+      continue;
+    }
+    if (product == null) continue;
+    hydrated.add(_HydratedSupplement(entry: entry, product: product));
+  }
+
+  if (hydrated.isEmpty) return SynergyReport.empty();
+
+  // Extract canonical ids from all supplements.
+  final stackCanonicalIds = <String>{};
+  for (final h in hydrated) {
+    final ids = _canonicalIdsForProduct(h.product);
+    stackCanonicalIds.addAll(ids);
+  }
+
+  if (stackCanonicalIds.isEmpty) return SynergyReport.empty();
+
+  // Load synergy clusters and find matches.
+  late Map<String, dynamic> clustersData;
+  try {
+    clustersData = await refDataRepo.loadSynergyClusters();
+  } on Object {
+    return SynergyReport.empty();
+  }
+
+  final clustersList = clustersData['clusters'] as List<dynamic>?;
+  if (clustersList == null || clustersList.isEmpty) {
+    return SynergyReport.empty();
+  }
+
+  final matches = <SynergyMatch>[];
+  int totalBonus = 0;
+
+  for (final clusterJson in clustersList) {
+    final cluster = clusterJson as Map<String, dynamic>;
+    final clusterId = cluster['cluster_id'] as String?;
+    final name = cluster['name'] as String?;
+    final ingredients = (cluster['ingredients'] as List<dynamic>?)
+            ?.map((i) => i.toString())
+            .toList() ??
+        const <String>[];
+    final mechanism = cluster['mechanism'] as String?;
+    final bonusPoints = cluster['bonus_points'] as int? ?? 0;
+    final evidenceTier = cluster['evidence_tier'] as String? ?? 'limited';
+    final citations =
+        (cluster['citations'] as List<dynamic>?)?.map((c) => c.toString()).toList() ??
+            const <String>[];
+
+    // Check if all ingredients in the cluster are in the stack.
+    final allPresent = ingredients.every((ing) => stackCanonicalIds.contains(ing));
+    if (allPresent && clusterId != null && name != null && mechanism != null) {
+      matches.add(
+        SynergyMatch(
+          clusterId: clusterId,
+          clusterName: name,
+          matchedIngredients: ingredients,
+          mechanism: mechanism,
+          bonusPoints: bonusPoints,
+          evidenceTier: evidenceTier,
+          citations: citations,
+        ),
+      );
+      totalBonus += bonusPoints;
+    }
+  }
+
+  return SynergyReport(
+    matches: matches,
+    totalBonusPoints: totalBonus,
+    isEmpty: matches.isEmpty,
+  );
+});
+
+/// Recall detection: finds products in the user's stack that contain banned
+/// or recalled ingredients, returning a [RecalledIngredientsReport] with
+/// violations sorted by severity.
+final recalledIngredientsReportProvider =
+    FutureProvider<RecalledIngredientsReport>((ref) async {
+  final coreDb = ref.watch(coreDatabaseProvider);
+  final refDataRepo = ReferenceDataRepository();
+
+  // Take a dependency on the active stack so any mutation invalidates us.
+  final stack = await ref.watch(activeStackProvider.future);
+  if (stack.isEmpty) return RecalledIngredientsReport.empty();
+
+  final supplements =
+      stack.where((e) => e.type == 'supplement').toList(growable: false);
+  if (supplements.isEmpty) return RecalledIngredientsReport.empty();
+
+  // Load banned/recalled ingredients data.
+  late Map<String, dynamic> recallData;
+  try {
+    recallData = await refDataRepo.loadBannedRecalledIngredients();
+  } on Object {
+    return RecalledIngredientsReport.empty();
+  }
+
+  final recalledList = recallData['recalled_ingredients'] as List<dynamic>?;
+  if (recalledList == null || recalledList.isEmpty) {
+    return RecalledIngredientsReport.empty();
+  }
+
+  // Build a map of canonical_id → RecalledIngredientAlert for fast lookup.
+  final recalledMap = <String, RecalledIngredientAlert>{};
+  for (final recallJson in recalledList) {
+    final recall = recallJson as Map<String, dynamic>;
+    final canonicalId = recall['canonical_id'] as String?;
+    if (canonicalId == null) continue;
+
+    final commonNames = (recall['common_names'] as List<dynamic>?)
+            ?.map((c) => c.toString())
+            .toList() ??
+        const <String>[];
+    final recallStatus = recall['recall_status'] as String? ?? 'warning';
+    final regulatoryBasis = recall['regulatory_basis'] as String? ?? '';
+    final reason = recall['reason'] as String? ?? '';
+    final effectiveDate = recall['effective_date'] as String? ?? '';
+    final warningMessage = recall['warning_message'] as String? ?? '';
+    final severity = recall['severity'] as String? ?? 'major';
+
+    recalledMap[canonicalId] = RecalledIngredientAlert(
+      canonicalId: canonicalId,
+      commonNames: commonNames,
+      recallStatus: recallStatus,
+      regulatoryBasis: regulatoryBasis,
+      reason: reason,
+      effectiveDate: effectiveDate,
+      warningMessage: warningMessage,
+      severity: severity,
+    );
+  }
+
+  // Check each supplement for recalled ingredients.
+  final violations = <RecalledIngredientViolation>[];
+  for (final entry in supplements) {
+    final productId = entry.dsldId;
+    if (productId == null || productId.isEmpty) continue;
+
+    ProductsCoreData? product;
+    try {
+      product = await coreDb.findById(productId);
+    } on Exception {
+      continue;
+    }
+    if (product == null) continue;
+
+    // Check if product has the recalled flag or contains recalled ingredients.
+    final hasRecallFlag = (product.hasRecalledIngredient ?? 0) == 1;
+    final canonicalIds = _canonicalIdsForProduct(product);
+    final recalledIngredients = <RecalledIngredientAlert>[];
+
+    for (final cid in canonicalIds) {
+      if (recalledMap.containsKey(cid)) {
+        recalledIngredients.add(recalledMap[cid]!);
+      }
+    }
+
+    // If the product is flagged or contains recalled ingredients, add violation.
+    if (hasRecallFlag || recalledIngredients.isNotEmpty) {
+      violations.add(
+        RecalledIngredientViolation(
+          productDsldId: productId,
+          productName: entry.name,
+          brandName: product.brandName ?? '',
+          recalledIngredients: recalledIngredients,
+        ),
+      );
+    }
+  }
+
+  return RecalledIngredientsReport(
+    violations: violations,
+    isEmpty: violations.isEmpty,
   );
 });
 
@@ -497,6 +730,10 @@ class StackActions {
     // this out explicitly so a future refactor that drops the stack
     // dependency can't accidentally freeze the banner.
     _ref.invalidate(stackSafetyReportProvider);
+    // Synergy and recall detection also depend on the active stack, so they
+    // must rebuild whenever the stack changes.
+    _ref.invalidate(synergyReportProvider);
+    _ref.invalidate(recalledIngredientsReportProvider);
   }
 
   /// Fire-and-forget sync attempt after every mutation. Silently skips

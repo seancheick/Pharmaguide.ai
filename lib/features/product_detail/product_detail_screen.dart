@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
@@ -16,6 +17,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
+import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
@@ -64,6 +66,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   // refill-reminder card; we need addedAt for the days-remaining math.
   UserStacksLocalData? _stackEntry;
 
+  // Personalized interaction warnings from live DB lookup against user's
+  // stack. These supplement the static blob-parsed warnings with
+  // "Because you're taking X" context. Spec §9.2.
+  List<InteractionWarning> _personalizedWarnings = const [];
+
   /// 24-hour cache TTL for detail blobs.
   static const _cacheTtl = Duration(hours: 24);
 
@@ -73,6 +80,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     _loadProduct();
     _loadDetailBlob();
     _loadStackEntry();
+    _loadPersonalizedInteractions();
   }
 
   /// Look up whether the user has this product in their stack — needed
@@ -91,6 +99,113 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       // Stack lookup failure is non-fatal — leave _stackEntry null,
       // the refill card will simply not render.
     }
+  }
+
+  /// Query the bundled InteractionDatabase for interactions between this
+  /// product's ingredients and the user's current stack. Maps results to
+  /// [InteractionWarning] with "Because you're taking [X]" context.
+  Future<void> _loadPersonalizedInteractions() async {
+    try {
+      final interactionDb = ref.read(interactionDatabaseProvider);
+      final userDb = ref.read(userDatabaseProvider);
+      final coreDb = ref.read(coreDatabaseProvider);
+
+      final product = await coreDb.findById(widget.dsldId);
+      if (product == null || !mounted) return;
+
+      final stack = await userDb.getActiveStack();
+      if (stack.isEmpty || !mounted) return;
+
+      // Extract canonical IDs from this product's ingredient fingerprint.
+      final canonicalIds = _extractCanonicalIds(product.ingredientFingerprint);
+      if (canonicalIds.isEmpty) return;
+
+      final checker = StackInteractionChecker();
+      final warnings = <InteractionWarning>[];
+      final seenIds = <String>{};
+
+      // Check against stack supplements.
+      final supplements =
+          stack.where((e) => e.type == 'supplement').toList(growable: false);
+      if (supplements.isNotEmpty) {
+        final hits = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: canonicalIds,
+          stackSupplements: supplements,
+          db: interactionDb,
+          newProductName: product.productName,
+        );
+        for (final hit in hits) {
+          if (seenIds.add(hit.id)) {
+            warnings.add(_interactionResultToWarning(hit));
+          }
+        }
+      }
+
+      // Check against stack medications.
+      final medications =
+          stack.where((e) => e.type == 'medication').toList(growable: false);
+      if (medications.isNotEmpty) {
+        final hits = await checker.checkMedicationInteractions(
+          newProductCanonicalIds: canonicalIds,
+          stackMedications: medications,
+          db: interactionDb,
+          newProductName: product.productName,
+        );
+        for (final hit in hits) {
+          if (seenIds.add(hit.id)) {
+            warnings.add(_interactionResultToWarning(hit));
+          }
+        }
+      }
+
+      if (mounted && warnings.isNotEmpty) {
+        setState(() => _personalizedWarnings = warnings);
+      }
+    } on Object {
+      // Non-fatal — personalized warnings are a bonus on top of blob
+      // warnings. If the interaction DB is missing/corrupt or the
+      // provider isn't overridden (tests), we silently fall back to
+      // blob-only. Catches both Exception and Error (UnimplementedError
+      // from the provider stub).
+    }
+  }
+
+  /// Extract canonical ingredient IDs from a product's ingredient_fingerprint
+  /// JSON. Returns an empty list on null/malformed input.
+  static List<String> _extractCanonicalIds(String? fingerprintJson) {
+    if (fingerprintJson == null || fingerprintJson.isEmpty) {
+      return const <String>[];
+    }
+    try {
+      final decoded = jsonDecode(fingerprintJson);
+      if (decoded is Map) {
+        return decoded.keys.map((k) => k.toString().toLowerCase()).toList();
+      }
+      if (decoded is List) {
+        return decoded
+            .where((e) => e != null)
+            .map((e) => e.toString().toLowerCase())
+            .toList();
+      }
+    } on FormatException {
+      // Malformed JSON — return empty.
+    }
+    return const <String>[];
+  }
+
+  /// Maps an [InteractionResult] from the curated DB to an
+  /// [InteractionWarning] that the existing [InteractionWarningsList]
+  /// widget can render. Adds "Because you're taking [X]" context.
+  static InteractionWarning _interactionResultToWarning(
+      InteractionResult result) {
+    return InteractionWarning(
+      severity: result.severity,
+      evidenceLevel: result.evidenceLevel,
+      title: 'Because you\'re taking ${result.agent2Name}',
+      mechanism: result.mechanism,
+      management: result.management,
+      sourceUrls: result.sourceUrls,
+    );
   }
 
   Future<void> _loadProduct() async {
@@ -196,8 +311,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // Dietary tags
     final dietaryTags = _buildDietaryTags();
 
-    // Detail blob data
-    final warnings = _parseWarnings();
+    // Detail blob data + personalized interaction warnings from live DB.
+    // Personalized warnings (from InteractionDatabase) appear first,
+    // followed by generic blob warnings — deduped by title to avoid
+    // showing the same mechanism twice.
+    final blobWarnings = _parseWarnings();
+    final seenTitles = <String>{
+      for (final w in _personalizedWarnings) w.title,
+    };
+    final warnings = <InteractionWarning>[
+      ..._personalizedWarnings,
+      ...blobWarnings.where((w) => !seenTitles.contains(w.title)),
+    ];
     final hasProprietaryBlends = _detailBlob?['has_proprietary_blends'] == true;
 
     final isBlocked =

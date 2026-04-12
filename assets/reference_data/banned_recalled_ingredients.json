@@ -1,0 +1,140 @@
+{
+  "_metadata": {
+    "schema_version": "1.0",
+    "last_updated": "2026-04-12",
+    "total_entries": 13,
+    "description": "Banned and recalled ingredients with regulatory basis"
+  },
+  "recalled_ingredients": [
+    {
+      "canonical_id": "ephedra",
+      "common_names": ["ephedra sinica", "ma huang", "ephedrine alkaloids"],
+      "recall_status": "banned",
+      "regulatory_basis": "FDA ban 2004",
+      "reason": "Cardiovascular risks including hypertension, tachycardia, myocardial infarction, and sudden cardiac death",
+      "effective_date": "2004-04-12",
+      "warning_message": "Ephedra and its alkaloids are banned by the FDA due to serious cardiovascular risks.",
+      "severity": "critical"
+    },
+    {
+      "canonical_id": "aristolochic_acid",
+      "common_names": ["aristolochia", "birthwort"],
+      "recall_status": "banned",
+      "regulatory_basis": "FDA ban 2001 (dietary supplements)",
+      "reason": "Aristolochic acid causes aristolochic acid nephropathy (AAN) and urothelial cancer",
+      "effective_date": "2001-01-31",
+      "warning_message": "Aristolochia and aristolochic acid-containing products are banned due to carcinogenic risk.",
+      "severity": "critical"
+    },
+    {
+      "canonical_id": "kava",
+      "common_names": ["piper methysticum", "kava kava"],
+      "recall_status": "warning",
+      "regulatory_basis": "FDA warning 2002 (hepatotoxicity)",
+      "reason": "Rare but severe liver injury; hepatotoxicity in healthy individuals",
+      "effective_date": "2002-03-25",
+      "warning_message": "Kava has been associated with rare cases of liver damage. Consumers with liver disease should avoid.",
+      "severity": "major"
+    },
+    {
+      "canonical_id": "comfrey",
+      "common_names": ["symphytum officinale"],
+      "recall_status": "banned",
+      "regulatory_basis": "FDA proposed rule 2001 (hepatotoxicity)",
+      "reason": "Pyrrolizidine alkaloids cause hepatotoxicity and may increase cancer risk",
+      "effective_date": "2001-06-18",
+      "warning_message": "Comfrey contains pyrrolizidine alkaloids linked to liver damage and potential cancer risk.",
+      "severity": "major"
+    },
+    {
+      "canonical_id": "androstenedione",
+      "common_names": ["andro", "androstene"],
+      "recall_status": "banned",
+      "regulatory_basis": "FDA ban 2004 (Anabolic Steroid Control Act)",
+      "reason": "Androgenic steroid precursor; metabolized to testosterone and other steroids",
+      "effective_date": "2004-10-22",
+      "warning_message": "Androstenedione is banned as a controlled steroid precursor.",
+      "severity": "critical"
+    },
+    {
+      "canonical_id": "tetrahydrogestrinone",
+      "common_names": ["thg", "gestrinone"],
+      "recall_status": "banned",
+      "regulatory_basis": "FDA ban 2004 (Anabolic Steroid Control Act)",
+      "reason": "Synthetic anabolic steroid used in athletic doping",
+      "effective_date": "2004-10-22",
+      "warning_message": "THG is a banned anabolic steroid.",
+      "severity": "critical"
+    },
+    {
+      "canonical_id": "phenylbutazone",
+      "common_names": ["bute", "butazolidin"],
+      "recall_status": "banned",
+      "regulatory_basis": "FDA ban 1992 (carcinogenic, agranulocytosis)",
+      "reason": "Phenylbutazone causes agranulocytosis and aplastic anemia in humans",
+      "effective_date": "1992-09-24",
+      "warning_message": "Phenylbutazone is banned due to serious hematologic risks.",
+      "severity": "critical"
+    },
+    {
+      "canonical_id": "yohimbe_bark",
+      "common_names": ["yohimbe", "yohimbine"],
+      "recall_status": "warning",
+      "regulatory_basis": "FDA warning (cardiac effects, hypertension)",
+      "reason": "Can elevate blood pressure, increase heart rate, and cause anxiety and tremor",
+      "effective_date": "1997-03-18",
+      "warning_message": "Yohimbe may cause hypertension and cardiac effects. Individuals with hypertension should avoid.",
+      "severity": "major"
+    },
+    {
+      "canonical_id": "germanium",
+      "common_names": ["organic germanium", "ge-132"],
+      "recall_status": "warning",
+      "regulatory_basis": "FDA warning (nephrotoxicity)",
+      "reason": "Inorganic germanium salts cause irreversible kidney damage and renal failure",
+      "effective_date": "1996-06-07",
+      "warning_message": "Germanium supplements may cause kidney damage and should be avoided.",
+      "severity": "major"
+    },
+    {
+      "canonical_id": "aristolochic_acid_alternative",
+      "common_names": ["chinese herbs with aristolochia", "traditional medicine"],
+      "recall_status": "warning",
+      "regulatory_basis": "CDC advisory (AAN cases)",
+      "reason": "Some traditional Asian herbal products contain aristolochia species",
+      "effective_date": "2000-09-01",
+      "warning_message": "Some traditional Chinese medicines may contain aristolochia and pose cancer risk.",
+      "severity": "major"
+    },
+    {
+      "canonical_id": "dimethylamylamine",
+      "common_names": ["dmaa", "1,3-dimethylamylamine"],
+      "recall_status": "banned",
+      "regulatory_basis": "FDA ban 2013 (cardiovascular events)",
+      "reason": "Linked to heart problems, high blood pressure, and psychiatric events",
+      "effective_date": "2013-04-05",
+      "warning_message": "DMAA is banned due to cardiovascular safety risks.",
+      "severity": "critical"
+    },
+    {
+      "canonical_id": "coltsfoot",
+      "common_names": ["tussilago farfara", "farfugium japonicum"],
+      "recall_status": "warning",
+      "regulatory_basis": "Health Canada advisory (hepatotoxicity)",
+      "reason": "Contains pyrrolizidine alkaloids causing liver damage",
+      "effective_date": "1996-10-01",
+      "warning_message": "Coltsfoot may cause liver damage and should not be used without medical supervision.",
+      "severity": "major"
+    },
+    {
+      "canonical_id": "chromium_picolinate_contamination",
+      "common_names": ["chromium contaminated batches"],
+      "recall_status": "warning",
+      "regulatory_basis": "Product recall 2024 (heavy metal contamination)",
+      "reason": "Specific batches found to contain lead above safe limits",
+      "effective_date": "2024-11-15",
+      "warning_message": "Certain chromium picolinate batches contain elevated lead levels. Verify batch number.",
+      "severity": "major"
+    }
+  ]
+}
