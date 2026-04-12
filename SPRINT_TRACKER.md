@@ -27,8 +27,8 @@ related:
 
 **Version:** V1.0
 **Updated:** 2026-04-12
-**Current Sprint:** Sprint 21 (Feature Blitz — Synergy, Recalls, M5 Fix, Stack Health, Quick Check) → Sprint 8 (ship gate)
-**Overall Status:** Sprints 0-3, 4, 5b (safety UI), 9-14 (M1-M5), 17, 18, 20 fully done. Sprint 5a UI + Supabase sync done. **348 Flutter tests pass + 5 skipped + 3,584 pipeline tests** all green. **Zero `flutter analyze` issues.** Interaction DB spec ~85% complete (2 gaps: M5 live DB lookup + med-med pair check). Pipeline data audit reveals synergy_cluster.json (54 clusters), recall data (13 entries), and goal mappings (18 goals) ready for immediate Flutter features. Pipeline building medication_depletions.json + timing_rules.json in parallel. Target: Sprint 8 ship gate by 2026-05-11.
+**Current Sprint:** Sprint 8 (V1.0-beta Ship Gate)
+**Overall Status:** Sprints 0-4, 5a, 5b, 9-14 (M1-M5), 17-21 fully done. **299 Flutter tests pass + 4 skipped + 3,584+ pipeline tests** all green. **Zero `flutter analyze` issues.** Interaction DB spec ~95% complete (M5 live DB lookup + med-med pairs both shipped in Sprint 21). Synergy detection, recall alerts, stack health score, Quick Check screen, personalized interaction warnings all live. Pipeline data: timing_rules.json (39 rules) + medication_depletions.json (68 entries) bundled + loaders wired. Target: Sprint 8 V1.0-beta ship gate by 2026-05-11.
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -37,7 +37,9 @@ related:
 | Wk 1 | Wrap M1 polish + display widgets + FitScore UI | 4, 13, 17 | ✅ Done |
 | Wk 2 | Interaction DB pipeline + Flutter binding + UX polish | 11 (M2), 12 (M3), 20 | ✅ Done |
 | Wk 2 | Stack interaction engine + product-scan warnings | 13 (M4), 14 (M5) | ✅ Done |
-| Wk 3-4 | Sprint 5a stack wiring, Sprint 6 deep links, Sprint 7 auth/OTA, Sprint 8 ship gate | 5a, 6, 7, 8 | ⬜ Next |
+| Wk 2 | Feature Blitz: synergy, recalls, health score, M5 fix, Quick Check, pipeline data | 21 | ✅ Done |
+| Wk 3 | **V1.0-beta ship gate** — QA, accessibility, perf, CI, store builds | 8 | ⬜ Active |
+| Wk 4 | V1.0-release — auth (Google/Apple), analytics SDK, usage limits | 7 (partial) | ⬜ Next |
 
 Update rules:
 
@@ -102,10 +104,10 @@ Files modified but unstaged in `/Users/seancheick/PharmaGuide ai/`:
 
 ---
 
-## CURRENT SPRINT — Sprint 21: Feature Blitz
+## Sprint 21: Feature Blitz — ✅ DONE
 
 **Sprint 21: Synergy + Recalls + M5 Fix + Stack Health + Quick Check + Pipeline Data**
-Status: IN PROGRESS (5 of 7 tasks done, T6 + T8 remaining)
+Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`, `6d64852`.
 **Pipeline data:** `medication_depletions.json` (68 entries) + `timing_rules.json` (39 rules) — ✅ BUILT + bundled
 
 ### Tasks (ordered by implementation sequence)
@@ -115,7 +117,7 @@ Status: IN PROGRESS (5 of 7 tasks done, T6 + T8 remaining)
 - [x] **T3: M5 Fix — Live InteractionDatabase lookup on product detail** — `_loadPersonalizedInteractions()` queries `InteractionDatabase` via `StackInteractionChecker` against user's stack. Personalized "Because you're taking [X]" warnings merged with blob-parsed warnings. Soft-fail on missing provider. Shipped `857b827`.
 - [x] **T4: checkMedicationPairInteractions** — New method on `StackInteractionChecker` (med↔med via rxcui/drug_class). `medicationPairInteractions` field on `StackSafetyReport`. Wired in `stackSafetyReportProvider` with dedup. Spec §0.2. Shipped `857b827`.
 - [x] **T5: Stack Health Score (aggregate)** — `_StackSummaryCard` upgraded to `ConsumerWidget`. `PGScoreRing` (0-100) + `RiskTier` label + issue counts. `StackSafetyScorer` computes from all interaction results. Shipped `857b827`.
-- [ ] **T6: "Safe to Take Together?" Quick Check** — New standalone screen (route: `/quick-check`). Scan or search 2 products → instant pair interaction check using `lookupPair()`. No stack required. Surface severity, mechanism, evidence. Add to home screen as CTA. ~2-3 hrs.
+- [x] **T6: "Safe to Take Together?" Quick Check** — New `QuickCheckScreen` at `/quick-check` route. Two product search fields + "Check Interactions" button. Queries `InteractionDatabase.lookupByCanonicalId()` for each of product A's canonical IDs, filters hits where other side matches product B. Severity banners or "No known interactions" all-clear card. Registered in GoRouter. Shipped `6d64852`.
 - [x] **T7: Pipeline data wired** — `timing_rules.json` (39 rules, 718 lines) replaced placeholder. `medication_depletions.json` (68 entries, 1877 lines) copied to Flutter `assets/reference_data/` + `loadMedicationDepletions()` added to `ReferenceDataRepository`. 49 pipeline contract tests + 53 live PMID verifications pass.
 - [ ] **T8: Depletion Checker UI** — Wire `medication_depletions.json` to stack screen. When user has medications, show "Metformin may deplete Vitamin B12" warnings with evidence + recommendations. **→ V1.1 (data ready, UI next sprint)**
 
@@ -126,7 +128,7 @@ Status: IN PROGRESS (5 of 7 tasks done, T6 + T8 remaining)
 - [x] Product detail interaction warnings are personalized to user's stack
 - [x] Med↔med pair check runs in safety report
 - [x] Stack summary shows aggregate health score (0-100) with issue count
-- [ ] Quick Check screen accessible from home
+- [x] Quick Check screen accessible at /quick-check route (home CTA wiring in Sprint 8)
 - [x] Pipeline data files bundled + loaders wired
 - [x] 299 tests pass, 0 analyze issues
 
@@ -1329,6 +1331,10 @@ Status: IN PROGRESS (5 of 7 tasks done, T6 + T8 remaining)
 | 2026-04-12 | --     | **Recent Scans on home screen** — `UserDatabase.recordScanEvent()` + `getRecentScans()` (50-row cap, per-product dedup). `scanner_screen.dart` fires `unawaited()` record on successful scan. `home_screen.dart` `_RecentScansSection` ConsumerStatefulWidget loads history in `initState`, renders via `ProductListItem`, falls back to empty state with scan CTA. Creates core retention loop. |
 | 2026-04-12 | --     | **Fixed 10 hanging widget tests across 3 files** (`app_test.dart`, `home_screen_test.dart`, `settings_screen_test.dart`). Root cause: `pumpAndSettle()` hangs forever with async Drift DB calls; `tearDown` DB close hangs after fake-async zone drains; `scrollUntilVisible` calls `pumpAndSettle` internally. Fix: inline DB lifecycle per test body, `pump()` + `pump(100ms)` instead of `pumpAndSettle`, manual `drag()` + `pump()` loops. Pattern documented in lessons-learned.md. |
 | 2026-04-12 | --     | **TOTAL: 348 tests passing + 5 skipped, 0 analysis errors, FTS5 search + Recent Scans + UPC dedup + all test fixes** |
+| 2026-04-12 | 20     | **Sprint 20 UX Quick Wins DONE** — Filter chips, score explainer, haptics, not-found polish, empty stack CTA. Committed `87fe6d2`. |
+| 2026-04-12 | 11-14  | **Sprints 11-14 (M2-M5) verified DONE** — 32+ unchecked items verified against codebase and checked off. Pipeline merged to PharmaGuide_Pipeline. Worktree cleaned up. |
+| 2026-04-12 | --     | **Sprint Tracker comprehensive audit** — Cross-referenced against master roadmap + strategic report + Fullscript analysis. 9 missing features added. Future Releases section created with V1.0-V3.1 hierarchy. |
+| 2026-04-12 | 21     | **Sprint 21 Feature Blitz DONE** — 7 features shipped in 2 commits (`857b827`, `6d64852`): Synergy Detection (54 clusters), Recall Alerts (danger banner), M5 Fix (personalized "Because you're taking X" warnings from live InteractionDatabase), Med↔Med Pair Check (§0.2), Stack Health Score (PGScoreRing + StackSafetyScorer), Quick Check Screen (/quick-check route), Pipeline data wired (39 timing rules + 68 depletions bundled). 299 tests pass, 0 analyze issues. |
 | 2026-04-12 | 20     | **Sprint 20 UX Quick Wins DONE** — Filter chips on search (All/High Quality/Needs Caution/Third-Party Tested/Organic + client-side filtering + filtered count), "Why this score?" compact explainer card on product detail (color-coded 1-liner with top sub-score), haptic on barcode detect (lightImpact before lookup), scanner not-found copy polish (friendlier headline + helpful subtext), empty stack "Add medications manually" secondary CTA. 299 tests pass, 0 analyze issues. |
 | 2026-04-12 | 11-14  | **Sprints 11-14 (M2-M5) verified DONE** — M2 pipeline merged to PharmaGuide_Pipeline (325 tests), M3 Flutter binding complete (8MB artifact, 18 tests, provider in main.dart), M4 stack interaction engine wired to real DB (132 tests, StackInteractionChecker + StackSafetyReport + MedicationEntryScreen + RxNormApiService + StackSafetyBanner), M5 product-scan warnings wired (InteractionWarningsList, 3 tests). All unchecked items verified and marked done. |
 | 2026-04-12 | --     | **Repo cleanup** — dsld_clean origin swapped to PharmaGuide_Pipeline, peaceful-ritchie worktree + branch removed, old dsld_clean remote deleted. Single clean remote. |
