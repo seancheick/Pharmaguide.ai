@@ -11,6 +11,7 @@ import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
+import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 
 /// My Stack screen — shows all products in the user's supplement stack
 /// with Stack Safety Score, M1 nutrient totals, and interaction alerts.
@@ -115,6 +116,12 @@ class _StackTab extends ConsumerWidget {
                 ),
                 child: _StackSummaryCard(stack: stack),
               ),
+
+              // M4 aggregated safety banner — consumes the
+              // stackSafetyReportProvider and renders itself as
+              // SizedBox.shrink when the report is clean, so a
+              // no-warning stack never eats vertical space.
+              const _StackSafetyBannerSlot(),
 
               // M1 nutrient accumulation panel (UL tracking)
               const Padding(
@@ -491,6 +498,33 @@ class _StackErrorView extends StatelessWidget {
           variant: PGEmptyStateVariant.error,
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Safety banner slot — watches stackSafetyReportProvider in its own
+// ConsumerWidget so the surrounding _StackTab doesn't rebuild on every
+// safety-report change. Collapses to SizedBox.shrink during loading,
+// error, or when the report is clean (no warnings).
+// ---------------------------------------------------------------------------
+
+class _StackSafetyBannerSlot extends ConsumerWidget {
+  const _StackSafetyBannerSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (report.isEmpty) return const SizedBox.shrink();
+        return StackSafetyBanner(
+          report: report,
+          margin: kStackSafetyBannerMargin,
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
