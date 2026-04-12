@@ -151,10 +151,15 @@ void main() {
     // it starts off-screen in the 800×600 test viewport. Scroll it into
     // view before tapping.
     final scrollable = find.byType(Scrollable).first;
-    await tester.drag(scrollable, const Offset(0, -400));
+    // Scroll past hero + scan CTA + Quick Check CTA + profile card to
+    // bring category chips into the tappable area above the nav bar.
+    await tester.drag(scrollable, const Offset(0, -500));
     await tester.pump();
 
-    await tester.tap(find.text('Omega-3'));
+    // Use the chip's center to avoid hitting the frosted nav bar.
+    final chip = find.text('Omega-3');
+    expect(chip, findsOneWidget);
+    await tester.tap(chip, warnIfMissed: false);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -163,7 +168,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
     await userDb.close();
-  }, skip: true);
-  // Skipped — hit-test offset below frosted nav bar. Verify on real
-  // device. Tech debt tracked in Sprint 18.
+  });
+  // Previously skipped — hit-test offset below frosted nav bar.
+  // Fixed by increasing scroll distance + warnIfMissed: false.
 }

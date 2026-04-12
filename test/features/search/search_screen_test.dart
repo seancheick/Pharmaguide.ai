@@ -33,27 +33,44 @@ void main() {
     // Tech debt tracked in Sprint 18.
 
     testWidgets('shows clear button when text is entered', (tester) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       await tester.enterText(find.byType(TextField), 'magnesium');
       await tester.pump();
 
       expect(find.byIcon(Icons.close_rounded), findsWidgets);
-    }, skip: true);
+    });
 
     testWidgets('clear button clears text and returns to empty state',
         (tester) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       await tester.enterText(find.byType(TextField), 'vitamin');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.close_rounded).first);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Search supplements'), findsOneWidget);
-    }, skip: true);
+    });
   });
 }
