@@ -222,19 +222,31 @@ class RxNormApiService {
     final cached = _readCache<List<String>>(cacheKey);
     if (cached != null) return cached;
 
-    final url = Uri.parse(
+    // Fetch from multiple class sources in parallel for broader matching.
+    // ATC = therapeutic classification (existing).
+    // MEDRT = VA MED-RT (MOA, EPC) — catches "all SSRIs", "all ACE inhibitors"
+    //   at the mechanism-of-action level so a single curated rule covers
+    //   every drug in the class.
+    final atcUrl = Uri.parse(
       '$_baseUrl/REST/rxclass/class/byRxcui.json?rxcui=$r&relaSource=ATC',
     );
+    final medrtUrl = Uri.parse(
+      '$_baseUrl/REST/rxclass/class/byRxcui.json?rxcui=$r&relaSource=MEDRT',
+    );
 
-    final raw = await _safeGet(url);
-    if (raw == null) {
-      _writeCache(cacheKey, const <String>[]);
-      return const <String>[];
-    }
+    final atcFuture = _safeGet(atcUrl);
+    final medrtFuture = _safeGet(medrtUrl);
 
-    final classes = _parseClasses(raw);
-    _writeCache(cacheKey, classes);
-    return classes;
+    final atcRaw = await atcFuture;
+    final medrtRaw = await medrtFuture;
+
+    final classes = <String>{};
+    if (atcRaw != null) classes.addAll(_parseClasses(atcRaw));
+    if (medrtRaw != null) classes.addAll(_parseClasses(medrtRaw));
+
+    final result = classes.toList(growable: false);
+    _writeCache(cacheKey, result);
+    return result;
   }
 
   /// Hydrate a single rxcui to its display name + TTY. Returns null on
@@ -279,6 +291,74 @@ class RxNormApiService {
 
     _writeCache(cacheKey, info);
     return info;
+  }
+
+  /// Resolve a brand or dose-specific RXCUI to its base generic ingredient
+  /// RXCUI (TTY=IN). This is critical for interaction matching because
+  /// curated interactions are keyed on generic RXCUIs (e.g., levothyroxine
+  /// = 10582), but users often pick brand names (Synthroid = 224920).
+  ///
+  /// Returns the generic IN-level RXCUI, or null if:
+  ///   - The input is already an IN (no resolution needed — caller should
+  ///     check `getDrugInfo(rxcui).tty == 'IN'` first)
+  ///   - Network is unreachable
+  ///   - RxNorm doesn't have a related IN concept
+  ///
+  /// Also resolves combination drugs to their individual ingredient RXCUIs
+  /// when the related concepts include multiple IN entries.
+  ///
+  /// API: `GET /REST/rxcui/{rxcui}/related.json?tty=IN`
+  Future<List<String>> resolveGenericRxcuis(String rxcui) async {
+    final r = rxcui.trim();
+    if (r.isEmpty) return const <String>[];
+
+    final cacheKey = 'generic:$r';
+    final cached = _readCache<List<String>>(cacheKey);
+    if (cached != null) return cached;
+
+    final url = Uri.parse('$_baseUrl/REST/rxcui/$r/related.json?tty=IN');
+    final raw = await _safeGet(url);
+    if (raw == null) {
+      _writeCache(cacheKey, const <String>[]);
+      return const <String>[];
+    }
+
+    final generics = <String>[];
+    try {
+      final body = jsonDecode(raw);
+      if (body is Map) {
+        final groups = body['relatedGroup']?['conceptGroup'];
+        if (groups is List) {
+          for (final group in groups) {
+            if (group is! Map) continue;
+            final tty = group['tty'];
+            if (tty != 'IN') continue;
+            final props = group['conceptProperties'];
+            if (props is! List) continue;
+            for (final prop in props) {
+              if (prop is Map) {
+                final cui = prop['rxcui'];
+                if (cui is String && cui.isNotEmpty && !generics.contains(cui)) {
+                  generics.add(cui);
+                }
+              }
+            }
+          }
+        }
+      }
+    } on FormatException {
+      // Malformed JSON — return empty.
+    }
+
+    _writeCache(cacheKey, generics);
+    return generics;
+  }
+
+  /// Convenience: resolve a single brand RXCUI to its primary generic.
+  /// Returns null when offline or no generic exists.
+  Future<String?> resolveGenericRxcui(String rxcui) async {
+    final generics = await resolveGenericRxcuis(rxcui);
+    return generics.isNotEmpty ? generics.first : null;
   }
 
   /// Offline fallback: list every drug class id the bundled interaction

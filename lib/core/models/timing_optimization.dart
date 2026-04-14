@@ -1,13 +1,113 @@
+import 'package:pharmaguide/core/constants/severity.dart';
+
+/// The type of timing advice a rule provides.
+enum TimingRuleType {
+  /// Two ingredients should be taken at different times.
+  separate,
+
+  /// Two ingredients are best taken together for synergy.
+  takeTogether,
+
+  /// An ingredient should be taken with food/fat for absorption.
+  takeWithFood,
+
+  /// An ingredient is best taken on an empty stomach.
+  takeOnEmptyStomach,
+
+  /// An ingredient is best at a specific time of day.
+  timeOfDay;
+
+  static TimingRuleType fromString(String value) {
+    switch (value.toLowerCase().replaceAll(' ', '_')) {
+      case 'separate':
+        return TimingRuleType.separate;
+      case 'take_together':
+        return TimingRuleType.takeTogether;
+      case 'take_with_food':
+        return TimingRuleType.takeWithFood;
+      case 'take_on_empty_stomach':
+        return TimingRuleType.takeOnEmptyStomach;
+      case 'time_of_day':
+        return TimingRuleType.timeOfDay;
+      default:
+        return TimingRuleType.separate;
+    }
+  }
+}
+
+/// A single timing optimization recommendation for the user's stack.
+///
+/// Produced by [TimingEvaluationService] when two items in the user's stack
+/// match a timing rule. The UI renders these as actionable cards in the
+/// stack safety report.
 class TimingOptimization {
+  /// The rule ID from timing_rules.json (e.g., "timing_iron_calcium_separate").
+  final String ruleId;
+
+  /// Display name of the first ingredient/medication involved.
   final String ingredient1;
+
+  /// Display name of the second ingredient/medication involved.
   final String ingredient2;
+
+  /// User-facing advice text (≤300 chars, consumer-friendly).
   final String advice;
+
+  /// The type of timing recommendation.
+  final TimingRuleType ruleType;
+
+  /// How many hours to separate (null for non-separation rules).
+  final int? separationHours;
+
+  /// Impact on the stack safety score (negative = penalty for not following).
   final int scoreImpact;
 
+  /// Evidence backing this recommendation.
+  final EvidenceLevel evidenceLevel;
+
+  /// Brief mechanism explanation (for "Learn more" expansion).
+  final String? mechanism;
+
+  /// Source URLs for the user to verify.
+  final List<String> sourceUrls;
+
+  /// Name of the product in the user's stack that triggered ingredient1.
+  final String? product1Name;
+
+  /// Name of the product in the user's stack that triggered ingredient2.
+  final String? product2Name;
+
   const TimingOptimization({
+    required this.ruleId,
     required this.ingredient1,
     required this.ingredient2,
     required this.advice,
+    required this.ruleType,
+    this.separationHours,
     required this.scoreImpact,
+    required this.evidenceLevel,
+    this.mechanism,
+    this.sourceUrls = const [],
+    this.product1Name,
+    this.product2Name,
   });
+
+  /// Whether this is a separation rule (the most actionable type).
+  bool get isSeparation => ruleType == TimingRuleType.separate;
+
+  /// Whether this involves a medication (higher urgency).
+  bool get involvesMedication =>
+      product1Name != null &&
+      (ingredient1.contains('levothyroxine') ||
+          ingredient1.contains('warfarin'));
+
+  /// Priority for display ordering — separation + medication first,
+  /// then separation + supplement, then other types.
+  int get displayPriority {
+    int priority = 0;
+    if (isSeparation) priority += 10;
+    if (involvesMedication) priority += 20;
+    if (evidenceLevel == EvidenceLevel.established) priority += 5;
+    return priority;
+  }
 }

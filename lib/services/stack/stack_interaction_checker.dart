@@ -299,6 +299,18 @@ class StackInteractionChecker {
       if (rxcui != null && rxcui.isNotEmpty) {
         rxcuiToName.putIfAbsent(rxcui, () => med.name);
       }
+      // Also index the generic IN-level RXCUI so brand picks (Synthroid
+      // → 224920) match curated entries keyed on the generic (levothyroxine
+      // → 10582). Added 2026-04-14 to fix Bug B3.
+      final genericRxcui = med.genericRxcui?.trim();
+      if (genericRxcui != null && genericRxcui.isNotEmpty) {
+        rxcuiToName.putIfAbsent(genericRxcui, () => med.name);
+      }
+      // Also index individual ingredient RXCUIs for combination drugs
+      // (e.g., Lisinopril/HCTZ → check each ingredient independently).
+      for (final ingRxcui in _ingredientRxcuisFor(med)) {
+        rxcuiToName.putIfAbsent(ingRxcui, () => med.name);
+      }
       for (final cls in _drugClassesFor(med)) {
         classToName.putIfAbsent(cls, () => med.name);
       }
@@ -374,10 +386,39 @@ class StackInteractionChecker {
 
     for (final newMed in newMedications) {
       final newRxcui = newMed.rxcui?.trim();
-      if (newRxcui == null || newRxcui.isEmpty) continue;
+      final newGenericRxcui = newMed.genericRxcui?.trim();
+      if ((newRxcui == null || newRxcui.isEmpty) &&
+          (newGenericRxcui == null || newGenericRxcui.isEmpty)) {
+        continue;
+      }
 
-      // Lookup rows by the new medication's rxcui.
-      final rows = await db.lookupByRxcui(newRxcui);
+      // Lookup rows by ALL rxcuis for this medication (brand + generic
+      // + individual ingredients for combination drugs).
+      final allRows = <InteractionRow>[];
+      final seenLookupRows = <String>{};
+
+      Future<void> lookupAndCollect(String? rxcui) async {
+        if (rxcui == null || rxcui.isEmpty) return;
+        final rows = await db.lookupByRxcui(rxcui);
+        for (final row in rows) {
+          if (seenLookupRows.add(row.id)) allRows.add(row);
+        }
+      }
+
+      await lookupAndCollect(newRxcui);
+      await lookupAndCollect(newGenericRxcui);
+      for (final ingRxcui in _ingredientRxcuisFor(newMed)) {
+        await lookupAndCollect(ingRxcui);
+      }
+      // Class-based fallback: if rxcui lookups found nothing, try classes.
+      if (allRows.isEmpty) {
+        for (final cls in _drugClassesFor(newMed)) {
+          final classRows = await db.lookupByDrugClass(cls);
+          for (final row in classRows) {
+            if (seenLookupRows.add(row.id)) allRows.add(row);
+          }
+        }
+      }
 
       // Build a set of rxcuis + classes from the existing medications
       // to match the OTHER side of each row.
@@ -389,25 +430,46 @@ class StackInteractionChecker {
         if (rx != null && rx.isNotEmpty) {
           existingRxcuis.putIfAbsent(rx, () => med.name);
         }
+        // Also index generic rxcui for existing meds.
+        final genRx = med.genericRxcui?.trim();
+        if (genRx != null && genRx.isNotEmpty) {
+          existingRxcuis.putIfAbsent(genRx, () => med.name);
+        }
         for (final cls in _drugClassesFor(med)) {
           existingClasses.putIfAbsent(cls, () => med.name);
         }
       }
 
-      for (final row in rows) {
+      // Collect all rxcuis for the new med (for OTHER-side matching).
+      final newMedRxcuis = <String>{};
+      if (newRxcui != null && newRxcui.isNotEmpty) newMedRxcuis.add(newRxcui);
+      if (newGenericRxcui != null && newGenericRxcui.isNotEmpty) {
+        newMedRxcuis.add(newGenericRxcui);
+      }
+
+      for (final row in allRows) {
         if (seenRowIds.contains(row.id)) continue;
 
         // Identify the OTHER side relative to the new medication.
         final String? otherType;
         final String? otherId;
-        if (row.agent1Id == newRxcui) {
+        if (newMedRxcuis.contains(row.agent1Id)) {
           otherType = row.agent2Type;
           otherId = row.agent2Id;
-        } else if (row.agent2Id == newRxcui) {
+        } else if (newMedRxcuis.contains(row.agent2Id)) {
           otherType = row.agent1Type;
           otherId = row.agent1Id;
         } else {
-          continue;
+          // Row came from class lookup — check agent types.
+          if (row.agent1Type == 'drug_class') {
+            otherType = row.agent2Type;
+            otherId = row.agent2Id;
+          } else if (row.agent2Type == 'drug_class') {
+            otherType = row.agent1Type;
+            otherId = row.agent1Id;
+          } else {
+            continue;
+          }
         }
 
         String? matchedName;
@@ -488,6 +550,30 @@ class StackInteractionChecker {
   /// by a forced lower call.
   static List<String> _drugClassesFor(UserStacksLocalData row) {
     final raw = row.drugClassesCol;
+    if (raw == null || raw.isEmpty) return const <String>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const <String>[];
+      final out = <String>[];
+      final seen = <String>{};
+      for (final e in decoded) {
+        if (e == null) continue;
+        final s = e.toString().trim();
+        if (s.isEmpty) continue;
+        if (seen.add(s)) out.add(s);
+      }
+      return out;
+    } on FormatException {
+      return const <String>[];
+    }
+  }
+
+  /// Decode a medication row's `ingredient_rxcuis` JSON into a list of
+  /// individual ingredient RXCUIs for combination drugs. Returns empty
+  /// for single-ingredient medications. Same lenient handling as
+  /// [_drugClassesFor].
+  static List<String> _ingredientRxcuisFor(UserStacksLocalData row) {
+    final raw = row.ingredientRxcuisCol;
     if (raw == null || raw.isEmpty) return const <String>[];
     try {
       final decoded = jsonDecode(raw);

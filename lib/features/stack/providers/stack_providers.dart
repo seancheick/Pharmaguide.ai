@@ -32,11 +32,13 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
+import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
 
 /// All non-deleted stack entries, newest first.
 final activeStackProvider = FutureProvider<List<UserStacksLocalData>>((ref) {
@@ -347,12 +349,46 @@ final stackSafetyReportProvider =
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // 5. Timing optimization evaluation.
+  //    Cross-reference the stack's ingredient tags and medication names
+  //    against timing_rules.json to produce actionable timing advice.
+  // ---------------------------------------------------------------------------
+  List<TimingOptimization> timingOptimizations = const <TimingOptimization>[];
+  try {
+    final refDataRepo = ReferenceDataRepository();
+    final timingJson = await refDataRepo.loadTimingRules();
+    final timingService = TimingEvaluationService.fromJson(timingJson);
+
+    // Build supplement tag map: product_name → Set<canonical_tag>.
+    final supplementTags = <String, Set<String>>{};
+    for (final h in hydrated) {
+      final tags = _ingredientTagsForProduct(h.product);
+      if (tags.isNotEmpty) {
+        supplementTags[h.entry.name] = tags;
+      }
+    }
+
+    // Collect medication display names.
+    final medicationNames =
+        medications.map((m) => m.name).toList(growable: false);
+
+    timingOptimizations = timingService.evaluateStack(
+      supplementTags: supplementTags,
+      medicationNames: medicationNames,
+    );
+  } on Object {
+    // Timing is advisory — never let it crash the safety report.
+    timingOptimizations = const <TimingOptimization>[];
+  }
+
   return StackSafetyReport(
     nutrientStatuses: nutrientStatuses,
     stackInteractions: stackInteractions,
     medicationInteractions: medicationInteractions,
     medicationPairInteractions: medicationPairInteractions,
     categoryWarnings: categoryWarnings,
+    timingOptimizations: timingOptimizations,
   );
 });
 
@@ -559,25 +595,107 @@ class _HydratedSupplement {
   final ProductsCoreData product;
 }
 
-/// Decode a `products_core.ingredient_fingerprint` blob into a list of
-/// canonical ingredient ids. The pipeline writes a map of
-/// `canonical_id → {...}`; we just need the keys. Broken JSON degrades
-/// to an empty list.
+/// Extract canonical ingredient ids for interaction matching.
+///
+/// Primary source: `key_ingredient_tags` column — a JSON array of
+/// canonical IDs like `["iron", "calcium", "vitamin_d"]` that the
+/// pipeline writes from IQM parent keys.
+///
+/// Secondary source: `herbs` list inside `ingredient_fingerprint`
+/// (for herbal products whose canonical IDs live there).
+///
+/// Previous implementation read fingerprint top-level map keys which
+/// always returned `["nutrients", "herbs", "categories", "pharmacological_flags"]`
+/// — structural keys, NOT ingredient IDs. This caused all curated
+/// interaction lookups via `lookupByCanonicalId` to silently return
+/// nothing for every product. Fixed 2026-04-14.
 List<String> _canonicalIdsForProduct(ProductsCoreData product) {
-  final raw = product.ingredientFingerprint;
-  if (raw == null || raw.isEmpty) return const <String>[];
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is Map) {
-      return decoded.keys
-          .map((k) => k.toString().toLowerCase())
-          .where((s) => s.isNotEmpty)
-          .toList(growable: false);
+  final ids = <String>{};
+
+  // Primary: key_ingredient_tags (most accurate).
+  final rawTags = product.keyIngredientTags;
+  if (rawTags != null && rawTags.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(rawTags);
+      if (decoded is List) {
+        for (final tag in decoded) {
+          final s = tag.toString().toLowerCase().trim();
+          if (s.isNotEmpty) ids.add(s);
+        }
+      }
+    } on FormatException {
+      // Fall through to fingerprint.
     }
-  } on FormatException {
-    return const <String>[];
   }
-  return const <String>[];
+
+  // Secondary: herbs list from ingredient_fingerprint.
+  final rawFp = product.ingredientFingerprint;
+  if (rawFp != null && rawFp.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(rawFp);
+      if (decoded is Map) {
+        final herbs = decoded['herbs'];
+        if (herbs is List) {
+          for (final h in herbs) {
+            final s = h.toString().toLowerCase().trim();
+            if (s.isNotEmpty) ids.add(s);
+          }
+        }
+      }
+    } on FormatException {
+      // Best-effort.
+    }
+  }
+
+  return ids.toList(growable: false);
+}
+
+/// Extract canonical ingredient tags from a product's `key_ingredient_tags`
+/// column. Returns a Set for O(1) containment checks during timing evaluation.
+///
+/// Example: `["magnesium", "vitamin_d", "zinc"]` → `{"magnesium", "vitamin_d", "zinc"}`
+///
+/// Falls back to the `herbs` list in `ingredient_fingerprint` if
+/// `key_ingredient_tags` is empty, so herbal products still get timing advice.
+Set<String> _ingredientTagsForProduct(ProductsCoreData product) {
+  final tags = <String>{};
+
+  // Primary source: key_ingredient_tags column (most accurate).
+  final rawTags = product.keyIngredientTags;
+  if (rawTags != null && rawTags.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(rawTags);
+      if (decoded is List) {
+        for (final tag in decoded) {
+          final s = tag.toString().toLowerCase().trim();
+          if (s.isNotEmpty) tags.add(s);
+        }
+      }
+    } on FormatException {
+      // Silently fall through to fingerprint fallback.
+    }
+  }
+
+  // Secondary source: herbs list from ingredient_fingerprint.
+  final rawFp = product.ingredientFingerprint;
+  if (rawFp != null && rawFp.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(rawFp);
+      if (decoded is Map) {
+        final herbs = decoded['herbs'];
+        if (herbs is List) {
+          for (final h in herbs) {
+            final s = h.toString().toLowerCase().trim();
+            if (s.isNotEmpty) tags.add(s);
+          }
+        }
+      }
+    } on FormatException {
+      // Best-effort.
+    }
+  }
+
+  return tags;
 }
 
 Map<String, dynamic> _parseFingerprint(String? raw) {
@@ -659,7 +777,9 @@ class StackActions {
   Future<String> addMedication({
     required String name,
     String? rxcui,
+    String? genericRxcui,
     List<String> drugClasses = const <String>[],
+    List<String> ingredientRxcuis = const <String>[],
     String? dosage,
     String? frequency,
   }) async {
@@ -673,6 +793,8 @@ class StackActions {
     final id = _newId(rxcui != null ? 'rx_$rxcui' : 'med');
     final classesJson =
         drugClasses.isEmpty ? null : jsonEncode(drugClasses);
+    final ingredientsJson =
+        ingredientRxcuis.isEmpty ? null : jsonEncode(ingredientRxcuis);
 
     await userDb.addToStack(
       UserStacksLocalCompanion(
@@ -680,7 +802,9 @@ class StackActions {
         type: const Value('medication'),
         name: Value(name),
         rxcui: Value(rxcui),
+        genericRxcui: Value(genericRxcui),
         drugClassesCol: Value(classesJson),
+        ingredientRxcuisCol: Value(ingredientsJson),
         dosage: Value(dosage),
         frequency: Value(frequency),
       ),

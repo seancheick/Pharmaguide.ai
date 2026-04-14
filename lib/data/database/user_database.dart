@@ -27,7 +27,22 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v2: add generic_rxcui + ingredient_rxcuis for brand→generic
+            // interaction matching and combination drug decomposition.
+            await m.addColumn(
+                userStacksLocal, userStacksLocal.genericRxcui);
+            await m.addColumn(
+                userStacksLocal, userStacksLocal.ingredientRxcuisCol);
+          }
+        },
+      );
 
   /// Open (or create) the user database at the given path.
   static UserDatabase open(String dbPath) {

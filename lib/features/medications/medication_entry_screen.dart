@@ -90,6 +90,18 @@ class _MedicationEntryScreenState
   /// slug when the offline picker is in play).
   List<String> _selectedClasses = const <String>[];
 
+  /// Generic ingredient RXCUI resolved from the user's pick. When the
+  /// user selects a brand name (e.g., Synthroid → 224920), this holds
+  /// the base generic IN-level RXCUI (levothyroxine → 10582). Used for
+  /// interaction matching so brand picks match curated entries keyed on
+  /// the generic. Null when offline or already generic.
+  String? _selectedGenericRxcui;
+
+  /// Individual ingredient RXCUIs for combination drugs. When the user
+  /// picks "Lisinopril/HCTZ", this holds [lisinopril_rxcui, hctz_rxcui]
+  /// so each ingredient can be checked independently against interactions.
+  List<String> _ingredientRxcuis = const <String>[];
+
   /// Set while we're fetching classes for the just-picked suggestion
   /// so the save button can stay disabled.
   bool _resolvingClasses = false;
@@ -174,6 +186,8 @@ class _MedicationEntryScreenState
     setState(() {
       _selectedName = suggestion.name;
       _selectedRxcui = suggestion.rxcui;
+      _selectedGenericRxcui = null;
+      _ingredientRxcuis = const <String>[];
       _selectedClasses = const <String>[];
       _resolvingClasses = true;
       _searchController.text = suggestion.name;
@@ -184,10 +198,24 @@ class _MedicationEntryScreenState
       _offlineFallbackVisible = false;
     });
 
-    final classes = await _service.getClasses(suggestion.rxcui);
+    // Fire class resolution + generic resolution + ingredient decomposition
+    // in parallel — all are non-blocking and independent.
+    final classesFuture = _service.getClasses(suggestion.rxcui);
+    final genericsFuture = _service.resolveGenericRxcuis(suggestion.rxcui);
+
+    final classesResult = await classesFuture;
+    final genericsResult = await genericsFuture;
     if (!mounted) return;
+
+    final classes = classesResult;
+    final generics = genericsResult;
+
     setState(() {
       _selectedClasses = classes;
+      // If multiple IN-level ingredients → combination drug.
+      // Store the first as the generic_rxcui, all as ingredient_rxcuis.
+      _selectedGenericRxcui = generics.isNotEmpty ? generics.first : null;
+      _ingredientRxcuis = generics.length > 1 ? generics : const <String>[];
       _resolvingClasses = false;
     });
   }
@@ -239,7 +267,9 @@ class _MedicationEntryScreenState
     final newId = await actions.addMedication(
       name: _selectedName!,
       rxcui: _selectedRxcui,
+      genericRxcui: _selectedGenericRxcui,
       drugClasses: _selectedClasses,
+      ingredientRxcuis: _ingredientRxcuis,
       dosage: _doseController.text.trim().isEmpty
           ? null
           : _doseController.text.trim(),

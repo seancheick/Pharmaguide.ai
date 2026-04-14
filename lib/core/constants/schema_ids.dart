@@ -34,6 +34,8 @@ abstract final class SchemaIds {
     'anticoagulants', 'antiplatelets', 'nsaids', 'antihypertensives',
     'hypoglycemics', 'thyroid_medications', 'sedatives',
     'immunosuppressants', 'statins',
+    'antidepressants_ssri_snri', 'maois', 'cardiac_glycosides',
+    'anticholinergics',
   ];
 
   static const drugClassLabels = {
@@ -46,6 +48,10 @@ abstract final class SchemaIds {
     'sedatives': 'Sedatives / Sleep medication',
     'immunosuppressants': 'Immunosuppressants',
     'statins': 'Statins / Cholesterol medication',
+    'antidepressants_ssri_snri': 'Antidepressants (SSRIs/SNRIs)',
+    'maois': 'MAOIs',
+    'cardiac_glycosides': 'Digoxin / Heart rhythm medication',
+    'anticholinergics': 'Anticholinergic medication',
   };
 
   static const goals = [

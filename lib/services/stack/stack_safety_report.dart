@@ -22,6 +22,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 @immutable
@@ -32,6 +33,7 @@ class StackSafetyReport {
     this.medicationInteractions = const <InteractionResult>[],
     this.medicationPairInteractions = const <InteractionResult>[],
     this.categoryWarnings = const <InteractionResult>[],
+    this.timingOptimizations = const <TimingOptimization>[],
   });
 
   /// M1 per-nutrient classifications. Only those with `shouldWarn` are
@@ -59,6 +61,13 @@ class StackSafetyReport {
   /// blood-thinner stacking, duplicate active ingredients).
   final List<InteractionResult> categoryWarnings;
 
+  /// Timing optimization advice for the user's stack. Produced by
+  /// [TimingEvaluationService] when two items match a timing rule.
+  /// These are positive guidance ("take iron and calcium 2h apart"),
+  /// not safety warnings — they don't count toward [overallSeverity]
+  /// but are surfaced in a dedicated "Optimize Your Timing" section.
+  final List<TimingOptimization> timingOptimizations;
+
   /// True when nothing fired — useful for "all clear" empty states.
   bool get isEmpty =>
       _flaggedNutrients.isEmpty &&
@@ -66,6 +75,13 @@ class StackSafetyReport {
       medicationInteractions.isEmpty &&
       medicationPairInteractions.isEmpty &&
       categoryWarnings.isEmpty;
+
+  /// True when timing advice is available.
+  bool get hasTimingAdvice => timingOptimizations.isNotEmpty;
+
+  /// Number of timing separation rules that fired (most actionable).
+  int get separationCount =>
+      timingOptimizations.where((t) => t.isSeparation).length;
 
   /// Highest severity across every flagged signal. [Severity.safe] when
   /// nothing fired (the report is clean).

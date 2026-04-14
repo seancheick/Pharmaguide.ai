@@ -116,8 +116,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       final stack = await userDb.getActiveStack();
       if (stack.isEmpty || !mounted) return;
 
-      // Extract canonical IDs from this product's ingredient fingerprint.
-      final canonicalIds = _extractCanonicalIds(product.ingredientFingerprint);
+      // Extract canonical IDs from this product's key_ingredient_tags
+      // (primary) and herbs from fingerprint (secondary).
+      final canonicalIds = _extractCanonicalIds(
+        product.keyIngredientTags,
+        product.ingredientFingerprint,
+      );
       if (canonicalIds.isEmpty) return;
 
       final checker = StackInteractionChecker();
@@ -171,27 +175,57 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
   }
 
-  /// Extract canonical ingredient IDs from a product's ingredient_fingerprint
-  /// JSON. Returns an empty list on null/malformed input.
-  static List<String> _extractCanonicalIds(String? fingerprintJson) {
-    if (fingerprintJson == null || fingerprintJson.isEmpty) {
-      return const <String>[];
-    }
-    try {
-      final decoded = jsonDecode(fingerprintJson);
-      if (decoded is Map) {
-        return decoded.keys.map((k) => k.toString().toLowerCase()).toList();
+  /// Extract canonical ingredient IDs for interaction matching.
+  ///
+  /// Primary source: [tagsJson] from `key_ingredient_tags` column — a JSON
+  /// array like `["iron", "calcium", "vitamin_d"]`.
+  ///
+  /// Secondary source: `herbs` list inside [fingerprintJson] for herbal
+  /// products whose canonical IDs live in the fingerprint's herbs array.
+  ///
+  /// Previous implementation read fingerprint top-level map keys which
+  /// always returned structural keys (`nutrients`, `herbs`, etc.), not
+  /// actual ingredient IDs. Fixed 2026-04-14.
+  static List<String> _extractCanonicalIds(
+    String? tagsJson,
+    String? fingerprintJson,
+  ) {
+    final ids = <String>{};
+
+    // Primary: key_ingredient_tags.
+    if (tagsJson != null && tagsJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(tagsJson);
+        if (decoded is List) {
+          for (final tag in decoded) {
+            final s = tag.toString().toLowerCase().trim();
+            if (s.isNotEmpty) ids.add(s);
+          }
+        }
+      } on FormatException {
+        // Fall through.
       }
-      if (decoded is List) {
-        return decoded
-            .where((e) => e != null)
-            .map((e) => e.toString().toLowerCase())
-            .toList();
-      }
-    } on FormatException {
-      // Malformed JSON — return empty.
     }
-    return const <String>[];
+
+    // Secondary: herbs from ingredient_fingerprint.
+    if (fingerprintJson != null && fingerprintJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(fingerprintJson);
+        if (decoded is Map) {
+          final herbs = decoded['herbs'];
+          if (herbs is List) {
+            for (final h in herbs) {
+              final s = h.toString().toLowerCase().trim();
+              if (s.isNotEmpty) ids.add(s);
+            }
+          }
+        }
+      } on FormatException {
+        // Best-effort.
+      }
+    }
+
+    return ids.toList(growable: false);
   }
 
   /// Maps an [InteractionResult] from the curated DB to an
