@@ -190,8 +190,63 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ---
 
+## Sprint 23a: CAERS Adverse Event Integration — ✅ DONE
+
+**Status:** ✅ DONE (2026-04-14)
+**Timeline:** 2026-04-14 (single session, continuation of Sprint 22)
+**Repos:** PharmaGuide_Pipeline (pending commit) — Flutter: no code changes needed (data flows through existing top_warnings)
+**Scope:** FDA CAERS pharmacovigilance data → B8 scoring penalty → dashboard audit views
+
+### Tasks
+
+- [x] **T1: Download FDA CAERS bulk data** — 148K reports (8.5 MB zip, 99 MB unzipped) from OpenFDA food/event endpoint. Cached in `scripts/data/fda_caers/` (gitignored).
+- [x] **T2: Build CAERS ingestion script** — `scripts/api_audit/ingest_caers.py`. Filters 148K→48.8K supplement reports (industry_code 54), extracts ingredient names via phrase/keyword/IQM vocab matching, deduplicates aliases, filters out multivitamins. 30.7% match rate → 159 ingredients with signals.
+- [x] **T3: Create caers_adverse_event_signals.json** — Schema v1.0.0. 159 ingredients: 37 strong, 66 moderate, 56 weak. Top signals: kratom (759 serious, 261 deaths), green tea extract (186 serious, 80 hospitalizations), calcium (2,218 serious).
+- [x] **T4: Add B8 CAERS penalty to scorer** — `_load_caers_signals()` at init, `_compute_caers_penalty()` method, wired into `_compute_safety_purity_score`. Penalty: strong=-4.0, moderate=-2.0, weak=-1.0, cap=5.0. Config-gated via `B8_caers_adverse_events.enabled`.
+- [x] **T5: Wire B8 into build_final_db.py** — B8 evidence in `score_penalties[]` array + CAERS warnings injected into `top_warnings[]` for strong/moderate signals. Flutter reads both without code changes.
+- [x] **T6: Update scoring docs** — SCORING_ENGINE_SPEC.md (B8 section + formula + flags), SCORING_README.md (B8 bullet), DATABASE_SCHEMA.md (14b schema entry).
+- [x] **T7: Dashboard CAERS integration** — New "CAERS Adverse Events" tab in Section B Audit (summary + charts + filters). New standalone "CAERS Audit" page (Signal Explorer, Cross-Reference Audit, B8 Scoring Impact, Reaction Analysis, Raw Data).
+- [x] **T8: Test suite** — 36 new tests in `test_caers_integration.py` (ingestion, schema validation, B8 scoring). 562 existing tests pass, 0 regressions.
+
+### Definition of Done
+
+- [x] 36 CAERS tests pass
+- [x] 562 existing tests pass (0 new regressions)
+- [x] B8 penalty flows through: scorer → build_final_db → top_warnings → Flutter
+- [x] Dashboard: CAERS tab in Section B + standalone CAERS Audit view
+- [x] All 3 docs updated (SCORING_ENGINE_SPEC, SCORING_README, DATABASE_SCHEMA)
+- [x] CAERS raw data gitignored (99 MB)
+
+### Key Metrics
+
+| Metric | Before | After |
+|---|---|---|
+| Safety data sources | 2 (banned_recalled, harmful_additives) | 3 (+CAERS adverse events) |
+| CAERS ingredients tracked | 0 | 159 |
+| Strong signals (100+ serious) | 0 | 37 |
+| Deaths captured in data | 0 | 16,980 reports |
+| B8 max penalty | 0 | 5.0 pts |
+| Dashboard audit views | 4 (A, B, C, D) | 5 (+CAERS) |
+| Tests | 562 | 598 (+36) |
+
+### What Flutter gets (no code changes)
+
+- Products with CAERS-flagged ingredients show warning in `top_warnings`: "FDA adverse events: Kratom (759 serious of 801 reports)"
+- Score breakdown Section B total now includes B8 penalty (up to -5 pts)
+- `score_penalties` detail blob includes B8 entries with signal strength, report counts
+
+### Pending (Sprint 23b)
+
+- [ ] Sprint 23b: UNII local cache (3.4 MB offline ingredient identity)
+- [ ] Sprint 24: Drug label interaction mining (SPL text parsing)
+- [ ] Wire `TimingAdviceCard` into stack screen UI
+- [ ] Re-run full pipeline to measure CAERS score impact
+
+---
+
 ## COMPLETED SPRINTS
 
+**Sprint 23a: CAERS Adverse Event Integration** — ✅ DONE (8 tasks, 2026-04-14: FDA CAERS bulk download, B8 scoring penalty, dashboard audit, 36 tests)
 **Sprint 22: Interaction Safety Expansion** — ✅ DONE (11 tasks, 2026-04-14: PMID fixes, IQM expansion, context-aware scoring, 29 new rules, 4 drug classes, timing eval)
 **Sprint 11 (M2): Interaction DB pipeline** — ✅ DONE (merged to PharmaGuide_Pipeline 2026-04-12, 325 pipeline tests pass)
 **Sprint 12 (M3): Flutter interaction DB binding** — ✅ DONE (8MB artifact bundled, 18 interaction DB tests pass, provider wired in main.dart)
