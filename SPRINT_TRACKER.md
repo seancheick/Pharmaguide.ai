@@ -26,9 +26,9 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-12
+**Updated:** 2026-04-14
 **Current Sprint:** V1.0-beta READY — preparing for TestFlight / Play internal
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-21 ALL DONE. **353 Flutter tests pass, 0 skipped, 0 failures + 3,584+ pipeline tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings (2 CRITICAL + 12 HIGH + 8 MEDIUM + 4 LOW) — ALL resolved. 10 lessons documented in knowledge/lessons-learned.md. PGFeedback error matrix, Semantics accessibility labels, all skipped tests recovered. Interaction DB spec ~95% complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score (PGScoreRing + synergy bonuses), Quick Check screen (error/insufficient/clean states), personalized interaction warnings ("Because you're taking X"), med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components. Pipeline data bundled: timing_rules.json (39 rules) + medication_depletions.json (68 entries). **AHEAD OF SCHEDULE — original target was 2026-05-11. 14 commits shipped 2026-04-12.**
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22 ALL DONE. **353+ Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -135,15 +135,71 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ---
 
+## Sprint 22: Interaction Safety Expansion + Pipeline Hardening — ✅ DONE
+
+**Status:** ✅ DONE (all tasks shipped 2026-04-14)
+**Timeline:** 2026-04-14 (single session)
+**Repos:** PharmaGuide_Pipeline (`be6e75f`, `eaa899c`) + Pharmaguide.ai (`8da999f`)
+**Scope:** Citation integrity, IQM expansion, context-aware scoring, interaction rules overhaul, timing evaluation system
+
+### Tasks
+
+- [x] **T1: Replace 25 hallucinated PMIDs** — Content-verified via PubMed E-utilities API. 20 in curated_interactions_v1.json, 3 in med_med_pairs_v1.json, 2 in medication_depletions.json. verify_all_citations_content.py: 76/76 pass (100%). Committed `be6e75f`.
+- [x] **T2: IQM expansion (571 → 588 entries)** — 131 CUI aliases added across 86 existing entries for SUPPai mapping. 17 new UMLS-verified entries (silymarin, NAD+, kaempferol, oleic acid, vanadium, lecithin, etc.). SUPPai ingest: 28K → 30K research pairs, +27 supplement anchors. Committed `be6e75f`.
+- [x] **T3: Context-aware harmful additive scoring** — Enricher tags `source_section` (active/inactive) on each ingredient. Scorer suppresses low/moderate penalties for active-source ingredients (IQM quality score is the correct signal). High/critical still fires. 10 new tests. Committed `be6e75f`.
+- [x] **T4: Fix 6 accuracy bugs in interaction rules** — Ginkgo (missing anticoagulants — its #1 interaction), SJW (missing SSRI serotonin syndrome — potentially fatal), magnesium (missing kidney_disease — life-threatening hypermagnesemia in CKD), ginger (missing bleeding_disorders + antiplatelets), turmeric (dedup 4→1 dose_thresholds), licorice (DGL form exclusion). Committed `be6e75f`.
+- [x] **T5: Add 4 new drug classes** — `antidepressants_ssri_snri`, `maois`, `cardiac_glycosides`, `anticholinergics` added to `clinical_risk_taxonomy.json` + Flutter `SchemaIds.dart`. Users can now select SSRIs and MAOIs in profile. Committed `be6e75f` (pipeline) + `8da999f` (Flutter).
+- [x] **T6: Add 29 new interaction rules (98 → 127)** — 5-HTP (serotonin syndrome), senna (pregnancy), NAC (anticoagulants), black seed oil (entirely uncovered — diabetes+BP+bleeding), DHA/EPA standalone, white willow bark (aspirin equivalent), butterbur (PA liver toxicity), cascara sagrada, chinese skullcap, bacopa (thyroid), creatine (kidney), cordyceps (autoimmune), lion's mane (anticoagulants), resveratrol, quercetin, and 14 more. Committed `be6e75f`.
+- [x] **T7: Drug classes expansion (24 → 28)** — fluoroquinolones, proton_pump_inhibitors, bisphosphonates, antiplatelet_agents added to drug_classes.json with full RxClass ATC member lists. 226 schema tests pass. Committed `be6e75f`.
+- [x] **T8: Timing evaluation service** — New `TimingEvaluationService` with inverted index for O(N) matching. `TimingOptimization` model. `TimingAdviceCard` widget. 20 tests. `timing_rules.json` updated (39 → 42 rules, 8 PMID fixes). Committed `8da999f`.
+- [x] **T9: Stack interaction checker enhancements** — Dual-path lookup: brand→generic→ingredients→class fallback. RxNorm `resolveGenericRxcuis()` for brand→generic resolution. `genericRxcui` + `ingredientRxcuisCol` in user_stacks (schema v2 migration). Committed `8da999f`.
+- [x] **T10: Cross-DB overlap allowlist update** — Upgraded to v5.0.0 with routing_policy documentation. Added 4 new allowlist entries (canola oil, rapeseed oil, MSG, msg). Committed `be6e75f`.
+- [x] **T11: Interaction DB rebuilt + imported into Flutter** — `rebuild_interaction_db.sh --offline --import`. 136 curated + 30K research pairs. Checksum verified. Bundled in `assets/db/`. Committed `8da999f`.
+
+### Definition of Done
+
+- [x] verify_all_citations_content.py: 76/76 pass (0 mismatches)
+- [x] 236 pipeline tests pass (226 baseline + 10 new routing tests)
+- [x] Interaction DB rebuilt and imported into Flutter
+- [x] Both repos committed and pushed (Pipeline: `be6e75f` + `eaa899c`, Flutter: `8da999f`)
+- [x] Lessons learned documented in `docs/plans/LESSONS_LEARNED.md`
+- [x] Pipeline ops changelog updated to v1.3.3
+
+### Key Metrics
+
+| Metric | Before | After |
+|---|---|---|
+| PMIDs verified | 51/76 (67%) | 76/76 (100%) |
+| IQM entries | 571 | 588 |
+| IQM CUI aliases | ~286 | 417 |
+| SUPPai research pairs | 28,038 | 30,101 |
+| Interaction rules | 98 | 127 |
+| Drug classes (taxonomy) | 9 | 13 |
+| Drug classes (RxClass) | 24 | 28 |
+| Condition checks | ~150 | 186 |
+| Drug class checks | ~120 | 177 |
+
+### Pending (deferred to next session)
+
+- [ ] Wire `TimingAdviceCard` into stack screen UI (widget built, not yet rendered)
+- [ ] Offline drug→class cache in SQLite for offline med adds
+- [ ] Flutter test coverage for dual-path interaction matching
+- [ ] Re-run full pipeline on fresh dataset to measure score impact of context-aware scoring
+- [ ] `backed_clinical_studies.json`: 6 study_type reviews, 5 missing source texts
+- [ ] T8 from Sprint 21: Depletion Checker UI
+
+---
+
 ## COMPLETED SPRINTS
 
+**Sprint 22: Interaction Safety Expansion** — ✅ DONE (11 tasks, 2026-04-14: PMID fixes, IQM expansion, context-aware scoring, 29 new rules, 4 drug classes, timing eval)
 **Sprint 11 (M2): Interaction DB pipeline** — ✅ DONE (merged to PharmaGuide_Pipeline 2026-04-12, 325 pipeline tests pass)
 **Sprint 12 (M3): Flutter interaction DB binding** — ✅ DONE (8MB artifact bundled, 18 interaction DB tests pass, provider wired in main.dart)
 **Sprint 13 (M4): Stack interaction engine** — ✅ DONE (StackInteractionChecker wired to real DB, 132 tests pass, safety banner renders)
 **Sprint 14 (M5): Product-scan interaction warnings** — ✅ DONE (InteractionWarningsList on product detail, 3 tests pass — M5 blob-parse done, live DB lookup in Sprint 21 T3)
 **Sprint 20: UX Quick Wins** — ✅ DONE (filter chips, score explainer, haptics, not-found polish, empty stack CTA)
 
-**After Sprint 21: Sprint 8 (V1.0-beta ship gate) → V1.0-release (auth) → V1.1 (depletion checker, doctor PDF, deep links)**
+**After Sprint 22: Sprint 8 (V1.0-beta ship gate) → V1.0-release (auth) → V1.1 (depletion checker, doctor PDF, deep links)**
 
 ---
 
@@ -857,7 +913,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 - [ ] Create `scripts/data/curated_interactions/interactions_drafts_v0.json` from user's hand-drafted JSON
 - [ ] Drop supp.ai dump into `scripts/data/suppai_import/` (5 files: cui_metadata, interaction_id_dict, sentence_dict, paper_metadata, meta)
-- [x] Build `scripts/data/drug_classes.json` (24 classes from RxClass API) — `scripts/api_audit/seed_drug_classes.py` written + tested in worktree
+- [x] Build `scripts/data/drug_classes.json` (28 classes from RxClass API — expanded from 24 in Sprint 22: +fluoroquinolones, PPIs, bisphosphonates, antiplatelets) — `scripts/api_audit/seed_drug_classes.py` written + tested in worktree
 - [x] Write `scripts/api_audit/verify_interactions.py` (~300 LOC) — JSON schema, dup detection, RXCUI verify, CUI verify, canonical_id mapping, drug class expansion, direction normalization, severity normalization (4-tier → 5-tier), Major+ evidence gate, PMID extraction — written + tested in worktree
 - [x] Write `scripts/build_interaction_db.py` (~400 LOC) — load drafts + supp.ai + overrides, dedup, conflict resolution (more cautious wins), apply overrides, emit interaction_db.sqlite + manifest + audit report — written + tested in worktree
 - [x] Write `scripts/ingest_suppai.py` — filter pairs by canonical_id mapping, prefer human studies, top 3 sentences per pair, NEVER ship paper_metadata.json — written + tested in worktree
