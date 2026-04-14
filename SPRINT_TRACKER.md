@@ -235,17 +235,68 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - Score breakdown Section B total now includes B8 penalty (up to -5 pts)
 - `score_penalties` detail blob includes B8 entries with signal strength, report counts
 
-### Pending (Sprint 23b)
+### Pending
 
-- [ ] Sprint 23b: UNII local cache (3.4 MB offline ingredient identity)
-- [ ] Sprint 24: Drug label interaction mining (SPL text parsing)
 - [ ] Wire `TimingAdviceCard` into stack screen UI
 - [ ] Re-run full pipeline to measure CAERS score impact
+- [ ] Review 4 drug label interaction candidates (fish_oil_omega3, cbd, ginkgo alias, grape_seed_extract)
+- [ ] Depletion Checker UI (data ready, UI next)
+
+---
+
+## Sprint 23b: UNII Local Cache + IQM Standardization — ✅ DONE
+
+**Status:** ✅ DONE (2026-04-14)
+**Timeline:** 2026-04-14 (same session as Sprint 23a)
+**Repos:** PharmaGuide_Pipeline only — no Flutter changes
+
+### Tasks
+
+- [x] **T1: Download UNII bulk data** — 172K FDA substance registry (3.4 MB zip, 16 MB JSON). Cached in `scripts/data/` (gitignored).
+- [x] **T2: Build `UniiCache` class** — `scripts/unii_cache.py`: local-first lookup with GSRS API fallback. `lookup()`, `reverse_lookup()`, `bulk_lookup()`, `lookup_for_iqm_entry()`.
+- [x] **T3: Build cache generator** — `scripts/api_audit/build_unii_cache.py`: downloads, extracts, builds compact JSON cache (172K name→UNII + UNII→name mappings).
+- [x] **T4: Standardize IQM UNII fields** — Moved 3 top-level `unii` to `external_ids.unii`, removed 5 redundant duplicates, filled 25 from cache. All 388/588 entries (66%) now have `external_ids.unii`. Zero top-level `unii` remaining.
+- [x] **T5: Tests** — 23 tests in `test_unii_cache.py` (loading, lookups, IQM integration, schema). 0 regressions.
+
+### Key Metrics
+
+| Metric | Before | After |
+|---|---|---|
+| IQM entries with UNII | 363 (scattered) | 388 (all in external_ids.unii) |
+| Top-level unii fields | 8 | 0 |
+| UNII coverage | 62% | 66% |
+| Offline substances | 0 | 172,431 |
+
+---
+
+## Sprint 24: Drug Label Interaction Mining — ✅ DONE
+
+**Status:** ✅ DONE (2026-04-14)
+**Timeline:** 2026-04-14 (same session)
+**Repos:** PharmaGuide_Pipeline only
+
+### Tasks
+
+- [x] **T1: Download drug label bulk** — 3 of 13 partitions (57K labels). Full set is 257K labels / 1.7 GB.
+- [x] **T2: Build `mine_drug_label_interactions.py`** — Scans `drug_interactions` + `warnings` sections for 70+ supplement terms. Matches to IQM canonical_ids. Cross-references against existing interaction rules.
+- [x] **T3: Generate candidates review file** — `scripts/reports/drug_label_interaction_candidates.json`. 40 supplements found, 36 already covered, 4 new candidates. NOT auto-imported.
+
+### Key Metrics
+
+| Metric | Value |
+|---|---|
+| Labels scanned | 56,860 (3 partitions) |
+| Raw supplement mentions | 13,089 |
+| Unique supplements found | 40 |
+| Already in our rules | 36 (90%) |
+| New candidates | 4 (fish_oil_omega3, cbd, ginkgo alias, grape_seed_extract) |
 
 ---
 
 ## COMPLETED SPRINTS
 
+**Sprint 24: Drug Label Interaction Mining** — ✅ DONE (3 tasks, 2026-04-14: SPL text mining, 40 supplements found, 4 new candidates)
+**Sprint 23b: UNII Local Cache** — ✅ DONE (5 tasks, 2026-04-14: 172K offline substances, IQM standardized, 66% UNII coverage)
 **Sprint 23a: CAERS Adverse Event Integration** — ✅ DONE (8 tasks, 2026-04-14: FDA CAERS bulk download, B8 scoring penalty, dashboard audit, 36 tests)
 **Sprint 22: Interaction Safety Expansion** — ✅ DONE (11 tasks, 2026-04-14: PMID fixes, IQM expansion, context-aware scoring, 29 new rules, 4 drug classes, timing eval)
 **Sprint 11 (M2): Interaction DB pipeline** — ✅ DONE (merged to PharmaGuide_Pipeline 2026-04-12, 325 pipeline tests pass)
