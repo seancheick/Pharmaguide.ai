@@ -1758,9 +1758,20 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 - **Nav bar architecture:** Sub-pages moved inside ShellRoute — all app pages share the frosted nav bar.
 - **Supabase `user_stacks` migration applied:** Added `type`, `name`, `ingredient_keys` columns + renamed `timing` → `frequency` + made `dsld_id` nullable for medication entries.
 
+### Sprint 26e — Stack UX + Critical Bug Fixes (2026-04-15)
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 39 | Fix product detail blank page — routing conflict from double Scaffold (moved sub-pages back outside ShellRoute) | [x] Done | `app.dart` |
+| 40 | Fix nutrient RDA display — 25000% → "250x RDA" for extreme values | [x] Done | `nutrient_progress_bar.dart` |
+| 41 | Fix stack health score — was showing safety score (100%), now shows average quality score of supplements | [x] Done | `stack_screen.dart` |
+| 42 | Add per-supplement provenance dropdown to nutrient panel — tap any nutrient to see which supplements contribute how much | [x] Done | `nutrient_progress_bar.dart` |
+| 43 | Fix nutrient panel padding to match design system (AppTheme instead of hardcoded AppColors) | [x] Done | `nutrient_accumulation_panel.dart` |
+
 ### Pending (next sprint)
 
-- [ ] Add product image thumbnails (pipeline agent building PDF→WebP extraction)
+- [ ] Build branded placeholder card widget (generated product cards using brand color + form icon + score)
+- [ ] User-contributed photos: "Help improve PharmaGuide — snap a photo of this bottle?" → store in Supabase → use as display image (post-launch data moat)
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
 - [ ] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0
 - [ ] TestFlight / Play internal builds

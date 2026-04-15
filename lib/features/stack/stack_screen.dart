@@ -19,8 +19,28 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
 import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
+
+/// Average quality score across stack supplements.
+final _stackAvgScoreProvider =
+    FutureProvider.family.autoDispose<double?, List<String>>(
+        (ref, dsldIds) async {
+  if (dsldIds.isEmpty) return null;
+  final coreDb = ref.read(coreDatabaseProvider);
+  double sum = 0;
+  int count = 0;
+  for (final id in dsldIds) {
+    final product = await coreDb.findById(id);
+    final score = product?.score100Equivalent;
+    if (score != null) {
+      sum += score;
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : null;
+});
 
 /// My Stack screen — shows all products in the user's supplement stack
 /// with Stack Safety Score, M1 nutrient totals, and interaction alerts.
@@ -200,7 +220,12 @@ class _StackSummaryCard extends ConsumerWidget {
     final medicationCount =
         stack.where((e) => e.type == 'medication').length;
 
-    // Aggregate stack health score from safety report + synergy bonuses.
+    // Compute average quality score from supplement scores in the stack.
+    // This uses the scores already fetched from the core DB when the
+    // stack loaded — no extra DB calls needed.
+    final avgScore = _computeAverageScore(ref);
+
+    // Safety report for interaction issue counts.
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
     final safetyScore = reportAsync.whenOrNull(
@@ -211,7 +236,6 @@ class _StackSummaryCard extends ConsumerWidget {
           ...report.stackInteractions,
           ...report.categoryWarnings,
         ];
-        // Convert SynergyMatch → SynergyResult for the scorer.
         final synergies = synergyAsync.whenOrNull(
           data: (synergyReport) => synergyReport.matches
               .map((m) => SynergyResult(
@@ -239,12 +263,11 @@ class _StackSummaryCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              // Stack Health Score ring
+              // Average quality score of supplements in stack
               PGScoreRing(
-                score: safetyScore?.score.toDouble(),
+                score: avgScore,
                 size: 56,
                 strokeWidth: 4,
-                label: 'Safety',
               ),
               const SizedBox(width: AppTheme.space12),
               Expanded(
@@ -252,7 +275,9 @@ class _StackSummaryCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      safetyScore?.riskTier.label ?? 'Analyzing stack\u2026',
+                      avgScore != null
+                          ? _qualityLabel(avgScore)
+                          : 'Analyzing stack\u2026',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -264,13 +289,22 @@ class _StackSummaryCard extends ConsumerWidget {
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
+                    if (safetyScore != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Safety: ${safetyScore.riskTier.label}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppTheme.space12),
-          // Issue counts (only shown when score is computed)
+          // Issue counts
           if (safetyScore != null &&
               (safetyScore.seriousCount > 0 ||
                   safetyScore.moderateCount > 0)) ...[
@@ -304,11 +338,32 @@ class _StackSummaryCard extends ConsumerWidget {
     );
   }
 
+  /// Compute average score_100_equivalent across supplements in the stack.
+  /// Looks up each supplement's score from the core DB via a family provider.
+  double? _computeAverageScore(WidgetRef ref) {
+    final supplements = stack
+        .where((e) => e.type == 'supplement' && e.dsldId != null)
+        .toList();
+    if (supplements.isEmpty) return null;
+    final scoresAsync = ref.watch(_stackAvgScoreProvider(
+      supplements.map((s) => s.dsldId!).toList(),
+    ));
+    return scoresAsync.asData?.value;
+  }
+
   String _describeLoad(int total) {
     if (total <= 3) return 'Light — well within recommended ranges';
     if (total <= 6) return 'Moderate — watch for nutrient overlap';
     if (total <= 10) return 'Heavy — review interactions carefully';
     return 'Very heavy — consult a healthcare provider';
+  }
+
+  static String _qualityLabel(double score) {
+    if (score >= 85) return 'Excellent stack quality';
+    if (score >= 70) return 'Good stack quality';
+    if (score >= 55) return 'Moderate stack quality';
+    if (score >= 40) return 'Below average quality';
+    return 'Quality needs improvement';
   }
 }
 

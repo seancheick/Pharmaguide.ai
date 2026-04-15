@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_progress_bar.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -55,14 +56,15 @@ class _PanelShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Card(
       key: const Key('nutrient-accumulation-card'),
-      color: AppColors.surface,
+      color: scheme.surface,
       elevation: 0,
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        side: BorderSide(color: scheme.outlineVariant, width: 0.8),
       ),
       child: child,
     );
