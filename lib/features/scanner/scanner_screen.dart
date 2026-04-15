@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
@@ -129,7 +130,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             AppTheme.space24,
             AppTheme.space16,
             AppTheme.space24,
-            AppTheme.space24,
+            AppTheme.space24 + kPGNavBarHeight,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

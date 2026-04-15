@@ -163,8 +163,7 @@ class _PGScoreRingState extends State<PGScoreRing>
                   Text(
                     displayNumber,
                     style: AppTheme.numeric(
-                      TextStyle(
-                        fontFamily: 'Inter',
+                      Theme.of(context).textTheme.headlineLarge!.copyWith(
                         fontSize: widget.size * 0.34,
                         fontWeight: FontWeight.w700,
                         color: color,
@@ -178,8 +177,7 @@ class _PGScoreRingState extends State<PGScoreRing>
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         widget.label!.toUpperCase(),
-                        style: TextStyle(
-                          fontFamily: 'Inter',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           fontSize: (widget.size * 0.13).clamp(9.0, 12.0),
                           fontWeight: FontWeight.w600,
                           color: scheme.onSurfaceVariant,

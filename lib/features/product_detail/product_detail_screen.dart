@@ -4,13 +4,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_fitscore_badge.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
@@ -329,10 +329,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Widget build(BuildContext context) {
     if (_productLoading) {
       return Scaffold(
-        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: AppColors.surface,
-          foregroundColor: AppColors.textPrimary,
           elevation: 0,
           surfaceTintColor: Colors.transparent,
         ),
@@ -385,7 +382,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final isNotScored = _isNotScored(_product);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           // ----------------------------------------------------------------
@@ -393,17 +389,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // ----------------------------------------------------------------
           SliverAppBar(
             pinned: true,
-            backgroundColor: AppColors.surface,
-            foregroundColor: AppColors.textPrimary,
             elevation: 0,
             surfaceTintColor: Colors.transparent,
             title: Text(
               productName,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -438,6 +427,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               topWarnings: _topWarnings(),
               onScoreInfoTap: () => _showScoreEducation(context),
               imageUrl: _product?.imageUrl,
+              upc: _product?.upcSku,
               // Score explainer data — rendered inline in header
               ingredientQuality: ingredientQuality,
               safetyPurity: safetyPurity,
@@ -457,31 +447,35 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
 
           // ----------------------------------------------------------------
-          // Coverage / blend banners
+          // Coverage / blend banners — full-bleed feel, tighter spacing
           // ----------------------------------------------------------------
           if (!isBlocked) ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20, 0, AppTheme.space20, AppTheme.space8),
                 child: UnknownIngredientBanner(mappedCoverage: mappedCoverage),
               ),
             ),
             if (hasProprietaryBlends)
               const SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.space20, 0, AppTheme.space20, AppTheme.space8),
                   child: BlendWarningBanner(),
                 ),
               ),
           ],
 
           // ----------------------------------------------------------------
-          // Score breakdown (hidden for BLOCKED / UNSAFE / NOT_SCORED)
+          // Score breakdown — generous breathing room
           // ----------------------------------------------------------------
           if (!isBlocked && !isNotScored)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20, AppTheme.space8,
+                  AppTheme.space20, AppTheme.space20),
                 child: ScoreBreakdownCard(
                   ingredientQuality: ingredientQuality,
                   safetyPurity: safetyPurity,
@@ -498,11 +492,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
 
           // ----------------------------------------------------------------
-          // Detail section — shimmer while loading, real data after fetch
+          // Detail section (ingredients, pros/cons, warnings) — key content
           // ----------------------------------------------------------------
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space20, 0, AppTheme.space20, AppTheme.space20),
               child: _blobLoading
                   ? const _DetailShimmer()
                   : _blobError
@@ -515,113 +510,56 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
-          // Allergen summary banner (from DB column)
+          // Allergen summary banner
           // ----------------------------------------------------------------
           if (!isBlocked && _product?.allergenSummary != null)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20, 0, AppTheme.space20, AppTheme.space8),
                 child: AllergenSummaryBanner(
                     allergenSummary: _product?.allergenSummary),
               ),
             ),
 
           // ----------------------------------------------------------------
-          // Certification detail (GMP, purity, heavy metal, label accuracy)
+          // Deep dive — collapsible section for detailed analysis.
+          // Keeps the scroll depth manageable while making all data
+          // accessible on demand (Oura-style progressive disclosure).
           // ----------------------------------------------------------------
           if (!_blobLoading && !_blobError)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: CertificationDetailSection(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20, AppTheme.space4,
+                  AppTheme.space20, AppTheme.space8),
+                child: _DeepDiveSection(
                   certificationDetail:
                       _detailBlob?['certification_detail'] as Map<String, dynamic>?,
-                ),
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // Evidence & Research detail (clinical matches, PMIDs)
-          // ----------------------------------------------------------------
-          if (!_blobLoading && !_blobError)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: EvidenceDetailSection(
                   evidenceData:
                       _detailBlob?['evidence_data'] as Map<String, dynamic>?,
-                ),
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // Formulation detail (delivery form, enhancers, botanicals)
-          // ----------------------------------------------------------------
-          if (!_blobLoading && !_blobError)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: FormulationDetailSection(
                   formulationDetail:
                       _detailBlob?['formulation_detail'] as Map<String, dynamic>?,
-                ),
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // Probiotic detail (strains, CFU, clinical data)
-          // ----------------------------------------------------------------
-          if (!_blobLoading && !_blobError)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: ProbioticDetailSection(
                   probioticDetail:
                       _detailBlob?['probiotic_detail'] as Map<String, dynamic>?,
-                ),
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // Synergy clusters (ingredient combinations with evidence)
-          // ----------------------------------------------------------------
-          if (!_blobLoading && !_blobError)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: SynergyDetailSection(
                   synergyDetail:
                       _detailBlob?['synergy_detail'] as Map<String, dynamic>?,
-                ),
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // v1.3.2 Nutrition Facts (calories column + nutrition_detail blob)
-          // Auto-hides when the product has no nutrition data.
-          // ----------------------------------------------------------------
-          if (!_blobLoading && !_blobError)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: NutritionPanel(
                   caloriesPerServing: _product?.caloriesPerServing,
-                  nutritionDetail: _detailBlob?['nutrition_detail']
-                      as Map<String, dynamic>?,
+                  nutritionDetail:
+                      _detailBlob?['nutrition_detail'] as Map<String, dynamic>?,
+                  unmappedActives:
+                      _detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
                 ),
               ),
             ),
 
           // ----------------------------------------------------------------
-          // v1.3.1 Refill reminder — only shown when the product is in
-          // the user's stack AND we have net contents data. Auto-hides
-          // otherwise. The card uses servings_per_container + dosing
-          // frequency parsed from dosing_summary + the stack entry's
-          // addedAt to estimate days remaining and color-code urgency.
+          // Refill reminder
           // ----------------------------------------------------------------
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space20, 0, AppTheme.space20, AppTheme.space12),
               child: RefillReminderCard(
                 servingsPerContainer: _product?.servingsPerContainer,
                 netContentsQuantity: _product?.netContentsQuantity,
@@ -633,29 +571,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
-          // v1.3.2 Unmapped actives transparency — only shown when the
-          // pipeline left at least one ingredient unmapped (long-tail
-          // exotic extracts, typos, etc.). Auto-hides for the 99.5%+ of
-          // products with full coverage.
-          // ----------------------------------------------------------------
-          if (!_blobLoading && !_blobError)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: UnmappedActivesDisclosure(
-                  unmappedActives: _detailBlob?['unmapped_actives']
-                      as Map<String, dynamic>?,
-                ),
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // Better Alternatives
+          // Better Alternatives — generous bottom spacing
           // ----------------------------------------------------------------
           if (!isBlocked)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20, 0, AppTheme.space20, AppTheme.space24),
                 child: BetterAlternativesSection(
                   currentDsldId: widget.dsldId,
                   category: _product?.primaryCategory,
@@ -666,7 +588,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
           // Bottom padding for sticky action bar clearance
           SliverToBoxAdapter(
-            child: SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
+            child: SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
           ),
         ],
       ),
@@ -753,10 +675,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (_) => const _ScoreEducationSheet(),
     );
   }
@@ -771,6 +689,9 @@ class _ScoreEducationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
       minChildSize: 0.4,
@@ -789,83 +710,78 @@ class _ScoreEducationSheet extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: scheme.outlineVariant,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'What does this score mean?',
-                style: TextStyle(
-                  fontSize: 20,
+                style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 16),
 
               // How We Score
-              const Text(
+              Text(
                 'How We Score',
-                style: TextStyle(
-                  fontSize: 16,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Every product receives a FitScore from 0 to 100 based on '
-                'the core product data in our reference catalog. This screen '
-                'currently explains the core product score, not your '
-                'personalized FitScore. Personalized adjustments should be '
-                'shown as a separate layer so product evidence and personal '
-                'fit are not conflated.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+              Text(
+                'Each product is scored 0–100 from our reference catalog. '
+                'This explains the core product score, not your personalized '
+                'FitScore.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
                   height: 1.5,
                 ),
               ),
               const SizedBox(height: 20),
 
-              // The 4 Pillars
-              const Text(
+              // The 4 Pillars — visual bars
+              Text(
                 'The 4 Pillars',
-                style: TextStyle(
-                  fontSize: 16,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
-              _pillarRow('Ingredient Quality', 'Up to 25 pts',
-                  'Dosage accuracy, bioavailability, form quality'),
-              _pillarRow('Safety & Purity', 'Up to 30 pts',
-                  'Third-party testing, contaminant risk, interactions'),
-              _pillarRow('Evidence & Research', 'Up to 20 pts',
-                  'Clinical studies, evidence strength, claim support'),
-              _pillarRow('Brand Trust', 'Up to 5 pts',
-                  'Manufacturing standards, transparency, track record'),
+              _pillarBar(theme, scheme, 'Ingredient Quality', 25,
+                  Icons.science_outlined),
+              const SizedBox(height: 8),
+              _pillarBar(theme, scheme, 'Safety & Purity', 30,
+                  Icons.shield_outlined),
+              const SizedBox(height: 8),
+              _pillarBar(theme, scheme, 'Evidence & Research', 20,
+                  Icons.menu_book_outlined),
+              const SizedBox(height: 8),
+              _pillarBar(theme, scheme, 'Brand Trust', 5,
+                  Icons.verified_outlined),
               const SizedBox(height: 20),
 
               // Verdict Meanings
-              const Text(
+              Text(
                 'Verdict Meanings',
-                style: TextStyle(
-                  fontSize: 16,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
-              _verdictRow('RECOMMENDED', '85-100',
-                  AppColors.scoreExceptional),
-              _verdictRow('GOOD', '70-84', AppColors.scoreExcellent),
-              _verdictRow('MODERATE', '55-69', AppColors.scoreGood),
-              _verdictRow('REVIEW', '40-54', AppColors.scoreFair),
-              _verdictRow('BLOCKED / UNSAFE', 'N/A', AppColors.red),
+              _verdictRow(theme, scheme, 'RECOMMENDED', '85-100',
+                  AppTheme.scoreExceptional),
+              _verdictRow(theme, scheme, 'GOOD', '70-84',
+                  AppTheme.scoreExcellent),
+              _verdictRow(theme, scheme, 'MODERATE', '55-69',
+                  AppTheme.scoreGood),
+              _verdictRow(theme, scheme, 'REVIEW', '40-54',
+                  AppTheme.scoreFair),
+              _verdictRow(theme, scheme, 'BLOCKED / UNSAFE', 'N/A',
+                  AppTheme.severityContraindicated),
             ],
           ),
         );
@@ -873,64 +789,70 @@ class _ScoreEducationSheet extends StatelessWidget {
     );
   }
 
-  static Widget _pillarRow(
-      String name, String points, String description) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            margin: const EdgeInsets.only(top: 6, right: 10),
-            decoration: const BoxDecoration(
-              color: AppColors.scoreExcellent,
-              shape: BoxShape.circle,
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
+  /// Visual progress bar for a score pillar — shows icon, name, max points,
+  /// and a proportional bar (fraction of the total 80-point scale).
+  static Widget _pillarBar(
+    ThemeData theme,
+    ColorScheme scheme,
+    String name,
+    int maxPoints,
+    IconData icon,
+  ) {
+    final fraction = maxPoints / 80.0; // 80 is the total across all 4 pillars
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: scheme.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
-                      TextSpan(
-                        text: '  $points',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
+                    ),
+                  ),
+                  Text(
+                    '$maxPoints pts',
+                    style: AppTheme.numeric(
+                      theme.textTheme.labelSmall!.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                child: LinearProgressIndicator(
+                  value: fraction,
+                  minHeight: 4,
+                  backgroundColor: scheme.surfaceContainerHigh,
+                  valueColor: AlwaysStoppedAnimation(scheme.primary),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  static Widget _verdictRow(String label, String range, Color color) {
+  static Widget _verdictRow(
+    ThemeData theme,
+    ColorScheme scheme,
+    String label,
+    String range,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -939,7 +861,7 @@ class _ScoreEducationSheet extends StatelessWidget {
             width: 12,
             height: 12,
             decoration: BoxDecoration(
-              color: color.withAlpha(30),
+              color: color.withValues(alpha: 0.12),
               border: Border.all(color: color, width: 1.5),
               borderRadius: BorderRadius.circular(3),
             ),
@@ -947,8 +869,7 @@ class _ScoreEducationSheet extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 13,
+            style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: color,
             ),
@@ -956,9 +877,8 @@ class _ScoreEducationSheet extends StatelessWidget {
           const Spacer(),
           Text(
             range,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -1198,6 +1118,7 @@ class _HeaderSection extends ConsumerWidget {
   final List<Map<String, dynamic>> topWarnings;
   final VoidCallback onScoreInfoTap;
   final String? imageUrl;
+  final String? upc;
   final double? ingredientQuality;
   final double? safetyPurity;
   final double? evidenceResearch;
@@ -1221,6 +1142,7 @@ class _HeaderSection extends ConsumerWidget {
     required this.topWarnings,
     required this.onScoreInfoTap,
     this.imageUrl,
+    this.upc,
     this.ingredientQuality,
     this.safetyPurity,
     this.evidenceResearch,
@@ -1242,43 +1164,65 @@ class _HeaderSection extends ConsumerWidget {
     return Container(
       color: scheme.surface,
       padding: const EdgeInsets.fromLTRB(
-        AppTheme.space20,
+        AppTheme.space24,
         AppTheme.space16,
-        AppTheme.space20,
-        AppTheme.space20,
+        AppTheme.space24,
+        AppTheme.space24,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product name + brand
-          Text(
-            productName,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-              height: 1.22,
-            ),
+          // Product image + name + brand
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ProductImage(
+                dsldId: dsldId,
+                upc: upc,
+                productName: productName,
+                brandName: brandName,
+                formFactor: formFactor,
+                score: score100,
+                size: 52,
+              ),
+              const SizedBox(width: AppTheme.space12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      productName,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        height: 1.22,
+                      ),
+                    ),
+                    if (brandName.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        brandName,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    if (formFactor.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        formFactor,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-          if (brandName.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              brandName,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-          if (formFactor.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              formFactor,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-          const SizedBox(height: AppTheme.space16),
+          const SizedBox(height: AppTheme.space20),
 
           // BLOCKED / UNSAFE banner — replaces score circle
           if (isBlocked)
@@ -1291,17 +1235,31 @@ class _HeaderSection extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Score ring + grade label
+                // Score ring + grade label + glow
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                Stack(
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: (score100 != null && !isNotScored)
+                        ? [
+                            BoxShadow(
+                              color: _glowColor(score100!)
+                                  .withValues(alpha: 0.18),
+                              blurRadius: 28,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Stack(
                   clipBehavior: Clip.none,
                   children: [
                     PGScoreRing(
                       score: isNotScored ? null : score100,
-                      size: 72,
-                      strokeWidth: 5,
+                      size: 88,
+                      strokeWidth: 6,
                     ),
                     // Info button as floating action
                     Positioned(
@@ -1330,14 +1288,13 @@ class _HeaderSection extends ConsumerWidget {
                     ),
                   ],
                 ),
+                ),
                 // Grade label below ring
                 if (!isNotScored && grade.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     grade,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
+                    style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: VerdictBadge.colorFor(verdict),
                       letterSpacing: 0.2,
@@ -1416,7 +1373,7 @@ class _HeaderSection extends ConsumerWidget {
                 final isCert = tag.isCertification;
                 final color = isCert
                     ? AppTheme.severitySafe
-                    : AppColors.scoreExcellent;
+                    : AppTheme.scoreExcellent;
                 return Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
@@ -1601,18 +1558,21 @@ class _DetailSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     if (detailBlob == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Text(
           'No additional details available.',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
         ),
       );
     }
 
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final blob = detailBlob!;
 
     // Parse structured data from blob
@@ -1653,15 +1613,13 @@ class _DetailSection extends StatelessWidget {
             'Ingredients',
             style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
             ingredientsSummary,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
               height: 1.5,
             ),
           ),
@@ -1792,75 +1750,102 @@ class _IngredientTile extends StatelessWidget {
 
     final doseLabel = quantity != null ? '$quantity $unit'.trim() : '';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.space12),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          border: Border.all(color: scheme.outlineVariant, width: 0.5),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Bioavailability indicator dot
-            if (bioScore != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, right: 8),
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _bioColor(bioScore),
-                    shape: BoxShape.circle,
-                  ),
+    // Compact row — no card border, bottom divider only (premium density)
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.space8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Bioavailability indicator dot
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: bioScore != null
+                      ? _bioColor(bioScore)
+                      : scheme.outlineVariant,
+                  shape: BoxShape.circle,
                 ),
               ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+              // Name + dose on one line
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (doseLabel.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Text(
+                              doseLabel,
+                              style: AppTheme.numeric(
+                                theme.textTheme.labelSmall!.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                  if (doseLabel.isNotEmpty || form.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(
-                      [if (doseLabel.isNotEmpty) doseLabel, if (form.isNotEmpty) form]
-                          .join(' · '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                    Row(
+                      children: [
+                        _SafetyTag(bioScore: bioScore, ingredient: ingredient),
+                        if (form.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            form,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                        if (category.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer
+                                  .withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusFull),
+                            ),
+                            child: Text(
+                              category,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
-                  // Safety tag — scannable at a glance
-                  const SizedBox(height: 4),
-                  _SafetyTag(bioScore: bioScore, ingredient: ingredient),
-                ],
-              ),
-            ),
-            if (category.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                ),
-                child: Text(
-                  category,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onPrimaryContainer,
-                    fontSize: 10,
-                  ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
-      ),
+        Divider(height: 0.5, thickness: 0.5, color: scheme.outlineVariant),
+      ],
     );
   }
 
@@ -2249,6 +2234,15 @@ class _DetailErrorBanner extends StatelessWidget {
 // "Why this score?" — compact explainer card
 // ---------------------------------------------------------------------------
 
+/// Score-tier color for the glow behind the ring on the header.
+Color _glowColor(double score) {
+  if (score >= 85) return AppTheme.scoreExceptional;
+  if (score >= 70) return AppTheme.scoreExcellent;
+  if (score >= 55) return AppTheme.scoreGood;
+  if (score >= 40) return AppTheme.scoreFair;
+  return AppTheme.scoreBelowAvg;
+}
+
 /// Compact inline explainer — renders inside the header, right under the
 /// verdict badge. One line: icon + "why this score" summary.
 class _InlineExplainer extends StatelessWidget {
@@ -2408,6 +2402,181 @@ class _DecisionHighlights extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Deep dive — collapsible wrapper for detailed analysis sections.
+// Keeps the product detail scroll depth manageable while making all data
+// accessible on demand. Initially collapsed; user taps to expand.
+// ---------------------------------------------------------------------------
+
+class _DeepDiveSection extends StatefulWidget {
+  final Map<String, dynamic>? certificationDetail;
+  final Map<String, dynamic>? evidenceData;
+  final Map<String, dynamic>? formulationDetail;
+  final Map<String, dynamic>? probioticDetail;
+  final Map<String, dynamic>? synergyDetail;
+  final double? caloriesPerServing;
+  final Map<String, dynamic>? nutritionDetail;
+  final Map<String, dynamic>? unmappedActives;
+
+  const _DeepDiveSection({
+    this.certificationDetail,
+    this.evidenceData,
+    this.formulationDetail,
+    this.probioticDetail,
+    this.synergyDetail,
+    this.caloriesPerServing,
+    this.nutritionDetail,
+    this.unmappedActives,
+  });
+
+  @override
+  State<_DeepDiveSection> createState() => _DeepDiveSectionState();
+}
+
+class _DeepDiveSectionState extends State<_DeepDiveSection>
+    with SingleTickerProviderStateMixin {
+  bool _expanded = false;
+  late final AnimationController _ctrl;
+  late final Animation<double> _heightFactor;
+  late final Animation<double> _iconTurns;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 280),
+      vsync: this,
+    );
+    _heightFactor = _ctrl.drive(CurveTween(curve: Curves.easeOutCubic));
+    _iconTurns = _ctrl.drive(
+      Tween(begin: 0.0, end: 0.5).chain(CurveTween(curve: Curves.easeOutCubic)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() {
+      _expanded = !_expanded;
+      if (_expanded) {
+        _ctrl.forward();
+      } else {
+        _ctrl.reverse();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Toggle header
+        Material(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _toggle,
+            splashColor: scheme.primary.withValues(alpha: 0.08),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.space16,
+                vertical: AppTheme.space12,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.analytics_outlined,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Deep dive',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _expanded ? 'Hide' : 'Show details',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  RotationTransition(
+                    turns: _iconTurns,
+                    child: Icon(
+                      Icons.expand_more_rounded,
+                      size: 20,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Collapsible content
+        ClipRect(
+          child: AnimatedBuilder(
+            animation: _heightFactor,
+            builder: (context, child) => Align(
+              heightFactor: _heightFactor.value,
+              alignment: Alignment.topCenter,
+              child: child,
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: AppTheme.space12),
+                CertificationDetailSection(
+                  certificationDetail: widget.certificationDetail,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                EvidenceDetailSection(
+                  evidenceData: widget.evidenceData,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                FormulationDetailSection(
+                  formulationDetail: widget.formulationDetail,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                ProbioticDetailSection(
+                  probioticDetail: widget.probioticDetail,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                SynergyDetailSection(
+                  synergyDetail: widget.synergyDetail,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                NutritionPanel(
+                  caloriesPerServing: widget.caloriesPerServing,
+                  nutritionDetail: widget.nutritionDetail,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                UnmappedActivesDisclosure(
+                  unmappedActives: widget.unmappedActives,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

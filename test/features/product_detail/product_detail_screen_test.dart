@@ -112,22 +112,16 @@ void main() {
     }
 
     expect(find.textContaining('core product score'), findsOneWidget);
-    expect(
-      richTextContaining('Ingredient Quality  Up to 25 pts'),
-      findsOneWidget,
-    );
-    expect(
-      richTextContaining('Safety & Purity  Up to 30 pts'),
-      findsOneWidget,
-    );
-    expect(
-      richTextContaining('Evidence & Research  Up to 20 pts'),
-      findsOneWidget,
-    );
-    expect(
-      richTextContaining('Brand Trust  Up to 5 pts'),
-      findsOneWidget,
-    );
+    // Pillar names rendered as separate Text widgets (with visual bars)
+    expect(find.text('Ingredient Quality'), findsOneWidget);
+    expect(find.text('Safety & Purity'), findsOneWidget);
+    expect(find.text('Evidence & Research'), findsOneWidget);
+    expect(find.text('Brand Trust'), findsOneWidget);
+    // Point values as numeric labels
+    expect(find.text('25 pts'), findsOneWidget);
+    expect(find.text('30 pts'), findsOneWidget);
+    expect(find.text('20 pts'), findsOneWidget);
+    expect(find.text('5 pts'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

@@ -73,15 +73,11 @@ class StackScreen extends ConsumerWidget {
             indicatorColor: Theme.of(context).colorScheme.primary,
             indicatorSize: TabBarIndicatorSize.label,
             dividerColor: Colors.transparent,
-            labelStyle: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
+            labelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
               letterSpacing: -0.1,
             ),
-            unselectedLabelStyle: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
+            unselectedLabelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w500,
               letterSpacing: -0.1,
             ),

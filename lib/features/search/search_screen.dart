@@ -208,16 +208,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     final selected = _activeFilter == filter;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(filter.label),
+                      child: PGFilterChip(
+                        label: filter.label,
                         selected: selected,
-                        onSelected: (_) => setState(() {
+                        onTap: () => setState(() {
                           _activeFilter = selected
                               ? _SearchFilter.all
                               : filter;
                         }),
-                        visualDensity: VisualDensity.compact,
-                        showCheckmark: false,
                       ),
                     );
                   }).toList(),
