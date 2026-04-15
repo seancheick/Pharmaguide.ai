@@ -238,9 +238,51 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 ### Pending
 
 - [ ] Wire `TimingAdviceCard` into stack screen UI
-- [ ] Re-run full pipeline to measure CAERS score impact
-- [ ] Review 4 drug label interaction candidates (fish_oil_omega3, cbd, ginkgo alias, grape_seed_extract)
+- [ ] Re-run full pipeline to measure ALL scoring changes
 - [ ] Depletion Checker UI (data ready, UI next)
+- [ ] Offline drug→class SQLite cache
+- [ ] Fix 3 pre-existing test failures (IQM alias dupes + absorption)
+- [ ] Enrich 21 branded botanical stubs (Chromax, Cognizin, EpiCor, etc.)
+
+---
+
+## Sprint 25: Data Standardization + Synergy Evidence Audit — ✅ DONE
+
+**Status:** ✅ DONE (2026-04-14, session 2)
+**Timeline:** 2026-04-14 (14 commits)
+**Repos:** PharmaGuide_Pipeline only — no Flutter code changes (synergy data flows through existing blob)
+
+### Tasks
+
+- [x] **T1: IQM form-level UNII migration** — 165 forms now have chemical-identity UNIIs. 135 are DIFFERENT from parent UNII (proving forms are chemically distinct). Follows NIH/FDA/NLM hierarchy: CUI=concept, RXCUI=drug, UNII=substance.
+- [x] **T2: All 6 data files standardized** — `cui` lowercase everywhere, zero null-valued fields, `external_ids` dict on every entry, `aliases` list on every entry. 2,880 nulls removed, 5 missing external_ids fixed, 137 UNIIs filled from FDA cache.
+- [x] **T3: IQM form deduplication** — 15 duplicated form names resolved (DHA/EPA fish oil, curcumin/turmeric, etc.), 4 UNII conflicts fixed with cross_ref, 27 generic "standard"/"unspecified" renamed.
+- [x] **T4: Synergy cluster evidence reclassification** — All 58 clusters reclassified using PMC10600480 systematic review. Before: 38 Tier 1. After: 2 Tier 1, 7 Tier 2, 11 Tier 3, 38 Tier 4. Only curcumin+piperine and iron+vitamin C are PROVEN synergies.
+- [x] **T5: Tiered synergy scoring** — A5c bonus now 1.0 (proven) / 0.75 (supported) / 0.5 (promising) / 0.25 (popular). Config-driven. 9 tests.
+- [x] **T6: Synergy evidence export for Flutter** — `synergy_detail` blob includes: best_tier, bonus_awarded, bonus_explanation (user-facing), per-cluster mechanism + PMIDs.
+- [x] **T7: Clinical studies cleanup** — 45 hallucinated refs removed, 47 PMIDs extracted from key_endpoints, 6 new PMIDs from PubMed search. Entries without PMIDs: 21 → 4.
+- [x] **T8: Fish oil + CBD interaction rules** — 127 → 129 rules. Fish oil bleeding risk from FDA Vascepa/Lovaza labels. CBD liver toxicity + immunosuppressant interactions from FDA drug labels.
+- [x] **T9: Pipeline maintenance schedule** — 24 recurring tasks documented with exact commands, expected output, "what to do with results", troubleshooting.
+- [x] **T10: 11 identifier enforcement tests** — Guards against top-level leaks, null fields, duplicate forms, duplicate UNIIs.
+
+### Key Metrics
+
+| Metric | Before | After |
+|---|---|---|
+| Data files with lowercase cui | 3/6 | 6/6 |
+| Null-valued fields across all files | ~3,500 | 0 |
+| IQM forms with chemical UNII | 0 | 165 |
+| Synergy Tier 1 (proven) | 38 (inflated) | 2 (honest) |
+| Interaction rules | 127 | 129 |
+| Clinical study PMIDs verified | 21 missing | 4 missing (minerals only) |
+| Hallucinated refs removed | 0 | 45 |
+| Pipeline maintenance tasks documented | 13 | 24 |
+| Identifier enforcement tests | 0 | 11 |
+
+### What Flutter gets (no code changes needed):
+- `synergy_detail` blob now includes `bonus_explanation`, `evidence_label`, `mechanism`, `pmids` — app can show WHY the synergy bonus was awarded
+- Tiered A5c score (0.25-1.0) flows through existing `score_breakdown` display
+- All data improvements affect scores on next pipeline run + Supabase sync
 
 ---
 
@@ -295,6 +337,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ## COMPLETED SPRINTS
 
+**Sprint 25: Data Standardization + Synergy Evidence Audit** — ✅ DONE (10 tasks, 2026-04-14: all 6 files standardized, synergy reclassified 38→2 proven, tiered scoring, 45 hallucinated refs removed, 11 enforcement tests)
 **Sprint 24: Drug Label Interaction Mining** — ✅ DONE (3 tasks, 2026-04-14: SPL text mining, 40 supplements found, 4 new candidates)
 **Sprint 23b: UNII Local Cache** — ✅ DONE (5 tasks, 2026-04-14: 172K offline substances, IQM standardized, 66% UNII coverage)
 **Sprint 23a: CAERS Adverse Event Integration** — ✅ DONE (8 tasks, 2026-04-14: FDA CAERS bulk download, B8 scoring penalty, dashboard audit, 36 tests)
