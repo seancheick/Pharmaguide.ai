@@ -6,6 +6,7 @@ import 'package:pharmaguide/data/database/tables/detail_cache_table.dart';
 import 'package:pharmaguide/data/database/tables/scan_history_table.dart';
 import 'package:pharmaguide/data/database/tables/user_favorites_table.dart';
 import 'package:pharmaguide/data/database/tables/user_profile_table.dart';
+import 'package:pharmaguide/data/database/tables/product_image_cache_table.dart';
 import 'package:pharmaguide/data/database/tables/user_stacks_table.dart';
 
 part 'user_database.g.dart';
@@ -18,6 +19,7 @@ part 'user_database.g.dart';
   UserFavorites,
   ScanHistory,
   DetailCache,
+  ProductImageCache,
 ])
 class UserDatabase extends _$UserDatabase {
   UserDatabase(File dbFile)
@@ -27,7 +29,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +42,10 @@ class UserDatabase extends _$UserDatabase {
                 userStacksLocal, userStacksLocal.genericRxcui);
             await m.addColumn(
                 userStacksLocal, userStacksLocal.ingredientRxcuisCol);
+          }
+          if (from < 3) {
+            // v3: product image cache for OFF API lookups.
+            await m.createTable(productImageCache);
           }
         },
       );
@@ -198,6 +204,29 @@ class UserDatabase extends _$UserDatabase {
         dsldId: Value(dsldId),
         blobJson: Value(json),
         sha256: Value(sha256Hash),
+        cachedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Product Image Cache (OFF API lookups)
+  // ---------------------------------------------------------------------------
+
+  /// Returns the cached image entry for a product, or null if not cached.
+  Future<ProductImageCacheData?> getCachedImage(String dsldId) {
+    return (select(productImageCache)
+          ..where((t) => t.dsldId.equals(dsldId)))
+        .getSingleOrNull();
+  }
+
+  /// Cache (or refresh) a product image URL. Use "no_image" as [imageUrl]
+  /// to mark a negative lookup (product has no image on OFF).
+  Future<void> cacheImageUrl(String dsldId, String imageUrl) {
+    return into(productImageCache).insertOnConflictUpdate(
+      ProductImageCacheCompanion(
+        dsldId: Value(dsldId),
+        imageUrl: Value(imageUrl),
         cachedAt: Value(DateTime.now()),
       ),
     );

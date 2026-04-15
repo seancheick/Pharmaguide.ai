@@ -9,7 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_progress_bar.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -24,22 +24,22 @@ void main() {
     test('exceedsUl is red, approachingUl is orange', () {
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.exceedsUl),
-        AppColors.red,
+        AppTheme.severityContraindicated,
       );
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.approachingUl),
-        AppColors.orange,
+        AppTheme.severityAvoid,
       );
     });
 
     test('aboveTypical is yellow, adequate is green', () {
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.aboveTypical),
-        AppColors.yellow,
+        AppTheme.severityCaution,
       );
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.adequate),
-        AppColors.green,
+        AppTheme.severitySafe,
       );
     });
   });
@@ -72,7 +72,7 @@ void main() {
       );
 
       expect(find.text('Zinc'), findsOneWidget);
-      expect(find.text('52 MG/day'), findsOneWidget);
+      expect(find.text('52 MG'), findsOneWidget);
       expect(find.textContaining('473% RDA'), findsOneWidget);
       expect(find.textContaining('130% UL'), findsOneWidget);
       expect(find.textContaining('copper depletion'), findsOneWidget);
@@ -173,7 +173,7 @@ void main() {
         ),
       );
 
-      expect(find.text('2.4 MCG/day'), findsOneWidget);
+      expect(find.text('2.4 MCG'), findsOneWidget);
     });
   });
 }

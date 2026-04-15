@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/widgets/pg_citation_strip.dart';
 import 'package:pharmaguide/core/widgets/pg_filter_chip.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/pg_search_field.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -289,9 +290,7 @@ class _HeroSection extends StatelessWidget {
         // Date label — small, uppercase, teal
         Text(
           dateLabel,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 11,
+          style: theme.textTheme.labelSmall?.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: 1.4,
             color: scheme.primary,
@@ -332,8 +331,9 @@ class _ScanCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final darkerBrand = Color.lerp(scheme.primary, Colors.black, 0.25)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final darkerBrand = Color.lerp(scheme.primary, scheme.scrim, 0.25)!;
     // Dynamic Type clamp — the gradient card has a fixed icon well and
     // right chevron, so unbounded text scaling breaks the layout. Cap
     // the text scaler at 1.3x on this single hero surface; long body
@@ -383,17 +383,17 @@ class _ScanCta extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      color: scheme.onPrimary.withValues(alpha: 0.18),
                       borderRadius:
                           BorderRadius.circular(AppTheme.radiusLarge),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.22),
+                        color: scheme.onPrimary.withValues(alpha: 0.22),
                         width: 0.8,
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.qr_code_scanner_rounded,
-                      color: Colors.white,
+                      color: scheme.onPrimary,
                       size: 28,
                     ),
                   ),
@@ -403,13 +403,12 @@ class _ScanCta extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Scan a supplement',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: scheme.onPrimary,
                             letterSpacing: -0.25,
                             height: 1.22,
                           ),
@@ -419,12 +418,10 @@ class _ScanCta extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           'Check safety & interactions instantly',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
-                            color: Colors.white.withValues(alpha: 0.82),
-                            letterSpacing: 0,
+                            color: scheme.onPrimary.withValues(alpha: 0.82),
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -436,7 +433,7 @@ class _ScanCta extends StatelessWidget {
                   Icon(
                     Icons.arrow_forward_rounded,
                     size: 22,
-                    color: Colors.white.withValues(alpha: 0.88),
+                    color: scheme.onPrimary.withValues(alpha: 0.88),
                   ),
                 ],
               ),
@@ -658,71 +655,85 @@ class _StackHealthCard extends StatelessWidget {
 // Recent scans — loads from user_scan_history, falls back to empty state
 // ---------------------------------------------------------------------------
 
-class _RecentScansSection extends ConsumerStatefulWidget {
+/// Loads recent scan history joined with core product data.
+/// Auto-disposes when the home screen is not visible, ensuring fresh data
+/// on each visit (fixes stale scans after navigating back from scanner).
+final _recentScansProvider =
+    FutureProvider.autoDispose<List<_RecentScanDisplay>>((ref) async {
+  final userDb = ref.watch(userDatabaseProvider);
+  final coreDb = ref.watch(coreDatabaseProvider);
+  final history = await userDb.getRecentScans(limit: 10);
+  final results = <_RecentScanDisplay>[];
+  for (final scan in history) {
+    final product = await coreDb.findById(scan.dsldId);
+    if (product != null) {
+      results.add(
+        _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
+      );
+    }
+  }
+  return results;
+});
+
+class _RecentScansSection extends ConsumerWidget {
   const _RecentScansSection();
 
   @override
-  ConsumerState<_RecentScansSection> createState() =>
-      _RecentScansSectionState();
-}
-
-class _RecentScansSectionState extends ConsumerState<_RecentScansSection> {
-  List<_RecentScanDisplay>? _scans;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadScans();
-  }
-
-  Future<void> _loadScans() async {
-    try {
-      final userDb = ref.read(userDatabaseProvider);
-      final coreDb = ref.read(coreDatabaseProvider);
-      final history = await userDb.getRecentScans(limit: 10);
-      final results = <_RecentScanDisplay>[];
-      for (final scan in history) {
-        final product = await coreDb.findById(scan.dsldId);
-        if (product != null) {
-          results.add(
-            _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
-          );
-        }
-      }
-      if (mounted) setState(() => _scans = results);
-    } on Exception {
-      // DB failure is non-fatal — show empty recent scans.
-      if (mounted) setState(() => _scans = []);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final scansAsync = ref.watch(_recentScansProvider);
 
-    if (_scans == null || _scans!.isEmpty) {
-      return _buildEmptyState(theme, scheme, context);
-    }
+    return scansAsync.when(
+      loading: () => _buildLoadingState(scheme),
+      error: (_, __) => _buildEmptyState(theme, scheme, context),
+      data: (scans) {
+        if (scans.isEmpty) {
+          return _buildEmptyState(theme, scheme, context);
+        }
+        return SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: scans.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final scan = scans[index];
+              return _RecentScanCard(
+                product: scan.product,
+                scannedAt: scan.scannedAt,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// Shown while the DB query is in flight — prevents the flash-of-empty-state
+  /// that previously showed "Nothing scanned yet" during loading.
+  static Widget _buildLoadingState(ColorScheme scheme) {
     return SizedBox(
-      height: 172,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        itemCount: _scans!.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final scan = _scans![index];
-          return _RecentScanCard(
-            product: scan.product,
-            scannedAt: scan.scannedAt,
-          );
-        },
+      height: 120,
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme, ColorScheme scheme, BuildContext context) {
+  static Widget _buildEmptyState(
+    ThemeData theme,
+    ColorScheme scheme,
+    BuildContext context,
+  ) {
     return PGCard(
       variant: PGCardVariant.recessed,
       padding: const EdgeInsets.fromLTRB(
@@ -812,15 +823,28 @@ class _RecentScanCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Product image (OFF photo or branded placeholder)
+            Center(
+              child: ProductImage(
+                dsldId: product.dsldId,
+                upc: product.upcSku,
+                productName: product.productName,
+                brandName: product.brandName ?? '',
+                formFactor: product.formFactor,
+                score: score,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space6),
             // Score ring centered
             Center(
               child: PGScoreRing(
                 score: score,
-                size: 56,
-                strokeWidth: 4,
+                size: 40,
+                strokeWidth: 3.5,
               ),
             ),
-            const SizedBox(height: AppTheme.space8),
+            const SizedBox(height: AppTheme.space6),
             // Product name
             Text(
               product.productName,
@@ -898,8 +922,7 @@ class _OutlineScanButton extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   'Scan your first supplement',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: scheme.primary,

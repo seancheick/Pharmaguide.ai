@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
@@ -47,6 +48,17 @@ class ProductListItem extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Product image (OFF photo or branded placeholder)
+              ProductImage(
+                dsldId: product.dsldId,
+                upc: product.upcSku,
+                productName: product.productName,
+                brandName: product.brandName ?? '',
+                formFactor: product.formFactor,
+                score: score,
+                size: 48,
+              ),
+              const SizedBox(width: AppTheme.space12),
               // Animated score ring
               PGScoreRing(
                 score: score,
@@ -150,10 +162,20 @@ class ProductGridItem extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row — score ring + verdict badge
+          // Top row — image + score ring + verdict badge
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ProductImage(
+                dsldId: product.dsldId,
+                upc: product.upcSku,
+                productName: product.productName,
+                brandName: product.brandName ?? '',
+                formFactor: product.formFactor,
+                score: score,
+                size: 40,
+              ),
+              const SizedBox(width: AppTheme.space8),
               PGScoreRing(
                 score: score,
                 size: 44,

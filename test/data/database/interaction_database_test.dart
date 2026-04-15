@@ -46,8 +46,9 @@ const _calciumIronInteractionId = 'SSI_IRON_CALCIUM';
 const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
 
 /// Number of live (non-tombstoned) interaction rows in the current bundle.
-/// Updated from 20 (golden fixture) → 128 (full curated v1.0.0).
-const _expectedLiveInteractionCount = 128;
+/// Updated from 20 (golden fixture) → 128 (full curated v1.0.0) → 136
+/// (27 rule fixes in c23d044).
+const _expectedLiveInteractionCount = 136;
 
 /// Pipeline-built drug classes that the current bundle ships.
 /// v1.0.0 has 21 classes with curated interaction rows.

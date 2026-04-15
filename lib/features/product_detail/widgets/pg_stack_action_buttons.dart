@@ -33,6 +33,7 @@ class PGStackActionButtons extends ConsumerWidget {
     final entryAsync = ref.watch(stackEntryForDsldIdProvider(dsldId));
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         entryAsync.when(
