@@ -45,6 +45,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -244,7 +245,7 @@ class StackSyncService {
         if (row.type != 'supplement') continue;
 
         try {
-          await supabase.from('user_stacks').upsert(
+          await supabase.from(SupabaseContract.userStacksTable).upsert(
                 _rowToRemote(row, user.id),
                 onConflict: 'id',
               );

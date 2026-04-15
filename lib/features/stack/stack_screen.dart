@@ -19,6 +19,8 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
+import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
 
 /// My Stack screen — shows all products in the user's supplement stack
 /// with Stack Safety Score, M1 nutrient totals, and interaction alerts.
@@ -133,6 +135,13 @@ class _StackTab extends ConsumerWidget {
               // SizedBox.shrink when the report is clean, so a
               // no-warning stack never eats vertical space.
               const _StackSafetyBannerSlot(),
+
+              // Timing optimization advice — shows separation rules,
+              // take-with-food, and time-of-day guidance.
+              const _TimingAdviceSlot(),
+
+              // Depletion checker — nutrients depleted by medications
+              const _DepletionSlot(),
 
               // M1 nutrient accumulation panel (UL tracking)
               const Padding(
@@ -627,6 +636,66 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
         return StackSafetyBanner(
           report: report,
           margin: kStackSafetyBannerMargin,
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Timing advice slot — watches stackSafetyReportProvider for timing
+// optimizations. Collapses to SizedBox.shrink when there are none.
+// ---------------------------------------------------------------------------
+
+class _TimingAdviceSlot extends ConsumerWidget {
+  const _TimingAdviceSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (!report.hasTimingAdvice) return const SizedBox.shrink();
+        return TimingAdviceCard(
+          optimizations: report.timingOptimizations,
+          margin: const EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space12,
+            AppTheme.space20,
+            0,
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Depletion slot — watches depletionReportProvider for medication-induced
+// nutrient depletions. Collapses when user has no medications.
+// ---------------------------------------------------------------------------
+
+class _DepletionSlot extends ConsumerWidget {
+  const _DepletionSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final depletionAsync = ref.watch(depletionReportProvider);
+    return depletionAsync.when(
+      data: (depletions) {
+        if (depletions.isEmpty) return const SizedBox.shrink();
+        return DepletionCheckerCard(
+          depletions: depletions,
+          margin: const EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space12,
+            AppTheme.space20,
+            0,
+          ),
         );
       },
       loading: () => const SizedBox.shrink(),

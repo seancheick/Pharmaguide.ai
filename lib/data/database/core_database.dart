@@ -60,6 +60,10 @@ class CoreDatabase extends _$CoreDatabase {
       'dosing_summary TEXT',
       'servings_per_container INTEGER',
       'allergen_summary TEXT',
+      'image_thumbnail_url TEXT',
+      'calories_per_serving REAL',
+      'net_contents_quantity REAL',
+      'net_contents_unit TEXT',
     ];
 
     for (final col in columns) {
@@ -114,6 +118,15 @@ class CoreDatabase extends _$CoreDatabase {
       "SELECT value FROM export_manifest WHERE key = 'db_version' LIMIT 1",
     ).getSingleOrNull();
 
+    return row?.data['value'] as String?;
+  }
+
+  /// Returns a manifest value by key from the embedded export_manifest table.
+  Future<String?> readManifestValue(String key) async {
+    final row = await customSelect(
+      "SELECT value FROM export_manifest WHERE key = ? LIMIT 1",
+      variables: [Variable.withString(key)],
+    ).getSingleOrNull();
     return row?.data['value'] as String?;
   }
 

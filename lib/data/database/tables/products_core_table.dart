@@ -28,6 +28,8 @@ class ProductsCore extends Table {
       integer().named('image_is_pdf').nullable()();
   TextColumn get thumbnailKey =>
       text().named('thumbnail_key').nullable()();
+  TextColumn get imageThumbnailUrl =>
+      text().named('image_thumbnail_url').nullable()();
   TextColumn get detailBlobSha256 =>
       text().named('detail_blob_sha256').nullable()();
   TextColumn get interactionSummaryHint =>

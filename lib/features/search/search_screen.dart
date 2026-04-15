@@ -490,18 +490,18 @@ class _SearchLoadingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: AppTheme.space8),
-      child: Column(
-        children: [
-          PGShimmerListRow(),
-          PGShimmerListRow(),
-          PGShimmerListRow(),
-          PGShimmerListRow(),
-          PGShimmerListRow(),
-          PGShimmerListRow(),
-        ],
-      ),
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      padding: const EdgeInsets.only(top: AppTheme.space8),
+      children: const [
+        PGShimmerListRow(),
+        PGShimmerListRow(),
+        PGShimmerListRow(),
+        PGShimmerListRow(),
+        PGShimmerListRow(),
+        PGShimmerListRow(),
+      ],
     );
   }
 }

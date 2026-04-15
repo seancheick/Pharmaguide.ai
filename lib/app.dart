@@ -126,32 +126,32 @@ GoRouter _buildRouter({
               builder: (_, __) => catalogRoute(const StackScreen())),
           GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
           GoRoute(path: Routes.profile, builder: (_, __) => const SettingsScreen()),
+          GoRoute(
+            path: Routes.profileSetup,
+            builder: (_, __) => const ProfileSetupScreen(),
+          ),
+          GoRoute(
+            path: Routes.search,
+            builder: (_, state) => catalogRoute(
+              SearchScreen(initialCategory: state.uri.queryParameters['category']),
+            ),
+          ),
+          GoRoute(
+            path: Routes.quickCheck,
+            builder: (_, __) => catalogRoute(const QuickCheckScreen()),
+          ),
+          GoRoute(
+            path: '${Routes.product}/:dsldId',
+            builder: (context, state) {
+              final dsldId = state.pathParameters['dsldId'] ?? '';
+              return catalogRoute(ProductDetailScreen(dsldId: dsldId));
+            },
+          ),
         ],
       ),
       GoRoute(
         path: Routes.onboarding,
         builder: (_, __) => const OnboardingScreen(),
-      ),
-      GoRoute(
-        path: Routes.profileSetup,
-        builder: (_, __) => const ProfileSetupScreen(),
-      ),
-      GoRoute(
-        path: Routes.search,
-        builder: (_, state) => catalogRoute(
-          SearchScreen(initialCategory: state.uri.queryParameters['category']),
-        ),
-      ),
-      GoRoute(
-        path: Routes.quickCheck,
-        builder: (_, __) => catalogRoute(const QuickCheckScreen()),
-      ),
-      GoRoute(
-        path: '${Routes.product}/:dsldId',
-        builder: (context, state) {
-          final dsldId = state.pathParameters['dsldId'] ?? '';
-          return catalogRoute(ProductDetailScreen(dsldId: dsldId));
-        },
       ),
     ],
   );

@@ -26,8 +26,8 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-14
-**Current Sprint:** V1.0-beta READY — preparing for TestFlight / Play internal
+**Updated:** 2026-04-15
+**Current Sprint:** Sprint 26 — UX polish, critical bug fixes, product detail overhaul
 **Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22 ALL DONE. **353+ Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
 
 ## TARGET: V1.0 Ship by 2026-05-11
@@ -1685,3 +1685,82 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 | Local-first Privacy | ❌ | ✅ PharmaGuide advantage | — |
 | AI Chat | ❌ | ✅ PharmaGuide advantage | — |
 | Doctor-ready PDF | ❌ | ❌ Not started | **V1.1 — high priority** |
+
+---
+
+## Sprint 26 — UX Polish + Critical Bug Fixes (2026-04-15)
+
+**Goal:** Fix critical product detail rendering, add missing UI features, polish app UX.
+
+### Completed
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 1 | Fix blob fetch path — use SHA-256 hash instead of dsldId | [x] Done | `product_detail_screen.dart` |
+| 2 | Build rich product detail UI — active ingredients, inactive ingredients, pros (score_bonuses), cons (score_penalties), condition-specific interaction details | [x] Done | `product_detail_screen.dart` |
+| 3 | Build recent scans horizontal card carousel on Home screen | [x] Done | `home_screen.dart` |
+| 4 | Fix RenderFlex overflow in `_SearchLoadingList` (Column → ListView) | [x] Done | `search_screen.dart` |
+| 5 | Fix score circle overlapping verdict text (size 76→72, remove inner label) | [x] Done | `product_detail_screen.dart` |
+| 6 | Fix interaction warning banner to show which conditions affected + scroll hint | [x] Done | `product_detail_screen.dart` |
+| 7 | Fix missing bottom nav bar on search, product detail, quick-check, profile setup (moved into ShellRoute) | [x] Done | `app.dart` |
+| 8 | Add "View Supplement Label" button with DSLD image URL | [x] Done | `product_detail_screen.dart` |
+| 9 | Fix hardcoded citation date (April 11 → April 15) | [x] Done | `home_screen.dart` |
+| 10 | Remove unused `product_list_item.dart` import from home screen | [x] Done | `home_screen.dart` |
+
+### Sprint 26b — New Stack Features (2026-04-15)
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 11 | Make citation date + source count dynamic from DB manifest | [x] Done | `home_screen.dart`, `database_providers.dart`, `core_database.dart` |
+| 12 | Wire `TimingAdviceCard` into stack screen | [x] Done | `stack_screen.dart` |
+| 13 | Build Depletion Checker (service + provider + UI) | [x] Done | `depletion_checker.dart` (new), `depletion_checker_card.dart` (new), `stack_providers.dart`, `stack_screen.dart` |
+
+### Sprint 26c — UX Refinements (2026-04-15)
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 14 | Move score explainer 1-liner into header (instant comprehension) | [x] Done | `product_detail_screen.dart` |
+| 15 | Make action buttons sticky bottom bar (always reachable) | [x] Done | `product_detail_screen.dart` |
+| 16 | Add per-ingredient safety tags (Well dosed / Adequate / Low form / Poor form) | [x] Done | `product_detail_screen.dart` |
+| 17 | Restore grade label below score ring without overlap | [x] Done | `product_detail_screen.dart` |
+| 18 | Expand tags to show all certifications (Third-Party Tested, Trusted Mfg, Organic) | [x] Done | `product_detail_screen.dart` |
+| 19 | Tappable score breakdown — each pillar expands to show sub-score reasons | [x] Done | `score_breakdown_card.dart` |
+
+### Sprint 26d — Supabase Sync Audit + Pipeline Data Wiring (2026-04-15)
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 20 | Fix critical blob bucket mismatch (`detail-blobs` → `pharmaguide`) | [x] Done | `detail_blob_service.dart` |
+| 21 | Fix blob key mismatch (`interaction_warnings` → `warnings`) | [x] Done | `product_detail_screen.dart` |
+| 22 | Fix proprietary blend path (nested under `proprietary_blend_detail`) | [x] Done | `product_detail_screen.dart` |
+| 23 | Remove dead `fetchDetailBlob(dsldId)` — always returned null | [x] Done | `detail_blob_service.dart`, `fit_score_provider.dart`, `stack_nutrient_providers.dart` |
+| 24 | Create `supabase_contract.dart` — single source of truth for all Supabase paths | [x] Done | `supabase_contract.dart` (new) |
+| 25 | Replace all hardcoded bucket/table names with contract constants | [x] Done | `sync_service.dart`, `stack_sync_queue.dart` |
+| 26 | Fix hardcoded search hint "5,000+" → dynamic from DB | [x] Done | `home_screen.dart` |
+| 27 | Fix stale fallback count in citation strip | [x] Done | `home_screen.dart` |
+| 28 | Add `image_thumbnail_url` to Drift table + migration guard | [x] Done | `products_core_table.dart`, `core_database.dart` |
+| 29 | Add missing v1.3.1/v1.3.2 columns to migration guard | [x] Done | `core_database.dart` |
+| 30 | Fix live Supabase `user_stacks` table — add `type`, `name`, `ingredient_keys` columns + rename `timing` → `frequency` | [x] Done | Supabase migration |
+| 31 | Wire `evidence_data` — clinical matches, PMIDs, PubMed links | [x] Done | `pipeline_detail_sections.dart` (new) |
+| 32 | Wire `certification_detail` — GMP, purity, heavy metal tested | [x] Done | `pipeline_detail_sections.dart` |
+| 33 | Wire `evidence_data` — clinical match details for Evidence pillar | [x] Done | `pipeline_detail_sections.dart` |
+| 34 | Wire `formulation_detail` — delivery form, absorption enhancers, botanicals | [x] Done | `pipeline_detail_sections.dart` |
+| 35 | Wire `probiotic_detail` — strains, CFU, clinical strains | [x] Done | `pipeline_detail_sections.dart` |
+| 36 | Wire `synergy_detail` — cluster evidence + PMIDs | [x] Done | `pipeline_detail_sections.dart` |
+| 37 | Wire `allergen_summary` — "Contains: Soy, Tree Nuts" banner | [x] Done | `product_detail_screen.dart` |
+| 38 | Wire `decision_highlights` — pipeline pre-computed hero insights | [x] Done | `product_detail_screen.dart` |
+
+### Key Decisions
+
+- **Supabase contract file:** All bucket names, storage paths, table names, and RPC names are now in `supabase_contract.dart`. No more hardcoded strings scattered across files.
+- **Detail blob fetch:** Only hash-based fetch exists now. Dead `fetchDetailBlob(dsldId)` removed from all 3 callers.
+- **Image URLs are all PDFs:** All 2492 products have DSLD label PDFs. Rendered as "View Supplement Label" button. Pipeline agent is building PDF→WebP extraction for real thumbnails.
+- **Nav bar architecture:** Sub-pages moved inside ShellRoute — all app pages share the frosted nav bar.
+- **Supabase `user_stacks` migration applied:** Added `type`, `name`, `ingredient_keys` columns + renamed `timing` → `frequency` + made `dsld_id` nullable for medication entries.
+
+### Pending (next sprint)
+
+- [ ] Add product image thumbnails (pipeline agent building PDF→WebP extraction)
+- [ ] Wire `scan_limit_service` to live `increment_usage` RPC
+- [ ] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0
+- [ ] TestFlight / Play internal builds

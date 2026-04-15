@@ -61,8 +61,13 @@ final _detailBlobByDsldIdProvider =
     }
   }
 
-  // Cache miss or stale — fetch from Supabase.
-  final blob = await service.fetchDetailBlob(dsldId);
+  // Cache miss or stale — fetch from Supabase by SHA-256 hash.
+  final coreDb = ref.watch(coreDatabaseProvider);
+  final product = await coreDb.findById(dsldId);
+  final sha256 = product?.detailBlobSha256;
+  if (sha256 == null || sha256.isEmpty) return null;
+
+  final blob = await service.fetchDetailBlobByHash(sha256);
   if (blob != null) {
     await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
   }

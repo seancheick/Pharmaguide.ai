@@ -4,13 +4,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 
 /// Handles OTA database updates from Supabase storage.
 class SyncService {
   /// Returns the current remote DB version published in export_manifest.
   Future<String?> fetchCurrentDbVersion() async {
     final manifest = await supabase
-        .from('export_manifest')
+        .from(SupabaseContract.manifestTable)
         .select('db_version')
         .eq('is_current', true)
         .limit(1)
@@ -64,9 +65,9 @@ class SyncService {
         throw Exception('No current export_manifest entry found');
       }
 
-      final storagePath = 'v$dbVersion/pharmaguide_core.db';
+      final storagePath = SupabaseContract.coreDbPath(dbVersion);
       final bytes = await supabase.storage
-          .from('pharmaguide')
+          .from(SupabaseContract.storageBucket)
           .download(storagePath);
 
       await File(stagingPath).writeAsBytes(bytes, flush: true);

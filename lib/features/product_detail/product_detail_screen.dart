@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -25,6 +26,7 @@ import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner
 import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
+import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/product_detail/widgets/refill_reminder_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
@@ -77,10 +79,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProduct();
-    _loadDetailBlob();
+    _loadProductThenBlob();
     _loadStackEntry();
     _loadPersonalizedInteractions();
+  }
+
+  /// Load product first (needed for SHA-256 hash), then fetch the detail blob.
+  Future<void> _loadProductThenBlob() async {
+    await _loadProduct();
+    unawaited(_loadDetailBlob());
   }
 
   /// Look up whether the user has this product in their stack — needed
@@ -279,7 +286,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       }
 
       // Cache miss or stale — fetch from network.
-      final blob = await _blobService.fetchDetailBlob(widget.dsldId);
+      // Blobs are stored by SHA-256 hash in Supabase Storage:
+      //   pharmaguide/shared/details/sha256/{sha256[0:2]}/{sha256}.json
+      Map<String, dynamic>? blob;
+      final sha256 = _product?.detailBlobSha256;
+      if (sha256 != null && sha256.isNotEmpty) {
+        blob = await _blobService.fetchDetailBlobByHash(sha256);
+      }
+
       if (mounted) {
         if (blob != null) {
           // Store in cache.
@@ -346,7 +360,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final brandTrust = _product?.scoreBrandTrust;
 
     // Dietary tags
-    final dietaryTags = _buildDietaryTags();
+    final dietaryTags = _buildAllTags();
 
     // Detail blob data + personalized interaction warnings from live DB.
     // Personalized warnings (from InteractionDatabase) appear first,
@@ -362,7 +376,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       ...blobWarnings.where(
           (w) => !seenKeys.contains('${w.severity.name}:${w.mechanism}')),
     ];
-    final hasProprietaryBlends = _detailBlob?['has_proprietary_blends'] == true;
+    // Pipeline nests this under proprietary_blend_detail
+    final blendDetail = _detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
+    final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
 
     final isBlocked =
         verdict == 'BLOCKED' || verdict == 'UNSAFE';
@@ -421,23 +437,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               isNotScored: isNotScored,
               topWarnings: _topWarnings(),
               onScoreInfoTap: () => _showScoreEducation(context),
+              imageUrl: _product?.imageUrl,
+              // Score explainer data — rendered inline in header
+              ingredientQuality: ingredientQuality,
+              safetyPurity: safetyPurity,
+              evidenceResearch: evidenceResearch,
+              brandTrust: brandTrust,
+              mappedCoverage: mappedCoverage,
+              decisionHighlights: _product?.decisionHighlights,
             ),
           ),
-
-          // ----------------------------------------------------------------
-          // "Why this score?" — compact 1-liner above the fold
-          // ----------------------------------------------------------------
-          // Safety rule: only show score explainer when mappedCoverage >= 0.3
-          if (!isBlocked && !isNotScored && score100 != null && mappedCoverage >= 0.3)
-            SliverToBoxAdapter(
-              child: _ScoreExplainerCard(
-                score100: score100,
-                ingredientQuality: ingredientQuality,
-                safetyPurity: safetyPurity,
-                evidenceResearch: evidenceResearch,
-                brandTrust: brandTrust,
-              ),
-            ),
 
           // ----------------------------------------------------------------
           // Condition alert banner (interaction summary hint)
@@ -478,6 +487,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   safetyPurity: safetyPurity,
                   evidenceResearch: evidenceResearch,
                   brandTrust: brandTrust,
+                  sectionBreakdown: _detailBlob?['section_breakdown']
+                      as Map<String, dynamic>?,
+                  hasThirdPartyTesting:
+                      _product?.hasThirdPartyTesting == 1,
+                  isTrustedManufacturer:
+                      _product?.isTrustedManufacturer == 1,
                 ),
               ),
             ),
@@ -498,6 +513,88 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         ),
             ),
           ),
+
+          // ----------------------------------------------------------------
+          // Allergen summary banner (from DB column)
+          // ----------------------------------------------------------------
+          if (!isBlocked && _product?.allergenSummary != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: AllergenSummaryBanner(
+                    allergenSummary: _product?.allergenSummary),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
+          // Certification detail (GMP, purity, heavy metal, label accuracy)
+          // ----------------------------------------------------------------
+          if (!_blobLoading && !_blobError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: CertificationDetailSection(
+                  certificationDetail:
+                      _detailBlob?['certification_detail'] as Map<String, dynamic>?,
+                ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
+          // Evidence & Research detail (clinical matches, PMIDs)
+          // ----------------------------------------------------------------
+          if (!_blobLoading && !_blobError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: EvidenceDetailSection(
+                  evidenceData:
+                      _detailBlob?['evidence_data'] as Map<String, dynamic>?,
+                ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
+          // Formulation detail (delivery form, enhancers, botanicals)
+          // ----------------------------------------------------------------
+          if (!_blobLoading && !_blobError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: FormulationDetailSection(
+                  formulationDetail:
+                      _detailBlob?['formulation_detail'] as Map<String, dynamic>?,
+                ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
+          // Probiotic detail (strains, CFU, clinical data)
+          // ----------------------------------------------------------------
+          if (!_blobLoading && !_blobError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: ProbioticDetailSection(
+                  probioticDetail:
+                      _detailBlob?['probiotic_detail'] as Map<String, dynamic>?,
+                ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
+          // Synergy clusters (ingredient combinations with evidence)
+          // ----------------------------------------------------------------
+          if (!_blobLoading && !_blobError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: SynergyDetailSection(
+                  synergyDetail:
+                      _detailBlob?['synergy_detail'] as Map<String, dynamic>?,
+                ),
+              ),
+            ),
 
           // ----------------------------------------------------------------
           // v1.3.2 Nutrition Facts (calories column + nutrition_detail blob)
@@ -567,21 +664,30 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ),
 
-          // ----------------------------------------------------------------
-          // Action buttons (Add to Stack with safety check, Share, Save)
-          // ----------------------------------------------------------------
+          // Bottom padding for sticky action bar clearance
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.space20,
-                0,
-                AppTheme.space20,
-                AppTheme.space32,
-              ),
-              child: PGStackActionButtons(dsldId: widget.dsldId),
-            ),
+            child: SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
           ),
         ],
+      ),
+      // Sticky action bar — always reachable
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          AppTheme.space12,
+          AppTheme.space20,
+          MediaQuery.of(context).padding.bottom + AppTheme.space12,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: PGStackActionButtons(dsldId: widget.dsldId),
       ),
     );
   }
@@ -600,21 +706,42 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
   }
 
-  List<String> _buildDietaryTags() {
-    final tags = <String>[];
-    if (_product?.isVegan == 1) tags.add('Vegan');
-    if (_product?.isGlutenFree == 1) tags.add('Gluten-Free');
-    if (_product?.isDairyFree == 1) tags.add('Dairy-Free');
-    if (_product?.isSoyFree == 1) tags.add('Soy-Free');
-    if (_product?.isOrganic == 1) tags.add('Organic');
-    if (_product?.isNonGmo == 1) tags.add('Non-GMO');
+  List<({String label, bool isCertification})> _buildAllTags() {
+    final tags = <({String label, bool isCertification})>[];
+    // Certifications first — these are trust signals
+    if (_product?.hasThirdPartyTesting == 1) {
+      tags.add((label: 'Third-Party Tested', isCertification: true));
+    }
+    if (_product?.isTrustedManufacturer == 1) {
+      tags.add((label: 'Trusted Manufacturer', isCertification: true));
+    }
+    // Dietary tags
+    if (_product?.isVegan == 1) {
+      tags.add((label: 'Vegan', isCertification: false));
+    }
+    if (_product?.isGlutenFree == 1) {
+      tags.add((label: 'Gluten-Free', isCertification: false));
+    }
+    if (_product?.isDairyFree == 1) {
+      tags.add((label: 'Dairy-Free', isCertification: false));
+    }
+    if (_product?.isSoyFree == 1) {
+      tags.add((label: 'Soy-Free', isCertification: false));
+    }
+    if (_product?.isOrganic == 1) {
+      tags.add((label: 'Organic', isCertification: true));
+    }
+    if (_product?.isNonGmo == 1) {
+      tags.add((label: 'Non-GMO', isCertification: false));
+    }
     return tags;
   }
 
   List<InteractionWarning> _parseWarnings() {
     final blob = _detailBlob;
     if (blob == null) return [];
-    final raw = blob['interaction_warnings'];
+    // Pipeline emits 'warnings' (not 'interaction_warnings')
+    final raw = blob['warnings'];
     if (raw is! List) return [];
     return raw
         .whereType<Map<String, dynamic>>()
@@ -998,13 +1125,14 @@ class _ConditionAlertBanner extends ConsumerWidget {
     final parts = <String>[];
     if (matchedConditions.isNotEmpty) {
       final labels = matchedConditions.map(_humanLabel).join(', ');
-      parts.add('Conditions: $labels');
+      parts.add('Your conditions: $labels');
     }
     if (matchedDrugClasses.isNotEmpty) {
       final labels = matchedDrugClasses.map(_humanLabel).join(', ');
-      parts.add('Medications: $labels');
+      parts.add('Your medications: $labels');
     }
-    return parts.join('  •  ');
+    parts.add('Scroll down for details on which ingredients are affected.');
+    return parts.join('\n');
   }
 
   /// snake_case → Title Case with known medical-term overrides so the
@@ -1064,11 +1192,18 @@ class _HeaderSection extends ConsumerWidget {
   final double? score100;
   final String grade;
   final String percentileLabel;
-  final List<String> dietaryTags;
+  final List<({String label, bool isCertification})> dietaryTags;
   final bool isBlocked;
   final bool isNotScored;
   final List<Map<String, dynamic>> topWarnings;
   final VoidCallback onScoreInfoTap;
+  final String? imageUrl;
+  final double? ingredientQuality;
+  final double? safetyPurity;
+  final double? evidenceResearch;
+  final double? brandTrust;
+  final double mappedCoverage;
+  final String? decisionHighlights;
 
   const _HeaderSection({
     required this.dsldId,
@@ -1085,6 +1220,13 @@ class _HeaderSection extends ConsumerWidget {
     required this.isNotScored,
     required this.topWarnings,
     required this.onScoreInfoTap,
+    this.imageUrl,
+    this.ingredientQuality,
+    this.safetyPurity,
+    this.evidenceResearch,
+    this.brandTrust,
+    this.mappedCoverage = 0.0,
+    this.decisionHighlights,
   });
 
   @override
@@ -1149,15 +1291,17 @@ class _HeaderSection extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Score ring — animated, tabular figure, "–" for NOT_SCORED
+                // Score ring + grade label
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
                     PGScoreRing(
                       score: isNotScored ? null : score100,
-                      size: 76,
+                      size: 72,
                       strokeWidth: 5,
-                      label: isNotScored ? null : grade,
                     ),
                     // Info button as floating action
                     Positioned(
@@ -1184,6 +1328,22 @@ class _HeaderSection extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  ],
+                ),
+                // Grade label below ring
+                if (!isNotScored && grade.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    grade,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: VerdictBadge.colorFor(verdict),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
                   ],
                 ),
                 const SizedBox(width: AppTheme.space16),
@@ -1228,34 +1388,88 @@ class _HeaderSection extends ConsumerWidget {
               ],
             ),
 
-          // Dietary tags
+          // Inline score explainer — "why this score?" in one line
+          if (!isBlocked && !isNotScored && score100 != null && mappedCoverage >= 0.3) ...[
+            const SizedBox(height: 12),
+            _InlineExplainer(
+              score100: score100!,
+              ingredientQuality: ingredientQuality,
+              safetyPurity: safetyPurity,
+              evidenceResearch: evidenceResearch,
+              brandTrust: brandTrust,
+            ),
+          ],
+
+          // Decision highlights — pipeline pre-computed hero insights
+          if (decisionHighlights != null && decisionHighlights!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _DecisionHighlights(raw: decisionHighlights!),
+          ],
+
+          // Certification + dietary tags
           if (dietaryTags.isNotEmpty) ...[
             const SizedBox(height: 14),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: dietaryTags
-                  .map(
-                    (tag) => Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.scoreExcellent.withAlpha(20),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: AppColors.scoreExcellent.withAlpha(60)),
-                      ),
-                      child: Text(
-                        tag,
-                        style: const TextStyle(
+              children: dietaryTags.map((tag) {
+                final isCert = tag.isCertification;
+                final color = isCert
+                    ? AppTheme.severitySafe
+                    : AppColors.scoreExcellent;
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withAlpha(isCert ? 18 : 20),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color.withAlpha(60)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isCert) ...[
+                        Icon(Icons.verified_outlined,
+                            size: 12, color: color),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        tag.label,
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.scoreExceptional,
+                          color: color,
                         ),
                       ),
-                    ),
-                  )
-                  .toList(),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+
+          // View Label button (when product has an image/label URL)
+          if (imageUrl != null && imageUrl!.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.description_outlined, size: 16),
+                label: const Text('View Supplement Label'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  side: BorderSide(color: scheme.outlineVariant),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  ),
+                ),
+                onPressed: () {
+                  final uri = Uri.tryParse(imageUrl!);
+                  if (uri != null) {
+                    launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
             ),
           ],
         ],
@@ -1397,17 +1611,47 @@ class _DetailSection extends StatelessWidget {
       );
     }
 
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final blob = detailBlob!;
+
+    // Parse structured data from blob
+    final ingredients = (blob['ingredients'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+    final inactiveIngredients = (blob['inactive_ingredients'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+    final bonuses = (blob['score_bonuses'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+    final penalties = (blob['score_penalties'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
     final ingredientsSummary =
-        detailBlob!['ingredients_summary']?.toString() ?? '';
+        blob['ingredients_summary']?.toString() ?? '';
+
+    // Interaction summary with condition details
+    final interactionSummary =
+        blob['interaction_summary'] as Map<String, dynamic>?;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Ingredients
-        if (ingredientsSummary.isNotEmpty) ...[
+        // ---- Active Ingredients ----
+        if (ingredients.isNotEmpty) ...[
+          _sectionTitle(theme, 'Active Ingredients', ingredients.length),
+          const SizedBox(height: 8),
+          ...ingredients.map((ing) => _IngredientTile(ingredient: ing)),
+          const SizedBox(height: 20),
+        ] else if (ingredientsSummary.isNotEmpty) ...[
           Text(
             'Ingredients',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
@@ -1424,9 +1668,523 @@ class _DetailSection extends StatelessWidget {
           const SizedBox(height: 20),
         ],
 
+        // ---- Inactive Ingredients ----
+        if (inactiveIngredients.isNotEmpty) ...[
+          _sectionTitle(theme, 'Other Ingredients', inactiveIngredients.length),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: inactiveIngredients.map((ing) {
+              final name = ing['name']?.toString() ?? ing['raw_source_text']?.toString() ?? '';
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                ),
+                child: Text(
+                  name,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // ---- Pros (score bonuses) ----
+        if (bonuses.isNotEmpty) ...[
+          _sectionTitle(theme, 'Strengths', bonuses.length,
+              icon: Icons.thumb_up_outlined, color: AppTheme.severitySafe),
+          const SizedBox(height: 8),
+          ...bonuses.map((b) => _ProConTile(
+                label: b['label']?.toString() ?? b['reason']?.toString() ?? '',
+                detail: b['detail']?.toString() ?? b['description']?.toString() ?? '',
+                isPositive: true,
+              )),
+          const SizedBox(height: 20),
+        ],
+
+        // ---- Cons (score penalties) ----
+        if (penalties.isNotEmpty) ...[
+          _sectionTitle(theme, 'Concerns', penalties.length,
+              icon: Icons.thumb_down_outlined, color: AppTheme.severityAvoid),
+          const SizedBox(height: 8),
+          ...penalties.map((p) => _ProConTile(
+                label: p['label']?.toString() ?? p['reason']?.toString() ?? '',
+                detail: p['detail']?.toString() ?? p['description']?.toString() ?? '',
+                isPositive: false,
+              )),
+          const SizedBox(height: 20),
+        ],
+
+        // ---- Condition-specific interaction details ----
+        if (interactionSummary != null) ...[
+          _InteractionConditionDetails(summary: interactionSummary),
+          const SizedBox(height: 20),
+        ],
+
         // Interaction warnings
         InteractionWarningsList(warnings: warnings),
       ],
+    );
+  }
+
+  Widget _sectionTitle(ThemeData theme, String title, int count,
+      {IconData? icon, Color? color}) {
+    final scheme = theme.colorScheme;
+    return Row(
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 18, color: color ?? scheme.primary),
+          const SizedBox(width: 6),
+        ],
+        Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+            color: color,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          ),
+          child: Text(
+            '$count',
+            style: AppTheme.numeric(TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant,
+            )),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A single active ingredient row showing name, dose, form, and category.
+class _IngredientTile extends StatelessWidget {
+  final Map<String, dynamic> ingredient;
+  const _IngredientTile({required this.ingredient});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final name = ingredient['standard_name']?.toString() ??
+        ingredient['name']?.toString() ??
+        ingredient['raw_source_text']?.toString() ??
+        '';
+    final quantity = ingredient['quantity'];
+    final unit = ingredient['unit']?.toString() ?? '';
+    final form = ingredient['form']?.toString() ?? '';
+    final category = ingredient['category']?.toString() ?? '';
+    final bioScore = ingredient['bio_score'];
+
+    final doseLabel = quantity != null ? '$quantity $unit'.trim() : '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.all(AppTheme.space12),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          border: Border.all(color: scheme.outlineVariant, width: 0.5),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Bioavailability indicator dot
+            if (bioScore != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, right: 8),
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _bioColor(bioScore),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (doseLabel.isNotEmpty || form.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      [if (doseLabel.isNotEmpty) doseLabel, if (form.isNotEmpty) form]
+                          .join(' · '),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  // Safety tag — scannable at a glance
+                  const SizedBox(height: 4),
+                  _SafetyTag(bioScore: bioScore, ingredient: ingredient),
+                ],
+              ),
+            ),
+            if (category.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                ),
+                child: Text(
+                  category,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onPrimaryContainer,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _bioColor(dynamic score) {
+    final s = (score is num) ? score.toDouble() : 0.0;
+    if (s >= 12) return AppTheme.severitySafe;
+    if (s >= 8) return AppTheme.scoreGood;
+    if (s >= 4) return AppTheme.severityCaution;
+    return AppTheme.severityAvoid;
+  }
+}
+
+/// Compact safety tag chip for ingredients — "Safe", "Caution", or "Risky".
+class _SafetyTag extends StatelessWidget {
+  final dynamic bioScore;
+  final Map<String, dynamic> ingredient;
+
+  const _SafetyTag({required this.bioScore, required this.ingredient});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color, icon) = _resolve();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (String, Color, IconData) _resolve() {
+    // Check for explicit flags first
+    final hasWarning = ingredient['has_interaction'] == true ||
+        ingredient['has_warning'] == true;
+    if (hasWarning) {
+      return ('Caution', AppTheme.severityCaution, Icons.warning_amber_rounded);
+    }
+
+    // Fall back to bioavailability score
+    final s = (bioScore is num) ? (bioScore as num).toDouble() : -1.0;
+    if (s < 0) {
+      return ('Unknown', AppTheme.insufficientData, Icons.help_outline_rounded);
+    }
+    if (s >= 10) {
+      return ('Well dosed', AppTheme.severitySafe, Icons.check_circle_outline);
+    }
+    if (s >= 6) {
+      return ('Adequate', AppTheme.scoreGood, Icons.check_circle_outline);
+    }
+    if (s >= 3) {
+      return ('Low form', AppTheme.severityCaution, Icons.info_outline);
+    }
+    return ('Poor form', AppTheme.severityAvoid, Icons.warning_amber_rounded);
+  }
+}
+
+/// A pro or con item with icon and label.
+class _ProConTile extends StatelessWidget {
+  final String label;
+  final String detail;
+  final bool isPositive;
+
+  const _ProConTile({
+    required this.label,
+    required this.detail,
+    required this.isPositive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (label.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final color = isPositive ? AppTheme.severitySafe : AppTheme.severityAvoid;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              isPositive ? Icons.add_circle_outline : Icons.remove_circle_outline,
+              size: 16,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(
+                    detail,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows which specific conditions and drug classes are affected and why.
+class _InteractionConditionDetails extends StatelessWidget {
+  final Map<String, dynamic> summary;
+  const _InteractionConditionDetails({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final conditionSummary =
+        summary['condition_summary'] as Map<String, dynamic>? ?? {};
+    final drugClassSummary =
+        summary['drug_class_summary'] as Map<String, dynamic>? ?? {};
+
+    if (conditionSummary.isEmpty && drugClassSummary.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Why this may affect you',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Condition details
+        ...conditionSummary.entries.map((e) {
+          final data = e.value as Map<String, dynamic>? ?? {};
+          final label = data['label']?.toString() ?? e.key;
+          final severity = data['highest_severity']?.toString() ?? '';
+          final ingredients = (data['ingredients'] as List?)
+                  ?.map((i) => i.toString())
+                  .toList() ??
+              [];
+          final actions = (data['actions'] as List?)
+                  ?.map((a) => a.toString())
+                  .toList() ??
+              [];
+          return _ConditionCard(
+            icon: Icons.medical_information_outlined,
+            label: label,
+            severity: severity,
+            ingredients: ingredients,
+            actions: actions,
+          );
+        }),
+
+        // Drug class details
+        ...drugClassSummary.entries.map((e) {
+          final data = e.value as Map<String, dynamic>? ?? {};
+          final label = data['label']?.toString() ?? e.key;
+          final severity = data['highest_severity']?.toString() ?? '';
+          final ingredients = (data['ingredients'] as List?)
+                  ?.map((i) => i.toString())
+                  .toList() ??
+              [];
+          final actions = (data['actions'] as List?)
+                  ?.map((a) => a.toString())
+                  .toList() ??
+              [];
+          return _ConditionCard(
+            icon: Icons.medication_outlined,
+            label: label,
+            severity: severity,
+            ingredients: ingredients,
+            actions: actions,
+          );
+        }),
+      ],
+    );
+  }
+}
+
+/// A card explaining one condition or drug class interaction.
+class _ConditionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String severity;
+  final List<String> ingredients;
+  final List<String> actions;
+
+  const _ConditionCard({
+    required this.icon,
+    required this.label,
+    required this.severity,
+    required this.ingredients,
+    required this.actions,
+  });
+
+  Color _severityColor() {
+    switch (severity.toLowerCase()) {
+      case 'contraindicated':
+      case 'avoid':
+        return AppTheme.severityContraindicated;
+      case 'caution':
+        return AppTheme.severityCaution;
+      case 'monitor':
+        return AppTheme.severityMonitor;
+      default:
+        return AppTheme.severityCaution;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final color = _severityColor();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(AppTheme.space12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 0.8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    severity.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (ingredients.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Affected by: ${ingredients.join(", ")}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (actions.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              ...actions.map((a) => Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('  \u2022 ', style: TextStyle(fontSize: 12)),
+                        Expanded(
+                          child: Text(
+                            a,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1491,14 +2249,16 @@ class _DetailErrorBanner extends StatelessWidget {
 // "Why this score?" — compact explainer card
 // ---------------------------------------------------------------------------
 
-class _ScoreExplainerCard extends StatelessWidget {
+/// Compact inline explainer — renders inside the header, right under the
+/// verdict badge. One line: icon + "why this score" summary.
+class _InlineExplainer extends StatelessWidget {
   final double score100;
   final double? ingredientQuality;
   final double? safetyPurity;
   final double? evidenceResearch;
   final double? brandTrust;
 
-  const _ScoreExplainerCard({
+  const _InlineExplainer({
     required this.score100,
     this.ingredientQuality,
     this.safetyPurity,
@@ -1509,42 +2269,35 @@ class _ScoreExplainerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final summary = _buildSummary();
     final color = _scoreColor();
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.space12,
-          vertical: AppTheme.space8,
-        ),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              _scoreIcon(),
-              size: 16,
-              color: color,
-            ),
-            const SizedBox(width: AppTheme.space8),
-            Expanded(
-              child: Text(
-                summary,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space12,
+        vertical: AppTheme.space8,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      ),
+      child: Row(
+        children: [
+          Icon(_scoreIcon(), size: 15, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              summary,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1589,5 +2342,72 @@ class _ScoreExplainerCard extends StatelessWidget {
     if (score100 >= 80) return Icons.check_circle_outline;
     if (score100 >= 50) return Icons.info_outline;
     return Icons.warning_amber_rounded;
+  }
+}
+
+/// Renders pipeline decision_highlights — compact positive/caution/trust lines.
+class _DecisionHighlights extends StatelessWidget {
+  final String raw;
+  const _DecisionHighlights({required this.raw});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Map<String, dynamic> parsed;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const SizedBox.shrink();
+      parsed = Map<String, dynamic>.from(decoded);
+    } on FormatException {
+      return const SizedBox.shrink();
+    }
+
+    final positive = parsed['positive']?.toString() ?? '';
+    final caution = parsed['caution']?.toString() ?? '';
+    final trust = parsed['trust']?.toString() ?? '';
+
+    if (positive.isEmpty && caution.isEmpty && trust.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (positive.isNotEmpty) _highlight(
+          theme, Icons.thumb_up_outlined, AppTheme.severitySafe, positive),
+        if (caution.isNotEmpty) _highlight(
+          theme, Icons.info_outline, AppTheme.severityCaution, caution),
+        if (trust.isNotEmpty) _highlight(
+          theme, Icons.verified_outlined, AppTheme.evidenceStrong, trust),
+      ],
+    );
+  }
+
+  Widget _highlight(ThemeData theme, IconData icon, Color color, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 13, color: color),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

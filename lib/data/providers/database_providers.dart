@@ -39,6 +39,26 @@ final interactionDatabaseProvider = Provider<InteractionDatabase>((ref) {
   );
 });
 
+/// Catalog metadata from the embedded export_manifest — product count +
+/// build date. Used by the home screen citation strip so the values stay
+/// in sync with the actual bundled data instead of being hardcoded.
+final catalogInfoProvider = FutureProvider<CatalogInfo>((ref) async {
+  final db = ref.read(coreDatabaseProvider);
+  final count = await db.countProducts();
+  final generatedAt = await db.readManifestValue('generated_at');
+  DateTime? buildDate;
+  if (generatedAt != null && generatedAt.isNotEmpty) {
+    buildDate = DateTime.tryParse(generatedAt);
+  }
+  return CatalogInfo(productCount: count, buildDate: buildDate);
+});
+
+class CatalogInfo {
+  final int productCount;
+  final DateTime? buildDate;
+  const CatalogInfo({required this.productCount, this.buildDate});
+}
+
 const bundledCoreDatabaseAssetPath = 'assets/db/pharmaguide_core.db';
 const bundledInteractionDatabaseAssetPath =
     'assets/db/interaction_db.sqlite';

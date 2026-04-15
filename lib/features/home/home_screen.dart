@@ -7,9 +7,9 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_citation_strip.dart';
 import 'package:pharmaguide/core/widgets/pg_filter_chip.dart';
+import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/pg_search_field.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
-import 'package:pharmaguide/core/widgets/product_list_item.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -235,13 +235,7 @@ class HomeScreen extends ConsumerWidget {
               AppTheme.space8,
             ),
             sliver: SliverToBoxAdapter(
-              child: PGCitationStrip(
-                sourceCount: 5231,
-                updatedAt: DateTime(2026, 4, 11),
-                disclaimer:
-                    'PharmaGuide is not medical advice. Always consult your '
-                    'healthcare provider before starting or stopping a supplement.',
-              ),
+              child: _DynamicCitationStrip(),
             ),
           ),
 
@@ -459,14 +453,17 @@ class _ScanCta extends StatelessWidget {
 // Search launcher — read-only PGSearchField that opens /search on tap
 // ---------------------------------------------------------------------------
 
-class _HomeSearchLauncher extends StatelessWidget {
+class _HomeSearchLauncher extends ConsumerWidget {
   const _HomeSearchLauncher();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(catalogInfoProvider).asData?.value.productCount;
+    final label = count != null ? 'Search $count+ supplements…'
+        : 'Search supplements…';
     return PGSearchField(
       readOnly: true,
-      hintText: 'Search 5,000+ supplements…',
+      hintText: label,
       onTap: () => GoRouter.of(context).push(Routes.search),
     );
   }
@@ -707,11 +704,21 @@ class _RecentScansSectionState extends ConsumerState<_RecentScansSection> {
     if (_scans == null || _scans!.isEmpty) {
       return _buildEmptyState(theme, scheme, context);
     }
-    return Column(
-      children: [
-        for (final scan in _scans!)
-          ProductListItem(product: scan.product),
-      ],
+    return SizedBox(
+      height: 172,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: _scans!.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final scan = _scans![index];
+          return _RecentScanCard(
+            product: scan.product,
+            scannedAt: scan.scannedAt,
+          );
+        },
+      ),
     );
   }
 
@@ -775,6 +782,84 @@ class _RecentScanDisplay {
   const _RecentScanDisplay({required this.product, required this.scannedAt});
 }
 
+/// A card-style recent scan item for the horizontal carousel.
+class _RecentScanCard extends StatelessWidget {
+  final ProductsCoreData product;
+  final DateTime scannedAt;
+
+  const _RecentScanCard({required this.product, required this.scannedAt});
+
+  String _timeAgo() {
+    final diff = DateTime.now().difference(scannedAt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays}d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final score = product.score100Equivalent;
+
+    return SizedBox(
+      width: 156,
+      child: PGCard(
+        onTap: () => GoRouter.of(context).push('/product/${product.dsldId}'),
+        padding: const EdgeInsets.all(AppTheme.space12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Score ring centered
+            Center(
+              child: PGScoreRing(
+                score: score,
+                size: 56,
+                strokeWidth: 4,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space8),
+            // Product name
+            Text(
+              product.productName,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.1,
+                height: 1.25,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            // Brand
+            if (product.brandName != null && product.brandName!.isNotEmpty)
+              Text(
+                product.brandName!,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            const Spacer(),
+            // Time ago
+            Text(
+              _timeAgo(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _OutlineScanButton extends StatelessWidget {
   final VoidCallback onTap;
   const _OutlineScanButton({required this.onTap});
@@ -826,6 +911,30 @@ class _OutlineScanButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dynamic citation strip — reads product count & build date from DB manifest
+// ---------------------------------------------------------------------------
+
+class _DynamicCitationStrip extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalogAsync = ref.watch(catalogInfoProvider);
+
+    final info = catalogAsync.asData?.value;
+    if (info == null) return const SizedBox.shrink(); // Still loading
+    final sourceCount = info.productCount;
+    final buildDate = info.buildDate ?? DateTime.now();
+
+    return PGCitationStrip(
+      sourceCount: sourceCount,
+      updatedAt: buildDate,
+      disclaimer:
+          'PharmaGuide is not medical advice. Always consult your '
+          'healthcare provider before starting or stopping a supplement.',
     );
   }
 }

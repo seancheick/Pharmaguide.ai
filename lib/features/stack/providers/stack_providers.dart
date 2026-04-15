@@ -34,6 +34,7 @@ import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.da
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
@@ -870,4 +871,66 @@ class StackActions {
 
 final stackActionsProvider = Provider<StackActions>((ref) {
   return StackActions(ref);
+});
+
+// ---------------------------------------------------------------------------
+// Depletion checker — matches medications against known nutrient depletions
+// ---------------------------------------------------------------------------
+
+final depletionReportProvider =
+    FutureProvider<List<DepletionMatch>>((ref) async {
+  final stack = await ref.watch(activeStackProvider.future);
+  final medications = stack
+      .where((e) => e.type == 'medication')
+      .expand((e) {
+    // Each medication may have multiple drug classes (JSON array).
+    final classIds = <String>[];
+    if (e.drugClassesCol != null && e.drugClassesCol!.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(e.drugClassesCol!);
+        if (decoded is List) {
+          classIds.addAll(decoded.map((c) => c.toString()));
+        }
+      } on FormatException {
+        // skip
+      }
+    }
+    if (classIds.isEmpty) {
+      return [(name: e.name, drugClassId: null as String?)];
+    }
+    return classIds.map((c) => (name: e.name, drugClassId: c as String?));
+  }).toList(growable: false);
+
+  if (medications.isEmpty) return const [];
+
+  final repo = ref.read(referenceDataRepositoryProvider);
+  final depletionsData = await repo.loadMedicationDepletions();
+
+  // Build canonical IDs from supplement stack to flag covered nutrients.
+  final coreDb = ref.read(coreDatabaseProvider);
+  final supplements = stack.where((e) => e.type == 'supplement').toList();
+  final coveredIds = <String>{};
+  for (final supp in supplements) {
+    if (supp.dsldId == null) continue;
+    final product = await coreDb.findById(supp.dsldId!);
+    if (product?.keyIngredientTags != null) {
+      try {
+        final tags = jsonDecode(product!.keyIngredientTags!);
+        if (tags is List) {
+          for (final tag in tags) {
+            coveredIds.add(tag.toString().toLowerCase());
+          }
+        }
+      } on FormatException {
+        // skip
+      }
+    }
+  }
+
+  final checker = DepletionChecker();
+  return checker.check(
+    medications: medications,
+    depletionsData: depletionsData,
+    stackCanonicalIds: coveredIds,
+  );
 });

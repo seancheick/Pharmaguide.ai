@@ -1,34 +1,28 @@
 import 'dart:convert';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 
-/// Fetches detail blobs from Supabase on demand.
+/// Fetches detail blobs from Supabase Storage on demand.
+///
+/// The pipeline uploads blobs to a content-addressed path:
+///   `{bucket}/{blobPrefix}/{sha256[0:2]}/{sha256}.json`
+///
+/// The product's `detail_blob_sha256` column in `products_core` provides
+/// the hash. Callers must pass the SHA-256 hash, not the dsld_id.
 class DetailBlobService {
-  /// Fetch a detail blob by DSLD ID.
-  /// Returns parsed JSON map or null if not found.
+  /// Fetch detail blob by SHA-256 hash.
   ///
-  /// Catches broadly ([Object]) because Supabase storage can throw
-  /// StorageException, FormatException, network errors, or type-cast
-  /// failures — all of which should map to "no blob available" so the
-  /// caller falls back to the bundled data.
-  Future<Map<String, dynamic>?> fetchDetailBlob(String dsldId) async {
-    try {
-      final bytes = await supabase.storage
-          .from('detail-blobs')
-          .download('$dsldId.json');
-      final json = utf8.decode(bytes);
-      return jsonDecode(json) as Map<String, dynamic>;
-    } on Object {
-      return null;
-    }
-  }
-
-  /// Fetch detail blob by SHA-256 hash (for hashed storage paths).
+  /// Path: `shared/details/sha256/{sha256[0:2]}/{sha256}.json`
+  /// Bucket: `pharmaguide`
+  ///
+  /// Returns parsed JSON map or null if not found / network error.
   Future<Map<String, dynamic>?> fetchDetailBlobByHash(String sha256) async {
+    if (sha256.length < 3) return null;
     try {
       final prefix = sha256.substring(0, 2);
       final bytes = await supabase.storage
-          .from('detail-blobs')
-          .download('$prefix/$sha256.json');
+          .from(SupabaseContract.storageBucket)
+          .download('${SupabaseContract.blobPrefix}/$prefix/$sha256.json');
       final json = utf8.decode(bytes);
       return jsonDecode(json) as Map<String, dynamic>;
     } on Object {
