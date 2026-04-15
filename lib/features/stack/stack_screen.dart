@@ -19,6 +19,7 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
 import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
@@ -40,6 +41,14 @@ final _stackAvgScoreProvider =
     }
   }
   return count > 0 ? sum / count : null;
+});
+
+/// Look up a single product from the core DB — used by stack item cards
+/// to resolve brand name + score from dsldId.
+final _stackProductProvider = FutureProvider.family
+    .autoDispose<ProductsCoreData?, String>((ref, dsldId) async {
+  final coreDb = ref.read(coreDatabaseProvider);
+  return coreDb.findById(dsldId);
 });
 
 /// My Stack screen — shows all products in the user's supplement stack
@@ -156,30 +165,13 @@ class _StackTab extends ConsumerWidget {
               // no-warning stack never eats vertical space.
               const _StackSafetyBannerSlot(),
 
-              // Timing optimization advice — shows separation rules,
-              // take-with-food, and time-of-day guidance.
-              const _TimingAdviceSlot(),
-
-              // Depletion checker — nutrients depleted by medications
-              const _DepletionSlot(),
-
-              // M1 nutrient accumulation panel (UL tracking)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  AppTheme.space16,
-                  AppTheme.space20,
-                  0,
-                ),
-                child: NutrientAccumulationPanel(),
-              ),
-
+              // Your supplements list — first, so user sees what's in their stack
               const PGSectionHeader(
                 title: 'Your supplements',
                 subtitle: 'Swipe left to remove',
                 padding: EdgeInsets.fromLTRB(
                   AppTheme.space20,
-                  AppTheme.space24,
+                  AppTheme.space16,
                   AppTheme.space20,
                   AppTheme.space12,
                 ),
@@ -195,6 +187,23 @@ class _StackTab extends ConsumerWidget {
                     ),
                     child: _StackItemCard(entry: entry),
                   )),
+
+              // Timing optimization advice
+              const _TimingAdviceSlot(),
+
+              // Depletion checker — nutrients depleted by medications
+              const _DepletionSlot(),
+
+              // Nutrient accumulation panel (UL tracking)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppTheme.space20,
+                  AppTheme.space16,
+                  AppTheme.space20,
+                  0,
+                ),
+                child: NutrientAccumulationPanel(),
+              ),
             ],
           );
         },
@@ -486,30 +495,79 @@ class _StackItemCard extends ConsumerWidget {
           ),
         );
       },
-      child: PGCard(
+      child: _StackItemCardContent(
+        entry: entry,
+        isMedication: isMedication,
+      ),
+    );
+  }
+}
+
+/// Inner content of a stack item — resolves product name + brand from
+/// the core DB when a dsldId is present, so "Multivitamin" becomes
+/// "ONE Multivitamin · Pure Encapsulations".
+class _StackItemCardContent extends ConsumerWidget {
+  final UserStacksLocalData entry;
+  final bool isMedication;
+  const _StackItemCardContent({
+    required this.entry,
+    required this.isMedication,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    // Resolve product details from core DB for richer display.
+    String displayName = entry.name;
+    String? brandName;
+    double? score;
+
+    if (entry.dsldId != null) {
+      final productAsync = ref.watch(
+        _stackProductProvider(entry.dsldId!),
+      );
+      final product = productAsync.asData?.value;
+      if (product != null) {
+        displayName = product.productName;
+        brandName = product.brandName;
+        score = product.score100Equivalent;
+      }
+    }
+
+    return PGCard(
         onTap: entry.dsldId == null
             ? null
             : () => GoRouter.of(context).push('/product/${entry.dsldId}'),
         padding: const EdgeInsets.all(AppTheme.space12),
         child: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isMedication
-                    ? AppTheme.info.withValues(alpha: 0.12)
-                    : scheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            // Score ring for supplements, icon for medications
+            if (!isMedication && score != null)
+              PGScoreRing(
+                score: score,
+                size: 44,
+                strokeWidth: 3.5,
+              )
+            else
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isMedication
+                      ? AppTheme.info.withValues(alpha: 0.12)
+                      : scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                ),
+                child: Icon(
+                  isMedication
+                      ? Icons.local_pharmacy_outlined
+                      : Icons.medication_outlined,
+                  size: 20,
+                  color: isMedication ? AppTheme.info : scheme.primary,
+                ),
               ),
-              child: Icon(
-                isMedication
-                    ? Icons.local_pharmacy_outlined
-                    : Icons.medication_outlined,
-                size: 20,
-                color: isMedication ? AppTheme.info : scheme.primary,
-              ),
-            ),
             const SizedBox(width: AppTheme.space12),
             Expanded(
               child: Column(
@@ -517,13 +575,24 @@ class _StackItemCard extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    entry.name,
+                    displayName,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (brandName != null && brandName.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      brandName,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   if (entry.dosage != null || entry.frequency != null) ...[
                     const SizedBox(height: 2),
                     Text(
@@ -533,6 +602,7 @@ class _StackItemCard extends ConsumerWidget {
                           .join(' · '),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -547,7 +617,6 @@ class _StackItemCard extends ConsumerWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }
