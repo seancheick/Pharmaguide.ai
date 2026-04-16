@@ -18,6 +18,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
+import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -405,9 +406,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               IconButton(
                 icon: const Icon(Icons.share_outlined),
                 tooltip: 'Share',
-                onPressed: () {
-                  // TODO: trigger share_plus with share_title / share_description
-                },
+                onPressed: _product == null
+                    ? null
+                    : () {
+                        ShareService().shareProduct(
+                          shareTitle: _product!.shareTitle,
+                          shareDescription: _product!.shareDescription,
+                          shareHighlights: _product!.shareHighlights,
+                        );
+                      },
               ),
             ],
           ),
