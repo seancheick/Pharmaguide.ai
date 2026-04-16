@@ -1188,20 +1188,20 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ## Sprint 15: Display Widgets — Form & Absorption / Why-this-score / Certifications / Pairs-with
 
-**Status:** READY
-**Timeline:** Week 1 of next month (parallel with M1 polish)
+**Status:** ✅ DONE
+**Completed:** 2026-04-16
 **Repo:** Flutter
 **Note:** All four widgets surface data that's ALREADY in `detail_blob` — no pipeline changes required.
 
 ### Tasks
 
-- [ ] **"Form & Absorption" widget** — surfaces `ingredients[].bio_score`, `matched_form`, `absorption %`, and `notes` so the user sees that magnesium glycinate (bio_score 14) absorbs better than oxide (bio_score 6). Data is already in the blob.
-- [ ] **"Why this score" widget** — renders `score_bonuses[]` and `score_penalties[]` with their `id`, `label`, `score`, and `detail`. Data is already in the blob.
-- [ ] **"Certifications" widget** — renders `certification_detail.third_party_programs.programs[]` (NSF Sport, USP Verified, etc.) as gold badges. Data is already in the blob.
-- [ ] **"Pairs well with your stack" widget** — uses `synergy_cluster.json` (already bundled) to surface positive ingredient synergies against the user's current stack
-- [ ] Each widget gets ≥4 tests (loading, empty, populated, edge case)
-- [ ] Slot all four into `product_detail_screen.dart` between scoring sections and Better Alternatives
-- [ ] Defer SVG rendering of certification logos to a later sprint (text + icon for v1.0)
+- [x] **"Form & Absorption" widget** — `FormAbsorptionSection` renders per-ingredient bioavailability bars ranked by `bio_score` (0-18). Hides when <2 scored ingredients. 5 tests.
+- [x] **"Why this score" widget** — Already done: Strengths/Concerns section in `_DetailSection` renders `score_bonuses[]` / `score_penalties[]`. No new task needed.
+- [x] **"Certifications" widget** — `CertificationDetailSection` enhanced with `third_party_programs.programs[]` badge row (NSF Sport, USP Verified, etc.).
+- [x] **"Pairs well with your stack" widget** — `PairsWellSection` + `pairsWellWithStackProvider` (partial synergy cluster match). 4 tests.
+- [x] Each widget gets ≥4 tests (loading, empty, populated, edge case)
+- [x] Slot all into `product_detail_screen.dart`
+- [x] Defer SVG rendering of certification logos to a later sprint (text + icon for v1.0)
 
 ### Definition of Done
 
@@ -1214,19 +1214,19 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ## Sprint 16: Heavy Metal Risk + Excipient Density (v1.4 features, optional ship)
 
-**Status:** READY (deferred — only ship if Sprints 11-15 close early)
-**Timeline:** Week 4 stretch
-**Repo:** Both pipeline + Flutter
+**Status:** ✅ DONE (Flutter shells shipped; pipeline scorer deferred)
+**Completed:** 2026-04-16
+**Repo:** Flutter (shells); Pipeline scorer deferred
 
 ### Tasks
 
-- [ ] New `scripts/data/heavy_metal_limits.json` reference file with Prop 65 / EPA / GOED limits for fish_oil, turmeric, kelp, rice_protein, cocoa, etc.
-- [ ] New scorer section `B8_contaminant_risk` in safety & purity (or fold into B0 gate)
-- [ ] New `lib/features/product_detail/widgets/heavy_metal_warning_card.dart`
-- [ ] Excipient density calculator: parse `inactive_ingredients`, compute `active_mass_percent = sum(active_mg) / total_capsule_mg`
-- [ ] New scorer micro-metric `A7_formulation_density` with 3 bands: ≥85% → +2, 60–85% → +1, <60% → 0
-- [ ] New `lib/features/product_detail/widgets/excipient_density_card.dart`
-- [ ] Catalog rebuild required after scorer changes
+- [ ] New `scripts/data/heavy_metal_limits.json` reference file (pipeline — deferred)
+- [ ] New scorer section `B8_contaminant_risk` (pipeline — deferred)
+- [x] **`HeavyMetalWarningCard`** — Flutter shell reads `heavy_metal_detail.signals[]` from blob. No-op until pipeline adds field. 3 tests.
+- [ ] Excipient density mass calculator (pipeline `active_mass_percent` — deferred; Flutter card uses count proxy instead)
+- [ ] New scorer micro-metric `A7_formulation_density` (pipeline — deferred)
+- [x] **`ExcipientDensityCard`** — Active vs inactive ingredient count ratio, Minimal/Moderate/High filler labels. 4 tests.
+- [ ] Catalog rebuild (pipeline — deferred, not needed for Flutter shells)
 
 ### Definition of Done
 
@@ -1238,7 +1238,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ## Sprint 17: Tech Debt + Polish
 
-**Status:** PARTIALLY DONE (e1 calculator fix + markdownlint still open)
+**Status:** PARTIALLY DONE (golden tests done 2026-04-16; markdownlint + profile prompt + telemetry still open)
 **Timeline:** Throughout next month
 **Repo:** Flutter (mostly)
 
@@ -1246,7 +1246,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 - [x] **Fix pre-existing `e1_dosage_calculator.dart` bug** — Fixed 2026-04-11 in Sprint 19. Field-name lookup now prefers current-schema (`standard_name`, `age_range`, `rda_ai`) with legacy fallbacks so existing tests still pass. Per-product RDA tier scoring now actually runs for users with profile data.
 - [x] **Manual device QA** — physical iPhone 26, verified scan flow, camera permissions, dark mode toggle, frosted nav bar, bottom sheets, UPC lookup, score breakdown colors all working 2026-04-11
-- [ ] **Golden-image tests** for nutrient progress bar in all 7 tiers (deferred — PGScoreRing goldens done in Sprint 19, NutrientProgressBar still pending)
+- [x] **Golden-image tests** for NutrientProgressBar in all 7 tiers — 7 PNG goldens in `test/core/widgets/goldens/`, shipped 2026-04-16
 - [ ] **"Complete your profile" prompt** in nutrient panel header when `ageBracket == null` — drives onboarding completion
 - [ ] **Tap-to-expand contributions** in progress bar showing which products contributed
 - [ ] **Telemetry on UL breaches** — log locally only (privacy), expose via "Data export" in settings
@@ -1349,7 +1349,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] VoiceOver labels on PGScoreRing + PGFitScoreBadge — `Semantics` wrappers with tier-aware labels
 - [x] Migrate remaining legacy screens — settings_screen, search_screen, scanner_screen, profile_setup_screen all migrated to PG components; onboarding_screen rewritten
 - [ ] Widget tests for PGInteractionCard states (deferred — not blocking)
-- [ ] Golden-image tests for NutrientProgressBar in all 7 tiers (still pending from Sprint 17)
+- [x] Golden-image tests for NutrientProgressBar in all 7 tiers — shipped 2026-04-16
 
 ### Commits
 
