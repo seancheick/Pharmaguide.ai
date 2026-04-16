@@ -29,7 +29,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,6 +46,14 @@ class UserDatabase extends _$UserDatabase {
           if (from < 3) {
             // v3: product image cache for OFF API lookups.
             await m.createTable(productImageCache);
+          }
+          if (from == 3) {
+            // v4: clear stale image cache — prior UPC sanitization bug
+            // sent malformed barcodes to OFF, caching false negatives.
+            // Scoped to `from == 3` only: users on v1/v2 never had the
+            // buggy cache, and fresh installs created the table at v4
+            // with no rows to clear.
+            await customStatement('DELETE FROM product_image_cache');
           }
         },
       );

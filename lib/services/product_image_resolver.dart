@@ -33,8 +33,10 @@ class ProductImageResolver {
   static const _negativeTtl = Duration(days: 7);
   static const _requestTimeout = Duration(seconds: 8);
 
-  /// Simple semaphore — max 2 concurrent OFF requests.
-  /// Uses instance fields so state doesn't leak across tests.
+  /// Simple semaphore — max 2 concurrent OFF requests across the whole
+  /// app, enforced via static fields so every resolver instance shares
+  /// the same rate-limit budget. Tests that create fresh resolvers must
+  /// call [resetSemaphore] in tearDown to clear pending completers.
   static int _activeRequests = 0;
   static final _queue = <Completer<void>>[];
 
@@ -71,7 +73,10 @@ class ProductImageResolver {
     try {
       await _acquireSemaphore();
       try {
-        return await _queryOff(dsldId, upc.replaceAll(' ', ''));
+        return await _queryOff(
+        dsldId,
+        upc.replaceAll(RegExp(r'[^0-9]'), ''),
+      );
       } finally {
         _releaseSemaphore();
       }

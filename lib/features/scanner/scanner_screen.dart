@@ -72,7 +72,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       } else {
         _showProductNotFound(upc);
       }
-    } on Exception {
+      // Bare catch is intentional: DB layer can throw Error subtypes
+      // (e.g. StateError on corrupt data). Letting an Error propagate
+      // leaves `_hasScanned = true`, permanently locking the scanner
+      // until app restart — a hard failure mode for a medical-grade
+      // lookup screen. Safer to swallow and show "not found".
+    } catch (_) { // ignore: avoid_catches_without_on_clauses
       if (!mounted) return;
       setState(() => _isLookingUp = false);
       _showProductNotFound(upc);
@@ -113,7 +118,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     if (!mounted) return;
 
     setState(() => _showFlash = false);
-    unawaited(context.push('/product/${product.dsldId}'));
+    await context.push('/product/${product.dsldId}');
+
+    // Reset after returning from product detail so scanner can detect again.
+    if (mounted) {
+      setState(() => _hasScanned = false);
+    }
   }
 
   void _showProductNotFound(String upc) {

@@ -207,7 +207,7 @@ class CoreDatabase extends _$CoreDatabase {
     for (final candidate in candidates) {
       final row = await customSelect(
         "SELECT * FROM products_core "
-        "WHERE REPLACE(upc_sku, ' ', '') = ? "
+        "WHERE REPLACE(REPLACE(REPLACE(REPLACE(upc_sku, ' ', ''), '-', ''), '.', ''), '/', '') = ? "
         "ORDER BY (product_status = 'active') DESC, "
         "         COALESCE(score_quality_80, 0) DESC "
         "LIMIT 1",
