@@ -1,0 +1,187 @@
+// Active stack provider + imperative [StackActions] — the core CRUD surface
+// for the user's supplement/medication stack.
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
+import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+
+/// All non-deleted stack entries, newest first.
+final activeStackProvider = FutureProvider<List<UserStacksLocalData>>((ref) {
+  final userDb = ref.watch(userDatabaseProvider);
+  return userDb.getActiveStack();
+});
+
+/// Returns the active (non-deleted) stack entry for a given product, or
+/// null if the user has not added that product. Used by product detail
+/// screens to toggle between Add-to-Stack / In-Stack states.
+///
+/// This re-fetches on every call rather than filtering [activeStackProvider]
+/// because it's used in a different part of the tree and we want it
+/// separately keyed for rebuild isolation.
+final stackEntryForDsldIdProvider = FutureProvider.family
+    .autoDispose<UserStacksLocalData?, String>((ref, dsldId) async {
+  // Take a dependency on the active stack so mutations propagate.
+  await ref.watch(activeStackProvider.future);
+  final userDb = ref.watch(userDatabaseProvider);
+  return userDb.findStackEntryByDsldId(dsldId);
+});
+
+/// Imperative stack actions (add / remove / restore). Never call directly
+/// from a build method — invoke from an onTap or an async user event.
+class StackActions {
+  final Ref _ref;
+  StackActions(this._ref);
+
+  /// Generate a reasonably unique local id. We don't have the `uuid`
+  /// package in pubspec, and since stack ids are scoped to a single device
+  /// (server assigns its own id on sync), `dsldId + microseconds` is
+  /// collision-proof for all realistic uses.
+  String _newId(String? dsldId) {
+    final base = dsldId ?? 'manual';
+    return '${base}_${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  /// Add a product to the stack. Returns the new entry's id so the caller
+  /// can show an undo snackbar that references it.
+  Future<String> addProduct(ProductsCoreData product) async {
+    final userDb = _ref.read(userDatabaseProvider);
+    final id = _newId(product.dsldId);
+    await userDb.addToStack(
+      UserStacksLocalCompanion(
+        id: Value(id),
+        type: const Value('supplement'),
+        name: Value(product.productName),
+        dsldId: Value(product.dsldId),
+        ingredientKeys: Value(product.ingredientFingerprint),
+      ),
+    );
+    _invalidate();
+    _triggerSync();
+    return id;
+  }
+
+  /// Add a medication to the stack (M4 §8.5).
+  ///
+  /// Medications are PHI: they get `type='medication'` so the Supabase
+  /// sync layer can refuse to push them. The privacy grep test
+  /// (`test/release_gate/phi_medication_no_sync_test.dart`) build-fails
+  /// if any sync code path touches a `'medication'` row.
+  ///
+  /// [rxcui] is the NLM RxNorm concept id (string) — present when the
+  /// user picked a specific drug from the autocomplete; null when they
+  /// fell back to the offline class picker (`drugClasses` is set
+  /// instead).
+  ///
+  /// [drugClasses] is the list of `class:*` ids the medication belongs
+  /// to, JSON-encoded into the `drug_classes` column. Either [rxcui] or
+  /// at least one entry in [drugClasses] must be non-empty so the
+  /// curated interaction lookup has something to match on.
+  ///
+  /// We deliberately do NOT call [_triggerSync] for medications — the
+  /// sync layer would skip them anyway, but skipping the call entirely
+  /// makes the no-sync contract obvious in code review.
+  Future<String> addMedication({
+    required String name,
+    String? rxcui,
+    String? genericRxcui,
+    List<String> drugClasses = const <String>[],
+    List<String> ingredientRxcuis = const <String>[],
+    String? dosage,
+    String? frequency,
+  }) async {
+    assert(
+      (rxcui != null && rxcui.isNotEmpty) || drugClasses.isNotEmpty,
+      'medication needs at least one of rxcui or drugClasses to participate '
+      'in interaction checks',
+    );
+
+    final userDb = _ref.read(userDatabaseProvider);
+    final id = _newId(rxcui != null ? 'rx_$rxcui' : 'med');
+    final classesJson =
+        drugClasses.isEmpty ? null : jsonEncode(drugClasses);
+    final ingredientsJson =
+        ingredientRxcuis.isEmpty ? null : jsonEncode(ingredientRxcuis);
+
+    await userDb.addToStack(
+      UserStacksLocalCompanion(
+        id: Value(id),
+        type: const Value('medication'),
+        name: Value(name),
+        rxcui: Value(rxcui),
+        genericRxcui: Value(genericRxcui),
+        drugClassesCol: Value(classesJson),
+        ingredientRxcuisCol: Value(ingredientsJson),
+        dosage: Value(dosage),
+        frequency: Value(frequency),
+      ),
+    );
+    _invalidate();
+    // Intentionally NOT calling _triggerSync — medications never leave
+    // the device. See spec §8.5.
+    return id;
+  }
+
+  /// Soft-delete a stack entry (sets `deletedAt`).
+  Future<void> remove(String entryId) async {
+    final userDb = _ref.read(userDatabaseProvider);
+    await userDb.removeFromStack(entryId);
+    _invalidate();
+    _triggerSync();
+  }
+
+  /// Reverse a soft-delete — clears `deletedAt` so the entry re-appears.
+  /// Used to implement "Undo" on the remove snackbar.
+  Future<void> restore(String entryId) async {
+    final userDb = _ref.read(userDatabaseProvider);
+    await (userDb.update(userDb.userStacksLocal)
+          ..where((t) => t.id.equals(entryId)))
+        .write(
+      UserStacksLocalCompanion(
+        deletedAt: const Value(null),
+        clientUpdatedAt: Value(DateTime.now()),
+      ),
+    );
+    _invalidate();
+    _triggerSync();
+  }
+
+  void _invalidate() {
+    _ref.invalidate(activeStackProvider);
+    // Family providers invalidate per-key when the root is invalidated;
+    // force a broad invalidate so every currently-listening detail screen
+    // rebuilds its "in stack?" state.
+    _ref.invalidate(stackEntryForDsldIdProvider);
+    _ref.invalidate(safetyCheckForAddProvider);
+    // The aggregated banner report re-runs on every mutation so the
+    // top-of-stack banner updates in the same frame as the product
+    // list. activeStackProvider is already listed above, but we spell
+    // this out explicitly so a future refactor that drops the stack
+    // dependency can't accidentally freeze the banner.
+    _ref.invalidate(stackSafetyReportProvider);
+    // Synergy and recall detection also depend on the active stack, so they
+    // must rebuild whenever the stack changes.
+    _ref.invalidate(synergyReportProvider);
+    _ref.invalidate(recalledIngredientsReportProvider);
+  }
+
+  /// Fire-and-forget sync attempt after every mutation. Silently skips
+  /// when offline / guest — the [stackSyncListenerProvider] will catch up
+  /// later when the user signs in or connectivity returns.
+  void _triggerSync() {
+    final service = _ref.read(stackSyncServiceProvider);
+    unawaited(service.pushAll());
+    _ref.invalidate(pendingSyncCountProvider);
+  }
+}
+
+final stackActionsProvider = Provider<StackActions>((ref) {
+  return StackActions(ref);
+});

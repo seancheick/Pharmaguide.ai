@@ -26,8 +26,8 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-15
-**Current Sprint:** Sprint 26 — UX polish, critical bug fixes, product detail overhaul
+**Updated:** 2026-04-16
+**Current Sprint:** Sprint 27 — Engineering review follow-ups (tests, observability, file splits, blob provider)
 **Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22 ALL DONE. **353+ Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
 
 ## TARGET: V1.0 Ship by 2026-05-11
@@ -68,6 +68,11 @@ Status legend:
 ---
 
 ## CURRENT SPRINT
+
+**Sprint 27: Engineering Review Follow-ups** — ✅ DONE (all 5 issues shipped 2026-04-16)
+Status: DONE
+
+> Sprint 27 details: see [Sprint 27 section below](#sprint-27--engineering-review-follow-ups-2026-04-16)
 
 **Sprint 26: UX Polish + Critical Bug Fixes** — ✅ DONE (all 43 tasks shipped 2026-04-15)
 Status: DONE
@@ -1784,3 +1789,35 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
 - [ ] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0
 - [ ] TestFlight / Play internal builds
+
+---
+
+## Sprint 27 — Engineering Review Follow-ups (2026-04-16)
+
+**Goal:** Address the 5 findings from `/plan-eng-review` — untested critical paths, observability gaps, oversized files, and inline async plumbing that belonged behind a provider. Scan-limit wiring deferred at user request (Issue 1).
+
+### Completed
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 1 | **Issue 2 — Extract detail blob fetch to `FutureProvider.family.autoDispose`** so the screen derives `AsyncValue<Map?>` from `ref.watch` instead of managing cache/network state inline. Retry via `ref.invalidate(detailBlobProvider(dsldId))`. Constants (`kDetailBlobCacheTtl`, `detailBlobServiceProvider`) also exported so tests can override the service. | [x] Done | `lib/features/product_detail/providers/detail_blob_provider.dart` (new), `lib/features/product_detail/product_detail_screen.dart` |
+| 2 | **Issue 3a — Split `pipeline_detail_sections.dart`** into 6 files under `lib/features/product_detail/widgets/pipeline_sections/` (allergen summary, certification, evidence, formulation, probiotic, synergy) — each ~150-280 LOC with its own data shape. Original file kept as barrel re-export so `import 'pipeline_detail_sections.dart';` still works. | [x] Done | `lib/features/product_detail/widgets/pipeline_sections/*.dart` (6 new), `lib/features/product_detail/widgets/pipeline_detail_sections.dart` (now barrel) |
+| 3 | **Issue 3b — Split `stack_providers.dart`** into `active_stack_provider.dart` (StackActions + active stack FutureProvider), `stack_safety_providers.dart` (banner/report providers), `synergy_report_provider.dart`, and `stack_provider_helpers.dart` (canonical ID extraction). Original file becomes a barrel so all external imports are untouched. | [x] Done | `lib/features/stack/providers/active_stack_provider.dart` (new), `stack_safety_providers.dart` (new), `synergy_report_provider.dart` (new), `stack_provider_helpers.dart` (new), `stack_providers.dart` (now barrel) |
+| 4 | **Issue 3c — Split `home_screen.dart`** (1345 LOC) into a thin 175-line shell + 9 widget files under `lib/features/home/widgets/` (hero, scan CTA, search launcher, quick check CTA, category rail, profile completeness card, stack health, recent scans, citation strip). Private sub-widgets co-located inside each file; only the top-level widget is exported. | [x] Done | `lib/features/home/widgets/*.dart` (9 new), `lib/features/home/home_screen.dart` |
+| 5 | **Issue 4 & 5 — Observability + release-gate test update.** Wire share + improve analytics/crash stubs (shipped earlier in session). Update `phi_medication_no_sync_test.dart` — after the stack_providers.dart split, `StackActions.addMedication` lives in `active_stack_provider.dart`, so the release-gate regex scan was pointed at the split file (barrel file never contained the method body). | [x] Done | `test/release_gate/phi_medication_no_sync_test.dart`, observability providers |
+
+### Key Decisions
+
+- **Barrel re-export pattern for file splits.** Every large file split leaves a barrel at the original path (`export 'split_file.dart'`). External imports never change. This makes the split a zero-risk refactor from the call-site's perspective and decouples the split from the eventual call-site migration.
+- **Release-gate file-scan tests must track renamed source files.** `phi_medication_no_sync_test.dart` regex-scans a specific path to prove PHI medications can't reach Supabase sync. The barrel pattern above means the method body *moved* — the test must read from the new file, not the barrel, or the safety check silently no-ops (the regex finds nothing → test passes vacuously). Documented in the test's file header.
+- **Blob fetch as `FutureProvider.family.autoDispose`.** Keyed on `dsldId`. Autodispose ensures navigating away frees the cached `AsyncValue`; revisits start with a fresh cache check. The screen no longer owns `_detailBlob`/`_blobLoading`/`_blobError` fields — it derives them from `ref.watch(detailBlobProvider(widget.dsldId))`. Retry is `ref.invalidate(detailBlobProvider(widget.dsldId))` — no manual state reset.
+- **`_parseWarnings` signature changed** from reading the removed `_detailBlob` field to taking `Map<String, dynamic>? blob` as a parameter, decoupling the helper from screen state.
+- **Private widgets stay co-located** when they're consumed by exactly one parent in the same file (e.g. `_StackHealthCard`, `_MicroMetric`, `_RecentScanCard`). Only cross-file widgets get public names — this keeps the public surface small and honors the analyzer's `library_private_types_in_public_api` rule.
+- **Scan-limit wiring (Issue 1) deferred** at user direction ("without the scan limit for now, i'll update that later").
+
+### Verification
+
+- `flutter analyze` — clean (0 issues)
+- `flutter test` — 447 / 447 pass (including the updated `phi_medication_no_sync_test.dart`)
+- Home widget smoke tests — 5 / 5 pass
+- Product detail screen layout preserved byte-for-byte; only state management changed

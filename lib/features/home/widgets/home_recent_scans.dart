@@ -1,0 +1,298 @@
+// Recent scans — horizontal carousel of the last 10 scanned products, with a
+// loading state, an empty state, and a "scan your first" CTA. Loads from
+// user_scan_history joined against core product data.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+
+/// Loads recent scan history joined with core product data.
+/// Auto-disposes when the home screen is not visible, ensuring fresh data
+/// on each visit (fixes stale scans after navigating back from scanner).
+final _recentScansProvider =
+    FutureProvider.autoDispose<List<_RecentScanDisplay>>((ref) async {
+  final userDb = ref.watch(userDatabaseProvider);
+  final coreDb = ref.watch(coreDatabaseProvider);
+  final history = await userDb.getRecentScans(limit: 10);
+  final results = <_RecentScanDisplay>[];
+  for (final scan in history) {
+    final product = await coreDb.findById(scan.dsldId);
+    if (product != null) {
+      results.add(
+        _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
+      );
+    }
+  }
+  return results;
+});
+
+class HomeRecentScansSection extends ConsumerWidget {
+  const HomeRecentScansSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final scansAsync = ref.watch(_recentScansProvider);
+
+    return scansAsync.when(
+      loading: () => _buildLoadingState(scheme),
+      error: (_, __) => _buildEmptyState(theme, scheme, context),
+      data: (scans) {
+        if (scans.isEmpty) {
+          return _buildEmptyState(theme, scheme, context);
+        }
+        return SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: scans.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final scan = scans[index];
+              return _RecentScanCard(
+                product: scan.product,
+                scannedAt: scan.scannedAt,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// Shown while the DB query is in flight — prevents the flash-of-empty-state
+  /// that previously showed "Nothing scanned yet" during loading.
+  static Widget _buildLoadingState(ColorScheme scheme) {
+    return SizedBox(
+      height: 120,
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildEmptyState(
+    ThemeData theme,
+    ColorScheme scheme,
+    BuildContext context,
+  ) {
+    return PGCard(
+      variant: PGCardVariant.recessed,
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space16,
+        AppTheme.space24,
+        AppTheme.space16,
+        AppTheme.space20,
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              border: Border.all(
+                color: scheme.outlineVariant,
+                width: 0.8,
+              ),
+            ),
+            child: Icon(
+              Icons.history_rounded,
+              size: 26,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space12),
+          Text(
+            'Nothing scanned yet',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Your last 10 scanned supplements will appear here.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space16),
+          _OutlineScanButton(
+            onTap: () => GoRouter.of(context).go(Routes.scan),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pairs a resolved product with its scan timestamp for display.
+class _RecentScanDisplay {
+  final ProductsCoreData product;
+  final DateTime scannedAt;
+  const _RecentScanDisplay({required this.product, required this.scannedAt});
+}
+
+/// A card-style recent scan item for the horizontal carousel.
+class _RecentScanCard extends StatelessWidget {
+  final ProductsCoreData product;
+  final DateTime scannedAt;
+
+  const _RecentScanCard({required this.product, required this.scannedAt});
+
+  String _timeAgo() {
+    final diff = DateTime.now().difference(scannedAt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays}d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final score = product.score100Equivalent;
+
+    return SizedBox(
+      width: 156,
+      child: PGCard(
+        onTap: () => GoRouter.of(context).push('/product/${product.dsldId}'),
+        padding: const EdgeInsets.all(AppTheme.space12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product image (OFF photo or branded placeholder)
+            Center(
+              child: ProductImage(
+                dsldId: product.dsldId,
+                upc: product.upcSku,
+                productName: product.productName,
+                brandName: product.brandName ?? '',
+                formFactor: product.formFactor,
+                score: score,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space6),
+            // Score ring centered
+            Center(
+              child: PGScoreRing(
+                score: score,
+                size: 40,
+                strokeWidth: 3.5,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space6),
+            // Product name
+            Text(
+              product.productName,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.1,
+                height: 1.25,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            // Brand
+            if (product.brandName != null && product.brandName!.isNotEmpty)
+              Text(
+                product.brandName!,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            const Spacer(),
+            // Time ago
+            Text(
+              _timeAgo(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlineScanButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _OutlineScanButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return AnimatedContainer(
+      duration: AppMotion.fast,
+      curve: AppMotion.standard,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        border: Border.all(color: scheme.outlineVariant, width: 0.8),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.space16,
+              vertical: AppTheme.space8,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.qr_code_scanner_rounded,
+                  size: 16,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Scan your first supplement',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.primary,
+                        letterSpacing: -0.05,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

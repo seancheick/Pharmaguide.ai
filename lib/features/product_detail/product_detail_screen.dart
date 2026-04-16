@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -17,9 +16,9 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
@@ -58,16 +57,9 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
-  final _blobService = DetailBlobService();
-
   // Product from CoreDatabase.
   ProductsCoreData? _product;
   bool _productLoading = true;
-
-  // Cached detail blob.
-  Map<String, dynamic>? _detailBlob;
-  bool _blobLoading = true;
-  bool _blobError = false;
 
   // User stack entry for this product (null = not in stack). Powers the
   // refill-reminder card; we need addedAt for the days-remaining math.
@@ -78,21 +70,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   // "Because you're taking X" context. Spec §9.2.
   List<InteractionWarning> _personalizedWarnings = const [];
 
-  /// 24-hour cache TTL for detail blobs.
-  static const _cacheTtl = Duration(hours: 24);
-
   @override
   void initState() {
     super.initState();
-    _loadProductThenBlob();
+    _loadProduct();
     _loadStackEntry();
     _loadPersonalizedInteractions();
-  }
-
-  /// Load product first (needed for SHA-256 hash), then fetch the detail blob.
-  Future<void> _loadProductThenBlob() async {
-    await _loadProduct();
-    unawaited(_loadDetailBlob());
   }
 
   /// Look up whether the user has this product in their stack — needed
@@ -266,61 +249,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
   }
 
-  Future<void> _loadDetailBlob() async {
-    setState(() {
-      _blobLoading = true;
-      _blobError = false;
-    });
-
-    try {
-      final userDb = ref.read(userDatabaseProvider);
-
-      // Check local cache first.
-      final cached = await userDb.getCachedDetail(widget.dsldId);
-      if (cached != null) {
-        final age = DateTime.now().difference(cached.cachedAt);
-        if (age < _cacheTtl) {
-          if (mounted) {
-            setState(() {
-              _detailBlob = jsonDecode(cached.blobJson) as Map<String, dynamic>;
-              _blobLoading = false;
-            });
-          }
-          return;
-        }
-      }
-
-      // Cache miss or stale — fetch from network.
-      // Blobs are stored by SHA-256 hash in Supabase Storage:
-      //   pharmaguide/shared/details/sha256/{sha256[0:2]}/{sha256}.json
-      Map<String, dynamic>? blob;
-      final sha256 = _product?.detailBlobSha256;
-      if (sha256 != null && sha256.isNotEmpty) {
-        blob = await _blobService.fetchDetailBlobByHash(sha256);
-      }
-
-      if (!mounted) return;
-      if (blob != null) {
-        // Store in cache — await, then re-check mounted before setState
-        // because the user can navigate away during the write.
-        final blobJson = jsonEncode(blob);
-        await userDb.cacheDetail(widget.dsldId, blobJson, null);
-        if (!mounted) return;
-      }
-      setState(() {
-        _detailBlob = blob;
-        _blobLoading = false;
-      });
-    } on Exception {
-      if (mounted) {
-        setState(() {
-          _blobLoading = false;
-          _blobError = true;
-        });
-      }
-    }
-  }
-
   bool _isNotScored(ProductsCoreData? product) {
     if (product == null) return false;
     final verdict = product.verdict ?? '';
@@ -365,11 +293,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // Dietary tags
     final dietaryTags = _buildAllTags();
 
+    // Detail blob — fetched & cached by detailBlobProvider. Loading/error
+    // state drive the in-place banner; the resolved map feeds every
+    // pipeline-detail section below.
+    final blobAsync = ref.watch(detailBlobProvider(widget.dsldId));
+    final detailBlob = blobAsync.asData?.value;
+    final blobLoading = blobAsync.isLoading;
+    final blobError = blobAsync.hasError;
+
     // Detail blob data + personalized interaction warnings from live DB.
     // Personalized warnings (from InteractionDatabase) appear first,
     // followed by generic blob warnings — deduped by (mechanism, severity)
     // to avoid showing the same interaction twice from different sources.
-    final blobWarnings = _parseWarnings();
+    final blobWarnings = _parseWarnings(detailBlob);
     final seenKeys = <String>{
       for (final w in _personalizedWarnings)
         '${w.severity.name}:${w.mechanism}',
@@ -380,7 +316,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           (w) => !seenKeys.contains('${w.severity.name}:${w.mechanism}')),
     ];
     // Pipeline nests this under proprietary_blend_detail
-    final blendDetail = _detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
+    final blendDetail = detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
 
     final isBlocked =
@@ -493,7 +429,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   safetyPurity: safetyPurity,
                   evidenceResearch: evidenceResearch,
                   brandTrust: brandTrust,
-                  sectionBreakdown: _detailBlob?['section_breakdown']
+                  sectionBreakdown: detailBlob?['section_breakdown']
                       as Map<String, dynamic>?,
                   hasThirdPartyTesting:
                       _product?.hasThirdPartyTesting == 1,
@@ -510,12 +446,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppTheme.space20, 0, AppTheme.space20, AppTheme.space20),
-              child: _blobLoading
+              child: blobLoading
                   ? const _DetailShimmer()
-                  : _blobError
-                      ? _DetailErrorBanner(onRetry: _loadDetailBlob)
+                  : blobError
+                      ? _DetailErrorBanner(
+                          onRetry: () => ref.invalidate(
+                              detailBlobProvider(widget.dsldId)),
+                        )
                       : _DetailSection(
-                          detailBlob: _detailBlob,
+                          detailBlob: detailBlob,
                           warnings: warnings,
                         ),
             ),
@@ -539,7 +478,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // Keeps the scroll depth manageable while making all data
           // accessible on demand (Oura-style progressive disclosure).
           // ----------------------------------------------------------------
-          if (!_blobLoading && !_blobError)
+          if (!blobLoading && !blobError)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -547,32 +486,32 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   AppTheme.space20, AppTheme.space8),
                 child: _DeepDiveSection(
                   dsldId: widget.dsldId,
-                  activeIngredients: (_detailBlob?['ingredients'] as List?)
+                  activeIngredients: (detailBlob?['ingredients'] as List?)
                           ?.whereType<Map<String, dynamic>>()
                           .toList() ??
                       [],
                   inactiveIngredients:
-                      (_detailBlob?['inactive_ingredients'] as List?)
+                      (detailBlob?['inactive_ingredients'] as List?)
                               ?.whereType<Map<String, dynamic>>()
                               .toList() ??
                           [],
                   certificationDetail:
-                      _detailBlob?['certification_detail'] as Map<String, dynamic>?,
+                      detailBlob?['certification_detail'] as Map<String, dynamic>?,
                   evidenceData:
-                      _detailBlob?['evidence_data'] as Map<String, dynamic>?,
+                      detailBlob?['evidence_data'] as Map<String, dynamic>?,
                   formulationDetail:
-                      _detailBlob?['formulation_detail'] as Map<String, dynamic>?,
+                      detailBlob?['formulation_detail'] as Map<String, dynamic>?,
                   probioticDetail:
-                      _detailBlob?['probiotic_detail'] as Map<String, dynamic>?,
+                      detailBlob?['probiotic_detail'] as Map<String, dynamic>?,
                   synergyDetail:
-                      _detailBlob?['synergy_detail'] as Map<String, dynamic>?,
+                      detailBlob?['synergy_detail'] as Map<String, dynamic>?,
                   caloriesPerServing: _product?.caloriesPerServing,
                   nutritionDetail:
-                      _detailBlob?['nutrition_detail'] as Map<String, dynamic>?,
+                      detailBlob?['nutrition_detail'] as Map<String, dynamic>?,
                   unmappedActives:
-                      _detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
+                      detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
                   heavyMetalDetail:
-                      _detailBlob?['heavy_metal_detail'] as Map<String, dynamic>?,
+                      detailBlob?['heavy_metal_detail'] as Map<String, dynamic>?,
                 ),
               ),
             ),
@@ -683,8 +622,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return tags;
   }
 
-  List<InteractionWarning> _parseWarnings() {
-    final blob = _detailBlob;
+  List<InteractionWarning> _parseWarnings(Map<String, dynamic>? blob) {
     if (blob == null) return [];
     // Pipeline emits 'warnings' (not 'interaction_warnings')
     final raw = blob['warnings'];

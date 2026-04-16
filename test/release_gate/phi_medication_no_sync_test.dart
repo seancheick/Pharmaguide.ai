@@ -29,7 +29,12 @@ import 'package:path/path.dart' as p;
 
 const _libRoot = 'lib';
 const _syncFile = 'lib/features/stack/services/stack_sync_queue.dart';
-const _actionsFile = 'lib/features/stack/providers/stack_providers.dart';
+// After the 2026-04-16 stack_providers.dart split, StackActions lives in
+// active_stack_provider.dart (re-exported via the stack_providers.dart
+// barrel). This release gate reads the source directly, so it must point
+// at the split file, not the barrel.
+const _actionsFile =
+    'lib/features/stack/providers/active_stack_provider.dart';
 
 /// Files allowed to reference `supabase.from('user_stacks')` or the
 /// upsert-shaped push. Anything outside this allowlist fails the gate:
