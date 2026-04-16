@@ -120,7 +120,7 @@ class _PanelBodyState extends State<_PanelBody> {
             totalNutrients: widget.statuses.length,
             warningCount: warnings.length,
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
           // Warnings always render at the top, sorted by risk score —
           // safety outranks user preference.
           for (final s in warnings)
@@ -129,7 +129,7 @@ class _PanelBodyState extends State<_PanelBody> {
               status: s,
             ),
           if (warnings.isNotEmpty && notable.isNotEmpty)
-            const Divider(height: 16, color: AppColors.border),
+            Divider(height: 16, color: Theme.of(context).colorScheme.outlineVariant),
           // Notable nutrients (no warning) sorted by %UL/%RDA desc.
           for (final s in shown)
             NutrientProgressBar(
@@ -216,23 +216,24 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolved = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.health_and_safety_outlined,
             size: 20,
-            color: AppColors.textSecondary,
+            color: resolved.textSecondary,
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
               'Stack Nutrient Totals',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: resolved.textPrimary,
               ),
             ),
           ),
@@ -258,9 +259,9 @@ class _Header extends StatelessWidget {
           else
             Text(
               '$totalNutrients tracked',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textSecondary,
+                color: resolved.textSecondary,
               ),
             ),
         ],
