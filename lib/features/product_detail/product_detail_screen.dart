@@ -25,6 +25,7 @@ import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/product_detail/widgets/form_absorption_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
@@ -1647,6 +1648,12 @@ class _DetailSection extends ConsumerWidget {
               height: 1.5,
             ),
           ),
+          const SizedBox(height: 20),
+        ],
+
+        // ---- Form & Absorption (bioavailability comparison) ----
+        if (ingredients.length >= 2) ...[
+          FormAbsorptionSection(ingredients: ingredients),
           const SizedBox(height: 20),
         ],
 
