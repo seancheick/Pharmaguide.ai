@@ -344,7 +344,10 @@ final stackSafetyReportProvider =
 final recalledIngredientsReportProvider =
     FutureProvider<RecalledIngredientsReport>((ref) async {
   final coreDb = ref.watch(coreDatabaseProvider);
-  final refDataRepo = ReferenceDataRepository();
+  // Read the repo via the provider so tests can override the asset source.
+  // Sprint 27.6 added this indirection to enable integration tests of
+  // the scan→flag path without needing to bundle fixture assets.
+  final refDataRepo = ref.watch(referenceDataRepositoryProvider);
 
   // Take a dependency on the active stack so any mutation invalidates us.
   final stack = await ref.watch(activeStackProvider.future);
@@ -382,7 +385,6 @@ final recalledIngredientsReportProvider =
     final regulatoryBasis = recall['regulatory_basis'] as String? ?? '';
     final reason = recall['reason'] as String? ?? '';
     final effectiveDate = recall['effective_date'] as String? ?? '';
-    final warningMessage = recall['warning_message'] as String? ?? '';
     final severity = recall['severity'] as String? ?? 'major';
 
     recalledMap[canonicalId] = RecalledIngredientAlert(
@@ -392,7 +394,6 @@ final recalledIngredientsReportProvider =
       regulatoryBasis: regulatoryBasis,
       reason: reason,
       effectiveDate: effectiveDate,
-      warningMessage: warningMessage,
       severity: severity,
     );
   }

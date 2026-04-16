@@ -98,6 +98,14 @@ void main() {
 
       // Spot-check the first entry has the exact field names Flutter
       // consumers read at stack_safety_providers.dart:358-398.
+      //
+      // NOTE: `warning_message` was REMOVED in Sprint 27.6 after audit
+      // found derived strings were medically incorrect for ~30-40 entries.
+      // Do NOT re-add this assertion until the pipeline-side
+      // `safety_warning` + `safety_warning_one_liner` + `ban_context`
+      // fields are authored upstream (Sprint 27.6 Path C). When they
+      // land, assert the new fields here AND assert `warning_message`
+      // is still ABSENT (guards against the old derivation creeping back).
       final first = entries.first as Map<String, dynamic>;
       expect(first, containsPair('canonical_id', isA<String>()));
       expect(first, containsPair('common_names', isA<List<dynamic>>()));
@@ -105,8 +113,17 @@ void main() {
       expect(first, containsPair('regulatory_basis', isA<String>()));
       expect(first, containsPair('reason', isA<String>()));
       expect(first, containsPair('effective_date', isA<String>()));
-      expect(first, containsPair('warning_message', isA<String>()));
       expect(first, containsPair('severity', isA<String>()));
+
+      // Sprint 27.6: enforce that the removed field does NOT come back
+      // as a silent derivation. Any re-introduction MUST be accompanied
+      // by pipeline-side authored content (see Path C in SPRINT_TRACKER).
+      expect(first.containsKey('warning_message'), isFalse,
+          reason:
+              'warning_message was removed in Sprint 27.6 (derived strings '
+              'were medically incorrect). Re-introduction requires pipeline-side '
+              'authoring with safety-team sign-off, NOT Flutter-side derivation '
+              'from `reason`. See SPRINT_TRACKER.md Sprint 27.6 Path C.');
     });
   });
 }

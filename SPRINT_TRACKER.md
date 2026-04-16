@@ -69,6 +69,16 @@ Status legend:
 
 ## CURRENT SPRINT
 
+**Sprint 27.6: Recall warning_message — drop (Path A) + re-author upstream (Path C)** — 🟡 IN PROGRESS
+Status: Path A ready to execute; Path C blocks on pipeline-side schema change + safety-team authoring pass.
+
+> Sprint 27.6 details: see [Sprint 27.6 section below](#sprint-276--recall-warning_message-drop--re-author-upstream-2026-04-16)
+
+**Sprint 27.5: Schema-Alignment Audit Follow-ups** — ✅ DONE (all 5 issues shipped 2026-04-16)
+Status: DONE
+
+> Sprint 27.5 details: see [Sprint 27.5 section below](#sprint-275--schema-alignment-audit-follow-ups-2026-04-16)
+
 **Sprint 27: Engineering Review Follow-ups** — ✅ DONE (all 5 issues shipped 2026-04-16)
 Status: DONE
 
@@ -1504,6 +1514,8 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [2026-04-12] testing: `pumpAndSettle()` hangs forever when ANY Riverpod provider fires an async Drift DB call during widget init. Replace with `pump()` + `pump(Duration(milliseconds: 100))`. Replace `scrollUntilVisible()` with manual `drag()` + `pump()` loops. Create/close DBs inside each test body (NOT `setUp`/`tearDown` — Drift's `close()` hangs when called from `tearDown` after the fake-async zone drains). Copy the `medication_entry_screen_test.dart` pattern.
 - [2026-04-12] arch: FTS5 virtual table existed in pipeline output (`products_fts`) but Flutter `searchProducts()` used `LIKE '%query%'` — a full table scan with no ranking and UPC duplicates. When adding a performance optimization to the pipeline, immediately wire the consumer in Flutter.
 - [2026-04-12] data: DSLD registers the same physical product multiple times under different `dsld_id`s but the same UPC barcode. Fix: `dedup_by_upc()` in the build pipeline. Run `SELECT upc_norm, COUNT(*) ... HAVING COUNT(*) > 1` after any pipeline rebuild.
+- [2026-04-16] safety: Never derive user-facing medical warning copy from encyclopedic source fields. The template `"{standard_name} is {status}: {first sentence of reason}"` applied to `banned_recalled_ingredients.json` inverted 51% of warnings because sentence 1 of `reason` is the definition (e.g., "Metformin is a prescription antidiabetic drug..."), not the danger. User-facing safety copy must be authored upstream with pharmacist/MD review, validated at pipeline build-time (e.g., must NOT start with `"{standard_name} is"`), and surfaced in Flutter as pass-through. See Sprint 27.6 for the proper rebuild (Path C). (Root cause: tempting shortcut during a schema remap when no authored field existed upstream; the asset `_metadata.migration_note` flag was insufficient because the field was still shipped.)
+- [2026-04-16] data: `recall_status = "banned"` is semantically overloaded and medically incorrect when rendered literally. Three distinct real-world cases collapse into one label: (1) banned substance (ephedra, 1,4-butanediol), (2) banned as undeclared adulterant in supplements (metformin, meloxicam — legitimate prescription drugs otherwise), (3) FDA watchlist (octopamine — warning letter, not banned). Fix: add `ban_context` enum upstream (`substance` / `adulterant_in_supplements` / `watchlist` / `export_restricted`), use it to select the UI verb ("contains banned substance" vs "may contain undeclared" vs "contains FDA-watchlisted"). (Root cause: original v1.0 schema conflated legal-status semantics into one string field.)
 
 ---
 
@@ -1858,4 +1870,152 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 
 - `backfill_image_thumbnails()` wiring in pipeline (extract_product_images.py + backfill_upc.py are WIP manual post-build steps)
 - 300 IQM entries pending canonical_id mapping
-- Safety-team review of the 139 derived `warning_message` strings
+- Safety-team review of the 139 derived `warning_message` strings → **superseded by Sprint 27.6:** dropping the field entirely (Path A) and re-authoring upstream (Path C). Do NOT run the review on the current derived strings; they're being deleted.
+
+---
+
+## Sprint 27.6 — Recall warning_message: drop + re-author upstream (2026-04-16)
+
+**Goal:** Remove the latent time-bomb of 139 auto-derived `warning_message` strings before any UI surface reads them, then design the correct upstream replacement so we rebuild it **properly, with safety-team review** and accurate semantic modeling (banned substance vs. banned-as-adulterant-in-supplements).
+
+**Why this is its own sprint:** The audit in Sprint 27.5 flagged `warning_message` for review. Investigation revealed the template `"{standard_name} is {status}: {first sentence of reason}"` produces medically incorrect copy for ~30–40 of 139 entries (e.g., "Metformin is banned" — false; metformin is a legitimate prescription drug, only banned as an undeclared adulterant in supplements). The field is stored today but no UI reads it. Next dev to wire UI would ship 139 unreviewed, partially-inverted strings. We drop it now, rebuild it right.
+
+---
+
+### Path A — Drop `warning_message` everywhere (execute NOW, 4 files)
+
+| # | Task | Status | Files + lines |
+|---|------|--------|---------------|
+| A1 | Remove `warning_message` from all 139 entries in bundled asset. Update `_metadata.migration_note` to reflect deletion pending upstream re-authoring (reference this sprint). | [ ] TODO | `assets/reference_data/banned_recalled_ingredients.json` |
+| A2 | Drop `warningMessage` field from `RecalledIngredientAlert`: remove `final String warningMessage;` (line 11), remove from constructor (line 21), remove from any call sites. | [ ] TODO | `lib/services/stack/recalled_ingredient_result.dart:11,21` |
+| A3 | Remove the provider read: delete `final warningMessage = recall['warning_message'] as String? ?? '';` and the `warningMessage: warningMessage,` arg in `RecalledIngredientAlert(...)`. | [ ] TODO | `lib/features/stack/providers/stack_safety_providers.dart:385,395` |
+| A4 | Update contract test to drop the `warning_message` field assertion. | [ ] TODO | `test/core/reference_data_contract_test.dart:108` |
+
+**Verification:** `flutter analyze` clean, `flutter test` 449/449 still green. The `bannerMessage` getter at `recalled_ingredient_result.dart:69-77` already composes its banner from structured fields (statusLabel + productName + ingredient name) and never touched `warningMessage`, so zero UI change.
+
+---
+
+### Path C — Re-author upstream in pipeline, pass-through in Flutter (HOW TO ADD IT BACK PROPERLY)
+
+**Rule: Do NOT re-derive the field in Flutter. Do NOT synthesize from `reason` again. The field must be authored in the pipeline repo with safety-team sign-off, then surfaced in Flutter as pass-through text.**
+
+#### C1. Pipeline-side schema additions (separate PR in `/Users/seancheick/Downloads/dsld_clean/`)
+
+Add three new fields to each entry in `scripts/data/banned_recalled_ingredients.json`:
+
+```json
+{
+  "id": "ADULTERANT_METFORMIN",
+  "standard_name": "Metformin",
+  "status": "banned",
+  "ban_context": "adulterant_in_supplements",
+  "safety_warning": "Supplements containing undeclared metformin have caused hypoglycemia and lactic acidosis. The FDA has issued public warnings.",
+  "safety_warning_one_liner": "May cause dangerously low blood sugar.",
+  "reason": "...existing long-form encyclopedic text unchanged...",
+  ...
+}
+```
+
+| Field | Purpose | Constraints | Example |
+|-------|---------|-------------|---------|
+| `ban_context` | Disambiguates what "banned" actually means. Fixes the metformin-style inversion. | Enum. Values: `"substance"` (fully banned, e.g. ephedra), `"adulterant_in_supplements"` (legitimate drug, illegal in supps, e.g. metformin/meloxicam/sibutramine), `"watchlist"` (FDA warning letter, not banned, e.g. octopamine), `"export_restricted"` (jurisdiction-specific). | `"adulterant_in_supplements"` |
+| `safety_warning` | One authored sentence describing the user-facing harm, **in supplement-scan context**. Detail-sheet copy. | ≤ 200 chars. Plain language. Reviewed by pharmacist/MD. No encyclopedic definitions. | `"Supplements containing undeclared metformin have caused hypoglycemia and lactic acidosis."` |
+| `safety_warning_one_liner` | Chip/banner copy. | ≤ 80 chars. Action-framed. | `"May cause dangerously low blood sugar."` |
+
+**Authoring process (safety-team):** 139 entries × 3 fields = one weekend of pharmacist review. Use `status` + `ban_context` to group (all `adulterant_in_supplements` entries phrased with "Supplements containing undeclared X..." template; all `substance` entries phrased as "X is banned because..."; etc.). Reviewer signs off per-entry in a checklist tracked in the pipeline repo.
+
+**Pipeline build-time validation** (add to `scripts/validate_banned_recalled.py` or equivalent):
+- Every entry must have non-empty `safety_warning`, `safety_warning_one_liner`, `ban_context`.
+- `safety_warning` ≤ 200 chars; `safety_warning_one_liner` ≤ 80 chars.
+- `ban_context` is one of the allowed enum values.
+- `safety_warning` does NOT start with `standard_name` followed by "is" (catches the old derivation pattern sneaking back in).
+
+#### C2. Flutter remap (in `/Users/seancheick/PharmaGuide ai/`)
+
+Once pipeline ships the authored fields:
+
+1. **Update remap script / orchestrator** to pass through `safety_warning`, `safety_warning_one_liner`, `ban_context` into Flutter's `banned_recalled_ingredients.json` (renamed keys: all three map 1:1 since they didn't exist in Flutter v1.0). Strip `_metadata.migration_note` deletion warning.
+2. **Re-add fields to `RecalledIngredientAlert`** (`lib/services/stack/recalled_ingredient_result.dart`): `final String safetyWarning`, `final String safetyWarningOneLiner`, `final String banContext`. Required, not nullable, since pipeline validation guarantees them.
+3. **Re-add reads in provider** (`lib/features/stack/providers/stack_safety_providers.dart`): add the three `recall['safety_warning']`, `recall['safety_warning_one_liner']`, `recall['ban_context']` reads around line 385, feed into `RecalledIngredientAlert(...)`.
+4. **Update contract test** (`test/core/reference_data_contract_test.dart`) to assert all three fields present AND non-empty on the first entry. Add the `ban_context` enum check (must be one of the 4 allowed values).
+5. **Rewrite `bannerMessage`** in `recalled_ingredient_result.dart:69` to use context-aware verb choice:
+
+```dart
+String get bannerMessage {
+  if (recalledIngredients.isEmpty) return '';
+  final ing = recalledIngredients.first;
+  final name = ing.commonNames.isNotEmpty ? ing.commonNames.first : ing.canonicalId;
+  final verb = _verbFor(ing.banContext);
+  if (recalledIngredients.length == 1) {
+    return '$productName $verb $name. ${ing.safetyWarningOneLiner}';
+  }
+  return '$productName $verb ${recalledIngredients.length} flagged ingredients';
+}
+
+static String _verbFor(String banContext) {
+  switch (banContext) {
+    case 'adulterant_in_supplements': return 'may contain undeclared';
+    case 'substance':                 return 'contains banned substance';
+    case 'watchlist':                 return 'contains FDA-watchlisted';
+    case 'export_restricted':         return 'contains export-restricted';
+    default:                           return 'contains flagged';
+  }
+}
+```
+
+6. **Detail-sheet expandable** uses the full `safetyWarning` text + existing `reason` behind a "Read more" affordance (internal/citation-grade copy, NOT primary banner).
+
+#### C3. Opportunistic remap in the meantime — bring `legal_status_enum` + `references_structured` across (this sprint, no pipeline change needed)
+
+These two fields already exist upstream in pipeline v5.0 and got dropped in the Sprint 27.5 remap. Adding them now gets us 80% of the `ban_context` disambiguation before the pipeline authoring pass lands:
+
+- `legal_status_enum` — map 1:1 into Flutter asset. Partial substitute for `ban_context` (e.g., `"banned_adulterant"` vs `"banned_substance"` vs `"fda_warning"` — pipeline values TBD; verify in `/Users/seancheick/Downloads/dsld_clean/scripts/data/banned_recalled_ingredients.json`).
+- `references_structured` — regulatory citations array. Surface behind the detail-sheet "Read more" link.
+
+Both are authored upstream, require no derivation, and slot into the existing remap.
+
+---
+
+### Test gaps to close (this sprint, independent of Path A/C)
+
+Today there is **zero integration test** proving the product-scan → recall-flag path actually fires for a known adulterated product. Add three tests in `test/features/stack/recalled_ingredient_integration_test.dart`:
+
+1. **Positive match:** Fixture product with `key_ingredient_tags: ["sibutramine"]` + asset entry with `canonical_id: "sibutramine"` → expect exactly 1 violation, correct canonical_id.
+2. **Negative match:** Fixture product with `key_ingredient_tags: ["vitamin_d"]` → expect empty violations.
+3. **Case-insensitive match:** Fixture product with `["SIBUTRAMINE"]` (uppercase) + asset entry with lowercase `canonical_id: "sibutramine"` → expect 1 violation. Cross-references the lowercase-canonical-id lesson.
+
+Uses in-memory Drift DB + asset fixture. Closes the biggest untested surface on the entire recall path.
+
+---
+
+### Execution order
+
+1. **This session / today:** Path A (A1–A4) + the 3 integration tests. 4 files + 1 new test file. Kills the time bomb, closes the test gap. Ship as one commit.
+2. **Next sprint, no pipeline dependency:** C3 (remap `legal_status_enum` + `references_structured` across from pipeline v5.0 into Flutter asset). Contract test updates. Gets us partial disambiguation.
+3. **Pipeline ticket (separate repo, separate PR):** C1 — add `ban_context`, `safety_warning`, `safety_warning_one_liner` to pipeline schema. Safety-team authors 139 × 3 fields with sign-off checklist. Pipeline validation scripts enforce constraints.
+4. **After pipeline ships authored fields:** C2 — Flutter remap pass-through, re-add fields to model/provider/test, rewrite `bannerMessage` with context-aware verbs.
+
+---
+
+### Do NOT do the following (anti-patterns captured)
+
+- ❌ Do NOT re-derive `warning_message` from `reason` in Flutter. The template `"{standard_name} is {status}: {first sentence of reason}"` is the bug. Sentence 1 of `reason` is encyclopedic (definition), sentence 2+ is the danger. Result: "Metformin is banned: Metformin is a prescription antidiabetic drug..." — inverted safety signal.
+- ❌ Do NOT conflate "banned substance" with "banned as adulterant in supplements." Metformin, meloxicam, sibutramine are legitimate prescription drugs; they're only illegal as undeclared adulterants in supplements. Calling them "banned" without `ban_context` is medically incorrect.
+- ❌ Do NOT render `reason` directly to users. It's encyclopedic internal/citation copy, not user-facing warning copy.
+- ❌ Do NOT ship an authored field without build-time validation. The `safety_warning` template check (must not start with `"{standard_name} is"`) is a critical guardrail to prevent the old derivation sneaking back in.
+- ❌ Do NOT wire a UI that reads `warning_message` after Path A ships. The field is gone. If you see a grep hit for `warning_message`, it's a merge artifact — delete it.
+
+---
+
+### Files touched (for commit grep)
+
+**Path A commit:**
+- `assets/reference_data/banned_recalled_ingredients.json`
+- `lib/services/stack/recalled_ingredient_result.dart`
+- `lib/features/stack/providers/stack_safety_providers.dart`
+- `test/core/reference_data_contract_test.dart`
+- `test/features/stack/recalled_ingredient_integration_test.dart` (new)
+
+**Path C commits (future):**
+- Pipeline repo: `scripts/data/banned_recalled_ingredients.json` + `scripts/validate_banned_recalled.py`
+- Flutter: remap script + same 4 Flutter files above (re-add fields) + contract test additions

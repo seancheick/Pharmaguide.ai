@@ -1,6 +1,16 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 
 /// A single recalled ingredient found in a product in the user's stack.
+///
+/// The `warningMessage` field was removed in Sprint 27.6 after the
+/// derived strings in the bundled asset were found to be medically
+/// incorrect for ~30-40 of 139 entries (pre-baked sentences inverted
+/// the safety signal for pharmaceutical adulterants like metformin).
+/// Replacement: an authored `safety_warning` + `safety_warning_one_liner`
+/// + `ban_context` trio to be added upstream in the pipeline repo. When
+/// those ship, re-add them here as pass-through fields and rewrite
+/// [RecalledIngredientViolation.bannerMessage] with context-aware verb
+/// choice. See SPRINT_TRACKER.md Sprint 27.6 Path C.
 class RecalledIngredientAlert {
   final String canonicalId;
   final List<String> commonNames;
@@ -8,7 +18,6 @@ class RecalledIngredientAlert {
   final String regulatoryBasis;
   final String reason;
   final String effectiveDate;
-  final String warningMessage;
   final String severity; // 'critical' or 'major'
 
   RecalledIngredientAlert({
@@ -18,7 +27,6 @@ class RecalledIngredientAlert {
     required this.regulatoryBasis,
     required this.reason,
     required this.effectiveDate,
-    required this.warningMessage,
     required this.severity,
   });
 
