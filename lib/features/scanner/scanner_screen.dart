@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -84,30 +85,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  /// Returns the verdict flash color based on the product verdict string.
-  /// All tokens come from [AppTheme] so a future theme tweak propagates.
-  Color _verdictColor(String? verdict) {
-    switch (verdict?.toUpperCase()) {
-      case 'RECOMMENDED':
-        return AppTheme.scoreExceptional;
-      case 'GOOD':
-        return AppTheme.scoreExcellent;
-      case 'REVIEW':
-      case 'MODERATE':
-        return AppTheme.severityCaution;
-      case 'BLOCKED':
-      case 'UNSAFE':
-        return AppTheme.severityContraindicated;
-      default:
-        return AppTheme.scoreExcellent; // Default to green
-    }
-  }
-
   /// Flash the verdict color briefly, trigger haptic feedback, then navigate.
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
     unawaited(HapticFeedback.mediumImpact());
 
-    final color = _verdictColor(product.verdict);
+    final color = verdictFlashColor(product.verdict);
     setState(() {
       _flashColor = color;
       _showFlash = true;

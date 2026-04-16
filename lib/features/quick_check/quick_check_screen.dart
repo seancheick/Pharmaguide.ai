@@ -1,16 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
-import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/quick_check/quick_check_logic.dart';
 
 /// "Safe to Take Together?" quick pair interaction check.
 ///
@@ -106,8 +104,8 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
       final interactionDb = ref.read(interactionDatabaseProvider);
 
       // Check if both products have ingredient data to check against.
-      final idsA = _extractCanonicalIds(_product1!.ingredientFingerprint);
-      final idsB = _extractCanonicalIds(_product2!.ingredientFingerprint);
+      final idsA = extractCanonicalIds(_product1!.ingredientFingerprint);
+      final idsB = extractCanonicalIds(_product2!.ingredientFingerprint);
       if (idsA.isEmpty || idsB.isEmpty) {
         if (mounted) {
           setState(() {
@@ -118,7 +116,7 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
         return;
       }
 
-      final results = await _runPairCheck(
+      final results = await runPairCheck(
         _product1!,
         _product2!,
         interactionDb,
@@ -135,64 +133,6 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
     } on Exception {
       if (mounted) setState(() { _checkError = true; _checking = false; });
     }
-  }
-
-  Future<List<InteractionResult>> _runPairCheck(
-    ProductsCoreData a,
-    ProductsCoreData b,
-    InteractionDatabase db,
-  ) async {
-    final idsA = _extractCanonicalIds(a.ingredientFingerprint);
-    final idsB = _extractCanonicalIds(b.ingredientFingerprint);
-    if (idsA.isEmpty || idsB.isEmpty) return const [];
-
-    final results = <InteractionResult>[];
-    final seenIds = <String>{};
-
-    // Check A's ingredients against B's canonical IDs by querying
-    // the interaction DB for each of A's IDs, then filtering hits
-    // where the other side matches one of B's IDs.
-    for (final idA in idsA) {
-      final rows = await db.lookupByCanonicalId(idA);
-      for (final row in rows) {
-        if (seenIds.contains(row.id)) continue;
-        final otherId = (row.agent1CanonicalId == idA)
-            ? row.agent2CanonicalId
-            : row.agent1CanonicalId;
-        if (otherId != null && idsB.contains(otherId.toLowerCase())) {
-          seenIds.add(row.id);
-          results.add(InteractionResult.fromRow(
-            row,
-            source: InteractionSource.pipeline,
-            agent1NameOverride: a.productName,
-            agent2NameOverride: b.productName,
-          ));
-        }
-      }
-    }
-
-    // Sort by severity (worst first).
-    results.sort((a, b) => b.severity.weight.compareTo(a.severity.weight));
-    return results;
-  }
-
-  static List<String> _extractCanonicalIds(String? json) {
-    if (json == null || json.isEmpty) return const [];
-    try {
-      final decoded = jsonDecode(json);
-      if (decoded is Map) {
-        return decoded.keys.map((k) => k.toString().toLowerCase()).toList();
-      }
-      if (decoded is List) {
-        return decoded
-            .where((e) => e != null)
-            .map((e) => e.toString().toLowerCase())
-            .toList();
-      }
-    } on FormatException {
-      // fall through
-    }
-    return const [];
   }
 
   @override
@@ -358,7 +298,7 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
         ..._results!.map((result) => Padding(
               padding: const EdgeInsets.only(bottom: AppTheme.space12),
               child: PGSeverityBanner(
-                tone: _toneForSeverity(result.severity),
+                tone: toneForSeverity(result.severity),
                 title: result.severity.name.toUpperCase(),
                 body: result.mechanism,
               ),
@@ -377,18 +317,6 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
     );
   }
 
-  static PGBannerTone _toneForSeverity(Severity severity) {
-    switch (severity) {
-      case Severity.contraindicated:
-      case Severity.avoid:
-        return PGBannerTone.danger;
-      case Severity.caution:
-        return PGBannerTone.caution;
-      case Severity.monitor:
-      case Severity.safe:
-        return PGBannerTone.info;
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
