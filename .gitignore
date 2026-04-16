@@ -44,3 +44,8 @@ pubspec.lock
 # OpenCode
 .opencode/
 *.DS_Store
+
+# Flutter golden-test failure output — regenerated on every failing run,
+# not a tracked artifact. Keep the baseline goldens (test/**/goldens/)
+# but never commit the diff/master/test PNGs that land under failures/.
+test/**/failures/
