@@ -25,6 +25,7 @@ import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/form_absorption_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
@@ -538,6 +539,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   AppTheme.space20, AppTheme.space8),
                 child: _DeepDiveSection(
                   dsldId: widget.dsldId,
+                  activeIngredients: (_detailBlob?['ingredients'] as List?)
+                          ?.whereType<Map<String, dynamic>>()
+                          .toList() ??
+                      [],
+                  inactiveIngredients:
+                      (_detailBlob?['inactive_ingredients'] as List?)
+                              ?.whereType<Map<String, dynamic>>()
+                              .toList() ??
+                          [],
                   certificationDetail:
                       _detailBlob?['certification_detail'] as Map<String, dynamic>?,
                   evidenceData:
@@ -2581,9 +2591,13 @@ class _DeepDiveSection extends StatefulWidget {
   final double? caloriesPerServing;
   final Map<String, dynamic>? nutritionDetail;
   final Map<String, dynamic>? unmappedActives;
+  final List<Map<String, dynamic>> activeIngredients;
+  final List<Map<String, dynamic>> inactiveIngredients;
 
   const _DeepDiveSection({
     required this.dsldId,
+    required this.activeIngredients,
+    required this.inactiveIngredients,
     this.certificationDetail,
     this.evidenceData,
     this.formulationDetail,
@@ -2711,6 +2725,11 @@ class _DeepDiveSectionState extends State<_DeepDiveSection>
                 const SizedBox(height: AppTheme.space8),
                 EvidenceDetailSection(
                   evidenceData: widget.evidenceData,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                ExcipientDensityCard(
+                  activeIngredients: widget.activeIngredients,
+                  inactiveIngredients: widget.inactiveIngredients,
                 ),
                 const SizedBox(height: AppTheme.space8),
                 FormulationDetailSection(
