@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
@@ -19,6 +21,14 @@ class InteractionWarning {
   final String management;
   final List<String> sourceUrls;
 
+  /// The condition that triggers this warning (e.g. 'pregnancy', 'diabetes').
+  /// Null if the warning is not condition-specific (e.g. drug class warning).
+  final String? conditionId;
+
+  /// The drug class that triggers this warning (e.g. 'anticoagulants').
+  /// Null if the warning is not drug-class-specific.
+  final String? drugClassId;
+
   const InteractionWarning({
     required this.severity,
     required this.evidenceLevel,
@@ -26,11 +36,17 @@ class InteractionWarning {
     required this.mechanism,
     required this.management,
     this.sourceUrls = const [],
+    this.conditionId,
+    this.drugClassId,
   });
 
-  /// Parse from raw JSON map (from detail blob `interaction_warnings` list).
+  /// Parse from raw JSON map (from detail blob `warnings` list).
+  ///
+  /// Pipeline emits fields: `detail`, `action`, `sources`, `condition_id`,
+  /// `drug_class_id`. Legacy aliases `mechanism`/`management`/`source_urls`
+  /// are also accepted for backward compat with older cached blobs.
   factory InteractionWarning.fromJson(Map<String, dynamic> json) {
-    final rawUrls = json['source_urls'];
+    final rawUrls = json['sources'] ?? json['source_urls'];
     final urls = rawUrls is List
         ? rawUrls.map((e) => e.toString()).toList()
         : <String>[];
@@ -40,9 +56,11 @@ class InteractionWarning {
       evidenceLevel: EvidenceLevel.fromString(
           json['evidence_level']?.toString() ?? 'theoretical'),
       title: json['title']?.toString() ?? '',
-      mechanism: json['mechanism']?.toString() ?? '',
-      management: json['management']?.toString() ?? '',
+      mechanism: (json['detail'] ?? json['mechanism'])?.toString() ?? '',
+      management: (json['action'] ?? json['management'])?.toString() ?? '',
       sourceUrls: urls,
+      conditionId: json['condition_id']?.toString(),
+      drugClassId: json['drug_class_id']?.toString(),
     );
   }
 }
@@ -260,9 +278,14 @@ class _CitationsSheet extends StatelessWidget {
                     padding: const EdgeInsets.all(AppTheme.space12),
                     onTap: () {
                       final uri = Uri.tryParse(url);
-                      if (uri != null) {
-                        launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
+                      if (uri == null) return;
+                      // Fire-and-forget — if the OS can't handle the URL
+                      // we silently no-op. The scheme is always https from
+                      // the pipeline so launch failures are extremely rare;
+                      // we deliberately don't await to keep the tap snappy.
+                      unawaited(
+                        launchUrl(uri, mode: LaunchMode.externalApplication),
+                      );
                     },
                     child: Row(
                       children: [

@@ -23,25 +23,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
 import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
-
-/// Average quality score across stack supplements.
-final _stackAvgScoreProvider =
-    FutureProvider.family.autoDispose<double?, List<String>>(
-        (ref, dsldIds) async {
-  if (dsldIds.isEmpty) return null;
-  final coreDb = ref.read(coreDatabaseProvider);
-  double sum = 0;
-  int count = 0;
-  for (final id in dsldIds) {
-    final product = await coreDb.findById(id);
-    final score = product?.score100Equivalent;
-    if (score != null) {
-      sum += score;
-      count++;
-    }
-  }
-  return count > 0 ? sum / count : null;
-});
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 /// Look up a single product from the core DB — used by stack item cards
 /// to resolve brand name + score from dsldId.
@@ -161,6 +143,11 @@ class _StackTab extends ConsumerWidget {
               // no-warning stack never eats vertical space.
               const _StackSafetyBannerSlot(),
 
+              // Gentle nudge if the user hasn't filled in their profile —
+              // without conditions / medications we can't personalize
+              // warnings, so let them know what they're missing.
+              const _ProfileNudgeSlot(),
+
               // Your supplements list — first, so user sees what's in their stack
               const PGSectionHeader(
                 title: 'Your supplements',
@@ -225,12 +212,10 @@ class _StackSummaryCard extends ConsumerWidget {
     final medicationCount =
         stack.where((e) => e.type == 'medication').length;
 
-    // Compute average quality score from supplement scores in the stack.
-    // This uses the scores already fetched from the core DB when the
-    // stack loaded — no extra DB calls needed.
-    final avgScore = _computeAverageScore(ref);
-
-    // Safety report for interaction issue counts.
+    // Stack Health score — same computation used by the home screen
+    // widget (StackSafetyScorer over the stackSafetyReportProvider).
+    // Using the same source of truth guarantees the two screens never
+    // disagree on the stack's health number.
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
     final safetyScore = reportAsync.whenOrNull(
@@ -261,6 +246,11 @@ class _StackSummaryCard extends ConsumerWidget {
       },
     );
 
+    // The score for the ring: prefer safety score (same as homepage).
+    // If still loading, show a shimmering ring with "Analyzing stack…".
+    final score = safetyScore?.score.toDouble();
+    final isAnalyzing = reportAsync.isLoading || synergyAsync.isLoading;
+
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
       child: Column(
@@ -268,9 +258,9 @@ class _StackSummaryCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              // Average quality score of supplements in stack
+              // Stack health score (safety score) — mirrors homepage.
               PGScoreRing(
-                score: avgScore,
+                score: score,
                 size: 56,
                 strokeWidth: 4,
               ),
@@ -280,9 +270,11 @@ class _StackSummaryCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      avgScore != null
-                          ? _qualityLabel(avgScore)
-                          : 'Analyzing stack\u2026',
+                      isAnalyzing
+                          ? 'Analyzing stack\u2026'
+                          : safetyScore != null
+                              ? _safetyLabel(safetyScore.score)
+                              : 'No data yet',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -297,7 +289,7 @@ class _StackSummaryCard extends ConsumerWidget {
                     if (safetyScore != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Safety: ${safetyScore.riskTier.label}',
+                        'Safety tier: ${safetyScore.riskTier.label}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
@@ -343,19 +335,6 @@ class _StackSummaryCard extends ConsumerWidget {
     );
   }
 
-  /// Compute average score_100_equivalent across supplements in the stack.
-  /// Looks up each supplement's score from the core DB via a family provider.
-  double? _computeAverageScore(WidgetRef ref) {
-    final supplements = stack
-        .where((e) => e.type == 'supplement' && e.dsldId != null)
-        .toList();
-    if (supplements.isEmpty) return null;
-    final scoresAsync = ref.watch(_stackAvgScoreProvider(
-      supplements.map((s) => s.dsldId!).toList(),
-    ));
-    return scoresAsync.asData?.value;
-  }
-
   String _describeLoad(int total) {
     if (total <= 3) return 'Light — well within recommended ranges';
     if (total <= 6) return 'Moderate — watch for nutrient overlap';
@@ -363,12 +342,14 @@ class _StackSummaryCard extends ConsumerWidget {
     return 'Very heavy — consult a healthcare provider';
   }
 
-  static String _qualityLabel(double score) {
-    if (score >= 85) return 'Excellent stack quality';
-    if (score >= 70) return 'Good stack quality';
-    if (score >= 55) return 'Moderate stack quality';
-    if (score >= 40) return 'Below average quality';
-    return 'Quality needs improvement';
+  /// Label mirrors the same score semantics as the homepage Stack Health.
+  /// Score is derived from interactions + synergies via [StackSafetyScorer].
+  static String _safetyLabel(int score) {
+    if (score >= 85) return 'Stack looks great';
+    if (score >= 70) return 'Stack is mostly safe';
+    if (score >= 55) return 'Mind your interactions';
+    if (score >= 40) return 'Review your stack';
+    return 'Consult a provider';
   }
 }
 
@@ -760,6 +741,43 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Profile nudge — shown when the user has no conditions / medications
+// in their profile. Without those we can't personalize interaction
+// warnings, so a gentle prompt to finish onboarding is more useful
+// than a loud pile of generic alerts. Hides itself once the profile
+// has any condition or drug class populated.
+// ---------------------------------------------------------------------------
+
+class _ProfileNudgeSlot extends ConsumerWidget {
+  const _ProfileNudgeSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+    final hasProfile =
+        profile.conditions.isNotEmpty || profile.drugClasses.isNotEmpty;
+    if (hasProfile) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space20,
+        AppTheme.space12,
+        AppTheme.space20,
+        0,
+      ),
+      child: PGSeverityBanner(
+        tone: PGBannerTone.neutral,
+        title: 'Personalize your stack',
+        body: 'Add your health conditions and medications to see '
+            'warnings that actually apply to you.',
+        actionLabel: 'Complete profile',
+        onAction: () => GoRouter.of(context).push(Routes.profileSetup),
+      ),
     );
   }
 }

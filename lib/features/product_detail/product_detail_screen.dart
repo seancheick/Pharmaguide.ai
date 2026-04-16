@@ -294,17 +294,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         blob = await _blobService.fetchDetailBlobByHash(sha256);
       }
 
-      if (mounted) {
-        if (blob != null) {
-          // Store in cache.
-          final blobJson = jsonEncode(blob);
-          await userDb.cacheDetail(widget.dsldId, blobJson, null);
-        }
-        setState(() {
-          _detailBlob = blob;
-          _blobLoading = false;
-        });
+      if (!mounted) return;
+      if (blob != null) {
+        // Store in cache — await, then re-check mounted before setState
+        // because the user can navigate away during the write.
+        final blobJson = jsonEncode(blob);
+        await userDb.cacheDetail(widget.dsldId, blobJson, null);
+        if (!mounted) return;
       }
+      setState(() {
+        _detailBlob = blob;
+        _blobLoading = false;
+      });
     } on Exception {
       if (mounted) {
         setState(() {
@@ -1547,7 +1548,7 @@ class _BlockedBanner extends StatelessWidget {
 // Detail section (loaded from blob)
 // ---------------------------------------------------------------------------
 
-class _DetailSection extends StatelessWidget {
+class _DetailSection extends ConsumerWidget {
   final Map<String, dynamic>? detailBlob;
   final List<InteractionWarning> warnings;
 
@@ -1557,9 +1558,16 @@ class _DetailSection extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
+    // User's active conditions and drug classes for personalized filtering.
+    // A multivitamin interacts with dozens of conditions in general — but
+    // we only want to show ones the user has flagged on their profile.
+    final profile = ref.watch(profileProvider);
+    final userConditions = profile.conditions.toSet();
+    final userDrugClasses = profile.drugClasses.toSet();
 
     if (detailBlob == null) {
       return Padding(
@@ -1599,14 +1607,30 @@ class _DetailSection extends StatelessWidget {
     final interactionSummary =
         blob['interaction_summary'] as Map<String, dynamic>?;
 
+    // Filter warnings to only those relevant to this user's profile.
+    // Condition-specific warnings (condition_id) only show if user has
+    // that condition. Drug-class warnings (drug_class_id) only show if
+    // user takes that class. Warnings with neither (generic) always show.
+    // This prevents a multivitamin from displaying 45+ irrelevant warnings.
+    final filteredWarnings = warnings.where((w) {
+      final cond = w.conditionId;
+      final dc = w.drugClassId;
+      if (cond != null && cond.isNotEmpty) {
+        return userConditions.contains(cond);
+      }
+      if (dc != null && dc.isNotEmpty) {
+        return userDrugClasses.contains(dc);
+      }
+      // No condition/drug tag → keep (personalized or generic warning)
+      return true;
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ---- Active Ingredients ----
+        // ---- Active Ingredients (collapsible — long for multivitamins) ----
         if (ingredients.isNotEmpty) ...[
-          _sectionTitle(theme, 'Active Ingredients', ingredients.length),
-          const SizedBox(height: 8),
-          ...ingredients.map((ing) => _IngredientTile(ingredient: ing)),
+          _CollapsibleIngredients(ingredients: ingredients),
           const SizedBox(height: 20),
         ] else if (ingredientsSummary.isNotEmpty) ...[
           Text(
@@ -1679,14 +1703,18 @@ class _DetailSection extends StatelessWidget {
           const SizedBox(height: 20),
         ],
 
-        // ---- Condition-specific interaction details ----
+        // ---- Condition-specific interaction details (filtered by profile) ----
         if (interactionSummary != null) ...[
-          _InteractionConditionDetails(summary: interactionSummary),
+          _InteractionConditionDetails(
+            summary: interactionSummary,
+            userConditions: userConditions,
+            userDrugClasses: userDrugClasses,
+          ),
           const SizedBox(height: 20),
         ],
 
-        // Interaction warnings
-        InteractionWarningsList(warnings: warnings),
+        // Interaction warnings (filtered by profile).
+        InteractionWarningsList(warnings: filteredWarnings),
       ],
     );
   }
@@ -1723,6 +1751,108 @@ class _DetailSection extends StatelessWidget {
               color: scheme.onSurfaceVariant,
             )),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Collapsible wrapper for the Active Ingredients list.
+///
+/// Multivitamins can have 20+ actives which makes the product page
+/// unreadably long. Tap the row (which shows "N Active Ingredients") to
+/// toggle the full list open or closed. Collapsed by default for lists
+/// longer than 5 ingredients; short lists stay expanded.
+class _CollapsibleIngredients extends StatefulWidget {
+  final List<Map<String, dynamic>> ingredients;
+  const _CollapsibleIngredients({required this.ingredients});
+
+  @override
+  State<_CollapsibleIngredients> createState() =>
+      _CollapsibleIngredientsState();
+}
+
+class _CollapsibleIngredientsState extends State<_CollapsibleIngredients> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-expand if list is short (<= 5). Long lists start collapsed.
+    _expanded = widget.ingredients.length <= 5;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final count = widget.ingredients.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tappable header row — tap anywhere to toggle.
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  'Active Ingredients',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: AppTheme.numeric(
+                      theme.textTheme.labelSmall!.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    size: 22,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Animated expand/collapse of the list body.
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: _expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: widget.ingredients
+                        .map((ing) => _IngredientTile(ingredient: ing))
+                        .toList(),
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
         ),
       ],
     );
@@ -1982,9 +2112,21 @@ class _ProConTile extends StatelessWidget {
 }
 
 /// Shows which specific conditions and drug classes are affected and why.
+///
+/// Filters by the user's actual profile — only conditions the user has
+/// selected and drug classes the user takes are shown. Without this
+/// filter a multivitamin would list every possible condition interaction
+/// regardless of relevance.
 class _InteractionConditionDetails extends StatelessWidget {
   final Map<String, dynamic> summary;
-  const _InteractionConditionDetails({required this.summary});
+  final Set<String> userConditions;
+  final Set<String> userDrugClasses;
+
+  const _InteractionConditionDetails({
+    required this.summary,
+    required this.userConditions,
+    required this.userDrugClasses,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1995,7 +2137,15 @@ class _InteractionConditionDetails extends StatelessWidget {
     final drugClassSummary =
         summary['drug_class_summary'] as Map<String, dynamic>? ?? {};
 
-    if (conditionSummary.isEmpty && drugClassSummary.isEmpty) {
+    // Filter to only conditions/drug classes in the user's profile.
+    final relevantConditions = conditionSummary.entries
+        .where((e) => userConditions.contains(e.key))
+        .toList();
+    final relevantDrugClasses = drugClassSummary.entries
+        .where((e) => userDrugClasses.contains(e.key))
+        .toList();
+
+    if (relevantConditions.isEmpty && relevantDrugClasses.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -2011,8 +2161,8 @@ class _InteractionConditionDetails extends StatelessWidget {
         ),
         const SizedBox(height: 10),
 
-        // Condition details
-        ...conditionSummary.entries.map((e) {
+        // Condition details (filtered to user's profile)
+        ...relevantConditions.map((e) {
           final data = e.value as Map<String, dynamic>? ?? {};
           final label = data['label']?.toString() ?? e.key;
           final severity = data['highest_severity']?.toString() ?? '';
@@ -2033,8 +2183,8 @@ class _InteractionConditionDetails extends StatelessWidget {
           );
         }),
 
-        // Drug class details
-        ...drugClassSummary.entries.map((e) {
+        // Drug class details (filtered to user's medications)
+        ...relevantDrugClasses.map((e) {
           final data = e.value as Map<String, dynamic>? ?? {};
           final label = data['label']?.toString() ?? e.key;
           final severity = data['highest_severity']?.toString() ?? '';
