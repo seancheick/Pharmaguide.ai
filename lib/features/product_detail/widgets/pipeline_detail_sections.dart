@@ -337,6 +337,71 @@ class CertificationDetailSection extends StatelessWidget {
                   ],
                 ),
               )),
+          // Third-party program badges (NSF Sport, USP Verified, etc.)
+          Builder(builder: (context) {
+            final tpData = certificationDetail!['third_party_programs'];
+            final programs = (tpData is Map)
+                ? ((tpData['programs'] as List?)
+                        ?.map((e) => e.toString())
+                        .where((s) => s.isNotEmpty)
+                        .toList() ??
+                    [])
+                : <String>[];
+            if (programs.isEmpty) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppTheme.space12),
+                Text(
+                  'Third-Party Verified',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppTheme.space8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: programs
+                      .map((prog) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppTheme.space12,
+                                vertical: AppTheme.space6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.severitySafe
+                                  .withValues(alpha: 0.08),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusFull),
+                              border: Border.all(
+                                color: AppTheme.severitySafe
+                                    .withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.verified_rounded,
+                                  size: 12,
+                                  color: AppTheme.severitySafe,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  prog,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.severitySafe,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
