@@ -69,6 +69,15 @@ Status legend:
 
 ## CURRENT SPRINT
 
+**Sprint 26: UX Polish + Critical Bug Fixes** — ✅ DONE (all 43 tasks shipped 2026-04-15)
+Status: DONE
+
+> Sprint 26 details: see [Sprint 26 section below](#sprint-26--ux-polish--critical-bug-fixes-2026-04-15)
+
+---
+
+## Sprint 20 — Archive
+
 **Sprint 20: UX Quick Wins + Retention Polish** — ✅ DONE (all 8 tasks shipped 2026-04-12)
 Status: DONE
 
