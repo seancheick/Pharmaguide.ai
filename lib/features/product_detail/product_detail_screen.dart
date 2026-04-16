@@ -27,6 +27,7 @@ import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/form_absorption_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
@@ -563,6 +564,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       _detailBlob?['nutrition_detail'] as Map<String, dynamic>?,
                   unmappedActives:
                       _detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
+                  heavyMetalDetail:
+                      _detailBlob?['heavy_metal_detail'] as Map<String, dynamic>?,
                 ),
               ),
             ),
@@ -2593,11 +2596,13 @@ class _DeepDiveSection extends StatefulWidget {
   final Map<String, dynamic>? unmappedActives;
   final List<Map<String, dynamic>> activeIngredients;
   final List<Map<String, dynamic>> inactiveIngredients;
+  final Map<String, dynamic>? heavyMetalDetail;
 
   const _DeepDiveSection({
     required this.dsldId,
     required this.activeIngredients,
     required this.inactiveIngredients,
+    this.heavyMetalDetail,
     this.certificationDetail,
     this.evidenceData,
     this.formulationDetail,
@@ -2726,6 +2731,9 @@ class _DeepDiveSectionState extends State<_DeepDiveSection>
                 EvidenceDetailSection(
                   evidenceData: widget.evidenceData,
                 ),
+                const SizedBox(height: AppTheme.space8),
+                HeavyMetalWarningCard(
+                    heavyMetalDetail: widget.heavyMetalDetail),
                 const SizedBox(height: AppTheme.space8),
                 ExcipientDensityCard(
                   activeIngredients: widget.activeIngredients,
