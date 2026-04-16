@@ -7,7 +7,8 @@ import 'package:pharmaguide/data/database/tables/products_core_table.dart';
 part 'core_database.g.dart';
 
 /// READ-ONLY database backed by the pre-built `pharmaguide_core.db` file
-/// downloaded from Supabase. Contains 180K+ product rows across 88 columns.
+/// downloaded from Supabase. Contains 180K+ product rows across 91 columns
+/// (v1.4.0 schema — adds hazard_flags, key_ingredient_tags, image_thumbnail_url).
 @DriftDatabase(tables: [ProductsCore])
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)

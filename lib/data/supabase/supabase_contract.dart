@@ -14,8 +14,15 @@
 abstract final class SupabaseContract {
   // ---- Storage ----
 
-  /// The single Supabase Storage bucket used for all pipeline artifacts.
+  /// The Supabase Storage bucket used for pipeline artifacts (core DB,
+  /// detail blobs, manifest).
   static const storageBucket = 'pharmaguide';
+
+  /// The Supabase Storage bucket used for product images. This is a
+  /// SEPARATE bucket from [storageBucket] — image fetches must use this
+  /// constant, not concatenate 'product-images/' as a path prefix inside
+  /// [storageBucket]. Future image-fetch wiring should read this value.
+  static const productImageBucket = 'product-images';
 
   /// Prefix for content-addressed detail blobs.
   /// Full path: `{blobPrefix}/{sha256[0:2]}/{sha256}.json`
@@ -29,10 +36,11 @@ abstract final class SupabaseContract {
   static String detailIndexPath(String version) =>
       'v$version/detail_index.json';
 
-  /// Product image path (future — when image pipeline ships).
-  /// Full path: `product-images/{dsld_id}.webp`
-  static String productImagePath(String dsldId) =>
-      'product-images/$dsldId.webp';
+  /// Product image object key inside the [productImageBucket] bucket.
+  /// NOTE: the returned value is the object path *within* the bucket —
+  /// callers must target [productImageBucket], not [storageBucket].
+  /// Full URL: `{productImageBucket}/{dsldId}.webp`
+  static String productImagePath(String dsldId) => '$dsldId.webp';
 
   // ---- Tables ----
 

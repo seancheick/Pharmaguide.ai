@@ -1,143 +1,1640 @@
 {
   "_metadata": {
-    "schema_version": "1.0",
-    "last_updated": "2026-04-12",
-    "total_entries": 54,
-    "description": "Ingredient synergy clusters with evidence tiers and citations"
+    "schema_version": "1.1",
+    "last_updated": "2026-04-16",
+    "total_entries": 58,
+    "description": "Ingredient synergy clusters for bonus scoring when complementary ingredients are combined",
+    "pipeline_source_version": "v5.0",
+    "migration_note": "Migrated from pipeline v5.0 schema. bonus_points (synergy) and warning_message/regulatory_basis (recall) were derived where no pipeline source exists — fields marked with pipeline-derived values are subject to safety review."
   },
   "clusters": [
     {
-      "cluster_id": "SYN_001",
-      "name": "Vitamin D + K2 Calcium Optimization",
-      "ingredients": ["vitamin_d3", "vitamin_k2", "calcium"],
+      "cluster_id": "SYN_CURCUMIN_ABSORPTION",
+      "name": "Curcumin Absorption",
+      "ingredients": [
+        "turmeric",
+        "piperine",
+        "curcumin",
+        "ginger"
+      ],
       "min_effective_doses": {
-        "vitamin_d3": 1000,
-        "vitamin_k2": 45,
-        "calcium": 500
+        "curcumin": 500,
+        "piperine": 5,
+        "ginger": 100
       },
       "evidence_tier": "strong",
-      "mechanism": "K2 activates osteocalcin, directing calcium to bone rather than soft tissue. D3 enhances K2 absorption.",
+      "mechanism": "Piperine inhibits hepatic and intestinal glucuronidation of curcumin, increasing its bioavailability up to 20-fold. Ginger shares overlapping metabolic pathways and may further enhance absorption.",
       "bonus_points": 3,
-      "citations": ["PMID:19496976", "PMID:25356006"]
+      "citations": [
+        "https://pubmed.ncbi.nlm.nih.gov/9619120/",
+        "https://www.nccih.nih.gov/health/turmeric",
+        "PMID:9619120"
+      ]
     },
     {
-      "cluster_id": "SYN_002",
-      "name": "Magnesium + Vitamin B6 + Calcium",
-      "ingredients": ["magnesium", "vitamin_b6", "calcium"],
+      "cluster_id": "SYN_MAGNESIUM_NERVOUS_SYSTEM",
+      "name": "Magnesium Nervous System",
+      "ingredients": [
+        "magnesium",
+        "taurine",
+        "vitamin_b6_pyridoxine",
+        "l_glycine"
+      ],
       "min_effective_doses": {
         "magnesium": 200,
-        "vitamin_b6": 5,
-        "calcium": 400
+        "vitamin b6": 10,
+        "taurine": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Vitamin B6 (as P5P) is required for magnesium transport into cells. Taurine stabilizes neuronal membrane potential alongside magnesium. Glycine acts as an inhibitory neurotransmitter, complementing magnesium's NMDA receptor modulation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://pubmed.ncbi.nlm.nih.gov/30807974/",
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "PMID:30562392"
+      ]
+    },
+    {
+      "cluster_id": "SYN_SLEEP_STACK",
+      "name": "Sleep Stack",
+      "ingredients": [
+        "melatonin",
+        "magnesium",
+        "l_theanine",
+        "gaba",
+        "5_htp",
+        "chamomile",
+        "valerian",
+        "magnolia_bark",
+        "passionflower",
+        "lemon_balm",
+        "ashwagandha",
+        "l_tryptophan",
+        "apigenin",
+        "l_glycine",
+        "tart_cherry",
+        "reishi",
+        "zinc"
+      ],
+      "min_effective_doses": {
+        "melatonin": 0.5,
+        "magnesium": 100,
+        "l-theanine": 100,
+        "gaba": 100,
+        "apigenin": 50,
+        "glycine": 3000,
+        "zinc": 10
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Melatonin regulates circadian signaling; magnesium activates GABA receptors and reduces cortisol; L-theanine promotes alpha-wave relaxation; glycine lowers core body temperature to initiate sleep onset.",
+      "bonus_points": 1,
+      "citations": [
+        "https://pubmed.ncbi.nlm.nih.gov/34959948/",
+        "https://www.nccih.nih.gov/health/melatonin-what-you-need-to-know",
+        "PMID:21226679"
+      ]
+    },
+    {
+      "cluster_id": "SYN_JOINT_INFLAMMATION",
+      "name": "Joint & Inflammation",
+      "ingredients": [
+        "glucosamine",
+        "chondroitin",
+        "msm",
+        "boswellia",
+        "turmeric",
+        "hyaluronic_acid",
+        "ginger",
+        "omega_3",
+        "fish_oil",
+        "epa",
+        "dha",
+        "collagen",
+        "same",
+        "devils_claw",
+        "cat_s_claw"
+      ],
+      "min_effective_doses": {
+        "glucosamine": 1500,
+        "chondroitin": 1200,
+        "msm": 1000,
+        "omega-3": 1000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Glucosamine provides building blocks for glycosaminoglycan synthesis; chondroitin retains water in cartilage matrix; MSM donates sulfur for connective tissue repair; omega-3 fatty acids suppress pro-inflammatory prostaglandins via COX-2 modulation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.nccih.nih.gov/health/glucosamine-and-chondroitin-for-osteoarthritis",
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_EYE_HEALTH",
+      "name": "Eye Health",
+      "ingredients": [
+        "lutein",
+        "zeaxanthin",
+        "astaxanthin",
+        "bilberry",
+        "saffron",
+        "vitamin_c",
+        "vitamin_e",
+        "zinc",
+        "beta_carotene",
+        "lycopene",
+        "omega_3"
+      ],
+      "min_effective_doses": {
+        "lutein": 10,
+        "zeaxanthin": 2,
+        "astaxanthin": 4,
+        "zinc": 15,
+        "vitamin c": 250
       },
       "evidence_tier": "moderate",
-      "mechanism": "B6 enhances magnesium absorption and utilization. Magnesium regulates calcium homeostasis.",
+      "mechanism": "Lutein and zeaxanthin accumulate in the macular pigment, filtering blue light and quenching reactive oxygen species. Zinc supports retinal metabolism. Vitamin C and E provide systemic antioxidant defense for ocular tissues (AREDS2 formulation basis).",
+      "bonus_points": 1,
+      "citations": [
+        "https://pubmed.ncbi.nlm.nih.gov/23644932/",
+        "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/",
+        "PMID:23644932"
+      ]
+    },
+    {
+      "cluster_id": "SYN_METHYLATION_SUPPORT",
+      "name": "Methylation Support",
+      "ingredients": [
+        "vitamin_b12_cobalamin",
+        "vitamin_b9_folate",
+        "tmg_betaine",
+        "choline",
+        "vitamin_b6_pyridoxine",
+        "vitamin_b2_riboflavin",
+        "same",
+        "methionine"
+      ],
+      "min_effective_doses": {
+        "methylcobalamin": 500,
+        "methylfolate": 400,
+        "choline": 250,
+        "vitamin b6": 10
+      },
+      "evidence_tier": "moderate",
+      "mechanism": "Methylcobalamin and methylfolate serve as methyl donors in the methionine cycle. TMG provides an alternative remethylation pathway via BHMT. Choline feeds into phosphatidylcholine synthesis. B6 (P5P) is required for the transsulfuration pathway converting homocysteine to cysteine.",
       "bonus_points": 2,
-      "citations": ["PMID:16542012"]
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/",
+        "PMID:36170884"
+      ]
     },
     {
-      "cluster_id": "SYN_003",
-      "name": "Omega-3 + Vitamin E",
-      "ingredients": ["fish_oil", "epa", "dha", "vitamin_e"],
+      "cluster_id": "SYN_DETOX_PATHWAY",
+      "name": "Detox Pathway",
+      "ingredients": [
+        "nac",
+        "glutathione",
+        "alpha_lipoic_acid",
+        "selenium",
+        "milk_thistle",
+        "silymarin",
+        "l_cysteine",
+        "turmeric",
+        "sulforaphane",
+        "chlorella",
+        "spirulina",
+        "activated_charcoal"
+      ],
       "min_effective_doses": {
-        "fish_oil": 1000,
-        "vitamin_e": 15
+        "nac": 600,
+        "glutathione": 250,
+        "milk thistle": 200,
+        "selenium": 100
       },
-      "evidence_tier": "strong",
-      "mechanism": "Vitamin E prevents oxidation of omega-3 fatty acids, improving bioavailability and stability.",
-      "bonus_points": 2,
-      "citations": ["PMID:17041250"]
+      "evidence_tier": "limited",
+      "mechanism": "NAC is the rate-limiting precursor for glutathione synthesis. Alpha-lipoic acid recycles glutathione and vitamins C/E. Selenium is required for glutathione peroxidase activity. Milk thistle (silymarin) supports hepatocyte membrane integrity and upregulates phase II conjugation enzymes.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Selenium-HealthProfessional/"
+      ]
     },
     {
-      "cluster_id": "SYN_004",
-      "name": "Iron + Vitamin C",
-      "ingredients": ["iron", "vitamin_c"],
+      "cluster_id": "SYN_GUT_BARRIER",
+      "name": "Gut Barrier",
+      "ingredients": [
+        "l_glutamine",
+        "zinc",
+        "slippery_elm",
+        "licorice",
+        "inulin",
+        "psyllium",
+        "aloe_vera",
+        "collagen",
+        "l_serine",
+        "butyric_acid"
+      ],
       "min_effective_doses": {
-        "iron": 8,
-        "vitamin_c": 25
+        "l-glutamine": 5000,
+        "zinc carnosine": 75,
+        "deglycyrrhizinated licorice": 380
       },
-      "evidence_tier": "strong",
-      "mechanism": "Vitamin C reduces iron to ferrous form, dramatically enhancing absorption. Synergistic effect is well-established.",
-      "bonus_points": 3,
-      "citations": ["PMID:8706512", "PMID:12453667"]
+      "evidence_tier": "limited",
+      "mechanism": "L-glutamine is the primary fuel source for enterocytes and supports tight junction protein expression. Zinc carnosine stabilizes mucosal membranes. DGL soothes gastric lining. Butyrate provides short-chain fatty acid fuel for colonocytes.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
+      ]
     },
     {
-      "cluster_id": "SYN_005",
-      "name": "Probiotics + Prebiotic Fiber (Inulin/FOS)",
-      "ingredients": ["probiotics", "inulin", "fructooligosaccharides"],
+      "cluster_id": "SYN_IMMUNE_DEFENSE",
+      "name": "Immune Defense",
+      "ingredients": [
+        "vitamin_c",
+        "zinc",
+        "quercetin",
+        "elderberry",
+        "echinacea",
+        "vitamin_d",
+        "beta_glucan",
+        "vitamin_a",
+        "selenium",
+        "astragalus",
+        "colostrum"
+      ],
       "min_effective_doses": {
-        "probiotics": 1000000000
+        "vitamin c": 500,
+        "zinc": 15,
+        "vitamin d": 1000,
+        "quercetin": 500
       },
-      "evidence_tier": "strong",
-      "mechanism": "Prebiotics selectively feed beneficial bacteria, amplifying probiotic colonization and survival.",
-      "bonus_points": 2,
-      "citations": ["PMID:17170286", "PMID:23519823"]
+      "evidence_tier": "limited",
+      "mechanism": "Vitamin C supports neutrophil function and acts as a cofactor for immune signaling enzymes. Zinc is required for T-cell maturation and NK cell activity. Vitamin D modulates innate immune responses through antimicrobial peptide (cathelicidin) expression. Quercetin has demonstrated ionophore activity facilitating zinc uptake into cells.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
+      ]
     },
     {
-      "cluster_id": "SYN_006",
-      "name": "Turmeric (Curcumin) + Black Pepper (Piperine)",
-      "ingredients": ["curcumin", "piperine"],
+      "cluster_id": "SYN_ENERGY_MITOCHONDRIA",
+      "name": "Energy + Mitochondria",
+      "ingredients": [
+        "acetyl_l_carnitine",
+        "l_carnitine",
+        "coq10",
+        "pqq",
+        "rhodiola",
+        "creatine_monohydrate",
+        "vitamin_b2_riboflavin",
+        "magnesium",
+        "d_ribose",
+        "nad",
+        "vitamin_b3_niacin"
+      ],
       "min_effective_doses": {
-        "curcumin": 200,
-        "piperine": 5
+        "coq10": 100,
+        "acetyl-l-carnitine": 500,
+        "creatine": 3000,
+        "rhodiola": 200
       },
-      "evidence_tier": "strong",
-      "mechanism": "Piperine inhibits glucuronidation and increases intestinal absorption of curcumin by up to 2000%.",
-      "bonus_points": 3,
-      "citations": ["PMID:9619120"]
+      "evidence_tier": "limited",
+      "mechanism": "CoQ10 is an essential electron carrier in the mitochondrial respiratory chain (Complex I to III). Acetyl-L-carnitine shuttles long-chain fatty acids across the inner mitochondrial membrane for beta-oxidation. PQQ stimulates mitochondrial biogenesis. Creatine buffers ATP through the phosphocreatine shuttle.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/rhodiola"
+      ]
     },
     {
-      "cluster_id": "SYN_007",
-      "name": "Zinc + Copper",
-      "ingredients": ["zinc", "copper"],
+      "cluster_id": "SYN_STRESS_RESILIENCE",
+      "name": "Stress Resilience",
+      "ingredients": [
+        "ashwagandha",
+        "rhodiola",
+        "l_theanine",
+        "phosphatidylserine",
+        "magnesium",
+        "holy_basil",
+        "choline",
+        "ginseng",
+        "cordyceps"
+      ],
       "min_effective_doses": {
-        "zinc": 8,
+        "ashwagandha": 300,
+        "l-theanine": 100,
+        "rhodiola": 200,
+        "magnesium": 200
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Ashwagandha modulates the HPA axis by attenuating cortisol release. Rhodiola activates AMPK and modulates monoamine neurotransmitters. L-theanine promotes alpha-wave brain activity without sedation. Magnesium is a cofactor for over 300 enzymatic reactions including those in the stress response.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/ashwagandha"
+      ]
+    },
+    {
+      "cluster_id": "SYN_MOOD_BALANCE",
+      "name": "Mood Balance",
+      "ingredients": [
+        "5_htp",
+        "same",
+        "l_tyrosine",
+        "vitamin_b9_folate",
+        "l_tryptophan",
+        "epa",
+        "st_johns_wort",
+        "saffron"
+      ],
+      "min_effective_doses": {
+        "5-htp": 50,
+        "sam-e": 200,
+        "saffron": 30,
+        "epa": 1000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "5-HTP is a direct serotonin precursor that crosses the blood-brain barrier. SAMe serves as a universal methyl donor affecting neurotransmitter synthesis. EPA modulates neuroinflammation and cell membrane fluidity in neural tissue. Methylfolate supports BH4 cofactor recycling needed for serotonin and dopamine synthesis.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_COGNITIVE_PERFORMANCE",
+      "name": "Cognitive Performance",
+      "ingredients": [
+        "bacopa",
+        "choline",
+        "alpha_gpc",
+        "l_theanine",
+        "rhodiola",
+        "lions_mane",
+        "ginkgo",
+        "phosphatidylserine",
+        "huperzine_a",
+        "caffeine",
+        "pqq",
+        "uridine_monophosphate",
+        "omega_3",
+        "dha"
+      ],
+      "min_effective_doses": {
+        "bacopa": 300,
+        "alpha-gpc": 300,
+        "lion's mane": 500,
+        "ginkgo biloba": 120,
+        "pqq": 10
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Bacopa upregulates tryptophan hydroxylase and serotonin transporter expression, improving synaptic communication. Alpha-GPC provides choline for acetylcholine synthesis. Lion's mane stimulates nerve growth factor (NGF) production. DHA maintains neuronal membrane fluidity critical for synaptic transmission.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/ginkgo"
+      ]
+    },
+    {
+      "cluster_id": "SYN_CARDIOVASCULAR_SUPPORT",
+      "name": "Cardiovascular Support",
+      "ingredients": [
+        "coq10",
+        "omega_3",
+        "fish_oil",
+        "epa",
+        "dha",
+        "vitamin_k",
+        "magnesium",
+        "taurine",
+        "l_arginine",
+        "l_citrulline",
+        "hawthorn",
+        "garlic",
+        "policosanol",
+        "dietary_nitrate"
+      ],
+      "min_effective_doses": {
+        "coq10": 100,
+        "omega-3": 1000,
+        "magnesium": 200,
+        "garlic extract": 600
+      },
+      "evidence_tier": "limited",
+      "mechanism": "CoQ10 supports mitochondrial energy production in cardiomyocytes and acts as a lipid-soluble antioxidant. Omega-3 (EPA/DHA) reduces triglycerides and dampens vascular inflammation. Vitamin K2 (MK-7) activates matrix Gla-protein which inhibits arterial calcification. Magnesium supports vascular smooth muscle relaxation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_BLOOD_SUGAR_REGULATION",
+      "name": "Blood Sugar Regulation",
+      "ingredients": [
+        "berberine_supplement",
+        "chromium",
+        "alpha_lipoic_acid",
+        "cinnamon",
+        "magnesium",
+        "gymnema_sylvestre",
+        "bitter_melon",
+        "vanadium",
+        "corosolic_acid",
+        "fenugreek",
+        "inulin"
+      ],
+      "min_effective_doses": {
+        "berberine": 500,
+        "chromium": 200,
+        "alpha-lipoic acid": 300,
+        "cinnamon": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Berberine activates AMPK, increasing glucose uptake independent of insulin. Chromium enhances insulin receptor signaling. Alpha-lipoic acid improves insulin sensitivity and glucose disposal. Cinnamon contains polyphenols that mimic insulin activity at the receptor level.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Chromium-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_HORMONE_BALANCE_MEN",
+      "name": "Hormone Balance (Men)",
+      "ingredients": [
+        "zinc",
+        "ashwagandha",
+        "vitamin_d",
+        "boron",
+        "tongkat_ali",
+        "fenugreek",
+        "d_aspartic_acid",
+        "tribulus",
+        "saw_palmetto",
+        "stinging_nettle",
+        "diindolylmethane",
+        "maca"
+      ],
+      "min_effective_doses": {
+        "zinc": 15,
+        "ashwagandha": 300,
+        "vitamin d": 2000,
+        "tongkat ali": 100
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Zinc is essential for testosterone synthesis and 5-alpha-reductase regulation. Ashwagandha supports testosterone via cortisol reduction (inverse relationship). Vitamin D acts as a steroid hormone precursor. Tongkat ali may support free testosterone by reducing SHBG binding.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_HORMONE_BALANCE_WOMEN",
+      "name": "Hormone Balance (Women)",
+      "ingredients": [
+        "chasteberry",
+        "diindolylmethane",
+        "calcium_d_glucarate",
+        "vitamin_b6_pyridoxine",
+        "magnesium",
+        "evening_primrose_oil",
+        "black_cohosh",
+        "red_clover",
+        "maca",
+        "dong_quai",
+        "wild_yam",
+        "shatavarin_iv"
+      ],
+      "min_effective_doses": {
+        "chasteberry": 160,
+        "dim": 100,
+        "black cohosh": 40,
+        "maca": 1500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Vitex (chasteberry) modulates prolactin through dopaminergic activity. DIM promotes favorable 2-hydroxyestrone metabolism over 16-alpha-hydroxyestrone. Black cohosh acts on serotonergic receptors relevant to thermoregulation. Maca supports hormonal balance without directly altering circulating hormone levels.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_HAIR_SKIN_NUTRITION",
+      "name": "Hair & Skin Nutrition",
+      "ingredients": [
+        "vitamin_b7_biotin",
+        "silica",
+        "zinc",
+        "collagen",
+        "hyaluronic_acid",
+        "vitamin_c",
+        "msm",
+        "keratin",
+        "saw_palmetto",
+        "iron",
+        "vitamin_e",
+        "copper",
+        "vitamin_a"
+      ],
+      "min_effective_doses": {
+        "biotin": 2500,
+        "zinc": 15,
+        "collagen": 2500,
+        "vitamin c": 250
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Biotin is a cofactor for carboxylase enzymes critical in keratin synthesis. Collagen peptides provide hydroxyproline and glycine as structural protein precursors. Vitamin C is required for procollagen hydroxylation. Zinc supports keratinocyte differentiation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_LIVER_SUPPORT",
+      "name": "Liver Support",
+      "ingredients": [
+        "milk_thistle",
+        "silymarin",
+        "nac",
+        "alpha_lipoic_acid",
+        "cynarin",
+        "selenium",
+        "dandelion",
+        "turmeric",
+        "glutathione",
+        "tudca"
+      ],
+      "min_effective_doses": {
+        "milk thistle": 200,
+        "nac": 600,
+        "alpha-lipoic acid": 300,
+        "tudca": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Silymarin stabilizes hepatocyte membranes and stimulates ribosomal RNA polymerase, promoting liver cell regeneration. NAC replenishes intracellular glutathione stores. Alpha-lipoic acid chelates metals and recycles endogenous antioxidants. TUDCA protects against bile-acid induced apoptosis.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Selenium-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_BONE_HEALTH",
+      "name": "Bone Health",
+      "ingredients": [
+        "calcium",
+        "vitamin_d",
+        "vitamin_k",
+        "magnesium",
+        "boron",
+        "strontium",
+        "silicon",
+        "silica",
+        "vitamin_c",
+        "ipriflavone",
+        "phosphorus"
+      ],
+      "min_effective_doses": {
+        "calcium": 500,
+        "vitamin d": 1000,
+        "vitamin k2": 90,
+        "magnesium": 200,
+        "vitamin d3": 1000
+      },
+      "evidence_tier": "moderate",
+      "mechanism": "Calcium provides building blocks; Vitamin D enhances absorption; K2 (MK-7) activates osteocalcin to deposit calcium in bones; Magnesium is cofactor for vitamin D activation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/",
+        "https://www.fda.gov/food/cfsan-constituent-updates/fda-denies-health-claim-notification-vitamin-k2-osteoporosis",
+        "PMID:18410225"
+      ]
+    },
+    {
+      "cluster_id": "SYN_IRON_ABSORPTION",
+      "name": "Iron Absorption",
+      "ingredients": [
+        "iron",
+        "vitamin_c",
+        "vitamin_b9_folate",
+        "vitamin_b12_cobalamin",
+        "copper",
+        "lactoferrin",
+        "l_lysine"
+      ],
+      "min_effective_doses": {
+        "iron": 15,
+        "vitamin c": 250,
+        "vitamin b12": 50,
         "copper": 0.9
       },
-      "evidence_tier": "moderate",
-      "mechanism": "Copper is required for zinc absorption and utilization. Optimal ratio is 8:1 (Zn:Cu).",
-      "bonus_points": 1,
-      "citations": ["PMID:14744438"]
-    },
-    {
-      "cluster_id": "SYN_008",
-      "name": "Folate + Vitamin B12 + B6 (Homocysteine Support)",
-      "ingredients": ["folate", "vitamin_b12", "vitamin_b6"],
-      "min_effective_doses": {
-        "folate": 200,
-        "vitamin_b12": 2.4,
-        "vitamin_b6": 1.3
-      },
       "evidence_tier": "strong",
-      "mechanism": "All three are required for homocysteine metabolism. Deficiency in any creates methylation dysfunction.",
-      "bonus_points": 2,
-      "citations": ["PMID:18954643", "PMID:12975364"]
+      "mechanism": "Vitamin C reduces ferric iron (Fe3+) to ferrous form (Fe2+) at the brush border, dramatically increasing non-heme iron absorption. Folate and B12 are co-factors in erythropoiesis. Lactoferrin facilitates iron transport across the intestinal epithelium.",
+      "bonus_points": 3,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
+        "PMID:10948381"
+      ]
     },
     {
-      "cluster_id": "SYN_009",
-      "name": "Astaxanthin + Vitamin C + Vitamin E",
-      "ingredients": ["astaxanthin", "vitamin_c", "vitamin_e"],
+      "cluster_id": "SYN_ANTIOXIDANT_DEFENSE",
+      "name": "Antioxidant Defense",
+      "ingredients": [
+        "vitamin_c",
+        "vitamin_e",
+        "selenium",
+        "glutathione",
+        "nac",
+        "alpha_lipoic_acid",
+        "coq10",
+        "resveratrol",
+        "green_tea_extract",
+        "egcg",
+        "grape_seed_extract",
+        "pine_bark_extract",
+        "astaxanthin",
+        "bilberry"
+      ],
       "min_effective_doses": {
+        "vitamin c": 500,
+        "vitamin e": 100,
         "astaxanthin": 4,
-        "vitamin_c": 25,
-        "vitamin_e": 15
+        "coq10": 100
       },
-      "evidence_tier": "moderate",
-      "mechanism": "Antioxidant synergy: astaxanthin is regenerated by vitamins C and E, extending its activity.",
-      "bonus_points": 2,
-      "citations": ["PMID:17631616"]
+      "evidence_tier": "limited",
+      "mechanism": "Vitamin C (aqueous phase) and vitamin E (lipid phase) form a redox couple — C regenerates oxidized E. Selenium is required for glutathione peroxidase catalytic activity. CoQ10 prevents lipid peroxidation initiation in mitochondrial membranes. NAC replenishes the glutathione pool.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/"
+      ]
     },
     {
-      "cluster_id": "SYN_010",
-      "name": "Ginkgo + Gotu Kola (Cognition Support)",
-      "ingredients": ["ginkgo_biloba", "gotu_kola"],
+      "cluster_id": "SYN_PRE_POST_WORKOUT",
+      "name": "Pre/Post Workout",
+      "ingredients": [
+        "creatine_monohydrate",
+        "beta-alanine",
+        "l_citrulline",
+        "l_arginine",
+        "caffeine",
+        "l_carnitine",
+        "acetyl_l_carnitine",
+        "taurine",
+        "l_tyrosine",
+        "branched_chain_amino_acids",
+        "tmg_betaine"
+      ],
       "min_effective_doses": {
-        "ginkgo_biloba": 120,
-        "gotu_kola": 300
+        "creatine": 3000,
+        "beta-alanine": 3200,
+        "citrulline malate": 6000,
+        "caffeine": 100
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Creatine replenishes ATP via the phosphocreatine system during high-intensity efforts. Beta-alanine buffers intramuscular hydrogen ions by increasing carnosine stores. Citrulline enhances arginine-nitric oxide pathway, improving blood flow. Caffeine antagonizes adenosine receptors, reducing perceived exertion.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/list-all/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_DIGESTIVE_ENZYMES",
+      "name": "Digestive Enzymes",
+      "ingredients": [
+        "digestive_enzymes",
+        "tmg_betaine",
+        "bile_extract"
+      ],
+      "min_effective_doses": {
+        "bromelain": 500,
+        "papain": 100,
+        "betaine hcl": 650
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Comprehensive enzyme combinations target multiple macronutrient substrates: amylase for starches, protease for proteins, lipase for fats. Betaine HCl supports gastric pH for optimal pepsin activation. Ox bile emulsifies dietary fats for lipase access.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/list-all/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_THYROID_SUPPORT",
+      "name": "Thyroid Support",
+      "ingredients": [
+        "iodine",
+        "l_tyrosine",
+        "selenium",
+        "zinc",
+        "ashwagandha",
+        "guggul",
+        "brown_kelp",
+        "copper",
+        "iron"
+      ],
+      "min_effective_doses": {
+        "iodine": 150,
+        "selenium": 100,
+        "zinc": 15,
+        "tyrosine": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Iodine is the essential substrate for T3 and T4 thyroid hormone synthesis. Selenium is required for deiodinase enzymes that convert T4 to active T3. Zinc supports thyroid hormone receptor binding. Tyrosine is the amino acid backbone of thyroid hormones.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_MEMORY_LEARNING",
+      "name": "Memory & Learning",
+      "ingredients": [
+        "bacopa",
+        "phosphatidylserine",
+        "choline",
+        "huperzine_a",
+        "lions_mane",
+        "omega_3",
+        "dha",
+        "acetyl_l_carnitine",
+        "gotu_kola"
+      ],
+      "min_effective_doses": {
+        "bacopa": 300,
+        "ginkgo biloba": 120,
+        "phosphatidylserine": 100,
+        "lion's mane": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Bacopa enhances dendritic branching and synaptic signaling in the hippocampus. Phosphatidylserine maintains neuronal membrane fluidity and supports acetylcholine release. Lion's mane promotes NGF synthesis supporting neuroplasticity. DHA comprises ~40% of polyunsaturated fatty acids in the brain.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/ginkgo"
+      ]
+    },
+    {
+      "cluster_id": "SYN_FAT_METABOLISM",
+      "name": "Fat Metabolism",
+      "ingredients": [
+        "l_carnitine",
+        "acetyl_l_carnitine",
+        "green_tea_extract",
+        "egcg",
+        "cla",
+        "chromium",
+        "caffeine",
+        "yohimbe",
+        "forskolin",
+        "garcinia_cambogia",
+        "capsaicin"
+      ],
+      "min_effective_doses": {
+        "l-carnitine": 500,
+        "green tea extract": 400,
+        "cla": 3000,
+        "caffeine": 100
+      },
+      "evidence_tier": "limited",
+      "mechanism": "L-carnitine shuttles long-chain fatty acids into mitochondria for beta-oxidation. EGCG (green tea) inhibits COMT, prolonging norepinephrine-mediated thermogenesis. CLA modulates PPAR-gamma activity in adipocytes. Chromium enhances insulin-mediated glucose disposal, supporting metabolic flexibility.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Chromium-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_MUSCLE_BUILDING_RECOVERY",
+      "name": "Muscle Building/Recovery",
+      "ingredients": [
+        "protein",
+        "creatine_monohydrate",
+        "hmb",
+        "branched_chain_amino_acids",
+        "l_leucine",
+        "l_glutamine",
+        "tmg_betaine",
+        "taurine"
+      ],
+      "min_effective_doses": {
+        "creatine": 3000,
+        "leucine": 3000,
+        "glutamine": 5000,
+        "hmb": 3000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Creatine saturates intramuscular phosphocreatine stores for improved power output. BCAAs (especially leucine) activate mTOR pathway for muscle protein synthesis. HMB reduces proteasome-mediated protein degradation. Beta-alanine increases muscle carnosine for pH buffering during intense exercise.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/list-all/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_INFLAMMATION_CONTROL",
+      "name": "Inflammation Control",
+      "ingredients": [
+        "omega_3",
+        "epa",
+        "dha",
+        "fish_oil",
+        "turmeric",
+        "boswellia",
+        "ginger",
+        "quercetin",
+        "resveratrol",
+        "green_tea_extract",
+        "egcg",
+        "digestive_enzymes",
+        "tart_cherry",
+        "white_willow_bark",
+        "devils_claw",
+        "cat_s_claw"
+      ],
+      "min_effective_doses": {
+        "omega-3": 1000,
+        "curcumin": 500,
+        "boswellia": 300,
+        "quercetin": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Curcumin inhibits NF-kB transcription factor, reducing pro-inflammatory cytokine expression. Boswellia (AKBA) selectively inhibits 5-lipoxygenase. Omega-3 (EPA) serves as a precursor for anti-inflammatory resolvins and protectins. Quercetin stabilizes mast cells and inhibits lipoxygenase.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/turmeric"
+      ]
+    },
+    {
+      "cluster_id": "SYN_ADRENAL_SUPPORT",
+      "name": "Adrenal Support",
+      "ingredients": [
+        "vitamin_c",
+        "vitamin_b5_pantothenic",
+        "ashwagandha",
+        "rhodiola",
+        "licorice",
+        "holy_basil",
+        "ginseng"
+      ],
+      "min_effective_doses": {
+        "vitamin c": 1000,
+        "pantothenic acid": 100,
+        "ashwagandha": 300,
+        "rhodiola": 200
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Ashwagandha modulates HPA axis signaling and attenuates cortisol hypersecretion. Rhodiola activates stress-protective HSP70 heat shock proteins. Pantothenic acid (B5) is a precursor to coenzyme A, essential for adrenal steroidogenesis. Magnesium is consumed during stress responses and requires repletion.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_LONGEVITY_AND_ANTI_AGING",
+      "name": "Longevity and Anti-Aging",
+      "ingredients": [
+        "astaxanthin",
+        "pterostilbene",
+        "quercetin",
+        "nad",
+        "ergothioneine",
+        "resveratrol",
+        "fisetin",
+        "spermidine",
+        "coq10",
+        "urolithin_a",
+        "alpha_lipoic_acid"
+      ],
+      "min_effective_doses": {
+        "resveratrol": 250,
+        "nmn": 250,
+        "fisetin": 100,
+        "quercetin": 500,
+        "astaxanthin": 6
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Senolytics (fisetin, quercetin) clear senescent cells. NAD+ precursors (NMN, NR) support cellular energy. Resveratrol activates sirtuins. Spermidine promotes autophagy.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/list-all/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_PROBIOTIC_AND_GUT_HEALTH",
+      "name": "Probiotic and Gut Health",
+      "ingredients": [
+        "probiotic_unspecified",
+        "saccharomyces_boulardii",
+        "prebiotics",
+        "inulin",
+        "oligosaccharides",
+        "butyric_acid",
+        "digestive_enzymes"
+      ],
+      "min_effective_doses": {
+        "probiotics": 1000000000,
+        "saccharomyces boulardii": 5000000000,
+        "inulin": 5000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Probiotics modulate gut microbial diversity and competitive exclusion of pathogens. Prebiotic fibers (FOS, GOS, inulin) selectively feed beneficial Bifidobacterium and Lactobacillus species. L-glutamine supports intestinal epithelial barrier integrity.",
+      "bonus_points": 2,
+      "citations": [
+        "https://www.nccih.nih.gov/health/probiotics-what-you-need-to-know",
+        "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
+        "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
+      ]
+    },
+    {
+      "cluster_id": "SYN_ELECTROLYTE_BALANCE",
+      "name": "Electrolyte Balance",
+      "ingredients": [
+        "potassium",
+        "magnesium",
+        "calcium",
+        "phosphorus"
+      ],
+      "min_effective_doses": {
+        "potassium": 1000,
+        "magnesium": 200,
+        "sodium": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Sodium, potassium, and magnesium maintain cellular membrane potential and osmotic balance. Potassium citrate supports intracellular fluid volume. Magnesium is required for Na+/K+-ATPase pump function. Balanced electrolytes prevent exercise-induced cramping and dehydration.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Potassium-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_PRE_WORKOUT_ENERGY",
+      "name": "Pre-Workout Energy",
+      "ingredients": [
+        "l_citrulline",
+        "beta-alanine",
+        "tmg_betaine",
+        "l_tyrosine",
+        "caffeine",
+        "taurine",
+        "creatine_monohydrate"
+      ],
+      "min_effective_doses": {
+        "citrulline malate": 6000,
+        "beta-alanine": 3200,
+        "betaine": 2500,
+        "caffeine": 100
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Caffeine antagonizes adenosine receptors, increasing alertness and delaying fatigue. L-citrulline enhances nitric oxide production for vasodilation. Beta-alanine increases muscle carnosine for intracellular pH buffering. Creatine provides immediate ATP regeneration during explosive movements.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/list-all/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_RECOVERY_SUPPORT",
+      "name": "Recovery Support",
+      "ingredients": [
+        "branched_chain_amino_acids",
+        "l_leucine",
+        "l_glutamine",
+        "hmb",
+        "taurine",
+        "magnesium"
+      ],
+      "min_effective_doses": {
+        "leucine": 3000,
+        "glutamine": 5000,
+        "hmb": 3000,
+        "magnesium": 200
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Tart cherry concentrate provides anthocyanins that reduce exercise-induced oxidative stress and DOMS. BCAAs reduce muscle protein breakdown during recovery. Magnesium supports muscle relaxation and glycogen resynthesis. Glutamine replenishes intramuscular stores depleted during intense exercise.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_COGNITIVE_AMINO_ACIDS",
+      "name": "Cognitive Amino Acids",
+      "ingredients": [
+        "acetyl_l_carnitine",
+        "l_tyrosine",
+        "choline",
+        "alpha_gpc",
+        "l_theanine"
+      ],
+      "min_effective_doses": {
+        "acetyl-l-carnitine": 500,
+        "n-acetyl l-tyrosine": 350,
+        "alpha-gpc": 300,
+        "l-theanine": 100
+      },
+      "evidence_tier": "limited",
+      "mechanism": "L-tyrosine is the precursor for dopamine and norepinephrine synthesis. L-theanine promotes alpha-wave brain activity and modulates glutamate signaling. Taurine acts as a neuronal osmoregulator. Acetyl-L-carnitine supports mitochondrial energy in neurons and promotes acetylcholine synthesis.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/list-all/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_IMMUNE_PROBIOTIC_BLEND",
+      "name": "Immune Probiotic Blend",
+      "ingredients": [
+        "lactobacillus_rhamnosus",
+        "lactobacillus_acidophilus",
+        "bifidobacterium_bifidum",
+        "bifidobacterium_lactis"
+      ],
+      "min_effective_doses": {
+        "lactobacillus rhamnosus gg": 10000000000,
+        "lactobacillus acidophilus": 10000000000,
+        "bifidobacterium bifidum": 10000000000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Lactobacillus and Bifidobacterium strains enhance secretory IgA production at mucosal surfaces. Vitamin C supports immune cell function. Zinc is required for thymulin activity and T-cell maturation. Probiotic strains competitively exclude pathogens.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
+        "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
+      ]
+    },
+    {
+      "cluster_id": "SYN_GUT_BARRIER_PROBIOTIC_BLEND",
+      "name": "Gut Barrier Probiotic Blend",
+      "ingredients": [
+        "saccharomyces_boulardii",
+        "lactobacillus_plantarum",
+        "lactobacillus_reuteri",
+        "bifidobacterium_longum"
+      ],
+      "min_effective_doses": {
+        "saccharomyces boulardii": 5000000000,
+        "lactobacillus plantarum": 10000000000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Specific probiotic strains (L. rhamnosus GG, S. boulardii) strengthen tight junction proteins (occludin, ZO-1). L-glutamine provides fuel for enterocyte proliferation and repair. Together they reduce intestinal permeability.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
+        "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
+      ]
+    },
+    {
+      "cluster_id": "SYN_MOOD_GUT_AXIS_PROBIOTIC_BLEND",
+      "name": "Mood-Gut Axis Probiotic Blend",
+      "ingredients": [
+        "lactobacillus_helveticus",
+        "bifidobacterium_longum",
+        "lactobacillus_casei",
+        "bifidobacterium_breve"
+      ],
+      "min_effective_doses": {
+        "lactobacillus helveticus": 10000000000,
+        "bifidobacterium longum": 10000000000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Psychobiotics (L. helveticus, B. longum) modulate the gut-brain axis via vagal afferent signaling and serotonin precursor production. Over 90% of serotonin is produced in enterochromaffin cells. Prebiotic fibers support these serotonin-producing bacteria.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
+        "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
+      ]
+    },
+    {
+      "cluster_id": "SYN_SKIN_HEALTH_COMPLEX",
+      "name": "Skin Health Complex",
+      "ingredients": [
+        "hyaluronic_acid",
+        "ceramides",
+        "collagen",
+        "vitamin_c",
+        "zinc",
+        "vitamin_b7_biotin",
+        "msm"
+      ],
+      "min_effective_doses": {
+        "hyaluronic acid": 100,
+        "marine collagen": 2500,
+        "vitamin c": 250,
+        "zinc": 15
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Collagen peptides provide bioactive hydroxyproline-containing dipeptides that stimulate fibroblast activity. Hyaluronic acid supports dermal hydration. Vitamin C is required for prolyl hydroxylase in collagen cross-linking. Astaxanthin protects skin from UV-induced oxidative damage.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_NITRIC_OXIDE_BLOOD_FLOW",
+      "name": "Nitric Oxide & Blood Flow",
+      "ingredients": [
+        "l_citrulline",
+        "dietary_nitrate",
+        "pine_bark_extract",
+        "pomegranate",
+        "l_arginine",
+        "hawthorn"
+      ],
+      "min_effective_doses": {
+        "l-citrulline": 3000,
+        "beetroot extract": 500,
+        "pine bark extract": 100,
+        "pomegranate extract": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "L-citrulline is converted to L-arginine in the kidneys, serving as a sustained substrate for endothelial nitric oxide synthase (eNOS). Beet root provides dietary nitrates reduced to NO via the enterosalivary pathway. Pine bark extract (pycnogenol) upregulates eNOS expression.",
+      "bonus_points": 1,
+      "citations": [
+        "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+        "https://ods.od.nih.gov/factsheets/list-all/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_OMEGA_3_ABSORPTION_ENHANCEMENT",
+      "name": "Omega-3 Absorption Enhancement",
+      "ingredients": [
+        "omega_3",
+        "fish_oil",
+        "epa",
+        "dha",
+        "krill_oil",
+        "choline",
+        "astaxanthin",
+        "vitamin_e",
+        "lecithin",
+        "digestive_enzymes"
+      ],
+      "min_effective_doses": {
+        "omega-3": 1000,
+        "phosphatidylcholine": 500,
+        "astaxanthin": 4
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Phospholipid-bound omega-3s have 10x better absorption than ethyl esters. Astaxanthin protects omega-3s from oxidation. Take with fat for optimal absorption.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_COLLAGEN_SYNTHESIS_SUPPORT",
+      "name": "Collagen Synthesis Support",
+      "ingredients": [
+        "vitamin_c",
+        "l_lysine",
+        "l_proline",
+        "l_glycine",
+        "copper",
+        "silica",
+        "silicon",
+        "collagen",
+        "hyaluronic_acid",
+        "zinc"
+      ],
+      "min_effective_doses": {
+        "vitamin c": 500,
+        "lysine": 500,
+        "proline": 500,
+        "copper": 1
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Vitamin C is essential cofactor for prolyl and lysyl hydroxylase (collagen synthesis enzymes). Copper enables cross-linking via lysyl oxidase. Lysine/proline are primary collagen amino acids.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_RESPIRATORY_HEALTH_LUNG_SUPPORT",
+      "name": "Respiratory Health & Lung Support",
+      "ingredients": [
+        "nac",
+        "quercetin",
+        "vitamin_c",
+        "zinc",
+        "digestive_enzymes",
+        "elderberry",
+        "cordyceps",
+        "mullein"
+      ],
+      "min_effective_doses": {
+        "nac": 600,
+        "quercetin": 500,
+        "vitamin c": 500,
+        "zinc": 15
+      },
+      "evidence_tier": "limited",
+      "mechanism": "NAC is mucolytic and boosts glutathione. Quercetin has antiviral properties enhanced by vitamin C (which recycles quercetin). Zinc supports immune function. Bromelain reduces inflammation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/quercetin"
+      ]
+    },
+    {
+      "cluster_id": "SYN_URINARY_TRACT_HEALTH",
+      "name": "Urinary Tract Health",
+      "ingredients": [
+        "cranberry",
+        "probiotic_unspecified",
+        "vitamin_c"
+      ],
+      "min_effective_doses": {
+        "d-mannose": 2000,
+        "cranberry extract": 500,
+        "vitamin c": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "D-mannose binds to E. coli preventing adhesion. Cranberry proanthocyanidins (PACs) prevent bacterial adhesion. Vitamin C acidifies urine. Probiotics support healthy urogenital flora.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/cranberry"
+      ]
+    },
+    {
+      "cluster_id": "SYN_PROSTATE_HEALTH",
+      "name": "Prostate Health",
+      "ingredients": [
+        "saw_palmetto",
+        "phytosterols",
+        "pygeum",
+        "stinging_nettle",
+        "lycopene",
+        "pumpkin_seed_oil",
+        "zinc",
+        "selenium",
+        "green_tea_extract",
+        "egcg"
+      ],
+      "min_effective_doses": {
+        "saw palmetto": 320,
+        "beta-sitosterol": 60,
+        "zinc": 15,
+        "lycopene": 10
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Saw palmetto inhibits 5-alpha reductase. Beta-sitosterol supports urinary flow. Zinc is highly concentrated in prostate tissue. Lycopene is a prostate-specific antioxidant.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_FOCUS_ATTENTION_SUPPORT",
+      "name": "Focus & Attention Support",
+      "ingredients": [
+        "omega_3",
+        "dha",
+        "epa",
+        "fish_oil",
+        "phosphatidylserine",
+        "zinc",
+        "iron",
+        "magnesium",
+        "l_theanine",
+        "caffeine",
+        "bacopa",
+        "choline"
+      ],
+      "min_effective_doses": {
+        "dha": 500,
+        "phosphatidylserine": 100,
+        "zinc": 15,
+        "iron": 10
+      },
+      "evidence_tier": "limited",
+      "mechanism": "DHA is critical for brain cell membranes. Phosphatidylserine supports neurotransmitter function. Zinc and iron deficiencies are linked to attention issues. L-theanine + caffeine enhance focus synergistically.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/rhodiola"
+      ]
+    },
+    {
+      "cluster_id": "SYN_MENOPAUSE_PERIMENOPAUSE_SUPPORT",
+      "name": "Menopause & Perimenopause Support",
+      "ingredients": [
+        "black_cohosh",
+        "red_clover",
+        "isoflavones",
+        "evening_primrose_oil",
+        "gamma_linolenic_acid",
+        "maca",
+        "sage",
+        "dong_quai",
+        "shatavarin_iv",
+        "vitamin_e",
+        "magnesium",
+        "vitamin_b6_pyridoxine",
+        "genistein"
+      ],
+      "min_effective_doses": {
+        "black cohosh": 40,
+        "red clover": 40,
+        "maca": 2000,
+        "evening primrose oil": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Black cohosh and red clover provide phytoestrogens for hot flash relief. Evening primrose supports hormonal balance. Sage specifically targets hot flashes and night sweats. Maca supports overall hormonal adaptation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_PRENATAL_PREGNANCY_SUPPORT",
+      "name": "Prenatal & Pregnancy Support",
+      "ingredients": [
+        "vitamin_b9_folate",
+        "iron",
+        "vitamin_b12_cobalamin",
+        "dha",
+        "choline",
+        "iodine",
+        "zinc"
+      ],
+      "min_effective_doses": {
+        "folate": 600,
+        "iron": 27,
+        "dha": 200,
+        "choline": 450,
+        "iodine": 150
       },
       "evidence_tier": "moderate",
-      "mechanism": "Both enhance cerebral blood flow and neural protection through complementary mechanisms.",
+      "mechanism": "Folate prevents neural tube defects. Iron supports increased blood volume. DHA is critical for fetal brain/eye development. Choline supports neural development. Iodine supports thyroid and fetal brain development.",
       "bonus_points": 1,
-      "citations": ["PMID:15318814"]
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_NERVE_HEALTH_NEUROPATHY_SUPPORT",
+      "name": "Nerve Health & Neuropathy Support",
+      "ingredients": [
+        "vitamin_b1_thiamine",
+        "vitamin_b6_pyridoxine",
+        "vitamin_b12_cobalamin",
+        "alpha_lipoic_acid",
+        "acetyl_l_carnitine",
+        "magnesium",
+        "omega_3",
+        "dha",
+        "lions_mane"
+      ],
+      "min_effective_doses": {
+        "benfotiamine": 150,
+        "alpha-lipoic acid": 300,
+        "vitamin b12": 1000,
+        "acetyl-l-carnitine": 500
+      },
+      "evidence_tier": "limited",
+      "mechanism": "B vitamins (especially B1, B6, B12) are essential for nerve function. Alpha-lipoic acid is proven for diabetic neuropathy. Acetyl-L-carnitine supports nerve regeneration. Benfotiamine has superior bioavailability for nerve tissue.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_HISTAMINE_ALLERGY_SUPPORT",
+      "name": "Histamine & Allergy Support",
+      "ingredients": [
+        "quercetin",
+        "vitamin_c",
+        "digestive_enzymes",
+        "stinging_nettle",
+        "butterbur",
+        "nac",
+        "diamine_oxidase"
+      ],
+      "min_effective_doses": {
+        "quercetin": 500,
+        "vitamin c": 1000,
+        "bromelain": 500,
+        "stinging nettle": 300
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Quercetin stabilizes mast cells and inhibits histamine release. Vitamin C is a natural antihistamine and enhances quercetin. Bromelain improves quercetin absorption. DAO enzyme breaks down dietary histamine.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_KIDNEY_HEALTH_SUPPORT",
+      "name": "Kidney Health Support",
+      "ingredients": [
+        "astragalus",
+        "cordyceps",
+        "alpha_lipoic_acid",
+        "omega_3",
+        "fish_oil",
+        "coq10",
+        "vitamin_d",
+        "probiotic_unspecified",
+        "potassium"
+      ],
+      "min_effective_doses": {
+        "astragalus": 500,
+        "omega-3": 1000,
+        "coq10": 100,
+        "vitamin d": 1000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Astragalus and cordyceps have nephroprotective properties. Omega-3s reduce inflammation. CoQ10 supports mitochondrial function in kidney cells. Alpha-lipoic acid provides antioxidant protection.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_DENTAL_ORAL_HEALTH",
+      "name": "Dental & Oral Health",
+      "ingredients": [
+        "coq10",
+        "vitamin_d",
+        "vitamin_c",
+        "zinc",
+        "vitamin_k",
+        "calcium",
+        "xylitol",
+        "probiotic_unspecified",
+        "lactobacillus_reuteri",
+        "green_tea_extract"
+      ],
+      "min_effective_doses": {
+        "coq10": 100,
+        "vitamin d": 1000,
+        "vitamin c": 250,
+        "zinc": 15
+      },
+      "evidence_tier": "moderate",
+      "mechanism": "CoQ10 supports mitochondrial energy in gingival fibroblasts and has demonstrated benefit in periodontal inflammation. Vitamin D enhances calcium absorption for enamel remineralization and modulates oral immune defenses. Vitamin C is critical for collagen synthesis in gingival connective tissue. Zinc has direct antimicrobial effects against oral pathogens.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_WOUND_HEALING",
+      "name": "Wound Healing",
+      "ingredients": [
+        "zinc",
+        "vitamin_c",
+        "collagen",
+        "vitamin_a",
+        "beta_carotene",
+        "vitamin_e",
+        "l_arginine",
+        "copper",
+        "digestive_enzymes",
+        "aloe_vera"
+      ],
+      "min_effective_doses": {
+        "zinc": 15,
+        "vitamin c": 500,
+        "collagen": 2500,
+        "vitamin a": 3000
+      },
+      "evidence_tier": "moderate",
+      "mechanism": "Zinc is essential for cell division and immune function at wound sites. Vitamin C is required for collagen hydroxylation and cross-linking in new connective tissue. Collagen peptides provide structural amino acid precursors (glycine, proline, hydroxyproline). Vitamin A regulates epithelial cell growth and differentiation during re-epithelialization. Arginine supports nitric oxide-mediated blood flow to healing tissue.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_MIGRAINE_PREVENTION",
+      "name": "Migraine Prevention",
+      "ingredients": [
+        "magnesium",
+        "vitamin_b2_riboflavin",
+        "coq10",
+        "feverfew",
+        "butterbur",
+        "alpha_lipoic_acid",
+        "ginger",
+        "vitamin_d"
+      ],
+      "min_effective_doses": {
+        "magnesium": 400,
+        "riboflavin": 400,
+        "coq10": 100,
+        "feverfew": 100
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Magnesium blocks cortical spreading depression (the neurophysiological substrate of migraine aura) and modulates NMDA receptors. Riboflavin (B2) at high dose improves mitochondrial energy metabolism in neurons with impaired oxidative phosphorylation. CoQ10 supports mitochondrial electron transport in the trigeminovascular system. Feverfew inhibits platelet aggregation and serotonin release from platelets.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/feverfew",
+        "https://ods.od.nih.gov/factsheets/Riboflavin-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_BLOOD_PRESSURE_SUPPORT",
+      "name": "Blood Pressure Support",
+      "ingredients": [
+        "magnesium",
+        "coq10",
+        "potassium",
+        "garlic",
+        "omega_3",
+        "fish_oil",
+        "epa",
+        "dha",
+        "olive_leaf",
+        "l_arginine",
+        "hawthorn"
+      ],
+      "min_effective_doses": {
+        "magnesium": 300,
+        "coq10": 100,
+        "garlic extract": 600,
+        "omega-3": 1000
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Magnesium promotes vascular smooth muscle relaxation and acts as a natural calcium channel blocker. CoQ10 improves endothelial function and reduces peripheral vascular resistance. Garlic (allicin) stimulates hydrogen sulfide production, a potent vasodilator. Omega-3 (EPA/DHA) improves arterial compliance and reduces systemic inflammation. Beet root nitrates are reduced to nitric oxide via the enterosalivary pathway, directly promoting vasodilation.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+        "https://www.nccih.nih.gov/health/garlic",
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_FERTILITY_FEMALE",
+      "name": "Fertility (Female)",
+      "ingredients": [
+        "vitamin_b9_folate",
+        "coq10",
+        "inositol",
+        "iron",
+        "vitamin_d",
+        "vitamin_e",
+        "selenium",
+        "omega_3",
+        "dha",
+        "zinc",
+        "chasteberry",
+        "nac"
+      ],
+      "min_effective_doses": {
+        "folate": 400,
+        "coq10": 200,
+        "myo-inositol": 2000,
+        "vitamin d": 1000,
+        "iron": 15
+      },
+      "evidence_tier": "limited",
+      "mechanism": "Folate (as 5-MTHF) is critical for DNA methylation during oocyte maturation and early embryogenesis. CoQ10 supports mitochondrial energy in oocytes, which declines with age and correlates with egg quality. Myo-inositol acts as a second messenger in insulin signaling and improves oocyte quality in PCOS. D-chiro-inositol restores the myo/d-chiro ratio disrupted in insulin resistance. Vitamin D receptor is expressed in ovarian tissue and supports follicular development.",
+      "bonus_points": 1,
+      "citations": [
+        "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/",
+        "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+      ]
+    },
+    {
+      "cluster_id": "SYN_OMEGA3_NIACIN_LIPID",
+      "name": "Omega-3 + Niacin Lipid Support",
+      "ingredients": [
+        "fish_oil",
+        "omega_3",
+        "epa",
+        "dha",
+        "vitamin_b3_niacin"
+      ],
+      "min_effective_doses": {
+        "omega-3": 1000,
+        "niacin": 500
+      },
+      "evidence_tier": "moderate",
+      "mechanism": "Omega-3 fatty acids lower triglycerides primarily via reduced hepatic VLDL production, while niacin raises HDL via inhibition of hepatic lipase and reduction of HDL catabolism. The combination addresses both legs of dyslipidemia more effectively than either alone. Human trial evidence from PMC10600480 showed stronger lipid-related effects with the combo.",
+      "bonus_points": 2,
+      "citations": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC10600480/",
+        "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+      ]
     }
   ]
 }

@@ -27,8 +27,8 @@ related:
 
 **Version:** V1.0
 **Updated:** 2026-04-16
-**Current Sprint:** Sprint 27 — Engineering review follow-ups (tests, observability, file splits, blob provider)
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22 ALL DONE. **353+ Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
+**Current Sprint:** Sprint 27.5 — Schema-alignment audit follow-ups (asset remap, bucket contract, docstring)
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5 ALL DONE. **449 Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -1787,7 +1787,7 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 - [ ] Build branded placeholder card widget (generated product cards using brand color + form icon + score)
 - [ ] User-contributed photos: "Help improve PharmaGuide — snap a photo of this bottle?" → store in Supabase → use as display image (post-launch data moat)
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
-- [ ] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0
+- [x] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0 — **done in Sprint 27.5 (schema-alignment audit follow-up)**
 - [ ] TestFlight / Play internal builds
 
 ---
@@ -1821,3 +1821,41 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 - `flutter test` — 447 / 447 pass (including the updated `phi_medication_no_sync_test.dart`)
 - Home widget smoke tests — 5 / 5 pass
 - Product detail screen layout preserved byte-for-byte; only state management changed
+
+---
+
+## Sprint 27.5 — Schema-Alignment Audit Follow-ups (2026-04-16)
+
+**Goal:** Close the 3 WARNINGS + 1 DOC-DEBT from the end-to-end schema alignment audit (Supabase → Flutter → pipeline → final DB). Two bundled JSON assets were still on Flutter v1.0 schema while the pipeline now emits v5.0 — direct-copying the pipeline file would silently wipe the top-level key Flutter consumers read from, making every synergy bonus and recall warning disappear with no crash.
+
+### Completed
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 1 | **WARNING — Remap `synergy_cluster.json` from Flutter v1.0 (10 entries, key `clusters`) to pipeline v5.0 content (58 entries).** Schemas are INCOMPATIBLE — pipeline uses `synergy_clusters / id / synergy_mechanism / sources`; Flutter consumers read `clusters / cluster_id / mechanism / citations`. Transform rules: `id` → `SYN_{UPPERCASE}`, `standard_name` → `name`, `canonical_ids` → `ingredients` (NOT the broad `ingredients` list), `evidence_tier` int → string enum (1→strong, 2→moderate, 3/4→limited), `synergy_mechanism` → `mechanism`, `sources[]` → `citations` (PMID strings + URLs). `bonus_points` has no pipeline source — preserved v1.0 values for the 5 topically-overlapping clusters, defaulted rest by evidence_tier (strong→2, moderate→1, limited→1). Zero duplicate cluster_ids. | [x] Done | `assets/reference_data/synergy_cluster.json` (58 entries, schema_version 1.1) |
+| 2 | **WARNING — Remap `banned_recalled_ingredients.json` from Flutter v1.0 (13 entries, key `recalled_ingredients`) to pipeline v5.0 content (143 entries → 139 after filter).** Pipeline uses `ingredients / id / aliases / status`; Flutter reads `recalled_ingredients / canonical_id / common_names / recall_status + regulatory_basis + reason + effective_date + warning_message + severity`. Transform rules: filter `match_mode == "active"` (drops 4: 1 disabled + 3 historical), `id` → `canonical_id`, `aliases` → `common_names`, `status` → `recall_status`, `regulatory_date` → `effective_date` (with `jurisdictions[0].effective_date` fallback, then `""`), `clinical_risk_enum` → `severity` (critical/high→critical, moderate/dose_dependent→major, low→minor). Derived fields with NO pipeline source: `regulatory_basis` = `"{legal_status_enum} — {jurisdictions[0].source.citation}"`; `warning_message` = `"{standard_name} is {status}: {first sentence of reason}"` (flagged for safety-team review in _metadata). Zero duplicate canonical_ids. | [x] Done | `assets/reference_data/banned_recalled_ingredients.json` (139 entries, schema_version 1.1) |
+| 3 | **WARNING — Add `productImageBucket = 'product-images'` constant to `supabase_contract.dart`.** Previously the storage contract only declared `storageBucket = 'pharmaguide'` and `productImagePath(dsldId)` returned `"product-images/{dsldId}.webp"` — treating `"product-images"` as a path prefix inside the `pharmaguide` bucket, which is wrong: product images live in their OWN Supabase bucket. Zero callers existed for `productImagePath` so the return was changed to the bare object key (`"{dsldId}.webp"`); callers will pass `productImageBucket` explicitly. No UI wired yet per user instruction. | [x] Done | `lib/data/supabase/supabase_contract.dart` |
+| 4 | **DOC-DEBT — Fix `core_database.dart` docstring: 88 → 91 columns.** Docstring was stale after the v1.4.0 schema added `hazard_flags`, `key_ingredient_tags`, `image_thumbnail_url`. Drift table definition was already correct (91 cols); only the comment was lying. | [x] Done | `lib/data/database/core_database.dart` |
+| 5 | **Contract test — `test/core/reference_data_contract_test.dart`.** Guards against the silent-breakage #1 footgun: asserts the bundled asset uses the Flutter top-level key (`clusters`, `recalled_ingredients`) AND that the pipeline-shaped key (`synergy_clusters`, bare `ingredients`) is NOT present. Also spot-checks the first entry has every field name the consumer providers read. Uses `dart:io` directly (no Flutter binding needed) so it runs in under 50 ms. Failing this test = someone direct-copied a pipeline file over the Flutter asset. | [x] Done | `test/core/reference_data_contract_test.dart` (new) |
+
+### Key Decisions
+
+- **Asset schema is intentionally Flutter-owned, NOT pipeline-synced.** Pipeline v5.0 file key ≠ Flutter consumer key. The remap is an active transform, not a pass-through sync. The contract test exists to enforce this boundary.
+- **Derived fields with no pipeline source are flagged in `_metadata.migration_note`**, not fabricated silently. `bonus_points` (synergy) falls back to evidence_tier default; `regulatory_basis` + `warning_message` (recall) use deterministic derivations from existing pipeline fields. All 139 recall entries' `warning_message` strings must pass a safety-team review before a production release.
+- **`cluster_id` convention: `SYN_{UPPERCASE_SLUG}`** derived from the pipeline's lowercase `id` field. Preserves Flutter's historical `SYN_NNN` prefix while tying the ID back to its stable pipeline source. 58 IDs are deterministic and reproducible across future remaps.
+- **Storage bucket boundary:** `storageBucket = 'pharmaguide'` (core DB + detail blobs + manifest) and `productImageBucket = 'product-images'` are SEPARATE buckets, not paths inside the same bucket. The new constant makes this explicit so future image-fetch wiring targets the right URL.
+- **`match_mode == "active"` filter on recall data** drops disabled + historical entries from Flutter asset. The pipeline keeps them for provenance/auditing; the app only surfaces currently-actionable warnings.
+
+### Verification
+
+- `flutter analyze` — clean (0 issues)
+- `flutter test` — 449 / 449 pass (adds 2 new tests in `reference_data_contract_test.dart`)
+- `jq` structural checks: 58 synergy clusters, 139 recall entries, zero duplicate ids in either file
+- Zero consumer-side changes needed — every Flutter provider that reads these assets keeps reading the same field names.
+- Pipeline → Flutter boundary now has a failing-test gate: any future direct-copy from pipeline will break the contract test immediately.
+
+### Out of scope (deferred per user)
+
+- `backfill_image_thumbnails()` wiring in pipeline (extract_product_images.py + backfill_upc.py are WIP manual post-build steps)
+- 300 IQM entries pending canonical_id mapping
+- Safety-team review of the 139 derived `warning_message` strings
