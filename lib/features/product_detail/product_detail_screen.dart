@@ -26,6 +26,7 @@ import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner
 import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/form_absorption_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
@@ -536,6 +537,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   AppTheme.space20, AppTheme.space4,
                   AppTheme.space20, AppTheme.space8),
                 child: _DeepDiveSection(
+                  dsldId: widget.dsldId,
                   certificationDetail:
                       _detailBlob?['certification_detail'] as Map<String, dynamic>?,
                   evidenceData:
@@ -2570,6 +2572,7 @@ class _DecisionHighlights extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DeepDiveSection extends StatefulWidget {
+  final String dsldId;
   final Map<String, dynamic>? certificationDetail;
   final Map<String, dynamic>? evidenceData;
   final Map<String, dynamic>? formulationDetail;
@@ -2580,6 +2583,7 @@ class _DeepDiveSection extends StatefulWidget {
   final Map<String, dynamic>? unmappedActives;
 
   const _DeepDiveSection({
+    required this.dsldId,
     this.certificationDetail,
     this.evidenceData,
     this.formulationDetail,
@@ -2716,6 +2720,8 @@ class _DeepDiveSectionState extends State<_DeepDiveSection>
                 ProbioticDetailSection(
                   probioticDetail: widget.probioticDetail,
                 ),
+                const SizedBox(height: AppTheme.space8),
+                PairsWellSection(dsldId: widget.dsldId),
                 const SizedBox(height: AppTheme.space8),
                 SynergyDetailSection(
                   synergyDetail: widget.synergyDetail,
