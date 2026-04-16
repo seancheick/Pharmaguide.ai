@@ -148,7 +148,8 @@ class RefillReminderCard extends StatelessWidget {
     }
 
     final tier = tierForDays(daysRemaining);
-    final styling = _stylingForTier(tier);
+    final resolved = AppColors.of(context);
+    final styling = _stylingForTier(tier, context);
 
     return Card(
       key: const Key('refill-reminder-card'),
@@ -194,9 +195,9 @@ class RefillReminderCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       _subtitleText()!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: resolved.textSecondary,
                       ),
                     ),
                   ],
@@ -204,9 +205,9 @@ class RefillReminderCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Estimate based on "$dosingSummary"',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: resolved.textSecondary,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -242,7 +243,7 @@ class RefillReminderCard extends StatelessWidget {
     }
   }
 
-  static _TierStyling _stylingForTier(RefillTier tier) {
+  static _TierStyling _stylingForTier(RefillTier tier, BuildContext context) {
     switch (tier) {
       case RefillTier.out:
         return _TierStyling(
@@ -277,7 +278,7 @@ class RefillReminderCard extends StatelessWidget {
           iconColor: AppColors.green,
           iconBackgroundColor: const Color(0xFFE8F5E9),
           borderColor: const Color(0xFFA5D6A7),
-          headlineColor: AppColors.textPrimary,
+          headlineColor: AppColors.of(context).textPrimary,
           headline: (days) => '$days days left',
         );
     }

@@ -40,13 +40,14 @@ class UnmappedActivesDisclosure extends StatelessWidget {
 
     final names = _readNames(blob['names']);
 
+    final resolved = AppColors.of(context);
     return Card(
       key: const Key('unmapped-actives-card'),
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -55,34 +56,34 @@ class UnmappedActivesDisclosure extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline,
                   size: 18,
-                  color: AppColors.textSecondary,
+                  color: resolved.textSecondary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '$total ${_pluralize(total, 'ingredient', 'ingredients')} '
                     'could not be mapped',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: resolved.textPrimary,
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'These ingredients appear on the label but were not '
               'recognized by our quality database, so they did NOT '
               'affect this product\'s score. The score reflects only '
               'the ingredients we could verify.',
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: resolved.textSecondary,
                 height: 1.4,
               ),
             ),
@@ -94,19 +95,19 @@ class UnmappedActivesDisclosure extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         '• ',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: resolved.textSecondary,
                         ),
                       ),
                       Expanded(
                         child: Text(
                           name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textPrimary,
+                            color: resolved.textPrimary,
                           ),
                         ),
                       ),

@@ -40,6 +40,7 @@ class BetterAlternativesSection extends ConsumerWidget {
         }
 
         final alternatives = snapshot.data!;
+        final resolved = AppColors.of(context);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,13 +49,13 @@ class BetterAlternativesSection extends ConsumerWidget {
               'Better Alternatives',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: resolved.textPrimary,
                   ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Higher-scored products in this category',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: resolved.textSecondary),
             ),
             const SizedBox(height: 12),
             ...alternatives.map(
@@ -72,8 +73,8 @@ class _AlternativeCard extends StatelessWidget {
 
   const _AlternativeCard({required this.product});
 
-  Color _scoreColor(double? score) {
-    if (score == null) return AppColors.textSecondary;
+  Color _scoreColor(double? score, BuildContext context) {
+    if (score == null) return AppColors.of(context).textSecondary;
     if (score >= 85) return AppColors.scoreExceptional;
     if (score >= 70) return AppColors.scoreExcellent;
     if (score >= 55) return AppColors.scoreGood;
@@ -84,8 +85,9 @@ class _AlternativeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolved = AppColors.of(context);
     final score = product.score100Equivalent;
-    final color = _scoreColor(score);
+    final color = _scoreColor(score, context);
 
     return GestureDetector(
       onTap: () => context.push('/product/${product.dsldId}'),
@@ -95,7 +97,7 @@ class _AlternativeCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         ),
         child: Row(
           children: [
@@ -126,10 +128,10 @@ class _AlternativeCard extends StatelessWidget {
                 children: [
                   Text(
                     product.productName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: resolved.textPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -139,9 +141,9 @@ class _AlternativeCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       product.brandName!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: resolved.textSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -150,7 +152,7 @@ class _AlternativeCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            Icon(Icons.chevron_right, color: resolved.textSecondary),
           ],
         ),
       ),

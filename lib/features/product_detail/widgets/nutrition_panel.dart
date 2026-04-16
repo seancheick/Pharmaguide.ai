@@ -43,13 +43,14 @@ class NutritionPanel extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final resolved = AppColors.of(context);
     return Card(
       key: const Key('nutrition-panel-card'),
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -60,15 +61,15 @@ class NutritionPanel extends StatelessWidget {
               'Nutrition Facts',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: resolved.textPrimary,
                   ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Per serving',
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: resolved.textSecondary,
               ),
             ),
             const SizedBox(height: 12),
@@ -165,6 +166,7 @@ class _NutritionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolved = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -172,17 +174,17 @@ class _NutritionRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textPrimary,
+              color: resolved.textPrimary,
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: resolved.textPrimary,
             ),
           ),
         ],
