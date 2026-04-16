@@ -112,7 +112,12 @@ class StackUlChecker {
       return NutrientStatus(total: total, tier: NutrientTier.noRda);
     }
 
-    final rda = _getRda(entry, ageBracket: ageBracket, sex: sex);
+    final rdaLookup = _getRdaWithProvenance(
+      entry,
+      ageBracket: ageBracket,
+      sex: sex,
+    );
+    final rda = rdaLookup.value;
     final ul = _getUl(entry, ageBracket: ageBracket, sex: sex);
 
     final pctOfRda = (rda != null && rda > 0)
@@ -135,6 +140,7 @@ class StackUlChecker {
       pctOfRda: pctOfRda,
       pctOfUl: pctOfUl,
       warning: warning,
+      rdaIsBaseline: rdaLookup.isBaseline,
     );
   }
 
@@ -180,15 +186,15 @@ class StackUlChecker {
     return null;
   }
 
-  /// Look up RDA for the requested demographic. Returns null if no
-  /// usable row exists.
-  double? _getRda(
+  /// RDA lookup result paired with provenance. [isBaseline] is true
+  /// when the value came from the anonymous adult fallback.
+  _RdaLookup _getRdaWithProvenance(
     Map<String, dynamic> entry, {
     required String? ageBracket,
     required String? sex,
   }) {
     final data = (entry['data'] as List?) ?? const [];
-    if (data.isEmpty) return null;
+    if (data.isEmpty) return const _RdaLookup(null, false);
 
     // Tier 1: exact age + sex match.
     if (ageBracket != null && sex != null) {
@@ -196,7 +202,7 @@ class StackUlChecker {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket && g['group'] == sex) {
           final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
-          if (v != null) return v;
+          if (v != null) return _RdaLookup(v, false);
         }
       }
     }
@@ -207,15 +213,26 @@ class StackUlChecker {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket) {
           final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
-          if (v != null) return v;
+          if (v != null) return _RdaLookup(v, false);
         }
       }
     }
 
-    // No fallback — RDA without a profile is meaningless. Return
-    // null so the tier stays at `noRda` and the UI shows raw total
-    // only.
-    return null;
+    // Tier 3: anonymous baseline — adult 19-30 Female. Matches the
+    // FDA supplement-facts Daily Value convention (non-pregnant,
+    // non-lactating adult) and is the conservative direction — Female
+    // RDA is ≤ Male for most nutrients, so %RDA won't be
+    // under-reported for anonymous users. Flagged as baseline so the
+    // UI can show a "set your profile for personalized values" hint.
+    for (final g in data) {
+      if (g is! Map<String, dynamic>) continue;
+      if (g['age_range'] == '19-30' && g['group'] == 'Female') {
+        final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
+        if (v != null) return _RdaLookup(v, true);
+      }
+    }
+
+    return const _RdaLookup(null, false);
   }
 
   /// Look up UL for the requested demographic. Falls back to
@@ -337,4 +354,13 @@ class StackUlChecker {
     }
     return null;
   }
+}
+
+/// RDA lookup result paired with whether the value came from the
+/// anonymous baseline fallback. Internal-only — the checker unwraps
+/// it before returning a [NutrientStatus].
+class _RdaLookup {
+  const _RdaLookup(this.value, this.isBaseline);
+  final double? value;
+  final bool isBaseline;
 }

@@ -47,7 +47,10 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
     final total = widget.status.total;
     final tierColor = NutrientProgressBar.tierColorFor(widget.status.tier);
     final fillPct = _fillPercent(widget.status);
-    final hasContributions = total.contributions.length > 1;
+    // Every row with at least one contribution is tappable so the user
+    // can always trace a nutrient back to the product(s) providing it,
+    // even when only a single supplement in the stack contributes.
+    final hasContributions = total.contributions.isNotEmpty;
 
     return GestureDetector(
       onTap: hasContributions
@@ -57,7 +60,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppTheme.space16,
-          vertical: AppTheme.space12,
+          vertical: AppTheme.space8,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,20 +70,24 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                 Expanded(
                   child: Row(
                     children: [
-                      Text(
-                        total.displayName,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          total.displayName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (hasContributions) ...[
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 2),
                         AnimatedRotation(
                           turns: _expanded ? 0.5 : 0.0,
                           duration: const Duration(milliseconds: 200),
                           child: Icon(
                             Icons.expand_more,
-                            size: 16,
+                            size: 14,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -91,26 +98,28 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                 Text(
                   _formatAmount(total.totalAmount, total.unit),
                   style: AppTheme.numeric(
-                    theme.textTheme.bodyMedium!.copyWith(
+                    theme.textTheme.bodySmall!.copyWith(
                       fontWeight: FontWeight.w700,
                       color: tierColor,
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Inline compact subtitle (% RDA / UL) — moved from
+                // its own row so each nutrient is a tight single line.
+                _buildSubtitleText(theme, scheme),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             ClipRRect(
               borderRadius: BorderRadius.circular(AppTheme.radiusFull),
               child: LinearProgressIndicator(
                 value: fillPct.clamp(0.0, 1.0),
-                minHeight: 6,
+                minHeight: 4,
                 backgroundColor: scheme.surfaceContainerHigh,
                 valueColor: AlwaysStoppedAnimation<Color>(tierColor),
               ),
             ),
-            const SizedBox(height: 4),
-            _buildSubtitleRow(theme, scheme),
             if (widget.status.warning != null) ...[
               const SizedBox(height: 6),
               _WarningChip(
@@ -145,25 +154,30 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
     );
   }
 
-  Widget _buildSubtitleRow(ThemeData theme, ColorScheme scheme) {
+  /// Compact subtitle — rendered inline on the same row as the amount
+  /// so each nutrient entry takes a single tight row instead of two.
+  /// Appends an asterisk when RDA came from the anonymous baseline
+  /// (Female 19-30) so the user knows the value isn't profile-specific.
+  Widget _buildSubtitleText(ThemeData theme, ColorScheme scheme) {
     final rda = widget.status.pctOfRda;
     final ul = widget.status.pctOfUl;
-    final parts = <String>[];
-
-    if (rda != null) {
-      parts.add(_formatRdaPercent(rda));
-    }
+    // Prefer UL when the nutrient has a hard ceiling to flag; otherwise
+    // show %RDA. Showing both would wrap and defeat the compact layout.
+    final String text;
     if (ul != null) {
-      parts.add('${ul.round()}% UL');
+      text = '${ul.round()}% UL';
+    } else if (rda != null) {
+      final formatted = _formatRdaPercent(rda);
+      text = widget.status.rdaIsBaseline ? '$formatted*' : formatted;
+    } else {
+      text = '—';
     }
-
-    final text = parts.isEmpty ? 'No RDA data' : parts.join('  ·  ');
 
     return Text(
       text,
-      style: theme.textTheme.bodySmall?.copyWith(
+      style: theme.textTheme.labelSmall?.copyWith(
         color: scheme.onSurfaceVariant,
-        fontSize: 12,
+        fontSize: 11,
       ),
     );
   }

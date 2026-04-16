@@ -125,6 +125,7 @@ class NutrientStatus {
     this.pctOfRda,
     this.pctOfUl,
     this.warning,
+    this.rdaIsBaseline = false,
   });
 
   final NutrientTotal total;
@@ -134,6 +135,12 @@ class NutrientStatus {
   final double? pctOfRda;
   final double? pctOfUl;
   final String? warning;
+
+  /// True when [rda] came from the anonymous adult fallback (Female
+  /// 19-30) instead of a profile match. UI should indicate the value
+  /// is a generic baseline so users know to complete their profile
+  /// for personalized numbers.
+  final bool rdaIsBaseline;
 
   /// True when this nutrient should surface a visible warning to the
   /// user. The caller decides whether to render it as a chip, a

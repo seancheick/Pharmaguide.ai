@@ -73,7 +73,9 @@ void main() {
 
       expect(find.text('Zinc'), findsOneWidget);
       expect(find.text('52 MG'), findsOneWidget);
-      expect(find.textContaining('473% RDA'), findsOneWidget);
+      // Compact layout prefers UL over RDA when both are present — a
+      // single tight row keeps the nutrient list scannable. %RDA only
+      // shows as the fallback when there is no UL.
       expect(find.textContaining('130% UL'), findsOneWidget);
       expect(find.textContaining('copper depletion'), findsOneWidget);
     });
@@ -106,7 +108,7 @@ void main() {
       expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
     });
 
-    testWidgets('shows "No RDA data" when both rda and ul are null',
+    testWidgets('shows em-dash when both rda and ul are null',
         (tester) async {
       const status = NutrientStatus(
         total: NutrientTotal(
@@ -125,7 +127,9 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('No RDA data'), findsOneWidget);
+      // Compact layout uses an em-dash as the placeholder when neither
+      // RDA nor UL data is available — keeps the single-row layout tight.
+      expect(find.text('—'), findsOneWidget);
     });
 
     testWidgets('renders unit conflict note when total has hasUnitConflict',

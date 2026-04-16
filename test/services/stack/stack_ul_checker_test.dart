@@ -176,20 +176,39 @@ void main() {
         () {
       final totals = _totals([_total('zinc', 'Zinc', 45, 'mg')]);
       final results = checker.check(totals);
-      // No RDA without a profile, but UL check still fires.
-      expect(results.first.rda, isNull);
+      // Anonymous users now receive a baseline RDA (Female 19-30) so
+      // %RDA displays without a profile. UL check still dominates —
+      // 45mg > 40mg UL takes precedence over any RDA-based tiering.
+      expect(results.first.rda, 8.0);
+      expect(results.first.rdaIsBaseline, isTrue);
       expect(results.first.ul, 40);
       expect(results.first.tier, NutrientTier.exceedsUl);
       expect(results.first.warning, contains('copper depletion'));
     });
 
-    test('anonymous adequate amount shows noRda tier (no false positive)', () {
+    test('anonymous adequate amount uses baseline RDA without UL warning', () {
       final totals = _totals([_total('zinc', 'Zinc', 10, 'mg')]);
       final results = checker.check(totals);
-      // 10mg < 80% of UL (40), so no warning. No RDA without profile so
-      // the tier is noRda, not a false-positive alarm.
-      expect(results.first.tier, NutrientTier.noRda);
+      // 10mg vs baseline RDA 8mg = 125% → abundant tier. No UL warning
+      // because 10mg < 80% of UL (40). `rdaIsBaseline` flags the UI to
+      // show a subtle hint that this is a generic adult reference.
+      expect(results.first.rda, 8.0);
+      expect(results.first.rdaIsBaseline, isTrue);
+      expect(results.first.tier, NutrientTier.abundant);
       expect(results.first.shouldWarn, isFalse);
+    });
+
+    test('profile-matched RDA is not flagged as baseline', () {
+      final totals = _totals([_total('zinc', 'Zinc', 10, 'mg')]);
+      final results = checker.check(
+        totals,
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+      // Profile match should set rdaIsBaseline = false so the UI
+      // renders the value without the "*" hint.
+      expect(results.first.rda, isNotNull);
+      expect(results.first.rdaIsBaseline, isFalse);
     });
   });
 

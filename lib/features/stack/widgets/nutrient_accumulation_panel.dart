@@ -71,15 +71,45 @@ class _PanelShell extends StatelessWidget {
   }
 }
 
-class _PanelBody extends StatelessWidget {
+class _PanelBody extends StatefulWidget {
   const _PanelBody({required this.statuses});
 
   final List<NutrientStatus> statuses;
 
   @override
+  State<_PanelBody> createState() => _PanelBodyState();
+}
+
+class _PanelBodyState extends State<_PanelBody> {
+  /// How many non-warning nutrients to show before the user taps "Show
+  /// all". Keeps the stack screen scannable on first load.
+  static const _collapsedLimit = 8;
+
+  bool _expanded = false;
+
+  /// Rank a nutrient by how close it is to its risk ceiling, so the
+  /// panel surfaces the most clinically relevant totals first.
+  ///
+  /// Priority: %UL (strongest signal) → %RDA (if no UL) → 0 (no data).
+  /// A nutrient at 150% UL ranks above one at 300% RDA because UL
+  /// overages carry toxicity risk while RDA overages usually don't.
+  static double _riskScore(NutrientStatus s) {
+    final ul = s.pctOfUl;
+    if (ul != null) return ul + 10000; // UL-based entries always first
+    final rda = s.pctOfRda;
+    if (rda != null) return rda;
+    return -1; // unranked
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final warnings = statuses.where((s) => s.shouldWarn).toList();
-    final notable = statuses.where((s) => !s.shouldWarn).toList();
+    final warnings = widget.statuses.where((s) => s.shouldWarn).toList()
+      ..sort((a, b) => _riskScore(b).compareTo(_riskScore(a)));
+    final notable = widget.statuses.where((s) => !s.shouldWarn).toList()
+      ..sort((a, b) => _riskScore(b).compareTo(_riskScore(a)));
+
+    final hasMore = notable.length > _collapsedLimit;
+    final shown = _expanded ? notable : notable.take(_collapsedLimit).toList();
 
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -87,12 +117,12 @@ class _PanelBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _Header(
-            totalNutrients: statuses.length,
+            totalNutrients: widget.statuses.length,
             warningCount: warnings.length,
           ),
           const Divider(height: 1, color: AppColors.border),
-          // Warnings always render at the top, regardless of any
-          // user-initiated re-ordering. Safety wins over preference.
+          // Warnings always render at the top, sorted by risk score —
+          // safety outranks user preference.
           for (final s in warnings)
             NutrientProgressBar(
               key: Key('warn-${s.total.canonicalId}'),
@@ -100,24 +130,76 @@ class _PanelBody extends StatelessWidget {
             ),
           if (warnings.isNotEmpty && notable.isNotEmpty)
             const Divider(height: 16, color: AppColors.border),
-          for (final s in notable.take(8))
+          // Notable nutrients (no warning) sorted by %UL/%RDA desc.
+          for (final s in shown)
             NutrientProgressBar(
               key: Key('row-${s.total.canonicalId}'),
               status: s,
             ),
-          if (notable.length > 8)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: Text(
-                'Showing top 8 of ${notable.length} tracked nutrients',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+          if (hasMore)
+            _ShowMoreRow(
+              expanded: _expanded,
+              totalRemaining: notable.length - _collapsedLimit,
+              totalAll: notable.length,
+              onTap: () => setState(() => _expanded = !_expanded),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Tappable footer row that toggles between showing the top 8 and the
+/// full list of tracked nutrients. Placed inside the nutrient card so
+/// the user keeps context instead of navigating away.
+class _ShowMoreRow extends StatelessWidget {
+  const _ShowMoreRow({
+    required this.expanded,
+    required this.totalRemaining,
+    required this.totalAll,
+    required this.onTap,
+  });
+
+  final bool expanded;
+  final int totalRemaining;
+  final int totalAll;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final label = expanded
+        ? 'Show fewer'
+        : 'Show all $totalAll tracked nutrients';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            AnimatedRotation(
+              turns: expanded ? 0.5 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: Icon(
+                Icons.expand_more_rounded,
+                size: 18,
+                color: scheme.primary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
