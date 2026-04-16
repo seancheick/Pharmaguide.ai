@@ -102,15 +102,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    Finder richTextContaining(String text) {
-      return find.byWidgetPredicate(
-        (widget) =>
-            widget is RichText &&
-            widget.text.toPlainText().contains(text),
-        description: 'RichText containing "$text"',
-      );
-    }
-
     expect(find.textContaining('core product score'), findsOneWidget);
     // Pillar names rendered as separate Text widgets (with visual bars)
     expect(find.text('Ingredient Quality'), findsOneWidget);

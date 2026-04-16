@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
@@ -37,7 +34,7 @@ final _testTimingRulesJson = {
       'separation_hours': null,
       'score_impact': 0,
       'evidence_level': 'established',
-      'sources': [],
+      'sources': <Map<String, String>>[],
     },
     {
       'id': 'timing_coq10_with_food',
@@ -49,7 +46,7 @@ final _testTimingRulesJson = {
       'separation_hours': null,
       'score_impact': -1,
       'evidence_level': 'established',
-      'sources': [],
+      'sources': <Map<String, String>>[],
     },
     {
       'id': 'timing_iron_empty_stomach',
@@ -61,7 +58,7 @@ final _testTimingRulesJson = {
       'separation_hours': null,
       'score_impact': -1,
       'evidence_level': 'established',
-      'sources': [],
+      'sources': <Map<String, String>>[],
     },
     {
       'id': 'timing_thyroid_med_iron_separate',
@@ -73,7 +70,7 @@ final _testTimingRulesJson = {
       'separation_hours': 4,
       'score_impact': -2,
       'evidence_level': 'established',
-      'sources': [],
+      'sources': <Map<String, String>>[],
     },
     {
       'id': 'timing_magnesium_evening',
@@ -85,7 +82,7 @@ final _testTimingRulesJson = {
       'separation_hours': null,
       'score_impact': 0,
       'evidence_level': 'possible',
-      'sources': [],
+      'sources': <Map<String, String>>[],
     },
   ],
 };

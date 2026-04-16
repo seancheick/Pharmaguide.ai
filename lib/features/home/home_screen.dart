@@ -20,7 +20,6 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
-import 'package:pharmaguide/services/stack/synergy_result.dart' show SynergyReport;
 
 /// The home screen.
 ///
@@ -716,7 +715,6 @@ class _StackHealthCard extends ConsumerWidget {
     );
 
     final score = safetyScore?.score;
-    final riskTier = safetyScore?.riskTier;
     final serious = safetyScore?.seriousCount ?? 0;
     final moderate = safetyScore?.moderateCount ?? 0;
     final supplementCount =
