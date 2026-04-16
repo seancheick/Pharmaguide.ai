@@ -22,12 +22,12 @@ void main() {
   });
 
   testWidgets('renders when active ingredients present', (tester) async {
-    await tester.pumpWidget(wrap(ExcipientDensityCard(
-      activeIngredients: const [
+    await tester.pumpWidget(wrap(const ExcipientDensityCard(
+      activeIngredients: [
         {'name': 'Magnesium', 'quantity': 200, 'unit': 'mg'},
         {'name': 'Vitamin D', 'quantity': 1000, 'unit': 'IU'},
       ],
-      inactiveIngredients: const [
+      inactiveIngredients: [
         {'name': 'Gelatin'},
       ],
     )));

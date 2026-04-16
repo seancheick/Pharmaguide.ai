@@ -14,7 +14,7 @@ void main() {
 
   testWidgets('renders nothing when signals list is empty', (tester) async {
     await tester.pumpWidget(wrap(const HeavyMetalWarningCard(
-        heavyMetalDetail: {'signals': []})));
+        heavyMetalDetail: {'signals': <Map<String, dynamic>>[]})));
     await tester.pump();
     expect(find.text('Heavy Metal Risk'), findsNothing);
   });
