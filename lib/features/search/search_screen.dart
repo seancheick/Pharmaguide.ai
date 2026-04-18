@@ -22,7 +22,15 @@ import 'package:pharmaguide/services/recent_searches_service.dart';
 /// no-results and first-open states.
 class SearchScreen extends ConsumerStatefulWidget {
   final String? initialCategory;
-  const SearchScreen({super.key, this.initialCategory});
+
+  /// Optional pre-filled text query. When non-empty, the field is pre-
+  /// populated and a search fires on first build. Used by deep-links
+  /// like the depletion nudge's "Browse B12 options" CTA, which routes
+  /// to `/search?query=B12` to bring the user straight into filtered
+  /// results.
+  final String? initialQuery;
+
+  const SearchScreen({super.key, this.initialCategory, this.initialQuery});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -50,6 +58,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     if (_activeCategory != null && _activeCategory!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadCategoryResults(_activeCategory!);
+      });
+    } else if (widget.initialQuery != null &&
+        widget.initialQuery!.trim().isNotEmpty) {
+      // Deep-link pre-fill. Populate the field, set the query state,
+      // and fire the search on the first frame so the results render
+      // as if the user had typed it.
+      final q = widget.initialQuery!.trim();
+      _controller.text = q;
+      _query = q;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _onQueryChanged(q);
       });
     }
   }

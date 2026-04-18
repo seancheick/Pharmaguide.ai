@@ -96,7 +96,7 @@ DIST_DIR=""
 # Schema versions this app is known to understand. When the app adds a new
 # column or changes semantics, append here. The bridge refuses to import a
 # schema it doesn't recognize, to prevent shipping a DB the app can't read.
-APP_SUPPORTED_SCHEMAS=("1.3.1" "1.3.2")
+APP_SUPPORTED_SCHEMAS=("1.3.1" "1.3.2" "1.4.0")
 
 # Interaction DB schema versions the Flutter Drift wrapper supports. The
 # pipeline pins schema_version="1.0.0" / PRAGMA user_version=1 — both must

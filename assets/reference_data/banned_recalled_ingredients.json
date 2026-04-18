@@ -1,11 +1,14 @@
 {
   "_metadata": {
-    "schema_version": "1.1",
-    "last_updated": "2026-04-16",
+    "schema_version": "5.3.0",
+    "last_updated": "2026-04-18",
     "total_entries": 139,
     "description": "Banned and recalled ingredients database for regulatory compliance and safety (v3.0)",
     "pipeline_source_version": "v5.0",
-    "migration_note": "Recall list remapped from pipeline v5.0 schema. warning_message field was REMOVED in Sprint 27.6 after audit showed derived strings were medically incorrect for ~30-40 entries (e.g. \"Metformin is banned\" inverts the signal — metformin is a legitimate prescription drug, only banned as an undeclared adulterant). Replacement: authored safety_warning + safety_warning_one_liner + ban_context fields pending upstream in pipeline repo. See SPRINT_TRACKER.md Sprint 27.6 Path C for the rebuild plan. bonus_points (synergy) + regulatory_basis (recall) remain derived where no pipeline source exists."
+    "migration_note": "Recall list remapped from pipeline v5.0 schema. warning_message field was REMOVED in Sprint 27.6 after audit showed derived strings were medically incorrect for ~30-40 entries (e.g. \"Metformin is banned\" inverts the signal — metformin is a legitimate prescription drug, only banned as an undeclared adulterant). Replacement: authored safety_warning + safety_warning_one_liner + ban_context fields pending upstream in pipeline repo. See SPRINT_TRACKER.md Sprint 27.6 Path C for the rebuild plan. bonus_points (synergy) + regulatory_basis (recall) remain derived where no pipeline source exists.",
+    "flutter_schema_version": "5.2.0",
+    "flutter_top_level_key": "recalled_ingredients",
+    "path_c_round": "clinician_reviewed_round_1_2026-04-17"
   },
   "recalled_ingredients": [
     {
@@ -20,7 +23,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements. Found in recalled products.",
       "reason": "Meloxicam (Mobic) is a prescription NSAID selective for COX-2, used for arthritis pain. When found undeclared in dietary supplements, users are unknowingly exposed to NSAID risks without medical oversight: GI bleeding, renal impairment, fluid retention, and elevated cardiovascular risk. Users on anticoagulants, aspirin, or ACE inhibitors face compounded risks. FDA has identified meloxicam as a pharmaceutical adulterant in joint and pain-related supplement products. Any supplement containing it is adulterated with a prescription drug.",
       "effective_date": "2026-01-09",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription NSAID found undeclared in some supplements — risk includes kidney injury and GI bleeding. Stop the supplement and consult your doctor. Does not affect prescribed Mobic.",
+      "safety_warning_one_liner": "Prescription NSAID hidden in supplements. Stop and consult your doctor."
     },
     {
       "canonical_id": "ADULTERANT_METFORMIN",
@@ -34,7 +40,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements. Multiple recalls for adulteration.",
       "reason": "Metformin is a prescription antidiabetic drug (biguanide class) that lowers blood glucose by reducing hepatic glucose production. When found undeclared in weight-loss supplements, it can cause life-threatening lactic acidosis in users with renal impairment or who consume alcohol regularly. Users are unknowingly receiving a prescription drug requiring renal function monitoring. FDA has identified metformin as an adulterant in weight-loss and blood sugar supplement products. Any supplement containing metformin is adulterated.",
       "effective_date": "2009-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription diabetes drug found undeclared in weight-loss supplements — risk of dangerous low blood sugar. Stop the supplement and talk to your doctor. Does not affect prescribed metformin.",
+      "safety_warning_one_liner": "Prescription drug hidden in supplements. Stop and consult your doctor."
     },
     {
       "canonical_id": "ADULTERANT_RIMONABANT",
@@ -49,7 +58,10 @@
       "regulatory_basis": "adulterant — Never approved by FDA. Illegal in supplements.",
       "reason": "Rimonabant (Acomplia) was a weight-loss drug that blocked cannabinoid CB1 receptors. It was never FDA-approved — the agency's advisory committee rejected it due to severe psychiatric side effects including depression, anxiety, and suicidal ideation in clinical trials. It was briefly approved in the EU (2006) before being withdrawn in 2008 after post-market safety signals. When found undeclared in supplements, users face psychiatric risks with no informed consent, no psychiatric screening, and no medical supervision.",
       "effective_date": "2007-06-13",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A rejected weight-loss drug found undeclared in supplements. Associated with severe depression and suicidal thoughts in clinical trials — never FDA-approved. Stop the supplement and consult a doctor.",
+      "safety_warning_one_liner": "Rejected drug hidden in supplements. Stop and consult a doctor."
     },
     {
       "canonical_id": "BANNED_14_BUTANEDIOL",
@@ -66,7 +78,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in dietary supplements. DEA List I chemical. Federal Analogue Act applies when sold for h",
       "reason": "1,4-Butanediol (1,4-BD) is an industrial solvent that is rapidly metabolized to GHB (gamma hydroxybutyrate, a Schedule I controlled substance / CNS depressant) by the enzyme alcohol dehydrogenase. It has been found in dietary supplements and 'relaxation drinks.' FDA has issued import alerts and enforcement actions. 1,4-BD causes dose-dependent CNS depression, respiratory depression, and death — with a narrow therapeutic window made worse because conversion speed varies by individual. Multiple fatalities have been reported from 1,4-BD products marketed as supplements or 'legal GHB alternatives.'",
       "effective_date": "2000-02-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An industrial solvent that the body converts into the controlled substance GHB. Linked to unconsciousness and overdose; not lawful as a supplement. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Industrial solvent that converts to GHB. Stop."
     },
     {
       "canonical_id": "BANNED_7_HYDROXYMITRAGYNINE",
@@ -82,7 +97,10 @@
       "regulatory_basis": "banned_federal — FDA warning letters issued July 15, 2025 and July 29, 2025 to 7 companies. FDA announced July 29, 20",
       "reason": "7-Hydroxymitragynine (7-HMG) is a kratom alkaloid — and increasingly a semi-synthetic compound — with full mu-opioid receptor agonist potency estimated at 13 times greater than morphine by weight. It is responsible for most of kratom's opioid effects. FDA has cited 7-HMG as a primary driver of kratom's overdose risk. DEA designated synthetic 7-HMG as a Schedule I substance in 2024 under the Substance Use–Disorder Prevention that Promotes Opioid Recovery and Treatment (SUPPORT) Act. Products containing isolated or concentrated 7-HMG carry full opioid overdose risk.",
       "effective_date": "2025-07-15",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A potent kratom alkaloid with opioid-like activity estimated around 13 times morphine potency. Associated with dependence, breathing suppression, and overdose risk. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Opioid-potent kratom alkaloid. Risk of dependence and overdose."
     },
     {
       "canonical_id": "BANNED_7_KETO_DHEA",
@@ -112,7 +130,10 @@
       "regulatory_basis": "restricted — Legal as dietary supplement in US under DSHEA. FDA has not banned 7-Keto DHEA.",
       "reason": "Classified as a controlled anabolic steroid precursor in multiple countries. Banned in UK, Canada, Australia, and New Zealand. Not approved as a dietary supplement outside the US.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "export_restricted",
+      "safety_warning": "A steroid precursor banned as a supplement ingredient in the UK, Canada, Australia, and New Zealand, though still sold in the US. Consult your doctor before use.",
+      "safety_warning_one_liner": "Steroid precursor banned abroad. Consult a doctor."
     },
     {
       "canonical_id": "BANNED_ADD_ANATABINE",
@@ -126,7 +147,10 @@
       "regulatory_basis": "high_risk — Status pending review",
       "reason": "REGULATORY WARNING: Tobacco alkaloid with controversial regulatory status. Voluntarily withdrawn from market after FDA concerns about drug claims and tobacco-derived ingredient classification. While found naturally in Solanaceae plants, regulatory status uncertain for dietary supplements.",
       "effective_date": "2013-11-18",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "A tobacco alkaloid voluntarily withdrawn from the US market after FDA questioned its supplement claims. Its presence in products now is associated with past mislabeling and should be avoided.",
+      "safety_warning_one_liner": "Tobacco alkaloid withdrawn after FDA concerns. Avoid."
     },
     {
       "canonical_id": "BANNED_ADD_CITRUS_RED_2",
@@ -140,7 +164,10 @@
       "regulatory_basis": "high_risk — Status pending review",
       "reason": "Synthetic orange-red dye. Restricted to coloring orange peels only. Classified as possible human carcinogen. Should not be in supplements.",
       "effective_date": "1963-01-01",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "A synthetic dye approved only for coloring orange peels in the US — classified as a possible human carcinogen. Its presence in a supplement is associated with labeling problems and should be avoided.",
+      "safety_warning_one_liner": "Synthetic dye not approved for supplements. Avoid."
     },
     {
       "canonical_id": "BANNED_ADD_FORMALDEHYDE",
@@ -156,7 +183,10 @@
       "regulatory_basis": "high_risk — Status pending review",
       "reason": "Toxic preservative and contaminant. Known human carcinogen (IARC Group 1). Banned as food additive in most countries. May form from breakdown of other preservatives. Should never be intentionally added to supplements.",
       "effective_date": "2011-06-10",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A preservative classified as a known human carcinogen (IARC Group 1). Banned as a food additive in most countries; presence in a supplement is linked to contamination. Stop.",
+      "safety_warning_one_liner": "Known carcinogen. Stop and consult a doctor."
     },
     {
       "canonical_id": "BANNED_ADD_ORANGE_B",
@@ -168,7 +198,10 @@
       "regulatory_basis": "high_risk — Status pending review",
       "reason": "Synthetic orange dye. Restricted to use in hot dog and sausage casings only in the US. Not approved for general food use. Potential carcinogen.",
       "effective_date": "1978-01-01",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "A synthetic dye FDA-approved only for hot dog and sausage casings — not for dietary supplements. Its presence in a supplement is associated with undisclosed colorant use and possible mislabeling.",
+      "safety_warning_one_liner": "Synthetic dye not approved for supplements. Possible mislabeling risk."
     },
     {
       "canonical_id": "BANNED_ADD_PHTHALATES",
@@ -191,7 +224,10 @@
       "regulatory_basis": "high_risk — FDA restricts some phthalates in children's products; DEHP banned in cosmetics",
       "reason": "Packaging contaminants that leach from plastic bottles and containers into supplements. Powerful endocrine disruptors linked to reproductive harm, developmental issues, and cancer (DEHP classified IARC Group 2B, possibly carcinogenic, Monograph Vol 101, 2013). 2024-2025 research continues to find widespread contamination in supplements packaged in plastic. Choose glass packaging when possible. Not intentionally added but common contaminant.",
       "effective_date": "2008-08-14",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "Packaging contaminants that leach from plastic into supplements — linked to endocrine disruption and reproductive harm. Presence reflects contamination rather than an added ingredient.",
+      "safety_warning_one_liner": "Endocrine-disrupting contaminants linked to plastics. Avoid."
     },
     {
       "canonical_id": "BANNED_ADD_POTASSIUM_BROMATE",
@@ -207,7 +243,10 @@
       "regulatory_basis": "high_risk — Status pending review",
       "reason": "Flour treatment agent classified as IARC Group 2B (possibly carcinogenic, Monograph Vol 73, 1999). Banned in EU, Canada, Brazil, and many other countries but still legal in US. Linked to kidney and thyroid tumors in animal studies.",
       "effective_date": "1991-01-01",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "A flour-treatment agent classified as possibly carcinogenic (IARC Group 2B). Banned as a food additive in the EU and Canada; presence in a US supplement is associated with poor sourcing.",
+      "safety_warning_one_liner": "Possible carcinogen banned abroad. Avoid."
     },
     {
       "canonical_id": "BANNED_ADD_SYNTHETIC_ESTROGENS",
@@ -227,7 +266,10 @@
       "regulatory_basis": "high_risk — Restricted - Requires prescription for hormone-based products",
       "reason": "Synthetic hormones that can disrupt the endocrine system. Associated with increased risk of certain cancers, reproductive issues, and developmental problems. Can accumulate in body tissues.",
       "effective_date": "1979-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Synthetic hormones that can disrupt the endocrine system and have been linked to reproductive problems and cancer risk. They can accumulate in body fat and are not lawful supplement ingredients. Stop.",
+      "safety_warning_one_liner": "Endocrine-disrupting synthetic hormones. Stop and consult."
     },
     {
       "canonical_id": "BANNED_ARISTOLOCHIC_ACID",
@@ -249,7 +291,10 @@
       "regulatory_basis": "banned_federal — FDA Import Alert 54-12 (active). Completely banned in dietary supplements.",
       "reason": "Aristolochic acids are naturally occurring nephrotoxins and carcinogens in Aristolochia plant species. They cause aristolochic acid nephropathy (AAN) — a rapidly progressive and irreversible kidney disease leading to renal failure. IARC classifies aristolochic acids as Group 1 human carcinogens (upper urinary tract urothelial carcinoma). An epidemic of AAN in Belgium in the 1990s, traced to mislabeled herbal supplements, resulted in over 100 kidney transplants. FDA issued an import alert and advisory against products containing Aristolochia, Asarum, or Bragantia species in 2001.",
       "effective_date": "2001-04-09",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A plant compound linked to rapidly progressive kidney failure and urinary-tract cancers. FDA banned it in supplements; stop and consult a doctor if you have used a product containing it.",
+      "safety_warning_one_liner": "Banned kidney toxin linked to cancer. Stop and consult."
     },
     {
       "canonical_id": "BANNED_BMPEA",
@@ -264,7 +309,10 @@
       "regulatory_basis": "banned_federal — FDA determined not a dietary ingredient (2015). Subject to enforcement.",
       "reason": "BMPEA (β-methylphenylethylamine, 4-amino-2-methylpentane) is a synthetic amphetamine-like compound found by FDA researchers as an undeclared ingredient in supplements labeled as containing 'Acacia rigidula extract' — a species in which BMPEA does not naturally occur. BMPEA has stimulant activity; it raises blood pressure and heart rate and has structural similarity to amphetamines. FDA confirmed its presence in 9 of 21 tested Acacia rigidula supplements (2015). It is not a lawful dietary ingredient. Products containing it are adulterated.",
       "effective_date": "2015-04-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An amphetamine-like synthetic compound found as an undeclared ingredient in supplements labeled as acacia. Linked to cardiovascular risk; FDA banned it in supplements. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Amphetamine-like compound banned by FDA. Stop."
     },
     {
       "canonical_id": "BANNED_BVO_2024",
@@ -279,7 +327,10 @@
       "regulatory_basis": "banned_federal — FDA revoked authorization July 2, 2024. Effective July 3, 2024. Compliance deadline August 2, 2025.",
       "reason": "Brominated vegetable oil (BVO) is a food additive formerly used to stabilize citrus-flavored drinks. In July 2024, FDA revoked its authorization for use as a food ingredient, citing animal studies demonstrating accumulation of bromine in the thyroid and fat tissue and potential for thyroid hormone disruption and reproductive toxicity. BVO is now prohibited in US food. Several major beverage companies had already reformulated before the ban. Any supplement or food product still listing BVO as an ingredient is non-compliant following the effective date of FDA's final rule.",
       "effective_date": "2024-07-02",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A food additive formerly used to stabilize citrus flavor. FDA revoked its authorization in 2024 after reviews linked it to thyroid and nervous-system concerns. Avoid products still containing it.",
+      "safety_warning_one_liner": "Food additive revoked by FDA in 2024. Avoid."
     },
     {
       "canonical_id": "BANNED_CBD_US",
@@ -328,7 +379,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA prohibits CBD in dietary supplements and food due to drug exclusion rule (2018). Approved only a",
       "reason": "Under the FD&C Act's drug exclusion rule, CBD (cannabidiol) cannot lawfully be marketed as a dietary supplement because it was first investigated as a drug (clinical trials pre-dated any supplement marketing) and is now an approved drug ingredient in Epidiolex (approved by FDA in 2018 for epilepsy). FDA has consistently stated that CBD is excluded from the dietary supplement definition under 21 U.S.C. §321(ff)(3)(B). Despite widespread US market presence, CBD supplement products are technically unlawful. FDA has exercised enforcement discretion but this legal status remains unchanged as of 2026.",
       "effective_date": "2018-12-20",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Under US law, CBD cannot lawfully be sold as a dietary supplement because it was first investigated as a drug. Presence in a supplement is associated with non-compliance; talk to your doctor.",
+      "safety_warning_one_liner": "Not lawful as a US dietary supplement. Talk to your doctor."
     },
     {
       "canonical_id": "BANNED_COMFREY_INTERNAL",
@@ -349,7 +403,10 @@
       "regulatory_basis": "banned_federal — FDA banned internal use (2001). FTC consent orders prohibit marketing for internal use. External use",
       "reason": "Comfrey (Symphytum spp.) contains pyrrolizidine alkaloids (PAs) — compounds that are converted in the liver to toxic pyrrole metabolites that alkylate DNA and protein, causing hepatic veno-occlusive disease (Budd-Chiari syndrome), progressive liver failure, and cancer. Germany banned internal comfrey use in 1992. FDA issued a safety bulletin in 2001 and subsequently asked manufacturers to remove internal-use comfrey products from the market. There is no safe intake level for hepatotoxic PAs. External/topical preparations with PA-free extracts are a separate regulatory category.",
       "effective_date": "2001-07-06",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A botanical containing pyrrolizidine alkaloids linked to liver injury and veno-occlusive disease. FDA banned internal use in supplements; stop any oral product containing it and consult a doctor.",
+      "safety_warning_one_liner": "Liver-toxic botanical banned for internal use. Stop."
     },
     {
       "canonical_id": "BANNED_CONTAMINATED_GLP1",
@@ -370,7 +427,10 @@
       "regulatory_basis": "high_risk — FDA Class II recalls (2024-2025). Multiple warning letters to compounding pharmacies. FDA warns agai",
       "reason": "Compounded GLP-1 receptor agonist preparations (semaglutide, tirzepatide analogs) have faced FDA safety alerts over sterility, potency, and contamination concerns. Because GLP-1 drugs are administered by injection, any microbial contamination or mislabeling creates immediate serious risk of bloodstream infection, overdose, or anaphylaxis. FDA has warned that compounded versions using salt forms (semaglutide sodium, semaglutide acetate) are not approved alternatives. The growing market for compounded GLP-1s in supplements and online pharmacies without adequate quality oversight represents an active safety crisis.",
       "effective_date": "2024-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "Compounded GLP-1 drugs sold outside the prescription system or mislabeled in supplement products carry risks of contamination, wrong potency, and unsafe dosing. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Compounded GLP-1 drugs in gray-market products. Stop."
     },
     {
       "canonical_id": "BANNED_DELTA8_THC",
@@ -392,7 +452,10 @@
       "regulatory_basis": "banned_state — Legal loophole via 2018 Farm Bill (hemp-derived). DEA position unclear. FY2026 Appropriations Act ma",
       "reason": "Delta-8 THC (Δ8-THC) is a psychoactive cannabinoid that occurs in trace amounts naturally in cannabis but is synthesized in commercial quantities from CBD. It produces intoxicating effects similar to delta-9 THC. FDA and DEA have both raised concerns about its legal status: synthetic delta-8 derived from hemp-CBD may constitute a controlled analog of delta-9 THC. Multiple states have explicitly banned it. FDA has received over 2,000 adverse event reports including hallucinations, vomiting, tremors, anxiety, and hospitalizations. Products are often mislabeled and accessible to minors.",
       "effective_date": "2021-05-04",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A psychoactive cannabinoid usually synthesized from CBD. Linked to intoxication-related poison control calls and banned as a supplement in multiple US states. Avoid products marketed for wellness use.",
+      "safety_warning_one_liner": "Psychoactive cannabinoid restricted in many states. Avoid."
     },
     {
       "canonical_id": "BANNED_DMAA",
@@ -412,7 +475,10 @@
       "regulatory_basis": "banned_federal — FDA banned in dietary supplements (2013), WADA prohibited",
       "reason": "DMAA (1,3-dimethylamylamine) is a synthetic aliphatic amine marketed falsely as derived from geranium oil. FDA issued warning letters starting in 2012 and has stated that DMAA is not a lawful dietary ingredient. It has been linked to heart attacks, strokes, deaths (including military personnel), and psychiatric events. Several product recalls were issued. The FTC also acted against companies making false natural-source claims. DMAA is not a dietary ingredient under 21 U.S.C. §321(ff). Products containing it are adulterated and subject to seizure.",
       "effective_date": "2013-04-11",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An unapproved synthetic stimulant that raises blood pressure and has been linked to strokes and cardiac events in healthy users. FDA enforcement active since 2012. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved stimulant linked to strokes and cardiac events. Stop."
     },
     {
       "canonical_id": "BANNED_DMBA",
@@ -431,7 +497,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA warning letters and ingredient advisory listing for DMBA/AMP citrate.",
       "reason": "DMBA (1,3-dimethylbutylamine, AMP Citrate) is a synthetic aliphatic amine stimulant marketed as a DMAA replacement after FDA's enforcement actions against DMAA. FDA issued warning letters in 2015 stating DMBA is not a lawful dietary ingredient and that products containing it are adulterated. Like DMAA and DMHA, it is a sympathomimetic amine that raises blood pressure and heart rate with no clinical evidence of safety or efficacy at supplement doses. It is not a dietary ingredient under 21 U.S.C. §321(ff).",
       "effective_date": "2015-04-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A DMAA-successor synthetic stimulant. FDA has stated it is not a lawful dietary ingredient; associated with cardiovascular risk similar to DMAA. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unlawful DMAA-like stimulant. Stop and consult."
     },
     {
       "canonical_id": "BANNED_DMHA",
@@ -453,7 +522,10 @@
       "regulatory_basis": "banned_federal — FDA determined not a dietary ingredient (2019). Not GRAS. Subject to enforcement actions.",
       "reason": "DMHA (2-amino-6-methylheptane, also called 2-aminoisoheptane or Octodrine) is a synthetic aliphatic amine with sympathomimetic stimulant effects similar to DMAA. FDA has issued warning letters stating that DMHA is not a lawful dietary ingredient and that products containing it are adulterated. Like DMAA, it raises blood pressure, heart rate, and has been linked to cardiovascular events. It was widely used as a DMAA replacement after FDA's DMAA enforcement actions began. None of the DMAA class analogs are lawful supplement ingredients.",
       "effective_date": "2019-10-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic sympathomimetic stimulant with DMAA-like effects. FDA warning letters flagged it; associated with elevated blood pressure and cardiovascular risk. Stop and consult a doctor.",
+      "safety_warning_one_liner": "DMAA-like stimulant flagged by FDA. Stop and consult."
     },
     {
       "canonical_id": "BANNED_EPHEDRA",
@@ -475,7 +547,10 @@
       "regulatory_basis": "banned_federal — FDA banned all dietary supplements containing ephedrine alkaloids (April 12, 2004)",
       "reason": "Ephedra (ma huang, Ephedra sinica) alkaloids — primarily ephedrine and pseudoephedrine — are potent sympathomimetics that stimulate the cardiovascular system and central nervous system. Following over 155 deaths, 17,000 adverse event reports, and documented heart attacks and strokes, FDA banned the sale of dietary supplements containing ephedrine alkaloids effective April 12 2004 (21 CFR Part 119). This remains the only full federal ban on a previously marketed dietary supplement ingredient. Sports supplements and weight-loss products drove most of the adverse event burden.",
       "effective_date": "2004-04-12",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "FDA banned ephedra in supplements in 2004 after it was linked to strokes, heart attacks, and over 155 deaths — many in otherwise healthy users. Stop and consult a doctor.",
+      "safety_warning_one_liner": "FDA-banned stimulant linked to strokes and heart attacks. Stop."
     },
     {
       "canonical_id": "BANNED_FASORACETAM",
@@ -489,7 +564,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements - not a dietary ingredient (2019). Failed clinical trials.",
       "reason": "Fasoracetam is a synthetic racetam-class compound that was investigated as a pharmaceutical for ADHD in adolescents but failed clinical trials and was never approved. Because it was investigated as a drug before any supplement marketing, it is subject to the FD&C Act's drug exclusion rule and cannot lawfully be included in dietary supplements. No NDI notification is on file. It is marketed by supplement companies as a nootropic, but its sale as a supplement is unlawful and its human safety profile is not established for long-term use.",
       "effective_date": "2019-11-25",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An investigational ADHD drug that failed clinical trials and was never approved. FDA does not recognize it as a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Failed investigational drug sold unlawfully. Stop."
     },
     {
       "canonical_id": "BANNED_FDC_RED_2_AMARANTH",
@@ -513,7 +591,10 @@
       "regulatory_basis": "banned_federal — FDA banned in 1976 - prohibited in foods, drugs, and cosmetics",
       "reason": "FD&C Red No. 2 (Amaranth) was revoked by FDA in January 1976 after studies submitted to the agency raised concerns about carcinogenicity — specifically bladder and mammary tumors in animal studies, though the data were considered inconclusive by some scientists. The EU banned it (prohibited from the approved list). Despite being revoked for over 45 years in the US, Amaranth dye has occasionally been found in imported products. Any US food or supplement product containing FD&C Red No. 2 / Amaranth is non-compliant and subject to regulatory action.",
       "effective_date": "1976-01-19",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic food dye FDA revoked in 1976 after animal studies raised cancer concerns. Any product containing it is associated with unlawful colorant use. Avoid.",
+      "safety_warning_one_liner": "FDA-revoked dye linked to cancer concerns. Avoid."
     },
     {
       "canonical_id": "RISK_GARCINIA_CAMBOGIA",
@@ -536,7 +617,10 @@
       "regulatory_basis": "high_risk — ANSES ministerial order banning GC supplements",
       "reason": "Severe hepatotoxicity. 1 death, 9 liver transplants, 200+ adverse liver events documented. FDA recalled Hydroxycut products (2009). France banned all GC supplements (2025). Australia mandated liver harm warnings (2025).",
       "effective_date": "2025-04-15",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A weight-loss botanical linked to severe liver injury, including deaths and liver transplants. France banned it in 2025; Australia and Japan issued warnings. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Liver-toxic weight-loss botanical. Stop and consult."
     },
     {
       "canonical_id": "BANNED_HIGENAMINE",
@@ -554,7 +638,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA Dietary Supplement Ingredient Advisory List (April 2019). Warning letters to 10+ companies (May 4, 2022).",
       "reason": "Higenamine (norcoclaurine) is a beta-2 adrenergic agonist alkaloid found in multiple plants. FDA has stated that higenamine is not a lawful dietary supplement ingredient — it was first investigated as a pharmaceutical drug (cardiac stimulant), making it subject to the FD&C Act's drug exclusion rule. FDA's 2019 guidance named higenamine alongside vinpocetine as unlawfully included in supplements. WADA prohibits it in competition as a beta-2 agonist. At doses used in pre-workout supplements it elevates heart rate and blood pressure; cardiovascular adverse events have been reported.",
       "effective_date": "2019-04-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A beta-agonist plant alkaloid. FDA has stated it is not a lawful dietary supplement ingredient; linked to cardiovascular stimulation risk. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Not a lawful supplement ingredient. Stop and consult."
     },
     {
       "canonical_id": "BANNED_IBUTAMOREN_MK677",
@@ -573,7 +660,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA Warning Letter 607248: products containing ibutamoren (MK-677) are unapproved new drugs and unlawful in supplements",
       "reason": "Ibutamoren (MK-677) is a synthetic ghrelin receptor agonist and growth hormone secretagogue developed by Merck as an investigational drug for growth hormone deficiency, osteoporosis, and obesity — clinical trials were discontinued. It is not FDA-approved, not a dietary ingredient, and no NDI notification is on file. Because it was first investigated as a drug, the FD&C Act's drug exclusion rule applies. Risks at supplement doses include edema, joint pain, insulin resistance, increased appetite, and potential effects on cancer-promoting IGF-1 levels in individuals with pre-existing malignancies.",
       "effective_date": "2020-11-10",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An investigational growth-hormone secretagogue drug — never approved and not a lawful supplement ingredient. Associated with insulin resistance and fluid retention. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved investigational drug. Stop and consult."
     },
     {
       "canonical_id": "BANNED_IGF1",
@@ -592,7 +682,10 @@
       "regulatory_basis": "banned_federal — FDA banned synthetic/recombinant IGF-1 in dietary supplements (1997). Only approved as prescription ",
       "reason": "Synthetic IGF-1 (Insulin-like Growth Factor 1) is an unapproved drug compound — not a dietary ingredient under 21 U.S.C. §321(ff). The only approved form (mecasermin, Increlex) is a prescription injectable biologic for severe primary IGF-1 deficiency. Supplement products claiming to contain 'synthetic IGF-1' or 'injectable IGF-1' are making drug claims about an unapproved compound. At supraphysiological levels, IGF-1 promotes cell proliferation and may accelerate growth of existing tumors. No safe supplement dose has been established.",
       "effective_date": "1997-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic growth-factor drug that is not a dietary ingredient under US law. Use is associated with hypoglycemia, tumor growth, and acromegaly risk. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved drug, not a supplement. Stop and consult."
     },
     {
       "canonical_id": "BANNED_IGF1_LR3",
@@ -614,7 +707,10 @@
       "regulatory_basis": "not_lawful_as_supplement — Unapproved new drug - never authorized",
       "reason": "IGF-1 LR3 (Long R3 Insulin-like Growth Factor 1) is a synthetic peptide analog of IGF-1 engineered for extended half-life (~20 hours vs. ~12 minutes for native IGF-1). It is an unapproved research compound with no human clinical trials completed and no dietary ingredient status. Its prolonged half-life amplifies cancer-promoting concerns (tumor cell proliferation via IGF receptor signaling). Any supplement claiming to contain IGF-1 LR3 is selling an unapproved synthetic drug analog. WADA prohibits IGF peptides.",
       "effective_date": "2000-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A long-acting synthetic IGF-1 analog — unapproved, not a dietary ingredient, and associated with hypoglycemia, tumor growth, and cardiovascular strain. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved peptide drug. Stop and consult."
     },
     {
       "canonical_id": "BANNED_METAL_FIBERS",
@@ -634,7 +730,10 @@
       "regulatory_basis": "high_risk — FDA monitoring. Class I recall risk (most serious).",
       "reason": "Metal fiber contamination refers to metallic particles or fibers — stainless steel, aluminum, iron — found in supplement products due to manufacturing equipment degradation. Metal fibers can lacerate the gastrointestinal tract, cause GI perforation, and lead to internal bleeding and peritonitis. FDA has issued recalls for products found to contain metal fragments, most commonly traced to broken sifting screens or worn mixing equipment during manufacturing. Detection requires specialized testing; contamination may not be visible to the consumer.",
       "effective_date": "2024-07-25",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Metallic particles from manufacturing equipment found in some supplements — linked to GI irritation and long-term accumulation concerns. Avoid products with recalls flagged for metal contamination.",
+      "safety_warning_one_liner": "Manufacturing contaminant. Avoid affected products."
     },
     {
       "canonical_id": "BANNED_PEDIATRIC_FLUORIDE",
@@ -654,7 +753,10 @@
       "regulatory_basis": "high_risk — FDA announced plans to remove from market (May 14, 2025). Under regulatory review.",
       "reason": "Fluoride supplements for children are FDA-regulated drug products requiring prescription — they are not lawful dietary supplements. FDA has not approved any OTC supplement dosage form of fluoride for pediatric use. In 2024, an updated systematic review raised questions about fluoride's neurodevelopmental safety at higher intake levels, prompting HHS to announce a review. This entry flags any supplement product marketing fluoride as a children's dietary supplement outside the FDA Rx drug framework.",
       "effective_date": "2025-05-14",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "Fluoride drops and tablets for children are prescription drug products — found in supplement products, they raise dosing and safety concerns. Talk to your pediatrician about the right form.",
+      "safety_warning_one_liner": "Prescription drug sold as supplement. Talk to your pediatrician."
     },
     {
       "canonical_id": "BANNED_PHENIBUT",
@@ -671,7 +773,10 @@
       "regulatory_basis": "banned_federal — FDA warnings issued 2019, 2023. Not approved for any use.",
       "reason": "Phenibut (β-phenyl-GABA) is a CNS depressant with GABAergic and GHB receptor activity developed in the Soviet Union as an anti-anxiety drug. FDA has not approved it and has not accepted it as a dietary ingredient. In 2019 FDA issued warning letters stating phenibut does not meet the definition of a dietary ingredient. It causes physical dependence and severe withdrawal (anxiety, insomnia, psychosis) even after short-term use at doses found in supplements. Overdose with sedatives or alcohol can be fatal. FTC and FDA have taken multiple enforcement actions against phenibut-containing products.",
       "effective_date": "2019-04-10",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A CNS depressant developed outside the US that FDA does not recognize as a supplement ingredient. Linked to dependence, withdrawal, and overdose. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Not a lawful supplement, risk of dependence. Stop and consult."
     },
     {
       "canonical_id": "BANNED_PHO",
@@ -693,7 +798,10 @@
       "regulatory_basis": "banned_federal — FDA determined PHOs not Generally Recognized as Safe (GRAS) on June 16, 2015. Compliance deadline Ju",
       "reason": "Partially hydrogenated oils (PHOs) are the primary dietary source of industrially produced trans fatty acids (iTFA). iTFAs raise LDL cholesterol, lower HDL cholesterol, and promote systemic inflammation — mechanisms linked to cardiovascular disease, sudden cardiac death, and stroke. FDA determined in 2015 that PHOs are not Generally Recognized as Safe (GRAS) and mandated their removal from the food supply, with full compliance required by June 18 2018. PHOs are now federally banned as food ingredients in the United States. Any current supplement product listing PHOs as an ingredient is non-compliant.",
       "effective_date": "2015-06-16",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Partially hydrogenated oils — the primary source of industrial trans fats. FDA removed their GRAS status in 2018 after clear evidence of cardiovascular risk. Avoid products still listing them.",
+      "safety_warning_one_liner": "FDA-banned trans-fat source linked to heart disease. Avoid."
     },
     {
       "canonical_id": "BANNED_PICAMILON",
@@ -708,7 +816,10 @@
       "regulatory_basis": "not_lawful_as_supplement — Status pending review",
       "reason": "Picamilon is a synthetic compound formed by combining niacin with GABA, developed in the Soviet Union as a prescription drug for neurological conditions. FDA issued warning letters in 2015 confirming that picamilon does not meet the definition of a dietary ingredient under 21 U.S.C. §321(ff) — it is a synthetic chemical not found in conventional foods and was first investigated as a drug. Products containing it are adulterated. FDA requested manufacturers to stop selling picamilon-containing supplements, and several companies complied after receiving warning letters.",
       "effective_date": "2015-11-30",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A Soviet-era prescription drug that FDA has stated is not a lawful supplement ingredient. Associated with unstudied effects on blood pressure. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Not a lawful supplement ingredient. Stop."
     },
     {
       "canonical_id": "BANNED_RED_YEAST_RICE",
@@ -731,7 +842,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA considers RYR with monacolin K an unapproved drug",
       "reason": "Contains monacolin K (chemically identical to lovastatin, a prescription statin drug). FDA considers RYR with significant monacolin K an unapproved new drug. EFSA 2025: no safe daily intake level for monacolins can be established.",
       "effective_date": "1998-05-20",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Contains monacolin K, chemically identical to the prescription statin lovastatin. FDA treats standardized products as unapproved drugs. Talk to your doctor before using, especially if on a statin.",
+      "safety_warning_one_liner": "Natural statin — talk to your doctor before use."
     },
     {
       "canonical_id": "BANNED_S23",
@@ -744,7 +858,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (2017). Unapproved drug.",
       "reason": "S-23 is a synthetic non-steroidal selective androgen receptor modulator (SARM) developed as an investigational male contraceptive candidate; it suppresses LH, FSH, and sperm production at moderate doses. It is not approved by any regulatory agency, not a dietary ingredient, and carries the same risks as other SARMs (endocrine suppression, hepatotoxicity). No NDI notification is on file. WADA prohibits it. Supplement products containing S-23 are adulterated with an unapproved compound whose contraceptive and androgenic effects are not declared on labels.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An investigational SARM-class drug — unapproved and not a lawful supplement. Linked to testicular suppression, liver strain, and cardiovascular risk. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved SARM drug. Stop and consult."
     },
     {
       "canonical_id": "BANNED_SIBUTRAMINE",
@@ -760,7 +877,10 @@
       "regulatory_basis": "banned_federal — FDA withdrew approval October 8, 2010. Illegal in dietary supplements.",
       "reason": "Sibutramine (Meridia) was an FDA-approved prescription weight-loss drug (serotonin-norepinephrine reuptake inhibitor) that FDA withdrew from the US market in October 2010 after a large post-market trial (SCOUT study) found a 16% increased risk of non-fatal heart attack and non-fatal stroke in high-cardiovascular-risk patients. Despite withdrawal, sibutramine continues to be found as an undeclared adulterant in weight-loss supplements — one of the most persistent adulterants FDA's Tainted Products database tracks. Its presence in any supplement makes that product adulterated with a withdrawn prescription drug.",
       "effective_date": "2010-10-08",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A withdrawn weight-loss drug found as an undeclared adulterant in supplements. FDA removed it from the US market in 2010 after it was linked to heart attack and stroke risk. Stop and consult a doctor.",
+      "safety_warning_one_liner": "FDA-withdrawn drug hidden in supplements. Stop and consult."
     },
     {
       "canonical_id": "BANNED_SR9009",
@@ -773,7 +893,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (2017). Unapproved drug. Research chemical.",
       "reason": "SR9009 (Stenabolic) is a synthetic Rev-ErbA agonist developed at The Scripps Research Institute to study circadian rhythm and metabolic regulation. It is an unapproved research compound not intended or approved for human use. Important note: animal studies suggest it has near-zero oral bioavailability, meaning supplement products claiming metabolic or endurance benefits are likely fraudulent in addition to selling an unapproved compound. WADA prohibits it. Supplements containing SR9009 are adulterated.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An experimental research compound — never approved for human use and not a lawful supplement ingredient. Poor oral bioavailability plus safety unknowns. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved research compound. Stop and consult."
     },
     {
       "canonical_id": "BANNED_SUNIFIRAM",
@@ -786,7 +909,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements - not a dietary ingredient (2019). Research chemical only.",
       "reason": "Sunifiram (DM-235) is a synthetic pyrrolidone compound and ampakine nootropic — structurally related to racetams but more potent. It has never been investigated in human clinical trials and has no established safety profile in humans. No NDI notification has been filed. It is not a dietary ingredient under 21 U.S.C. §321(ff). Products selling it as a supplement are adulterated with an untested research chemical. Preclinical data suggests high potency AMPA receptor modulation, with unknown effects on seizure threshold and neurological development at supplement doses.",
       "effective_date": "2019-11-25",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic nootropic never tested in human trials. FDA does not accept it as a lawful supplement ingredient. Stop and consult a doctor before continuing use.",
+      "safety_warning_one_liner": "Untested synthetic nootropic. Stop and consult."
     },
     {
       "canonical_id": "BANNED_TIANEPTINE",
@@ -806,7 +932,10 @@
       "regulatory_basis": "banned_federal — FDA warnings issued February 2024, May 2025. Not approved for any use. Proposed Schedule III.",
       "reason": "Tianeptine (brand name Stablon) is an atypical antidepressant that acts as a full agonist at mu-opioid receptors at the doses found in US supplement products. FDA has not approved it and it does not meet the definition of a dietary ingredient. Multiple states have banned it outright. At doses used in supplements (well above the therapeutic range of 12.5mg/day used in Europe), it causes opioid-like euphoria, dependence, severe withdrawal, and has been associated with overdose deaths. FDA has issued consumer warnings calling it 'gas station heroin.'",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An atypical antidepressant that acts as an opioid-receptor agonist at the doses found in US gas-station products. FDA banned it; linked to dependence and overdose. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Opioid-like substance banned by FDA. Stop and consult."
     },
     {
       "canonical_id": "BANNED_YELLOW_OLEANDER_RECENT",
@@ -824,7 +953,10 @@
       "regulatory_basis": "banned_federal — FDA Class I recalls ongoing (2023-2025), Import Alert active",
       "reason": "Yellow oleander (Thevetia peruviana) contains cardiac glycosides (thevetin A and B, cerberin) that cause life-threatening cardiotoxicity — bradycardia, heart block, ventricular arrhythmia — at very low doses. It has been substituted into tejocote root supplements (a folk weight-loss ingredient) in multiple documented cases, where the substitution was not disclosed on labels. FDA issued a safety alert in 2021 and multiple 2024–2025 recalls after hospitalizations and deaths were linked to adulterated tejocote products. Any supplement sourced or labeled as tejocote root should be treated with extreme caution.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A plant containing cardiac glycosides that cause life-threatening heart-rhythm problems; multiple US recalls in 2025. Stop any product containing it and consult a doctor right away.",
+      "safety_warning_one_liner": "Cardiotoxic plant linked to 2025 recalls. Stop and consult."
     },
     {
       "canonical_id": "BANNED_YK11",
@@ -838,7 +970,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (2017). Unapproved drug.",
       "reason": "YK-11 is a synthetic steroidal SARM/myostatin inhibitor — structurally it is a DHT derivative that acts as a partial agonist of the androgen receptor. Because it has a steroidal structure, it may also qualify as a designer anabolic steroid under the Anabolic Steroid Control Act. It is not FDA-approved, not a lawful dietary ingredient, and no safety data in humans exists. Risks include androgenic side effects, endocrine suppression, and uncharacterized hepatotoxicity. WADA prohibits it. Products containing YK-11 are adulterated.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic steroidal SARM-like compound linked to liver toxicity and hormone suppression. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Steroidal SARM with liver risk. Stop and consult."
     },
     {
       "canonical_id": "HIGH_RISK_CHAPARRAL",
@@ -855,7 +990,10 @@
       "regulatory_basis": "high_risk — FDA warnings since 1992. Not banned but high-risk.",
       "reason": "Chaparral (Larrea tridentata) contains nordihydroguaiaretic acid (NDGA), which has been associated with at least 18 cases of severe liver injury in the literature, including hepatitis, cirrhosis, and fulminant liver failure requiring transplantation. FDA issued a safety alert in 1993 and removed it from its GRAS list. The mechanism involves reactive NDGA metabolites that form adducts with liver proteins. Despite lack of a formal federal ban, FDA has consistently warned that chaparral is unsafe for internal use. Canada bans it in natural health products.",
       "effective_date": "1992-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A botanical linked to at least 18 reported cases of severe liver injury, including transplants. Not a lawful supplement ingredient; stop and consult a doctor if you have used a product containing it.",
+      "safety_warning_one_liner": "Liver-toxic botanical. Stop and consult."
     },
     {
       "canonical_id": "HIGH_RISK_GERMANDER",
@@ -870,7 +1008,10 @@
       "regulatory_basis": "restricted — FDA warnings since 1992. Not banned but high-risk.",
       "reason": "Germander (Teucrium chamaedrys) was used in European weight-loss supplements until the 1990s, when over 30 cases of hepatitis and several deaths from liver failure were reported in France. France and Germany banned it. The mechanism involves toxic diterpene epoxide metabolites (from teucrin A) that are formed by CYP3A4 and cause autoimmune-mediated hepatotoxicity. The regulatory pattern — spontaneous liver injury clustering around a specific supplement — led to EFSA's classification as a substance with potential hepatotoxic effects. Internal use should be avoided.",
       "effective_date": "1992-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A weight-loss botanical withdrawn in Europe after over 30 hepatitis cases and several deaths from liver failure. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Liver-toxic botanical withdrawn in Europe. Stop."
     },
     {
       "canonical_id": "HIGH_RISK_PENNYROYAL",
@@ -886,7 +1027,10 @@
       "regulatory_basis": "high_risk — FDA warnings ongoing. Not banned but extremely dangerous.",
       "reason": "Pennyroyal (Mentha pulegium) essential oil and high-dose leaf extract contain pulegone, a monoterpene ketone that is metabolized by CYP2E1 to the reactive hepatotoxin menthofuran. Even a few milliliters of the essential oil can cause fulminant liver failure and death. The oil was historically used as an abortifacient — making it particularly dangerous during pregnancy. Multiple fatal cases have been documented in the literature. FDA's Poisonous Plant Database lists it as toxic. Pennyroyal oil and high-concentration extracts should never be ingested. Topical use at very low concentrations is less concerning.",
       "effective_date": "1992-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An essential oil and high-dose extract associated with severe liver injury and deaths, particularly when taken internally. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Liver-toxic essential oil. Stop and consult."
     },
     {
       "canonical_id": "HM_ARSENIC",
@@ -902,7 +1046,10 @@
       "regulatory_basis": "contaminant_risk — FDA limit: 10 mcg/day (varies by product). FDA action level for apple juice: 10 ppb.",
       "reason": "Inorganic arsenic is an IARC Group 1 human carcinogen linked to skin, lung, bladder, and kidney cancers at chronic dietary exposure levels. It also causes peripheral neuropathy, cardiovascular disease, and diabetes. Organic arsenic (found in seafood) is less toxic. EPA MCL for arsenic in drinking water: 10 mcg/L. California Prop 65 NSRL: 10 mcg/day. FDA action level for rice-based infant cereal: 100 ppb inorganic arsenic. In supplements, arsenic contamination is most common in rice protein, kelp, spirulina, certain Ayurvedic preparations, and marine-sourced ingredients. Testing for organic vs. inorganic speciation is essential for accurate risk assessment.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A heavy-metal contaminant classified as a known human carcinogen linked to skin, lung, bladder, and kidney cancers at chronic levels. Avoid supplements sourced without tested contaminant limits.",
+      "safety_warning_one_liner": "Carcinogenic heavy-metal contaminant. Avoid untested products."
     },
     {
       "canonical_id": "HM_CADMIUM",
@@ -916,7 +1063,10 @@
       "regulatory_basis": "contaminant_risk — FDA limit: 5 mcg/day. USP limit: 5 mcg/day.",
       "reason": "Cadmium is a heavy metal contaminant that accumulates in the kidneys over decades, causing progressive renal tubular damage and ultimately kidney failure (itai-itai disease at high environmental exposures). It also causes bone demineralization by interfering with vitamin D metabolism. IARC Group 1 carcinogen (lung cancer, endometrial cancer evidence). California Prop 65 MADL: 4.1 mcg/day. WHO provisional tolerable monthly intake: 25 mcg/kg bw. Common in plant-based supplements grown in cadmium-rich soils (cocoa, leafy greens, grains). FDA has no specific cadmium limit for dietary supplements but monitors under general adulteration provisions.",
       "effective_date": "1986-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A heavy-metal contaminant that accumulates in the kidneys and is linked to long-term kidney damage and bone loss. Avoid supplements without verified contaminant testing.",
+      "safety_warning_one_liner": "Heavy-metal contaminant linked to kidney damage. Avoid."
     },
     {
       "canonical_id": "HM_LEAD",
@@ -931,7 +1081,10 @@
       "regulatory_basis": "contaminant_risk — FDA limit: 10 mcg/day. California Prop 65: 0.5 mcg/day (reproductive toxin).",
       "reason": "Lead is a cumulative neurotoxin with no established safe blood level, particularly for cognitive development in children. It distributes to bone, brain, kidney, and liver. Chronic low-level exposure impairs IQ, attention, and impulse control in children; in adults it raises cardiovascular risk. IARC Group 2A (probable human carcinogen, inorganic lead). California Prop 65 maximum daily intake: 0.5 mcg/day (MADL). FDA has no specific supplement lead limit but has proposed action levels. Lead contamination in supplements is common in mineral products, certain botanicals, and products manufactured with inadequate heavy metal testing.",
       "effective_date": "1986-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A cumulative neurotoxin with no safe blood level, especially for children. Linked to cognitive, kidney, and cardiovascular harm. Avoid supplements without verified lead-limit testing.",
+      "safety_warning_one_liner": "Neurotoxic contaminant with no safe level. Avoid untested products."
     },
     {
       "canonical_id": "HM_MERCURY",
@@ -946,7 +1099,10 @@
       "regulatory_basis": "contaminant_risk — FDA limit: 15 mcg/day. EPA reference dose: 0.1 mcg/kg/day (methylmercury).",
       "reason": "Mercury — particularly organic methylmercury — is a potent neurotoxin that crosses the blood-brain barrier and placenta. It causes irreversible neurological damage, especially in the developing brain (prenatal and early childhood exposure). EPA/FDA reference dose for methylmercury: 0.1 mcg/kg bw/day. IARC: Group 2B (inorganic mercury), Group 1 for methylmercury from occupational data. In supplements, mercury contamination is most common in fish oils, certain botanical powders, and traditional medicinal preparations. Pregnant women and young children are at highest risk.",
       "effective_date": "1979-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A neurotoxin that crosses the placenta and blood-brain barrier. Linked to irreversible neurological harm, especially in fetuses and young children. Avoid supplements without verified mercury testing.",
+      "safety_warning_one_liner": "Neurotoxic heavy metal. Avoid untested products."
     },
     {
       "canonical_id": "NOOTROPIC_9MEBC",
@@ -960,7 +1116,10 @@
       "regulatory_basis": "not_lawful_as_supplement — Research chemical. No FDA approval. Not evaluated for human consumption. Unapproved new dietary ingredient.",
       "reason": "9-Methyl-β-carboline (9-MBC) is a synthetic β-carboline derivative studied in preclinical neurochemistry for dopaminergic effects. No human safety data exists. FDA has not approved it and has not accepted it as a dietary ingredient — no NDI notification has been filed. At the same time, β-carbolines as a class include monoamine oxidase inhibitors, raising the risk of dangerous drug-supplement interactions with serotonergic medications. Supplements containing it are adulterated with an unapproved, unstudied research chemical.",
       "effective_date": "2012-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic compound studied only in preclinical research — no human safety data. FDA does not recognize it as a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Untested synthetic compound. Stop and consult."
     },
     {
       "canonical_id": "NOOTROPIC_ADRAFINIL",
@@ -974,7 +1133,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements - unapproved drug",
       "reason": "Adrafinil is a synthetic prodrug that metabolizes to modafinil in the body. Modafinil is a DEA Schedule IV controlled prescription drug (Provigil). By selling adrafinil as a supplement, manufacturers are effectively distributing an unapproved drug and bypassing Schedule IV controls. FDA has not approved adrafinil and has not accepted it as a dietary ingredient. WADA prohibits it in competition (stimulants class). Adrenal and cardiovascular effects mirror modafinil.",
       "effective_date": "2017-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A prodrug that converts to modafinil, a DEA Schedule IV controlled prescription drug. Selling it as a supplement is associated with regulatory violation. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Converts to controlled prescription drug. Stop."
     },
     {
       "canonical_id": "NOOTROPIC_ANIRACETAM",
@@ -988,7 +1150,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements - not a dietary ingredient (2019)",
       "reason": "Aniracetam is a synthetic racetam-class nootropic compound. FDA has not approved it as a drug or accepted it as a lawful dietary supplement ingredient. It is not on the FDA GRAS list, no NDI notification has been filed, and it does not qualify as a conventional food. Supplements containing aniracetam are considered adulterated under the FD&C Act. Aniracetam is approved as a prescription drug in parts of Europe (Ampamet); selling it as a US supplement misrepresents its legal status and bypasses required drug approval.",
       "effective_date": "2019-11-25",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic racetam-class compound. FDA does not recognize it as a lawful supplement ingredient and has issued enforcement letters. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved synthetic nootropic. Stop and consult."
     },
     {
       "canonical_id": "NOOTROPIC_BROMANTANE",
@@ -1002,7 +1167,10 @@
       "regulatory_basis": "not_lawful_as_supplement — Unapproved drug. No FDA approval for any medical use. Not lawfully included in dietary supplements.",
       "reason": "Bromantane (Ladasten) is a synthetic actoprotective compound with stimulant and anxiolytic properties developed in the Soviet Union. FDA has not approved it and has not accepted it as a dietary ingredient. No NDI notification is on file. WADA prohibits it as a stimulant. At high doses it has shown dopaminergic effects and the potential for psychostimulant dependence. Products marketing it as a US supplement are adulterated.",
       "effective_date": "1997-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A Soviet-era stimulant-anxiolytic drug that FDA has stated is not a lawful supplement ingredient. Safety in US consumers is poorly characterized. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Not a lawful US supplement ingredient. Stop."
     },
     {
       "canonical_id": "NOOTROPIC_FLMODAFINIL",
@@ -1022,7 +1190,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (August 2025). Unapproved drug. Analog of Schedule IV controlled substance",
       "reason": "Flmodafinil (Bisfluoromodafinil, CRL-40,940) is a synthetic difluoro analog of modafinil with greater potency. Like adrafinil, its conversion to modafinil-like activity makes it a de facto unapproved drug analog of a Schedule IV controlled substance. FDA has not approved it and has not received any NDI notification. No human clinical safety data exists. Products selling it as a supplement are adulterated. WADA prohibits its use in competition.",
       "effective_date": "2025-08-15",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic analog of modafinil — the controlled prescription drug. Not a lawful supplement ingredient; sold through gray-market channels. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Designer drug analog of a controlled substance. Stop."
     },
     {
       "canonical_id": "NOOTROPIC_MODAFINIL",
@@ -1036,7 +1207,10 @@
       "regulatory_basis": "not_lawful_as_supplement — Schedule IV controlled substance. FDA-approved prescription drug (Provigil). Illegal in supplements.",
       "reason": "Modafinil (Provigil) is a DEA Schedule IV controlled prescription stimulant drug approved for narcolepsy, sleep apnea, and shift work sleep disorder. FDA has not accepted it as a dietary supplement ingredient — it cannot be lawfully included in supplements under the drug exclusion rule. WADA prohibits it in competition. Any supplement product containing modafinil or representing it as a supplement ingredient is adulterated and subject to criminal enforcement.",
       "effective_date": "1998-12-24",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A DEA Schedule IV controlled prescription stimulant. Its presence in a supplement is associated with illegal drug inclusion — talk to your doctor if you have been taking it.",
+      "safety_warning_one_liner": "Controlled prescription drug. Talk to your doctor."
     },
     {
       "canonical_id": "NOOTROPIC_OMBERACETAM",
@@ -1050,7 +1224,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements - not a dietary ingredient (2019)",
       "reason": "Omberacetam (Noopept / GVS-111) is a synthetic dipeptide designed to mimic piracetam. FDA has not approved it as a drug and has not accepted it as a dietary supplement ingredient — it is not a dietary ingredient under 21 U.S.C. §321(ff). No NDI notification is on file. It is classified as a prescription drug in Russia (where it was developed). US products marketing it as a supplement are adulterated. Psychoactive mechanism: potentiates AMPA/NMDA receptors; safety data in humans at supplement doses is absent.",
       "effective_date": "2019-11-25",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic dipeptide nootropic that FDA does not recognize as a lawful supplement ingredient. Safety in US consumers is not established. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved synthetic nootropic. Stop."
     },
     {
       "canonical_id": "NOOTROPIC_PHENYLPIRACETAM",
@@ -1064,7 +1241,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements - unapproved drug",
       "reason": "Phenylpiracetam (Phenotropil) is a synthetic phenyl-substituted derivative of piracetam developed in Russia as a prescription psychostimulant. FDA has not approved it and has not accepted it as a dietary ingredient. WADA lists it as a prohibited stimulant for athletic competition. No NDI notification is on file. US supplement products containing it are adulterated and mislabeled. At pharmacological doses it produces stimulant and nootropic effects similar to controlled stimulants.",
       "effective_date": "2017-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic psychostimulant sold as a prescription drug in Russia and banned in competitive sport by WADA. Not a lawful US supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved psychostimulant, WADA-banned. Stop."
     },
     {
       "canonical_id": "NOOTROPIC_PIRACETAM",
@@ -1078,7 +1258,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA determined not a dietary ingredient (November 25, 2019). Illegal in supplements. Ongoing warning",
       "reason": "Piracetam is a synthetic racetam-class compound used as a prescription drug in Europe and many other countries for cognitive impairment. FDA does not recognize it as a dietary ingredient and has issued warning letters to US companies selling it as a supplement. Because piracetam was first investigated as a drug and has not been marketed as a conventional food, it cannot lawfully be included in dietary supplements under the FD&C Act's drug exclusion rule. Products containing it are adulterated.",
       "effective_date": "2019-11-25",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A prescription drug in Europe — FDA does not recognize it as a dietary ingredient. Its sale as a US supplement is associated with regulatory violation. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Prescription drug abroad, not a US supplement. Stop."
     },
     {
       "canonical_id": "NOOTROPIC_SULBUTIAMINE",
@@ -1092,7 +1275,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA warning letter April 15, 2025 to Gluten Free Remedies LLC. Not a dietary ingredient.",
       "reason": "Sulbutiamine is a synthetic thiamine (vitamin B1) analog developed in Japan. Despite its structural relation to B1, FDA does not consider it a dietary ingredient — it is a synthetic modification not present in conventional foods and not covered by any NDI notification. In the EU it is classified as a prescription drug (Arcalion) for asthenia. US supplement products containing sulbutiamine are adulterated. At high doses it carries dependence and stimulant abuse potential; it is not covered by the safety record of ordinary B1 supplementation.",
       "effective_date": "2025-04-15",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic thiamine analog that FDA does not recognize as a dietary ingredient. Long-term safety and dose thresholds are not established. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Synthetic drug sold as supplement. Stop."
     },
     {
       "canonical_id": "NOOTROPIC_VINPOCETINE",
@@ -1106,7 +1292,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA determined not a dietary ingredient (October 11, 2019). Warning for women of childbearing age. I",
       "reason": "Vinpocetine is a synthetic derivative of the alkaloid vincamine, used as a prescription drug in Europe and Japan. In 2019 FDA issued a statement concluding that vinpocetine does not qualify as a dietary ingredient and cannot lawfully be included in dietary supplements — it was investigated as a drug before any supplement marketing. FDA additionally flagged potential fetal harm: animal studies showed decreased fetal weight and miscarriage, prompting the agency to warn that pregnant women and women of childbearing age should avoid it.",
       "effective_date": "2016-09-07",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An FDA statement in 2019 concluded vinpocetine is not a lawful supplement ingredient, and it is associated with miscarriage risk in pregnancy. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Not a lawful US supplement with pregnancy risk. Stop."
     },
     {
       "canonical_id": "PEPTIDE_BPC157",
@@ -1121,7 +1310,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA: Not approved as dietary ingredient. Illegal in supplements.",
       "reason": "BPC-157 (Body Protection Compound-157) is a synthetic pentadecapeptide derived from a stomach acid-stable protein sequence. It has been studied in preclinical (animal) models for tissue repair, but no human clinical trials have been completed and no NDI notification has been filed with FDA. It is not a dietary ingredient under 21 U.S.C. §321(ff). FDA has issued warning letters and import alerts against companies selling BPC-157 as a supplement or compounded drug. Any supplement product listing BPC-157 is selling an unapproved drug compound without established human safety data.",
       "effective_date": "2022-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An unapproved synthetic peptide studied only in animal models. Not a lawful US dietary ingredient; long-term human safety is unknown. Stop and consult a doctor before continuing use.",
+      "safety_warning_one_liner": "Unapproved experimental peptide. Stop and consult."
     },
     {
       "canonical_id": "PEPTIDE_MELANOTAN_II",
@@ -1140,7 +1332,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA unapproved drug. Warning letters issued. Illegal to sell for human use.",
       "reason": "Melanotan II is a synthetic analog of alpha-MSH (melanocyte-stimulating hormone) that stimulates melanogenesis, erection, and appetite suppression. It is not FDA-approved, not a dietary ingredient, and has no NDI notification. FDA has issued import alerts and warning letters. Serious safety concerns include: melanoma risk (promoting pre-existing melanocytic lesions), nausea and vomiting, spontaneous penile erections, and the near-universal practice of injection by users — creating sterility and contamination risks that do not apply to oral supplements.",
       "effective_date": "2009-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An unapproved synthetic peptide linked to nausea, unusual mole changes, and rare cases of rhabdomyolysis. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved peptide with serious adverse reports. Stop."
     },
     {
       "canonical_id": "PEPTIDE_TB500",
@@ -1158,7 +1353,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA: Not approved as dietary ingredient. Illegal in supplements.",
       "reason": "TB-500 is a synthetic peptide analog of Thymosin Beta-4 — a naturally occurring protein involved in actin polymerization and wound repair. While marketed for recovery and healing, it has no FDA approval for any use and has not been accepted as a dietary ingredient. No NDI notification is on file. WADA prohibits it as a peptide hormone. FDA has issued warning letters and import alerts targeting TB-500 and other unapproved synthetic peptide products. Human safety and efficacy data is absent outside of anecdotal reports.",
       "effective_date": "2022-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An unapproved synthetic peptide. Not a lawful US dietary ingredient; safety and purity of gray-market products are unverified. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved synthetic peptide. Stop and consult."
     },
     {
       "canonical_id": "PHARMA_DAPOXETINE",
@@ -1173,7 +1371,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements. Found in 15% of tested male enhancement products (202",
       "reason": "Dapoxetine is a short-acting SSRI developed specifically for premature ejaculation. It is approved as a prescription drug in over 50 countries but has never been FDA-approved — the agency rejected it twice over cardiovascular safety signals (syncope, orthostatic hypotension). When found undeclared in supplements, it exposes users to drug interactions (serotonin syndrome risk with other SSRIs or MAOIs), blood pressure effects, and use without medical supervision. Its presence in any supplement constitutes adulteration with an unapproved new drug.",
       "effective_date": "2012-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription SSRI found undeclared in supplements, mainly sexual-performance products — linked to serotonin syndrome risk and dizziness. Stop the supplement and consult a doctor.",
+      "safety_warning_one_liner": "Prescription SSRI hidden in supplements. Stop and consult a doctor."
     },
     {
       "canonical_id": "PHARMA_LORCASERIN",
@@ -1188,7 +1389,10 @@
       "regulatory_basis": "adulterant — FDA requested market withdrawal (February 13, 2020) due to cancer risk. Illegal in supplements. Stil",
       "reason": "Lorcaserin (Belviq) was an FDA-approved prescription weight-loss drug (serotonin 2C receptor agonist) that FDA voluntarily withdrew from the US market in February 2020 after a post-market safety trial found an elevated rate of cancer in patients who used it compared to placebo. When found as an undeclared adulterant in supplements, users receive a withdrawn drug with confirmed cancer risk signals, without informed consent, dosing oversight, or medical monitoring.",
       "effective_date": "2020-02-13",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A withdrawn prescription weight-loss drug found undeclared in supplements. FDA pulled it from the US market in 2020 after a study linked it to cancer risk. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Withdrawn prescription drug hidden in supplements. Stop and consult."
     },
     {
       "canonical_id": "RC_CARDARINE_ANALOGS",
@@ -1203,7 +1407,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned. Not approved as dietary ingredient. Illegal in supplements.",
       "reason": "This watchlist covers synthetic derivatives of GW501516 (Cardarine) — a PPAR-delta agonist whose parent compound caused rapid multi-tissue carcinogenesis in animal trials. Designer analogs are created to evade detection of GW501516 itself while attempting to retain the metabolic and endurance effects. None have any approved human use, safety data, or dietary ingredient status. FDA considers all such analogs to be adulterants. Products containing Cardarine derivatives should be treated with the same concern as the parent compound.",
       "effective_date": "2008-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Designer derivatives of cardarine — whose parent compound caused rapid multi-tissue cancer in animal studies. Not lawful as supplements; avoid any product labeled with these analogs.",
+      "safety_warning_one_liner": "Cancer-linked designer drug family. Avoid."
     },
     {
       "canonical_id": "RECALLED_GE_LABS_YKARINE",
@@ -1216,7 +1423,10 @@
       "regulatory_basis": "adulterant — FDA alert December 2, 2025. Consumers urged not to use. Anabolic steroid Schedule III controlled sub",
       "reason": "GE Labs Ykarine was found to contain undeclared trendione (trenbolone ketone / dione) — a designer anabolic steroid prohormone. The product was linked to a consumer stroke, which is a known risk of high-dose androgenic-anabolic steroids due to erythrocytosis, thrombosis, and dyslipidemia. Anabolic steroids are DEA Schedule III controlled substances when synthetic. The presence of undeclared trendione makes this product an adulterated, misbranded, and illegally marketed controlled substance analog.",
       "effective_date": "2025-12-02",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A recalled product found to contain an undeclared designer anabolic steroid (trendione) in the supplement — linked in one case to a consumer stroke. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Recalled product with hidden steroid. Stop and consult."
     },
     {
       "canonical_id": "RECALLED_GOLD_STAR_DISTRIBUTION",
@@ -1228,7 +1438,10 @@
       "regulatory_basis": "contaminant_risk — FDA recall December 26, 2025. Salmonella and rodent/avian contamination.",
       "reason": "Gold Star Distribution was subject to FDA enforcement action for multiple critical violations: products contaminated with Salmonella, facilities with evidence of rodent and avian activity (feces, nesting materials), and conditions of insanitary storage and manufacturing that created pervasive contamination risk. These violations represent some of the most serious CGMP failures in the dietary supplement industry and posed acute risk to consumers of the affected products.",
       "effective_date": "2025-12-26",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "Products from this brand faced FDA enforcement for serious manufacturing violations — linked to Salmonella contamination and sanitation issues. Stop and consult a doctor if symptoms develop.",
+      "safety_warning_one_liner": "Recalled for Salmonella and manufacturing issues. Stop."
     },
     {
       "canonical_id": "RECALLED_GREEN_LUMBER",
@@ -1241,7 +1454,10 @@
       "regulatory_basis": "adulterant — FDA recall August 29, 2025. Undeclared tadalafil.",
       "reason": "Green Lumber dietary supplement was found by FDA to contain undeclared tadalafil — a prescription PDE5 inhibitor (Cialis) — making it an adulterated product. Users were unknowingly consuming a pharmaceutical drug, creating life-threatening hypotension risk for anyone also taking nitrate medications for heart disease. FDA issued a recall. See also: SPIKE_TADALAFIL for the full risk profile of undeclared tadalafil in supplements.",
       "effective_date": "2025-08-29",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A recalled sexual-enhancement supplement found to contain undeclared tadalafil in the product — risk of blood-pressure drops for users on nitrate heart medications. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Recalled product hidden prescription drug. Stop and consult."
     },
     {
       "canonical_id": "RECALLED_LIVE_IT_UP_SUPER_GREENS",
@@ -1255,7 +1471,10 @@
       "regulatory_basis": "contaminant_risk — FDA recall January 20, 2026. Potential Salmonella contamination.",
       "reason": "Live it Up Super Greens was recalled after testing confirmed the potential for Salmonella contamination in the powder product. Salmonella causes salmonellosis — diarrhea, fever, and abdominal cramps — and can cause life-threatening bloodstream infection in immunocompromised individuals, infants, the elderly, and pregnant women. FDA coordinated the recall. The product was a multi-ingredient greens blend powder.",
       "effective_date": "2026-01-20",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "Live it Up Super Greens was recalled after tests flagged potential Salmonella contamination. Stop any remaining product and consult a doctor if symptoms develop.",
+      "safety_warning_one_liner": "Recalled for potential Salmonella. Stop."
     },
     {
       "canonical_id": "RECALLED_MODERN_WARRIOR",
@@ -1268,7 +1487,10 @@
       "regulatory_basis": "adulterant — FDA recall January 9, 2026. Contains undeclared 1,4-DMAA, aniracetam, and tianeptine.",
       "reason": "Modern Warrior dietary supplement was recalled after FDA found it contained three undeclared unapproved drug ingredients: 1,4-DMAA (a DMAA variant stimulant), aniracetam (a nootropic drug not approved in the US), and tianeptine (an opioid-like antidepressant). Each of these individually would make the product adulterated; together they represent a product combining stimulant, psychoactive, and opioid-like drug ingredients without any disclosure — a serious public health risk.",
       "effective_date": "2026-01-09",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A recalled product found to contain undeclared stimulants and nootropics in the supplement, including a DMAA variant. Stop the supplement and consult a doctor if you have been using it.",
+      "safety_warning_one_liner": "Recalled product with hidden stimulants. Stop and consult."
     },
     {
       "canonical_id": "RECALLED_MR7_SUPER_700000",
@@ -1281,7 +1503,10 @@
       "regulatory_basis": "contaminant_risk — FDA public notification November 21, 2025. StuffbyNainax LLC voluntary nationwide recall. Distribute",
       "reason": "MR.7 SUPER 700000 was found to contain two undeclared prescription drugs: sildenafil and tadalafil — both PDE5 inhibitors for erectile dysfunction (Viagra and Cialis respectively). The simultaneous presence of both drugs dramatically increases the risk of severe hypotension and cardiovascular collapse, particularly in men taking nitrates for heart disease. FDA issued an urgent recall. Products combining multiple undeclared pharmaceutical adulterants represent an especially dangerous form of supplement fraud.",
       "effective_date": "2025-11-21",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A recalled product found to contain undeclared sildenafil and tadalafil in the supplement — risk of severe blood-pressure drops with nitrate heart medications. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Recalled product hidden two prescription drugs. Stop and consult."
     },
     {
       "canonical_id": "RECALLED_PURITY_PRODUCTS_MY_BLADDER",
@@ -1294,7 +1519,10 @@
       "regulatory_basis": "contaminant_risk — FDA recall October 28, 2025. E. coli O7:K1 contamination.",
       "reason": "Purity Products My Bladder supplement was recalled after the finished product tested positive for E. coli O7:K1 — a pathogenic strain associated with urinary tract infections and, in immunocompromised individuals, bloodstream infections. The contamination represented a manufacturing and quality control failure. FDA issued a voluntary recall. Consumers with UTI symptoms who used this product may have been at risk of worsened or treatment-resistant infection from the contaminating organism.",
       "effective_date": "2025-10-28",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "Purity Products My Bladder was recalled after tests found E. coli contamination, a concern for urinary tract and kidney infections. Stop any remaining product and consult a doctor if symptoms develop.",
+      "safety_warning_one_liner": "Recalled for E. coli contamination. Stop."
     },
     {
       "canonical_id": "RECALLED_REBOOST_CLEARLIFE_NASAL_SPRAY",
@@ -1309,7 +1537,10 @@
       "regulatory_basis": "contaminant_risk — FDA recall December 10-16, 2025. Yeast/mold and Achromobacter contamination.",
       "reason": "ReBoost and ClearLife nasal spray products were recalled after testing found yeast/mold contamination and Achromobacter — an opportunistic pathogen that can cause respiratory and bloodstream infections, particularly dangerous in immunocompromised patients. Intranasal products carry elevated contamination risk because they bypass skin and digestive barriers. FDA issued the recall. Consumers who had used these products were advised to stop immediately.",
       "effective_date": "2025-12-10",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "These nasal sprays were recalled after tests flagged yeast, mold, and Achromobacter — associated with respiratory infection risk, particularly in immunocompromised users. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Recalled for microbial contamination. Stop."
     },
     {
       "canonical_id": "RECALLED_RHEUMACARE_CAPSULES",
@@ -1322,7 +1553,10 @@
       "regulatory_basis": "contaminant_risk — FDA recall December 2025. Consumers advised to stop use immediately. Class I recall.",
       "reason": "Rheumacare Capsules were found to contain extreme lead contamination — up to 11,100 ppm (milligrams per kilogram) of lead — thousands of times above any acceptable level for a dietary supplement. Lead at this concentration causes acute and chronic lead poisoning: neurological damage, kidney injury, bone disruption, and in children severe developmental harm. California Prop 65's maximum level is 0.5 mcg/day total lead; a single capsule of this product would deliver a catastrophically toxic dose. FDA issued an urgent recall.",
       "effective_date": "2025-12-29",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "Rheumacare Capsules were recalled after tests found extreme lead levels — thousands of times above any safe threshold. Stop any remaining product and consult a doctor to check blood lead.",
+      "safety_warning_one_liner": "Recalled for extreme lead levels. Stop and test."
     },
     {
       "canonical_id": "RECALLED_SILINTAN",
@@ -1335,7 +1569,10 @@
       "regulatory_basis": "adulterant — FDA recall January 9, 2026. Unapproved new drug containing undeclared meloxicam.",
       "reason": "Silintan dietary supplement was recalled after FDA found it contained undeclared meloxicam — a prescription NSAID — making it an adulterated drug product. Users purchasing it as a supplement were unknowingly receiving a pharmaceutical drug without a prescription, without dosing guidance, and without the safety information required for NSAIDs (GI bleeding risk, renal effects, cardiovascular risk). See also: ADULTERANT_MELOXICAM.",
       "effective_date": "2026-01-09",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A recalled supplement found to contain undeclared meloxicam — a prescription NSAID in the product. Users may be exposed to GI and kidney risks without oversight. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Recalled product hidden prescription NSAID. Stop and consult."
     },
     {
       "canonical_id": "RECALLED_TITAN_SARMS_LLC",
@@ -1348,7 +1585,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA warning letter December 12, 2025. Products are 'new drugs' under FD&C Act, not dietary supplemen",
       "reason": "TITAN SARMS LLC was subject to FDA enforcement action for illegally marketing products containing selective androgen receptor modulators (SARMs) as dietary supplements. SARMs are unapproved drugs — none have been approved by FDA for any indication. Products were mislabeled to appear as legitimate supplements while containing compounds subject to drug approval requirements. FDA's action emphasized that SARMs in any supplement product make that product an adulterated and misbranded drug.",
       "effective_date": "2025-12-12",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "Recalled products from this brand were marketed as supplements but contained unapproved SARMs in the product — linked to liver injury and hormone suppression. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Recalled products sold SARMs as supplements. Stop and consult."
     },
     {
       "canonical_id": "RISK_BITTER_ORANGE",
@@ -1366,7 +1606,10 @@
       "regulatory_basis": "high_risk — FDA warnings for cardiovascular events. Not banned but high-risk.",
       "reason": "Bitter orange (Citrus aurantium) extract contains synephrine, a sympathomimetic amine that binds adrenergic receptors similarly to ephedrine. It became widely used in weight-loss supplements after ephedra was banned in 2004. FDA has received adverse event reports including hypertension, tachycardia, stroke, and myocardial infarction associated with bitter orange supplements. At doses used in supplements, synephrine may raise blood pressure and heart rate, particularly in combination with caffeine. Its cardiovascular risk profile closely mirrors the pattern that led to ephedra's federal ban.",
       "effective_date": "2004-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A citrus extract containing synephrine, with ephedrine-like cardiovascular effects. Linked to blood-pressure elevation and heart events, especially when combined with caffeine. Stop and consult.",
+      "safety_warning_one_liner": "Ephedrine-like stimulant, cardiovascular risk. Stop."
     },
     {
       "canonical_id": "RISK_GERMANIUM",
@@ -1380,7 +1623,10 @@
       "regulatory_basis": "high_risk — FDA warnings. Import alerts for products from Korea.",
       "reason": "Inorganic germanium compounds (germanium dioxide, organic germanium carboxylate) were marketed as immunostimulants and cancer treatments in the 1980s before multiple reports of fatal kidney failure emerged. Japan reported over 30 deaths from kidney failure associated with inorganic germanium use. The compound accumulates in the kidneys and peripheral nerves, causing progressive and irreversible nephropathy and peripheral neuropathy. FDA banned the import of germanium-containing supplements in 1988. Products containing inorganic germanium compounds should be considered immediately unsafe.",
       "effective_date": "1993-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Inorganic germanium compounds marketed in the 1980s as immune tonics — associated with fatal kidney failure in case reports. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Associated with fatal kidney failure. Stop."
     },
     {
       "canonical_id": "RISK_GREEN_TEA_EXTRACT_HIGH",
@@ -1393,7 +1639,10 @@
       "regulatory_basis": "lawful — FDA warnings for liver injury from high-dose supplements",
       "reason": "Green tea extract (GTE) standardized to high EGCG content is associated with drug-induced liver injury (DILI) when taken at doses exceeding approximately 800mg EGCG per day. The liver injury ranges from asymptomatic transaminase elevation to acute hepatitis and, rarely, fulminant liver failure. The European Food Safety Authority (EFSA) issued a warning in 2018 that GTE preparations providing ≥800mg EGCG/day taken on an empty stomach 'raise concerns for liver safety.' FDA has received adverse event reports. At doses found in typical green tea beverages and low-dose extracts, the risk is not significant — the concern is concentrated extract supplements specifically.",
       "effective_date": "2008-01-01",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "High-dose green tea extract standardized to concentrated EGCG has been linked to drug-induced liver injury, particularly above 800 mg EGCG per day. Talk to your doctor before using concentrated forms.",
+      "safety_warning_one_liner": "High-dose EGCG linked to liver injury. Talk to your doctor."
     },
     {
       "canonical_id": "RISK_KAVA",
@@ -1409,7 +1658,10 @@
       "regulatory_basis": "restricted — FDA warnings for liver toxicity. Not banned but high-risk.",
       "reason": "Kava (Piper methysticum) root extract has been associated with over 100 documented cases of severe liver injury globally, including hepatitis, cirrhosis, and liver failure requiring transplantation. Germany, Canada, Switzerland, France, and the UK have banned or restricted kava supplements. The mechanism may involve kavalactone metabolites (pipermethystine) or CYP2D6/CYP3A4 inhibition causing drug interactions. FDA issued a consumer advisory in 2002 warning of the potential for rare but severe liver injury. At-risk populations include people with liver disease or those taking hepatotoxic medications.",
       "effective_date": "2002-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Kava root extracts have been linked to over 100 cases of severe liver injury globally, including transplants. Restricted or banned in several countries. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Botanical associated with liver injury. Stop and consult."
     },
     {
       "canonical_id": "RISK_KRATOM_NATURAL",
@@ -1426,7 +1678,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA warnings. Not lawfully marketed as supplement. DEA considering Schedule I classification. Banned",
       "reason": "Kratom (Mitragyna speciosa) leaf contains mitragynine and related alkaloids that act as mu-opioid receptor agonists at high doses. FDA has received over 44 deaths linked to kratom use and has repeatedly warned that it is an opioid with associated addiction, dependence, withdrawal, and overdose risk. The semi-synthetic derivative 7-hydroxymitragynine (see BANNED_7_HYDROXYMITRAGYNINE) is far more potent. Liver toxicity has also been reported. FDA considers kratom to be an opioid and has repeatedly warned against its use.",
       "effective_date": "2017-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Kratom leaf contains opioid-receptor alkaloids and has been linked to over 44 reported deaths and dependence risk. FDA does not recognize it as a lawful supplement. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Opioid-like botanical linked to deaths. Stop."
     },
     {
       "canonical_id": "RISK_YOHIMBE",
@@ -1462,7 +1717,10 @@
       "regulatory_basis": "high_risk — FDA warnings for serious adverse events. Not banned but high-risk.",
       "reason": "Yohimbe (Pausinystalia yohimbe) bark contains yohimbine, an alpha-2 adrenergic receptor antagonist with stimulant effects. FDA has received adverse event reports of anxiety, hypertension, tachycardia, and cardiac arrhythmia from yohimbe supplements. At doses found in supplements, yohimbine can trigger dangerous blood pressure spikes in individuals with hypertension or cardiovascular disease. Drug interactions include dangerous potentiation with antidepressants, antihypertensives, and stimulants. Germany's regulatory agency (BfArM) has restricted yohimbe-containing products.",
       "effective_date": "1993-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Yohimbe bark contains yohimbine, a stimulant alkaloid associated with anxiety, high blood pressure, and heart-rhythm changes. Not safe as a supplement for most users. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Stimulant alkaloid with cardiovascular risk. Stop."
     },
     {
       "canonical_id": "SARM_ANDARINE",
@@ -1476,7 +1734,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (October 31, 2017). Unapproved drug.",
       "reason": "Andarine (S4, GTX-007) is a synthetic selective androgen receptor modulator (SARM) developed as an investigational drug for muscle wasting and osteoporosis. It was never approved for any medical use and is not a lawful dietary supplement ingredient. At doses used in supplements, it has caused reversible visual disturbances — yellow-tinted vision and difficulty adapting to light and dark — as well as androgenic suppression of testosterone. WADA prohibits it. Supplements containing S4 are adulterated.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An unapproved investigational SARM. Not a lawful US supplement; linked to vision disturbances and hormonal suppression. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved SARM drug. Stop and consult."
     },
     {
       "canonical_id": "SARM_CARDARINE",
@@ -1491,7 +1752,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (October 31, 2017). Clinical trials terminated due to cancer.",
       "reason": "Cardarine (GW501516) is a synthetic PPAR-delta agonist developed by GlaxoSmithKline. Clinical trials were halted in 2007 after it caused rapid multi-tissue carcinogenesis in animal studies at doses resembling those used in supplements. It is not a dietary ingredient, has never been approved by any regulatory agency, and has no NDI notification. FDA has issued warnings that products containing GW501516 are illegal and potentially unsafe. WADA prohibits it. Any supplement label listing Cardarine or GW-501516 should be treated as a safety alert.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An experimental drug whose trials were halted after it caused rapid multi-tissue cancer in animal studies. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Experimental drug linked to animal cancers. Stop."
     },
     {
       "canonical_id": "SARM_LIGANDROL",
@@ -1509,7 +1773,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (October 31, 2017). Unapproved drug.",
       "reason": "Ligandrol (LGD-4033, VK5211) is a synthetic selective androgen receptor modulator (SARM) developed by Ligand Pharmaceuticals as an investigational drug for muscle wasting. It is not FDA-approved, not a dietary ingredient, and no NDI notification is on file. Case reports have documented drug-induced liver injury and testosterone suppression in otherwise healthy users taking doses typical of supplement use. WADA prohibits it. Supplements containing LGD-4033 are adulterated and carry serious endocrine and hepatic risks.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An investigational SARM never approved for any medical use. Linked to liver injury and hormonal suppression. Not a lawful supplement. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved SARM with liver risk. Stop."
     },
     {
       "canonical_id": "SARM_OSTARINE",
@@ -1528,7 +1795,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (October 31, 2017). Unapproved drug. Ongoing warning letters.",
       "reason": "Ostarine (MK-2866, Enobosarm) is a synthetic selective androgen receptor modulator (SARM) developed by GTx Inc. as an investigational drug for muscle wasting and cancer cachexia. Despite Phase II/III trials, it was never approved. FDA has issued multiple warning letters about supplement products containing it. Documented risks include testosterone and LH suppression, liver enzyme elevation, and cardiovascular effects. WADA prohibits it. Products selling Ostarine as a supplement are adulterated with an unapproved drug compound.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An investigational SARM that failed cancer-cachexia trials. Linked to liver injury and hormonal suppression. Not a lawful supplement. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved SARM with liver risk. Stop."
     },
     {
       "canonical_id": "SARM_RAD140",
@@ -1542,7 +1812,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned in supplements (October 31, 2017). Unapproved drug. Multiple warning letters for liver in",
       "reason": "RAD140 (Testolone) is a synthetic selective androgen receptor modulator (SARM) developed by Radius Health as an investigational drug candidate. It is not approved for any medical use and has not been accepted as a dietary ingredient by FDA. Multiple case reports have linked RAD140 use to severe drug-induced liver injury (DILI) requiring hospitalization. WADA prohibits it. Products selling RAD140 as a supplement are adulterated with an unapproved drug compound, and users cannot assess dose consistency or purity from supplement labeling.",
       "effective_date": "2017-10-31",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An investigational SARM linked to liver injury, cardiovascular strain, and hormonal suppression. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unapproved SARM with liver and heart risks. Stop."
     },
     {
       "canonical_id": "SCHED_AMANITA_MUSCARIA",
@@ -1560,7 +1833,10 @@
       "regulatory_basis": "controlled_substance — FDA Class I recalls (2024-ongoing). Import alerts active. Not approved as dietary ingredient.",
       "reason": "Amanita muscaria is a psychoactive mushroom containing muscimol and ibotenic acid. In 2024, Diamond Shruumz brand gummies (containing Amanita muscaria extract) triggered a multistate outbreak with 70+ hospitalizations, seizures, loss of consciousness, and deaths. FDA issued urgent safety alerts and coordinated a Class I recall. Amanita muscaria supplements are not lawful dietary ingredients under DSHEA — the mushroom was never marketed as a supplement before 1994.",
       "effective_date": "2024-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A psychoactive mushroom associated with a 2024 multi-state outbreak of serious illness. Not a lawful supplement ingredient; linked to hallucinations and seizures. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Psychoactive mushroom linked to 2024 outbreak. Stop."
     },
     {
       "canonical_id": "SCHED_PSILOCYBIN",
@@ -1581,7 +1857,10 @@
       "regulatory_basis": "controlled_substance — DEA Schedule I controlled substance. Illegal in dietary supplements. FDA issued 50+ warning letters ",
       "reason": "Psilocybin is the primary psychoactive prodrug in 'magic mushrooms' (Psilocybe spp.). DEA Schedule I controlled substance since 1970. Dephosphorylated to psilocin (the active metabolite) by alkaline phosphatase. FDA granted Breakthrough Therapy designation for psilocybin in treatment-resistant depression (supervised clinical settings), but it remains Schedule I and cannot be marketed as a supplement. Any supplement containing psilocybin is an illegal controlled substance.",
       "effective_date": "1970-10-27",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A DEA Schedule I controlled substance. Its presence in a supplement is associated with illegal drug inclusion. Stop and consult a doctor if you have used a product containing it.",
+      "safety_warning_one_liner": "DEA Schedule I controlled substance. Stop."
     },
     {
       "canonical_id": "SPIKE_ANABOLIC_STEROIDS",
@@ -1644,7 +1923,10 @@
       "regulatory_basis": "adulterant — DEA Schedule III controlled substances. Illegal in supplements. Found in 26% of tested bodybuilding ",
       "reason": "Anabolic-androgenic steroids (AAS) are DEA Schedule III controlled substances when synthetic. When found undeclared in dietary supplements — typically muscle-building, bodybuilding, or prohormone products — users are unknowingly consuming controlled drugs without prescription. Known risks include liver damage (peliosis hepatis, cholestatic jaundice), cardiovascular effects (left ventricular hypertrophy, dyslipidemia), endocrine suppression (testicular atrophy, infertility), and psychiatric effects. FDA and DEA actively pursue supplement products found to contain undeclared AAS.",
       "effective_date": "1990-11-29",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "Designer anabolic-androgenic steroids found undeclared in bodybuilding supplements — linked to liver injury, cardiovascular risk, and hormone suppression. Stop the product and consult a doctor.",
+      "safety_warning_one_liner": "Hidden anabolic steroids in supplements. Stop."
     },
     {
       "canonical_id": "SPIKE_CHLOROPRETADALAFIL",
@@ -1659,7 +1941,10 @@
       "regulatory_basis": "adulterant — FDA banned. Illegal adulterant. Found in Health Fixer products (April 2025).",
       "reason": "Chloropretadalafil is a synthetic analog of tadalafil designed to evade detection while delivering PDE5 inhibitor activity equivalent to the prescription drug. Its presence in supplements is always undeclared. The same cardiovascular risks apply as with tadalafil — life-threatening hypotension with nitrates — but standard screening may not identify it. FDA considers chloropretadalafil an undeclared pharmaceutical adulterant. No safety or efficacy data exists for this specific analog in humans.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A designer tadalafil analog found undeclared in sexual-enhancement supplements, engineered to evade testing. Risk of dangerous blood-pressure drops with nitrates. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Designer ED drug hidden in supplements. Stop."
     },
     {
       "canonical_id": "SPIKE_DEXAMETHASONE",
@@ -1673,7 +1958,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements. Multiple recalls 2024.",
       "reason": "Dexamethasone is a potent synthetic corticosteroid with approximately 25 times the anti-inflammatory potency of hydrocortisone. When found undeclared in supplements — typically in joint pain or immunity products — it suppresses the hypothalamic-pituitary-adrenal (HPA) axis without the user's knowledge. Abrupt cessation after chronic exposure can cause adrenal crisis. Long-term risks include Cushing's syndrome, osteoporosis, immunosuppression, and hyperglycemia. Its undeclared presence constitutes adulteration with a prescription drug.",
       "effective_date": "2024-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription corticosteroid found undeclared in joint and arthritis supplements — risk includes blood-sugar spikes, mood changes, and adrenal suppression. Stop and consult your doctor.",
+      "safety_warning_one_liner": "Prescription steroid hidden in supplements. Stop and consult."
     },
     {
       "canonical_id": "SPIKE_DICLOFENAC",
@@ -1687,7 +1975,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements. Multiple recalls 2024-2025.",
       "reason": "Diclofenac is a prescription NSAID used for pain, arthritis, and inflammation. When found undeclared in dietary supplements — typically joint pain or anti-inflammatory products — it exposes users to serious risks without medical supervision: gastrointestinal bleeding, renal impairment, and elevated cardiovascular risk (heart attack, stroke). FDA has warned that undeclared NSAIDs in supplements are a recurring adulterant pattern in products marketed for pain and inflammation. Users on blood thinners or with kidney disease face life-threatening risk.",
       "effective_date": "2013-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription NSAID found undeclared in pain and joint supplements — risk of GI bleeding, kidney injury, and heart events with chronic unintended use. Stop the supplement and consult a doctor.",
+      "safety_warning_one_liner": "Prescription NSAID hidden in supplements. Stop and consult."
     },
     {
       "canonical_id": "SPIKE_FLUOXETINE",
@@ -1701,7 +1992,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements. Found in 21% of tested weight loss products.",
       "reason": "Fluoxetine (Prozac) is a prescription SSRI antidepressant requiring clinical diagnosis, dosing oversight, and monitoring. When found undeclared in supplements, users receive an SSRI without medical supervision, putting them at risk for serotonin syndrome (especially if already on antidepressants or MAOIs), sexual dysfunction, withdrawal effects upon stopping the product, and dangerous interactions with blood thinners (warfarin potentiation). FDA considers any supplement containing fluoxetine to be adulterated with a prescription drug.",
       "effective_date": "2008-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription antidepressant found undeclared in supplements — risk of serotonin syndrome and unsafe drug interactions without clinical oversight. Stop the supplement and consult a doctor.",
+      "safety_warning_one_liner": "Prescription antidepressant hidden in supplements. Stop and consult."
     },
     {
       "canonical_id": "SPIKE_METHYL7K",
@@ -1718,7 +2012,10 @@
       "regulatory_basis": "adulterant — FDA warnings (2025). Multiple deaths reported. Under DEA review.",
       "reason": "7-Methylkratom refers to semi-synthetic derivatives of mitragynine (kratom's primary alkaloid) designed to increase potency. The most clinically significant is 7-hydroxymitragynine — a metabolite also created synthetically — which has potency far exceeding natural kratom and full mu-opioid receptor agonist activity. These semi-synthetic opioids carry overdose risk equivalent to pharmaceutical opioids. FDA has issued safety alerts and DEA has initiated scheduling proceedings for these compounds. See also: BANNED_7_HYDROXYMITRAGYNINE.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A semi-synthetic kratom alkaloid engineered for greater potency at opioid receptors. Associated with overdose risk and dependence. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Potent semi-synthetic opioid-like compound. Stop."
     },
     {
       "canonical_id": "SPIKE_PHENOLPHTHALEIN",
@@ -1730,7 +2027,10 @@
       "regulatory_basis": "adulterant — FDA banned from OTC laxatives (1999). Illegal in supplements.",
       "reason": "Phenolphthalein was used as a laxative active ingredient in OTC products until the 1990s, when FDA removed it from the OTC laxative monograph after animal studies showed it was carcinogenic (rodent studies: ovarian and uterine cancer). It is classified as a possible human carcinogen. When found undeclared in weight-loss supplements, users receive an unapproved carcinogenic drug compound without disclosure. FDA has found phenolphthalein as an adulterant in weight-loss and body-shaping supplement products.",
       "effective_date": "1999-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A removed laxative drug found undeclared in weight-loss supplements. FDA withdrew it from the US OTC market after animal studies raised cancer concerns. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Removed laxative drug hidden in supplements. Stop and consult."
     },
     {
       "canonical_id": "SPIKE_PROPOXYPHENYLSILDENAFIL",
@@ -1745,7 +2045,10 @@
       "regulatory_basis": "adulterant — FDA banned. Illegal adulterant. Found in Health Fixer (April 2025).",
       "reason": "Propoxyphenylsildenafil is a synthetic sildenafil analog engineered to evade standard pharmaceutical testing while retaining PDE5 inhibitor activity. Its use in supplements is always undeclared. Like sildenafil, it carries life-threatening interaction risk with nitrates and can cause cardiovascular events. Because it is not standard sildenafil, routine FDA adulterant screening may not flag it — making it more dangerous than the parent compound from a consumer safety standpoint.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A designer sildenafil analog found undeclared in sexual-enhancement supplements, engineered to evade testing. Risk of dangerous blood-pressure drops for users on nitrates. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Designer ED drug hidden in supplements. Stop."
     },
     {
       "canonical_id": "SPIKE_SILDENAFIL",
@@ -1761,7 +2064,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements. Ongoing enforcement.",
       "reason": "Sildenafil (Viagra) is a prescription PDE5 inhibitor for erectile dysfunction. When added undeclared to supplements — typically sexual enhancement products — users can experience life-threatening hypotension if combined with nitrates (used for angina/heart disease), as well as vision loss and cardiovascular events. FDA operates a dedicated Sexual Enhancement Fraud program due to the prevalence of this adulterant. Products with undeclared sildenafil are adulterated with a prescription drug, regardless of marketing claims.",
       "effective_date": "2003-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription ED drug found undeclared in sexual-enhancement supplements — risk of dangerous blood-pressure drops with nitrate heart medications. Stop the supplement and consult your doctor.",
+      "safety_warning_one_liner": "Prescription drug hidden in supplements. Stop and consult your doctor."
     },
     {
       "canonical_id": "SPIKE_TADALAFIL",
@@ -1775,7 +2081,10 @@
       "regulatory_basis": "adulterant — FDA prescription drug. Illegal in supplements.",
       "reason": "Tadalafil (Cialis) is a prescription PDE5 inhibitor for erectile dysfunction, benign prostatic hyperplasia, and pulmonary arterial hypertension. It has a long half-life (~17.5 hours) that makes undeclared dosing especially dangerous — users taking nitrates for heart conditions can experience severe, potentially fatal hypotension. FDA has identified tadalafil as one of the most common pharmaceutical adulterants in sexual enhancement supplements. Products containing undeclared tadalafil are adulterated with a prescription drug.",
       "effective_date": "2006-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription ED drug found undeclared in sexual-enhancement supplements — long half-life raises interaction risk with nitrate heart medications. Stop the supplement and consult your doctor.",
+      "safety_warning_one_liner": "Prescription drug hidden in supplements. Stop and consult your doctor."
     },
     {
       "canonical_id": "SPIKE_TIANEPTINE_ANALOGUES",
@@ -1790,7 +2099,10 @@
       "regulatory_basis": "adulterant — Emerging designer drugs. Multiple states banning. FDA warnings.",
       "reason": "Tianeptine analogue compounds are designer drug variants engineered to mimic tianeptine — an atypical antidepressant with mu-opioid receptor agonist activity. FDA has not approved tianeptine for any use (see BANNED_TIANEPTINE). Designer analogs are created to evade listing and scheduling while retaining the opioid-like and addiction properties of the parent compound. When found in supplements, users face opioid-like dependence, withdrawal, and overdose risk without any labeling indicating the opioid mechanism.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Designer tianeptine analogs with opioid-receptor activity, found in gray-market supplements. Associated with dependence and withdrawal. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Designer opioid-like substances. Stop and consult."
     },
     {
       "canonical_id": "STIM_ALPHA_PHP",
@@ -1806,7 +2118,10 @@
       "regulatory_basis": "not_lawful_as_supplement — DEA Schedule I (controlled substance). Illegal in supplements.",
       "reason": "α-PHP (alpha-pyrrolidinohexanophenone) is a Schedule I synthetic cathinone ('bath salt') with potent stimulant effects comparable to methamphetamine. It is a DEA emergency Schedule I substance. It has absolutely no legitimate dietary supplement use — any product containing α-PHP is either mislabeled or fraudulently marketed. Known effects include severe tachycardia, hyperthermia, paranoia, psychosis, and cardiovascular collapse. Multiple overdose deaths have been attributed to synthetic cathinones in this class.",
       "effective_date": "2014-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A Schedule I synthetic cathinone (bath-salt class) with stimulant effects comparable to methamphetamine. Associated with cardiovascular and psychiatric emergencies. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Schedule I synthetic stimulant. Stop."
     },
     {
       "canonical_id": "STIM_METHYLHEXANAMINE_ANALOGS",
@@ -1821,7 +2136,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA banned. Not approved as dietary ingredients. Illegal in supplements.",
       "reason": "This watchlist covers designer stimulant analogs of DMAA (1,3-dimethylamylamine), engineered to maintain sympathomimetic effects while evading DMAA's specific FDA enforcement action. Analogs include DMBA (1,3-dimethylbutylamine), DMHA (2-amino-6-methylheptane), and their structural variants. Like DMAA, these compounds raise blood pressure and heart rate and have been associated with cardiovascular events. FDA has issued warning letters covering many analogs. None are lawful dietary ingredients — products containing them are adulterated.",
       "effective_date": "2013-04-11",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Designer DMAA-family stimulants engineered to evade enforcement. Linked to the same cardiovascular risks as DMAA. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Designer DMAA-class stimulants. Stop."
     },
     {
       "canonical_id": "SYNTH_CUMYL_PICA",
@@ -1833,7 +2151,10 @@
       "regulatory_basis": "controlled_substance — DEA Schedule I (controlled substance). Illegal in supplements.",
       "reason": "CUMYL-PICA is a synthetic cannabinoid receptor agonist (SCB) — a 'designer drug' engineered to activate CB1 and CB2 receptors with far greater potency than natural THC. Synthetic cannabinoids have caused mass poisoning events, hospitalizations, and deaths globally. They are DEA Schedule I controlled substance analogs. CUMYL-PICA and related SCBs are not dietary ingredients, have no approved human use, and their presence in any product constitutes an adulterated controlled substance. Effects include agitation, tachycardia, seizures, acute kidney injury, and cardiovascular events.",
       "effective_date": "2017-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic cannabinoid linked to acute psychiatric emergencies, seizures, and deaths. Not a lawful supplement ingredient; stop any product containing it and consult a doctor.",
+      "safety_warning_one_liner": "Synthetic cannabinoid linked to deaths. Stop."
     },
     {
       "canonical_id": "WADA_CANNABIS",
@@ -1855,7 +2176,10 @@
       "regulatory_basis": "wada_prohibited — DEA Schedule I (federal). State laws vary. CBD legal if THC <0.3%.",
       "reason": "Cannabis and THC are prohibited by the World Anti-Doping Agency (WADA) in competition under the Prohibited List (S8 Cannabinoids). Athletes testing positive for THC metabolites above the WADA threshold (150 ng/mL urinary 11-nor-9-carboxy-THC) face potential sanctions. CBD was removed from the WADA Prohibited List in 2018, but other cannabinoids including synthetic delta-8 THC and CBN remain prohibited. Athletes using CBD supplements face contamination risk — many CBD products contain detectable levels of THC that can result in a positive doping test.",
       "effective_date": "2004-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Prohibited in competition by the World Anti-Doping Agency. Competitive athletes should avoid cannabis and THC products to prevent failed drug tests; talk to your team physician.",
+      "safety_warning_one_liner": "WADA-prohibited in competition. Talk to your team physician."
     },
     {
       "canonical_id": "WADA_TRAMADOL",
@@ -1870,7 +2194,10 @@
       "regulatory_basis": "wada_prohibited — FDA prescription drug (Schedule IV controlled substance)",
       "reason": "Tramadol is a prescription synthetic opioid analgesic. WADA added tramadol to the Prohibited List for in-competition use in 2024 (banned from January 1 2024) due to concerns about misuse by athletes for pain masking, its dependence and addiction potential, and an association with accidents and impaired safety in competition. Any supplement product containing undeclared tramadol is both adulterated with a prescription controlled substance and prohibited for athletes under WADA rules.",
       "effective_date": "2024-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A prescription opioid added to the WADA in-competition prohibited list in 2024. Competitive athletes should talk to their physician about alternatives and testing windows.",
+      "safety_warning_one_liner": "WADA-prohibited in competition since 2024. Talk to your physician."
     },
     {
       "canonical_id": "BANNED_DYMETHAZINE",
@@ -1886,7 +2213,10 @@
       "regulatory_basis": "banned_federal — FDA recall: Ultra Research & Development Laboratories - Ultra-Sten (D-Zine) (2012)",
       "reason": "Dymethazine (DMZ, 17β-hydroxy-2α,17β-dimethyl-5α-androstan-3-one-azine) is a synthetic anabolic-androgenic steroid prohormone. It converts to two methylated steroidal compounds in the body. Despite being sold as a 'prohormone' supplement, it meets the DEA definition of an anabolic steroid under the Anabolic Steroid Control Act. Risks include severe hepatotoxicity (cholestatic jaundice, peliosis hepatis), cardiovascular effects, endocrine suppression, and virilization. Products containing DMZ have been subject to FDA enforcement and recall actions.",
       "effective_date": "2012-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An anabolic-steroid prohormone banned under US law. Linked to liver injury, hormone suppression, and cardiovascular strain. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Banned steroid prohormone. Stop and consult."
     },
     {
       "canonical_id": "SPIKE_METHOCARBAMOL",
@@ -1900,7 +2230,10 @@
       "regulatory_basis": "adulterant — FDA enforcement: undeclared methocarbamol in dietary supplements (prescription drug spiking).",
       "reason": "Methocarbamol is a prescription central muscle relaxant (CNS depressant) used for acute musculoskeletal pain and muscle spasms. When found undeclared in dietary supplements, it creates serious CNS depression risks — dizziness, sedation, and impaired coordination — particularly dangerous for users who drive or operate machinery. Combined with alcohol, benzodiazepines, or opioids, the CNS depression can be life-threatening. FDA considers any supplement containing undeclared methocarbamol to be adulterated with a prescription drug.",
       "effective_date": "2025-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription muscle relaxant found undeclared in pain and sleep supplements — risk of excessive sedation, especially with alcohol or other CNS depressants. Stop the supplement and consult.",
+      "safety_warning_one_liner": "Prescription muscle relaxant hidden in supplements. Stop."
     },
     {
       "canonical_id": "RISK_LOBELIA",
@@ -1920,7 +2253,10 @@
       "regulatory_basis": "restricted — 21 CFR 310.544 — lobeline OTC ban; FDA Poisonous Plant Database",
       "reason": "FDA Poisonous Plant Database listing. Lobeline banned in OTC drugs (21 CFR 310.544, 1993). Narrow therapeutic index — toxic dose overlaps with emetic dose. Not demonstrated effective for any indication (Cochrane).",
       "effective_date": "1993-12-29",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "A botanical with a narrow window between useful and toxic dose. Banned in OTC drug products since 1993 and placed on FDA's poisonous-plant watchlist. Avoid use in supplements.",
+      "safety_warning_one_liner": "Watchlist botanical with narrow safety margin. Avoid."
     },
     {
       "canonical_id": "ADD_5A_HYDROXY_LAXOGENIN",
@@ -1942,7 +2278,10 @@
       "regulatory_basis": "high_risk — see reason",
       "reason": "A steroidal plant compound marketed for muscle building. The FDA has not accepted it as a lawful dietary ingredient and has issued warning letters to manufacturers. No adequate human safety studies exist. Avoid, especially if you are an athlete subject to anti-doping testing (WADA prohibited class).",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A steroidal plant compound marketed for muscle building. FDA has issued warning letters and does not accept it as a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Not a lawful supplement ingredient. Stop."
     },
     {
       "canonical_id": "ADD_CASCARA_SAGRADA",
@@ -1962,7 +2301,10 @@
       "regulatory_basis": "high_risk — see reason",
       "reason": "FDA explicitly stripped GRASE status in 2002 after industry failed to submit required safety data. Only remains in supplements due to DSHEA regulatory gap, NOT because it was found safe. EFSA 2018/2024: HADs genotoxic and carcinogenic concern. NIH LiverTox documents liver injury cases including acute liver failure with portal hypertension. Stronger regulatory case against it than senna.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "watchlist",
+      "safety_warning": "A stimulant laxative whose GRASE status FDA stripped in 2002 after safety data was not provided. Its presence in supplements is associated with regulatory gaps. Avoid long-term use.",
+      "safety_warning_one_liner": "FDA stripped safety status in 2002. Avoid."
     },
     {
       "canonical_id": "ADD_COLLOIDAL_SILVER",
@@ -1979,7 +2321,10 @@
       "regulatory_basis": "high_risk — see reason",
       "reason": "CRITICAL SAFETY WARNING: FDA has ruled colloidal silver products are not generally recognized as safe. Can cause permanent argyria (irreversible blue-gray skin discoloration), kidney damage, liver damage, neurological problems, and seizures. NO proven health benefits. AVOID internal use. [normalized_2026-02-16: risk_level critical mapped to high for scorer compatibility]",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "FDA has ruled colloidal silver products are not generally recognized as safe. Linked to permanent blue-gray skin discoloration (argyria) and kidney and neurological harm. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Not recognized as safe by FDA. Stop."
     },
     {
       "canonical_id": "ADD_DIIODOTHYRONINE_T2",
@@ -2000,7 +2345,10 @@
       "regulatory_basis": "high_risk — see reason",
       "reason": "Added from recurrent unresolved T2/diiodothyronine label variants in P3 routing pass; treated as high-risk hormone analog.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A thyroid-hormone analog found on supplement labels. Associated with unpredictable thyroid effects and cardiovascular strain; not a lawful supplement ingredient. Stop and consult your doctor.",
+      "safety_warning_one_liner": "Thyroid hormone analog, not a supplement. Stop."
     },
     {
       "canonical_id": "ADD_DOCUSATE_SODIUM",
@@ -2019,7 +2367,10 @@
       "regulatory_basis": "high_risk — see reason",
       "reason": "Docusate sodium is a well-established OTC stool softener drug. Its presence in a product labeled as a dietary supplement represents an FDA compliance violation (drug in supplement). Not inherently dangerous at therapeutic doses, but should not appear in supplements.",
       "effective_date": "",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "An OTC stool-softener drug appearing as an undisclosed ingredient in supplements. Its presence reflects a labeling issue — talk to your doctor before continuing the product.",
+      "safety_warning_one_liner": "OTC drug found in supplements. Talk to your doctor."
     },
     {
       "canonical_id": "ADD_HORDENINE",
@@ -2035,7 +2386,10 @@
       "regulatory_basis": "adulterant — see reason",
       "reason": "Naturally found in barley sprouts but concentrated in supplements at pharmacological doses. Frequently combined with other stimulants in weight-loss and pre-workout products, amplifying cardiovascular risk. FDA has issued warning letters to companies marketing hordenine-containing supplements.",
       "effective_date": "",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "substance",
+      "safety_warning": "A plant alkaloid sold in supplement products at pharmacological doses. Linked to blood-pressure elevation and cardiovascular strain, especially when stacked with other stimulants. Stop.",
+      "safety_warning_one_liner": "Stimulant at supplement doses. Stop."
     },
     {
       "canonical_id": "ADD_N_PHENETHYL_DIMETHYLAMINE",
@@ -2058,7 +2412,10 @@
       "regulatory_basis": "adulterant — see reason",
       "reason": "N-Phenethyl dimethylamine (also appearing as N,N-dimethyl-β-phenethylamine or NPDMA) is a substituted phenethylamine stimulant found as an undeclared or misleadingly labeled ingredient in performance and weight-loss supplement products. It has sympathomimetic activity — raising heart rate and blood pressure — and is not a lawful dietary ingredient. FDA has identified it as an adulterant in the context of stimulant-spiked products. No NDI notification is on file and no human clinical safety data exists.",
       "effective_date": "",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "substance",
+      "safety_warning": "A designer phenethylamine-class stimulant found in weight-loss and pre-workout products. Associated with cardiovascular strain; not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Designer stimulant. Stop and consult."
     },
     {
       "canonical_id": "ADD_RED3",
@@ -2079,7 +2436,10 @@
       "regulatory_basis": "banned_federal — FDA revocation of FD&C Red No. 3 listing, effective January 2027",
       "reason": "FDA revoked FD&C Red No. 3 authorization on January 15, 2025 due to thyroid tumor evidence in animal studies. Compliance deadline: January 15, 2027 for foods/dietary supplements and January 18, 2028 for ingested drugs. Source: FDA Constituent Update (2025-01-15).",
       "effective_date": "2027-01-15",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A synthetic food dye FDA revoked in January 2025 over thyroid-tumor findings in animal studies. Manufacturers have until 2027 to remove it; avoid products still listing it.",
+      "safety_warning_one_liner": "Dye revoked by FDA in 2025. Avoid."
     },
     {
       "canonical_id": "BANNED_DMSA_SUCCIMER",
@@ -2096,7 +2456,10 @@
       "regulatory_basis": "not_lawful_as_supplement — see reason",
       "reason": "DMSA (succimer) is a prescription chelation drug. Any supplement label listing DMSA, succimer, or dosage-form variants represents unlawful drug inclusion rather than a lawful dietary ingredient.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription chelation drug found in some supplements labeled for detox — risks include mineral depletion and kidney strain. Stop the supplement and talk to your doctor.",
+      "safety_warning_one_liner": "Prescription chelator hidden in supplements. Stop."
     },
     {
       "canonical_id": "BANNED_DNP",
@@ -2110,7 +2473,10 @@
       "regulatory_basis": "not_lawful_as_supplement — see reason",
       "reason": "2,4-Dinitrophenol is an industrial chemical misused for weight loss and bodybuilding. It has a narrow margin between intended effect and fatal hyperthermia, making it unsafe and not lawful as a supplement ingredient.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An industrial chemical misused for rapid weight loss. Narrow margin between effect and fatal overheating; linked to deaths. Stop and consult a doctor if you have used a product containing it.",
+      "safety_warning_one_liner": "Industrial chemical linked to deaths. Stop."
     },
     {
       "canonical_id": "BANNED_USNIC_ACID",
@@ -2123,7 +2489,10 @@
       "regulatory_basis": "high_risk — see reason",
       "reason": "Usnic acid has been associated with severe liver injury in weight-loss and energy products. It is not a lawful dietary ingredient for this use profile and carries disproportionate hepatotoxic risk.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A lichen-derived compound linked to severe liver injury in weight-loss and energy products. Not a lawful supplement ingredient in this use profile. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Liver-toxic compound. Stop and consult."
     },
     {
       "canonical_id": "BANNED_CLENBUTEROL",
@@ -2137,7 +2506,10 @@
       "regulatory_basis": "adulterant — see reason",
       "reason": "Clenbuterol is a beta-agonist drug used illicitly in performance and weight-loss products. It is not lawful as a supplement ingredient and can cause serious cardiovascular and neurologic toxicity.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A beta-agonist drug found undeclared in performance and weight-loss supplements — risk of rapid heart rate, tremor, and dangerous blood-pressure changes. Stop the supplement and consult a doctor.",
+      "safety_warning_one_liner": "Illicit drug found in supplements. Stop and consult a doctor."
     },
     {
       "canonical_id": "BANNED_ACONITE",
@@ -2155,7 +2527,10 @@
       "regulatory_basis": "high_risk — see reason",
       "reason": "Aconite and aconitine-containing Aconitum species can cause life-threatening ventricular arrhythmias and neurotoxicity. Raw or misprocessed forms are not appropriate for dietary supplement use.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A botanical containing aconitine toxins linked to life-threatening heart-rhythm and nervous-system effects. Raw or misprocessed forms are not appropriate for supplements. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Cardiotoxic botanical. Stop and consult."
     },
     {
       "canonical_id": "ADD_SODIUM_TETRABORATE",
@@ -2170,7 +2545,10 @@
       "regulatory_basis": "not_lawful_as_supplement — see reason",
       "reason": "Borax (sodium tetraborate) is an EU-banned food additive classified as a reproductive toxicant (CMR 1B). Despite folk remedy claims, no dietary supplement use is warranted. ECHA SVHC listing under REACH since 2010. NOTE: 'Sodium Borate' removed from aliases to avoid false positives — DSLD labels use 'Sodium Borate' as a trace boron mineral source in multivitamins, not as borax food additive.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Borax — an EU-banned food additive classified as a reproductive toxicant. Folk remedy claims do not justify its use; it is not a lawful supplement. Stop and consult a doctor.",
+      "safety_warning_one_liner": "EU-banned reproductive toxicant. Stop."
     },
     {
       "canonical_id": "ADD_THYROGEN",
@@ -2184,7 +2562,10 @@
       "regulatory_basis": "not_lawful_as_supplement — see reason",
       "reason": "Thyrogen is a prescription biologic for thyroid cancer management. Any supplement label containing this ingredient represents illegal drug inclusion. FDA has jurisdiction under FD&C Act §301.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "A prescription thyroid-cancer biologic found in some products labeled as supplements. Its presence indicates unlawful drug inclusion; stop the supplement and consult a doctor.",
+      "safety_warning_one_liner": "Prescription biologic hidden in supplements. Stop and consult."
     },
     {
       "canonical_id": "ADD_SIMETHICONE",
@@ -2200,7 +2581,10 @@
       "regulatory_basis": "not_lawful_as_supplement — see reason",
       "reason": "Simethicone is an OTC drug active ingredient under FDA monograph. While generally safe, its presence in supplements indicates regulatory non-compliance. Not absorbed systemically; works mechanically on gas bubbles in GI tract.",
       "effective_date": "",
-      "severity": "minor"
+      "severity": "minor",
+      "ban_context": "adulterant_in_supplements",
+      "safety_warning": "An OTC anti-gas drug appearing as an undisclosed ingredient in supplements. Generally low risk, but its presence signals labeling concerns — talk to your doctor if you have been using it.",
+      "safety_warning_one_liner": "OTC drug found in supplements. Talk to your doctor."
     },
     {
       "canonical_id": "ADD_HEXADRONE",
@@ -2216,7 +2600,10 @@
       "regulatory_basis": "controlled_substance — see reason",
       "reason": "Hexadrone is a Schedule III controlled substance classified as a designer anabolic steroid. Supplement products containing this compound are adulterated under FD&C Act. Associated with liver toxicity (cholestatic pattern) and HPTA suppression.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A Schedule III designer anabolic steroid. Supplement products containing it are adulterated under US law and are linked to liver injury. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Schedule III designer steroid. Stop."
     },
     {
       "canonical_id": "BANNED_ADD_TITANIUM_DIOXIDE",
@@ -2244,7 +2631,10 @@
       "regulatory_basis": "high_risk — Commission Regulation (EU) 2022/63 amending Annexes II and III to Regulation (EC) No 1333/2008 — E171 removed from permitted food additives list",
       "reason": "In 2021, EFSA concluded that a concern for genotoxicity of titanium dioxide (E171) particles 'cannot be ruled out' and that E171 'can no longer be considered safe when used as a food additive,' so no ADI could be established (EFSA Journal 2021;19(5):e06585). On this basis, the European Commission adopted Commission Regulation (EU) 2022/63 banning E171 as a food additive; from August 7 2022 it may no longer be added to foods or food supplements in the EU. FDA still permits TiO2 at ≤1% of food weight (21 CFR 73.575) but initiated reassessment following the EFSA opinion. IARC Group 2B (possibly carcinogenic by inhalation). Nanoparticle form (<100nm) shows greater intestinal absorption and genotoxic concern.",
       "effective_date": "2022-08-07",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "watchlist",
+      "safety_warning": "A white-pigment additive EFSA ruled in 2021 could no longer be considered safe due to possible genotoxicity. Banned in EU food since 2022; still permitted in US supplements. Avoid when possible.",
+      "safety_warning_one_liner": "EU-banned white pigment. Avoid when possible."
     },
     {
       "canonical_id": "BANNED_ADD_TALC",
@@ -2265,7 +2655,10 @@
       "regulatory_basis": "contaminant_risk — FDA does not approve talc as a food additive. FDA monitors cosmetic talc for asbestos; issued multiple recalls 2019–2024 including Claire's and J&J products.",
       "reason": "Talc used in cosmetics and other consumer products can be contaminated with asbestos, a known human carcinogen (IARC Group 1). FDA's 2019 sampling of talc-containing cosmetics found asbestos in 9 of 52 products, triggering public safety alerts and voluntary recalls coordinated with the agency. Separately, IARC has reclassified talc itself as 'probably carcinogenic to humans' (Group 2A, upgraded from 2B) when not containing asbestos, further elevating concern. The primary supplement-relevant hazard is contaminant risk — asbestos and other impurities — rather than pure pharmaceutical-grade talc per se. Many supplement manufacturers do not conduct adequate asbestos-free certificate-of-analysis testing.",
       "effective_date": "2024-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "Talc used in consumer products can be contaminated with asbestos, a known human carcinogen. Presence in supplements is associated with contamination risk. Avoid affected products.",
+      "safety_warning_one_liner": "Possible asbestos contamination. Avoid."
     },
     {
       "canonical_id": "BANNED_ADD_CAROB_COLOR",
@@ -2286,7 +2679,10 @@
       "regulatory_basis": "high_risk — FDA Certified Color Additives list (21 CFR Parts 73, 74, 82): E153/vegetable carbon not listed. Products using it as a US food colorant are non-compliant.",
       "reason": "Vegetable carbon (E153) is permitted as a food colour in the EU, but the US FDA has not approved any form of carbon black as a food-colouring additive. FDA's inventories of color additives for food (21 CFR Parts 73, 74, 82) do not list E153, and regulatory and scientific reviews explicitly note that 'the USFDA has not approved the use of any type of carbon black for colouring food.' As a result, there is no approved pathway for using E153 as a colour in US foods or dietary supplements — equivalent in enforcement posture to Orange B, which is restricted to sausage casings only and effectively non-lawful as a supplement ingredient.",
       "effective_date": "",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "Vegetable-carbon color is permitted in the EU but not approved by FDA as a food color. Presence in a US supplement is associated with labeling inconsistency. Avoid.",
+      "safety_warning_one_liner": "Not FDA-approved color in supplements. Avoid."
     },
     {
       "canonical_id": "BANNED_ADD_OCTOPAMINE",
@@ -2305,7 +2701,10 @@
       "regulatory_basis": "not_lawful_as_supplement — FDA warning letters (multiple, 2012–2023): octopamine classified as a new dietary ingredient (NDI) per 21 U.S.C. §321(ff)(1)(F) with no NDI premarket notification on file...",
       "reason": "FDA has issued multiple warning letters for dietary supplements containing octopamine, stating that octopamine is a dietary ingredient under 21 U.S.C. §321(ff)(1)(F) but a new dietary ingredient (NDI) with no premarket notification on file. Because FDA has no knowledge that octopamine was marketed as a dietary ingredient before October 15 1994, and no NDI notification has been submitted, supplements containing octopamine are considered adulterated under section 402(f) of the FD&C Act. In practice, FDA uses these findings to conclude that products with octopamine 'do not appear to be lawfully included in products marketed as dietary supplements' — the same enforcement posture applied to other stimulant ingredients like higenamine and hordenine HCl.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "watchlist",
+      "safety_warning": "A sympathomimetic stimulant flagged by FDA as a new dietary ingredient without a lawful safety submission. Associated with blood-pressure elevation; avoid products containing it.",
+      "safety_warning_one_liner": "FDA-flagged stimulant. Avoid."
     },
     {
       "canonical_id": "BANNED_DETERENOL_ISOPROPYLNORSYNEPHRINE",
@@ -2318,7 +2717,10 @@
       "regulatory_basis": "not_lawful_as_supplement — see reason",
       "reason": "Isopropylnorsynephrine (also marketed as deterenol) is a beta-adrenergic stimulant found in dietary supplements. Peer-reviewed analyses have documented it in weight-loss and performance products, where it can cause clinically relevant increases in heart rate and blood pressure. Deterenol is prohibited in sport by WADA and is not a lawful dietary supplement ingredient.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A beta-adrenergic stimulant found in weight-loss products. Associated with cardiovascular risk; not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Unlawful stimulant linked to heart risk. Stop."
     },
     {
       "canonical_id": "BANNED_CALAMUS_ACORUS_CALAMUS",
@@ -2336,7 +2738,10 @@
       "regulatory_basis": "banned_federal — 21 CFR 189.140 prohibits oil of calamus and calamus-containing human food.",
       "reason": "Calamus (Acorus calamus) oil and extracts are prohibited in human food under 21 CFR 189.140 due to beta-asarone content, which was shown carcinogenic in animal studies (NTP, 1983). FDA banned calamus as a food additive in 1968. Because dietary supplements are regulated under the FD&C Act as foods, calamus-containing supplement ingredients are treated as adulterated and not lawful for use in this pipeline.",
       "effective_date": "",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "An oil and extract prohibited in human food under US regulation due to beta-asarone content, which is linked to cancer in animal studies. Stop and consult a doctor.",
+      "safety_warning_one_liner": "US-prohibited botanical linked to cancer concerns. Stop."
     },
     {
       "canonical_id": "HM_CHROMIUM_HEXAVALENT",
@@ -2355,7 +2760,10 @@
       "regulatory_basis": "contaminant_risk — Not a permitted food additive or dietary supplement ingredient. EPA Group A carcinogen. Any Cr(VI) in supplements constitutes adulteration.",
       "reason": "Chromium(VI) is an IARC Group 1 human carcinogen (inhalation — lung and nasal cancers). NTP 2008 TR-546 found clear evidence of oral carcinogenicity in rats (small intestine tumors). EU CLP Category 1A carcinogen AND 1A mutagen. EPA Group A carcinogen. Not a permitted food additive or supplement ingredient in any jurisdiction — it is a contaminant only. Any supplement containing Cr(VI) is adulterated. Mechanism: Cr(VI) crosses cell membranes via sulfate/phosphate anion transporters, undergoes intracellular reductive activation through Cr(V)/Cr(IV) to Cr(III), generating ROS, Cr-DNA adducts, DNA-protein crosslinks, and strand breaks. IMPORTANT: Chromium(III) (picolinate, polynicotinate, etc.) is the beneficial supplemental form — only Cr(VI) compounds are carcinogenic.",
       "effective_date": "2012-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A known human carcinogen via inhalation, with clear oral carcinogenicity in rodent studies. Avoid supplements without verified chromium-speciation testing.",
+      "safety_warning_one_liner": "Carcinogenic form of chromium. Avoid untested products."
     },
     {
       "canonical_id": "RECALLED_ROSABELLA_MORINGA",
@@ -2368,7 +2776,10 @@
       "regulatory_basis": "contaminant_risk — Recall H-0546-2026: Rosabella brand MORINGA Dietary Supplement Capsules, Class I, initiated 2026-02-13",
       "reason": "Rosabella brand Moringa dietary supplement capsules recalled due to potential Salmonella contamination; Salmonella causes salmonellosis with risk of life-threatening infection in vulnerable populations.",
       "effective_date": "2026-02-13",
-      "severity": "major"
+      "severity": "major",
+      "ban_context": "contamination_recall",
+      "safety_warning": "Rosabella Moringa capsules were recalled after tests flagged potential Salmonella contamination. Stop any remaining product and consult a doctor if symptoms develop.",
+      "safety_warning_one_liner": "Recalled for potential Salmonella. Stop."
     },
     {
       "canonical_id": "SCHED_PSILOCIN",
@@ -2385,7 +2796,10 @@
       "regulatory_basis": "controlled_substance — DEA Schedule I controlled substance. Illegal in dietary supplements. FDA issued 50+ warning letters ",
       "reason": "Psilocin is the pharmacologically active metabolite of psilocybin. It is a serotonin 5-HT2A receptor agonist responsible for the psychedelic effects of magic mushrooms. DEA Schedule I controlled substance. While psilocybin is the prodrug found in mushrooms, psilocin itself can also appear in supplement products (either as direct extract or synthetic). Any supplement containing psilocin is an illegal controlled substance.",
       "effective_date": "1970-10-27",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "The pharmacologically active metabolite of psilocybin and a DEA Schedule I substance. Its presence in a supplement is associated with illegal drug inclusion. Stop and consult a doctor.",
+      "safety_warning_one_liner": "DEA Schedule I substance. Stop."
     },
     {
       "canonical_id": "BANNED_MUSCIMOL",
@@ -2401,7 +2815,10 @@
       "regulatory_basis": "controlled_substance — FDA Class I recalls (2024-ongoing). Import alerts active. Not approved as dietary ingredient.",
       "reason": "Muscimol is the primary psychoactive compound in Amanita muscaria mushrooms. It is a potent GABA-A receptor agonist causing sedation, euphoria, altered perception, and at higher doses: seizures, loss of consciousness, and respiratory depression. The margin between psychoactive and toxic doses is narrow and highly variable. Muscimol itself (as isolated compound or concentrated extract) has been marketed in gummies and capsules, leading to the 2024 Diamond Shruumz mass poisoning event.",
       "effective_date": "2024-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A potent GABA-A agonist from Amanita mushrooms — associated with sedation, altered perception, and at higher doses seizures. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Psychoactive mushroom compound. Stop."
     },
     {
       "canonical_id": "BANNED_IBOTENIC_ACID",
@@ -2415,7 +2832,10 @@
       "regulatory_basis": "controlled_substance — FDA Class I recalls (2024-ongoing). Import alerts active. Not approved as dietary ingredient.",
       "reason": "Ibotenic acid is a neurotoxic amino acid found in Amanita muscaria alongside muscimol. It is an NMDA receptor agonist and glutamate analog that causes excitotoxicity. Decarboxylates to muscimol during drying/processing. The combination of ibotenic acid (excitotoxin) and muscimol (GABAergic sedative) creates an unpredictable and dangerous pharmacological profile. Ibotenic acid is used in neuroscience research to create brain lesions — its neurotoxicity is well-established.",
       "effective_date": "2024-01-01",
-      "severity": "critical"
+      "severity": "critical",
+      "ban_context": "substance",
+      "safety_warning": "A neurotoxic amino acid in Amanita mushrooms that acts on NMDA receptors and can cause excitotoxic brain injury. Not a lawful supplement ingredient. Stop and consult a doctor.",
+      "safety_warning_one_liner": "Neurotoxic mushroom compound. Stop."
     }
   ]
 }

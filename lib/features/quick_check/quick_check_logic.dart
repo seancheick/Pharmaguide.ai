@@ -52,6 +52,7 @@ PGBannerTone toneForSeverity(Severity severity) {
     case Severity.caution:
       return PGBannerTone.caution;
     case Severity.monitor:
+    case Severity.informational:
     case Severity.safe:
       return PGBannerTone.info;
   }

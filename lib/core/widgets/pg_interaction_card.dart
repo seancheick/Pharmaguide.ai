@@ -70,6 +70,8 @@ class _PGInteractionCardState extends State<PGInteractionCard> {
         return AppTheme.severityCaution;
       case Severity.monitor:
         return AppTheme.severityMonitor;
+      case Severity.informational:
+        return AppTheme.severityInformational;
       case Severity.safe:
         return AppTheme.severitySafe;
     }

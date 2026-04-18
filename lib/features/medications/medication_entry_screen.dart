@@ -35,6 +35,7 @@
 // `test/features/medications/medication_entry_screen_test.dart`.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,7 +43,10 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_search_field.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/stack/widgets/depletion_nudge_sheet.dart';
 import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 
@@ -279,6 +283,20 @@ class _MedicationEntryScreenState
     );
 
     if (!mounted) return;
+
+    // Depletion nudge (Phase 4 of depletion UX plan) — resolve whether
+    // this medication has a gentle "since you take X, here's something
+    // worth knowing" suggestion, and surface it once per (med, nutrient)
+    // pair before we pop. This runs off the main add-medication path, so
+    // any nudge failure must NOT block the save UI.
+    try {
+      await _maybeShowDepletionNudge(newId, _selectedName!, _selectedClasses);
+    } on Exception {
+      // Intentional: nudge is a non-critical enhancement. Never block
+      // the save flow on its plumbing.
+    }
+
+    if (!mounted) return;
     final nav = Navigator.of(context);
     if (nav.canPop()) {
       nav.pop(newId);
@@ -287,6 +305,64 @@ class _MedicationEntryScreenState
       // nothing to pop to. Reset save state so tests / callers that
       // rely on the post-save UI don't see a stuck spinner.
       setState(() => _saving = false);
+    }
+  }
+
+  /// Compute and (if present) surface the depletion nudge for the
+  /// medication we just saved. Reads the bundled depletions asset,
+  /// filters by user-profile stack coverage, and presents a calm
+  /// modal sheet. Tracks dismissal state in SharedPreferences so
+  /// returning users don't re-see the same suggestion.
+  Future<void> _maybeShowDepletionNudge(
+    String newStackEntryId,
+    String medicationName,
+    List<String> drugClasses,
+  ) async {
+    final nudgeSvc = ref.read(medicationDepletionNudgeServiceProvider);
+    final repo = ref.read(referenceDataRepositoryProvider);
+    final Map<String, dynamic> depletionsData =
+        await repo.loadMedicationDepletions();
+
+    // Build coveredIds from existing supplements in the stack, same
+    // logic as depletionReportProvider. We skip dose data here —
+    // presence-only is enough to avoid nudging users who are already
+    // at least partially covered.
+    final stack = await ref.read(activeStackProvider.future);
+    final coreDb = ref.read(coreDatabaseProvider);
+    final coveredIds = <String>{};
+    for (final supp in stack.where((e) => e.type == 'supplement')) {
+      if (supp.dsldId == null) continue;
+      final product = await coreDb.findById(supp.dsldId!);
+      if (product?.keyIngredientTags == null) continue;
+      try {
+        final tags = jsonDecode(product!.keyIngredientTags!);
+        if (tags is List) {
+          for (final t in tags) {
+            coveredIds.add(t.toString().toLowerCase());
+          }
+        }
+      } on FormatException {
+        // skip malformed rows
+      }
+    }
+
+    final nudge = await nudgeSvc.computePendingNudge(
+      stackEntryId: newStackEntryId,
+      medicationName: medicationName,
+      drugClassIds: drugClasses,
+      depletionsData: depletionsData,
+      stackCanonicalIds: coveredIds,
+    );
+
+    if (nudge == null || nudge.isEmpty) return;
+    if (!mounted) return;
+    final dismissed = await showDepletionNudgeSheet(context, nudge: nudge);
+    // If user chose "Not now" (explicit dismiss) OR "Got it" (read and
+    // acknowledged), mark the pair seen. Only leave it re-surfaceable
+    // if the sheet closed via scrim/back — signals indecision, not
+    // dismissal.
+    if (dismissed == true || dismissed == false) {
+      await nudgeSvc.markAllSeen(nudge);
     }
   }
 

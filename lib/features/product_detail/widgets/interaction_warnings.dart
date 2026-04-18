@@ -13,13 +13,50 @@ import 'package:url_launcher/url_launcher.dart';
 /// This class is public because [product_detail_screen.dart] parses it
 /// directly from the detail blob and passes a `List<InteractionWarning>`
 /// into [InteractionWarningsList].
+///
+/// Pipeline safety-copy contract (schema v5.2, 2026-04-17):
+/// - `displayModeDefault` — how the warning should render when NO user
+///   profile match exists. Values: `critical` (always show),
+///   `informational` (neutral note), `suppress` (hide without profile
+///   match). Null on older blobs — treat as `informational`. See
+///   `scripts/SAFETY_DATA_PATH_C_PLAN.md` in the pipeline repo.
+/// - `severityContextual` — downgraded severity to paint in the profile-
+///   less default view (e.g., `avoid` → `informational` pill). Equal to
+///   [severity] for contraindicated and substance-level hazards.
+/// - `alertHeadline` / `alertBody` / `informationalNote` — authored
+///   layperson copy. Optional during authoring transition; fall back to
+///   `title` / `mechanism` / `management` when null.
 class InteractionWarning {
   final Severity severity;
+
+  /// The severity to render when no user profile match was found.
+  /// Downgraded by the pipeline to a calmer tier for avoid/caution
+  /// rules. Null on older blobs predating schema 5.2.
+  final Severity? severityContextual;
+
+  /// How the warning should display when NO user profile matches.
+  /// Null on older blobs (pre-5.2) — treated as `informational`.
+  final String? displayModeDefault;
+
   final EvidenceLevel evidenceLevel;
   final String title;
   final String mechanism;
   final String management;
   final List<String> sourceUrls;
+
+  /// Authored banner headline (layperson-facing). Falls back to [title]
+  /// if null. Pipeline validator enforces 20-60 chars, no all-caps.
+  final String? alertHeadline;
+
+  /// Authored body copy (layperson-facing). Falls back to [mechanism]
+  /// if null. Pipeline validator enforces conditional framing for
+  /// avoid/contraindicated severity.
+  final String? alertBody;
+
+  /// Authored neutral note shown when the rule is material but no user
+  /// profile match. Validator enforces 40-120 chars with no imperative
+  /// verbs.
+  final String? informationalNote;
 
   /// The condition that triggers this warning (e.g. 'pregnancy', 'diabetes').
   /// Null if the warning is not condition-specific (e.g. drug class warning).
@@ -36,6 +73,11 @@ class InteractionWarning {
     required this.mechanism,
     required this.management,
     this.sourceUrls = const [],
+    this.severityContextual,
+    this.displayModeDefault,
+    this.alertHeadline,
+    this.alertBody,
+    this.informationalNote,
     this.conditionId,
     this.drugClassId,
   });
@@ -43,25 +85,61 @@ class InteractionWarning {
   /// Parse from raw JSON map (from detail blob `warnings` list).
   ///
   /// Pipeline emits fields: `detail`, `action`, `sources`, `condition_id`,
-  /// `drug_class_id`. Legacy aliases `mechanism`/`management`/`source_urls`
-  /// are also accepted for backward compat with older cached blobs.
+  /// `drug_class_id`, `display_mode_default`, `severity_contextual`,
+  /// `alert_headline`, `alert_body`, `informational_note`. Legacy aliases
+  /// `mechanism`/`management`/`source_urls` are also accepted for backward
+  /// compat with older cached blobs.
   factory InteractionWarning.fromJson(Map<String, dynamic> json) {
     final rawUrls = json['sources'] ?? json['source_urls'];
     final urls = rawUrls is List
         ? rawUrls.map((e) => e.toString()).toList()
         : <String>[];
 
+    final sevContextualRaw = json['severity_contextual']?.toString();
+    final sevContextual =
+        (sevContextualRaw != null && sevContextualRaw.isNotEmpty)
+            ? Severity.fromString(sevContextualRaw)
+            : null;
+
     return InteractionWarning(
       severity: Severity.fromString(json['severity']?.toString() ?? 'safe'),
+      severityContextual: sevContextual,
+      displayModeDefault: json['display_mode_default']?.toString(),
       evidenceLevel: EvidenceLevel.fromString(
           json['evidence_level']?.toString() ?? 'theoretical'),
       title: json['title']?.toString() ?? '',
       mechanism: (json['detail'] ?? json['mechanism'])?.toString() ?? '',
       management: (json['action'] ?? json['management'])?.toString() ?? '',
       sourceUrls: urls,
+      alertHeadline: json['alert_headline']?.toString(),
+      alertBody: json['alert_body']?.toString(),
+      informationalNote: json['informational_note']?.toString(),
       conditionId: json['condition_id']?.toString(),
       drugClassId: json['drug_class_id']?.toString(),
     );
+  }
+
+  /// Does this warning match the given user profile?
+  ///
+  /// A profile match means the pipeline rule applies to this user —
+  /// their declared conditions or drug classes intersect the rule's
+  /// trigger tags. Used by the profile-gated filter on the product
+  /// detail screen.
+  bool matchesProfile({
+    required Set<String> userConditions,
+    required Set<String> userDrugClasses,
+  }) {
+    if (conditionId != null &&
+        conditionId!.isNotEmpty &&
+        userConditions.contains(conditionId)) {
+      return true;
+    }
+    if (drugClassId != null &&
+        drugClassId!.isNotEmpty &&
+        userDrugClasses.contains(drugClassId)) {
+      return true;
+    }
+    return false;
   }
 }
 

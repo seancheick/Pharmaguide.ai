@@ -167,6 +167,8 @@ class InteractionResult {
       Severity.avoid => -12,
       Severity.caution => -7,
       Severity.monitor => -3,
+      // Informational tier is profile-less context — no score penalty.
+      Severity.informational => 0,
       Severity.safe => 0,
     };
   }

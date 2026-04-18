@@ -142,7 +142,10 @@ GoRouter _buildRouter({
       GoRoute(
         path: Routes.search,
         builder: (_, state) => catalogRoute(
-          SearchScreen(initialCategory: state.uri.queryParameters['category']),
+          SearchScreen(
+            initialCategory: state.uri.queryParameters['category'],
+            initialQuery: state.uri.queryParameters['query'],
+          ),
         ),
       ),
       GoRoute(

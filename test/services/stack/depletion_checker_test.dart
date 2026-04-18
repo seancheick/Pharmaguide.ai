@@ -1,0 +1,302 @@
+// Tests for DepletionChecker — three-state coverage (none / partial /
+// adequate) and authored-copy passthrough.
+//
+// Uses injected fixtures (not the bundled asset) so tests are
+// deterministic regardless of authoring progress. See
+// scripts/SAFETY_DATA_PATH_C_PLAN.md in the pipeline repo for the
+// schema v5.2 contract these assertions codify.
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/services/stack/depletion_checker.dart';
+
+Map<String, dynamic> _metforminB12Fixture({
+  num? adequacyMcg,
+  Map<String, String?>? authoredCopy,
+}) {
+  return {
+    'depletions': [
+      {
+        'id': 'DEP_METFORMIN_VITAMINB12',
+        'drug_ref': {
+          'id': '860974',
+          'display_name': 'Metformin (type 2 diabetes medication)',
+        },
+        'depleted_nutrient': {
+          'standard_name': 'Vitamin B12',
+          'canonical_id': 'vitamin_b12',
+        },
+        'severity': 'significant',
+        'mechanism': 'Metformin impairs B12 absorption.',
+        'clinical_impact': 'Up to 30% of long-term users develop low B12.',
+        'recommendation': 'Consider B12 supplementation.',
+        'onset_timeline': 'years',
+        'evidence_level': 'established',
+        'sources': [
+          {'source_type': 'reference', 'url': 'https://example.test/nih-b12'},
+        ],
+        if (adequacyMcg != null) 'adequacy_threshold_mcg': adequacyMcg,
+        if (authoredCopy != null) ...authoredCopy,
+      },
+    ],
+  };
+}
+
+void main() {
+  final checker = DepletionChecker();
+
+  group('DepletionChecker — medication matching', () {
+    test('no medications returns empty results', () {
+      final out = checker.check(
+        medications: const [],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(out, isEmpty);
+    });
+
+    test('matches by drug display name substring', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(out, hasLength(1));
+      expect(out.first.depletionId, 'DEP_METFORMIN_VITAMINB12');
+    });
+
+    test('no match returns empty', () {
+      final out = checker.check(
+        medications: [(name: 'Atorvastatin', drugClassId: 'statins')],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(out, isEmpty);
+    });
+  });
+
+  group('DepletionChecker — three-state coverage', () {
+    test('nutrient not in stack → CoverageLevel.none', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+        stackCanonicalIds: {'vitamin_d'},
+      );
+      expect(out, hasLength(1));
+      expect(out.first.coverageLevel, CoverageLevel.none);
+      expect(out.first.isCovered, isFalse);
+    });
+
+    test('nutrient present, no threshold authored → CoverageLevel.adequate', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(),
+        stackCanonicalIds: {'vitamin_b12'},
+      );
+      expect(out.first.coverageLevel, CoverageLevel.adequate);
+      expect(out.first.isCovered, isTrue);
+    });
+
+    test(
+      'nutrient present, threshold authored, no dose data → CoverageLevel.partial',
+      () {
+        // This is the default state of the app today: pipeline adds a
+        // threshold, Flutter doesn't yet load product detail blobs into
+        // the stack flow. Partial coverage is the honest answer: "you're
+        // taking some but we can't tell how much."
+        final out = checker.check(
+          medications: [(name: 'Metformin', drugClassId: null)],
+          depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+          stackCanonicalIds: {'vitamin_b12'},
+        );
+        expect(out.first.coverageLevel, CoverageLevel.partial);
+        expect(out.first.isCovered, isFalse);
+      },
+    );
+
+    test(
+      'dose above threshold → CoverageLevel.adequate',
+      () {
+        final out = checker.check(
+          medications: [(name: 'Metformin', drugClassId: null)],
+          depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+          stackCanonicalIds: {'vitamin_b12'},
+          stackDoses: [
+            const StackSupplementDose(
+              canonicalId: 'vitamin_b12',
+              doseAmount: 1000,
+              doseUnit: 'mcg',
+            ),
+          ],
+        );
+        expect(out.first.coverageLevel, CoverageLevel.adequate);
+      },
+    );
+
+    test('dose below threshold → CoverageLevel.partial', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+        stackCanonicalIds: {'vitamin_b12'},
+        stackDoses: [
+          const StackSupplementDose(
+            canonicalId: 'vitamin_b12',
+            doseAmount: 100,
+            doseUnit: 'mcg',
+          ),
+        ],
+      );
+      expect(out.first.coverageLevel, CoverageLevel.partial);
+    });
+
+    test('mg-unit dose correctly compared to mcg threshold', () {
+      // 0.5 mg == 500 mcg — exactly at threshold, adequate.
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+        stackCanonicalIds: {'vitamin_b12'},
+        stackDoses: [
+          const StackSupplementDose(
+            canonicalId: 'vitamin_b12',
+            doseAmount: 0.5,
+            doseUnit: 'mg',
+          ),
+        ],
+      );
+      expect(out.first.coverageLevel, CoverageLevel.adequate);
+    });
+
+    test('canonical_id matching is case-insensitive', () {
+      // Safety invariant: lowercase the join key on both sides.
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(),
+        stackCanonicalIds: {'VITAMIN_B12'},
+      );
+      expect(out.first.coverageLevel, CoverageLevel.adequate);
+    });
+
+    test('unknown unit (IU) degrades to partial, not adequate', () {
+      // IU→mcg is vitamin-specific; we don't silently assume a factor.
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+        stackCanonicalIds: {'vitamin_b12'},
+        stackDoses: [
+          const StackSupplementDose(
+            canonicalId: 'vitamin_b12',
+            doseAmount: 1000,
+            doseUnit: 'IU',
+          ),
+        ],
+      );
+      expect(out.first.coverageLevel, CoverageLevel.partial);
+    });
+  });
+
+  group('DepletionChecker — authored copy passthrough', () {
+    test('authored fields flow through to DepletionMatch', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(authoredCopy: {
+          'alert_headline': 'May lower vitamin B12 over time',
+          'alert_body': 'Long-term metformin use can reduce B12 absorption.',
+          'acknowledgement_note':
+              'Nice — you are taking B12, which doctors recommend.',
+          'monitoring_tip_short': 'Consider checking B12 levels every 2-3 years.',
+        }),
+      );
+      final m = out.first;
+      expect(m.alertHeadline, 'May lower vitamin B12 over time');
+      expect(m.alertBody, contains('Long-term metformin'));
+      expect(m.acknowledgementNote, contains('Nice'));
+      expect(m.monitoringTipShort, contains('Consider'));
+    });
+
+    test('food_sources_short field flows through when authored', () {
+      // Simulates the absorption-blocked hint Dr. Pham authors for
+      // metformin/B12 — supplement is more reliable than food.
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(authoredCopy: {
+          'food_sources_short':
+              'Because metformin reduces B12 absorption, food sources may '
+              'not be enough on their own — a supplement is often more '
+              'reliable.',
+        }),
+      );
+      expect(out.first.foodSourcesShort, isNotNull);
+      expect(out.first.foodSourcesShort, contains('food sources may not'));
+    });
+
+    test('food_sources_short is null when pipeline omits it', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(out.first.foodSourcesShort, isNull);
+    });
+
+    test('authored fields are null on legacy-shape entries', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(),
+      );
+      final m = out.first;
+      expect(m.alertHeadline, isNull);
+      expect(m.alertBody, isNull);
+      expect(m.acknowledgementNote, isNull);
+      expect(m.monitoringTipShort, isNull);
+      // But the legacy fields still flow through for the fallback path.
+      expect(m.mechanism, contains('Metformin'));
+      expect(m.clinicalImpact, contains('30%'));
+      expect(m.onsetTimeline, 'years');
+    });
+  });
+
+  group('DepletionChecker — sort order', () {
+    test('uncovered sort before partial before adequate', () {
+      final data = {
+        'depletions': [
+          {
+            'id': 'A_ADEQUATE',
+            'drug_ref': {'display_name': 'Metformin'},
+            'depleted_nutrient': {'standard_name': 'N1', 'canonical_id': 'n1'},
+            'severity': 'significant',
+          },
+          {
+            'id': 'B_PARTIAL',
+            'drug_ref': {'display_name': 'Metformin'},
+            'depleted_nutrient': {'standard_name': 'N2', 'canonical_id': 'n2'},
+            'severity': 'significant',
+            'adequacy_threshold_mcg': 500,
+          },
+          {
+            'id': 'C_NONE',
+            'drug_ref': {'display_name': 'Metformin'},
+            'depleted_nutrient': {'standard_name': 'N3', 'canonical_id': 'n3'},
+            'severity': 'mild',
+          },
+        ],
+      };
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: data,
+        stackCanonicalIds: {'n1', 'n2'},
+      );
+      // none (C) first, partial (B) next, adequate (A) last.
+      expect(out.map((m) => m.depletionId).toList(),
+          ['C_NONE', 'B_PARTIAL', 'A_ADEQUATE']);
+    });
+  });
+
+  group('CoverageLevel convenience', () {
+    test('isCovered only true for adequate', () {
+      expect(CoverageLevel.none.isCovered, isFalse);
+      expect(CoverageLevel.partial.isCovered, isFalse);
+      expect(CoverageLevel.adequate.isCovered, isTrue);
+    });
+
+    test('isAnyCoverage true for partial and adequate', () {
+      expect(CoverageLevel.none.isAnyCoverage, isFalse);
+      expect(CoverageLevel.partial.isAnyCoverage, isTrue);
+      expect(CoverageLevel.adequate.isAnyCoverage, isTrue);
+    });
+  });
+}

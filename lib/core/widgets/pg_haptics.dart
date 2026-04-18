@@ -66,7 +66,9 @@ abstract final class PGHaptics {
       case Severity.caution:
       case Severity.monitor:
         return warning();
+      case Severity.informational:
       case Severity.safe:
+        // Informational and safe tiers are non-alarming — no haptic.
         return success(context);
     }
   }

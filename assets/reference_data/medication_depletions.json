@@ -2,8 +2,8 @@
   "_metadata": {
     "description": "Drug-induced nutrient depletions — maps medications/drug classes to nutrients they deplete",
     "purpose": "depletion_checker",
-    "schema_version": "5.0.0",
-    "last_updated": "2026-04-12",
+    "schema_version": "5.2.1",
+    "last_updated": "2026-04-17",
     "total_entries": 68,
     "data_sources": [
       "NIH Office of Dietary Supplements",
@@ -12,7 +12,36 @@
       "FDA Drug Safety Communications"
     ],
     "clinical_disclaimer": "Informational only. Consult healthcare provider before supplementing.",
-    "notes": "Two entries (DEP_BETABLOCKERS_MELATONIN, DEP_BENZODIAZEPINES_MELATONIN) reference canonical_id 'melatonin' which is not in rda_optimal_uls.json. These are valid clinical depletions; rda_optimal_uls.json should be extended to include melatonin if depletion checker requires canonical_id resolution."
+    "notes": "Two entries (DEP_BETABLOCKERS_MELATONIN, DEP_BENZODIAZEPINES_MELATONIN) reference canonical_id 'melatonin' which is not in rda_optimal_uls.json. These are valid clinical depletions; rda_optimal_uls.json should be extended to include melatonin if depletion checker requires canonical_id resolution.",
+    "flutter_schema_version": "5.2.1",
+    "flutter_top_level_key": "depletions",
+    "migration": {
+      "completed_migrations": [
+        {
+          "from": "5.0.0",
+          "to": "5.2.0",
+          "date": "2026-04-17",
+          "summary": "Authored layperson copy fields (alert_headline, alert_body, acknowledgement_note, monitoring_tip_short) + optional adequacy_threshold + flutter_top_level_key invariant"
+        },
+        {
+          "from": "5.2.0",
+          "to": "5.2.1",
+          "date": "2026-04-17",
+          "summary": "Added optional food_sources_short field + clinical nocebo-safe validator rules (numeric stat ban, absolute claims ban, acute framing ban, catastrophizing warn, symptom-list cap, sentence cap)"
+        }
+      ]
+    },
+    "v52_added_fields": {
+      "alert_headline": "authored string per entry, 20-60 chars, calm voicing (no \"Depleted by X\")",
+      "alert_body": "authored string, 60-200 chars, includes onset framing (over time, long-term, gradually)",
+      "acknowledgement_note": "authored string, 40-120 chars, positive validation shown when user's stack already covers the depletion — MUST NOT contain caution verbs",
+      "monitoring_tip_short": "authored string, 40-120 chars, layperson action tip — always shown",
+      "adequacy_threshold_mcg / adequacy_threshold_mg": "optional numeric threshold; dose at or above this qualifies as adequate coverage (vs partial)",
+      "food_sources_short": "optional string, 40-160 chars, inclusive framing only. For absorption-blocked depletions (metformin/B12, PPI/B12, statin/CoQ10) use the explicit hint pattern: \"Because <drug> reduces <nutrient> absorption, food sources may not be enough on their own — a supplement is often more reliable.\""
+    },
+    "reviewed_by": "Lead Clinician (PharmaGuide)",
+    "reviewed_date": "2026-04-17",
+    "review_round": "full_authoring_pass_v1"
   },
   "depletions": [
     {
@@ -35,16 +64,17 @@
       "monitoring_note": "Consider checking CoQ10 plasma levels if experiencing unexplained muscle symptoms on statin therapy.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Rundek T et al. Atorvastatin decreases the coenzyme Q10 level in the blood of patients at risk for cardiovascular disease and stroke. Arch Neurol. 2004",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/15339854/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Banach M et al. Statin therapy and plasma coenzyme Q10 concentrations. Pharmacol Res. 2015",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/26482868/"
+          "source_type": "reference",
+          "label": "NIH ODS — Coenzyme Q10 Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/CoQ10-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May lower CoQ10 levels over time",
+      "alert_body": "Statins can gradually reduce the body's natural production of CoQ10 over time. Some people notice lower energy or muscle fatigue with long-term use.",
+      "acknowledgement_note": "You're taking CoQ10 — a common and reasonable addition for people on statins.",
+      "monitoring_tip_short": "Consider mentioning any muscle symptoms at your next visit; this often guides next steps.",
+      "adequacy_threshold_mg": 100,
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
     },
     {
       "id": "DEP_STATINS_VITAMIND",
@@ -66,16 +96,17 @@
       "monitoring_note": "Test serum 25-hydroxyvitamin D annually, especially in winter months or low-sunlight climates.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Pérez-Castrillón JL et al. Effects of atorvastatin on vitamin D levels in patients with acute ischemic heart disease. Am J Cardiol. 2007",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17437748/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Lajous M et al. Statins and Vitamin D. Am J Med. 2012",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/22153731/"
+          "source_type": "reference",
+          "label": "NIH ODS — Vitamin D Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May affect vitamin D over time",
+      "alert_body": "Long-term statin use may gradually influence how the body processes vitamin D. Levels can drift lower over months, especially through winter.",
+      "acknowledgement_note": "Nice — vitamin D intake helps support levels while on statin therapy.",
+      "monitoring_tip_short": "Consider asking about a vitamin D check at your annual visit, especially in winter.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_ANTACIDS_VITAMINB12",
@@ -106,7 +137,13 @@
           "label": "Lam JR et al. Proton pump inhibitor and histamine 2 receptor antagonist use and vitamin B12 deficiency. JAMA. 2013",
           "url": "https://pubmed.ncbi.nlm.nih.gov/24327038/"
         }
-      ]
+      ],
+      "alert_headline": "Can affect vitamin B12 absorption long-term",
+      "alert_body": "By lowering stomach acid, these medications can gradually reduce how well vitamin B12 is absorbed from food. Over years of use, some people develop lower levels.",
+      "acknowledgement_note": "You're taking B12 — a helpful way to support levels while using acid-reducing medication.",
+      "monitoring_tip_short": "Consider asking about a B12 check if you've been using these medications long-term.",
+      "adequacy_threshold_mcg": 250,
+      "food_sources_short": "Because these medications can limit B12 absorption, food sources may not be enough on their own — a supplement is often more reliable."
     },
     {
       "id": "DEP_ANTACIDS_MAGNESIUM",
@@ -137,7 +174,13 @@
           "label": "FDA Drug Safety Communication: Low magnesium levels can be associated with long-term use of PPIs. 2011",
           "url": "https://www.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-low-magnesium-levels-can-be-associated-long-term-use-proton-pump"
         }
-      ]
+      ],
+      "alert_headline": "May lower magnesium with long-term use",
+      "alert_body": "Over time, long-term PPI use can gradually reduce magnesium levels. This develops slowly over months to years and may be subtle at first.",
+      "acknowledgement_note": "Good — your magnesium intake supports maintaining levels while using this medication.",
+      "monitoring_tip_short": "Consider checking magnesium if you've been on this medication long-term.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_ANTACIDS_CALCIUM",
@@ -159,11 +202,17 @@
       "monitoring_note": "Consider DEXA scan for bone density assessment with long-term PPI use, especially postmenopausal women.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Yu EW et al. Proton pump inhibitors and risk of fractures: a meta-analysis of 11 international studies. Am J Med. 2011",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/20610041/"
+          "source_type": "reference",
+          "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May affect calcium absorption over years",
+      "alert_body": "Long-term acid suppression can gradually reduce how well calcium is absorbed, which over years may influence bone strength.",
+      "acknowledgement_note": "Good — calcium intake is part of standard support during long-term acid-reducer use.",
+      "monitoring_tip_short": "Consider discussing bone health and calcium form with your doctor; citrate is often preferred.",
+      "adequacy_threshold_mg": 500,
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
     },
     {
       "id": "DEP_ANTACIDS_IRON",
@@ -185,16 +234,17 @@
       "monitoring_note": "Check serum ferritin and CBC annually with long-term PPI use, especially in women of childbearing age.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Hutchinson C et al. Proton pump inhibitors suppress absorption of dietary non-haem iron in hereditary haemochromatosis. Gut. 2007",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17008369/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Sarzynski E et al. Association between proton pump inhibitor use and anemia. Dig Dis Sci. 2011",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/25208642/"
+          "source_type": "reference",
+          "label": "NIH ODS — Iron Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May lower iron absorption over time",
+      "alert_body": "Long-term use of acid-reducing medications can gradually reduce iron absorption from food. Some people develop lower iron stores over months of use.",
+      "acknowledgement_note": "You're taking iron — a thoughtful step while using acid-reducing medication long-term.",
+      "monitoring_tip_short": "Consider asking about periodic ferritin checks, particularly for women of childbearing age.",
+      "adequacy_threshold_mg": 18,
+      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals."
     },
     {
       "id": "DEP_ANTACIDS_VITAMINC",
@@ -220,7 +270,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May modestly affect vitamin C over time",
+      "alert_body": "Higher stomach pH from acid-reducers can gradually reduce how well vitamin C holds up through digestion. The effect is typically modest with regular use.",
+      "acknowledgement_note": "Nice — your vitamin C intake supports levels while using acid-reducing medication.",
+      "monitoring_tip_short": "Consider taking vitamin C at a different time of day from acid-reducing medication.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
     },
     {
       "id": "DEP_ANTACIDS_ZINC",
@@ -246,7 +302,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May slightly lower zinc over time",
+      "alert_body": "With long-term use, acid-reducing medications can gradually reduce how well zinc is freed from food and absorbed. The effect is usually mild.",
+      "acknowledgement_note": "Good — your zinc intake helps support levels while on acid-reducing medication.",
+      "monitoring_tip_short": "Consider taking zinc at a different time of day from acid-reducing medication.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include oysters, meat, poultry, beans, lentils, nuts, seeds, and whole grains."
     },
     {
       "id": "DEP_METFORMIN_VITAMINB12",
@@ -268,9 +330,9 @@
       "monitoring_note": "ADA Standards of Care recommend checking B12 levels every 2–3 years in all metformin-treated patients. Methylmalonic acid is a sensitive functional marker for early deficiency.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Adams JF et al. Malabsorption of vitamin B12 and intrinsic factor secretion during biguanide therapy. Diabetologia. 1983",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/6400498/"
+          "source_type": "reference",
+          "label": "NIH ODS — Vitamin B12 Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"
         },
         {
           "source_type": "pubmed",
@@ -282,7 +344,13 @@
           "label": "Bauman WA et al. Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin. Diabetes Care. 2000",
           "url": "https://pubmed.ncbi.nlm.nih.gov/10977010/"
         }
-      ]
+      ],
+      "alert_headline": "May lower vitamin B12 over time",
+      "alert_body": "With long-term use, metformin can reduce how well vitamin B12 is absorbed. Some people develop lower levels over years, which may show up as fatigue or tingling in the hands and feet.",
+      "acknowledgement_note": "Nice — you're taking B12, which aligns with guidance for long-term metformin use.",
+      "monitoring_tip_short": "Consider checking B12 levels every 2-3 years; easy to review at a routine visit.",
+      "adequacy_threshold_mcg": 500,
+      "food_sources_short": "Because metformin reduces B12 absorption, food sources may not be enough on their own — a supplement is often more reliable."
     },
     {
       "id": "DEP_METFORMIN_FOLATE",
@@ -313,7 +381,13 @@
           "label": "de Jager J et al. Long term treatment with metformin in patients with type 2 diabetes and risk of vitamin B-12 deficiency. BMJ. 2010",
           "url": "https://pubmed.ncbi.nlm.nih.gov/20488910/"
         }
-      ]
+      ],
+      "alert_headline": "May modestly affect folate over time",
+      "alert_body": "With long-term metformin use, folate levels can drift lower over months. The effect is usually modest, but folate matters more when planning for pregnancy.",
+      "acknowledgement_note": "Nice — folate intake is a thoughtful complement to long-term metformin use.",
+      "monitoring_tip_short": "Consider discussing folate at your routine visits, especially when planning ahead.",
+      "adequacy_threshold_mcg": 400,
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
     },
     {
       "id": "DEP_OCP_VITAMINB6",
@@ -335,11 +409,17 @@
       "monitoring_note": null,
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+          "source_type": "reference",
+          "label": "NIH ODS — Vitamin B6 Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May lower vitamin B6 over time",
+      "alert_body": "Hormonal birth control can gradually increase the body's demand for vitamin B6. With regular use over months, levels may drift lower in some people.",
+      "acknowledgement_note": "Nice — B6 intake supports levels while using hormonal birth control.",
+      "monitoring_tip_short": "Consider a B-complex if you notice mood changes; discuss with your clinician.",
+      "adequacy_threshold_mg": 25,
+      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals."
     },
     {
       "id": "DEP_OCP_VITAMINB12",
@@ -361,11 +441,17 @@
       "monitoring_note": null,
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+          "source_type": "reference",
+          "label": "NIH ODS — Vitamin B12 Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May modestly affect vitamin B12 over time",
+      "alert_body": "With regular use, hormonal birth control can shift how vitamin B12 appears in the blood over months, sometimes showing slightly lower levels.",
+      "acknowledgement_note": "Good — B12 intake helps support levels while using hormonal birth control.",
+      "monitoring_tip_short": "Consider discussing B12 at a routine visit, especially if planning pregnancy ahead.",
+      "adequacy_threshold_mcg": 250,
+      "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals."
     },
     {
       "id": "DEP_OCP_FOLATE",
@@ -387,11 +473,17 @@
       "monitoring_note": "Consider starting 5-methyltetrahydrofolate supplementation at least 3 months before attempting conception after stopping OCPs.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
+          "source_type": "reference",
+          "label": "NIH ODS — Folate Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May slightly lower folate over time",
+      "alert_body": "With regular use, oral contraceptives can modestly reduce folate levels over time. Most people remain within range, but folate becomes more important when planning for pregnancy.",
+      "acknowledgement_note": "Nice — maintaining folate intake is a thoughtful step, especially if pregnancy may be a future consideration.",
+      "monitoring_tip_short": "Consider discussing folate intake during routine visits, particularly when planning ahead.",
+      "adequacy_threshold_mcg": 400,
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
     },
     {
       "id": "DEP_OCP_MAGNESIUM",
@@ -417,7 +509,13 @@
           "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
           "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
         }
-      ]
+      ],
+      "alert_headline": "May lower magnesium over time",
+      "alert_body": "With regular use, hormonal birth control can gradually shift magnesium levels lower. Some people notice muscle tension or headaches with long-term use.",
+      "acknowledgement_note": "Good — your magnesium intake supports levels while on hormonal birth control.",
+      "monitoring_tip_short": "Consider discussing magnesium at a routine visit if you notice frequent headaches.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_OCP_ZINC",
@@ -443,7 +541,13 @@
           "label": "Palmery M et al. Oral contraceptives and changes in nutritional requirements. Eur Rev Med Pharmacol Sci. 2013",
           "url": "https://pubmed.ncbi.nlm.nih.gov/23636014/"
         }
-      ]
+      ],
+      "alert_headline": "May modestly affect zinc over time",
+      "alert_body": "Hormonal birth control can gradually shift how zinc is distributed in the body over months. Measured levels sometimes run lower with long-term use.",
+      "acknowledgement_note": "Nice — zinc intake helps support levels while using hormonal birth control.",
+      "monitoring_tip_short": "Consider a balanced multivitamin that includes zinc; discuss with your clinician.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
     },
     {
       "id": "DEP_OCP_VITAMINC",
@@ -469,7 +573,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May slightly lower vitamin C over time",
+      "alert_body": "With regular use, hormonal birth control can gradually shift vitamin C levels lower. The effect is usually modest in people with a varied diet.",
+      "acknowledgement_note": "Nice — your vitamin C intake supports levels while on hormonal birth control.",
+      "monitoring_tip_short": "Consider daily fruit and vegetable variety; a supplement is optional.",
+      "adequacy_threshold_mg": 75,
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
     },
     {
       "id": "DEP_OCP_VITAMINE",
@@ -495,7 +605,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May slightly lower vitamin E over time",
+      "alert_body": "With regular use, hormonal birth control can modestly reduce vitamin E levels over months. Most people feel no change; a varied diet usually covers this.",
+      "acknowledgement_note": "Good — vitamin E intake supports antioxidant balance during long-term use.",
+      "monitoring_tip_short": "Consider variety in nuts, seeds, and vegetable oils in daily meals.",
+      "adequacy_threshold_mg": 15,
+      "food_sources_short": "Food sources of vitamin E include almonds, sunflower seeds, vegetable oils, avocado, and leafy greens."
     },
     {
       "id": "DEP_DIURETICS_POTASSIUM",
@@ -521,7 +637,12 @@
           "label": "Brater DC. Diuretic therapy. N Engl J Med. 1998;339:387-395",
           "url": "https://pubmed.ncbi.nlm.nih.gov/9691107/"
         }
-      ]
+      ],
+      "alert_headline": "Can lower potassium with regular use",
+      "alert_body": "Certain diuretics increase potassium loss through urine. With ongoing use over weeks to months, levels may gradually decline.",
+      "acknowledgement_note": "Good — potassium is typically monitored closely with these medications, and your care plan helps keep levels on track.",
+      "monitoring_tip_short": "Ask about periodic potassium checks; this is a standard part of follow-up.",
+      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes."
     },
     {
       "id": "DEP_DIURETICS_MAGNESIUM",
@@ -547,7 +668,13 @@
           "label": "Altura BM, Altura BT. New perspectives on the role of magnesium in the pathophysiology of the cardiovascular system. Magnesium. 1985",
           "url": "https://pubmed.ncbi.nlm.nih.gov/3003511/"
         }
-      ]
+      ],
+      "alert_headline": "Can lower magnesium with regular use",
+      "alert_body": "Loop and thiazide diuretics can gradually increase magnesium loss through urine over weeks to months. Keeping magnesium steady often helps keep potassium steady too.",
+      "acknowledgement_note": "Good — your magnesium intake supports steady levels while on diuretic therapy.",
+      "monitoring_tip_short": "Ask about periodic magnesium checks alongside your potassium tests.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_DIURETICS_ZINC",
@@ -573,7 +700,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May lower zinc over time",
+      "alert_body": "Diuretics can gradually increase urinary zinc loss with long-term use. Over months, stores may drift lower, especially in older adults.",
+      "acknowledgement_note": "Good — your zinc intake supports levels while on long-term diuretic therapy.",
+      "monitoring_tip_short": "Consider a multivitamin with zinc; ask your clinician if it's a fit.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
     },
     {
       "id": "DEP_DIURETICS_CALCIUM",
@@ -599,7 +732,13 @@
           "label": "Quamme GA. Renal handling of magnesium: drug and hormone interactions. Magnesium. 1986",
           "url": "https://pubmed.ncbi.nlm.nih.gov/3537199/"
         }
-      ]
+      ],
+      "alert_headline": "Loop diuretics may lower calcium over time",
+      "alert_body": "Loop diuretics like furosemide can gradually increase calcium loss in urine with long-term use. This applies to loop diuretics, not thiazides.",
+      "acknowledgement_note": "Good — calcium intake supports bone health during long-term loop diuretic therapy.",
+      "monitoring_tip_short": "Consider discussing bone health screening if on a loop diuretic long-term.",
+      "adequacy_threshold_mg": 500,
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
     },
     {
       "id": "DEP_DIURETICS_THIAMINE",
@@ -621,16 +760,17 @@
       "monitoring_note": "Consider measuring whole-blood thiamine in heart failure patients on chronic high-dose furosemide, especially those with poor nutritional status.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Seligmann H et al. Thiamine deficiency in patients with congestive heart failure receiving long-term furosemide therapy. Am J Med. 1991",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/1952159/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Rieck J et al. Urinary loss of thiamine is increased by low doses of furosemide in healthy volunteers. J Lab Clin Med. 1999",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/16832143/"
+          "source_type": "reference",
+          "label": "NIH ODS — Thiamin Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Thiamin-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "Furosemide may lower thiamine over time",
+      "alert_body": "Furosemide can gradually increase thiamine loss in urine with ongoing use over months. This matters especially for people managing heart failure.",
+      "acknowledgement_note": "Nice — thiamine intake supports levels while on long-term furosemide.",
+      "monitoring_tip_short": "Consider asking your cardiologist about a thiamine supplement with long-term furosemide.",
+      "adequacy_threshold_mg": 50,
+      "food_sources_short": "Food sources of thiamine include pork, fish, whole grains, fortified cereals, beans, lentils, and seeds."
     },
     {
       "id": "DEP_DIURETICS_FOLATE",
@@ -656,7 +796,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "Triamterene may lower folate over time",
+      "alert_body": "Triamterene (found in some combination diuretics) can gradually interfere with folate metabolism with long-term use. Over months, levels may drift lower.",
+      "acknowledgement_note": "Nice — folate intake aligns with guidance for long-term triamterene use.",
+      "monitoring_tip_short": "Consider discussing folate intake with your doctor, particularly if also on methotrexate.",
+      "adequacy_threshold_mcg": 400,
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_CALCIUM",
@@ -678,16 +824,17 @@
       "monitoring_note": "DEXA scan at baseline and every 1–2 years for patients on long-term corticosteroids. Check serum calcium and 25-OH vitamin D.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "American College of Rheumatology recommendations for prevention of glucocorticoid-induced osteoporosis. Arthritis Rheum. 2001",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/11406523/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Canalis E et al. Glucocorticoid-induced osteoporosis: pathophysiology and therapy. Osteoporos Int. 2007",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17429827/"
+          "source_type": "reference",
+          "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "Can affect calcium balance with long-term use",
+      "alert_body": "With ongoing use over months, corticosteroids can gradually reduce calcium absorption and affect bone strength.",
+      "acknowledgement_note": "Good — calcium is part of standard support for long-term corticosteroid use.",
+      "monitoring_tip_short": "Consider discussing bone health and screening if use continues over time.",
+      "adequacy_threshold_mg": 500,
+      "food_sources_short": "Food sources of calcium include dairy products, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMIND",
@@ -709,11 +856,17 @@
       "monitoring_note": "Check 25-OH vitamin D at baseline and every 6 months during long-term corticosteroid therapy.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Canalis E et al. Glucocorticoid-induced osteoporosis: pathophysiology and therapy. Osteoporos Int. 2007",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17429827/"
+          "source_type": "reference",
+          "label": "NIH ODS — Vitamin D Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "Can lower vitamin D with long-term use",
+      "alert_body": "Long-term corticosteroid use can gradually reduce active vitamin D levels over months, which works alongside calcium to support bone strength.",
+      "acknowledgement_note": "Good — vitamin D intake is part of standard support for long-term corticosteroid use.",
+      "monitoring_tip_short": "Consider a 25-OH-vitamin D check; your clinician can guide target levels.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_POTASSIUM",
@@ -739,7 +892,12 @@
           "label": "Schimmer BP, Funder JW. ACTH, Adrenal Steroids, and Pharmacology of the Adrenal Cortex. In: Goodman & Gilman's. 13th ed.",
           "url": "https://accessmedicine.mhmedical.com/content.aspx?bookid=1613&sectionid=102158241"
         }
-      ]
+      ],
+      "alert_headline": "Can lower potassium with regular use",
+      "alert_body": "Corticosteroids can gradually increase potassium loss through the kidneys with regular use over weeks to months. The effect is more noticeable at higher doses.",
+      "acknowledgement_note": "Good — potassium is typically monitored during corticosteroid therapy, and your care plan helps keep levels steady.",
+      "monitoring_tip_short": "Ask about periodic potassium checks during long-term corticosteroid therapy.",
+      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, tomatoes, and leafy greens."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_MAGNESIUM",
@@ -765,7 +923,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May lower magnesium with long-term use",
+      "alert_body": "Long-term corticosteroid use can gradually increase magnesium loss through urine over months. Magnesium also supports bone health alongside calcium and vitamin D.",
+      "acknowledgement_note": "Good — magnesium intake supports bone and muscle balance during long-term corticosteroid use.",
+      "monitoring_tip_short": "Consider asking about magnesium alongside calcium and vitamin D during therapy.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMINC",
@@ -791,7 +955,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May lower vitamin C over time",
+      "alert_body": "With long-term corticosteroid use, the body's vitamin C turnover gradually increases. Some people develop lower levels over months of therapy.",
+      "acknowledgement_note": "Good — vitamin C intake supports skin and tissue health during long-term corticosteroid use.",
+      "monitoring_tip_short": "Consider daily fruits and vegetables; a supplement is reasonable during therapy.",
+      "adequacy_threshold_mg": 500,
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_ZINC",
@@ -817,7 +987,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May lower zinc over time",
+      "alert_body": "Long-term corticosteroid use can gradually increase zinc loss through urine over months, which can slow skin healing in some people.",
+      "acknowledgement_note": "Good — zinc intake supports skin and immune balance during long-term corticosteroid use.",
+      "monitoring_tip_short": "Consider a multivitamin with zinc if skin healing feels slower than usual.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMINB6",
@@ -843,7 +1019,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May modestly affect vitamin B6 over time",
+      "alert_body": "With long-term corticosteroid use, the body's demand for vitamin B6 gradually increases. Levels may drift lower over months for some people.",
+      "acknowledgement_note": "Nice — B6 intake supports levels during long-term corticosteroid therapy.",
+      "monitoring_tip_short": "Consider a B-complex if mood changes are noticeable; discuss with your clinician.",
+      "adequacy_threshold_mg": 25,
+      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals."
     },
     {
       "id": "DEP_SSRIS_SODIUM",
@@ -865,16 +1047,15 @@
       "monitoring_note": "Check serum sodium at baseline and 2–4 weeks after starting SSRI therapy in elderly patients or those on concurrent diuretics.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "De Picker L et al. Antidepressants and the risk of hyponatremia: a class-by-class review of literature. Psychosomatics. 2014",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/24345671/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Fabian TJ et al. Paroxetine-induced hyponatremia in older adults. Arch Intern Med. 2004",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/15037490/"
+          "source_type": "reference",
+          "label": "NIH ODS — Sodium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Sodium-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May affect sodium early in treatment",
+      "alert_body": "In the first weeks of an SSRI, sodium levels can gradually drift lower, especially in older adults or those on water pills. Your prescriber often checks this early.",
+      "acknowledgement_note": "Good — your care plan includes sodium awareness, which helps catch changes early.",
+      "monitoring_tip_short": "Consider asking for a sodium check 2-4 weeks after starting an SSRI."
     },
     {
       "id": "DEP_SSRIS_CALCIUM",
@@ -896,16 +1077,17 @@
       "monitoring_note": "Consider DEXA scan for bone density assessment in patients on long-term SSRI therapy, especially elderly women.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Diem SJ et al. Use of antidepressants and rates of hip bone loss in older women. Arch Intern Med. 2007",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17353497/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Haney EM et al. Association of low bone mineral density with selective serotonin reuptake inhibitor use by older men. Arch Intern Med. 2007",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17353496/"
+          "source_type": "reference",
+          "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May affect bone calcium over years",
+      "alert_body": "With long-term SSRI use, bone calcium can gradually shift over years, which may influence bone density — most relevant for older adults.",
+      "acknowledgement_note": "Good — calcium intake supports bone health during long-term SSRI therapy.",
+      "monitoring_tip_short": "Consider discussing bone density screening if on an SSRI long-term.",
+      "adequacy_threshold_mg": 500,
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
     },
     {
       "id": "DEP_SSRIS_VITAMIND",
@@ -931,7 +1113,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May relate to vitamin D over time",
+      "alert_body": "Vitamin D often runs lower in people on long-term SSRIs, partly because indoor time tends to increase. Levels can drift lower over months.",
+      "acknowledgement_note": "Good — vitamin D intake supports overall balance during SSRI therapy.",
+      "monitoring_tip_short": "Consider checking vitamin D at your annual visit, especially in winter months.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMIND",
@@ -953,16 +1141,17 @@
       "monitoring_note": "Check serum 25-OH vitamin D every 6–12 months in all patients on long-term AED therapy. Target 25-OH-D >30 ng/mL.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Pack AM et al. Bone health in people with epilepsy: is it impaired and what are the risk factors? Seizure. 2008",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17616490/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Holló A et al. Correction of vitamin D deficiency improves seizure control in epilepsy. Epilepsy Behav. 2012",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/22210468/"
+          "source_type": "reference",
+          "label": "NIH ODS — Vitamin D Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "Can lower vitamin D with long-term use",
+      "alert_body": "Certain seizure medications can gradually speed up how the body breaks down vitamin D over months, leading to lower levels with ongoing use.",
+      "acknowledgement_note": "Good — vitamin D intake aligns with guidance for long-term seizure-medication use.",
+      "monitoring_tip_short": "Consider asking for a 25-OH-D check; your neurologist can guide dosing.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_ANTICONVULSANTS_CALCIUM",
@@ -984,11 +1173,17 @@
       "monitoring_note": "Check serum calcium and alkaline phosphatase (marker of bone turnover) annually in patients on enzyme-inducing AEDs.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Pack AM et al. Bone health in people with epilepsy: is it impaired and what are the risk factors? Seizure. 2008",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/17616490/"
+          "source_type": "reference",
+          "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May lower calcium with long-term use",
+      "alert_body": "With long-term use of certain seizure medications, calcium absorption can gradually decline over months — this often moves alongside vitamin D.",
+      "acknowledgement_note": "Good — calcium intake supports bone balance during long-term seizure-medication use.",
+      "monitoring_tip_short": "Consider discussing calcium and vitamin D together at your neurology visits.",
+      "adequacy_threshold_mg": 500,
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
     },
     {
       "id": "DEP_ANTICONVULSANTS_FOLATE",
@@ -1010,11 +1205,17 @@
       "monitoring_note": "Check serum folate and CBC annually. In women of childbearing age, discuss with neurologist regarding folate dose that balances maternal deficiency risk against potential seizure threshold effects.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Linnebank M et al. Antiepileptic drugs interact with the folic acid pathway. Clin Pharmacol Ther. 2011",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/9533524/"
+          "source_type": "reference",
+          "label": "NIH ODS — Folate Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May lower folate with long-term use",
+      "alert_body": "Several seizure medications can gradually reduce folate over months. Folate matters especially for people planning pregnancy, so medical guidance is important.",
+      "acknowledgement_note": "Nice — folate intake reflects thoughtful planning during long-term therapy.",
+      "monitoring_tip_short": "Consider discussing folate dose with your neurologist, especially when planning pregnancy.",
+      "adequacy_threshold_mcg": 400,
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINB12",
@@ -1040,7 +1241,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May lower vitamin B12 over years",
+      "alert_body": "Some seizure medications can gradually affect vitamin B12 levels over years. Since they also affect folate, B12 is often checked alongside.",
+      "acknowledgement_note": "Nice — B12 intake supports levels during long-term seizure-medication use.",
+      "monitoring_tip_short": "Consider including B12 in your routine labs during long-term therapy.",
+      "adequacy_threshold_mcg": 250,
+      "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals."
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINK",
@@ -1066,7 +1273,11 @@
           "label": "Yerby MS. Management issues for women with epilepsy: neural tube defects and folic acid supplementation. Neurology. 2003",
           "url": "https://pubmed.ncbi.nlm.nih.gov/14506311/"
         }
-      ]
+      ],
+      "alert_headline": "May affect vitamin K with long-term use",
+      "alert_body": "Certain seizure medications can gradually increase vitamin K turnover over months. This matters especially during pregnancy and is managed medically.",
+      "acknowledgement_note": "Good — vitamin K awareness is part of thoughtful care during long-term therapy.",
+      "monitoring_tip_short": "Consider discussing vitamin K with your neurologist — self-supplementing isn't recommended."
     },
     {
       "id": "DEP_ANTICONVULSANTS_BIOTIN",
@@ -1092,7 +1303,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May lower biotin over time",
+      "alert_body": "Valproate and carbamazepine can gradually reduce biotin levels with long-term use over months. Some people notice hair thinning or skin changes.",
+      "acknowledgement_note": "Nice — biotin intake supports hair and skin balance during long-term therapy.",
+      "monitoring_tip_short": "Consider discussing biotin with your neurologist if hair thinning is noticeable.",
+      "adequacy_threshold_mcg": 30,
+      "food_sources_short": "Food sources of biotin include eggs, salmon, pork, sunflower seeds, almonds, sweet potatoes, and spinach."
     },
     {
       "id": "DEP_ANTICONVULSANTS_LCARNITINE",
@@ -1114,11 +1331,17 @@
       "monitoring_note": "Check plasma carnitine levels in all patients on long-term valproate, especially children, those on multiple AEDs, or those with liver disease.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Bohan TP et al. Effect of L-carnitine treatment for valproate-induced hepatotoxicity. Neurology. 2001",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/11588544/"
+          "source_type": "reference",
+          "label": "NIH ODS — Carnitine Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Carnitine-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "Valproate may lower carnitine over time",
+      "alert_body": "Valproate can gradually reduce carnitine stores over months of use. This effect is medically managed and most relevant for children or people with liver issues.",
+      "acknowledgement_note": "Nice — carnitine intake aligns with clinical guidance for long-term valproate use.",
+      "monitoring_tip_short": "Consider discussing L-carnitine with your neurologist, especially for children on valproate.",
+      "adequacy_threshold_mg": 1000,
+      "food_sources_short": "Food sources of carnitine include red meat, poultry, fish, and dairy products."
     },
     {
       "id": "DEP_ACEINHIBITORS_ZINC",
@@ -1140,11 +1363,17 @@
       "monitoring_note": "Consider zinc supplementation trial if patient on ACE inhibitor develops dysgeusia (taste disturbance).",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Golik A et al. Effects of captopril and enalapril on zinc metabolism in hypertensive patients. J Am Coll Nutr. 1998",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/8849814/"
+          "source_type": "reference",
+          "label": "NIH ODS — Zinc Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May lower zinc over time",
+      "alert_body": "ACE inhibitors can gradually increase zinc loss through urine with long-term use over months. Some people notice a blunted sense of taste.",
+      "acknowledgement_note": "Good — zinc intake supports taste and immune balance during long-term therapy.",
+      "monitoring_tip_short": "Consider a modest zinc supplement if taste feels duller than usual.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
     },
     {
       "id": "DEP_BETABLOCKERS_COQ10",
@@ -1166,16 +1395,22 @@
       "monitoring_note": null,
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Kishi T et al. Bioenergetics in clinical medicine. XV. Inhibition of coenzyme Q10-enzymes by clinically used adrenergic blockers. Res Commun Chem Pathol Pharmacol. 1975",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/4394/"
+          "source_type": "reference",
+          "label": "NIH ODS — Coenzyme Q10 Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/CoQ10-HealthProfessional/"
         },
         {
           "source_type": "pubmed",
           "label": "Folkers K et al. Lovastatin decreases coenzyme Q levels in humans. Proc Natl Acad Sci. 1990",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/2123857/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12392188/"
         }
-      ]
+      ],
+      "alert_headline": "May lower CoQ10 over time",
+      "alert_body": "Beta blockers can gradually reduce how the body produces and uses CoQ10 with long-term use over months. Some people notice lower energy or slower recovery.",
+      "acknowledgement_note": "Nice — CoQ10 intake supports energy balance during long-term beta-blocker use.",
+      "monitoring_tip_short": "Consider discussing CoQ10 with your cardiologist if fatigue feels persistent.",
+      "adequacy_threshold_mg": 100,
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
     },
     {
       "id": "DEP_BETABLOCKERS_MELATONIN",
@@ -1197,11 +1432,15 @@
       "monitoring_note": null,
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Stoschitzky K et al. Influence of beta-blockers on melatonin release. Eur J Clin Pharmacol. 1999",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/10023508/"
+          "source_type": "reference",
+          "label": "NIH ODS — Melatonin Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Melatonin-InDepth/"
         }
-      ]
+      ],
+      "alert_headline": "Can affect nighttime melatonin over time",
+      "alert_body": "Beta blockers can gradually reduce the body's nighttime melatonin release with regular use over weeks. Some people notice changes in sleep onset.",
+      "acknowledgement_note": "Nice — low-dose melatonin aligns with guidance for people using beta blockers long-term.",
+      "monitoring_tip_short": "Consider discussing low-dose melatonin with your prescriber for sleep support."
     },
     {
       "id": "DEP_NSAIDS_FOLATE",
@@ -1227,7 +1466,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May slightly lower folate over time",
+      "alert_body": "With regular use, some NSAIDs can gradually affect folate metabolism over months. The effect is usually modest unless doses are high.",
+      "acknowledgement_note": "Nice — folate intake supports levels during regular NSAID use.",
+      "monitoring_tip_short": "Consider a multivitamin with folate if NSAID use is frequent; discuss with your clinician.",
+      "adequacy_threshold_mcg": 400,
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
     },
     {
       "id": "DEP_NSAIDS_IRON",
@@ -1253,7 +1498,13 @@
           "label": "Lanas A, Chan FK. Peptic ulcer disease. Lancet. 2017;390:613-624",
           "url": "https://pubmed.ncbi.nlm.nih.gov/28242110/"
         }
-      ]
+      ],
+      "alert_headline": "May lower iron over time",
+      "alert_body": "With long-term NSAID use, small amounts of gut bleeding can gradually reduce iron stores over months. This may not be visible and is often caught on routine labs.",
+      "acknowledgement_note": "Good — iron awareness is helpful during long-term NSAID use.",
+      "monitoring_tip_short": "Consider asking for periodic ferritin and CBC labs if NSAID use is long-term.",
+      "adequacy_threshold_mg": 18,
+      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals."
     },
     {
       "id": "DEP_NSAIDS_VITAMINC",
@@ -1279,7 +1530,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "Aspirin may lower vitamin C over time",
+      "alert_body": "With regular aspirin use, the body loses more vitamin C through urine over months. The effect is most noticeable with daily low-dose aspirin.",
+      "acknowledgement_note": "Nice — vitamin C intake supports levels during regular aspirin use.",
+      "monitoring_tip_short": "Consider taking vitamin C at a different time of day from aspirin.",
+      "adequacy_threshold_mg": 250,
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
     },
     {
       "id": "DEP_ANTIBIOTICS_BVITAMINS",
@@ -1305,7 +1562,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May briefly affect B vitamins with regular use",
+      "alert_body": "Broad-spectrum antibiotics can gradually affect gut-bacteria production of some B vitamins during a course. The effect is usually short-lived and reverses after treatment.",
+      "acknowledgement_note": "Nice — a B-complex is a reasonable companion during and after antibiotic treatment.",
+      "monitoring_tip_short": "Consider a B-complex and fermented foods during and after a course of antibiotics.",
+      "adequacy_threshold_mcg": 250,
+      "food_sources_short": "Food sources of B vitamins include meat, poultry, fish, eggs, dairy, leafy greens, legumes, and fortified grains."
     },
     {
       "id": "DEP_ANTIBIOTICS_VITAMINK",
@@ -1331,7 +1594,11 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "Can affect vitamin K during a course",
+      "alert_body": "Broad-spectrum antibiotics can gradually reduce gut-bacteria vitamin K production during a course. This matters most for people on warfarin and is managed medically.",
+      "acknowledgement_note": "Good — vitamin K awareness is helpful during and after antibiotic courses.",
+      "monitoring_tip_short": "If you take warfarin, ask about INR checks during and after an antibiotic course."
     },
     {
       "id": "DEP_LEVOTHYROXINE_CALCIUM",
@@ -1357,7 +1624,13 @@
           "label": "Haugen BR. Drugs that suppress TSH or cause central hypothyroidism. Best Pract Res Clin Endocrinol Metab. 2009",
           "url": "https://pubmed.ncbi.nlm.nih.gov/19174283/"
         }
-      ]
+      ],
+      "alert_headline": "Calcium can reduce thyroid-med absorption",
+      "alert_body": "Calcium taken near your thyroid medication can gradually reduce how much of the dose is absorbed over weeks. Separating them by time usually solves it.",
+      "acknowledgement_note": "Good — calcium intake supports bone health; timing separately keeps your thyroid dose steady.",
+      "monitoring_tip_short": "Consider taking levothyroxine at least 4 hours apart from calcium-rich meals or supplements.",
+      "adequacy_threshold_mg": 500,
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
     },
     {
       "id": "DEP_LEVOTHYROXINE_IRON",
@@ -1379,11 +1652,17 @@
       "monitoring_note": "Check TSH within 6–8 weeks of starting iron supplementation in levothyroxine-treated patients. Separate administration times by at least 4 hours.",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Shakir KM et al. Ferrous sulphate-induced increase in requirement for thyroxine in a patient with primary hypothyroidism. South Med J. 1997",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/9236521/"
+          "source_type": "reference",
+          "label": "NIH ODS — Iron Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "Iron can reduce thyroid-med absorption",
+      "alert_body": "Iron taken near your thyroid medication can gradually reduce absorption of the dose over weeks. Separating them by several hours usually solves it.",
+      "acknowledgement_note": "Good — iron intake supports overall balance; timing separately keeps your thyroid dose steady.",
+      "monitoring_tip_short": "Consider taking iron at least 4 hours apart from your levothyroxine dose.",
+      "adequacy_threshold_mg": 18,
+      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals."
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_VITAMIND",
@@ -1409,7 +1688,13 @@
           "label": "Fernandes BS et al. Vitamin D levels in schizophrenia and first-episode psychosis. Schizophr Res. 2015",
           "url": "https://pubmed.ncbi.nlm.nih.gov/25638514/"
         }
-      ]
+      ],
+      "alert_headline": "May lower vitamin D over time",
+      "alert_body": "Vitamin D often runs lower with long-term antipsychotic use over months, partly due to less sun exposure and metabolic shifts.",
+      "acknowledgement_note": "Good — vitamin D intake supports overall balance during long-term therapy.",
+      "monitoring_tip_short": "Consider an annual 25-OH-D check during long-term antipsychotic therapy.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_COQ10",
@@ -1435,7 +1720,13 @@
           "label": "Rezin GT et al. Inhibition of mitochondrial respiratory chain in brain of rats subjected to an experimental model of depression. Neurochem Int. 2008",
           "url": "https://pubmed.ncbi.nlm.nih.gov/18316143/"
         }
-      ]
+      ],
+      "alert_headline": "May lower CoQ10 over time",
+      "alert_body": "Some antipsychotics can gradually affect how cells produce energy from CoQ10 over months. A few people notice lower energy with long-term use.",
+      "acknowledgement_note": "Nice — CoQ10 intake supports energy balance during long-term therapy.",
+      "monitoring_tip_short": "Consider discussing CoQ10 with your prescriber if fatigue feels persistent.",
+      "adequacy_threshold_mg": 100,
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
     },
     {
       "id": "DEP_STIMULANTS_MAGNESIUM",
@@ -1461,7 +1752,13 @@
           "label": "Kozielec T, Starobrat-Hermelin B. Assessment of magnesium levels in children with attention deficit hyperactivity disorder (ADHD). Magnes Res. 1997",
           "url": "https://pubmed.ncbi.nlm.nih.gov/9368236/"
         }
-      ]
+      ],
+      "alert_headline": "May lower magnesium over time",
+      "alert_body": "ADHD stimulants can gradually increase magnesium turnover with regular use over months. Reduced appetite from the medication can also trim dietary intake.",
+      "acknowledgement_note": "Good — magnesium intake supports calm and sleep balance during stimulant therapy.",
+      "monitoring_tip_short": "Consider magnesium in the evening; discuss with your prescriber if sleep is restless.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_STIMULANTS_VITAMINC",
@@ -1487,7 +1784,11 @@
           "label": "Meltzer PC et al. Medications used in ADHD: pharmacokinetic considerations. Clinical Pharmacokinetics. 2000",
           "url": "https://pubmed.ncbi.nlm.nih.gov/10870150/"
         }
-      ]
+      ],
+      "alert_headline": "Vitamin C timing can affect stimulant dose",
+      "alert_body": "High-dose vitamin C taken near an amphetamine-based stimulant can gradually affect how well the dose works over weeks. Separating them by time usually resolves it.",
+      "acknowledgement_note": "Good — vitamin C supports overall balance; timing separately keeps your medication steady.",
+      "monitoring_tip_short": "Consider taking high-dose vitamin C at least 1-2 hours apart from stimulant doses."
     },
     {
       "id": "DEP_HIVPI_VITAMIND",
@@ -1513,7 +1814,13 @@
           "label": "Dao CN et al. Low vitamin D among HIV-infected adults: prevalence of and risk factors for low vitamin D levels in a cohort of HIV-infected adults. Medicine. 2011",
           "url": "https://pubmed.ncbi.nlm.nih.gov/21694637/"
         }
-      ]
+      ],
+      "alert_headline": "May lower vitamin D with long-term use",
+      "alert_body": "HIV protease inhibitors can gradually affect how the body activates vitamin D over months. Levels often need active management during therapy.",
+      "acknowledgement_note": "Good — vitamin D intake aligns with standard care during long-term ART.",
+      "monitoring_tip_short": "Consider regular 25-OH-D checks; your HIV clinician can guide targets.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_HIVPI_ZINC",
@@ -1539,7 +1846,13 @@
           "label": "Baum MK et al. Micronutrients in HIV-infected individuals. HIV Clin Trials. 2003",
           "url": "https://pubmed.ncbi.nlm.nih.gov/12591569/"
         }
-      ]
+      ],
+      "alert_headline": "May lower zinc over time",
+      "alert_body": "With long-term HIV protease inhibitor use, zinc can gradually run lower over months. This often pairs with broader nutrition support in HIV care.",
+      "acknowledgement_note": "Good — zinc intake supports immune balance during long-term ART.",
+      "monitoring_tip_short": "Consider discussing a modest zinc supplement with your HIV clinician.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
     },
     {
       "id": "DEP_ANTICOAGULANTS_VITAMINK",
@@ -1565,7 +1878,11 @@
           "label": "Hirsh J et al. Oral anticoagulants: mechanism of action, clinical effectiveness, and optimal therapeutic range. Chest. 2001",
           "url": "https://pubmed.ncbi.nlm.nih.gov/11157640/"
         }
-      ]
+      ],
+      "alert_headline": "Warfarin changes how vitamin K works",
+      "alert_body": "Warfarin works by blocking vitamin K's role in clotting — this is long-term by design. Changes in vitamin K intake can shift your INR over weeks.",
+      "acknowledgement_note": "Good — steady vitamin K intake supports consistent INR during warfarin therapy.",
+      "monitoring_tip_short": "Consider keeping your vitamin K intake steady day to day; discuss changes with your prescriber."
     },
     {
       "id": "DEP_MAOIS_VITAMINB6",
@@ -1588,15 +1905,21 @@
       "sources": [
         {
           "source_type": "reference",
-          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
-          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+          "label": "NIH ODS — Vitamin B6 Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
         },
         {
-          "source_type": "pubmed",
-          "label": "Heller CA, Friedman PA. Pyridoxine deficiency and peripheral neuropathy associated with long-term phenelzine therapy. Am J Med. 1983",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/6869541/"
+          "source_type": "reference",
+          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
+          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "Phenelzine may lower vitamin B6 over time",
+      "alert_body": "Hydrazine-class MAOIs like phenelzine can gradually reduce active vitamin B6 with long-term use over months. Some people notice tingling or skin changes.",
+      "acknowledgement_note": "Nice — B6 intake aligns with guidance for long-term phenelzine-class MAOI use.",
+      "monitoring_tip_short": "Consider discussing a B6 supplement with your prescribing psychiatrist.",
+      "adequacy_threshold_mg": 50,
+      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals."
     },
     {
       "id": "DEP_DIABETESMEDS_MAGNESIUM",
@@ -1623,11 +1946,17 @@
           "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
         },
         {
-          "source_type": "pubmed",
-          "label": "Hruby A et al. Magnesium intake is inversely associated with coronary artery calcification. JACC Cardiovasc Imaging. 2014",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/24529258/"
+          "source_type": "reference",
+          "label": "NIH ODS — Magnesium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
         }
-      ]
+      ],
+      "alert_headline": "May lower magnesium over time",
+      "alert_body": "Type 2 diabetes itself and some of its medications can gradually lower magnesium over months. Keeping magnesium steady often supports blood-sugar balance.",
+      "acknowledgement_note": "Good — magnesium intake supports blood-sugar and overall balance during diabetes therapy.",
+      "monitoring_tip_short": "Consider discussing magnesium with your diabetes care team at routine visits.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_MAGNESIUM",
@@ -1649,16 +1978,22 @@
       "monitoring_note": "Check serum magnesium weekly in early post-transplant period, then monthly when stable. Target serum magnesium >0.7 mmol/L (1.7 mg/dL).",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Nijenhuis T et al. Enhanced passive Ca2+ reabsorption and reduced Mg2+ channel abundance explains thiazide-induced hypocalciuria and hypomagnesemia. J Clin Invest. 2005",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/16007254/"
+          "source_type": "reference",
+          "label": "NIH ODS — Magnesium Fact Sheet for Health Professionals",
+          "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
         },
         {
           "source_type": "reference",
           "label": "Navaneethan SD et al. Hypomagnesemia in kidney transplant recipients. Transplantation. 2006",
           "url": "https://pubmed.ncbi.nlm.nih.gov/16641596/"
         }
-      ]
+      ],
+      "alert_headline": "Can lower magnesium with regular use",
+      "alert_body": "Calcineurin inhibitors like tacrolimus and cyclosporine can gradually increase magnesium loss through urine over weeks. Magnesium is typically monitored closely in transplant care.",
+      "acknowledgement_note": "Good — magnesium intake is part of standard care during calcineurin-inhibitor therapy.",
+      "monitoring_tip_short": "Ask your transplant team about your magnesium schedule — this is a routine part of care.",
+      "adequacy_threshold_mg": 400,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_VITAMIND",
@@ -1684,7 +2019,13 @@
           "label": "Evenepoel P et al. Bone and mineral metabolism in kidney transplant recipients. Nat Rev Nephrol. 2009",
           "url": "https://pubmed.ncbi.nlm.nih.gov/19528952/"
         }
-      ]
+      ],
+      "alert_headline": "Can lower vitamin D long-term",
+      "alert_body": "Combined immunosuppressive therapy can gradually reduce vitamin D over months. Vitamin D is part of routine labs after transplant and is actively managed.",
+      "acknowledgement_note": "Good — vitamin D intake is standard of care during transplant follow-up.",
+      "monitoring_tip_short": "Ask your transplant team about your vitamin D target and dosing plan.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_CALCIUMCHANNELBLOCKERS_POTASSIUM",
@@ -1710,7 +2051,12 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May slightly affect potassium over time",
+      "alert_body": "Calcium channel blockers can gradually shift potassium levels with long-term use over months. The effect is usually mild unless combined with other blood-pressure medications.",
+      "acknowledgement_note": "Good — potassium awareness is helpful, and your care plan tracks levels.",
+      "monitoring_tip_short": "Consider asking for electrolyte checks if you're on combination blood-pressure therapy.",
+      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes."
     },
     {
       "id": "DEP_ANTIHYPERTENSIVES_ZINC",
@@ -1736,7 +2082,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May slightly lower zinc over time",
+      "alert_body": "Several blood-pressure medications can gradually increase urinary zinc loss with long-term use over months. Older adults on multi-drug regimens feel this most.",
+      "acknowledgement_note": "Good — zinc intake supports taste and immune balance during long-term therapy.",
+      "monitoring_tip_short": "Consider a modest zinc supplement; discuss with your prescriber if taste feels duller.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
     },
     {
       "id": "DEP_ANTIHYPERTENSIVES_COQ10",
@@ -1762,7 +2114,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "Hydralazine may lower CoQ10 over time",
+      "alert_body": "Hydralazine-class blood-pressure medications can gradually lower CoQ10 over months of use. Some people notice lower energy or slower exercise recovery.",
+      "acknowledgement_note": "Nice — CoQ10 intake supports energy balance during long-term therapy.",
+      "monitoring_tip_short": "Consider discussing CoQ10 with your prescriber if fatigue feels persistent.",
+      "adequacy_threshold_mg": 100,
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
     },
     {
       "id": "DEP_INSULINS_MAGNESIUM",
@@ -1791,9 +2149,15 @@
         {
           "source_type": "pubmed",
           "label": "Barbagallo M, Dominguez LJ. Magnesium and type 2 diabetes. World J Diabetes. 2015",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/26131326/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26696633/"
         }
-      ]
+      ],
+      "alert_headline": "May lower magnesium over time",
+      "alert_body": "Insulin moves magnesium into cells, which can gradually shift measured levels lower over months. Keeping magnesium steady often supports blood-sugar balance.",
+      "acknowledgement_note": "Good — magnesium intake supports blood-sugar and overall balance during insulin therapy.",
+      "monitoring_tip_short": "Consider asking about magnesium as part of your routine diabetes labs.",
+      "adequacy_threshold_mg": 200,
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
     },
     {
       "id": "DEP_SEDATIVES_VITAMIND",
@@ -1819,7 +2183,13 @@
           "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
-      ]
+      ],
+      "alert_headline": "May lower vitamin D over time",
+      "alert_body": "With long-term sedative or sleep-medication use, vitamin D can gradually run lower over months, partly from reduced daytime outdoor activity.",
+      "acknowledgement_note": "Good — vitamin D intake supports bone and muscle balance during long-term therapy.",
+      "monitoring_tip_short": "Consider an annual 25-OH-D check and a daytime walk routine where possible.",
+      "adequacy_threshold_mcg": 25,
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
     },
     {
       "id": "DEP_BENZODIAZEPINES_MELATONIN",
@@ -1845,7 +2215,11 @@
           "label": "Monteleone P et al. Suppression of nocturnal plasma melatonin levels by evening administration of diazepam in humans. Life Sci. 1989",
           "url": "https://pubmed.ncbi.nlm.nih.gov/2733455/"
         }
-      ]
+      ],
+      "alert_headline": "Can affect nighttime melatonin over time",
+      "alert_body": "Benzodiazepines can gradually disrupt the body's nighttime melatonin rhythm with regular use over weeks. Some people notice less restorative sleep.",
+      "acknowledgement_note": "Nice — low-dose melatonin aligns with guidance for people using benzodiazepines.",
+      "monitoring_tip_short": "Consider discussing low-dose melatonin and sleep strategy with your prescriber."
     },
     {
       "id": "DEP_BVITAMINS_INTERACTIONS",
@@ -1871,7 +2245,13 @@
           "label": "Milne DB et al. Folate supplementation and zinc absorption. J Nutr. 1990",
           "url": "https://pubmed.ncbi.nlm.nih.gov/2132402/"
         }
-      ]
+      ],
+      "alert_headline": "High-dose folate may affect zinc uptake",
+      "alert_body": "Taking very high folic acid doses over months may gradually compete with zinc uptake in the gut. At typical multivitamin doses, this effect is minimal.",
+      "acknowledgement_note": "Good — your zinc intake supports balance alongside regular folate use.",
+      "monitoring_tip_short": "Consider a balanced multivitamin rather than high single-nutrient doses; check with your clinician.",
+      "adequacy_threshold_mg": 10,
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
     }
   ]
 }

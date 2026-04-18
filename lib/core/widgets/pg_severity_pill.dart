@@ -50,6 +50,17 @@ class PGSeverityPill extends StatelessWidget {
           icon: Icons.visibility_outlined,
           label: 'Monitor',
         );
+      case Severity.informational:
+        // Neutral informational note — no alarm. Used when a rule is
+        // material but the user's profile hasn't declared the triggering
+        // condition/drug class.
+        return (
+          bg: AppTheme.severityInformational.withValues(
+              alpha: isDark ? 0.22 : 0.12),
+          fg: AppTheme.severityInformational,
+          icon: Icons.info_outline_rounded,
+          label: 'Info',
+        );
       case Severity.safe:
         return (
           bg: AppTheme.severitySafe.withValues(alpha: isDark ? 0.22 : 0.10),

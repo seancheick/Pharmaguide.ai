@@ -94,6 +94,7 @@ class StackSafetyBanner extends StatelessWidget {
       case Severity.caution:
       case Severity.monitor:
         return PGBannerTone.caution;
+      case Severity.informational:
       case Severity.safe:
         return PGBannerTone.success;
     }

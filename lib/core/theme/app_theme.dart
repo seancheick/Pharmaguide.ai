@@ -120,6 +120,10 @@ abstract final class AppTheme {
   static const severityAvoid = Color(0xFFC2410C);
   static const severityCaution = Color(0xFFD97706);
   static const severityMonitor = Color(0xFFCA8A04);
+  // Neutral slate — calm, not alarming. Used for profile-less rendering
+  // of rules whose intrinsic severity is avoid/caution but no user
+  // profile match exists (see pipeline schema v5.2 severity_contextual).
+  static const severityInformational = Color(0xFF64748B);
   static const severitySafe = Color(0xFF15803D);
 
   // ===========================================================================

@@ -1568,21 +1568,46 @@ class _DetailSection extends ConsumerWidget {
     final interactionSummary =
         blob['interaction_summary'] as Map<String, dynamic>?;
 
-    // Filter warnings to only those relevant to this user's profile.
-    // Condition-specific warnings (condition_id) only show if user has
-    // that condition. Drug-class warnings (drug_class_id) only show if
-    // user takes that class. Warnings with neither (generic) always show.
-    // This prevents a multivitamin from displaying 45+ irrelevant warnings.
+    // Profile-gated warning filter (schema v5.2+ contract).
+    //
+    // Every pipeline warning carries a `display_mode_default` derived
+    // from its severity and ban_context:
+    //   - "critical"      → always show (substance hazard, contraindicated rule)
+    //   - "informational" → show as neutral note regardless of profile
+    //   - "suppress"      → hide unless user profile matches the rule's
+    //                        trigger tags (condition_id / drug_class_id)
+    //
+    // Prior behavior: generic warnings (both tags null) always rendered
+    // via `return true`, which surfaced scary-looking rules to users
+    // who had no matching profile. The fix reads the pipeline's
+    // `display_mode_default` and only falls through to "show it" when
+    // the rule is intrinsically worth showing (critical / informational)
+    // OR the user's declared profile matches.
     final filteredWarnings = warnings.where((w) {
-      final cond = w.conditionId;
-      final dc = w.drugClassId;
-      if (cond != null && cond.isNotEmpty) {
-        return userConditions.contains(cond);
+      // Rule 1 — profile match always shows (promotes to "alert" in UI).
+      if (w.matchesProfile(
+        userConditions: userConditions,
+        userDrugClasses: userDrugClasses,
+      )) {
+        return true;
       }
-      if (dc != null && dc.isNotEmpty) {
-        return userDrugClasses.contains(dc);
+      // Rule 2 — pipeline told us how to handle the no-match case.
+      final mode = w.displayModeDefault;
+      if (mode == 'critical' || mode == 'informational') {
+        return true;
       }
-      // No condition/drug tag → keep (personalized or generic warning)
+      if (mode == 'suppress') {
+        return false;
+      }
+      // Rule 3 — legacy blobs predating v5.2 have no display_mode.
+      // Fall back to the old logic ONLY for warnings that carry a
+      // condition_id or drug_class_id — those are profile-gated by
+      // construction. Generic no-tag legacy warnings default to
+      // "informational" (render) — backward-compatible but will no
+      // longer trigger the scary fallback once the pipeline reprocesses
+      // products under v5.2.
+      if (w.conditionId != null && w.conditionId!.isNotEmpty) return false;
+      if (w.drugClassId != null && w.drugClassId!.isNotEmpty) return false;
       return true;
     }).toList();
 

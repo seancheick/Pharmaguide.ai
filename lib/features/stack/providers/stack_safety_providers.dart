@@ -13,6 +13,7 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
+import 'package:pharmaguide/services/stack/medication_depletion_nudge.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -439,6 +440,15 @@ final recalledIngredientsReportProvider =
   return RecalledIngredientsReport(
     violations: violations,
   );
+});
+
+/// Shared instance of [MedicationDepletionNudgeService] — reads/writes
+/// `SharedPreferences` so the nudge fires once per (med, depletion)
+/// pair. Stateless service; a single instance is safe to reuse across
+/// the app.
+final medicationDepletionNudgeServiceProvider =
+    Provider<MedicationDepletionNudgeService>((ref) {
+  return MedicationDepletionNudgeService();
 });
 
 /// Depletion checker — matches medications against known nutrient
