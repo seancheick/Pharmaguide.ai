@@ -505,6 +505,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       detailBlob?['probiotic_detail'] as Map<String, dynamic>?,
                   synergyDetail:
                       detailBlob?['synergy_detail'] as Map<String, dynamic>?,
+                  manufacturerDetail:
+                      detailBlob?['manufacturer_detail'] as Map<String, dynamic>?,
                   caloriesPerServing: _product?.caloriesPerServing,
                   nutritionDetail:
                       detailBlob?['nutrition_detail'] as Map<String, dynamic>?,
@@ -2561,6 +2563,7 @@ class _DeepDiveSection extends StatefulWidget {
   final Map<String, dynamic>? formulationDetail;
   final Map<String, dynamic>? probioticDetail;
   final Map<String, dynamic>? synergyDetail;
+  final Map<String, dynamic>? manufacturerDetail;
   final double? caloriesPerServing;
   final Map<String, dynamic>? nutritionDetail;
   final Map<String, dynamic>? unmappedActives;
@@ -2578,6 +2581,7 @@ class _DeepDiveSection extends StatefulWidget {
     this.formulationDetail,
     this.probioticDetail,
     this.synergyDetail,
+    this.manufacturerDetail,
     this.caloriesPerServing,
     this.nutritionDetail,
     this.unmappedActives,
@@ -2722,6 +2726,10 @@ class _DeepDiveSectionState extends State<_DeepDiveSection>
                 const SizedBox(height: AppTheme.space8),
                 SynergyDetailSection(
                   synergyDetail: widget.synergyDetail,
+                ),
+                const SizedBox(height: AppTheme.space8),
+                ManufacturerViolationsSection(
+                  manufacturerDetail: widget.manufacturerDetail,
                 ),
                 const SizedBox(height: AppTheme.space8),
                 NutritionPanel(

@@ -9,5 +9,6 @@ export 'pipeline_sections/allergen_summary_banner.dart';
 export 'pipeline_sections/certification_detail_section.dart';
 export 'pipeline_sections/evidence_detail_section.dart';
 export 'pipeline_sections/formulation_detail_section.dart';
+export 'pipeline_sections/manufacturer_violations_section.dart';
 export 'pipeline_sections/probiotic_detail_section.dart';
 export 'pipeline_sections/synergy_detail_section.dart';
