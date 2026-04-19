@@ -3,8 +3,9 @@
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
     "schema_version": "5.1.0",
-    "last_updated": "2026-03-17",
-    "total_entries": 36
+    "last_updated": "2026-04-14",
+    "total_entries": 41,
+    "flutter_top_level_key": "clinical_risk_taxonomy"
   },
   "conditions": [
     {
@@ -147,6 +148,43 @@
       "label": "Statins",
       "category": "cardiovascular",
       "display_priority": 9
+    },
+    {
+      "id": "antidepressants_ssri_snri",
+      "label": "Antidepressants (SSRIs/SNRIs)",
+      "category": "psychiatry",
+      "display_priority": 10
+    },
+    {
+      "id": "maois",
+      "label": "MAOIs (Monoamine Oxidase Inhibitors)",
+      "category": "psychiatry",
+      "display_priority": 11
+    },
+    {
+      "id": "cardiac_glycosides",
+      "label": "Cardiac Glycosides (Digoxin)",
+      "category": "cardiology",
+      "display_priority": 12
+    },
+    {
+      "id": "anticholinergics",
+      "label": "Anticholinergic Medications",
+      "category": "neurology",
+      "display_priority": 13
+    },
+    {
+      "id": "anticonvulsants",
+      "label": "Anticonvulsants (Anti-Seizure Medications)",
+      "examples": [
+        "carbamazepine",
+        "phenytoin",
+        "valproic acid",
+        "lamotrigine",
+        "levetiracetam",
+        "topiramate"
+      ],
+      "mechanism_note": "Supplements that affect CYP3A4/2C19 metabolism or GABAergic signaling may alter anticonvulsant drug levels or seizure threshold."
     }
   ],
   "severity_levels": [

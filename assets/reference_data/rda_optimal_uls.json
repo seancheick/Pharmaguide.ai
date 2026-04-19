@@ -3,7 +3,7 @@
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
     "schema_version": "5.0.0",
-    "last_updated": "2026-02-16",
+    "last_updated": "2026-04-16",
     "total_entries": 47,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
     "country": "USA",
@@ -21,7 +21,8 @@
       "other_nutrients": "1997-2001 original DRI reports"
     },
     "units_verified": true,
-    "notes": "All values are US RDA/AI and UL. Optimal ranges based on clinical research for therapeutic supplementation. Conditionally essential nutrients flagged for special populations. Potassium/Sodium updated per 2019 NASEM report."
+    "notes": "All values are US RDA/AI and UL. Optimal ranges based on clinical research for therapeutic supplementation. Conditionally essential nutrients flagged for special populations. Potassium/Sodium updated per 2019 NASEM report.",
+    "flutter_top_level_key": "nutrient_recommendations"
   },
   "nutrient_recommendations": [
     {

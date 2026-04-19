@@ -37,8 +37,14 @@
         "magnesium_nervous_system": 1
       },
       "confidence_threshold": 0.5,
-      "conflicting_goals": ["GOAL_INCREASE_ENERGY", "GOAL_FOCUS_MENTAL_CLARITY"],
-      "synergy_goals": ["GOAL_REDUCE_STRESS_ANXIETY", "GOAL_MOOD_EMOTIONAL_WELLNESS"]
+      "conflicting_goals": [
+        "GOAL_INCREASE_ENERGY",
+        "GOAL_FOCUS_MENTAL_CLARITY"
+      ],
+      "synergy_goals": [
+        "GOAL_REDUCE_STRESS_ANXIETY",
+        "GOAL_MOOD_EMOTIONAL_WELLNESS"
+      ]
     },
     {
       "id": "GOAL_REDUCE_STRESS_ANXIETY",
@@ -75,7 +81,7 @@
         "thyroid_support": 0.7,
         "adrenal_support": 0.5,
         "cognitive_amino_acids": 0.5,
-        "comprehensive_blood_sugar_support": 0.4,
+        "blood_sugar_regulation": 0.4,
         "nitric_oxide_blood_flow": 0.4
       },
       "core_clusters": ["energy_mitochondria", "pre_workout_energy"],
@@ -86,7 +92,10 @@
       },
       "confidence_threshold": 0.5,
       "conflicting_goals": ["GOAL_SLEEP_QUALITY"],
-      "synergy_goals": ["GOAL_FOCUS_MENTAL_CLARITY", "GOAL_MUSCLE_GROWTH_RECOVERY"]
+      "synergy_goals": [
+        "GOAL_FOCUS_MENTAL_CLARITY",
+        "GOAL_MUSCLE_GROWTH_RECOVERY"
+      ]
     },
     {
       "id": "GOAL_DIGESTIVE_HEALTH",
@@ -103,7 +112,11 @@
         "liver_support": 0.4,
         "detox_pathway": 0.4
       },
-      "core_clusters": ["gut_barrier", "probiotic_and_gut_health", "digestive_enzymes"],
+      "core_clusters": [
+        "gut_barrier",
+        "probiotic_and_gut_health",
+        "digestive_enzymes"
+      ],
       "anti_clusters": [],
       "cluster_limits": {
         "probiotic_and_gut_health": 1,
@@ -121,14 +134,14 @@
       "goal_priority": "high",
       "cluster_weights": {
         "fat_metabolism": 1.0,
-        "comprehensive_blood_sugar_support": 0.9,
+        "blood_sugar_regulation": 0.9,
         "blood_sugar_regulation": 0.9,
         "thyroid_support": 0.7,
         "energy_mitochondria": 0.5,
         "pre_workout_energy": 0.6,
         "recovery_support": 0.4
       },
-      "core_clusters": ["fat_metabolism", "comprehensive_blood_sugar_support"],
+      "core_clusters": ["fat_metabolism", "blood_sugar_regulation"],
       "anti_clusters": [],
       "cluster_limits": {
         "fat_metabolism": 1,
@@ -162,7 +175,10 @@
       },
       "confidence_threshold": 0.5,
       "conflicting_goals": [],
-      "synergy_goals": ["GOAL_BLOOD_SUGAR_SUPPORT", "GOAL_HEALTHY_AGING_LONGEVITY"]
+      "synergy_goals": [
+        "GOAL_BLOOD_SUGAR_SUPPORT",
+        "GOAL_HEALTHY_AGING_LONGEVITY"
+      ]
     },
     {
       "id": "GOAL_HEALTHY_AGING_LONGEVITY",
@@ -188,7 +204,10 @@
       },
       "confidence_threshold": 0.4,
       "conflicting_goals": [],
-      "synergy_goals": ["GOAL_CARDIOVASCULAR_HEART_HEALTH", "GOAL_JOINT_BONE_HEALTH"]
+      "synergy_goals": [
+        "GOAL_CARDIOVASCULAR_HEART_HEALTH",
+        "GOAL_JOINT_BONE_HEALTH"
+      ]
     },
     {
       "id": "GOAL_BLOOD_SUGAR_SUPPORT",
@@ -196,7 +215,6 @@
       "goal_category": "metabolic",
       "goal_priority": "medium",
       "cluster_weights": {
-        "comprehensive_blood_sugar_support": 1.0,
         "blood_sugar_regulation": 1.0,
         "energy_mitochondria": 0.6,
         "thyroid_support": 0.5,
@@ -204,15 +222,17 @@
         "liver_support": 0.4,
         "detox_pathway": 0.4
       },
-      "core_clusters": ["comprehensive_blood_sugar_support", "blood_sugar_regulation"],
+      "core_clusters": ["blood_sugar_regulation"],
       "anti_clusters": [],
       "cluster_limits": {
-        "comprehensive_blood_sugar_support": 1,
         "blood_sugar_regulation": 1
       },
       "confidence_threshold": 0.5,
       "conflicting_goals": [],
-      "synergy_goals": ["GOAL_WEIGHT_MANAGEMENT", "GOAL_CARDIOVASCULAR_HEART_HEALTH"]
+      "synergy_goals": [
+        "GOAL_WEIGHT_MANAGEMENT",
+        "GOAL_CARDIOVASCULAR_HEART_HEALTH"
+      ]
     },
     {
       "id": "GOAL_IMMUNE_SUPPORT",
@@ -223,7 +243,7 @@
         "immune_defense": 1.0,
         "immune_probiotic_blend": 0.8,
         "gut_barrier": 0.7,
-        "vitamin_d_k2_calcium_synergy": 0.6,
+        "bone_health": 0.6,
         "antioxidant_defense": 0.5,
         "detox_pathway": 0.5,
         "liver_support": 0.4
@@ -253,7 +273,11 @@
         "mood_balance": 0.5,
         "stress_resilience": 0.4
       },
-      "core_clusters": ["cognitive_performance", "focus_attention_support", "cognitive_amino_acids"],
+      "core_clusters": [
+        "cognitive_performance",
+        "focus_attention_support",
+        "cognitive_amino_acids"
+      ],
       "anti_clusters": ["sleep_stack"],
       "cluster_limits": {
         "cognitive_performance": 1,
@@ -297,7 +321,7 @@
       "cluster_weights": {
         "joint_inflammation": 1.0,
         "bone_health": 1.0,
-        "vitamin_d_k2_calcium_synergy": 0.8,
+        "bone_health": 0.8,
         "inflammation_control": 0.7,
         "curcumin_absorption": 0.6,
         "collagen_synthesis_support": 0.6,
@@ -311,7 +335,10 @@
       },
       "confidence_threshold": 0.5,
       "conflicting_goals": [],
-      "synergy_goals": ["GOAL_HEALTHY_AGING_LONGEVITY", "GOAL_REDUCE_STRESS_ANXIETY"]
+      "synergy_goals": [
+        "GOAL_HEALTHY_AGING_LONGEVITY",
+        "GOAL_REDUCE_STRESS_ANXIETY"
+      ]
     },
     {
       "id": "GOAL_HORMONE_BALANCE",
@@ -330,7 +357,11 @@
         "liver_support": 0.5,
         "methylation_support": 0.5
       },
-      "core_clusters": ["hormone_balance_men", "hormone_balance_women", "thyroid_support"],
+      "core_clusters": [
+        "hormone_balance_men",
+        "hormone_balance_women",
+        "thyroid_support"
+      ],
       "anti_clusters": [],
       "cluster_limits": {
         "hormone_balance_men": 1,
@@ -442,12 +473,16 @@
         "prenatal_pregnancy_support": 1.0,
         "methylation_support": 0.8,
         "iron_absorption": 0.7,
-        "vitamin_d_k2_calcium_synergy": 0.7,
+        "bone_health": 0.7,
         "omega_3_absorption_enhancement": 0.6,
         "magnesium_nervous_system": 0.5
       },
       "core_clusters": ["prenatal_pregnancy_support"],
-      "anti_clusters": ["fat_metabolism", "pre_workout_energy", "pre_post_workout"],
+      "anti_clusters": [
+        "fat_metabolism",
+        "pre_workout_energy",
+        "pre_post_workout"
+      ],
       "cluster_limits": {
         "prenatal_pregnancy_support": 1
       },
