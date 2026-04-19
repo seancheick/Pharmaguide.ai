@@ -2,13 +2,14 @@
   "_metadata": {
     "schema_version": "5.3.0",
     "last_updated": "2026-04-18",
-    "total_entries": 139,
+    "total_entries": 143,
     "description": "Banned and recalled ingredients database for regulatory compliance and safety (v3.0)",
     "pipeline_source_version": "v5.0",
     "migration_note": "Recall list remapped from pipeline v5.0 schema. warning_message field was REMOVED in Sprint 27.6 after audit showed derived strings were medically incorrect for ~30-40 entries (e.g. \"Metformin is banned\" inverts the signal — metformin is a legitimate prescription drug, only banned as an undeclared adulterant). Replacement: authored safety_warning + safety_warning_one_liner + ban_context fields pending upstream in pipeline repo. See SPRINT_TRACKER.md Sprint 27.6 Path C for the rebuild plan. bonus_points (synergy) + regulatory_basis (recall) remain derived where no pipeline source exists.",
     "flutter_schema_version": "5.2.0",
     "flutter_top_level_key": "recalled_ingredients",
-    "path_c_round": "clinician_reviewed_round_1_2026-04-17"
+    "path_c_round": "clinician_reviewed_round_1_2026-04-17",
+    "notes": "Added 4 pipeline entries missing from prior Flutter sync: BANNED_ADD_SYNTHETIC_FOOD_ACIDS + 3 contamination_recall entries (Hydroxycut, Jack3d, OxyElite Pro) — 2026-04-18."
   },
   "recalled_ingredients": [
     {
@@ -2836,6 +2837,72 @@
       "ban_context": "substance",
       "safety_warning": "A neurotoxic amino acid in Amanita mushrooms that acts on NMDA receptors and can cause excitotoxic brain injury. Not a lawful supplement ingredient. Stop and consult a doctor.",
       "safety_warning_one_liner": "Neurotoxic mushroom compound. Stop."
+    },
+    {
+      "canonical_id": "BANNED_ADD_SYNTHETIC_FOOD_ACIDS",
+      "common_names": [
+        "synthetic food acids",
+        "fumaric acid",
+        "e297",
+        "adipic acid",
+        "e355"
+      ],
+      "recall_status": "watchlist",
+      "regulatory_basis": "high_risk — Regulatory watchlist for synthetic food acids (fumaric acid, E297) linked to tolerability and labeling issues in dietary supplements.",
+      "reason": "Synthetic food acids appear on FDA regulatory watchlists for supplement-use tolerability and labeling-related concerns. Presence in a dietary supplement is associated with quality-control and mislabeling issues; use of products containing them is discouraged.",
+      "effective_date": "2025-01-01",
+      "severity": "major",
+      "ban_context": "watchlist",
+      "safety_warning": "Synthetic food acids on a regulatory watchlist — presence in a supplement is associated with labeling and tolerability concerns. Avoid products that list these as ingredients.",
+      "safety_warning_one_liner": "Watchlist food acids in supplements. Avoid."
+    },
+    {
+      "canonical_id": "RECALLED_HYDROXYCUT",
+      "common_names": [
+        "hydroxycut",
+        "hydroxycut hardcore",
+        "hydroxycut max"
+      ],
+      "recall_status": "recalled",
+      "regulatory_basis": "contaminant_risk — FDA recall May 2009. Severe liver injury (23 reports, 1 death).",
+      "reason": "Hydroxycut products were voluntarily recalled in 2009 after FDA linked the brand to 23 reports of serious liver injury, including one death and the need for one liver transplant. Multiple formulations withdrawn; reformulated versions are now sold under the same name and require case-by-case evaluation.",
+      "effective_date": "2009-05-01",
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "Hydroxycut was recalled in 2009 after being linked to 23 reports of severe liver injury and one death. Stop any remaining product and consult a doctor if symptoms develop.",
+      "safety_warning_one_liner": "Recalled product linked to liver injury. Stop."
+    },
+    {
+      "canonical_id": "RECALLED_JACK3D",
+      "common_names": [
+        "jack3d",
+        "usplabs jack3d",
+        "jack3d micro"
+      ],
+      "recall_status": "recalled",
+      "regulatory_basis": "contaminant_risk — FDA enforcement 2013. Undeclared DMAA; 2 military deaths.",
+      "reason": "Jack3d (USPlabs) was recalled after its DMAA (1,3-dimethylamylamine) content was linked to two deaths in US military personnel. DMAA is a synthetic stimulant the FDA classified as an unapproved food additive. The original formulation is no longer authorized; current US-sold reformulations are DMAA-free.",
+      "effective_date": "2013-04-12",
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "Jack3d was recalled after its DMAA content was linked to two deaths in US military personnel. Stop any remaining product and consult a doctor.",
+      "safety_warning_one_liner": "Recalled DMAA product linked to deaths. Stop."
+    },
+    {
+      "canonical_id": "RECALLED_OXYELITE_PRO",
+      "common_names": [
+        "oxyelite pro",
+        "oxyelite",
+        "usplabs oxyelite pro"
+      ],
+      "recall_status": "recalled",
+      "regulatory_basis": "contaminant_risk — FDA recall 2013. Acute liver injury outbreak (97 cases, 3 transplants, 1 death).",
+      "reason": "OxyElite Pro (USPlabs) was recalled in 2013 after being linked to an outbreak of 97 cases of acute hepatitis, including three liver transplants and one death. The original aegeline-containing formulation is no longer authorized; reformulated versions sold under the OxyElite name require case-by-case evaluation.",
+      "effective_date": "2013-11-09",
+      "severity": "critical",
+      "ban_context": "contamination_recall",
+      "safety_warning": "OxyElite Pro was recalled in 2013 after being linked to an acute liver injury outbreak with 97 cases, three liver transplants, and one death. Stop any remaining product and consult a doctor.",
+      "safety_warning_one_liner": "Recalled product linked to liver transplants. Stop."
     }
   ]
 }
