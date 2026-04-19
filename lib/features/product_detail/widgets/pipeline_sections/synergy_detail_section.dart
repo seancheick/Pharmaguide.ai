@@ -59,7 +59,12 @@ class SynergyDetailSection extends StatelessWidget {
             final name = cluster['name']?.toString() ??
                 cluster['cluster_name']?.toString() ?? '';
             final evidenceTier = cluster['evidence_tier']?.toString() ?? '';
-            final explanation = cluster['bonus_explanation']?.toString() ?? '';
+            // Prefer Dr. Pham's authored benefit_short (layperson,
+            // positive framing); fall back to bonus_explanation
+            // (pipeline-generated), then the dense synergy_mechanism.
+            final explanation = cluster['benefit_short']?.toString().isNotEmpty == true
+                ? cluster['benefit_short'].toString()
+                : (cluster['bonus_explanation']?.toString() ?? '');
             final pmids = (cluster['pmids'] as List?)
                     ?.map((e) => e.toString())
                     .toList() ??

@@ -1,11 +1,12 @@
 {
   "_metadata": {
-    "schema_version": "1.1",
-    "last_updated": "2026-04-16",
+    "schema_version": "5.0.0",
+    "last_updated": "2026-04-18",
     "total_entries": 58,
     "description": "Ingredient synergy clusters for bonus scoring when complementary ingredients are combined",
     "pipeline_source_version": "v5.0",
-    "migration_note": "Migrated from pipeline v5.0 schema. bonus_points (synergy) and warning_message/regulatory_basis (recall) were derived where no pipeline source exists — fields marked with pipeline-derived values are subject to safety review."
+    "migration_note": "Migrated from pipeline v5.0 schema. bonus_points (synergy) and warning_message/regulatory_basis (recall) were derived where no pipeline source exists — fields marked with pipeline-derived values are subject to safety review.",
+    "notes": "Patched with Dr. Pham-authored synergy_benefit_short fields (2026-04-18). Flutter schema shape preserved."
   },
   "clusters": [
     {
@@ -29,7 +30,8 @@
         "https://pubmed.ncbi.nlm.nih.gov/9619120/",
         "https://www.nccih.nih.gov/health/turmeric",
         "PMID:9619120"
-      ]
+      ],
+      "synergy_benefit_short": "Turmeric or curcumin paired with black pepper (piperine) is absorbed up to 20× better — the pair unlocks the anti-inflammatory benefit together."
     },
     {
       "cluster_id": "SYN_MAGNESIUM_NERVOUS_SYSTEM",
@@ -52,7 +54,8 @@
         "https://pubmed.ncbi.nlm.nih.gov/30807974/",
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "PMID:30562392"
-      ]
+      ],
+      "synergy_benefit_short": "Magnesium with vitamin B6, taurine, or glycine supports calmer nerves and better sleep — these partners help magnesium actually reach your cells."
     },
     {
       "cluster_id": "SYN_SLEEP_STACK",
@@ -92,7 +95,8 @@
         "https://pubmed.ncbi.nlm.nih.gov/34959948/",
         "https://www.nccih.nih.gov/health/melatonin-what-you-need-to-know",
         "PMID:21226679"
-      ]
+      ],
+      "synergy_benefit_short": "Melatonin, magnesium, L-theanine, and glycine work on different parts of falling asleep — the stack covers wind-down, onset, and staying asleep."
     },
     {
       "cluster_id": "SYN_JOINT_INFLAMMATION",
@@ -126,7 +130,8 @@
       "citations": [
         "https://www.nccih.nih.gov/health/glucosamine-and-chondroitin-for-osteoarthritis",
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Glucosamine, chondroitin, MSM, and omega-3 cover cartilage building blocks, cushioning, and inflammation — better together than any one alone."
     },
     {
       "cluster_id": "SYN_EYE_HEALTH",
@@ -158,7 +163,8 @@
         "https://pubmed.ncbi.nlm.nih.gov/23644932/",
         "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/",
         "PMID:23644932"
-      ]
+      ],
+      "synergy_benefit_short": "Lutein, zeaxanthin, astaxanthin, and bilberry together filter blue light and protect the retina — they concentrate in different parts of the eye."
     },
     {
       "cluster_id": "SYN_METHYLATION_SUPPORT",
@@ -186,7 +192,8 @@
         "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/",
         "PMID:36170884"
-      ]
+      ],
+      "synergy_benefit_short": "Methylated B12 and methylfolate paired with B6 and riboflavin support methylation — helpful for people with MTHFR variants or B-vitamin gaps."
     },
     {
       "cluster_id": "SYN_DETOX_PATHWAY",
@@ -216,7 +223,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/Selenium-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "NAC, glutathione, alpha-lipoic acid, and milk thistle together support the liver's natural detox pathways — each covers a different step."
     },
     {
       "cluster_id": "SYN_GUT_BARRIER",
@@ -243,7 +251,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "L-glutamine, zinc carnosine, DGL, and butyrate support a healthier gut lining — they feed and soothe different parts of the gut barrier."
     },
     {
       "cluster_id": "SYN_IMMUNE_DEFENSE",
@@ -274,7 +283,8 @@
         "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Vitamin C, zinc, vitamin D, and elderberry work on different immune pathways — giving your defense system multiple angles at once."
     },
     {
       "cluster_id": "SYN_ENERGY_MITOCHONDRIA",
@@ -304,7 +314,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "https://www.nccih.nih.gov/health/rhodiola"
-      ]
+      ],
+      "synergy_benefit_short": "Acetyl-L-carnitine, CoQ10, PQQ, and B vitamins fuel your cells' energy factories (mitochondria) — helpful when you feel low-energy."
     },
     {
       "cluster_id": "SYN_STRESS_RESILIENCE",
@@ -332,7 +343,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "https://www.nccih.nih.gov/health/ashwagandha"
-      ]
+      ],
+      "synergy_benefit_short": "Ashwagandha, rhodiola, L-theanine, and phosphatidylserine support calmer stress response — adaptogens and calming nutrients combined."
     },
     {
       "cluster_id": "SYN_MOOD_BALANCE",
@@ -359,7 +371,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "5-HTP, SAM-e, L-tyrosine, and B vitamins support natural neurotransmitter production — multiple feel-good pathways covered."
     },
     {
       "cluster_id": "SYN_COGNITIVE_PERFORMANCE",
@@ -393,7 +406,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/",
         "https://www.nccih.nih.gov/health/ginkgo"
-      ]
+      ],
+      "synergy_benefit_short": "Bacopa, alpha-GPC, citicoline, and lion's mane support focus and learning — different angles on brain chemistry and nerve growth."
     },
     {
       "cluster_id": "SYN_CARDIOVASCULAR_SUPPORT",
@@ -426,7 +440,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "CoQ10, omega-3, magnesium, and hawthorn together support heart rhythm, blood-vessel health, and cholesterol — a well-rounded heart stack."
     },
     {
       "cluster_id": "SYN_BLOOD_SUGAR_REGULATION",
@@ -456,7 +471,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Chromium-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Berberine, chromium, alpha-lipoic acid, and cinnamon work on different parts of glucose handling — helpful for blood-sugar balance."
     },
     {
       "cluster_id": "SYN_HORMONE_BALANCE_MEN",
@@ -486,7 +502,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Zinc, ashwagandha, vitamin D, and tongkat ali support healthy testosterone pathways — a common stack for men's hormonal balance."
     },
     {
       "cluster_id": "SYN_HORMONE_BALANCE_WOMEN",
@@ -516,7 +533,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Chasteberry, DIM, calcium d-glucarate, and B6 support estrogen balance and menstrual comfort — a common stack for cycle support."
     },
     {
       "cluster_id": "SYN_HAIR_SKIN_NUTRITION",
@@ -547,7 +565,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Biotin, silica, zinc, collagen, and vitamin C support hair, skin, and nail building blocks — beauty nutrition in layers."
     },
     {
       "cluster_id": "SYN_LIVER_SUPPORT",
@@ -575,7 +594,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/Selenium-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Milk thistle, NAC, alpha-lipoic acid, and TMG together support the liver's natural repair and detox — each covers a different angle."
     },
     {
       "cluster_id": "SYN_BONE_HEALTH",
@@ -608,7 +628,8 @@
         "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/",
         "https://www.fda.gov/food/cfsan-constituent-updates/fda-denies-health-claim-notification-vitamin-k2-osteoporosis",
         "PMID:18410225"
-      ]
+      ],
+      "synergy_benefit_short": "Calcium, vitamin D, K2, magnesium, and boron work together for bone strength — calcium alone isn't enough, these partners guide it to bone."
     },
     {
       "cluster_id": "SYN_IRON_ABSORPTION",
@@ -635,7 +656,8 @@
         "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
         "PMID:10948381"
-      ]
+      ],
+      "synergy_benefit_short": "Iron with vitamin C and folate is absorbed better and supports red-blood-cell production — the partners help iron do its job."
     },
     {
       "cluster_id": "SYN_ANTIOXIDANT_DEFENSE",
@@ -668,7 +690,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Vitamin C, vitamin E, selenium, and CoQ10 regenerate each other — the network is stronger than any single antioxidant alone."
     },
     {
       "cluster_id": "SYN_PRE_POST_WORKOUT",
@@ -698,7 +721,8 @@
       "citations": [
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/list-all/"
-      ]
+      ],
+      "synergy_benefit_short": "Creatine, beta-alanine, L-citrulline, and BCAAs cover strength, endurance, blood-flow, and muscle recovery — a complete workout stack."
     },
     {
       "cluster_id": "SYN_DIGESTIVE_ENZYMES",
@@ -719,7 +743,8 @@
       "citations": [
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/list-all/"
-      ]
+      ],
+      "synergy_benefit_short": "Amylase, protease, lipase, lactase, and bromelain together break down carbs, protein, fat, dairy, and plant fibers — full-meal digestion."
     },
     {
       "cluster_id": "SYN_THYROID_SUPPORT",
@@ -746,7 +771,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Iodine, L-tyrosine, selenium, and zinc together supply thyroid hormone building blocks and the nutrients needed to convert to active form."
     },
     {
       "cluster_id": "SYN_MEMORY_LEARNING",
@@ -774,7 +800,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/",
         "https://www.nccih.nih.gov/health/ginkgo"
-      ]
+      ],
+      "synergy_benefit_short": "Bacopa, ginkgo, phosphatidylserine, and alpha-GPC support memory and recall — different angles on brain circulation and nerve function."
     },
     {
       "cluster_id": "SYN_FAT_METABOLISM",
@@ -803,7 +830,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/Chromium-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "L-carnitine, green tea extract, CLA, and forskolin support how the body uses fat for energy — modest but complementary effects."
     },
     {
       "cluster_id": "SYN_MUSCLE_BUILDING_RECOVERY",
@@ -830,7 +858,8 @@
       "citations": [
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/list-all/"
-      ]
+      ],
+      "synergy_benefit_short": "Protein, creatine, HMB, and BCAAs cover muscle protein synthesis, strength, and recovery — the foundation for training gains."
     },
     {
       "cluster_id": "SYN_INFLAMMATION_CONTROL",
@@ -865,7 +894,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/",
         "https://www.nccih.nih.gov/health/turmeric"
-      ]
+      ],
+      "synergy_benefit_short": "Omega-3, curcumin, boswellia, and quercetin calm different inflammatory pathways — together they cover more than any one alone."
     },
     {
       "cluster_id": "SYN_ADRENAL_SUPPORT",
@@ -890,7 +920,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Vitamin C, B5, ashwagandha, and rhodiola support adrenal function during stress — nutrients plus adaptogens for tougher stretches."
     },
     {
       "cluster_id": "SYN_LONGEVITY_AND_ANTI_AGING",
@@ -921,7 +952,8 @@
       "citations": [
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/list-all/"
-      ]
+      ],
+      "synergy_benefit_short": "NR, pterostilbene, astaxanthin, and quercetin support cellular repair pathways linked to healthy aging — emerging but promising stack."
     },
     {
       "cluster_id": "SYN_PROBIOTIC_AND_GUT_HEALTH",
@@ -947,7 +979,8 @@
         "https://www.nccih.nih.gov/health/probiotics-what-you-need-to-know",
         "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
         "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
-      ]
+      ],
+      "synergy_benefit_short": "Lactobacillus, Bifidobacterium, and prebiotic fibers together establish and feed beneficial gut bacteria — the probiotic plus its food."
     },
     {
       "cluster_id": "SYN_ELECTROLYTE_BALANCE",
@@ -969,7 +1002,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Potassium-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Sodium, potassium, magnesium, and calcium in balance support hydration, nerve function, and muscle contraction — especially during exercise."
     },
     {
       "cluster_id": "SYN_PRE_WORKOUT_ENERGY",
@@ -995,7 +1029,8 @@
       "citations": [
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/list-all/"
-      ]
+      ],
+      "synergy_benefit_short": "Citrulline, beta-alanine, betaine, tyrosine, and caffeine together support energy, focus, and muscle endurance before a workout."
     },
     {
       "cluster_id": "SYN_RECOVERY_SUPPORT",
@@ -1019,7 +1054,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "BCAAs, glutamine, HMB, and tart cherry together support muscle recovery, reduce soreness, and help you bounce back between workouts."
     },
     {
       "cluster_id": "SYN_COGNITIVE_AMINO_ACIDS",
@@ -1043,7 +1079,8 @@
       "citations": [
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/list-all/"
-      ]
+      ],
+      "synergy_benefit_short": "Acetyl-L-carnitine, N-acetyl tyrosine, alpha-GPC, and taurine together support focus, drive, and mental stamina through different pathways."
     },
     {
       "cluster_id": "SYN_IMMUNE_PROBIOTIC_BLEND",
@@ -1066,7 +1103,8 @@
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
         "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
-      ]
+      ],
+      "synergy_benefit_short": "Lactobacillus rhamnosus GG, L. acidophilus, and Bifidobacterium strains together support gut-immune crosstalk — the most-studied immune probiotic combo."
     },
     {
       "cluster_id": "SYN_GUT_BARRIER_PROBIOTIC_BLEND",
@@ -1088,7 +1126,8 @@
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
         "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
-      ]
+      ],
+      "synergy_benefit_short": "Saccharomyces boulardii, L. plantarum, L. reuteri, and B. infantis together support gut-lining repair and barrier function — beyond basic probiotics."
     },
     {
       "cluster_id": "SYN_MOOD_GUT_AXIS_PROBIOTIC_BLEND",
@@ -1110,7 +1149,8 @@
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/Probiotics-Consumer/",
         "https://www.nccih.nih.gov/health/probiotics-usefulness-and-safety"
-      ]
+      ],
+      "synergy_benefit_short": "Specific Lactobacillus and Bifidobacterium strains are studied for gut-brain-axis effects — showing modest mood and stress benefits in trials."
     },
     {
       "cluster_id": "SYN_SKIN_HEALTH_COMPLEX",
@@ -1135,7 +1175,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Hyaluronic acid, ceramides, collagen, vitamin C, and zinc together support skin hydration, barrier, and collagen production — inside-out beauty."
     },
     {
       "cluster_id": "SYN_NITRIC_OXIDE_BLOOD_FLOW",
@@ -1160,7 +1201,8 @@
       "citations": [
         "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
         "https://ods.od.nih.gov/factsheets/list-all/"
-      ]
+      ],
+      "synergy_benefit_short": "L-citrulline, beet root, pine bark, and pomegranate together support nitric oxide production — helpful for blood flow, pumps, and endurance."
     },
     {
       "cluster_id": "SYN_OMEGA_3_ABSORPTION_ENHANCEMENT",
@@ -1188,7 +1230,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Omega-3 as triglyceride or phospholipid form, taken with food, is absorbed much better than ethyl ester forms on an empty stomach."
     },
     {
       "cluster_id": "SYN_COLLAGEN_SYNTHESIS_SUPPORT",
@@ -1216,7 +1259,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Vitamin C, lysine, proline, and copper together give your body the building blocks and cofactors needed to make collagen — the core of skin and joints."
     },
     {
       "cluster_id": "SYN_RESPIRATORY_HEALTH_LUNG_SUPPORT",
@@ -1243,7 +1287,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
         "https://www.nccih.nih.gov/health/quercetin"
-      ]
+      ],
+      "synergy_benefit_short": "NAC, quercetin, vitamin C, and vitamin D together support healthy lung function — antioxidant and immune angles for breathing comfort."
     },
     {
       "cluster_id": "SYN_URINARY_TRACT_HEALTH",
@@ -1264,7 +1309,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/",
         "https://www.nccih.nih.gov/health/cranberry"
-      ]
+      ],
+      "synergy_benefit_short": "D-mannose, cranberry, hibiscus, and probiotics together support urinary-tract comfort — helpful for recurrent UTI-prone users."
     },
     {
       "cluster_id": "SYN_PROSTATE_HEALTH",
@@ -1292,7 +1338,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Saw palmetto, beta-sitosterol, pygeum, and zinc together support healthy prostate function — a commonly studied men's-health stack."
     },
     {
       "cluster_id": "SYN_FOCUS_ATTENTION_SUPPORT",
@@ -1323,7 +1370,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "https://www.nccih.nih.gov/health/rhodiola"
-      ]
+      ],
+      "synergy_benefit_short": "Omega-3 (DHA/EPA), phosphatidylserine, and L-tyrosine together support focus and attention — structural plus neurotransmitter support."
     },
     {
       "cluster_id": "SYN_MENOPAUSE_PERIMENOPAUSE_SUPPORT",
@@ -1354,7 +1402,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Black cohosh, red clover, evening primrose, and sage together address hot flashes, hormonal balance, and night sweats — layered symptom support."
     },
     {
       "cluster_id": "SYN_PRENATAL_PREGNANCY_SUPPORT",
@@ -1382,7 +1431,8 @@
         "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Methylfolate, iron, choline, DHA, and iodine together cover the nutrients most needed during pregnancy — aligned with prenatal guidelines."
     },
     {
       "cluster_id": "SYN_NERVE_HEALTH_NEUROPATHY_SUPPORT",
@@ -1410,7 +1460,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "B-complex with benfotiamine, B6, B12, alpha-lipoic acid, and acetyl-L-carnitine together support nerve health — a common neuropathy stack."
     },
     {
       "cluster_id": "SYN_HISTAMINE_ALLERGY_SUPPORT",
@@ -1435,7 +1486,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Quercetin, vitamin C, bromelain, and nettle together support a calmer histamine response — a natural approach to seasonal allergies."
     },
     {
       "cluster_id": "SYN_KIDNEY_HEALTH_SUPPORT",
@@ -1462,7 +1514,8 @@
       "bonus_points": 1,
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Astragalus, cordyceps, alpha-lipoic acid, and omega-3 together support kidney function — traditional herbs plus modern antioxidants."
     },
     {
       "cluster_id": "SYN_DENTAL_ORAL_HEALTH",
@@ -1491,7 +1544,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "CoQ10, vitamin D, K2, and probiotics together support gum and tooth health from the inside — beyond just brushing and flossing."
     },
     {
       "cluster_id": "SYN_WOUND_HEALING",
@@ -1520,7 +1574,8 @@
       "citations": [
         "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Zinc, vitamin C, collagen, arginine, and glutamine together support tissue repair — building blocks plus immune and circulation support."
     },
     {
       "cluster_id": "SYN_MIGRAINE_PREVENTION",
@@ -1548,7 +1603,8 @@
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "https://www.nccih.nih.gov/health/feverfew",
         "https://ods.od.nih.gov/factsheets/Riboflavin-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Magnesium, riboflavin (B2), CoQ10, and feverfew are the most-studied supplement combo for reducing migraine frequency — the headache stack."
     },
     {
       "cluster_id": "SYN_BLOOD_PRESSURE_SUPPORT",
@@ -1579,7 +1635,8 @@
         "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
         "https://www.nccih.nih.gov/health/garlic",
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Magnesium, CoQ10, hibiscus, and beet root together support healthy blood-pressure pathways — modest effects that add up in combination."
     },
     {
       "cluster_id": "SYN_FERTILITY_FEMALE",
@@ -1612,7 +1669,8 @@
         "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/",
         "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Methylfolate, CoQ10, inositol, vitamin D, and omega-3 together support egg quality and cycle regularity — a common fertility-preparation stack."
     },
     {
       "cluster_id": "SYN_OMEGA3_NIACIN_LIPID",
@@ -1634,7 +1692,8 @@
       "citations": [
         "https://pmc.ncbi.nlm.nih.gov/articles/PMC10600480/",
         "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
-      ]
+      ],
+      "synergy_benefit_short": "Omega-3 with niacin covers both triglycerides and cholesterol support — a classic combo for overall lipid-panel improvement."
     }
   ]
 }

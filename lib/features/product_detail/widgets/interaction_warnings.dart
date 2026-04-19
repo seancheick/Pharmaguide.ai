@@ -66,6 +66,21 @@ class InteractionWarning {
   /// Null if the warning is not drug-class-specific.
   final String? drugClassId;
 
+  /// Pipeline `ban_context` for banned_recalled warnings — one of
+  /// `substance`, `adulterant_in_supplements`, `watchlist`,
+  /// `export_restricted`, `contamination_recall`. Drives the banner
+  /// framing: recall-voiced for `contamination_recall`, substance-
+  /// voiced for `substance`, etc. Null for non-banned warning types.
+  final String? banContext;
+
+  /// Display-ready headline — prefers authored [alertHeadline] over
+  /// the derived [title]. Use this in render code.
+  String get displayHeadline => alertHeadline ?? title;
+
+  /// Display-ready body — prefers authored [alertBody] over the
+  /// derived [mechanism]. Use this in render code.
+  String get displayBody => alertBody ?? mechanism;
+
   const InteractionWarning({
     required this.severity,
     required this.evidenceLevel,
@@ -80,6 +95,7 @@ class InteractionWarning {
     this.informationalNote,
     this.conditionId,
     this.drugClassId,
+    this.banContext,
   });
 
   /// Parse from raw JSON map (from detail blob `warnings` list).
@@ -101,6 +117,24 @@ class InteractionWarning {
             ? Severity.fromString(sevContextualRaw)
             : null;
 
+    // Authored-copy field normalization — different warning types carry
+    // the Path C fields under different names. We collapse them into the
+    // unified alertHeadline / alertBody here so the render side never has
+    // to branch on type:
+    //   interaction warnings      → alert_headline / alert_body
+    //   banned_recalled warnings  → safety_warning_one_liner / safety_warning
+    //   harmful_additive warnings → safety_summary_one_liner / safety_summary
+    //   manufacturer violations   → brand_trust_summary / (no long body)
+    final String? alertHeadline = (json['alert_headline'] ??
+            json['safety_warning_one_liner'] ??
+            json['safety_summary_one_liner'] ??
+            json['brand_trust_summary'])
+        ?.toString();
+    final String? alertBody = (json['alert_body'] ??
+            json['safety_warning'] ??
+            json['safety_summary'])
+        ?.toString();
+
     return InteractionWarning(
       severity: Severity.fromString(json['severity']?.toString() ?? 'safe'),
       severityContextual: sevContextual,
@@ -111,11 +145,12 @@ class InteractionWarning {
       mechanism: (json['detail'] ?? json['mechanism'])?.toString() ?? '',
       management: (json['action'] ?? json['management'])?.toString() ?? '',
       sourceUrls: urls,
-      alertHeadline: json['alert_headline']?.toString(),
-      alertBody: json['alert_body']?.toString(),
+      alertHeadline: alertHeadline,
+      alertBody: alertBody,
       informationalNote: json['informational_note']?.toString(),
       conditionId: json['condition_id']?.toString(),
       drugClassId: json['drug_class_id']?.toString(),
+      banContext: json['ban_context']?.toString(),
     );
   }
 
@@ -274,6 +309,14 @@ class InteractionWarningsList extends StatelessWidget {
         // Stack of interaction cards with breathing room between
         ...List.generate(sorted.length, (i) {
           final w = sorted[i];
+          // Contamination-recall entries get a distinct banner prefix —
+          // the copy describes a product recall, not a chemistry ban, so
+          // the framing in the card header shifts accordingly. See
+          // scripts/safety_copy_exemplars/ADR_contamination_recall_ban_context.md
+          // in the pipeline repo for the authoring contract.
+          final title = w.banContext == 'contamination_recall'
+              ? 'Recalled: ${w.displayHeadline}'
+              : w.displayHeadline;
           return Padding(
             padding: EdgeInsets.only(
               bottom: i == sorted.length - 1 ? 0 : AppTheme.space12,
@@ -281,8 +324,10 @@ class InteractionWarningsList extends StatelessWidget {
             child: PGInteractionCard(
               severity: w.severity,
               evidenceLevel: w.evidenceLevel,
-              title: w.title,
-              mechanism: w.mechanism,
+              // displayHeadline / displayBody prefer Path-C-authored copy
+              // (Dr. Pham, 2026-04-17/18) over derived pipeline strings.
+              title: title,
+              mechanism: w.displayBody,
               management: w.management,
               sources: w.sourceUrls,
               // Top-severity card starts expanded — user sees the worst
