@@ -626,13 +626,28 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   List<InteractionWarning> _parseWarnings(Map<String, dynamic>? blob) {
     if (blob == null) return [];
-    // Pipeline emits 'warnings' (not 'interaction_warnings')
-    final raw = blob['warnings'];
-    if (raw is! List) return [];
-    return raw
-        .whereType<Map<String, dynamic>>()
-        .map(InteractionWarning.fromJson)
-        .toList();
+    // Pipeline emits two separate warning lists:
+    //   `warnings`                — always-visible safety alerts (banned,
+    //                                recalled, harmful additives, allergens,
+    //                                drug/condition interactions).
+    //   `warnings_profile_gated`  — conditionally surfaced alerts that carry
+    //                                condition_ids / drug_class_ids tags and
+    //                                are filtered downstream by the active
+    //                                user profile (e.g. Titanium Dioxide
+    //                                EU-ban high-risk alert for pregnancy).
+    // Both share the InteractionWarning schema, so we concatenate them
+    // here and let the `InteractionWarningsList.filteredWarnings` pass
+    // handle profile-based suppression. Not emitting the gated list would
+    // silently lose high-risk alerts the pipeline has already curated.
+    final result = <InteractionWarning>[];
+    for (final key in const ['warnings', 'warnings_profile_gated']) {
+      final raw = blob[key];
+      if (raw is! List) continue;
+      result.addAll(raw
+          .whereType<Map<String, dynamic>>()
+          .map(InteractionWarning.fromJson));
+    }
+    return result;
   }
 
   void _showScoreEducation(BuildContext context) {

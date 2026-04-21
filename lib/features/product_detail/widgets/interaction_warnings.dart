@@ -73,6 +73,54 @@ class InteractionWarning {
   /// voiced for `substance`, etc. Null for non-banned warning types.
   final String? banContext;
 
+  /// Pipeline `clinical_risk` for banned_recalled / high_risk_ingredient
+  /// warnings — one of `critical`, `high`, `moderate`, `low`. Paired
+  /// with [severity] but distinct: severity drives display tier, clinical
+  /// risk drives medical-evidence weight (Dr Pham safety taxonomy).
+  final String? clinicalRisk;
+
+  /// Pipeline `mechanism_of_harm` for harmful_additive warnings —
+  /// technical explanation (e.g. "Nanoparticle concerns in gut
+  /// epithelium"). Surfaces in the expanded warning detail sheet.
+  final String? mechanismOfHarm;
+
+  /// Pipeline `population_warnings` for harmful_additive warnings —
+  /// list of at-risk groups with context (e.g. "Children — immature gut
+  /// barrier", "People with IBD — may aggravate inflammation"). Rendered
+  /// as bullet list in expanded detail.
+  final List<String> populationWarnings;
+
+  /// Pipeline `dose_threshold_evaluation` for interaction /
+  /// drug_interaction warnings — structured block describing trigger
+  /// threshold (e.g. only active at >1g/day). Preserved raw so the
+  /// detail sheet can render conditional phrasing.
+  final Map<String, dynamic>? doseThresholdEvaluation;
+
+  /// Pipeline `regulatory_date` + `regulatory_date_label` for
+  /// banned_recalled / high_risk_ingredient warnings — "First FDA
+  /// enforcement action: 2019-04" style context.
+  final String? regulatoryDate;
+  final String? regulatoryDateLabel;
+
+  /// Pipeline `category` on harmful_additive — "colorant", "sweetener",
+  /// "preservative" etc. Lets the UI group additives by class.
+  final String? additiveCategory;
+
+  /// Pipeline `prevalence` on allergen warnings — one of `high`,
+  /// `moderate`, `low`. Paired with severity — e.g. a high-prevalence
+  /// allergen (peanut) renders differently than a low one (sesame).
+  final String? allergenPrevalence;
+
+  /// Pipeline `supplement_context` on allergen warnings — free-form
+  /// copy (e.g. "Common emulsifier in soft-gels"). Shown under the
+  /// title on the allergen card.
+  final String? supplementContext;
+
+  /// Pipeline `identifiers` object — {cui, unii, cas, pubchem_cid}
+  /// for the subject ingredient/substance. Preserved raw so the
+  /// ingredient-detail drawer can render medical codes (CUI lookup).
+  final Map<String, dynamic>? identifiers;
+
   /// Display-ready headline — prefers authored [alertHeadline] over
   /// the derived [title]. Use this in render code.
   String get displayHeadline => alertHeadline ?? title;
@@ -96,6 +144,16 @@ class InteractionWarning {
     this.conditionId,
     this.drugClassId,
     this.banContext,
+    this.clinicalRisk,
+    this.mechanismOfHarm,
+    this.populationWarnings = const [],
+    this.doseThresholdEvaluation,
+    this.regulatoryDate,
+    this.regulatoryDateLabel,
+    this.additiveCategory,
+    this.allergenPrevalence,
+    this.supplementContext,
+    this.identifiers,
   });
 
   /// Parse from raw JSON map (from detail blob `warnings` list).
@@ -135,6 +193,26 @@ class InteractionWarning {
             json['safety_summary'])
         ?.toString();
 
+    // Dr Pham's user-facing safety fields — propagated by the enricher
+    // from banned_recalled / harmful_additives / ingredient_interaction_rules /
+    // allergens data files. These are the medical-evidence breadcrumbs the
+    // detail-sheet rendering depends on (population_warnings bullet list,
+    // clinical_risk-driven banner tint, regulatory_date context line, etc.).
+    final rawPopWarnings = json['population_warnings'];
+    final popWarnings = rawPopWarnings is List
+        ? rawPopWarnings.map((e) => e.toString()).toList()
+        : const <String>[];
+
+    final rawDoseEval = json['dose_threshold_evaluation'];
+    final doseEval = rawDoseEval is Map<String, dynamic>
+        ? Map<String, dynamic>.from(rawDoseEval)
+        : null;
+
+    final rawIdentifiers = json['identifiers'];
+    final identifiers = rawIdentifiers is Map<String, dynamic>
+        ? Map<String, dynamic>.from(rawIdentifiers)
+        : null;
+
     return InteractionWarning(
       severity: Severity.fromString(json['severity']?.toString() ?? 'safe'),
       severityContextual: sevContextual,
@@ -151,6 +229,17 @@ class InteractionWarning {
       conditionId: json['condition_id']?.toString(),
       drugClassId: json['drug_class_id']?.toString(),
       banContext: json['ban_context']?.toString(),
+      clinicalRisk: json['clinical_risk']?.toString(),
+      mechanismOfHarm: json['mechanism_of_harm']?.toString(),
+      populationWarnings: popWarnings,
+      doseThresholdEvaluation: doseEval,
+      regulatoryDate: json['regulatory_date']?.toString() ??
+          json['date']?.toString(),
+      regulatoryDateLabel: json['regulatory_date_label']?.toString(),
+      additiveCategory: json['category']?.toString(),
+      allergenPrevalence: json['prevalence']?.toString(),
+      supplementContext: json['supplement_context']?.toString(),
+      identifiers: identifiers,
     );
   }
 

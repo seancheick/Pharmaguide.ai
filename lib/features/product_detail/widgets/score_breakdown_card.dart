@@ -165,19 +165,34 @@ class ScoreBreakdownCard extends StatelessWidget {
     _addSubScore(lines, subs, 'B6_contaminant_risk', 'Contaminant risk');
     _addSubScore(lines, subs, 'B7_dose_safety', 'Dose safety (UL check)');
 
-    // Check for penalty evidence
+    // B7 evidence — pipeline scorer emits {nutrient, amount, ul, pct_ul,
+    // penalty} per OVER-150%-UL flag. D4.3 additions on AGGREGATED flags
+    // (forms of the same canonical summed before UL check): `aggregation:
+    // "canonical_sum"` + `contributing_rows: [form names]` — required for
+    // the teratogenicity case where 10k+10k IU Vitamin A forms individually
+    // sit at 100% UL but together hit 200% UL.
     final penaltyEvidence = sub['B7_dose_safety_evidence'] as List?;
     if (penaltyEvidence != null) {
       for (final e in penaltyEvidence) {
         if (e is Map) {
-          final name = e['ingredient']?.toString() ?? '';
-          final reason = e['reason']?.toString() ?? '';
-          if (name.isNotEmpty) {
-            lines.add(_ExplainLine(
-              text: '$name: $reason',
-              isPositive: false,
-            ));
+          final nutrient = e['nutrient']?.toString() ?? '';
+          if (nutrient.isEmpty) continue;
+          final pctUl = (e['pct_ul'] as num?)?.toDouble();
+          final amount = e['amount'];
+          final ul = e['ul'];
+          final isAggregated = e['aggregation'] == 'canonical_sum';
+          final contributing = e['contributing_rows'];
+          final pctStr = pctUl != null ? ' (${pctUl.toStringAsFixed(0)}% UL)' : '';
+          final amountStr = (amount != null && ul != null) ? ' — $amount of $ul limit' : '';
+          var text = '$nutrient exceeds safe upper limit$pctStr$amountStr';
+          if (isAggregated && contributing is List && contributing.isNotEmpty) {
+            // Surface that the flag is an aggregate across multiple forms —
+            // key transparency for the teratogenicity case (user needs to
+            // know that e.g. "2 forms of Vitamin A summed" triggered this).
+            final formsCount = contributing.length;
+            text += ' — summed across $formsCount forms';
           }
+          lines.add(_ExplainLine(text: text, isPositive: false));
         }
       }
     }
