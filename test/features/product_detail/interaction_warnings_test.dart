@@ -218,4 +218,129 @@ void main() {
       );
     });
   });
+
+  // -----------------------------------------------------------------------
+  // Sprint D5.4 — Dr Pham's medically-authored user-facing copy fields.
+  //
+  // The pipeline's enricher propagates 10 additional fields from the
+  // banned_recalled / harmful_additives / interaction rules / allergens
+  // data files into each warning entry. These power the detail-sheet
+  // rendering (banner tint by clinical_risk, population warning bullet
+  // list, regulatory_date context, etc.). Prior to D5.4 Flutter dropped
+  // them on the floor — users saw only technical jargon.
+  // -----------------------------------------------------------------------
+  group('InteractionWarning.fromJson — Dr Pham fields', () {
+    test('parses high_risk_ingredient fields (banned_recalled source)', () {
+      // Exactly the shape the pipeline emits for banned/recalled/high-risk
+      // / watchlist entries (see build_final_db.py around line 1410).
+      final json = <String, dynamic>{
+        'type': 'high_risk_ingredient',
+        'severity': 'moderate',
+        'title': 'High-risk ingredient: Titanium Dioxide',
+        'detail': 'Technical explanation',
+        'source': 'banned_recalled_ingredients',
+        'safety_warning':
+            'A white-pigment additive EFSA ruled in 2021 could no longer '
+            'be considered safe due to genotoxicity concerns.',
+        'safety_warning_one_liner': 'EU-banned white pigment. Avoid when possible.',
+        'ban_context': 'watchlist',
+        'clinical_risk': 'high',
+        'regulatory_date': '2022-08-07',
+        'regulatory_date_label': 'EU ban effective date',
+        'identifiers': {'cui': 'C0040476', 'unii': '15FIX9V2JP'},
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.clinicalRisk, 'high');
+      expect(w.banContext, 'watchlist');
+      expect(w.regulatoryDate, '2022-08-07');
+      expect(w.regulatoryDateLabel, 'EU ban effective date');
+      // Dr Pham's copy flows into the unified alertHeadline/alertBody.
+      expect(w.alertHeadline, 'EU-banned white pigment. Avoid when possible.');
+      expect(w.alertBody, contains('EFSA ruled in 2021'));
+      expect(w.identifiers, isNotNull);
+      expect(w.identifiers!['cui'], 'C0040476');
+    });
+
+    test('parses harmful_additive fields (mechanism + population_warnings)', () {
+      final json = <String, dynamic>{
+        'type': 'harmful_additive',
+        'severity': 'moderate',
+        'title': 'Contains Titanium Dioxide',
+        'safety_summary':
+            'Nanoparticle concerns in gut epithelium at prolonged exposure.',
+        'safety_summary_one_liner': 'Possibly genotoxic pigment.',
+        'mechanism_of_harm':
+            'Nanoparticle form (<100nm) shows increased intestinal '
+            'absorption and genotoxic concern.',
+        'population_warnings': <String>[
+          'Children — immature gut barrier',
+          'People with IBD — may aggravate inflammation',
+        ],
+        'category': 'colorant',
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.mechanismOfHarm, contains('Nanoparticle form'));
+      expect(w.populationWarnings, hasLength(2));
+      expect(w.populationWarnings.first, startsWith('Children'));
+      expect(w.additiveCategory, 'colorant');
+      expect(w.alertHeadline, 'Possibly genotoxic pigment.');
+    });
+
+    test('parses interaction fields (dose_threshold_evaluation)', () {
+      final json = <String, dynamic>{
+        'type': 'drug_interaction',
+        'severity': 'avoid',
+        'severity_contextual': 'caution',
+        'title': 'Berberine + hypoglycemic agents',
+        'alert_headline': 'Blood sugar may drop too low',
+        'alert_body':
+            'Berberine has its own blood-sugar-lowering effect; combining '
+            'with insulin or sulfonylureas amplifies hypoglycemia risk.',
+        'informational_note':
+            'This rule kicks in at doses above 500 mg/day and with '
+            'concurrent hypoglycemic therapy.',
+        'dose_threshold_evaluation': {
+          'triggered': true,
+          'threshold_mg': 500,
+          'product_dose_mg': 1000,
+        },
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.doseThresholdEvaluation, isNotNull);
+      expect(w.doseThresholdEvaluation!['threshold_mg'], 500);
+      expect(w.doseThresholdEvaluation!['triggered'], true);
+    });
+
+    test('parses allergen fields (prevalence + supplement_context)', () {
+      final json = <String, dynamic>{
+        'type': 'allergen',
+        'severity': 'moderate',
+        'title': 'Allergen: Soy',
+        'prevalence': 'high',
+        'supplement_context':
+            'Common emulsifier in soft-gels and in protein products.',
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.allergenPrevalence, 'high');
+      expect(w.supplementContext, contains('soft-gels'));
+    });
+
+    test('defaults are safe when fields are absent', () {
+      // Legacy blobs pre-D5.4 don't carry Dr Pham fields — model must
+      // default sensibly, not crash.
+      final w = InteractionWarning.fromJson(<String, dynamic>{
+        'title': 'Legacy warning',
+      });
+      expect(w.clinicalRisk, isNull);
+      expect(w.mechanismOfHarm, isNull);
+      expect(w.populationWarnings, isEmpty);
+      expect(w.doseThresholdEvaluation, isNull);
+      expect(w.regulatoryDate, isNull);
+      expect(w.regulatoryDateLabel, isNull);
+      expect(w.additiveCategory, isNull);
+      expect(w.allergenPrevalence, isNull);
+      expect(w.supplementContext, isNull);
+      expect(w.identifiers, isNull);
+    });
+  });
 }
