@@ -158,11 +158,17 @@ class InteractionWarning {
 
   /// Parse from raw JSON map (from detail blob `warnings` list).
   ///
-  /// Pipeline emits fields: `detail`, `action`, `sources`, `condition_id`,
-  /// `drug_class_id`, `display_mode_default`, `severity_contextual`,
-  /// `alert_headline`, `alert_body`, `informational_note`. Legacy aliases
-  /// `mechanism`/`management`/`source_urls` are also accepted for backward
-  /// compat with older cached blobs.
+  /// Pipeline emits fields: `detail`, `action`, `sources`, `condition_ids`,
+  /// `drug_class_ids`, `display_mode_default`, `severity_contextual`,
+  /// `alert_headline`, `alert_body`, `informational_note`.
+  ///
+  /// Sprint E1.4.1 (pipeline 2026-04-22): `condition_id` / `drug_class_id`
+  /// migrated to plural arrays `condition_ids[]` / `drug_class_ids[]`.
+  /// This parser accepts both shapes — plural wins; singular is used as
+  /// a fallback for blobs cached pre-migration.
+  ///
+  /// Legacy aliases `mechanism`/`management`/`source_urls` are also
+  /// accepted for backward compat with older cached blobs.
   factory InteractionWarning.fromJson(Map<String, dynamic> json) {
     final rawUrls = json['sources'] ?? json['source_urls'];
     final urls = rawUrls is List
@@ -226,8 +232,10 @@ class InteractionWarning {
       alertHeadline: alertHeadline,
       alertBody: alertBody,
       informationalNote: json['informational_note']?.toString(),
-      conditionId: json['condition_id']?.toString(),
-      drugClassId: json['drug_class_id']?.toString(),
+      conditionId: _firstFromPluralOrSingular(
+        json['condition_ids'], json['condition_id']),
+      drugClassId: _firstFromPluralOrSingular(
+        json['drug_class_ids'], json['drug_class_id']),
       banContext: json['ban_context']?.toString(),
       clinicalRisk: json['clinical_risk']?.toString(),
       mechanismOfHarm: json['mechanism_of_harm']?.toString(),
@@ -241,6 +249,26 @@ class InteractionWarning {
       supplementContext: json['supplement_context']?.toString(),
       identifiers: identifiers,
     );
+  }
+
+  /// Sprint E1.4.1 compat helper — pipeline migrated singular
+  /// condition_id / drug_class_id → plural arrays on 2026-04-22.
+  /// Prefer the plural array's first entry; fall back to the legacy
+  /// singular scalar for blobs cached pre-migration.
+  static String? _firstFromPluralOrSingular(
+      dynamic plural, dynamic singular) {
+    if (plural is List && plural.isNotEmpty) {
+      final first = plural.first;
+      if (first != null) {
+        final s = first.toString();
+        if (s.isNotEmpty) return s;
+      }
+    }
+    if (singular != null) {
+      final s = singular.toString();
+      if (s.isNotEmpty) return s;
+    }
+    return null;
   }
 
   /// Does this warning match the given user profile?
