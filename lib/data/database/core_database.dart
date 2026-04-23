@@ -244,9 +244,23 @@ class CoreDatabase extends _$CoreDatabase {
 
     // Try FTS5 first — dramatically faster and dedup-aware.
     try {
-      // FTS5 query: append * for prefix matching ("vita" → "vitamin").
-      // Escape double-quotes in user input to prevent FTS5 syntax errors.
-      final ftsQuery = trimmed.replaceAll('"', '""');
+      // FLTR-SEARCH — tokenize the query and AND each token with
+      // prefix match. Previously we wrapped the full string as one
+      // phrase ("thorne vitamin a"*), which forced the literal
+      // phrase to appear in a single indexed column. Since brand
+      // ("Thorne Research") and product_name ("Vitamin A") sit in
+      // different columns, multi-word cross-column queries returned
+      // zero. Splitting into tokens — each prefix-matched and AND'd —
+      // lets FTS5 match "thorne" against brand and "vitamin" / "a"
+      // against product_name simultaneously.
+      final tokens = trimmed
+          .split(RegExp(r'\s+'))
+          .where((t) => t.isNotEmpty)
+          .map((t) => t.replaceAll('"', '""'))
+          .map((t) => '"$t"*')
+          .toList();
+      if (tokens.isEmpty) return [];
+      final ftsQuery = tokens.join(' AND ');
       final rows = await customSelect(
         'SELECT p.* FROM products_fts f '
         'JOIN products_core p ON p.rowid = f.rowid '
@@ -254,7 +268,7 @@ class CoreDatabase extends _$CoreDatabase {
         'ORDER BY rank, COALESCE(p.score_quality_80, 0) DESC '
         'LIMIT ?',
         variables: [
-          Variable.withString('"$ftsQuery"*'),
+          Variable.withString(ftsQuery),
           Variable.withInt(limit),
         ],
         readsFrom: {productsCore},
