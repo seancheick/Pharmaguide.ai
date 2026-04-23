@@ -1974,17 +1974,33 @@ class _IngredientTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final name = ingredient['standard_name']?.toString() ??
-        ingredient['name']?.toString() ??
-        ingredient['raw_source_text']?.toString() ??
-        '';
+    // FLTR-2 — prefer the pipeline's pre-formatted display fields.
+    // `display_label` already carries the form (e.g. "Vitamin A Palmitate"
+    // rather than "Vitamin A" with an empty form subtitle), and
+    // `display_dose_label` is the authoritative dose string including
+    // edge cases like "Amount not disclosed" the raw quantity/unit
+    // composition can't represent. Fall back to the raw fields when
+    // the pipeline hasn't populated these (legacy blobs).
+    final displayLabel =
+        ingredient['display_label']?.toString().trim();
+    final name = (displayLabel != null && displayLabel.isNotEmpty)
+        ? displayLabel
+        : (ingredient['standard_name']?.toString() ??
+            ingredient['name']?.toString() ??
+            ingredient['raw_source_text']?.toString() ??
+            '');
     final quantity = ingredient['quantity'];
     final unit = ingredient['unit']?.toString() ?? '';
     final form = ingredient['form']?.toString() ?? '';
     final category = ingredient['category']?.toString() ?? '';
     final bioScore = ingredient['bio_score'];
 
-    final doseLabel = quantity != null ? '$quantity $unit'.trim() : '';
+    final displayDoseLabel =
+        ingredient['display_dose_label']?.toString().trim();
+    final doseLabel = (displayDoseLabel != null &&
+            displayDoseLabel.isNotEmpty)
+        ? displayDoseLabel
+        : (quantity != null ? '$quantity $unit'.trim() : '');
 
     // Compact row — no card border, bottom divider only (premium density)
     return Column(
