@@ -35,6 +35,7 @@ import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.d
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
+import 'package:pharmaguide/features/product_detail/widgets/product_status_chip.dart';
 import 'package:pharmaguide/features/product_detail/widgets/refill_reminder_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unmapped_actives_disclosure.dart';
@@ -408,6 +409,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               decisionHighlights: _product?.decisionHighlights,
             ),
           ),
+
+          // ----------------------------------------------------------------
+          // FLTR-4 — product_status soft signal (e.g. "Discontinued ·
+          // 2017-11-28"). Grey/subdued chip rendered once the detail
+          // blob loads and carries the structured product_status block.
+          // Never in alerts, never red/green — it's a neutral caveat.
+          // ----------------------------------------------------------------
+          if (detailBlob?['product_status'] is Map)
+            SliverToBoxAdapter(
+              child: ProductStatusChip(
+                productStatus: detailBlob!['product_status']
+                    as Map<String, dynamic>,
+              ),
+            ),
 
           // ----------------------------------------------------------------
           // Condition alert banner (interaction summary hint)
