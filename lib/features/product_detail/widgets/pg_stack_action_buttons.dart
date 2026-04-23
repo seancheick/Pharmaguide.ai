@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
@@ -96,6 +97,24 @@ class PGStackActionButtons extends ConsumerWidget {
     if (product == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not load product.')),
+      );
+      return;
+    }
+
+    // FLTR-16 — Safety override. Blocked/unsafe products cannot be
+    // added. Short-circuit BEFORE the safety check sheet so the user
+    // never sees a "no stack interactions found — safe to add" banner
+    // on a banned product. The domain layer ([StackActions.addProduct])
+    // will also throw for defense in depth.
+    if (isUnsafeVerdict(product.verdict)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This product cannot be added due to safety concerns.',
+          ),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }

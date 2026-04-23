@@ -236,4 +236,18 @@ void main() {
     expect(isBlockedVerdict(null), isFalse);
     expect(isBlockedVerdict(''), isFalse);
   });
+
+  test('isUnsafeVerdict matches BLOCKED and UNSAFE (stack-gate predicate)',
+      () {
+    expect(isUnsafeVerdict('BLOCKED'), isTrue);
+    expect(isUnsafeVerdict('UNSAFE'), isTrue);
+    expect(isUnsafeVerdict('blocked'), isTrue);
+    expect(isUnsafeVerdict(' unsafe '), isTrue);
+    expect(isUnsafeVerdict('RECOMMENDED'), isFalse);
+    expect(isUnsafeVerdict('REVIEW'), isFalse);
+    expect(isUnsafeVerdict('MODERATE'), isFalse);
+    expect(isUnsafeVerdict('NOT_SCORED'), isFalse);
+    expect(isUnsafeVerdict(null), isFalse);
+    expect(isUnsafeVerdict(''), isFalse);
+  });
 }

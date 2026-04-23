@@ -6,12 +6,32 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+
+/// Thrown when [StackActions.addProduct] is called with a product whose
+/// verdict is BLOCKED or UNSAFE (FLTR-16). Safety-first defense in
+/// depth: the product detail UI normally short-circuits via FLTR-10
+/// so a blocked product never reaches the Add button, but the domain
+/// layer rejects it anyway so any future path (deep links, bulk
+/// import, automation) cannot silently add an unsafe product.
+class StackAddBlockedException implements Exception {
+  final String dsldId;
+  final String verdict;
+  const StackAddBlockedException({
+    required this.dsldId,
+    required this.verdict,
+  });
+
+  @override
+  String toString() =>
+      'StackAddBlockedException(dsldId=$dsldId, verdict=$verdict)';
+}
 
 /// All non-deleted stack entries, newest first.
 final activeStackProvider = FutureProvider<List<UserStacksLocalData>>((ref) {
@@ -51,7 +71,18 @@ class StackActions {
 
   /// Add a product to the stack. Returns the new entry's id so the caller
   /// can show an undo snackbar that references it.
+  ///
+  /// FLTR-16 — rejects BLOCKED/UNSAFE products with
+  /// [StackAddBlockedException]. Callers should check verdict up front
+  /// and show a friendly message; this guard is the last line of
+  /// defense.
   Future<String> addProduct(ProductsCoreData product) async {
+    if (isUnsafeVerdict(product.verdict)) {
+      throw StackAddBlockedException(
+        dsldId: product.dsldId,
+        verdict: product.verdict ?? '',
+      );
+    }
     final userDb = _ref.read(userDatabaseProvider);
     final id = _newId(product.dsldId);
     await userDb.addToStack(

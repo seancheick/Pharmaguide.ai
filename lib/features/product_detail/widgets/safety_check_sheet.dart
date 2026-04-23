@@ -8,7 +8,19 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_pill.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+
+/// Looks up the verdict for a single product so the safety sheet can
+/// refuse to show "Safe to add" on a BLOCKED/UNSAFE product even if a
+/// future caller skips the upstream FLTR-16 UI guard.
+final _sheetProductVerdictProvider = FutureProvider.family
+    .autoDispose<String?, String>((ref, dsldId) async {
+  final db = ref.watch(coreDatabaseProvider);
+  final product = await db.findById(dsldId);
+  return product?.verdict;
+});
 
 /// Pre-add safety check sheet.
 ///
@@ -57,6 +69,16 @@ class _SafetyCheckSheet extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final safetyAsync = ref.watch(safetyCheckForAddProvider(dsldId));
 
+    // FLTR-16 — third-layer defense. If the product's verdict is
+    // BLOCKED/UNSAFE, the sheet must not display a "Safe to add"
+    // banner under any circumstances, even if a direct opener
+    // skipped the [PGStackActionButtons] guard. The verdict loads
+    // alongside the interaction check; we treat pending verdict as
+    // "not yet known, assume safe to render loading" — the check
+    // completes in the same frame as the interaction check.
+    final verdictAsync = ref.watch(_sheetProductVerdictProvider(dsldId));
+    final isUnsafe = isUnsafeVerdict(verdictAsync.asData?.value);
+
     return DraggableScrollableSheet(
       initialChildSize: 0.55,
       minChildSize: 0.35,
@@ -96,40 +118,53 @@ class _SafetyCheckSheet extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppTheme.space20),
 
-                safetyAsync.when(
-                  loading: () => const _VerifyingSafety(),
-                  error: (_, __) => const _SafetyCheckError(),
-                  data: (warnings) => _SafetyResults(warnings: warnings),
-                ),
+                if (isUnsafe)
+                  const _UnsafeProductBanner()
+                else
+                  safetyAsync.when(
+                    loading: () => const _VerifyingSafety(),
+                    error: (_, __) => const _SafetyCheckError(),
+                    data: (warnings) => _SafetyResults(warnings: warnings),
+                  ),
 
                 const SizedBox(height: AppTheme.space20),
 
-                // Action buttons
+                // Action buttons — primary disables entirely when
+                // the product is BLOCKED/UNSAFE. We never offer an
+                // "Add anyway" escape hatch for products that fail
+                // the product-level safety gate.
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
+                        child: Text(isUnsafe ? 'Close' : 'Cancel'),
                       ),
                     ),
                     const SizedBox(width: AppTheme.space12),
                     Expanded(
-                      child: safetyAsync.maybeWhen(
-                        data: (warnings) => FilledButton(
-                          onPressed: () {
-                            _fireHaptic(warnings);
-                            Navigator.of(context).pop(true);
-                          },
-                          child: Text(
-                            warnings.isEmpty ? 'Add to stack' : 'Add anyway',
-                          ),
-                        ),
-                        orElse: () => const FilledButton(
-                          onPressed: null,
-                          child: Text('Add to stack'),
-                        ),
-                      ),
+                      child: isUnsafe
+                          ? const FilledButton(
+                              onPressed: null,
+                              child: Text('Cannot add'),
+                            )
+                          : safetyAsync.maybeWhen(
+                              data: (warnings) => FilledButton(
+                                onPressed: () {
+                                  _fireHaptic(warnings);
+                                  Navigator.of(context).pop(true);
+                                },
+                                child: Text(
+                                  warnings.isEmpty
+                                      ? 'Add to stack'
+                                      : 'Add anyway',
+                                ),
+                              ),
+                              orElse: () => const FilledButton(
+                                onPressed: null,
+                                child: Text('Add to stack'),
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -198,6 +233,26 @@ class _SafetyCheckError extends StatelessWidget {
       title: 'Could not verify interactions',
       body: 'Add is still available, but we recommend reviewing your '
           'stack for potential overlap.',
+    );
+  }
+}
+
+/// FLTR-16 — third-layer defense banner. Rendered in place of
+/// [_SafetyResults] when the product itself carries a BLOCKED/UNSAFE
+/// verdict. Replaces the "Safe to add" success state so a blocked
+/// product never reads as addable, even if the sheet is opened
+/// directly. The primary button is disabled alongside.
+class _UnsafeProductBanner extends StatelessWidget {
+  const _UnsafeProductBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const PGSeverityBanner(
+      tone: PGBannerTone.danger,
+      title: 'This product cannot be added',
+      body: 'It is flagged as unsafe at the product level. Stack '
+          'interaction checks are skipped — the safety concern '
+          'applies regardless of what else you are taking.',
     );
   }
 }
