@@ -107,6 +107,44 @@ String? _normalizedName(Object? raw) {
   return s.isEmpty ? null : s;
 }
 
+/// A single per-ingredient UL exceedance surfaced by the pipeline's
+/// `rda_ul_data.analyzed_ingredients[i].warnings[]` array. Each
+/// pipeline-emitted warning string becomes one [UlExceedance] so the
+/// UI can render one alert row per (ingredient, warning) pair.
+class UlExceedance {
+  final String standardName;
+  final String warning;
+  const UlExceedance({required this.standardName, required this.warning});
+}
+
+/// Extract UL-exceedance alerts from the pipeline's analysis block.
+///
+/// Respects the same [skip_ul_check] contract as [resolveDoseSafety]:
+/// when the pipeline opts out of UL evaluation, no alert surfaces.
+/// Entries with no warning strings, no standard_name, or a malformed
+/// warnings field are skipped. Empty list when [ulAnalysis] is null
+/// or carries no exceedances.
+List<UlExceedance> extractUlExceedances(
+  List<Map<String, dynamic>>? ulAnalysis,
+) {
+  if (ulAnalysis == null || ulAnalysis.isEmpty) return const [];
+  final out = <UlExceedance>[];
+  for (final entry in ulAnalysis) {
+    if (entry['skip_ul_check'] == true) continue;
+    final rawName = entry['standard_name'] ?? entry['ingredient'];
+    final name = rawName?.toString().trim();
+    if (name == null || name.isEmpty) continue;
+    final warnings = entry['warnings'];
+    if (warnings is! List) continue;
+    for (final w in warnings) {
+      final msg = w?.toString().trim() ?? '';
+      if (msg.isEmpty) continue;
+      out.add(UlExceedance(standardName: name, warning: msg));
+    }
+  }
+  return out;
+}
+
 double? _asDouble(dynamic v) {
   if (v == null) return null;
   if (v is double) return v.isFinite ? v : null;

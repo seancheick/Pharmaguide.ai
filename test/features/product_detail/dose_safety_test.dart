@@ -280,6 +280,94 @@ void main() {
     });
   });
 
+  group('extractUlExceedances (FLTR-5)', () {
+    test('returns one UlExceedance per warning string', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin B3 (Niacin)',
+          'quantity': 50.0,
+          'skip_ul_check': false,
+          'warnings': ['Exceeds UL by 15.0 mg'],
+        }
+      ];
+      final out = extractUlExceedances(ulAnalysis);
+      expect(out, hasLength(1));
+      expect(out.first.standardName, 'Vitamin B3 (Niacin)');
+      expect(out.first.warning, 'Exceeds UL by 15.0 mg');
+    });
+
+    test('skips entries with skip_ul_check=true', () {
+      // Thorne Vitamin A case — pipeline opted out of UL evaluation.
+      // UI must not surface a synthesized alert in this state.
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin A',
+          'quantity': 25000.0,
+          'skip_ul_check': true,
+          'warnings': ['This warning should not surface'],
+        }
+      ];
+      expect(extractUlExceedances(ulAnalysis), isEmpty);
+    });
+
+    test('skips entries with empty warnings list', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin D3',
+          'skip_ul_check': false,
+          'warnings': <Object>[],
+        }
+      ];
+      expect(extractUlExceedances(ulAnalysis), isEmpty);
+    });
+
+    test('emits one UlExceedance per warning when multiple exist', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Iron',
+          'skip_ul_check': false,
+          'warnings': [
+            'Exceeds UL by 5.0 mg',
+            'May mask zinc deficiency at this dose',
+          ],
+        }
+      ];
+      final out = extractUlExceedances(ulAnalysis);
+      expect(out, hasLength(2));
+      expect(out[0].warning, 'Exceeds UL by 5.0 mg');
+      expect(out[1].warning, contains('zinc deficiency'));
+    });
+
+    test('falls back to ingredient field when standard_name is missing',
+        () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'ingredient': 'Zinc',
+          'skip_ul_check': false,
+          'warnings': ['Exceeds UL'],
+        }
+      ];
+      final out = extractUlExceedances(ulAnalysis);
+      expect(out.first.standardName, 'Zinc');
+    });
+
+    test('handles null / empty / malformed input without throwing', () {
+      expect(extractUlExceedances(null), isEmpty);
+      expect(extractUlExceedances(const []), isEmpty);
+      expect(
+        extractUlExceedances([
+          {'standard_name': '', 'warnings': ['x']},
+          {'standard_name': 'A', 'warnings': 'not-a-list'},
+          {'standard_name': 'B', 'warnings': ['', ' ', 'valid']},
+        ]),
+        hasLength(1),
+        reason:
+            'Empty names, non-list warnings, and blank strings must '
+            'be filtered out; only the "valid" entry remains.',
+      );
+    });
+  });
+
   group('matchUlEntry', () {
     test('returns matched entry when standard_name matches', () {
       final ingredient = <String, dynamic>{'standard_name': 'Vitamin D3'};

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_fitscore_badge.dart';
@@ -1603,6 +1604,26 @@ class _DetailSection extends ConsumerWidget {
             as List?)
         ?.whereType<Map<String, dynamic>>()
         .toList();
+
+    // FLTR-5 — product-level UL-exceedance alerts. The pipeline surfaces
+    // per-ingredient breaches under rda_ul_data.analyzed_ingredients[i]
+    // .warnings[] (strings like "Exceeds UL by 15.0 mg"). These aren't
+    // in the top-level warnings[] list, so we synthesize InteractionWarning
+    // rows from them and prepend to the warning list. displayModeDefault
+    // = 'critical' makes them render regardless of user profile — UL
+    // exceedance is dose-based, not condition-based.
+    final ulExceedances = extractUlExceedances(ulAnalysis);
+    final synthesizedUlWarnings = ulExceedances
+        .map((e) => InteractionWarning(
+              severity: Severity.avoid,
+              evidenceLevel: EvidenceLevel.established,
+              title: 'Exceeds upper limit: ${e.standardName}',
+              mechanism: e.warning,
+              management:
+                  'Reduce dose or consult a healthcare provider.',
+              displayModeDefault: 'critical',
+            ))
+        .toList();
     final bonuses = (blob['score_bonuses'] as List?)
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
@@ -1633,7 +1654,12 @@ class _DetailSection extends ConsumerWidget {
     // `display_mode_default` and only falls through to "show it" when
     // the rule is intrinsically worth showing (critical / informational)
     // OR the user's declared profile matches.
-    final filteredWarnings = warnings.where((w) {
+    // Merge the synthesized UL-exceedance warnings before the filter.
+    // They carry displayModeDefault='critical' so they pass through
+    // untouched, and appear in the sorted card list alongside other
+    // avoid-tier alerts.
+    final combinedWarnings = [...synthesizedUlWarnings, ...warnings];
+    final filteredWarnings = combinedWarnings.where((w) {
       // Rule 1 — profile match always shows (promotes to "alert" in UI).
       if (w.matchesProfile(
         userConditions: userConditions,
