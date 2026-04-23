@@ -58,13 +58,28 @@ class InteractionWarning {
   /// verbs.
   final String? informationalNote;
 
-  /// The condition that triggers this warning (e.g. 'pregnancy', 'diabetes').
-  /// Null if the warning is not condition-specific (e.g. drug class warning).
-  final String? conditionId;
+  /// Conditions that trigger this warning (e.g. ['pregnancy', 'lactation']).
+  /// Empty when the warning is not condition-specific. Schema v5.2+ emits
+  /// the plural `condition_ids[]`; legacy blobs carrying singular
+  /// `condition_id` are lifted into a one-element list by [fromJson].
+  final List<String> conditionIds;
 
-  /// The drug class that triggers this warning (e.g. 'anticoagulants').
-  /// Null if the warning is not drug-class-specific.
-  final String? drugClassId;
+  /// Drug classes that trigger this warning (e.g. ['anticoagulants']).
+  /// Empty when the warning is not drug-class-specific. Schema v5.2+
+  /// emits the plural `drug_class_ids[]`; legacy singular is lifted
+  /// into a one-element list by [fromJson].
+  final List<String> drugClassIds;
+
+  /// First condition id — convenience accessor preserved for callers
+  /// that only need a single representative tag (search indices, logs,
+  /// etc.). Prefer [conditionIds] for membership checks — a warning
+  /// can carry multiple tags and [matchesProfile] correctly checks all.
+  String? get conditionId =>
+      conditionIds.isEmpty ? null : conditionIds.first;
+
+  /// First drug-class id — convenience accessor, see [conditionId].
+  String? get drugClassId =>
+      drugClassIds.isEmpty ? null : drugClassIds.first;
 
   /// Pipeline `ban_context` for banned_recalled warnings — one of
   /// `substance`, `adulterant_in_supplements`, `watchlist`,
@@ -141,8 +156,8 @@ class InteractionWarning {
     this.alertHeadline,
     this.alertBody,
     this.informationalNote,
-    this.conditionId,
-    this.drugClassId,
+    this.conditionIds = const [],
+    this.drugClassIds = const [],
     this.banContext,
     this.clinicalRisk,
     this.mechanismOfHarm,
@@ -232,9 +247,9 @@ class InteractionWarning {
       alertHeadline: alertHeadline,
       alertBody: alertBody,
       informationalNote: json['informational_note']?.toString(),
-      conditionId: _firstFromPluralOrSingular(
+      conditionIds: _coerceStringList(
         json['condition_ids'], json['condition_id']),
-      drugClassId: _firstFromPluralOrSingular(
+      drugClassIds: _coerceStringList(
         json['drug_class_ids'], json['drug_class_id']),
       banContext: json['ban_context']?.toString(),
       clinicalRisk: json['clinical_risk']?.toString(),
@@ -253,22 +268,24 @@ class InteractionWarning {
 
   /// Sprint E1.4.1 compat helper — pipeline migrated singular
   /// condition_id / drug_class_id → plural arrays on 2026-04-22.
-  /// Prefer the plural array's first entry; fall back to the legacy
-  /// singular scalar for blobs cached pre-migration.
-  static String? _firstFromPluralOrSingular(
-      dynamic plural, dynamic singular) {
-    if (plural is List && plural.isNotEmpty) {
-      final first = plural.first;
-      if (first != null) {
-        final s = first.toString();
-        if (s.isNotEmpty) return s;
+  /// FLTR-1 update: return the full list so profile matching checks
+  /// every tag, not just the first. Legacy singular is lifted into
+  /// a one-element list for blobs cached pre-migration.
+  static List<String> _coerceStringList(dynamic plural, dynamic singular) {
+    if (plural is List) {
+      final out = <String>[];
+      for (final e in plural) {
+        if (e == null) continue;
+        final s = e.toString().trim();
+        if (s.isNotEmpty) out.add(s);
       }
+      if (out.isNotEmpty) return out;
     }
     if (singular != null) {
-      final s = singular.toString();
-      if (s.isNotEmpty) return s;
+      final s = singular.toString().trim();
+      if (s.isNotEmpty) return <String>[s];
     }
-    return null;
+    return const <String>[];
   }
 
   /// Does this warning match the given user profile?
@@ -281,16 +298,11 @@ class InteractionWarning {
     required Set<String> userConditions,
     required Set<String> userDrugClasses,
   }) {
-    if (conditionId != null &&
-        conditionId!.isNotEmpty &&
-        userConditions.contains(conditionId)) {
-      return true;
-    }
-    if (drugClassId != null &&
-        drugClassId!.isNotEmpty &&
-        userDrugClasses.contains(drugClassId)) {
-      return true;
-    }
+    // FLTR-1 — check every tag in the plural arrays, not just the
+    // first. A warning with condition_ids: ['pregnancy', 'lactation']
+    // must match a user carrying either one.
+    if (conditionIds.any(userConditions.contains)) return true;
+    if (drugClassIds.any(userDrugClasses.contains)) return true;
     return false;
   }
 }

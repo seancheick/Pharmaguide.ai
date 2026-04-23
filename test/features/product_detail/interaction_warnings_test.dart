@@ -132,7 +132,7 @@ void main() {
       title: 'Berberine / diabetes',
       mechanism: '',
       management: '',
-      conditionId: 'diabetes',
+      conditionIds: ['diabetes'],
     );
     const drugClassWarning = InteractionWarning(
       severity: Severity.avoid,
@@ -140,7 +140,7 @@ void main() {
       title: 'Berberine / hypoglycemics',
       mechanism: '',
       management: '',
-      drugClassId: 'hypoglycemics',
+      drugClassIds: ['hypoglycemics'],
     );
     const genericWarning = InteractionWarning(
       severity: Severity.avoid,
@@ -207,7 +207,9 @@ void main() {
         title: 'Edge case',
         mechanism: '',
         management: '',
-        conditionId: '',
+        // Empty-string entries are filtered at parse time; the in-memory
+        // constructor accepts a raw empty list the same way.
+        conditionIds: <String>[],
       );
       expect(
         w.matchesProfile(
@@ -215,6 +217,250 @@ void main() {
           userDrugClasses: <String>{},
         ),
         isFalse,
+      );
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // FLTR-1 — profile-gated warning visibility (handoff v2 §4).
+  //
+  // Pipeline v5.2 emits condition_ids / drug_class_ids as arrays.
+  // A warning must match the user's profile on ANY of its tags, not
+  // just the first one. This fixes the pre-FLTR-1 regression where
+  // a warning tagged ['pregnancy', 'lactation'] would miss a user
+  // who declared only 'lactation'.
+  //
+  // The 5 handoff scenarios:
+  //   1. Male with no conditions → no pregnancy warning (suppress)
+  //   2. Pregnancy in profile → pregnancy warning appears
+  //   3. Lactation in profile → lactation warning appears
+  //   4. Liver disease in profile → liver warning appears
+  //   5. No profile → suppress warnings hidden
+  // -----------------------------------------------------------------------
+  group('FLTR-1 — condition_ids plural parsing + ANY-match', () {
+    test('parses condition_ids plural array into conditionIds', () {
+      final json = <String, dynamic>{
+        'severity': 'avoid',
+        'title': 'Retinol + pregnancy/lactation',
+        'condition_ids': ['pregnancy', 'lactation'],
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.conditionIds, ['pregnancy', 'lactation']);
+      // Singular getter still returns first for backward-compat readers.
+      expect(w.conditionId, 'pregnancy');
+    });
+
+    test('legacy singular condition_id lifts into one-element list', () {
+      final json = <String, dynamic>{
+        'severity': 'avoid',
+        'title': 'Legacy blob',
+        'condition_id': 'pregnancy',
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.conditionIds, ['pregnancy']);
+    });
+
+    test('empty-string entries are filtered out at parse', () {
+      final json = <String, dynamic>{
+        'severity': 'avoid',
+        'title': 'Sparse array',
+        'condition_ids': ['', 'lactation', ''],
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.conditionIds, ['lactation']);
+    });
+
+    test('multi-tag ANY match: user has only the 2nd tag → match', () {
+      // Regression pin for the pre-FLTR-1 bug where only the first
+      // tag was checked. With condition_ids=['pregnancy','lactation']
+      // a user who declared 'lactation' but not 'pregnancy' MUST match.
+      const w = InteractionWarning(
+        severity: Severity.avoid,
+        evidenceLevel: EvidenceLevel.established,
+        title: 'Preformed Vitamin A / reproductive',
+        mechanism: '',
+        management: '',
+        conditionIds: ['pregnancy', 'lactation'],
+      );
+      expect(
+        w.matchesProfile(
+          userConditions: {'lactation'},
+          userDrugClasses: <String>{},
+        ),
+        isTrue,
+        reason: 'ANY match in the plural array must return true',
+      );
+    });
+
+    test('multi-tag no match when user has neither tag', () {
+      const w = InteractionWarning(
+        severity: Severity.avoid,
+        evidenceLevel: EvidenceLevel.established,
+        title: 'Preformed Vitamin A / reproductive',
+        mechanism: '',
+        management: '',
+        conditionIds: ['pregnancy', 'lactation'],
+      );
+      expect(
+        w.matchesProfile(
+          userConditions: {'diabetes'},
+          userDrugClasses: <String>{},
+        ),
+        isFalse,
+      );
+    });
+
+    test('drug_class_ids multi-tag ANY match', () {
+      const w = InteractionWarning(
+        severity: Severity.avoid,
+        evidenceLevel: EvidenceLevel.established,
+        title: 'Ginkgo / antiplatelets or anticoagulants',
+        mechanism: '',
+        management: '',
+        drugClassIds: ['antiplatelets', 'anticoagulants'],
+      );
+      expect(
+        w.matchesProfile(
+          userConditions: <String>{},
+          userDrugClasses: {'anticoagulants'},
+        ),
+        isTrue,
+      );
+    });
+
+    // The 5 handoff scenarios below model the `shouldShowWarning`
+    // contract as it's actually composed by [_DetailSection.build]:
+    //   (a) profile match → show
+    //   (b) display_mode_default == 'critical'|'informational' → show
+    //   (c) display_mode_default == 'suppress' → hide
+    //   (d) legacy no-display_mode + condition/drug tag → hide (safer)
+    //   (e) legacy no-display_mode + no tag → show
+    // Each test constructs a warning and asserts the composed verdict
+    // for the given user profile.
+
+    bool shouldShow(
+      InteractionWarning w, {
+      required Set<String> userConditions,
+      required Set<String> userDrugClasses,
+    }) {
+      if (w.matchesProfile(
+        userConditions: userConditions,
+        userDrugClasses: userDrugClasses,
+      )) {
+        return true;
+      }
+      final mode = w.displayModeDefault;
+      if (mode == 'critical' || mode == 'informational') return true;
+      if (mode == 'suppress') return false;
+      if (w.conditionIds.isNotEmpty) return false;
+      if (w.drugClassIds.isNotEmpty) return false;
+      return true;
+    }
+
+    const pregnancyWarning = InteractionWarning(
+      severity: Severity.avoid,
+      evidenceLevel: EvidenceLevel.established,
+      title: 'Pregnancy-gated warning',
+      mechanism: '',
+      management: '',
+      displayModeDefault: 'suppress',
+      conditionIds: ['pregnancy'],
+    );
+    const lactationWarning = InteractionWarning(
+      severity: Severity.avoid,
+      evidenceLevel: EvidenceLevel.established,
+      title: 'Lactation-gated warning',
+      mechanism: '',
+      management: '',
+      displayModeDefault: 'suppress',
+      conditionIds: ['lactation'],
+    );
+    const liverWarning = InteractionWarning(
+      severity: Severity.avoid,
+      evidenceLevel: EvidenceLevel.established,
+      title: 'Liver-gated warning',
+      mechanism: '',
+      management: '',
+      displayModeDefault: 'suppress',
+      conditionIds: ['liver_disease'],
+    );
+
+    test('scenario 1: male, no conditions → pregnancy warning hidden', () {
+      expect(
+        shouldShow(
+          pregnancyWarning,
+          userConditions: <String>{},
+          userDrugClasses: <String>{},
+        ),
+        isFalse,
+      );
+    });
+
+    test('scenario 2: pregnancy in profile → pregnancy warning shown', () {
+      expect(
+        shouldShow(
+          pregnancyWarning,
+          userConditions: {'pregnancy'},
+          userDrugClasses: <String>{},
+        ),
+        isTrue,
+      );
+    });
+
+    test('scenario 3: lactation in profile → lactation warning shown', () {
+      expect(
+        shouldShow(
+          lactationWarning,
+          userConditions: {'lactation'},
+          userDrugClasses: <String>{},
+        ),
+        isTrue,
+      );
+    });
+
+    test('scenario 4: liver disease in profile → liver warning shown',
+        () {
+      expect(
+        shouldShow(
+          liverWarning,
+          userConditions: {'liver_disease'},
+          userDrugClasses: <String>{},
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+        'scenario 5: empty profile keeps every suppress warning hidden',
+        () {
+      final empty = <String>{};
+      for (final w in [pregnancyWarning, lactationWarning, liverWarning]) {
+        expect(
+          shouldShow(w, userConditions: empty, userDrugClasses: empty),
+          isFalse,
+          reason:
+              'suppress warnings must never leak through on empty profile',
+        );
+      }
+    });
+
+    test('critical display mode always renders regardless of profile',
+        () {
+      const w = InteractionWarning(
+        severity: Severity.contraindicated,
+        evidenceLevel: EvidenceLevel.established,
+        title: 'Substance-level critical',
+        mechanism: '',
+        management: '',
+        displayModeDefault: 'critical',
+      );
+      expect(
+        shouldShow(
+          w,
+          userConditions: <String>{},
+          userDrugClasses: <String>{},
+        ),
+        isTrue,
       );
     });
   });

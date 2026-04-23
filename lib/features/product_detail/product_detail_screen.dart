@@ -1650,14 +1650,14 @@ class _DetailSection extends ConsumerWidget {
         return false;
       }
       // Rule 3 — legacy blobs predating v5.2 have no display_mode.
-      // Fall back to the old logic ONLY for warnings that carry a
-      // condition_id or drug_class_id — those are profile-gated by
+      // Fall back to the old logic ONLY for warnings that carry any
+      // condition/drug-class tag — those are profile-gated by
       // construction. Generic no-tag legacy warnings default to
       // "informational" (render) — backward-compatible but will no
       // longer trigger the scary fallback once the pipeline reprocesses
       // products under v5.2.
-      if (w.conditionId != null && w.conditionId!.isNotEmpty) return false;
-      if (w.drugClassId != null && w.drugClassId!.isNotEmpty) return false;
+      if (w.conditionIds.isNotEmpty) return false;
+      if (w.drugClassIds.isNotEmpty) return false;
       return true;
     }).toList();
 
