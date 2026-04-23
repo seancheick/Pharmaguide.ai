@@ -287,6 +287,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // and alerts.
     if (isBlockedVerdict(verdict)) {
       return BlockedProductView(
+        dsldId: widget.dsldId,
         productName: productName,
         brandName: brandName,
         verdict: verdict,

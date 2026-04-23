@@ -168,13 +168,97 @@ void main() {
     expect(find.byType(BlockedProductView), findsOneWidget);
     expect(find.text('BLOCKED'), findsOneWidget);
     expect(find.text('Do not use this product'), findsOneWidget);
-    // Full banned-ingredient name rendered without truncation.
+    // Full banned-ingredient name rendered without truncation
+    // (via the blockingReason fallback since no blob is cached).
     expect(find.textContaining('Norethandriol'), findsOneWidget);
 
     // Score / stack UI must not be mounted.
     expect(find.byIcon(Icons.info_outline_rounded), findsNothing);
     expect(find.text('Add to my stack'), findsNothing);
     expect(find.text('In your stack'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets(
+      'FLTR-10: BLOCKED view surfaces banned_substance_detail from the blob (substance + one-liner + warning)',
+      (tester) async {
+    // When the pipeline's detail blob carries banned_substance_detail,
+    // the view should promote substance_name + safety_warning_one_liner
+    // + safety_warning over the coarse "banned_ingredient" enum from
+    // products_core.
+    final blockedDb = _FakeCoreDatabase(
+      const ProductsCoreData(
+        dsldId: 'TEST_BSD_001',
+        productName: 'Vinpocetine',
+        brandName: 'Thorne Research',
+        productStatus: 'active',
+        verdict: 'BLOCKED',
+        blockingReason: 'banned_ingredient',
+        detailBlobSha256: 'fake-sha-for-test',
+        mappedCoverage: 0.0,
+        exportVersion: 'test',
+        exportedAt: '2026-04-23T00:00:00Z',
+      ),
+    );
+    final blockedUserDb = UserDatabase.memory();
+
+    await blockedUserDb.cacheDetail(
+      'TEST_BSD_001',
+      jsonEncode(<String, Object>{
+        'banned_substance_detail': {
+          'substance_name': 'Vinpocetine',
+          'safety_warning_one_liner':
+              'Not a lawful US supplement with pregnancy risk. Stop.',
+          'safety_warning':
+              'An FDA statement in 2019 concluded vinpocetine is not '
+                  'a lawful supplement ingredient, and it is associated '
+                  'with miscarriage risk in pregnancy. Stop and '
+                  'consult a doctor.',
+        },
+      }),
+      'fake-sha-for-test',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(blockedDb),
+          userDatabaseProvider.overrideWithValue(blockedUserDb),
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          fitScoreServiceProvider.overrideWith((ref) async {
+            throw UnimplementedError('No FitScore in test');
+          }),
+        ],
+        child: const MaterialApp(
+          home: ProductDetailScreen(dsldId: 'TEST_BSD_001'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(BlockedProductView), findsOneWidget);
+    // Substance name promoted into the body.
+    expect(
+      find.textContaining('Vinpocetine'),
+      findsWidgets,
+      reason: 'banned substance name must be visible to the user',
+    );
+    // Pipeline one-liner replaces the generic banner copy.
+    expect(
+      find.textContaining('Not a lawful US supplement'),
+      findsOneWidget,
+    );
+    // Full pipeline warning replaces the generic educational text.
+    expect(
+      find.textContaining('FDA statement in 2019'),
+      findsOneWidget,
+    );
+    // The coarse enum value must NOT leak through when the blob
+    // provides a richer substitute.
+    expect(find.text('banned_ingredient'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
