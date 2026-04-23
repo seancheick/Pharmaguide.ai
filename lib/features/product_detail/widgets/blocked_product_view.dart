@@ -1,8 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+/// Fallback URL when the pipeline doesn't emit a substance-specific
+/// reference. Points at FDA's CDER tainted-supplements database — the
+/// authoritative public index of supplements containing hidden or
+/// banned drug ingredients. Used only when
+/// `banned_substance_detail.source_url` is missing; once the pipeline
+/// emits per-substance source URLs this constant stops being read.
+const String _kFdaTaintedSupplementsUrl =
+    'https://www.accessdata.fda.gov/scripts/sda/sdNavigation.cfm?sd=tainted_supplements_cder';
 
 /// FLTR-10 — BLOCKED MODE.
 ///
@@ -72,6 +84,15 @@ class BlockedProductView extends ConsumerWidget {
     final oneLiner =
         (bsd?['safety_warning_one_liner'] as String?)?.trim();
     final safetyWarning = (bsd?['safety_warning'] as String?)?.trim();
+    // Prefer a pipeline-emitted reference (future-compat) and fall
+    // back to FDA's CDER tainted-supplements database when absent.
+    final pipelineSource = (bsd?['source_url'] as String?)?.trim();
+    final learnMoreUrl = (pipelineSource != null && pipelineSource.isNotEmpty)
+        ? pipelineSource
+        : _kFdaTaintedSupplementsUrl;
+    final learnMoreLabel = (pipelineSource != null && pipelineSource.isNotEmpty)
+        ? 'Open reference'
+        : 'Look up on FDA';
 
     return Scaffold(
       appBar: AppBar(
@@ -277,9 +298,56 @@ class BlockedProductView extends ConsumerWidget {
                 ],
               ),
             ),
+
+            // Learn-more link — routes to the pipeline's emitted
+            // `source_url` when available, else FDA's CDER tainted-
+            // supplements database. Outside the "do not use" card
+            // so the card stays focused on the directive and the
+            // source stays visible as a separate affordance.
+            const SizedBox(height: AppTheme.space16),
+            InkWell(
+              onTap: () => _openReference(learnMoreUrl),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.space12,
+                  vertical: AppTheme.space12,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      size: 18,
+                      color: scheme.primary,
+                    ),
+                    const SizedBox(width: AppTheme.space8),
+                    Expanded(
+                      child: Text(
+                        learnMoreLabel,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// Opens the reference URL in the external browser. Fire-and-
+  /// forget — we don't block the tap on the async launch, and a
+  /// launch failure is silent (not every simulator environment has
+  /// a browser available; on a real device the iOS system handles
+  /// the error surface).
+  void _openReference(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
   }
 }
