@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 
+/// Returns true when a verdict string represents a hard-stop
+/// ban — BLOCKED only. Drives the FLTR-10 full-screen override:
+/// banned/illegal products replace the product detail surface
+/// entirely. UNSAFE is deliberately NOT included here — those
+/// products still render the full detail screen with strong alerts.
+bool isBlockedVerdict(String? verdict) {
+  return (verdict ?? '').trim().toUpperCase() == 'BLOCKED';
+}
+
 /// Shared verdict badge used across search results and product detail.
 ///
 /// A "verdict" is the final single-word rating from the scoring pipeline

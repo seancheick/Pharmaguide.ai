@@ -23,6 +23,7 @@ import 'package:pharmaguide/features/product_detail/providers/fit_score_provider
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
+import 'package:pharmaguide/features/product_detail/widgets/blocked_product_view.dart';
 import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
@@ -276,6 +277,25 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final formFactor = _product?.formFactor ?? '';
     final verdict = _product?.verdict ?? '';
     final blockingReason = _product?.blockingReason ?? '';
+
+    // FLTR-10 — BLOCKED MODE. Safety overrides everything. When a
+    // product is banned, render a minimal blocked-only surface: no
+    // score, no ingredients, no warnings list, no stack action.
+    // UNSAFE products deliberately do NOT take this path — they
+    // keep the full detail screen so the user still sees context
+    // and alerts.
+    if (isBlockedVerdict(verdict)) {
+      return BlockedProductView(
+        productName: productName,
+        brandName: brandName,
+        verdict: verdict,
+        blockingReason: blockingReason,
+        shareTitle: _product?.shareTitle,
+        shareDescription: _product?.shareDescription,
+        shareHighlights: _product?.shareHighlights,
+      );
+    }
+
     final score100 = _product?.score100Equivalent;
     final grade = _product?.grade ?? '';
     // Safety rule: NEVER display "safe" when mapped_coverage < 0.3.

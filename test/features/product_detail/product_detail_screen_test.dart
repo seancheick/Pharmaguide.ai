@@ -6,9 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
+import 'package:pharmaguide/features/product_detail/widgets/blocked_product_view.dart';
 
 class _FakeCoreDatabase extends CoreDatabase {
   final ProductsCoreData product;
@@ -116,5 +118,122 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
+  });
+
+  // ------------------------------------------------------------------
+  // FLTR-10 — BLOCKED MODE
+  //
+  // BLOCKED verdict must short-circuit to [BlockedProductView] and
+  // not mount the score explainer, stack action buttons, or
+  // interaction cards. UNSAFE verdict keeps the full detail screen.
+  // ------------------------------------------------------------------
+
+  testWidgets(
+      'FLTR-10: BLOCKED verdict routes to BlockedProductView and hides score/stack UI',
+      (tester) async {
+    final blockedDb = _FakeCoreDatabase(
+      const ProductsCoreData(
+        dsldId: 'TEST_BLOCKED_001',
+        productName: 'Legiox Extreme',
+        brandName: 'Dark Labs',
+        productStatus: 'active',
+        verdict: 'BLOCKED',
+        blockingReason:
+            'Banned Ingredient: Norethandriol (synthetic anabolic steroid)',
+        mappedCoverage: 0.0,
+        exportVersion: 'test',
+        exportedAt: '2026-04-23T00:00:00Z',
+      ),
+    );
+    final blockedUserDb = UserDatabase.memory();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(blockedDb),
+          userDatabaseProvider.overrideWithValue(blockedUserDb),
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          fitScoreServiceProvider.overrideWith((ref) async {
+            throw UnimplementedError('No FitScore in test');
+          }),
+        ],
+        child: const MaterialApp(
+          home: ProductDetailScreen(dsldId: 'TEST_BLOCKED_001'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(BlockedProductView), findsOneWidget);
+    expect(find.text('BLOCKED'), findsOneWidget);
+    expect(find.text('Do not use this product'), findsOneWidget);
+    // Full banned-ingredient name rendered without truncation.
+    expect(find.textContaining('Norethandriol'), findsOneWidget);
+
+    // Score / stack UI must not be mounted.
+    expect(find.byIcon(Icons.info_outline_rounded), findsNothing);
+    expect(find.text('Add to my stack'), findsNothing);
+    expect(find.text('In your stack'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets(
+      'FLTR-10: UNSAFE verdict stays on the full detail screen (not BlockedProductView)',
+      (tester) async {
+    final unsafeDb = _FakeCoreDatabase(
+      const ProductsCoreData(
+        dsldId: 'TEST_UNSAFE_001',
+        productName: 'Questionable Pre-workout',
+        productStatus: 'active',
+        verdict: 'UNSAFE',
+        blockingReason: 'Contains DMAA, a banned stimulant',
+        mappedCoverage: 0.0,
+        exportVersion: 'test',
+        exportedAt: '2026-04-23T00:00:00Z',
+      ),
+    );
+    final unsafeUserDb = UserDatabase.memory();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(unsafeDb),
+          userDatabaseProvider.overrideWithValue(unsafeUserDb),
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          fitScoreServiceProvider.overrideWith((ref) async {
+            throw UnimplementedError('No FitScore in test');
+          }),
+        ],
+        child: const MaterialApp(
+          home: ProductDetailScreen(dsldId: 'TEST_UNSAFE_001'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Must NOT take the BLOCKED override. Full detail renders.
+    expect(find.byType(BlockedProductView), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  test('isBlockedVerdict matches only BLOCKED (case-insensitive, null-safe)',
+      () {
+    expect(isBlockedVerdict('BLOCKED'), isTrue);
+    expect(isBlockedVerdict('blocked'), isTrue);
+    expect(isBlockedVerdict(' blocked '), isTrue);
+    // UNSAFE is deliberately excluded from the BLOCKED override.
+    expect(isBlockedVerdict('UNSAFE'), isFalse);
+    expect(isBlockedVerdict('unsafe'), isFalse);
+    expect(isBlockedVerdict('RECOMMENDED'), isFalse);
+    expect(isBlockedVerdict('REVIEW'), isFalse);
+    expect(isBlockedVerdict('NOT_SCORED'), isFalse);
+    expect(isBlockedVerdict(null), isFalse);
+    expect(isBlockedVerdict(''), isFalse);
   });
 }
