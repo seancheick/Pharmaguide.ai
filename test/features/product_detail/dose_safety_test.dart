@@ -1,121 +1,309 @@
-// FLTR-11 — Dose-vs-UL safety predicate.
+// FLTR-11 — Dose-vs-UL safety.
 //
-// Asserts [ingredientExceedsUl] fires when the disclosed dose beats
-// either the age-default `ul_19_30` or the fallback `highest_ul`,
-// and returns false when data is missing, non-positive, or the dose
-// sits at or below the UL.
+// Covers [resolveDoseSafety] and [matchUlEntry] against the real
+// blob schema emitted by the pipeline (rda_ul_data.analyzed_ingredients),
+// including the three behavioral states the UI must render:
+//
+//   DoseSafety.exceedsUl    — disclosed dose > UL (skip_ul_check false)
+//   DoseSafety.skip         — pipeline opted out of UL evaluation
+//   DoseSafety.withinLimits — no UL concern / no matching entry / no UL
+//
+// Policy per handoff §0: the UI interprets the pipeline decision
+// verbatim. When the pipeline sets skip_ul_check=true, the UI must
+// not substitute "Well dosed" or "High dose" — it shows a neutral
+// "dose not evaluated" state.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 
 void main() {
-  group('ingredientExceedsUl', () {
-    test('Vitamin A 25,000 IU vs 10,000 IU UL → exceeds', () {
+  group('resolveDoseSafety', () {
+    test(
+        'Niacin 50 mg vs UL 35 mg with skip_ul_check=false → exceedsUl',
+        () {
       final ingredient = <String, dynamic>{
-        'name': 'Vitamin A Palmitate',
-        'amount': 25000,
+        'name': 'Vitamin B3 (Niacin)',
+        'standard_name': 'Vitamin B3 (Niacin)',
+        'quantity': 50.0,
+        'unit': 'mg',
+      };
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin B3 (Niacin)',
+          'quantity': 50.0,
+          'unit': 'mg',
+          'skip_ul_check': false,
+          'ul_for_default_profile': 35,
+          'highest_ul': 35,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.exceedsUl,
+      );
+    });
+
+    test(
+        'skip_ul_check=true always returns skip even when dose exceeds UL',
+        () {
+      // Thorne Vitamin A 25,000 IU — pipeline sets skip_ul_check=true
+      // with skip_ul_reason "unknown_vitamin_form". UI must NOT render
+      // an override, even though 25,000 IU is clearly above 10,000 IU.
+      // The pipeline owns the clinical decision.
+      final ingredient = <String, dynamic>{
+        'name': 'Vitamin A',
+        'standard_name': 'Vitamin A',
+        'quantity': 25000.0,
         'unit': 'IU',
-        'ul_19_30': 10000,
-        'highest_ul': 10000,
       };
-      expect(ingredientExceedsUl(ingredient), isTrue);
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin A',
+          'quantity': 25000.0,
+          'unit': 'IU',
+          'skip_ul_check': true,
+          'skip_ul_reason': 'unknown_vitamin_form',
+          'ul_for_default_profile': null,
+          'highest_ul': 3000,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.skip,
+      );
     });
 
-    test('dose equal to UL is not over — strict >', () {
+    test('safe dose under UL returns withinLimits', () {
       final ingredient = <String, dynamic>{
-        'amount': 10000,
-        'ul_19_30': 10000,
+        'standard_name': 'Vitamin D3',
+        'quantity': 1000.0,
+        'unit': 'IU',
       };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin D3',
+          'quantity': 1000.0,
+          'unit': 'IU',
+          'skip_ul_check': false,
+          'ul_for_default_profile': 4000,
+          'highest_ul': 4000,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.withinLimits,
+      );
     });
 
-    test('dose below UL returns false', () {
+    test('dose exactly at UL is not over — strict >', () {
       final ingredient = <String, dynamic>{
-        'amount': 5000,
-        'ul_19_30': 10000,
+        'standard_name': 'Zinc',
+        'quantity': 40.0,
       };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Zinc',
+          'quantity': 40.0,
+          'skip_ul_check': false,
+          'ul_for_default_profile': 40,
+          'highest_ul': 40,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.withinLimits,
+      );
     });
 
-    test('prefers ul_19_30 when both are present', () {
-      // If the age-default were ignored, the falsy highest_ul would
-      // let this slip through. Assert the priority order.
-      final ingredient = <String, dynamic>{
-        'amount': 3500,
-        'ul_19_30': 3000,
-        'highest_ul': 10000,
-      };
-      expect(ingredientExceedsUl(ingredient), isTrue);
+    test('prefers ul_for_default_profile over highest_ul', () {
+      // Age/sex-aware UL is stricter than the worst-case fallback.
+      // When both are present, the profile UL is the one that fires.
+      final ingredient = <String, dynamic>{'standard_name': 'Iron'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Iron',
+          'quantity': 30.0,
+          'skip_ul_check': false,
+          'ul_for_default_profile': 25,
+          'highest_ul': 45,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.exceedsUl,
+      );
     });
 
-    test('falls back to highest_ul when ul_19_30 is absent', () {
-      final ingredient = <String, dynamic>{
-        'amount': 12000,
-        'highest_ul': 10000,
-      };
-      expect(ingredientExceedsUl(ingredient), isTrue);
+    test('falls back to highest_ul when ul_for_default_profile is null',
+        () {
+      final ingredient = <String, dynamic>{'standard_name': 'Vitamin A'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin A',
+          'quantity': 15000.0,
+          'skip_ul_check': false,
+          'ul_for_default_profile': null,
+          'highest_ul': 10000,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.exceedsUl,
+      );
     });
 
-    test('returns false when amount is missing', () {
+    test('null ulAnalysis returns withinLimits (no override)', () {
       final ingredient = <String, dynamic>{
-        'ul_19_30': 10000,
+        'standard_name': 'Vitamin A',
+        'quantity': 25000.0,
       };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: null),
+        DoseSafety.withinLimits,
+      );
     });
 
-    test('returns false when amount is null (undisclosed dose)', () {
+    test('empty ulAnalysis returns withinLimits', () {
       final ingredient = <String, dynamic>{
-        'amount': null,
-        'ul_19_30': 10000,
+        'standard_name': 'Vitamin A',
+        'quantity': 25000.0,
       };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+      expect(
+        resolveDoseSafety(
+          ingredient: ingredient,
+          ulAnalysis: const <Map<String, dynamic>>[],
+        ),
+        DoseSafety.withinLimits,
+      );
     });
 
-    test('returns false when UL fields are missing', () {
-      final ingredient = <String, dynamic>{
-        'amount': 5000,
-      };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+    test('no matching entry in ulAnalysis returns withinLimits', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Magnesium'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {'standard_name': 'Vitamin A', 'quantity': 5000, 'highest_ul': 10000}
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.withinLimits,
+      );
     });
 
-    test('handles string-encoded numeric amount', () {
-      final ingredient = <String, dynamic>{
-        'amount': '25000',
-        'ul_19_30': 10000,
-      };
-      expect(ingredientExceedsUl(ingredient), isTrue);
+    test('missing quantity returns withinLimits (incomplete data)', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Vitamin D'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin D',
+          'quantity': null,
+          'skip_ul_check': false,
+          'highest_ul': 4000,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.withinLimits,
+      );
     });
 
-    test('handles string-encoded UL', () {
-      final ingredient = <String, dynamic>{
-        'amount': 12000,
-        'ul_19_30': '10000',
-      };
-      expect(ingredientExceedsUl(ingredient), isTrue);
+    test('missing UL returns withinLimits (no UL data to compare)', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Vitamin B12'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin B12',
+          'quantity': 5000,
+          'skip_ul_check': false,
+          // No ul_for_default_profile or highest_ul — B12 has no UL.
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.withinLimits,
+      );
     });
 
-    test('zero UL is treated as unknown (never fires)', () {
-      final ingredient = <String, dynamic>{
-        'amount': 5000,
-        'ul_19_30': 0,
-      };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+    test('does NOT use per_day_max (handoff clarification)', () {
+      // Using per_day_max would double-count the serving math: a
+      // label allowing 2 servings/day would push "1 serving worth of
+      // dose" over UL and fire a false positive. We compare the
+      // disclosed quantity, not the aggregated daily intake.
+      final ingredient = <String, dynamic>{'standard_name': 'Zinc'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Zinc',
+          'quantity': 20.0, // below UL 40
+          'per_day_max': 80.0, // above UL only when doubled
+          'skip_ul_check': false,
+          'ul_for_default_profile': 40,
+          'highest_ul': 40,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.withinLimits,
+        reason: 'per_day_max must not trigger UL — use quantity',
+      );
     });
 
-    test('negative amount is treated as unknown', () {
+    test('matching is case-insensitive and whitespace-tolerant', () {
       final ingredient = <String, dynamic>{
-        'amount': -1,
-        'ul_19_30': 10000,
+        'standard_name': '  vitamin B3 (NIACIN)  ',
       };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin B3 (Niacin)',
+          'quantity': 50.0,
+          'skip_ul_check': false,
+          'ul_for_default_profile': 35,
+          'highest_ul': 35,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.exceedsUl,
+      );
     });
 
-    test('non-numeric garbage does not throw, returns false', () {
-      final ingredient = <String, dynamic>{
-        'amount': 'abc',
-        'ul_19_30': 'xyz',
-      };
-      expect(ingredientExceedsUl(ingredient), isFalse);
+    test('falls back to ingredient/name when standard_name missing', () {
+      final ingredient = <String, dynamic>{'name': 'Iron'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'ingredient': 'Iron',
+          'quantity': 50.0,
+          'skip_ul_check': false,
+          'ul_for_default_profile': 45,
+          'highest_ul': 45,
+        }
+      ];
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.exceedsUl,
+      );
+    });
+  });
+
+  group('matchUlEntry', () {
+    test('returns matched entry when standard_name matches', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Vitamin D3'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {'standard_name': 'Vitamin D3', 'quantity': 2000},
+        {'standard_name': 'Vitamin A', 'quantity': 5000},
+      ];
+      final match = matchUlEntry(ingredient, ulAnalysis);
+      expect(match, isNotNull);
+      expect(match!['quantity'], 2000);
+    });
+
+    test('returns null when no match', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Magnesium'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {'standard_name': 'Vitamin A'}
+      ];
+      expect(matchUlEntry(ingredient, ulAnalysis), isNull);
+    });
+
+    test('returns null when ulAnalysis is null or empty', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Vitamin A'};
+      expect(matchUlEntry(ingredient, null), isNull);
+      expect(matchUlEntry(ingredient, const []), isNull);
     });
   });
 }

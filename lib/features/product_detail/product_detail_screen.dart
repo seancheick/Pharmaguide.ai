@@ -1592,6 +1592,17 @@ class _DetailSection extends ConsumerWidget {
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         [];
+
+    // FLTR-11 — per-ingredient UL evaluation lives under the top-level
+    // rda_ul_data block. Pulled out here so _CollapsibleIngredients
+    // can match each ingredient row to its UL entry once, and so the
+    // _SafetyTag can render a dose-safety badge that honors the
+    // pipeline's skip_ul_check signal.
+    final ulAnalysis = ((blob['rda_ul_data']
+                as Map<String, dynamic>?)?['analyzed_ingredients']
+            as List?)
+        ?.whereType<Map<String, dynamic>>()
+        .toList();
     final bonuses = (blob['score_bonuses'] as List?)
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
@@ -1655,7 +1666,10 @@ class _DetailSection extends ConsumerWidget {
       children: [
         // ---- Active Ingredients (collapsible — long for multivitamins) ----
         if (ingredients.isNotEmpty) ...[
-          _CollapsibleIngredients(ingredients: ingredients),
+          _CollapsibleIngredients(
+            ingredients: ingredients,
+            ulAnalysis: ulAnalysis,
+          ),
           const SizedBox(height: 20),
         ] else if (ingredientsSummary.isNotEmpty) ...[
           Text(
@@ -1796,7 +1810,17 @@ class _DetailSection extends ConsumerWidget {
 /// longer than 5 ingredients; short lists stay expanded.
 class _CollapsibleIngredients extends StatefulWidget {
   final List<Map<String, dynamic>> ingredients;
-  const _CollapsibleIngredients({required this.ingredients});
+
+  /// Pipeline's per-ingredient UL analysis from
+  /// `blob.rda_ul_data.analyzed_ingredients`. Null when the blob
+  /// lacks the block; each tile will simply not render a UL-based
+  /// badge in that case.
+  final List<Map<String, dynamic>>? ulAnalysis;
+
+  const _CollapsibleIngredients({
+    required this.ingredients,
+    this.ulAnalysis,
+  });
 
   @override
   State<_CollapsibleIngredients> createState() =>
@@ -1879,7 +1903,10 @@ class _CollapsibleIngredientsState extends State<_CollapsibleIngredients> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: widget.ingredients
-                        .map((ing) => _IngredientTile(ingredient: ing))
+                        .map((ing) => _IngredientTile(
+                              ingredient: ing,
+                              ulEntry: matchUlEntry(ing, widget.ulAnalysis),
+                            ))
                         .toList(),
                   ),
                 )
@@ -1893,7 +1920,14 @@ class _CollapsibleIngredientsState extends State<_CollapsibleIngredients> {
 /// A single active ingredient row showing name, dose, form, and category.
 class _IngredientTile extends StatelessWidget {
   final Map<String, dynamic> ingredient;
-  const _IngredientTile({required this.ingredient});
+
+  /// The UL-analysis entry matched for this ingredient (if any).
+  /// Pre-matched by [_CollapsibleIngredients] so we don't re-scan the
+  /// list per tile. Drives the FLTR-11 dose-safety badge on
+  /// [_SafetyTag].
+  final Map<String, dynamic>? ulEntry;
+
+  const _IngredientTile({required this.ingredient, this.ulEntry});
 
   @override
   Widget build(BuildContext context) {
@@ -1966,7 +2000,11 @@ class _IngredientTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        _SafetyTag(bioScore: bioScore, ingredient: ingredient),
+                        _SafetyTag(
+                          bioScore: bioScore,
+                          ingredient: ingredient,
+                          ulEntry: ulEntry,
+                        ),
                         if (form.isNotEmpty) ...[
                           const SizedBox(width: 6),
                           Text(
@@ -2024,7 +2062,19 @@ class _SafetyTag extends StatelessWidget {
   final dynamic bioScore;
   final Map<String, dynamic> ingredient;
 
-  const _SafetyTag({required this.bioScore, required this.ingredient});
+  /// FLTR-11 — the matched pipeline UL-analysis entry, already
+  /// resolved from `blob.rda_ul_data.analyzed_ingredients` by
+  /// [_CollapsibleIngredients]. Null when the ingredient has no
+  /// corresponding UL row (e.g. not a recognized nutrient or the
+  /// blob doesn't carry the block), in which case we fall through
+  /// to bioScore-based labeling.
+  final Map<String, dynamic>? ulEntry;
+
+  const _SafetyTag({
+    required this.bioScore,
+    required this.ingredient,
+    this.ulEntry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2056,18 +2106,37 @@ class _SafetyTag extends StatelessWidget {
   }
 
   (String, Color, IconData) _resolve() {
-    // FLTR-11 — UL exceedance outranks dose quality and interactions.
-    // A dose above the Tolerable Upper Intake Level must never render
-    // a positive badge ("Well dosed" / "Adequate"), no matter how
-    // good the bioavailability score is. Example: Vitamin A Palmitate
-    // 25,000 IU in a high-bio form used to read "Well dosed" even
-    // though it's 2.5x the adult UL of 10,000 IU.
-    if (ingredientExceedsUl(ingredient)) {
-      return (
-        'High dose',
-        AppTheme.severityAvoid,
-        Icons.warning_amber_rounded,
-      );
+    // FLTR-11 — dose-vs-UL is a pipeline decision. The UI renders
+    // whatever the pipeline's rda_ul_data.analyzed_ingredients block
+    // says, verbatim:
+    //   - UL exceeded      → "High dose" (danger)
+    //   - skip_ul_check    → neutral "Dose not evaluated" state
+    //   - withinLimits     → fall through to bioScore-based labeling
+    // We deliberately do NOT override pipeline decisions in the UI —
+    // even when the pipeline skips UL evaluation on a dose that's
+    // visibly above a known threshold (e.g. the Thorne Vitamin A
+    // 25,000 IU case where pipeline sets skip_ul_check=true with
+    // "unknown_vitamin_form"). Clinical interpretation is owned by
+    // the pipeline. The UI interprets, it does not reinterpret.
+    final doseSafety = resolveDoseSafety(
+      ingredient: ingredient,
+      ulAnalysis: ulEntry == null ? null : <Map<String, dynamic>>[ulEntry!],
+    );
+    switch (doseSafety) {
+      case DoseSafety.exceedsUl:
+        return (
+          'High dose',
+          AppTheme.severityAvoid,
+          Icons.warning_amber_rounded,
+        );
+      case DoseSafety.skip:
+        return (
+          'Dose not evaluated',
+          AppTheme.insufficientData,
+          Icons.help_outline_rounded,
+        );
+      case DoseSafety.withinLimits:
+        break;
     }
 
     // Check for explicit flags first

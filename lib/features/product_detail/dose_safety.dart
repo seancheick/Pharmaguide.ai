@@ -1,38 +1,110 @@
-/// Per-ingredient dose-vs-UL safety helpers.
+/// Per-ingredient dose-vs-UL safety.
 ///
-/// The detail blob carries per-ingredient UL data emitted by the
-/// pipeline (`ul_19_30`, `highest_ul`). These helpers keep the
-/// comparison logic pure so it can be unit-tested without a widget
-/// tree.
+/// Routes through the pipeline's top-level `rda_ul_data.analyzed_ingredients`
+/// block — the authoritative source for UL evaluation — matching by
+/// `standard_name`. Respects `skip_ul_check`: when the pipeline
+/// opts out of UL evaluation (e.g. `skip_ul_reason == "unknown_vitamin_form"`),
+/// the UI must render a neutral state, not substitute its own judgment.
+/// The clinical interpretation is owned by the pipeline — the UI
+/// interprets, it does not reinterpret.
 ///
-/// Policy — matches the safety hierarchy in the Flutter handoff §0:
-/// UL exceedance outranks dose-quality labels. A product whose dose
-/// is above the UL must never render a positive badge like "Well
-/// dosed" no matter how good the bioavailability score is
-/// (FLTR-11 — the Vitamin A 25,000 IU regression).
+/// Implements the FLTR-11 safety hierarchy from the handoff §0:
+///   UL exceeded  →  override all positive dose badges.
+///   skip_ul_check →  render neutral; do not claim safe OR unsafe.
+///
+/// The fixtures in test/features/product_detail/dose_safety_test.dart
+/// mirror the real blob shape under rda_ul_data.analyzed_ingredients.
 
 library;
 
-/// Returns true when the ingredient's disclosed dose exceeds the
-/// upper-limit threshold carried by the ingredient map.
-///
-/// Lookup order, honoring the pipeline contract:
-///   1. `ul_19_30` — default adult UL in the current blob shape.
-///   2. `highest_ul` — anonymous-safe fallback (worst-case across
-///      demographics). Conservative: a true exceedance anywhere
-///      fires the badge.
-///
-/// Returns false when any input is missing or non-positive so
-/// incomplete data never produces a false alarm.
-bool ingredientExceedsUl(Map<String, dynamic> ingredient) {
-  final amount = _asDouble(ingredient['amount']);
-  if (amount == null || amount <= 0) return false;
+/// Per-ingredient dose safety state derived from the pipeline's UL
+/// analysis block. Callers map each state to a visual badge.
+enum DoseSafety {
+  /// Pipeline explicitly skipped UL evaluation (unknown form, missing
+  /// quantity, etc.). UI must render a neutral "dose not evaluated"
+  /// state rather than a positive or negative judgment.
+  skip,
 
-  final ul = _asDouble(ingredient['ul_19_30']) ??
-      _asDouble(ingredient['highest_ul']);
-  if (ul == null || ul <= 0) return false;
+  /// Disclosed dose exceeds the Tolerable Upper Intake Level. UI
+  /// renders a High dose / danger badge and suppresses any positive
+  /// bioavailability label.
+  exceedsUl,
 
-  return amount > ul;
+  /// No UL concern for this ingredient — either the ingredient has
+  /// no matching UL entry in the blob, the UL field is absent, or
+  /// the dose falls at or below the UL. Caller is free to apply its
+  /// own dose-quality labeling (bioScore tiers).
+  withinLimits,
+}
+
+/// Resolve the dose-safety state for a single ingredient against the
+/// pipeline's `rda_ul_data.analyzed_ingredients` list. Pure function —
+/// no widget/ref dependencies, so the logic is unit-testable in
+/// isolation.
+///
+/// Matching is by `standard_name` (lowercase trim). Falls back to
+/// `ingredient`/`name` fields on either side so blobs that emit a
+/// slightly different field shape still match.
+DoseSafety resolveDoseSafety({
+  required Map<String, dynamic> ingredient,
+  required List<Map<String, dynamic>>? ulAnalysis,
+}) {
+  final entry = matchUlEntry(ingredient, ulAnalysis);
+  if (entry == null) return DoseSafety.withinLimits;
+  if (entry['skip_ul_check'] == true) return DoseSafety.skip;
+
+  // Per the FLTR-11 clarification: compare the actual disclosed
+  // `quantity` against the UL, NOT `per_day_max`. per_day_max is a
+  // pipeline-normalized scaling field (quantity × max servings/day)
+  // used for stack aggregation. Using it would double-count the
+  // serving math and fire false-positive UL alerts on any product
+  // whose label allows multiple servings.
+  final quantity = _asDouble(entry['quantity']) ??
+      _asDouble(ingredient['quantity']);
+  if (quantity == null || quantity <= 0) return DoseSafety.withinLimits;
+
+  // UL resolution order honoring the pipeline contract:
+  //   1. ul_for_default_profile — age/sex-aware UL when the pipeline
+  //      resolved one for the anonymous default (adult 19-30).
+  //   2. highest_ul — worst-case UL across demographics, used when
+  //      the pipeline couldn't resolve a profile-specific UL.
+  final ul = _asDouble(entry['ul_for_default_profile']) ??
+      _asDouble(entry['highest_ul']);
+  if (ul == null || ul <= 0) return DoseSafety.withinLimits;
+
+  return quantity > ul ? DoseSafety.exceedsUl : DoseSafety.withinLimits;
+}
+
+/// Find the UL-analysis entry for an ingredient. Pulled out so the
+/// per-ingredient tile can resolve once and pass the matched entry
+/// down to the safety tag without re-scanning the list.
+///
+/// Returns null when no entry matches, when the list is null, or
+/// when the ingredient has no `standard_name`/`name` to match on.
+Map<String, dynamic>? matchUlEntry(
+  Map<String, dynamic> ingredient,
+  List<Map<String, dynamic>>? ulAnalysis,
+) {
+  if (ulAnalysis == null || ulAnalysis.isEmpty) return null;
+
+  final target = _normalizedName(
+    ingredient['standard_name'] ?? ingredient['name'],
+  );
+  if (target == null) return null;
+
+  for (final entry in ulAnalysis) {
+    final candidate = _normalizedName(
+      entry['standard_name'] ?? entry['ingredient'],
+    );
+    if (candidate != null && candidate == target) return entry;
+  }
+  return null;
+}
+
+String? _normalizedName(Object? raw) {
+  if (raw == null) return null;
+  final s = raw.toString().trim().toLowerCase();
+  return s.isEmpty ? null : s;
 }
 
 double? _asDouble(dynamic v) {
