@@ -21,6 +21,7 @@ import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blocked_product_view.dart';
@@ -2054,6 +2055,20 @@ class _SafetyTag extends StatelessWidget {
   }
 
   (String, Color, IconData) _resolve() {
+    // FLTR-11 — UL exceedance outranks dose quality and interactions.
+    // A dose above the Tolerable Upper Intake Level must never render
+    // a positive badge ("Well dosed" / "Adequate"), no matter how
+    // good the bioavailability score is. Example: Vitamin A Palmitate
+    // 25,000 IU in a high-bio form used to read "Well dosed" even
+    // though it's 2.5x the adult UL of 10,000 IU.
+    if (ingredientExceedsUl(ingredient)) {
+      return (
+        'High dose',
+        AppTheme.severityAvoid,
+        Icons.warning_amber_rounded,
+      );
+    }
+
     // Check for explicit flags first
     final hasWarning = ingredient['has_interaction'] == true ||
         ingredient['has_warning'] == true;
