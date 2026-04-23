@@ -1,16 +1,954 @@
 {
-  "checksum": "sha256:2429f1087a4faf748b6f3587b352134458237f15bf04558ac0588613a4d58b38",
-  "checksum_sha256": "2429f1087a4faf748b6f3587b352134458237f15bf04558ac0588613a4d58b38",
-  "db_version": "2026.04.21.164306",
-  "detail_blob_count": 8288,
-  "detail_blob_unique_count": 8288,
-  "detail_index_checksum": "sha256:7922d9eb79463457ec38b15805e2e1960320127dc3e7e34a1e957af954a60fc7",
+  "checksum": "sha256:5982f8b316552cf0a183bb462a1f2282f31ce5d71c0bd18f7d0b375dbf907b88",
+  "checksum_sha256": "5982f8b316552cf0a183bb462a1f2282f31ce5d71c0bd18f7d0b375dbf907b88",
+  "db_version": "2026.04.23.000925",
+  "detail_blob_count": 8169,
+  "detail_blob_unique_count": 8169,
+  "detail_index_checksum": "sha256:b0be32ede42edd2e085a867bd97f9bac547cc09479267de30732f408a8f035df",
   "errors": [],
-  "generated_at": "2026-04-21T16:43:06.398641+00:00",
+  "excluded_by_gate": [
+    {
+      "dsld_id": "1256",
+      "error": "[1256] raw DSLD disclosed 8 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "13260",
+      "error": "[13260] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "175321",
+      "error": "[175321] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "175392",
+      "error": "[175392] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "182169",
+      "error": "[182169] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "182228",
+      "error": "[182228] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "182424",
+      "error": "[182424] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "182542",
+      "error": "[182542] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "182607",
+      "error": "[182607] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "182853",
+      "error": "[182853] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "182964",
+      "error": "[182964] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "183352",
+      "error": "[183352] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "183513",
+      "error": "[183513] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "183524",
+      "error": "[183524] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "184096",
+      "error": "[184096] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "184252",
+      "error": "[184252] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "184539",
+      "error": "[184539] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "184702",
+      "error": "[184702] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "184769",
+      "error": "[184769] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "187568",
+      "error": "[187568] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "187577",
+      "error": "[187577] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "199411",
+      "error": "[199411] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "202873",
+      "error": "[202873] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "203057",
+      "error": "[203057] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "203163",
+      "error": "[203163] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "203218",
+      "error": "[203218] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "203266",
+      "error": "[203266] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "203401",
+      "error": "[203401] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "203412",
+      "error": "[203412] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "207001",
+      "error": "[207001] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "209385",
+      "error": "[209385] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "209418",
+      "error": "[209418] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "217362",
+      "error": "[217362] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "217376",
+      "error": "[217376] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "219102",
+      "error": "[219102] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "219564",
+      "error": "[219564] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "219648",
+      "error": "[219648] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "219653",
+      "error": "[219653] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "219734",
+      "error": "[219734] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "219735",
+      "error": "[219735] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "220100",
+      "error": "[220100] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "221133",
+      "error": "[221133] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "221134",
+      "error": "[221134] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "221150",
+      "error": "[221150] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "221671",
+      "error": "[221671] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "222998",
+      "error": "[222998] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223002",
+      "error": "[223002] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223006",
+      "error": "[223006] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223033",
+      "error": "[223033] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223127",
+      "error": "[223127] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223146",
+      "error": "[223146] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223280",
+      "error": "[223280] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223320",
+      "error": "[223320] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223321",
+      "error": "[223321] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223388",
+      "error": "[223388] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223422",
+      "error": "[223422] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223454",
+      "error": "[223454] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223536",
+      "error": "[223536] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223539",
+      "error": "[223539] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "223544",
+      "error": "[223544] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "224688",
+      "error": "[224688] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "224722",
+      "error": "[224722] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "224727",
+      "error": "[224727] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "224731",
+      "error": "[224731] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "224766",
+      "error": "[224766] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "229926",
+      "error": "[229926] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "231305",
+      "error": "[231305] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "241737",
+      "error": "[241737] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "241908",
+      "error": "[241908] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "24461",
+      "error": "[24461] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "24603",
+      "error": "[24603] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "251227",
+      "error": "[251227] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "251233",
+      "error": "[251233] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "251234",
+      "error": "[251234] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "259731",
+      "error": "[259731] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "260367",
+      "error": "[260367] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "261071",
+      "error": "[261071] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "266815",
+      "error": "[266815] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269278",
+      "error": "[269278] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269402",
+      "error": "[269402] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269490",
+      "error": "[269490] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269649",
+      "error": "[269649] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269651",
+      "error": "[269651] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269655",
+      "error": "[269655] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269666",
+      "error": "[269666] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269671",
+      "error": "[269671] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269691",
+      "error": "[269691] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269727",
+      "error": "[269727] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269747",
+      "error": "[269747] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269803",
+      "error": "[269803] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269836",
+      "error": "[269836] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269949",
+      "error": "[269949] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "269952",
+      "error": "[269952] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270257",
+      "error": "[270257] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270330",
+      "error": "[270330] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270397",
+      "error": "[270397] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270400",
+      "error": "[270400] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270516",
+      "error": "[270516] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270614",
+      "error": "[270614] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270617",
+      "error": "[270617] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270619",
+      "error": "[270619] raw DSLD disclosed 2 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270620",
+      "error": "[270620] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270621",
+      "error": "[270621] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "270771",
+      "error": "[270771] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "277659",
+      "error": "[277659] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "28417",
+      "error": "[28417] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "284186",
+      "error": "[284186] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "287432",
+      "error": "[287432] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "288627",
+      "error": "[288627] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "291779",
+      "error": "[291779] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "293983",
+      "error": "[293983] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "293996",
+      "error": "[293996] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "294055",
+      "error": "[294055] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "298035",
+      "error": "[298035] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "298066",
+      "error": "[298066] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "302684",
+      "error": "[302684] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "302690",
+      "error": "[302690] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "302702",
+      "error": "[302702] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "302703",
+      "error": "[302703] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "302704",
+      "error": "[302704] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306053",
+      "error": "[306053] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306059",
+      "error": "[306059] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306184",
+      "error": "[306184] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306203",
+      "error": "[306203] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306205",
+      "error": "[306205] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306207",
+      "error": "[306207] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306240",
+      "error": "[306240] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306316",
+      "error": "[306316] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306318",
+      "error": "[306318] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306321",
+      "error": "[306321] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306327",
+      "error": "[306327] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306332",
+      "error": "[306332] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306367",
+      "error": "[306367] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306371",
+      "error": "[306371] raw DSLD disclosed 2 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306372",
+      "error": "[306372] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306373",
+      "error": "[306373] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306374",
+      "error": "[306374] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306376",
+      "error": "[306376] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306391",
+      "error": "[306391] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "306405",
+      "error": "[306405] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "307784",
+      "error": "[307784] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "307785",
+      "error": "[307785] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "307786",
+      "error": "[307786] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "308229",
+      "error": "[308229] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "308238",
+      "error": "[308238] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "308239",
+      "error": "[308239] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "308288",
+      "error": "[308288] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "309604",
+      "error": "[309604] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "309608",
+      "error": "[309608] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311618",
+      "error": "[311618] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311619",
+      "error": "[311619] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311676",
+      "error": "[311676] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311679",
+      "error": "[311679] raw DSLD disclosed 2 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311681",
+      "error": "[311681] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311683",
+      "error": "[311683] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311730",
+      "error": "[311730] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311879",
+      "error": "[311879] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "311946",
+      "error": "[311946] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "313912",
+      "error": "[313912] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "315598",
+      "error": "[315598] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "319643",
+      "error": "[319643] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "322381",
+      "error": "[322381] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "322382",
+      "error": "[322382] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "322384",
+      "error": "[322384] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "323124",
+      "error": "[323124] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "336326",
+      "error": "[336326] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "336626",
+      "error": "[336626] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "37283",
+      "error": "[37283] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "43425",
+      "error": "[43425] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "43442",
+      "error": "[43442] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "46419",
+      "error": "[46419] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "50564",
+      "error": "[50564] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "50566",
+      "error": "[50566] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "59867",
+      "error": "[59867] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "60034",
+      "error": "[60034] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "60215",
+      "error": "[60215] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "63945",
+      "error": "[63945] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "63946",
+      "error": "[63946] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "64075",
+      "error": "[64075] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "67277",
+      "error": "[67277] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "69274",
+      "error": "[69274] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "69277",
+      "error": "[69277] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "69281",
+      "error": "[69281] raw DSLD disclosed 5 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "69300",
+      "error": "[69300] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "69301",
+      "error": "[69301] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "69302",
+      "error": "[69302] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "69303",
+      "error": "[69303] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "74486",
+      "error": "[74486] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77079",
+      "error": "[77079] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77122",
+      "error": "[77122] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77130",
+      "error": "[77130] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77153",
+      "error": "[77153] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77160",
+      "error": "[77160] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77215",
+      "error": "[77215] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77218",
+      "error": "[77218] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77220",
+      "error": "[77220] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77240",
+      "error": "[77240] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77257",
+      "error": "[77257] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "77285",
+      "error": "[77285] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "78124",
+      "error": "[78124] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "78468",
+      "error": "[78468] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "78483",
+      "error": "[78483] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "81696",
+      "error": "[81696] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "81834",
+      "error": "[81834] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "82070",
+      "error": "[82070] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    },
+    {
+      "dsld_id": "82303",
+      "error": "[82303] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+    }
+  ],
+  "generated_at": "2026-04-23T00:09:25.744899+00:00",
+  "integrity": {
+    "contract_failures": 0,
+    "coverage_pct": 61.72,
+    "enriched_input_count": 13236,
+    "enriched_only_count": 0,
+    "error_count": 0,
+    "excluded_by_gate_count": 206,
+    "exported_count": 8169,
+    "has_banned_substance": 113,
+    "has_recalled_ingredient": 0,
+    "scored_input_count": 13236,
+    "scored_only_count": 0,
+    "scoring_config_checksum": "sha256:1d9d9ea5141016627f487030319ede46d005a45cf2847020f7855e42059b02a7",
+    "skipped_count": 228,
+    "strict_mode": false,
+    "total_skipped": 228,
+    "verdict_blocked": 113,
+    "verdict_not_scored": 519,
+    "verdict_unsafe": 0,
+    "warning_count": 22
+  },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 8288,
-  "release_staged_at": "2026-04-21T16:50:41Z",
+  "product_count": 8169,
+  "release_staged_at": "2026-04-23T00:09:25Z",
   "schema_version": "1.4.0",
-  "scoring_version": "3.4.0"
+  "scoring_config_checksum": "sha256:1d9d9ea5141016627f487030319ede46d005a45cf2847020f7855e42059b02a7",
+  "scoring_version": "3.4.0",
+  "warnings": [
+    {
+      "dsld_id": "1631",
+      "error": "[1631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "1632",
+      "error": "[1632] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "1633",
+      "error": "[1633] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "18370",
+      "error": "[18370] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "18375",
+      "error": "[18375] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "19471",
+      "error": "[19471] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "213540",
+      "error": "[213540] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "213550",
+      "error": "[213550] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "223600",
+      "error": "[223600] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "224631",
+      "error": "[224631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "27275",
+      "error": "[27275] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "27307",
+      "error": "[27307] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "315314",
+      "error": "[315314] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "316107",
+      "error": "[316107] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "317643",
+      "error": "[317643] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "321926",
+      "error": "[321926] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "3671",
+      "error": "[3671] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "42298",
+      "error": "[42298] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "67304",
+      "error": "[67304] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "74440",
+      "error": "[74440] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "74456",
+      "error": "[74456] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    },
+    {
+      "dsld_id": "78720",
+      "error": "[78720] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+    }
+  ]
 }
