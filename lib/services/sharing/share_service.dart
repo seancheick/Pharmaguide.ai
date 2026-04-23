@@ -29,7 +29,7 @@ class ShareService {
       '\nAnalyzed by PharmaGuide',
     ].join('\n');
 
-    await Share.share(text, subject: title);
+    await SharePlus.instance.share(ShareParams(text: text, subject: title));
   }
 
   /// Share a stack summary.
@@ -51,6 +51,8 @@ Synergies: $synergyCount
 Analyzed by PharmaGuide
 ''';
 
-    await Share.share(text, subject: 'My Supplement Stack');
+    await SharePlus.instance.share(
+      ShareParams(text: text, subject: 'My Supplement Stack'),
+    );
   }
 }

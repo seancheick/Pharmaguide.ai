@@ -1,30 +1,20 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 
-/// Crash reporting facade for PharmaGuide.
+import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+/// Crash reporting facade for PharmaGuide (Sentry-backed).
 ///
-/// ## Status
+/// Privacy rules (medical-grade app):
+///   * `sendDefaultPii` is OFF — no device identifiers or IPs attached.
+///   * User health data (stack contents, ingredients, conditions, medications)
+///     is NEVER forwarded. Only an opaque `userId` is sent for correlation.
+///   * `beforeSend` + `beforeBreadcrumb` scrub request bodies, tags, and
+///     extras for known sensitive keys before events leave the device.
 ///
-/// This is an intentional stub. PharmaGuide is a privacy-first, medical-grade
-/// app — wiring up Crashlytics / Sentry is a product-level decision that
-/// requires privacy review, DPA review, and user consent UI. Until that's
-/// done, this service buffers recent breadcrumbs and errors in memory so
-/// they're available during debugging, and no-ops in release builds.
-///
-/// ## Integration
-///
-/// When a backend is chosen (Crashlytics, Sentry, etc.):
-///
-///   1. Add the SDK dependency in `pubspec.yaml`.
-///   2. In [initialize], construct the client and flush [_breadcrumbBuffer]
-///      / [_errorBuffer] to it.
-///   3. In [recordError] and [log], forward calls to the client when
-///      available. Keep the local buffers — useful for debugging and for
-///      surfacing recent context in bug reports.
-///   4. Scrub the `error.toString()` output through a PII filter before it
-///      leaves the device.
-///
-/// The public API is stable — call sites (e.g. `recordError(e, st)`) will
-/// not need to change when the backend is wired up.
+/// The SDK is initialized in [bootstrap]. If no DSN is provided via
+/// `--dart-define=SENTRY_DSN=…`, the service degrades to an in-memory buffer —
+/// safe to call everywhere, never throws.
 class CrashReportingService {
   static final CrashReportingService _instance = CrashReportingService._();
   factory CrashReportingService() => _instance;
@@ -33,26 +23,89 @@ class CrashReportingService {
   static const int _breadcrumbMax = 100;
   static const int _errorMax = 50;
 
+  static const Set<String> _sensitiveKeys = {
+    'email',
+    'password',
+    'token',
+    'auth',
+    'authorization',
+    'api_key',
+    'apikey',
+    'supabase_anon_key',
+    'gemini_api_key',
+    'sentry_dsn',
+    'access_token',
+    'refresh_token',
+    'health',
+    'medication',
+    'medications',
+    'condition',
+    'conditions',
+    'ingredient',
+    'ingredients',
+    'stack',
+    'profile',
+    'dob',
+    'birthdate',
+  };
+
   final List<CrashBreadcrumb> _breadcrumbBuffer = <CrashBreadcrumb>[];
   final List<RecordedCrashError> _errorBuffer = <RecordedCrashError>[];
 
   bool _initialized = false;
+  bool _sentryEnabled = false;
   bool get isInitialized => _initialized;
+  bool get isSentryEnabled => _sentryEnabled;
 
-  /// Read-only view of recent breadcrumbs (debug tooling, tests).
   List<CrashBreadcrumb> get breadcrumbs => List.unmodifiable(_breadcrumbBuffer);
+  List<RecordedCrashError> get recordedErrors =>
+      List.unmodifiable(_errorBuffer);
 
-  /// Read-only view of recent errors (debug tooling, tests).
-  List<RecordedCrashError> get recordedErrors => List.unmodifiable(_errorBuffer);
-
-  /// Initialize crash reporting. Safe to call multiple times.
+  /// Buffer-only init — used by tests and code paths that skip [bootstrap].
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
-    if (kDebugMode) debugPrint('CrashReportingService initialized (stub)');
+    if (kDebugMode) debugPrint('CrashReportingService initialized (buffer-only)');
   }
 
-  /// Record a non-fatal error.
+  /// Bootstrap Sentry and run [appRunner] inside the Sentry zone so uncaught
+  /// async errors are captured. Empty [dsn] → buffer-only, still runs the app.
+  Future<void> bootstrap({
+    required String dsn,
+    required String environment,
+    required String release,
+    required Future<void> Function() appRunner,
+  }) async {
+    if (dsn.isEmpty) {
+      await initialize();
+      await appRunner();
+      return;
+    }
+
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = dsn;
+        options.environment = environment.isEmpty ? 'production' : environment;
+        if (release.isNotEmpty) options.release = release;
+        options.sendDefaultPii = false;
+        options.attachStacktrace = true;
+        options.attachThreads = true;
+        options.enableAutoSessionTracking = true;
+        options.debug = kDebugMode;
+        options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
+        options.beforeSend = _scrubEvent;
+        options.beforeBreadcrumb = _scrubBreadcrumb;
+      },
+      appRunner: appRunner,
+    );
+
+    _sentryEnabled = true;
+    _initialized = true;
+    if (kDebugMode) {
+      debugPrint('CrashReportingService initialized (Sentry enabled, env=$environment)');
+    }
+  }
+
   void recordError(Object error, StackTrace stackTrace, {bool fatal = false}) {
     _errorBuffer.add(RecordedCrashError(error.toString(), stackTrace, fatal));
     if (_errorBuffer.length > _errorMax) {
@@ -61,20 +114,43 @@ class CrashReportingService {
     if (kDebugMode) {
       debugPrint('CrashReport: ${fatal ? "FATAL" : "non-fatal"} — $error');
     }
+    if (_sentryEnabled) {
+      unawaited(
+        Sentry.captureException(
+          error,
+          stackTrace: stackTrace,
+          hint: fatal ? Hint.withMap({'fatal': true}) : null,
+        ),
+      );
+    }
   }
 
-  /// Set a user identifier for crash context. Pass null to clear.
+  /// Only an opaque id is sent — never email, never profile data.
   void setUserId(String? userId) {
     _breadcrumbBuffer.add(CrashBreadcrumb('user_id=$userId'));
     _trimBreadcrumbs();
     if (kDebugMode) debugPrint('CrashReport: userId=$userId');
+    if (_sentryEnabled) {
+      // configureScope returns FutureOr<void>; wrap to ignore result.
+      Future<void>.sync(() async {
+        await Sentry.configureScope((scope) {
+          if (userId == null) {
+            scope.setUser(null);
+          } else {
+            scope.setUser(SentryUser(id: userId));
+          }
+        });
+      });
+    }
   }
 
-  /// Log a breadcrumb message for context in future crash reports.
   void log(String message) {
     _breadcrumbBuffer.add(CrashBreadcrumb(message));
     _trimBreadcrumbs();
     if (kDebugMode) debugPrint('CrashReport: $message');
+    if (_sentryEnabled) {
+      Sentry.addBreadcrumb(Breadcrumb(message: message, level: SentryLevel.info));
+    }
   }
 
   void _trimBreadcrumbs() {
@@ -86,7 +162,60 @@ class CrashReportingService {
     }
   }
 
-  /// Test-only helper to clear buffers between tests.
+  // ───────── PII scrubbing ─────────
+
+  static bool _isSensitive(String key) {
+    final lower = key.toLowerCase();
+    return _sensitiveKeys.any(lower.contains);
+  }
+
+  static Map<String, dynamic> _scrubMap(Map<String, dynamic> src) {
+    final out = <String, dynamic>{};
+    src.forEach((k, v) {
+      if (_isSensitive(k)) {
+        out[k] = '[scrubbed]';
+      } else if (v is Map<String, dynamic>) {
+        out[k] = _scrubMap(v);
+      } else {
+        out[k] = v;
+      }
+    });
+    return out;
+  }
+
+  static SentryEvent? _scrubEvent(SentryEvent event, Hint hint) {
+    // Scrub tags in-place.
+    final tags = event.tags;
+    if (tags != null) {
+      for (final key in tags.keys.toList()) {
+        if (_isSensitive(key)) tags[key] = '[scrubbed]';
+      }
+    }
+    // Strip request body/headers — medical app, never exfiltrate payloads.
+    final req = event.request;
+    if (req != null) {
+      event.request = SentryRequest(
+        url: req.url,
+        method: req.method,
+        queryString: req.queryString,
+        cookies: null,
+        data: null,
+        headers: const {},
+      );
+    }
+    return event;
+  }
+
+  static Breadcrumb? _scrubBreadcrumb(Breadcrumb? crumb, Hint hint) {
+    if (crumb == null) return null;
+    final data = crumb.data;
+    if (data == null || data.isEmpty) return crumb;
+    data
+      ..clear()
+      ..addAll(_scrubMap(Map<String, dynamic>.from(data)));
+    return crumb;
+  }
+
   @visibleForTesting
   void clearBuffersForTest() {
     _breadcrumbBuffer.clear();

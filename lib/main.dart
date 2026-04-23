@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,11 +16,41 @@ import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 
+const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
+const String _sentryEnv = String.fromEnvironment(
+  'SENTRY_ENVIRONMENT',
+  defaultValue: 'development',
+);
+const String _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
+
 void main() async {
+  // Bootstrap Sentry first so it wraps everything below in a Sentry zone.
+  // When SENTRY_DSN is empty, this degrades to a buffer-only init and simply
+  // runs [_runApp]. No-op safe.
+  await CrashReportingService().bootstrap(
+    dsn: _sentryDsn,
+    environment: _sentryEnv,
+    release: _sentryRelease,
+    appRunner: _runApp,
+  );
+}
+
+Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize crash reporting (stub — safe to call, never throws)
-  await CrashReportingService().initialize();
+  // Route Flutter framework errors + platform-level errors to Sentry.
+  FlutterError.onError = (details) {
+    CrashReportingService().recordError(
+      details.exception,
+      details.stack ?? StackTrace.current,
+      fatal: false,
+    );
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    CrashReportingService().recordError(error, stack, fatal: true);
+    return true;
+  };
 
   // Initialize analytics (stub — safe to call, never throws)
   await AnalyticsService().initialize();

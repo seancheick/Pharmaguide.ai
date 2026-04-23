@@ -10,7 +10,10 @@ FLUTTER := $(HOME)/Development/flutter/bin/flutter
 DART_DEFINES := \
 	--dart-define=SUPABASE_URL=$(SUPABASE_URL) \
 	--dart-define=SUPABASE_ANON_KEY=$(SUPABASE_ANON_KEY) \
-	--dart-define=GEMINI_API_KEY=$(GEMINI_API_KEY)
+	--dart-define=GEMINI_API_KEY=$(GEMINI_API_KEY) \
+	--dart-define=SENTRY_DSN=$(SENTRY_DSN) \
+	--dart-define=SENTRY_ENVIRONMENT=$(SENTRY_ENVIRONMENT) \
+	--dart-define=SENTRY_RELEASE=$(SENTRY_RELEASE)
 
 # ─── Development ──────────────────────────────────────────────────────────────
 

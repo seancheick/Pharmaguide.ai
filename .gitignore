@@ -49,3 +49,6 @@ pubspec.lock
 # not a tracked artifact. Keep the baseline goldens (test/**/goldens/)
 # but never commit the diff/master/test PNGs that land under failures/.
 test/**/failures/
+
+sentry.properties
+.gstack/
