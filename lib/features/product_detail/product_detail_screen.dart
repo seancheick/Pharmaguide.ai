@@ -29,7 +29,6 @@ import 'package:pharmaguide/features/product_detail/widgets/blocked_product_view
 import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
-import 'package:pharmaguide/features/product_detail/widgets/form_absorption_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
@@ -1763,11 +1762,12 @@ class _DetailSection extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        // ---- Form & Absorption (bioavailability comparison) ----
-        if (ingredients.length >= 2) ...[
-          FormAbsorptionSection(ingredients: ingredients),
-          const SizedBox(height: 20),
-        ],
+        // FLTR-20 — the standalone "Form & Absorption" card was
+        // removed; form-quality tiers now render inline on each
+        // active ingredient row via [_SafetyTag]. The underlying
+        // `FormAbsorptionSection` widget stays in the repo for
+        // potential reuse (e.g. a dedicated explainer) — it's no
+        // longer wired into the scroll.
 
         // ---- Inactive Ingredients ----
         if (inactiveIngredients.isNotEmpty) ...[
@@ -2244,21 +2244,32 @@ class _SafetyTag extends StatelessWidget {
       return ('Caution', AppTheme.severityCaution, Icons.warning_amber_rounded);
     }
 
-    // Fall back to bioavailability score
+    // FLTR-20 — form-quality tag. Replaces the older "Well dosed /
+    // Adequate / Low form / Poor form" vocabulary with the canonical
+    // FormAbsorptionSection tier labels ("Excellent / Good / Fair /
+    // Poor") at the same thresholds the explainer sheet documents
+    // (12 / 8 / 4). Unifies the two tier systems that previously
+    // rendered the same bio_score under two different names.
+    //
+    // bioavailability tiers (pipeline bio_score, 0–18):
+    //   ≥ 12 → Excellent
+    //   ≥ 8  → Good
+    //   ≥ 4  → Fair
+    //   else → Poor
     final s = (bioScore is num) ? (bioScore as num).toDouble() : -1.0;
     if (s < 0) {
       return ('Unknown', AppTheme.insufficientData, Icons.help_outline_rounded);
     }
-    if (s >= 10) {
-      return ('Well dosed', AppTheme.severitySafe, Icons.check_circle_outline);
+    if (s >= 12) {
+      return ('Excellent', AppTheme.severitySafe, Icons.check_circle_outline);
     }
-    if (s >= 6) {
-      return ('Adequate', AppTheme.scoreGood, Icons.check_circle_outline);
+    if (s >= 8) {
+      return ('Good', AppTheme.scoreGood, Icons.check_circle_outline);
     }
-    if (s >= 3) {
-      return ('Low form', AppTheme.severityCaution, Icons.info_outline);
+    if (s >= 4) {
+      return ('Fair', AppTheme.severityCaution, Icons.info_outline);
     }
-    return ('Poor form', AppTheme.severityAvoid, Icons.warning_amber_rounded);
+    return ('Poor', AppTheme.severityAvoid, Icons.warning_amber_rounded);
   }
 }
 

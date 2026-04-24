@@ -10,7 +10,7 @@
 //
 // Policy per handoff §0: the UI interprets the pipeline decision
 // verbatim. When the pipeline sets skip_ul_check=true, the UI must
-// not substitute "Well dosed" or "High dose" — it shows a neutral
+// not substitute "Excellent" or "High dose" — it shows a neutral
 // "dose not evaluated" state.
 
 import 'package:flutter_test/flutter_test.dart';
