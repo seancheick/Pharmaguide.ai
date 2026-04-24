@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "description": "Canonical-form ingredient aliases for synergy cluster matching. Each canonical form maps to the variant strings that supplement labels use in the wild. Used by enrich_supplements_v3.py::_collect_synergy_data to recover products where DSLD parser writes 'coenzyme q10' but the cluster ingredient is 'coq10'.",
+    "purpose": "cluster_ingredient_aliasing",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-04-24",
+    "total_entries": 25,
+    "schema_notes": {
+      "key": "Canonical ingredient form as it appears in synergy_cluster.json's `ingredients` lists.",
+      "value": "List of alternative spellings, abbreviations, source compounds, and chemical synonyms that should match the canonical form.",
+      "ambiguity_rule": "Each alias string may belong to AT MOST ONE canonical key. Aliases that could resolve to multiple canonical ingredients (e.g. 'ALA' = alpha-lipoic-acid OR alpha-linolenic-acid) must NOT be added; use the unambiguous full name instead.",
+      "scope": "Cluster matching only. Does NOT affect ingredient_quality_map scoring or IQM canonical IDs — those have their own alias system in enhanced_normalizer.py."
+    }
+  },
+  "aliases": {
+    "coq10": [
+      "coenzyme q10",
+      "coenzyme-q10",
+      "coq-10",
+      "coenzyme q-10",
+      "co-q10"
+    ],
+    "ubiquinol": [
+      "reduced coenzyme q10",
+      "kaneka qh"
+    ],
+    "ubiquinone": [
+      "oxidized coenzyme q10"
+    ],
+    "dha": [
+      "docosahexaenoic acid",
+      "algal docosahexaenoic acid",
+      "algal dha"
+    ],
+    "epa": [
+      "eicosapentaenoic acid"
+    ],
+    "curcumin": [
+      "curcuminoids",
+      "curcumin c3 complex",
+      "curcumin phytosome (meriva)"
+    ],
+    "turmeric": [
+      "tumeric",
+      "turmeric root",
+      "turmeric extract",
+      "turmeric rhizome"
+    ],
+    "vitamin c": [
+      "ascorbic acid",
+      "l-ascorbic acid",
+      "sodium ascorbate",
+      "calcium ascorbate"
+    ],
+    "vitamin d3": [
+      "cholecalciferol"
+    ],
+    "vitamin d": [
+      "ergocalciferol",
+      "vitamin d2"
+    ],
+    "vitamin b12": [
+      "methylcobalamin",
+      "cyanocobalamin",
+      "hydroxocobalamin",
+      "adenosylcobalamin"
+    ],
+    "folate": [
+      "folic acid",
+      "methylfolate",
+      "5-mthf",
+      "l-methylfolate",
+      "5-methyltetrahydrofolate",
+      "quatrefolic"
+    ],
+    "fish oil": [
+      "menhaden oil",
+      "anchovy oil",
+      "sardine oil",
+      "salmon oil",
+      "anchovy fish oil",
+      "sardine fish oil"
+    ],
+    "krill oil": [
+      "antarctic krill oil",
+      "neptune krill oil",
+      "superba krill oil"
+    ],
+    "magnesium": [
+      "magnesium oxide",
+      "magnesium citrate",
+      "magnesium aspartate",
+      "magnesium taurate",
+      "magnesium chloride",
+      "magnesium sulfate"
+    ],
+    "magnesium glycinate": [
+      "magnesium bisglycinate"
+    ],
+    "calcium": [
+      "calcium carbonate",
+      "calcium citrate",
+      "calcium malate",
+      "calcium hydroxyapatite",
+      "calcium lactate"
+    ],
+    "iron": [
+      "ferrous bisglycinate",
+      "ferrous sulfate",
+      "ferrous fumarate",
+      "ferrous gluconate",
+      "iron bisglycinate",
+      "heme iron",
+      "iron polypeptide"
+    ],
+    "zinc": [
+      "zinc citrate",
+      "zinc gluconate",
+      "zinc oxide",
+      "zinc sulfate",
+      "zinc monomethionine"
+    ],
+    "zinc picolinate": [
+      "zinc l-picolinate"
+    ],
+    "selenium": [
+      "selenomethionine",
+      "l-selenomethionine"
+    ],
+    "biotin": [
+      "d-biotin",
+      "vitamin b7",
+      "vitamin h"
+    ],
+    "melatonin": [
+      "n-acetyl-5-methoxytryptamine"
+    ],
+    "n-acetyl cysteine": [
+      "nac",
+      "n-acetylcysteine",
+      "n-acetyl-l-cysteine"
+    ],
+    "milk thistle": [
+      "silybum marianum",
+      "silymarin",
+      "silybin",
+      "silibinin"
+    ]
+  }
+}

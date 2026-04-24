@@ -27,10 +27,12 @@ class BetterAlternativesSection extends ConsumerWidget {
 
     final coreDb = ref.watch(coreDatabaseProvider);
 
+    final minQuality80 = (currentScore! * 0.8).clamp(0.0, 80.0);
+
     return FutureBuilder<List<ProductsCoreData>>(
       future: coreDb.findAlternatives(
         category!,
-        currentScore!,
+        minQuality80,
         excludeDsldId: currentDsldId,
         limit: 5,
       ),
@@ -48,9 +50,9 @@ class BetterAlternativesSection extends ConsumerWidget {
             Text(
               'Better Alternatives',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: resolved.textPrimary,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: resolved.textPrimary,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -97,7 +99,9 @@ class _AlternativeCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: Row(
           children: [
