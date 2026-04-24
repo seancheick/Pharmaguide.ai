@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/widgets/pg_interaction_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 
 void main() {
@@ -743,6 +745,109 @@ void main() {
         drugClassIds: ['antiplatelets'],
       );
       expect(InteractionWarning.dedupe([a, b]), hasLength(2));
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // FLTR-14 — collapse Severity.safe warnings into a summary row.
+  //
+  // Safe-tier notes (flow agents, low-overall-concern excipients) must
+  // never take a full interaction card. They collapse into a tappable
+  // "N low-concern notes" row. When safe-tier is all that exists,
+  // only that row renders — no header + no cards.
+  // -----------------------------------------------------------------------
+  group('InteractionWarningsList — FLTR-14 safe-tier collapse', () {
+    InteractionWarning warning({
+      required Severity severity,
+      String title = 'Sample warning',
+      String mechanism = 'sample detail',
+    }) {
+      return InteractionWarning(
+        severity: severity,
+        evidenceLevel: EvidenceLevel.established,
+        title: title,
+        mechanism: mechanism,
+        management: '',
+      );
+    }
+
+    Widget wrap(Widget child) =>
+        MaterialApp(home: Scaffold(body: SingleChildScrollView(child: child)));
+
+    testWidgets('safe-tier items render as a single summary row, no cards',
+        (tester) async {
+      final safes = [
+        warning(severity: Severity.safe, title: 'Flow agent'),
+        warning(severity: Severity.safe, title: 'Silicon dioxide'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(warnings: safes)));
+      expect(find.byType(PGInteractionCard), findsNothing);
+      expect(find.text('2 low-concern notes'), findsOneWidget);
+    });
+
+    testWidgets('singular label when exactly one safe-tier item',
+        (tester) async {
+      final only = [warning(severity: Severity.safe, title: 'Flow agent')];
+      await tester.pumpWidget(wrap(InteractionWarningsList(warnings: only)));
+      expect(find.text('1 low-concern note'), findsOneWidget);
+    });
+
+    testWidgets(
+        'loud warnings render as cards with count reflecting only loud items',
+        (tester) async {
+      final mix = [
+        warning(severity: Severity.avoid, title: 'Niacin / liver'),
+        warning(severity: Severity.caution, title: 'Niacin / cholesterol'),
+        warning(severity: Severity.safe, title: 'Silicon dioxide'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(warnings: mix)));
+      expect(find.byType(PGInteractionCard), findsNWidgets(2));
+      // Count pill reflects loud count (2), not total (3).
+      expect(find.text('2'), findsOneWidget);
+      // Safe-tier summary row appears alongside the cards.
+      expect(find.text('1 low-concern note'), findsOneWidget);
+    });
+
+    testWidgets(
+        'loud-only input renders normally with no summary row',
+        (tester) async {
+      final mix = [
+        warning(severity: Severity.avoid, title: 'Niacin / liver'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(warnings: mix)));
+      expect(find.byType(PGInteractionCard), findsOneWidget);
+      expect(find.textContaining('low-concern'), findsNothing);
+    });
+
+    testWidgets('empty input still shows the GOOD-news empty state card',
+        (tester) async {
+      await tester.pumpWidget(
+        wrap(const InteractionWarningsList(warnings: [])),
+      );
+      expect(find.text('No known interactions'), findsOneWidget);
+      expect(find.textContaining('low-concern'), findsNothing);
+    });
+
+    testWidgets('tapping the summary row opens a sheet listing the items',
+        (tester) async {
+      final safes = [
+        warning(
+          severity: Severity.safe,
+          title: 'Flow agent',
+          mechanism: 'Silicon dioxide at <2% w/w.',
+        ),
+        warning(
+          severity: Severity.safe,
+          title: 'Filler',
+          mechanism: 'Microcrystalline cellulose.',
+        ),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(warnings: safes)));
+      await tester.tap(find.text('2 low-concern notes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Low-concern notes'), findsOneWidget);
+      expect(find.text('Flow agent'), findsOneWidget);
+      expect(find.text('Filler'), findsOneWidget);
     });
   });
 }

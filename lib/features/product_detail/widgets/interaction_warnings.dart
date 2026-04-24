@@ -379,6 +379,38 @@ class InteractionWarningsList extends StatelessWidget {
     );
   }
 
+  /// FLTR-14 — partition warnings so `Severity.safe` never takes a
+  /// full card and is instead summarized in a collapsed row.
+  /// "informational" tier stays in the main list (it's still
+  /// context worth reading); only `safe` items (flow-agent notes,
+  /// low-overall-concern notes) get collapsed.
+  static (List<InteractionWarning> loud, List<InteractionWarning> safeTier)
+      _partitionSafeTier(List<InteractionWarning> sorted) {
+    final loud = <InteractionWarning>[];
+    final safeTier = <InteractionWarning>[];
+    for (final w in sorted) {
+      if (w.severity == Severity.safe) {
+        safeTier.add(w);
+      } else {
+        loud.add(w);
+      }
+    }
+    return (loud, safeTier);
+  }
+
+  void _showSafeTierSheet(
+    BuildContext context,
+    List<InteractionWarning> items,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) => _LowConcernNotesSheet(items: items),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -435,11 +467,27 @@ class InteractionWarningsList extends StatelessWidget {
     }
 
     final sorted = sortBySeverity(warnings);
+    // FLTR-14 — keep `Severity.safe` out of the main card stack. Flow
+    // agents, low-concern excipient notes, etc. render as a single
+    // collapsed summary row below the real warnings instead of
+    // taking equal visual weight to clinical alerts.
+    final (loud, safeTier) = _partitionSafeTier(sorted);
+
+    // No loud warnings — render only the low-concern summary if any
+    // safe-tier items exist; else fall through to the empty-state
+    // card already handled above.
+    if (loud.isEmpty) {
+      return _LowConcernSummaryRow(
+        items: safeTier,
+        onTap: () => _showSafeTierSheet(context, safeTier),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header row with count pill
+        // Section header row with count pill — count reflects the
+        // loud list only so it matches the number of cards shown.
         Padding(
           padding: const EdgeInsets.only(bottom: AppTheme.space12),
           child: Row(
@@ -467,7 +515,7 @@ class InteractionWarningsList extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  '${sorted.length}',
+                  '${loud.length}',
                   style: AppTheme.numeric(
                     TextStyle(
                       fontFamily: 'Inter',
@@ -484,8 +532,8 @@ class InteractionWarningsList extends StatelessWidget {
         ),
 
         // Stack of interaction cards with breathing room between
-        ...List.generate(sorted.length, (i) {
-          final w = sorted[i];
+        ...List.generate(loud.length, (i) {
+          final w = loud[i];
           // Contamination-recall entries get a distinct banner prefix —
           // the copy describes a product recall, not a chemistry ban, so
           // the framing in the card header shifts accordingly. See
@@ -496,7 +544,7 @@ class InteractionWarningsList extends StatelessWidget {
               : w.displayHeadline;
           return Padding(
             padding: EdgeInsets.only(
-              bottom: i == sorted.length - 1 ? 0 : AppTheme.space12,
+              bottom: i == loud.length - 1 ? 0 : AppTheme.space12,
             ),
             child: PGInteractionCard(
               severity: w.severity,
@@ -516,7 +564,147 @@ class InteractionWarningsList extends StatelessWidget {
             ),
           );
         }),
+
+        // Collapsed low-concern summary below the loud cards.
+        if (safeTier.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space12),
+          _LowConcernSummaryRow(
+            items: safeTier,
+            onTap: () => _showSafeTierSheet(context, safeTier),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// FLTR-14 — collapsed summary row standing in for all
+/// `Severity.safe` warnings. Tap → opens a sheet listing the
+/// individual items. Renders nothing when the group is empty so
+/// callers don't need to guard.
+class _LowConcernSummaryRow extends StatelessWidget {
+  final List<InteractionWarning> items;
+  final VoidCallback onTap;
+
+  const _LowConcernSummaryRow({required this.items, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final count = items.length;
+    final label = count == 1
+        ? '1 low-concern note'
+        : '$count low-concern notes';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space12,
+          vertical: AppTheme.space8,
+        ),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              size: 16,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppTheme.space8),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet revealing the individual items behind a
+/// [_LowConcernSummaryRow]. Deliberately minimal — these are
+/// pipeline-classified as low-concern, so the sheet is a reference,
+/// not an alert surface.
+class _LowConcernNotesSheet extends StatelessWidget {
+  final List<InteractionWarning> items;
+
+  const _LowConcernNotesSheet({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          AppTheme.space16,
+          AppTheme.space20,
+          AppTheme.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Low-concern notes',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Flagged by the pipeline as low overall concern.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space16),
+            ...items.map((w) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.space12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        w.displayHeadline,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (w.displayBody.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          w.displayBody,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
     );
   }
 }
