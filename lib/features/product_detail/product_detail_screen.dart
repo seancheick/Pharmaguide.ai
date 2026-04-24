@@ -23,6 +23,7 @@ import 'package:pharmaguide/features/product_detail/providers/detail_blob_provid
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
+import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blocked_product_view.dart';
@@ -1984,7 +1985,10 @@ class _CollapsibleIngredientsState extends State<_CollapsibleIngredients> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: widget.ingredients
+                    // FLTR-9 — disclosed-dose actives first, no-dose
+                    // last, pipeline order preserved within each
+                    // bucket.
+                    children: sortActivesForDisplay(widget.ingredients)
                         .map((ing) => _IngredientTile(
                               ingredient: ing,
                               ulEntry: matchUlEntry(ing, widget.ulAnalysis),
