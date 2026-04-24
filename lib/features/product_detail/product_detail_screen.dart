@@ -1054,7 +1054,11 @@ class _ConditionAlertBanner extends ConsumerWidget {
       case 'contraindicated':
         return 'Do not use — contraindicated for your profile';
       case 'avoid':
-        return 'Avoid — conflicts with your profile';
+        // FLTR-13 — soften "conflicts with your profile". "Conflict"
+        // reserved for contraindicated tier (where it still applies);
+        // for avoid tier, stay with the severity label + the common
+        // "relevant to your profile" framing the other tiers use.
+        return 'Avoid — relevant to your profile';
       case 'caution':
         return 'Use with caution — relevant to your profile';
       case 'monitor':
@@ -2333,7 +2337,10 @@ class _InteractionConditionDetails extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Why this may affect you',
+          // FLTR-13 — "affect you" reads vague/scary; "relevant to
+          // your health" is neutral and clinical, matching the tone
+          // of the per-severity banners.
+          'Relevant to your health',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
