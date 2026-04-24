@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
@@ -116,6 +117,64 @@ void main() {
       );
 
       expect(partial.maxPossible, 91.0);
+    });
+
+    test('prefers pipeline goal matches over local cluster fallback', () {
+      final service = FitScoreService(
+        e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
+        e2a: E2aGoalCalculator({
+          'user_goal_mappings': [
+            {
+              'id': 'GOAL_SLEEP_QUALITY',
+              'cluster_weights': {'sleep_stack': 1.0},
+              'anti_clusters': <Object>[],
+            },
+          ],
+        }),
+        e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
+        e2c: E2cMedicalCalculator(),
+      );
+
+      final result = service.calculate(
+        scoreQuality80: 70.0,
+        nutrients: const [],
+        productClusters: const [],
+        productGoalMatches: const ['GOAL_SLEEP_QUALITY'],
+        productGoalMatchConfidence: 0.8,
+        interactionSummary: const {},
+        ageBracket: '19-30',
+        sex: 'Female',
+        userGoals: const ['GOAL_SLEEP_QUALITY'],
+      );
+
+      expect(result.e2a, 1.6);
+      expect(result.state, FitAssessmentState.strongMatch);
+      expect(result.reasons, contains('Supports your Sleep Quality goal.'));
+    });
+
+    test('limits fit when selected goals are not matched', () {
+      final service = FitScoreService(
+        e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
+        e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
+        e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
+        e2c: E2cMedicalCalculator(),
+      );
+
+      final result = service.calculate(
+        scoreQuality80: 70.0,
+        nutrients: const [],
+        productClusters: const [],
+        interactionSummary: const {},
+        ageBracket: '19-30',
+        sex: 'Female',
+        userGoals: const ['GOAL_SLEEP_QUALITY'],
+      );
+
+      expect(result.state, FitAssessmentState.limitedFit);
+      expect(
+        result.reasons,
+        contains('Does not strongly support your selected goals.'),
+      );
     });
   });
 }

@@ -7,6 +7,41 @@
 
 You are working on PharmaGuide, a consumer supplement safety app built with Flutter/Dart.
 This is a health-adjacent product. Accuracy matters more than speed.
+Hallucination is not permitted. Do not invent health logic, clinical meaning, contraindications, scoring behavior, or pipeline contracts. Prefer accuracy, speed, and explicit logic in that order.
+
+## Operating Principles
+
+### 1. Think Before Coding
+
+- Do not assume silently. State assumptions explicitly when they matter.
+- If multiple interpretations are plausible, surface them instead of picking one invisibly.
+- If uncertain, ask or verify rather than guessing.
+- Push back when a simpler or safer approach is better.
+- If confused, stop and name the confusion clearly.
+
+### 2. Simplicity First
+
+- Write the minimum code that solves the problem.
+- Do not add configurability, abstraction, or flexibility that was not requested.
+- Do not build single-use abstractions unless they clearly reduce complexity.
+- If a solution feels bloated, simplify it before moving on.
+- Strong software is preferred over working fluff.
+
+### 3. Surgical Changes
+
+- Touch only what is required for the task.
+- Do not refactor adjacent code unless the task requires it.
+- Do not change comments, formatting, or unrelated logic as a side effect.
+- Remove only the dead code or unused imports created by your own changes.
+- If unrelated dead code is noticed, mention it rather than deleting it unprompted.
+
+### 4. Goal-Driven Execution
+
+- Define clear success criteria before editing.
+- Prefer verifiable outcomes over subjective “done” states.
+- For bug fixes, reproduce with a test when practical, then make it pass.
+- For refactors, keep behavior stable and verify before and after.
+- For multi-step work, keep a brief plan with a verification step for each stage.
 
 ## Architecture
 

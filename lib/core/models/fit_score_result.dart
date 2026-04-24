@@ -1,3 +1,11 @@
+enum FitAssessmentState {
+  notRecommended,
+  limitedFit,
+  goodFit,
+  strongMatch,
+  incompleteProfile,
+}
+
 class FitScoreResult {
   final double scoreFit20;
   final double scoreCombined100;
@@ -7,6 +15,10 @@ class FitScoreResult {
   final double e2c;
   final List<String> missingFields;
   final double maxPossible;
+  final FitAssessmentState state;
+  final List<String> reasons;
+  final String? maxRelevantSeverity;
+  final double mappedCoverage;
 
   const FitScoreResult({
     required this.scoreFit20,
@@ -17,15 +29,29 @@ class FitScoreResult {
     required this.e2c,
     required this.missingFields,
     required this.maxPossible,
+    this.state = FitAssessmentState.limitedFit,
+    this.reasons = const [],
+    this.maxRelevantSeverity,
+    this.mappedCoverage = 1.0,
   });
 
+  String get fitLabel {
+    switch (state) {
+      case FitAssessmentState.notRecommended:
+        return 'Not recommended';
+      case FitAssessmentState.limitedFit:
+        return 'Limited fit';
+      case FitAssessmentState.goodFit:
+        return 'Good fit';
+      case FitAssessmentState.strongMatch:
+        return 'Strong match';
+      case FitAssessmentState.incompleteProfile:
+        return 'Incomplete profile';
+    }
+  }
+
   String get displayText {
-    final pct = maxPossible > 0
-        ? (scoreCombined100 / maxPossible * 100).toStringAsFixed(1)
-        : '0.0';
-    final missing = missingFields.isEmpty
-        ? ''
-        : ' — Complete profile for full scoring';
-    return '${scoreCombined100.toStringAsFixed(0)}/${maxPossible.toStringAsFixed(0)} ($pct%)$missing';
+    final missing = missingFields.isEmpty ? '' : ' — Complete profile';
+    return '$fitLabel$missing';
   }
 }

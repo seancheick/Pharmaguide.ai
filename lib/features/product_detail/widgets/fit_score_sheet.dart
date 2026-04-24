@@ -6,9 +6,8 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 
-/// Bottom sheet that explains a FitScore result — shows the 4 sub-scores
-/// (E1 Dosage, E2a Goals, E2b Age, E2c Medical) with context, plus a
-/// "complete your profile" nudge if any fields are missing.
+/// Bottom sheet that explains the personal-fit assessment — shows the
+/// state, top reasons, and the internal sub-signals used to derive it.
 ///
 /// Called from [PGFitScoreBadge]'s onTap on the product detail screen.
 void showFitScoreSheet(BuildContext context, FitScoreResult result) {
@@ -60,21 +59,21 @@ class _FitScoreSheet extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'How this product scored against your profile.',
+                'How this product lines up with your profile.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: AppTheme.space20),
 
-              // Combined score summary
+              // State summary
               _CombinedScoreCard(result: result),
 
               const SizedBox(height: AppTheme.space20),
 
-              // 4 sub-score rows
+              // Internal signals
               Text(
-                'Score breakdown',
+                'Signals considered',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -178,7 +177,7 @@ class _FitScoreSheet extends StatelessWidget {
 
               // Privacy note
               Text(
-                'FitScore is computed fresh every time from your current profile. '
+                'Personal fit is computed fresh every time from your current profile. '
                 'It is never stored on our servers.',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: scheme.onSurfaceVariant,
@@ -201,31 +200,29 @@ class _CombinedScoreCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final adjustment = result.scoreFit20;
-    final pct = result.maxPossible > 0
-        ? (result.scoreCombined100 / result.maxPossible * 100)
-        : 0.0;
-
-    // Adjustment signal color
     Color signalColor;
     IconData signalIcon;
-    String signalLabel;
-    if (adjustment >= 2) {
-      signalColor = AppTheme.severitySafe;
-      signalIcon = Icons.trending_up_rounded;
-      signalLabel = 'Well-suited for you';
-    } else if (adjustment >= -2) {
-      signalColor = scheme.primary;
-      signalIcon = Icons.horizontal_rule_rounded;
-      signalLabel = 'Average match';
-    } else if (adjustment >= -5) {
-      signalColor = AppTheme.severityCaution;
-      signalIcon = Icons.trending_down_rounded;
-      signalLabel = 'Some concerns';
-    } else {
-      signalColor = AppTheme.severityContraindicated;
-      signalIcon = Icons.error_outline_rounded;
-      signalLabel = 'Poor fit for your profile';
+    switch (result.state) {
+      case FitAssessmentState.strongMatch:
+        signalColor = AppTheme.severitySafe;
+        signalIcon = Icons.check_circle_outline_rounded;
+        break;
+      case FitAssessmentState.goodFit:
+        signalColor = scheme.primary;
+        signalIcon = Icons.thumb_up_off_alt_rounded;
+        break;
+      case FitAssessmentState.limitedFit:
+        signalColor = AppTheme.severityCaution;
+        signalIcon = Icons.warning_amber_rounded;
+        break;
+      case FitAssessmentState.notRecommended:
+        signalColor = AppTheme.severityContraindicated;
+        signalIcon = Icons.error_outline_rounded;
+        break;
+      case FitAssessmentState.incompleteProfile:
+        signalColor = AppTheme.insufficientData;
+        signalIcon = Icons.person_add_alt_1_rounded;
+        break;
     }
 
     return PGCard(
@@ -239,48 +236,36 @@ class _CombinedScoreCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  signalLabel,
+                  result.fitLabel,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: signalColor,
                   ),
                 ),
               ),
-              Text(
-                '${adjustment >= 0 ? '+' : ''}${adjustment.toStringAsFixed(1)}',
-                style: AppTheme.numeric(
-                  theme.textTheme.titleLarge!.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: signalColor,
-                    fontSize: 22,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: AppTheme.space8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Combined score',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '${result.scoreCombined100.toStringAsFixed(0)}'
-                ' / ${result.maxPossible.toStringAsFixed(0)}'
-                '  ·  ${pct.toStringAsFixed(0)}%',
-                style: AppTheme.numeric(
-                  theme.textTheme.bodySmall!.copyWith(
+          ...result.reasons.take(3).map((reason) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '• $reason',
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+                    height: 1.4,
                   ),
                 ),
+              )),
+          if (result.maxRelevantSeverity != null) ...[
+            const SizedBox(height: AppTheme.space8),
+            Text(
+              'Relevant risk: ${result.maxRelevantSeverity}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );

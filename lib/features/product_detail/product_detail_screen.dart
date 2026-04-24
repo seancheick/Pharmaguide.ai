@@ -1357,7 +1357,7 @@ class _HeaderSection extends ConsumerWidget {
                         ),
                       ],
                       // FitScore badge — Sprint 4 personalization layer
-                      if (!isNotScored) ...[
+                      if (!isNotScored && !isBlocked) ...[
                         const SizedBox(height: AppTheme.space8),
                         PGFitScoreBadge(
                           result: fitScoreAsync.asData?.value,

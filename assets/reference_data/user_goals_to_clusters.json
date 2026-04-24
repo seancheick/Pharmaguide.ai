@@ -1,28 +1,23 @@
 {
   "_metadata": {
-    "description": "Mapping of user health goals to ingredient synergy clusters for personalized recommendations",
-    "purpose": "goal_mapping",
-    "schema_version": "5.2.0",
-    "last_updated": "2026-04-02",
+    "description": "User goal to product-cluster matching rules (pipeline-owned matching contract)",
+    "purpose": "goal_matching",
+    "schema_version": "6.0.0",
+    "last_updated": "2026-04-23",
     "total_entries": 18,
     "schema_notes": {
-      "cluster_weights": "Float 0.0-1.0 per cluster. 1.0 = core to goal, 0.7-0.9 = strongly relevant, 0.4-0.6 = moderately relevant. Used to compute goal_fit_score per supplement.",
-      "core_clusters": "Cluster IDs that must be present for goal satisfaction. A product missing all core clusters is disqualified from this goal regardless of other matches.",
-      "anti_clusters": "Cluster IDs that are counterproductive for this goal. A matched anti-cluster contributes 0.0 to goal_fit_score (zero-out, not penalty).",
-      "cluster_limits": "Max cluster hits counted per cluster when computing goal_fit_score. Prevents single-category over-stacking (e.g., 5 sleep ingredients all from sleep_stack still counts as 1 hit).",
-      "confidence_threshold": "Minimum normalized cluster coverage (0.0-1.0) for a product to qualify as relevant to this goal. Higher = stricter matching.",
-      "goal_priority": "Onboarding sort order: high surfaces first. Values: high, medium, low.",
-      "goal_category": "UI grouping key for the Flutter app. Values: mental, metabolic, cardiovascular, fitness, hormonal, immune, longevity, aesthetic, sensory, reproductive.",
-      "conflicting_goals": "Goal IDs that are fundamentally at odds from a UX intent perspective. App warns user when both are selected simultaneously.",
-      "synergy_goals": "Goal IDs that naturally complement this goal. App may suggest bundling these together."
-    }
+      "cluster_weights": "Float 0.0-1.0 per cluster. 1.0 = core to goal, 0.7-0.9 = strongly relevant, 0.4-0.6 = moderately relevant. Used to compute matched_weight / max_weight per supplement.",
+      "required_clusters": "Cluster IDs that must be present for goal to qualify. If non-empty and none are present, the goal is not matched regardless of weighted score.",
+      "blocked_by_clusters": "Cluster IDs that disqualify a product from this goal. If any blocked cluster is present, the goal is not matched regardless of weighted score.",
+      "min_match_score": "Minimum normalized score (matched_weight / max_weight) required for the goal to be included in goal_matches. Range (0.0, 1.0]."
+    },
+    "matching_algorithm": "score = sum(cluster_weights[c] for c in product_clusters_dedup if c in cluster_weights) / sum(cluster_weights.values()); goal matches when score >= min_match_score AND no blocked cluster present AND (required_clusters empty OR at least one required present).",
+    "canonical_id_source": "Flutter app authoritative goal IDs (18 entries)."
   },
   "user_goal_mappings": [
     {
       "id": "GOAL_SLEEP_QUALITY",
       "user_facing_goal": "Sleep Quality",
-      "goal_category": "mental",
-      "goal_priority": "high",
       "cluster_weights": {
         "sleep_stack": 1.0,
         "magnesium_nervous_system": 0.9,
@@ -30,27 +25,13 @@
         "mood_balance": 0.5,
         "adrenal_support": 0.4
       },
-      "core_clusters": ["sleep_stack"],
-      "anti_clusters": ["pre_workout_energy", "focus_attention_support"],
-      "cluster_limits": {
-        "sleep_stack": 1,
-        "magnesium_nervous_system": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [
-        "GOAL_INCREASE_ENERGY",
-        "GOAL_FOCUS_MENTAL_CLARITY"
-      ],
-      "synergy_goals": [
-        "GOAL_REDUCE_STRESS_ANXIETY",
-        "GOAL_MOOD_EMOTIONAL_WELLNESS"
-      ]
+      "required_clusters": ["sleep_stack"],
+      "blocked_by_clusters": ["pre_workout_energy"],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_REDUCE_STRESS_ANXIETY",
       "user_facing_goal": "Reduce Stress/Anxiety",
-      "goal_category": "mental",
-      "goal_priority": "high",
       "cluster_weights": {
         "stress_resilience": 1.0,
         "adrenal_support": 0.9,
@@ -60,21 +41,13 @@
         "mood_gut_axis_probiotic_blend": 0.5,
         "probiotic_and_gut_health": 0.4
       },
-      "core_clusters": ["stress_resilience", "mood_balance"],
-      "anti_clusters": ["pre_workout_energy"],
-      "cluster_limits": {
-        "stress_resilience": 1,
-        "adrenal_support": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_SLEEP_QUALITY", "GOAL_MOOD_EMOTIONAL_WELLNESS"]
+      "required_clusters": ["stress_resilience", "mood_balance"],
+      "blocked_by_clusters": ["pre_workout_energy"],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_INCREASE_ENERGY",
       "user_facing_goal": "Increase Energy",
-      "goal_category": "metabolic",
-      "goal_priority": "high",
       "cluster_weights": {
         "energy_mitochondria": 1.0,
         "pre_workout_energy": 0.8,
@@ -84,24 +57,13 @@
         "blood_sugar_regulation": 0.4,
         "nitric_oxide_blood_flow": 0.4
       },
-      "core_clusters": ["energy_mitochondria", "pre_workout_energy"],
-      "anti_clusters": ["sleep_stack"],
-      "cluster_limits": {
-        "energy_mitochondria": 1,
-        "pre_workout_energy": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": ["GOAL_SLEEP_QUALITY"],
-      "synergy_goals": [
-        "GOAL_FOCUS_MENTAL_CLARITY",
-        "GOAL_MUSCLE_GROWTH_RECOVERY"
-      ]
+      "required_clusters": ["energy_mitochondria", "pre_workout_energy"],
+      "blocked_by_clusters": ["sleep_stack"],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_DIGESTIVE_HEALTH",
       "user_facing_goal": "Digestive Health",
-      "goal_category": "metabolic",
-      "goal_priority": "medium",
       "cluster_weights": {
         "gut_barrier": 1.0,
         "probiotic_and_gut_health": 1.0,
@@ -112,133 +74,83 @@
         "liver_support": 0.4,
         "detox_pathway": 0.4
       },
-      "core_clusters": [
-        "gut_barrier",
-        "probiotic_and_gut_health",
-        "digestive_enzymes"
-      ],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "probiotic_and_gut_health": 1,
-        "gut_barrier": 1,
-        "digestive_enzymes": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_IMMUNE_SUPPORT", "GOAL_LIVER_DETOX"]
+      "required_clusters": ["gut_barrier", "probiotic_and_gut_health", "digestive_enzymes"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_WEIGHT_MANAGEMENT",
       "user_facing_goal": "Weight Management",
-      "goal_category": "metabolic",
-      "goal_priority": "high",
       "cluster_weights": {
         "fat_metabolism": 1.0,
-        "blood_sugar_regulation": 0.9,
         "blood_sugar_regulation": 0.9,
         "thyroid_support": 0.7,
         "energy_mitochondria": 0.5,
         "pre_workout_energy": 0.6,
         "recovery_support": 0.4
       },
-      "core_clusters": ["fat_metabolism", "blood_sugar_regulation"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "fat_metabolism": 1,
-        "blood_sugar_regulation": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": ["GOAL_PRENATAL_PREGNANCY"],
-      "synergy_goals": ["GOAL_BLOOD_SUGAR_SUPPORT", "GOAL_INCREASE_ENERGY"]
+      "required_clusters": ["fat_metabolism", "blood_sugar_regulation"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_CARDIOVASCULAR_HEART_HEALTH",
       "user_facing_goal": "Cardiovascular/Heart Health",
-      "goal_category": "cardiovascular",
-      "goal_priority": "high",
       "cluster_weights": {
         "cardiovascular_support": 1.0,
+        "blood_pressure_support": 1.0,
         "nitric_oxide_blood_flow": 0.9,
-        "blood_sugar_regulation": 0.7,
+        "omega3_niacin_lipid": 0.9,
         "inflammation_control": 0.8,
+        "blood_sugar_regulation": 0.7,
         "magnesium_nervous_system": 0.6,
         "antioxidant_defense": 0.6,
+        "omega_3_absorption_enhancement": 0.6,
         "energy_mitochondria": 0.5,
-        "methylation_support": 0.5,
-        "omega_3_absorption_enhancement": 0.6
+        "methylation_support": 0.5
       },
-      "core_clusters": ["cardiovascular_support", "nitric_oxide_blood_flow"],
-      "anti_clusters": ["pre_workout_energy"],
-      "cluster_limits": {
-        "cardiovascular_support": 1,
-        "nitric_oxide_blood_flow": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": [
-        "GOAL_BLOOD_SUGAR_SUPPORT",
-        "GOAL_HEALTHY_AGING_LONGEVITY"
-      ]
+      "required_clusters": ["cardiovascular_support", "blood_pressure_support", "nitric_oxide_blood_flow", "omega3_niacin_lipid"],
+      "blocked_by_clusters": ["pre_workout_energy"],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_HEALTHY_AGING_LONGEVITY",
       "user_facing_goal": "Healthy Aging/Longevity",
-      "goal_category": "longevity",
-      "goal_priority": "medium",
       "cluster_weights": {
         "longevity_and_anti_aging": 1.0,
         "antioxidant_defense": 0.9,
         "cognitive_performance": 0.7,
         "energy_mitochondria": 0.7,
         "bone_health": 0.6,
-        "joint_inflammation": 0.5,
         "cardiovascular_support": 0.6,
         "methylation_support": 0.6,
+        "blood_pressure_support": 0.5,
+        "joint_inflammation": 0.5,
         "inflammation_control": 0.5
       },
-      "core_clusters": ["longevity_and_anti_aging", "antioxidant_defense"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "longevity_and_anti_aging": 1,
-        "antioxidant_defense": 1
-      },
-      "confidence_threshold": 0.4,
-      "conflicting_goals": [],
-      "synergy_goals": [
-        "GOAL_CARDIOVASCULAR_HEART_HEALTH",
-        "GOAL_JOINT_BONE_HEALTH"
-      ]
+      "required_clusters": ["longevity_and_anti_aging", "antioxidant_defense"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.4
     },
     {
       "id": "GOAL_BLOOD_SUGAR_SUPPORT",
       "user_facing_goal": "Blood Sugar Support",
-      "goal_category": "metabolic",
-      "goal_priority": "medium",
       "cluster_weights": {
         "blood_sugar_regulation": 1.0,
         "energy_mitochondria": 0.6,
         "thyroid_support": 0.5,
         "fat_metabolism": 0.5,
         "liver_support": 0.4,
-        "detox_pathway": 0.4
+        "detox_pathway": 0.4,
+        "nerve_health_neuropathy_support": 0.4
       },
-      "core_clusters": ["blood_sugar_regulation"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "blood_sugar_regulation": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": [
-        "GOAL_WEIGHT_MANAGEMENT",
-        "GOAL_CARDIOVASCULAR_HEART_HEALTH"
-      ]
+      "required_clusters": ["blood_sugar_regulation"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_IMMUNE_SUPPORT",
       "user_facing_goal": "Immune Support",
-      "goal_category": "immune",
-      "goal_priority": "high",
       "cluster_weights": {
         "immune_defense": 1.0,
         "immune_probiotic_blend": 0.8,
@@ -248,21 +160,13 @@
         "detox_pathway": 0.5,
         "liver_support": 0.4
       },
-      "core_clusters": ["immune_defense"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "immune_defense": 1,
-        "immune_probiotic_blend": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_DIGESTIVE_HEALTH", "GOAL_LIVER_DETOX"]
+      "required_clusters": ["immune_defense"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_FOCUS_MENTAL_CLARITY",
       "user_facing_goal": "Focus & Mental Clarity",
-      "goal_category": "mental",
-      "goal_priority": "high",
       "cluster_weights": {
         "cognitive_performance": 1.0,
         "focus_attention_support": 1.0,
@@ -273,26 +177,29 @@
         "mood_balance": 0.5,
         "stress_resilience": 0.4
       },
-      "core_clusters": [
-        "cognitive_performance",
-        "focus_attention_support",
-        "cognitive_amino_acids"
-      ],
-      "anti_clusters": ["sleep_stack"],
-      "cluster_limits": {
-        "cognitive_performance": 1,
-        "focus_attention_support": 1,
-        "cognitive_amino_acids": 1
+      "required_clusters": ["cognitive_performance", "focus_attention_support", "cognitive_amino_acids"],
+      "blocked_by_clusters": ["sleep_stack"],
+      "min_match_score": 0.5
+    },
+    {
+      "id": "GOAL_MOOD_EMOTIONAL_WELLNESS",
+      "user_facing_goal": "Mood & Emotional Wellness",
+      "cluster_weights": {
+        "mood_balance": 1.0,
+        "mood_gut_axis_probiotic_blend": 0.7,
+        "methylation_support": 0.7,
+        "stress_resilience": 0.6,
+        "sleep_stack": 0.4,
+        "adrenal_support": 0.4,
+        "magnesium_nervous_system": 0.5
       },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": ["GOAL_SLEEP_QUALITY"],
-      "synergy_goals": ["GOAL_INCREASE_ENERGY", "GOAL_REDUCE_STRESS_ANXIETY"]
+      "required_clusters": ["mood_balance", "methylation_support"],
+      "blocked_by_clusters": ["pre_workout_energy"],
+      "min_match_score": 0.5
     },
     {
       "id": "GOAL_MUSCLE_GROWTH_RECOVERY",
       "user_facing_goal": "Muscle Growth & Recovery",
-      "goal_category": "fitness",
-      "goal_priority": "high",
       "cluster_weights": {
         "muscle_building_recovery": 1.0,
         "recovery_support": 0.9,
@@ -302,49 +209,74 @@
         "electrolyte_balance": 0.5,
         "nitric_oxide_blood_flow": 0.4
       },
-      "core_clusters": ["muscle_building_recovery"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "muscle_building_recovery": 1,
-        "recovery_support": 1,
-        "pre_post_workout": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_INCREASE_ENERGY"]
+      "required_clusters": ["muscle_building_recovery"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
     },
     {
-      "id": "GOAL_JOINT_BONE_HEALTH",
-      "user_facing_goal": "Joint & Bone Health",
-      "goal_category": "fitness",
-      "goal_priority": "medium",
+      "id": "GOAL_JOINT_BONE_MOBILITY",
+      "user_facing_goal": "Joint & Bone Mobility",
       "cluster_weights": {
         "joint_inflammation": 1.0,
         "bone_health": 1.0,
-        "bone_health": 0.8,
         "inflammation_control": 0.7,
         "curcumin_absorption": 0.6,
         "collagen_synthesis_support": 0.6,
         "detox_pathway": 0.3
       },
-      "core_clusters": ["joint_inflammation", "bone_health"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "joint_inflammation": 1,
-        "bone_health": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": [
-        "GOAL_HEALTHY_AGING_LONGEVITY",
-        "GOAL_REDUCE_STRESS_ANXIETY"
-      ]
+      "required_clusters": ["joint_inflammation", "bone_health"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
     },
     {
-      "id": "GOAL_HORMONE_BALANCE",
-      "user_facing_goal": "Hormone Balance",
-      "goal_category": "hormonal",
-      "goal_priority": "medium",
+      "id": "GOAL_SKIN_HAIR_NAILS",
+      "user_facing_goal": "Skin, Hair & Nails",
+      "cluster_weights": {
+        "hair_skin_nutrition": 1.0,
+        "skin_health_complex": 1.0,
+        "collagen_synthesis_support": 0.9,
+        "wound_healing": 0.6,
+        "antioxidant_defense": 0.5,
+        "detox_pathway": 0.4,
+        "inflammation_control": 0.4
+      },
+      "required_clusters": ["hair_skin_nutrition", "skin_health_complex", "wound_healing"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
+    },
+    {
+      "id": "GOAL_LIVER_DETOX",
+      "user_facing_goal": "Liver & Detox",
+      "cluster_weights": {
+        "liver_support": 1.0,
+        "detox_pathway": 1.0,
+        "gut_barrier": 0.5,
+        "probiotic_and_gut_health": 0.4,
+        "antioxidant_defense": 0.5,
+        "kidney_health_support": 0.4
+      },
+      "required_clusters": ["liver_support", "detox_pathway"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.5
+    },
+    {
+      "id": "GOAL_PRENATAL_PREGNANCY",
+      "user_facing_goal": "Prenatal & Pregnancy Support",
+      "cluster_weights": {
+        "prenatal_pregnancy_support": 1.0,
+        "methylation_support": 0.8,
+        "iron_absorption": 0.7,
+        "bone_health": 0.7,
+        "omega_3_absorption_enhancement": 0.6,
+        "magnesium_nervous_system": 0.5
+      },
+      "required_clusters": ["prenatal_pregnancy_support"],
+      "blocked_by_clusters": ["fat_metabolism", "pre_workout_energy", "pre_post_workout"],
+      "min_match_score": 0.7
+    },
+    {
+      "id": "GOAL_HORMONAL_BALANCE",
+      "user_facing_goal": "Hormonal Balance",
       "cluster_weights": {
         "hormone_balance_men": 0.9,
         "hormone_balance_women": 0.9,
@@ -357,73 +289,13 @@
         "liver_support": 0.5,
         "methylation_support": 0.5
       },
-      "core_clusters": [
-        "hormone_balance_men",
-        "hormone_balance_women",
-        "thyroid_support"
-      ],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "hormone_balance_men": 1,
-        "hormone_balance_women": 1,
-        "thyroid_support": 1
-      },
-      "confidence_threshold": 0.4,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_SLEEP_QUALITY", "GOAL_REDUCE_STRESS_ANXIETY"]
+      "required_clusters": ["hormone_balance_men", "hormone_balance_women", "thyroid_support"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.4
     },
     {
-      "id": "GOAL_SKIN_HAIR_NAILS",
-      "user_facing_goal": "Skin, Hair & Nails",
-      "goal_category": "aesthetic",
-      "goal_priority": "medium",
-      "cluster_weights": {
-        "hair_skin_nutrition": 1.0,
-        "skin_health_complex": 1.0,
-        "collagen_synthesis_support": 0.9,
-        "antioxidant_defense": 0.5,
-        "detox_pathway": 0.4,
-        "inflammation_control": 0.4
-      },
-      "core_clusters": ["hair_skin_nutrition", "skin_health_complex"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "hair_skin_nutrition": 1,
-        "skin_health_complex": 1,
-        "collagen_synthesis_support": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_HEALTHY_AGING_LONGEVITY"]
-    },
-    {
-      "id": "GOAL_LIVER_DETOX",
-      "user_facing_goal": "Liver & Detox",
-      "goal_category": "metabolic",
-      "goal_priority": "low",
-      "cluster_weights": {
-        "liver_support": 1.0,
-        "detox_pathway": 1.0,
-        "gut_barrier": 0.5,
-        "probiotic_and_gut_health": 0.4,
-        "antioxidant_defense": 0.5,
-        "kidney_health_support": 0.4
-      },
-      "core_clusters": ["liver_support", "detox_pathway"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "liver_support": 1,
-        "detox_pathway": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_DIGESTIVE_HEALTH", "GOAL_IMMUNE_SUPPORT"]
-    },
-    {
-      "id": "GOAL_EYE_VISION",
-      "user_facing_goal": "Eye & Vision",
-      "goal_category": "sensory",
-      "goal_priority": "low",
+      "id": "GOAL_EYE_VISION_HEALTH",
+      "user_facing_goal": "Eye & Vision Health",
       "cluster_weights": {
         "eye_health": 1.0,
         "antioxidant_defense": 0.6,
@@ -431,64 +303,9 @@
         "omega_3_absorption_enhancement": 0.5,
         "nitric_oxide_blood_flow": 0.4
       },
-      "core_clusters": ["eye_health"],
-      "anti_clusters": [],
-      "cluster_limits": {
-        "eye_health": 1
-      },
-      "confidence_threshold": 0.6,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_HEALTHY_AGING_LONGEVITY"]
-    },
-    {
-      "id": "GOAL_MOOD_EMOTIONAL_WELLNESS",
-      "user_facing_goal": "Mood & Emotional Wellness",
-      "goal_category": "mental",
-      "goal_priority": "high",
-      "cluster_weights": {
-        "mood_balance": 1.0,
-        "mood_gut_axis_probiotic_blend": 0.7,
-        "methylation_support": 0.7,
-        "stress_resilience": 0.6,
-        "sleep_stack": 0.4,
-        "adrenal_support": 0.4,
-        "magnesium_nervous_system": 0.5
-      },
-      "core_clusters": ["mood_balance", "methylation_support"],
-      "anti_clusters": ["pre_workout_energy"],
-      "cluster_limits": {
-        "mood_balance": 1,
-        "methylation_support": 1
-      },
-      "confidence_threshold": 0.5,
-      "conflicting_goals": [],
-      "synergy_goals": ["GOAL_SLEEP_QUALITY", "GOAL_REDUCE_STRESS_ANXIETY"]
-    },
-    {
-      "id": "GOAL_PRENATAL_PREGNANCY",
-      "user_facing_goal": "Prenatal & Pregnancy Support",
-      "goal_category": "reproductive",
-      "goal_priority": "high",
-      "cluster_weights": {
-        "prenatal_pregnancy_support": 1.0,
-        "methylation_support": 0.8,
-        "iron_absorption": 0.7,
-        "bone_health": 0.7,
-        "omega_3_absorption_enhancement": 0.6,
-        "magnesium_nervous_system": 0.5
-      },
-      "core_clusters": ["prenatal_pregnancy_support"],
-      "anti_clusters": [
-        "fat_metabolism",
-        "pre_workout_energy",
-        "pre_post_workout"
-      ],
-      "cluster_limits": {
-        "prenatal_pregnancy_support": 1
-      },
-      "confidence_threshold": 0.7,
-      "conflicting_goals": ["GOAL_WEIGHT_MANAGEMENT"],
-      "synergy_goals": []
+      "required_clusters": ["eye_health"],
+      "blocked_by_clusters": [],
+      "min_match_score": 0.6
     }
   ]
 }

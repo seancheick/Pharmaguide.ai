@@ -4,8 +4,7 @@ import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_fitscore_badge.dart';
 
-/// Widget tests for [PGFitScoreBadge] — one per state (+fit / neutral /
-/// concerns / poor-fit / missing-profile / loading).
+/// Widget tests for [PGFitScoreBadge] — one per personal-fit state.
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
@@ -16,18 +15,21 @@ void main() {
   }
 
   FitScoreResult buildResult({
-    required double fit,
+    required FitAssessmentState state,
     List<String> missing = const [],
+    List<String> reasons = const [],
   }) {
     return FitScoreResult(
-      scoreFit20: fit,
-      scoreCombined100: 75 + fit,
+      scoreFit20: 0,
+      scoreCombined100: 75,
       e1: 0,
       e2a: 0,
       e2b: 0,
-      e2c: fit,
+      e2c: 0,
       missingFields: missing,
       maxPossible: 100,
+      state: state,
+      reasons: reasons,
     );
   }
 
@@ -43,42 +45,53 @@ void main() {
       expect(box.height, 0);
     });
 
-    testWidgets('positive fit (+5) shows "+5 fit" with safe color',
-        (tester) async {
-      await tester.pumpWidget(wrap(
-        PGFitScoreBadge(result: buildResult(fit: 5)),
-      ));
-      expect(find.text('+5 fit'), findsOneWidget);
-    });
-
-    testWidgets('neutral fit (0) shows "Matches you"', (tester) async {
-      await tester.pumpWidget(wrap(
-        PGFitScoreBadge(result: buildResult(fit: 0)),
-      ));
-      expect(find.text('Matches you'), findsOneWidget);
-    });
-
-    testWidgets('mild concern (-3) shows "-3 fit" with caution color',
-        (tester) async {
-      await tester.pumpWidget(wrap(
-        PGFitScoreBadge(result: buildResult(fit: -3)),
-      ));
-      expect(find.text('-3 fit'), findsOneWidget);
-    });
-
-    testWidgets('poor fit (-7) shows "-7 fit" with danger color',
-        (tester) async {
-      await tester.pumpWidget(wrap(
-        PGFitScoreBadge(result: buildResult(fit: -7)),
-      ));
-      expect(find.text('-7 fit'), findsOneWidget);
-    });
-
-    testWidgets('missing profile (fit=0, missing fields) shows nudge',
+    testWidgets('strong match shows "Strong match"',
         (tester) async {
       await tester.pumpWidget(wrap(
         PGFitScoreBadge(
-          result: buildResult(fit: 0, missing: ['age', 'sex', 'goals']),
+          result: buildResult(state: FitAssessmentState.strongMatch),
+        ),
+      ));
+      expect(find.text('Strong match'), findsOneWidget);
+    });
+
+    testWidgets('good fit shows "Good fit"', (tester) async {
+      await tester.pumpWidget(wrap(
+        PGFitScoreBadge(
+          result: buildResult(state: FitAssessmentState.goodFit),
+        ),
+      ));
+      expect(find.text('Good fit'), findsOneWidget);
+    });
+
+    testWidgets('limited fit shows "Limited fit"',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        PGFitScoreBadge(
+          result: buildResult(state: FitAssessmentState.limitedFit),
+        ),
+      ));
+      expect(find.text('Limited fit'), findsOneWidget);
+    });
+
+    testWidgets('not recommended shows "Not recommended"',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        PGFitScoreBadge(
+          result: buildResult(state: FitAssessmentState.notRecommended),
+        ),
+      ));
+      expect(find.text('Not recommended'), findsOneWidget);
+    });
+
+    testWidgets('incomplete profile shows nudge',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        PGFitScoreBadge(
+          result: buildResult(
+            state: FitAssessmentState.incompleteProfile,
+            missing: ['age', 'sex', 'goals'],
+          ),
         ),
       ));
       expect(find.text('Complete profile'), findsOneWidget);
@@ -90,7 +103,7 @@ void main() {
       var tapped = 0;
       await tester.pumpWidget(wrap(
         PGFitScoreBadge(
-          result: buildResult(fit: 5),
+          result: buildResult(state: FitAssessmentState.strongMatch),
           onTap: () => tapped++,
         ),
       ));
@@ -100,14 +113,19 @@ void main() {
   });
 
   group('PGFitScoreBadge — accessibility', () {
-    testWidgets('has proper Semantics label for positive fit',
+    testWidgets('has proper Semantics label for strong match',
         (tester) async {
       await tester.pumpWidget(wrap(
-        PGFitScoreBadge(result: buildResult(fit: 6)),
+        PGFitScoreBadge(
+          result: buildResult(
+            state: FitAssessmentState.strongMatch,
+            reasons: ['Strong alignment with your selected goals.'],
+          ),
+        ),
       ));
       expect(
         find.bySemanticsLabel(
-          RegExp(r'FitScore adjustment positive 6\.0. Well-suited'),
+          'Personal fit: strong match. Strong alignment with your selected goals.',
         ),
         findsOneWidget,
       );
@@ -117,12 +135,15 @@ void main() {
         (tester) async {
       await tester.pumpWidget(wrap(
         PGFitScoreBadge(
-          result: buildResult(fit: 0, missing: ['age', 'sex']),
+          result: buildResult(
+            state: FitAssessmentState.incompleteProfile,
+            missing: ['age', 'sex'],
+          ),
         ),
       ));
       expect(
         find.bySemanticsLabel(
-          'FitScore unavailable — complete your profile for personalization',
+          'Personal fit: incomplete profile.',
         ),
         findsOneWidget,
       );

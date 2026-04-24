@@ -13,8 +13,9 @@ void main() {
         e2c: 5.0,
         missingFields: [],
         maxPossible: 100.0,
+        state: FitAssessmentState.strongMatch,
       );
-      expect(result.displayText, '85/100 (85.0%)');
+      expect(result.displayText, 'Strong match');
     });
 
     test('displayText with missing fields', () {
@@ -27,8 +28,9 @@ void main() {
         e2c: 0.0,
         missingFields: ['goals', 'conditions'],
         maxPossible: 90.0,
+        state: FitAssessmentState.incompleteProfile,
       );
-      expect(result.displayText, contains('Complete profile for full scoring'));
+      expect(result.displayText, 'Incomplete profile — Complete profile');
     });
   });
 }

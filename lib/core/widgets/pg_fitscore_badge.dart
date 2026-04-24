@@ -8,9 +8,11 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 /// profile (age, sex, goals, conditions, drug classes).
 ///
 /// States:
-/// - **Populated:** shows `+X` or `-X` adjustment on a tinted pill
-/// - **Missing profile:** shows "Complete profile" nudge with indigo tint
-/// - **Zero adjustment:** shows a neutral "Checked" pill
+/// - `Strong match`
+/// - `Good fit`
+/// - `Limited fit`
+/// - `Not recommended`
+/// - `Incomplete profile`
 ///
 /// ```dart
 /// PGFitScoreBadge(
@@ -33,23 +35,19 @@ class PGFitScoreBadge extends StatelessWidget {
   /// VoiceOver label for the current state. Read to users in place of
   /// the visual pill.
   String _semanticLabel(FitScoreResult r) {
-    if (r.missingFields.isNotEmpty && r.scoreFit20.abs() < 0.1) {
-      return 'FitScore unavailable — complete your profile for personalization';
+    final reasons = r.reasons.isEmpty ? '' : ' ${r.reasons.join(' ')}';
+    switch (r.state) {
+      case FitAssessmentState.notRecommended:
+        return 'Personal fit: not recommended.$reasons';
+      case FitAssessmentState.limitedFit:
+        return 'Personal fit: limited fit.$reasons';
+      case FitAssessmentState.goodFit:
+        return 'Personal fit: good fit.$reasons';
+      case FitAssessmentState.strongMatch:
+        return 'Personal fit: strong match.$reasons';
+      case FitAssessmentState.incompleteProfile:
+        return 'Personal fit: incomplete profile.$reasons';
     }
-    final adj = r.scoreFit20;
-    if (adj > 2) {
-      return 'FitScore adjustment positive ${adj.toStringAsFixed(1)}. '
-          'Well-suited to your profile. Double tap for details.';
-    }
-    if (adj >= -2) {
-      return 'FitScore matches your profile. Double tap for details.';
-    }
-    if (adj >= -5) {
-      return 'FitScore adjustment ${adj.toStringAsFixed(1)}. '
-          'Some concerns for your profile. Double tap for details.';
-    }
-    return 'FitScore adjustment ${adj.toStringAsFixed(1)}. '
-        'Poor fit for your profile. Double tap for details.';
   }
 
   @override
@@ -61,35 +59,37 @@ class PGFitScoreBadge extends StatelessWidget {
     // Loading / unavailable — show nothing (or a shimmer in a parent).
     if (r == null) return const SizedBox.shrink();
 
-    final adjustment = r.scoreFit20;
-    final hasMissing = r.missingFields.isNotEmpty;
-
-    // Decide appearance
+    // Decide appearance from the stateful fit assessment, not the raw score.
     late final Color accent;
     late final IconData icon;
     late final String label;
 
-    if (hasMissing && adjustment.abs() < 0.1) {
-      // Profile incomplete, no meaningful signal yet
-      accent = AppTheme.insufficientData;
-      icon = Icons.person_add_alt_1_rounded;
-      label = 'Complete profile';
-    } else if (adjustment > 2) {
-      accent = AppTheme.severitySafe;
-      icon = Icons.check_circle_outline_rounded;
-      label = '+${adjustment.toStringAsFixed(0)} fit';
-    } else if (adjustment >= -2) {
-      accent = scheme.primary;
-      icon = Icons.person_outline_rounded;
-      label = 'Matches you';
-    } else if (adjustment >= -5) {
-      accent = AppTheme.severityCaution;
-      icon = Icons.warning_amber_rounded;
-      label = '${adjustment.toStringAsFixed(0)} fit';
-    } else {
-      accent = AppTheme.severityContraindicated;
-      icon = Icons.error_outline_rounded;
-      label = '${adjustment.toStringAsFixed(0)} fit';
+    switch (r.state) {
+      case FitAssessmentState.incompleteProfile:
+        accent = AppTheme.insufficientData;
+        icon = Icons.person_add_alt_1_rounded;
+        label = 'Complete profile';
+        break;
+      case FitAssessmentState.notRecommended:
+        accent = AppTheme.severityContraindicated;
+        icon = Icons.error_outline_rounded;
+        label = 'Not recommended';
+        break;
+      case FitAssessmentState.limitedFit:
+        accent = AppTheme.severityCaution;
+        icon = Icons.warning_amber_rounded;
+        label = 'Limited fit';
+        break;
+      case FitAssessmentState.goodFit:
+        accent = scheme.primary;
+        icon = Icons.person_outline_rounded;
+        label = 'Good fit';
+        break;
+      case FitAssessmentState.strongMatch:
+        accent = AppTheme.severitySafe;
+        icon = Icons.check_circle_outline_rounded;
+        label = 'Strong match';
+        break;
     }
 
     final hPad = compact ? 8.0 : 10.0;

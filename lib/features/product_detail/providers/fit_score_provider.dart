@@ -137,18 +137,22 @@ final fitScoreForProductProvider = FutureProvider.family
 
   final nutrients = _extractNutrients(blob);
   final interactionSummary = _extractInteractionSummary(blob);
-  final productClusters = _extractClusters(product, blob);
+  final productClusters = _extractClusters(blob);
+  final productGoalMatches = _extractGoalMatches(product);
 
   return service.calculate(
     scoreQuality80: quality80,
     nutrients: nutrients,
     productClusters: productClusters,
+    productGoalMatches: productGoalMatches,
+    productGoalMatchConfidence: product.goalMatchConfidence,
     interactionSummary: interactionSummary,
     ageBracket: profile.ageBracket,
     sex: profile.sex,
     userGoals: profile.goals,
     userConditions: profile.conditions,
     userDrugClasses: profile.drugClasses,
+    mappedCoverage: product.mappedCoverage ?? 0.0,
   );
 });
 
@@ -181,15 +185,27 @@ Map<String, dynamic> _extractInteractionSummary(Map<String, dynamic> blob) {
   return const {};
 }
 
-List<String> _extractClusters(
-    ProductsCoreData product, Map<String, dynamic> blob) {
+List<String> _extractClusters(Map<String, dynamic> blob) {
   // Prefer explicit clusters in the blob if present
   final raw = blob['product_clusters'];
   if (raw is List) {
-    return raw.map((e) => e.toString()).toList();
+    return raw.map((e) => e.toString()).toList(growable: false);
   }
-  // Fallback to the primary category from the core row
-  final cat = product.primaryCategory;
-  if (cat != null && cat.isNotEmpty) return [cat];
+  return const [];
+}
+
+List<String> _extractGoalMatches(ProductsCoreData product) {
+  final raw = product.goalMatches;
+  if (raw == null || raw.isEmpty) return const [];
+
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is List) {
+      return decoded.map((e) => e.toString()).toList(growable: false);
+    }
+  } on FormatException {
+    // Keep fit resilient to malformed rows and fall back to cluster matching.
+  }
+
   return const [];
 }

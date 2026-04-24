@@ -1,5 +1,19 @@
-/// E2a Goal Alignment Calculator.
-/// Matches product synergy clusters against user's selected goals.
+/// E2a Goal Alignment Calculator (legacy/fallback path).
+///
+/// Used ONLY when `products_core.goal_matches` hasn't been populated by the
+/// pipeline yet. The authoritative goal-matching contract lives in
+/// `scripts/build_final_db.py::compute_goal_matches` (schema v6.0.0).
+///
+/// Algorithm must stay in lockstep with the pipeline so results are
+/// consistent when a product transitions from "fallback-only" to
+/// "pipeline-populated":
+///   * Skip goal if ANY `blocked_by_clusters` is present.
+///   * Skip goal if `required_clusters` is non-empty and none are present.
+///   * score = matched_weight / max_weight (normalized 0.0..1.0).
+///   * Include goal iff score >= min_match_score.
+///
+/// Final 0..2 score is the pipeline confidence (average of matched goal
+/// scores) scaled by the ratio of matched-vs-requested user goals.
 class E2aGoalCalculator {
   final Map<String, dynamic> goalData;
 
@@ -12,7 +26,8 @@ class E2aGoalCalculator {
     if (userGoals.isEmpty || productClusters.isEmpty) return 0.0;
 
     final mappings = goalData['user_goal_mappings'] as List? ?? [];
-    double totalWeight = 0.0;
+    final clusterSet = productClusters.toSet();
+    double confidenceSum = 0.0;
     int matchedGoals = 0;
 
     for (final goalId in userGoals) {
@@ -24,26 +39,51 @@ class E2aGoalCalculator {
 
       final clusterWeights =
           (goalMapping['cluster_weights'] as Map?)?.cast<String, num>() ?? {};
-      final antiClusters =
-          (goalMapping['anti_clusters'] as List?)?.cast<String>() ?? [];
+      final requiredClusters =
+          (goalMapping['required_clusters'] as List?)?.cast<String>() ??
+              const [];
+      final blockedClusters =
+          (goalMapping['blocked_by_clusters'] as List?)?.cast<String>() ??
+              const [];
+      final minMatchScore =
+          (goalMapping['min_match_score'] as num?)?.toDouble() ?? 0.5;
 
-      double goalScore = 0.0;
-      for (final cluster in productClusters) {
-        if (antiClusters.contains(cluster)) continue; // Anti-clusters score 0
-        final weight = clusterWeights[cluster];
-        if (weight != null) {
-          goalScore += weight.toDouble();
-        }
+      // Gate 1: blocked clusters disqualify regardless of score.
+      if (blockedClusters.any(clusterSet.contains)) continue;
+
+      // Gate 2: required clusters must have at least one present.
+      if (requiredClusters.isNotEmpty &&
+          !requiredClusters.any(clusterSet.contains)) {
+        continue;
       }
 
-      if (goalScore > 0) {
-        totalWeight += goalScore.clamp(0.0, 1.0); // Cap per goal
+      // Gate 3: normalized weighted score must meet threshold.
+      double maxWeight = 0.0;
+      for (final w in clusterWeights.values) {
+        maxWeight += w.toDouble();
+      }
+      if (maxWeight <= 0.0) continue;
+
+      double matchedWeight = 0.0;
+      for (final cluster in clusterSet) {
+        final w = clusterWeights[cluster];
+        if (w != null) matchedWeight += w.toDouble();
+      }
+      final score = matchedWeight / maxWeight;
+
+      if (score >= minMatchScore) {
+        confidenceSum += score;
         matchedGoals++;
       }
     }
 
-    // Normalize to 0-2 scale
     if (matchedGoals == 0) return 0.0;
-    return (totalWeight / userGoals.length * 2.0).clamp(0.0, 2.0);
+
+    // Output in the legacy 0.0..2.0 range expected by FitScoreService.
+    // Mirrors fit_score_service._goalAlignmentScore:
+    //   2.0 * (matched/requested) * avg_confidence
+    final avgConfidence = (confidenceSum / matchedGoals).clamp(0.0, 1.0);
+    final matchedRatio = matchedGoals / userGoals.length;
+    return (2.0 * matchedRatio * avgConfidence).clamp(0.0, 2.0);
   }
 }
