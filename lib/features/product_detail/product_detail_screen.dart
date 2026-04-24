@@ -1897,25 +1897,10 @@ class _DetailSection extends ConsumerWidget {
       return true;
     }).toList();
 
-    // FLTR-11a — temporary dose guardrail. Nutritional-range doses
-    // should not fire caution/avoid warnings; pipeline E1.11 is the
-    // permanent fix. For now, match each warning's `ingredientName`
-    // back to the corresponding ingredient row and downgrade to
-    // `monitor` when the disclosed quantity is below the clinical
-    // threshold table in [_lowDoseThresholds]. Narrow allowlist —
-    // unknown ingredients pass through untouched.
-    final ingredientsByName = indexIngredientsByStandardName(ingredients);
-    final guardedWarnings = filteredWarnings.map((w) {
-      final key = w.ingredientName?.trim().toLowerCase();
-      if (key == null || key.isEmpty) return w;
-      final ing = ingredientsByName[key];
-      if (ing == null) return w;
-      final downgrade = downgradeIfLowDose(
-        severity: w.severity,
-        ingredient: ing,
-      );
-      return downgrade == null ? w : w.copyWithSeverity(downgrade);
-    }).toList();
+    // FLTR-11a RETIRED (2026-04-24) — pipeline E1.11 now emits
+    // dose-aware severity at source, so no Flutter-side downgrade
+    // pass is needed. Pass `filteredWarnings` through directly.
+    final guardedWarnings = filteredWarnings;
     final visibleInactives = inactiveIngredients.take(8).toList();
     final hiddenInactivesCount =
         inactiveIngredients.length - visibleInactives.length;
@@ -2023,11 +2008,11 @@ class _DetailSection extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        // Interaction warnings (filtered by profile, dose-guarded by
-        // FLTR-11a). FLTR-18 — pass the user's conditions / drug
-        // classes so the widget can split into "Applies to you" vs
-        // "Other precautions". Empty profile preserves the pre-FLTR-18
-        // combined rendering.
+        // Interaction warnings (filtered by profile; dose severity
+        // handled at the pipeline source as of E1.11). FLTR-18 — pass
+        // the user's conditions / drug classes so the widget can
+        // split into "Applies to you" vs "Other precautions". Empty
+        // profile preserves the pre-FLTR-18 combined rendering.
         InteractionWarningsList(
           warnings: guardedWarnings,
           userConditions: userConditions,

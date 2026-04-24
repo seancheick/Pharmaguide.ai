@@ -159,84 +159,23 @@ double? _asDouble(dynamic v) {
 }
 
 // ----------------------------------------------------------------------
-// FLTR-11a — Temporary Flutter dose guardrail
+// FLTR-11a RETIRED (2026-04-24) — pipeline E1.11 now ships dose-aware
+// severity at source. The _lowDoseThresholds map, downgradeIfLowDose()
+// function, and indexIngredientsByStandardName() helper have all been
+// removed. The pipeline's interaction_rules[*].dose_thresholds array
+// carries per-rule thresholds (33 rules covered as of sprint E1.25),
+// evaluated by enrich_supplements_v3.py::_evaluate_dose_thresholds_for_target
+// and reflected in the rendered severity field at runtime.
 //
-// Prevents caution+ warnings from firing on nutritional-range doses
-// while waiting for pipeline E1.11 (dose-aware warning severity at
-// source). Narrow scope: a small allowlist of ingredients where we
-// know the pharmacologic/nutritional split crosses a clinical
-// threshold. Everything outside the allowlist passes through
-// unchanged — the UI never fabricates downgrade rules for
-// ingredients it hasn't been told about.
+// Coverage for FLTR-11a's two original targets:
+//   niacin  — RULE_IQM_NIACIN_DIABETES: >1000 mg/day → avoid else monitor
+//             (18 mg in a prenatal correctly emits monitor at the source)
+//   chromium — RULE_IQM_CHROMIUM_GLUCOSE: base severity already monitor;
+//             no downgrade was needed.
 //
-// Delete this block when E1.11 ships. The pipeline is the right
-// place to encode dose thresholds; this is insurance, not policy.
+// If a niche case is observed where pipeline-side severity looks too
+// hot for a trace dose, the fix is to add a dose_thresholds entry to
+// the relevant rule in ingredient_interaction_rules.json — NOT to
+// reintroduce a Flutter-side downgrade layer. The UI interprets,
+// it does not reinterpret.
 // ----------------------------------------------------------------------
-
-/// Low-dose thresholds in the nutrient's own unit. A warning whose
-/// severity is caution/avoid/contraindicated AND whose ingredient's
-/// disclosed `quantity` (same unit) is strictly below the threshold
-/// gets downgraded to [Severity.monitor] by
-/// [applyLowDoseGuardrail]. Everything above the threshold —
-/// supplemental + pharmacologic doses — passes through untouched.
-///
-/// Kept intentionally small. Add an entry only when there is a
-/// concrete clinical threshold for the nutritional range (e.g.
-/// niacin 35 mg = tolerable upper intake for supplemental
-/// nicotinic acid; chromium 200 mcg = typical prenatal ceiling).
-const _lowDoseThresholds = <String, ({double value, String unit})>{
-  'niacin': (value: 35, unit: 'mg'),
-  'vitamin b3 (niacin)': (value: 35, unit: 'mg'),
-  'chromium': (value: 200, unit: 'mcg'),
-};
-
-/// Applies the FLTR-11a guardrail to a single warning given its
-/// matching ingredient row. Returns [severityBelow] (monitor) when
-/// the rule fires, else null (caller keeps the original severity).
-///
-/// Guardrail fires when ALL of:
-///   * warning.severity.weight >= Severity.caution.weight (don't
-///     touch monitor/informational/safe — already non-alarming)
-///   * warning.severity.weight < Severity.contraindicated.weight
-///     (never downgrade the worst tier — it's a hard stop)
-///   * the ingredient's standard_name matches an entry in
-///     [_lowDoseThresholds]
-///   * the ingredient's quantity/unit match the threshold unit and
-///     fall strictly below the threshold value
-Severity? downgradeIfLowDose({
-  required Severity severity,
-  required Map<String, dynamic>? ingredient,
-}) {
-  if (ingredient == null) return null;
-  // Leave informational/monitor/safe untouched — they're already
-  // non-alarming. Also never downgrade contraindicated.
-  if (severity.weight < Severity.caution.weight) return null;
-  if (severity == Severity.contraindicated) return null;
-
-  final name = ingredient['standard_name']?.toString().trim().toLowerCase();
-  if (name == null || name.isEmpty) return null;
-  final rule = _lowDoseThresholds[name];
-  if (rule == null) return null;
-
-  final qty = _asDouble(ingredient['quantity']);
-  final unit = ingredient['unit']?.toString().trim().toLowerCase();
-  if (qty == null || qty <= 0) return null;
-  if (unit != rule.unit) return null;
-
-  return qty < rule.value ? Severity.monitor : null;
-}
-
-/// Build a name → ingredient map for fast lookup in the warning
-/// transform pass. Keyed on lowercased `standard_name` so it
-/// matches the warning's `ingredient_name` after the same casing.
-Map<String, Map<String, dynamic>> indexIngredientsByStandardName(
-  List<Map<String, dynamic>> ingredients,
-) {
-  final out = <String, Map<String, dynamic>>{};
-  for (final ing in ingredients) {
-    final name = ing['standard_name']?.toString().trim().toLowerCase();
-    if (name == null || name.isEmpty) continue;
-    out[name] = ing;
-  }
-  return out;
-}
