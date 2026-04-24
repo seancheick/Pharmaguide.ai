@@ -305,6 +305,54 @@ class InteractionWarning {
     if (drugClassIds.any(userDrugClasses.contains)) return true;
     return false;
   }
+
+  /// Composite dedup key for FLTR-12. Two warnings with the same key
+  /// represent the same semantic alert and should collapse to one
+  /// card even when severity or source differs.
+  ///
+  /// Severity is DELIBERATELY excluded — "monitor" and "caution"
+  /// versions of the same message must collapse together; [dedupe]
+  /// picks the highest severity from the group. Type is excluded
+  /// because InteractionWarning doesn't persist it and the headline
+  /// already discriminates between categories in practice.
+  String get _dedupeKey {
+    final conditions = [...conditionIds]..sort();
+    final drugClasses = [...drugClassIds]..sort();
+    final headline = displayHeadline.trim().toLowerCase();
+    final body = displayBody.trim().toLowerCase();
+    return '${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body';
+  }
+
+  /// Collapse duplicate warnings into a single entry per [_dedupeKey],
+  /// keeping the entry with the highest severity weight. Preserves
+  /// first-occurrence order so the rendered list still reads in the
+  /// pipeline's intended sequence.
+  ///
+  /// Real blobs emit duplicates in two ways — both handled here:
+  ///   (a) same entry appears in both `warnings[]` and
+  ///       `warnings_profile_gated[]` (cross-list)
+  ///   (b) pipeline emits the same semantic entry twice inside one
+  ///       list (e.g., "Vitamin A / pregnancy" 2× on dsld 15640)
+  static List<InteractionWarning> dedupe(
+    Iterable<InteractionWarning> warnings,
+  ) {
+    final best = <String, InteractionWarning>{};
+    final firstIndex = <String, int>{};
+    var i = 0;
+    for (final w in warnings) {
+      final k = w._dedupeKey;
+      firstIndex.putIfAbsent(k, () => i);
+      final existing = best[k];
+      if (existing == null ||
+          w.severity.weight > existing.severity.weight) {
+        best[k] = w;
+      }
+      i++;
+    }
+    final keys = best.keys.toList()
+      ..sort((a, b) => firstIndex[a]!.compareTo(firstIndex[b]!));
+    return [for (final k in keys) best[k]!];
+  }
 }
 
 /// Renders sorted interaction warnings from the detail blob.

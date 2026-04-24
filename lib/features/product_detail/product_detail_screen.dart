@@ -685,7 +685,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           .whereType<Map<String, dynamic>>()
           .map(InteractionWarning.fromJson));
     }
-    return result;
+    // FLTR-12 — real blobs contain duplicates in two shapes:
+    //   (a) same semantic entry in both `warnings` and
+    //       `warnings_profile_gated`
+    //   (b) pipeline emits the same entry twice inside one list
+    //       (e.g., "Vitamin A / pregnancy" 2× on dsld 15640).
+    // Collapse both via composite dedup key (conditions + drug classes
+    // + normalized headline + normalized body) with severity-normalize-
+    // before-dedup — the highest severity wins when collisions carry
+    // mixed labels ("monitor" + "caution" → keep caution).
+    return InteractionWarning.dedupe(result);
   }
 
   void _showScoreEducation(BuildContext context) {

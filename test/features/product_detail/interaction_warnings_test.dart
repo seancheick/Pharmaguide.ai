@@ -589,4 +589,160 @@ void main() {
       expect(w.identifiers, isNull);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // FLTR-12 — Warning dedup (composite key + severity normalization)
+  //
+  // Real blobs duplicate warnings in two shapes:
+  //   (a) cross-list: same entry in both `warnings` and
+  //       `warnings_profile_gated` (1 overlap confirmed on dsld 15640)
+  //   (b) within-list: pipeline emits the same semantic entry twice
+  //       inside one list (e.g., "Vitamin A / pregnancy" 2× on 15640)
+  //
+  // The dedup key is (sorted condition_ids, sorted drug_class_ids,
+  // normalized headline, normalized body). Severity is excluded so
+  // "monitor" and "caution" versions of the same message collapse —
+  // highest severity wins.
+  // -----------------------------------------------------------------------
+  group('InteractionWarning.dedupe (FLTR-12)', () {
+    InteractionWarning warning({
+      Severity severity = Severity.caution,
+      String title = 'Some warning',
+      String mechanism = 'detail body',
+      List<String> conditionIds = const [],
+      List<String> drugClassIds = const [],
+      String? alertHeadline,
+      String? alertBody,
+    }) {
+      return InteractionWarning(
+        severity: severity,
+        evidenceLevel: EvidenceLevel.established,
+        title: title,
+        mechanism: mechanism,
+        management: '',
+        conditionIds: conditionIds,
+        drugClassIds: drugClassIds,
+        alertHeadline: alertHeadline,
+        alertBody: alertBody,
+      );
+    }
+
+    test('collapses two identical entries into one', () {
+      final a = warning(title: 'Vitamin A / pregnancy');
+      final b = warning(title: 'Vitamin A / pregnancy');
+      expect(InteractionWarning.dedupe([a, b]), hasLength(1));
+    });
+
+    test('keeps highest severity when duplicates differ in severity', () {
+      final monitor = warning(
+        severity: Severity.monitor,
+        title: 'Niacin / cholesterol',
+      );
+      final caution = warning(
+        severity: Severity.caution,
+        title: 'Niacin / cholesterol',
+      );
+      final out = InteractionWarning.dedupe([monitor, caution]);
+      expect(out, hasLength(1));
+      expect(out.single.severity, Severity.caution,
+          reason: 'severity-normalize-before-dedup picks highest');
+    });
+
+    test('severity order is stable regardless of input order', () {
+      // Caution-first then monitor — still keep caution.
+      final caution = warning(severity: Severity.caution, title: 'same');
+      final monitor = warning(severity: Severity.monitor, title: 'same');
+      final flipped = InteractionWarning.dedupe([caution, monitor]);
+      expect(flipped.single.severity, Severity.caution);
+    });
+
+    test('normalizes whitespace and case in headline/body', () {
+      final a = warning(title: 'Vitamin A / pregnancy', mechanism: 'DETAIL');
+      final b = warning(title: '  vitamin a / pregnancy  ',
+          mechanism: '  detail  ');
+      expect(InteractionWarning.dedupe([a, b]), hasLength(1));
+    });
+
+    test('different condition_ids are NOT deduped', () {
+      final pregnancy = warning(
+        title: 'Vitamin A',
+        mechanism: 'Teratogenic risk at high dose',
+        conditionIds: ['pregnancy'],
+      );
+      final lactation = warning(
+        title: 'Vitamin A',
+        mechanism: 'Teratogenic risk at high dose',
+        conditionIds: ['lactation'],
+      );
+      expect(InteractionWarning.dedupe([pregnancy, lactation]), hasLength(2));
+    });
+
+    test('condition_ids order does not affect dedup (sorted internally)',
+        () {
+      final a = warning(
+        title: 'Vitamin A',
+        conditionIds: ['pregnancy', 'lactation'],
+      );
+      final b = warning(
+        title: 'Vitamin A',
+        conditionIds: ['lactation', 'pregnancy'],
+      );
+      expect(InteractionWarning.dedupe([a, b]), hasLength(1));
+    });
+
+    test('preserves first-occurrence order across distinct warnings', () {
+      final first = warning(title: 'First warning');
+      final second = warning(title: 'Second warning');
+      final dupeOfFirst = warning(title: 'First warning');
+      final out = InteractionWarning.dedupe([first, second, dupeOfFirst]);
+      expect(out.map((w) => w.title), ['First warning', 'Second warning']);
+    });
+
+    test('uses authored alertHeadline/alertBody for key when present', () {
+      // displayHeadline/displayBody prefer the authored fields; the
+      // dedup key follows the same preference so two entries that
+      // share an authored alert collapse even if their raw
+      // title/mechanism differ.
+      final a = warning(
+        title: 'Legacy title A',
+        mechanism: 'Legacy detail A',
+        alertHeadline: 'Authored headline',
+        alertBody: 'Authored body',
+      );
+      final b = warning(
+        title: 'Legacy title B',
+        mechanism: 'Legacy detail B',
+        alertHeadline: 'Authored headline',
+        alertBody: 'Authored body',
+      );
+      expect(InteractionWarning.dedupe([a, b]), hasLength(1));
+    });
+
+    test('empty input returns empty output', () {
+      expect(InteractionWarning.dedupe(const []), isEmpty);
+    });
+
+    test('single-element input is unchanged', () {
+      final a = warning(title: 'Only one');
+      final out = InteractionWarning.dedupe([a]);
+      expect(out, hasLength(1));
+      expect(identical(out.single, a), isTrue);
+    });
+
+    test(
+        'drug_class_ids discrimination: same body but different classes '
+        'stays as two entries', () {
+      final a = warning(
+        title: 'Same body',
+        mechanism: 'same',
+        drugClassIds: ['anticoagulants'],
+      );
+      final b = warning(
+        title: 'Same body',
+        mechanism: 'same',
+        drugClassIds: ['antiplatelets'],
+      );
+      expect(InteractionWarning.dedupe([a, b]), hasLength(2));
+    });
+  });
 }
