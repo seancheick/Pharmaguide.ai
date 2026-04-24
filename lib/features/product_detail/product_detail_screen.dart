@@ -1813,7 +1813,14 @@ class _DetailSection extends ConsumerWidget {
         ],
 
         // Interaction warnings (filtered by profile).
-        InteractionWarningsList(warnings: filteredWarnings),
+        // FLTR-18 — pass the user's conditions / drug classes so the
+        // widget can split into "Applies to you" vs "Other precautions".
+        // Empty profile preserves the pre-FLTR-18 combined rendering.
+        InteractionWarningsList(
+          warnings: filteredWarnings,
+          userConditions: userConditions,
+          userDrugClasses: userDrugClasses,
+        ),
       ],
     );
   }

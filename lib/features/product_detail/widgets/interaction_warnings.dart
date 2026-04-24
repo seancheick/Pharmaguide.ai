@@ -357,26 +357,39 @@ class InteractionWarning {
 
 /// Renders sorted interaction warnings from the detail blob.
 /// Sorted by severity (contraindicated first → safe last).
-class InteractionWarningsList extends StatelessWidget {
+///
+/// FLTR-18: when the user has any profile data (conditions or
+/// drug classes), warnings are split into two sections:
+///   - "Applies to you" — profile-matched, expanded, full cards
+///   - "Other precautions" — everything else, collapsed with a count
+/// When no profile is set, falls back to a single combined section
+/// so the widget still works in contexts that don't thread a
+/// profile (tests, preview surfaces).
+class InteractionWarningsList extends StatefulWidget {
   final List<InteractionWarning> warnings;
 
-  const InteractionWarningsList({super.key, required this.warnings});
+  /// FLTR-18 — user's declared conditions (e.g. {'pregnancy',
+  /// 'diabetes'}). Used to partition warnings into profile-matched
+  /// vs generic precaution buckets. Empty set disables the split
+  /// (widget falls back to a single combined list).
+  final Set<String> userConditions;
+
+  /// FLTR-18 — user's declared drug classes (e.g. {'statins',
+  /// 'anticoagulants'}). Same split contract as [userConditions].
+  final Set<String> userDrugClasses;
+
+  const InteractionWarningsList({
+    super.key,
+    required this.warnings,
+    this.userConditions = const {},
+    this.userDrugClasses = const {},
+  });
 
   static List<InteractionWarning> sortBySeverity(
       List<InteractionWarning> input) {
     final sorted = List<InteractionWarning>.from(input);
     sorted.sort((a, b) => b.severity.weight.compareTo(a.severity.weight));
     return sorted;
-  }
-
-  void _showCitations(BuildContext context, InteractionWarning warning) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (ctx) => _CitationsSheet(warning: warning),
-    );
   }
 
   /// FLTR-14 — partition warnings so `Severity.safe` never takes a
@@ -398,6 +411,54 @@ class InteractionWarningsList extends StatelessWidget {
     return (loud, safeTier);
   }
 
+  /// FLTR-18 — partition loud warnings by profile match. `applies`
+  /// contains entries where the warning's condition_ids OR
+  /// drug_class_ids overlap the user's declared profile; `other`
+  /// contains everything else that survived the upstream filter
+  /// (pipeline told us to show regardless — critical / informational
+  /// / legacy generic).
+  static (List<InteractionWarning> applies, List<InteractionWarning> other)
+      _partitionByProfile(
+    List<InteractionWarning> loud, {
+    required Set<String> userConditions,
+    required Set<String> userDrugClasses,
+  }) {
+    final applies = <InteractionWarning>[];
+    final other = <InteractionWarning>[];
+    for (final w in loud) {
+      if (w.matchesProfile(
+        userConditions: userConditions,
+        userDrugClasses: userDrugClasses,
+      )) {
+        applies.add(w);
+      } else {
+        other.add(w);
+      }
+    }
+    return (applies, other);
+  }
+
+  @override
+  State<InteractionWarningsList> createState() =>
+      _InteractionWarningsListState();
+}
+
+class _InteractionWarningsListState extends State<InteractionWarningsList> {
+  /// FLTR-18 — "Other precautions" starts collapsed. The whole
+  /// point of the split is that generic precautions don't
+  /// dominate the stack visually; the user can expand on demand.
+  bool _otherExpanded = false;
+
+  void _showCitations(BuildContext context, InteractionWarning warning) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) => _CitationsSheet(warning: warning),
+    );
+  }
+
   void _showSafeTierSheet(
     BuildContext context,
     List<InteractionWarning> items,
@@ -413,6 +474,7 @@ class InteractionWarningsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final warnings = widget.warnings;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -466,12 +528,13 @@ class InteractionWarningsList extends StatelessWidget {
       );
     }
 
-    final sorted = sortBySeverity(warnings);
+    final sorted = InteractionWarningsList.sortBySeverity(warnings);
     // FLTR-14 — keep `Severity.safe` out of the main card stack. Flow
     // agents, low-concern excipient notes, etc. render as a single
     // collapsed summary row below the real warnings instead of
     // taking equal visual weight to clinical alerts.
-    final (loud, safeTier) = _partitionSafeTier(sorted);
+    final (loud, safeTier) =
+        InteractionWarningsList._partitionSafeTier(sorted);
 
     // No loud warnings — render only the low-concern summary if any
     // safe-tier items exist; else fall through to the empty-state
@@ -483,89 +546,56 @@ class InteractionWarningsList extends StatelessWidget {
       );
     }
 
+    // FLTR-18 — split only when the user has ANY profile data.
+    // Without profile we have nothing to match against; keep the
+    // single combined list so unprofiled surfaces (tests, preview
+    // pages) don't collapse everything into "Other" and hide it.
+    final hasProfile = widget.userConditions.isNotEmpty ||
+        widget.userDrugClasses.isNotEmpty;
+
+    if (!hasProfile) {
+      // Existing pre-FLTR-18 rendering: one section, all loud cards,
+      // safe-tier summary below. Kept verbatim for backward compat.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(context, 'Interaction warnings', loud.length),
+          ..._loudCards(loud),
+          if (safeTier.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.space12),
+            _LowConcernSummaryRow(
+              items: safeTier,
+              onTap: () => _showSafeTierSheet(context, safeTier),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // FLTR-18 split — profile is set, so we can personalize.
+    final (applies, other) = InteractionWarningsList._partitionByProfile(
+      loud,
+      userConditions: widget.userConditions,
+      userDrugClasses: widget.userDrugClasses,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header row with count pill — count reflects the
-        // loud list only so it matches the number of cards shown.
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppTheme.space12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Interaction warnings',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(width: AppTheme.space8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                  border: Border.all(
-                    color: scheme.outlineVariant,
-                    width: 0.8,
-                  ),
-                ),
-                child: Text(
-                  '${loud.length}',
-                  style: AppTheme.numeric(
-                    TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+        if (applies.isNotEmpty) ...[
+          _sectionHeader(context, 'Applies to you', applies.length),
+          ..._loudCards(applies),
+        ],
+        if (other.isNotEmpty) ...[
+          if (applies.isNotEmpty) const SizedBox(height: AppTheme.space20),
+          _OtherPrecautionsSection(
+            count: other.length,
+            expanded: _otherExpanded,
+            onToggle: () =>
+                setState(() => _otherExpanded = !_otherExpanded),
+            cards: _loudCards(other),
           ),
-        ),
-
-        // Stack of interaction cards with breathing room between
-        ...List.generate(loud.length, (i) {
-          final w = loud[i];
-          // Contamination-recall entries get a distinct banner prefix —
-          // the copy describes a product recall, not a chemistry ban, so
-          // the framing in the card header shifts accordingly. See
-          // scripts/safety_copy_exemplars/ADR_contamination_recall_ban_context.md
-          // in the pipeline repo for the authoring contract.
-          final title = w.banContext == 'contamination_recall'
-              ? 'Recalled: ${w.displayHeadline}'
-              : w.displayHeadline;
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: i == loud.length - 1 ? 0 : AppTheme.space12,
-            ),
-            child: PGInteractionCard(
-              severity: w.severity,
-              evidenceLevel: w.evidenceLevel,
-              // displayHeadline / displayBody prefer Path-C-authored copy
-              // (Dr. Pham, 2026-04-17/18) over derived pipeline strings.
-              title: title,
-              mechanism: w.displayBody,
-              management: w.management,
-              sources: w.sourceUrls,
-              // Top-severity card starts expanded — user sees the worst
-              // interaction's full details without needing to tap.
-              initiallyExpanded: i == 0 && w.severity.weight >= 3,
-              onSourceTap: w.sourceUrls.isEmpty
-                  ? null
-                  : () => _showCitations(context, w),
-            ),
-          );
-        }),
-
-        // Collapsed low-concern summary below the loud cards.
+        ],
         if (safeTier.isNotEmpty) ...[
           const SizedBox(height: AppTheme.space12),
           _LowConcernSummaryRow(
@@ -573,6 +603,212 @@ class InteractionWarningsList extends StatelessWidget {
             onTap: () => _showSafeTierSheet(context, safeTier),
           ),
         ],
+      ],
+    );
+  }
+
+  /// Section header row with a count pill. Used by both the
+  /// no-profile combined path and the FLTR-18 "Applies to you"
+  /// section so the style stays identical.
+  Widget _sectionHeader(BuildContext context, String label, int count) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(width: AppTheme.space8),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 3,
+            ),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius:
+                  BorderRadius.circular(AppTheme.radiusFull),
+              border: Border.all(
+                color: scheme.outlineVariant,
+                width: 0.8,
+              ),
+            ),
+            child: Text(
+              '$count',
+              style: AppTheme.numeric(
+                TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Render the card stack for a list of loud warnings. Shared
+  /// between the no-profile combined path and the FLTR-18 sections.
+  List<Widget> _loudCards(List<InteractionWarning> items) {
+    return List.generate(items.length, (i) {
+      final w = items[i];
+      // Contamination-recall entries get a distinct banner prefix —
+      // the copy describes a product recall, not a chemistry ban, so
+      // the framing in the card header shifts accordingly. See
+      // scripts/safety_copy_exemplars/ADR_contamination_recall_ban_context.md
+      // in the pipeline repo for the authoring contract.
+      final title = w.banContext == 'contamination_recall'
+          ? 'Recalled: ${w.displayHeadline}'
+          : w.displayHeadline;
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: i == items.length - 1 ? 0 : AppTheme.space12,
+        ),
+        child: PGInteractionCard(
+          severity: w.severity,
+          evidenceLevel: w.evidenceLevel,
+          // displayHeadline / displayBody prefer Path-C-authored copy
+          // (Dr. Pham, 2026-04-17/18) over derived pipeline strings.
+          title: title,
+          mechanism: w.displayBody,
+          management: w.management,
+          sources: w.sourceUrls,
+          // Top-severity card starts expanded — user sees the worst
+          // interaction's full details without needing to tap.
+          initiallyExpanded: i == 0 && w.severity.weight >= 3,
+          onSourceTap: w.sourceUrls.isEmpty
+              ? null
+              : () => _showCitations(context, w),
+        ),
+      );
+    });
+  }
+}
+
+/// FLTR-18 — "Other precautions" section. Collapsed by default so
+/// generic precautions don't dominate the stack; tap the header
+/// row to reveal the individual cards. Count pill shows the total
+/// so the user knows what's behind the chevron.
+class _OtherPrecautionsSection extends StatelessWidget {
+  final int count;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final List<Widget> cards;
+
+  const _OtherPrecautionsSection({
+    required this.count,
+    required this.expanded,
+    required this.onToggle,
+    required this.cards,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final label = count == 1
+        ? '1 general precaution'
+        : '$count general precautions';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.space12,
+              vertical: AppTheme.space12,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  'Other precautions',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.space8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius:
+                        BorderRadius.circular(AppTheme.radiusFull),
+                    border: Border.all(
+                      color: scheme.outlineVariant,
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: AppTheme.numeric(
+                      TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    size: 22,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (!expanded)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppTheme.space12,
+              bottom: AppTheme.space4,
+            ),
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: AppTheme.space8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: cards,
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
       ],
     );
   }

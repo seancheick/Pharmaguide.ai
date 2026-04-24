@@ -850,4 +850,178 @@ void main() {
       expect(find.text('Filler'), findsOneWidget);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // FLTR-18 — Applies-to-you vs Other precautions split.
+  //
+  // When user has any profile data, loud warnings split into:
+  //   "Applies to you"  — profile-matched, expanded, full cards
+  //   "Other precautions" — everything else, collapsed with a count
+  // Empty profile preserves the pre-FLTR-18 single combined section.
+  // Safe-tier continues to collapse via FLTR-14 regardless.
+  // -----------------------------------------------------------------------
+  group('InteractionWarningsList — FLTR-18 personalization split', () {
+    InteractionWarning warning({
+      Severity severity = Severity.caution,
+      String title = 'Sample warning',
+      String mechanism = 'sample detail',
+      List<String> conditionIds = const [],
+      List<String> drugClassIds = const [],
+    }) {
+      return InteractionWarning(
+        severity: severity,
+        evidenceLevel: EvidenceLevel.established,
+        title: title,
+        mechanism: mechanism,
+        management: '',
+        conditionIds: conditionIds,
+        drugClassIds: drugClassIds,
+      );
+    }
+
+    Widget wrap(Widget child) =>
+        MaterialApp(home: Scaffold(body: SingleChildScrollView(child: child)));
+
+    testWidgets('empty profile preserves combined section (no split)',
+        (tester) async {
+      final warnings = [
+        warning(title: 'Profile-match candidate',
+            conditionIds: ['pregnancy']),
+        warning(title: 'Generic'),
+      ];
+      await tester.pumpWidget(
+        wrap(InteractionWarningsList(warnings: warnings)),
+      );
+      expect(find.text('Applies to you'), findsNothing);
+      expect(find.text('Other precautions'), findsNothing);
+      expect(find.text('Interaction warnings'), findsOneWidget);
+      expect(find.byType(PGInteractionCard), findsNWidgets(2));
+    });
+
+    testWidgets(
+        'profile set + matches present → "Applies to you" shown with matched cards',
+        (tester) async {
+      final warnings = [
+        warning(
+            title: 'Pregnancy warning',
+            conditionIds: ['pregnancy']),
+        warning(title: 'Generic banner'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(
+        warnings: warnings,
+        userConditions: const {'pregnancy'},
+      )));
+      expect(find.text('Applies to you'), findsOneWidget);
+      expect(find.text('Other precautions'), findsOneWidget);
+      // Matched card is expanded in the "Applies to you" section.
+      expect(find.byType(PGInteractionCard), findsOneWidget);
+    });
+
+    testWidgets(
+        '"Other precautions" starts collapsed; tap reveals its cards',
+        (tester) async {
+      final warnings = [
+        warning(
+            title: 'Profile match',
+            conditionIds: ['pregnancy']),
+        warning(title: 'Generic one'),
+        warning(title: 'Generic two'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(
+        warnings: warnings,
+        userConditions: const {'pregnancy'},
+      )));
+      // Before tap: only the applies card is visible.
+      expect(find.byType(PGInteractionCard), findsOneWidget);
+      // Count label visible while collapsed.
+      expect(find.text('2 general precautions'), findsOneWidget);
+      // After tap: both generic cards appear.
+      await tester.tap(find.text('Other precautions'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PGInteractionCard), findsNWidgets(3));
+    });
+
+    testWidgets(
+        'singular count label when exactly one generic precaution',
+        (tester) async {
+      final warnings = [
+        warning(
+            title: 'Match',
+            conditionIds: ['pregnancy']),
+        warning(title: 'Lone generic'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(
+        warnings: warnings,
+        userConditions: const {'pregnancy'},
+      )));
+      expect(find.text('1 general precaution'), findsOneWidget);
+    });
+
+    testWidgets(
+        'profile set + no matches → only "Other precautions" renders',
+        (tester) async {
+      final warnings = [warning(title: 'Generic only')];
+      await tester.pumpWidget(wrap(InteractionWarningsList(
+        warnings: warnings,
+        userConditions: const {'pregnancy'},
+      )));
+      expect(find.text('Applies to you'), findsNothing);
+      expect(find.text('Other precautions'), findsOneWidget);
+      // Collapsed by default — no cards visible yet.
+      expect(find.byType(PGInteractionCard), findsNothing);
+    });
+
+    testWidgets(
+        'profile set + all matches → only "Applies to you" renders',
+        (tester) async {
+      final warnings = [
+        warning(title: 'Match A', conditionIds: ['pregnancy']),
+        warning(title: 'Match B', conditionIds: ['pregnancy']),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(
+        warnings: warnings,
+        userConditions: const {'pregnancy'},
+      )));
+      expect(find.text('Applies to you'), findsOneWidget);
+      expect(find.text('Other precautions'), findsNothing);
+      expect(find.byType(PGInteractionCard), findsNWidgets(2));
+    });
+
+    testWidgets(
+        'drug-class profile match routes warnings into "Applies to you"',
+        (tester) async {
+      final warnings = [
+        warning(
+            title: 'Anticoagulant interaction',
+            drugClassIds: ['anticoagulants']),
+        warning(title: 'Generic'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(
+        warnings: warnings,
+        userDrugClasses: const {'anticoagulants'},
+      )));
+      expect(find.text('Applies to you'), findsOneWidget);
+      expect(find.text('Other precautions'), findsOneWidget);
+    });
+
+    testWidgets(
+        'safe-tier continues to collapse alongside the FLTR-18 split',
+        (tester) async {
+      final warnings = [
+        warning(title: 'Match', conditionIds: ['pregnancy']),
+        warning(title: 'Generic'),
+        warning(severity: Severity.safe, title: 'Flow agent'),
+      ];
+      await tester.pumpWidget(wrap(InteractionWarningsList(
+        warnings: warnings,
+        userConditions: const {'pregnancy'},
+      )));
+      // Applies section: 1 card visible.
+      expect(find.byType(PGInteractionCard), findsOneWidget);
+      // Other precautions: collapsed row present.
+      expect(find.text('Other precautions'), findsOneWidget);
+      // Safe-tier: still gets its own summary row at the bottom.
+      expect(find.text('1 low-concern note'), findsOneWidget);
+    });
+  });
 }
