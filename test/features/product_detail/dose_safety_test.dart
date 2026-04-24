@@ -14,6 +14,7 @@
 // "dose not evaluated" state.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 
 void main() {
@@ -392,6 +393,203 @@ void main() {
       final ingredient = <String, dynamic>{'standard_name': 'Vitamin A'};
       expect(matchUlEntry(ingredient, null), isNull);
       expect(matchUlEntry(ingredient, const []), isNull);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // FLTR-11a — Temporary Flutter dose guardrail (pre-pipeline E1.11).
+  //
+  // Downgrades caution+ warnings to monitor when the matching
+  // ingredient is below a clinical nutritional threshold. Narrow
+  // allowlist (niacin, chromium). Never touches monitor-and-below
+  // or contraindicated. Delete when E1.11 ships pipeline-side
+  // dose-aware severity.
+  // -----------------------------------------------------------------------
+  group('downgradeIfLowDose (FLTR-11a)', () {
+    test('niacin 10 mg + caution → monitor (nutritional dose)', () {
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 10,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: ing),
+        Severity.monitor,
+      );
+    });
+
+    test('niacin 50 mg + caution → no change (above threshold)', () {
+      // 50 mg is supplemental, not nutritional. Caution stays.
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 50,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: ing),
+        isNull,
+      );
+    });
+
+    test('niacin exactly at threshold → no change (strict <)', () {
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 35,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: ing),
+        isNull,
+      );
+    });
+
+    test('avoid tier also downgrades to monitor when below threshold',
+        () {
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 15,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.avoid, ingredient: ing),
+        Severity.monitor,
+      );
+    });
+
+    test('contraindicated is NEVER downgraded', () {
+      // Hard stops stay hard. The guardrail is for over-firing
+      // caution/avoid on nutritional doses, not for weakening
+      // contraindications.
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 5,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(
+          severity: Severity.contraindicated,
+          ingredient: ing,
+        ),
+        isNull,
+      );
+    });
+
+    test('monitor tier is left alone (already non-alarming)', () {
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 5,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.monitor, ingredient: ing),
+        isNull,
+      );
+    });
+
+    test('informational/safe are left alone', () {
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 5,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(
+          severity: Severity.informational,
+          ingredient: ing,
+        ),
+        isNull,
+      );
+      expect(
+        downgradeIfLowDose(severity: Severity.safe, ingredient: ing),
+        isNull,
+      );
+    });
+
+    test('unknown ingredient not in the allowlist → no change', () {
+      final ing = <String, dynamic>{
+        'standard_name': 'Something Exotic',
+        'quantity': 0.001,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: ing),
+        isNull,
+        reason:
+            'Guardrail only fires for the narrow allowlist; the UI '
+            'never fabricates thresholds for ingredients it has not '
+            'been told about.',
+      );
+    });
+
+    test('mismatched unit is treated as no threshold match', () {
+      // Niacin threshold is 35 mg; a row with mcg shouldn't accidentally
+      // hit the rule by unit coincidence.
+      final ing = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 10,
+        'unit': 'mcg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: ing),
+        isNull,
+      );
+    });
+
+    test('chromium 100 mcg + caution → monitor (nutritional)', () {
+      final ing = <String, dynamic>{
+        'standard_name': 'Chromium',
+        'quantity': 100,
+        'unit': 'mcg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: ing),
+        Severity.monitor,
+      );
+    });
+
+    test('missing quantity or null ingredient → no change', () {
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: null),
+        isNull,
+      );
+      expect(
+        downgradeIfLowDose(
+          severity: Severity.caution,
+          ingredient: const <String, dynamic>{'standard_name': 'Niacin'},
+        ),
+        isNull,
+      );
+    });
+
+    test('standard_name matching is case-insensitive', () {
+      final ing = <String, dynamic>{
+        'standard_name': 'NIACIN',
+        'quantity': 10,
+        'unit': 'mg',
+      };
+      expect(
+        downgradeIfLowDose(severity: Severity.caution, ingredient: ing),
+        Severity.monitor,
+      );
+    });
+  });
+
+  group('indexIngredientsByStandardName', () {
+    test('indexes by lowercased trimmed name', () {
+      final out = indexIngredientsByStandardName([
+        {'standard_name': '  Niacin  ', 'quantity': 10},
+        {'standard_name': 'Chromium', 'quantity': 100},
+      ]);
+      expect(out.keys, containsAll(['niacin', 'chromium']));
+    });
+
+    test('skips rows with missing / empty standard_name', () {
+      final out = indexIngredientsByStandardName([
+        <String, dynamic>{'standard_name': '', 'quantity': 10},
+        <String, dynamic>{'quantity': 5},
+        {'standard_name': 'Niacin', 'quantity': 10},
+      ]);
+      expect(out.keys, ['niacin']);
     });
   });
 }

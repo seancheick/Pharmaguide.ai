@@ -136,6 +136,14 @@ class InteractionWarning {
   /// ingredient-detail drawer can render medical codes (CUI lookup).
   final Map<String, dynamic>? identifiers;
 
+  /// Pipeline `ingredient_name` — the ingredient this warning is
+  /// about (e.g., "Niacin", "Chromium"). Used by the FLTR-11a dose
+  /// guardrail to match a warning back to its ingredient row so
+  /// low-dose severity can be downgraded before the pipeline-side
+  /// E1.11 fix lands. Null when the warning is not ingredient-
+  /// specific (e.g., manufacturer trust violations).
+  final String? ingredientName;
+
   /// Display-ready headline — prefers authored [alertHeadline] over
   /// the derived [title]. Use this in render code.
   String get displayHeadline => alertHeadline ?? title;
@@ -169,6 +177,7 @@ class InteractionWarning {
     this.allergenPrevalence,
     this.supplementContext,
     this.identifiers,
+    this.ingredientName,
   });
 
   /// Parse from raw JSON map (from detail blob `warnings` list).
@@ -263,6 +272,7 @@ class InteractionWarning {
       allergenPrevalence: json['prevalence']?.toString(),
       supplementContext: json['supplement_context']?.toString(),
       identifiers: identifiers,
+      ingredientName: json['ingredient_name']?.toString(),
     );
   }
 
@@ -304,6 +314,41 @@ class InteractionWarning {
     if (conditionIds.any(userConditions.contains)) return true;
     if (drugClassIds.any(userDrugClasses.contains)) return true;
     return false;
+  }
+
+  /// Returns a copy of this warning with a different [severity].
+  /// Used by the FLTR-11a dose guardrail — when a pipeline warning
+  /// fires at caution/avoid tier on a nutritional dose, the UI
+  /// downgrades severity without mutating anything else. Delete
+  /// when pipeline E1.11 lands dose-aware severity at source.
+  InteractionWarning copyWithSeverity(Severity newSeverity) {
+    return InteractionWarning(
+      severity: newSeverity,
+      evidenceLevel: evidenceLevel,
+      title: title,
+      mechanism: mechanism,
+      management: management,
+      sourceUrls: sourceUrls,
+      severityContextual: severityContextual,
+      displayModeDefault: displayModeDefault,
+      alertHeadline: alertHeadline,
+      alertBody: alertBody,
+      informationalNote: informationalNote,
+      conditionIds: conditionIds,
+      drugClassIds: drugClassIds,
+      banContext: banContext,
+      clinicalRisk: clinicalRisk,
+      mechanismOfHarm: mechanismOfHarm,
+      populationWarnings: populationWarnings,
+      doseThresholdEvaluation: doseThresholdEvaluation,
+      regulatoryDate: regulatoryDate,
+      regulatoryDateLabel: regulatoryDateLabel,
+      additiveCategory: additiveCategory,
+      allergenPrevalence: allergenPrevalence,
+      supplementContext: supplementContext,
+      identifiers: identifiers,
+      ingredientName: ingredientName,
+    );
   }
 
   /// Composite dedup key for FLTR-12. Two warnings with the same key

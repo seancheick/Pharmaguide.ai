@@ -17,6 +17,8 @@
 
 library;
 
+import 'package:pharmaguide/core/constants/severity.dart';
+
 /// Per-ingredient dose safety state derived from the pipeline's UL
 /// analysis block. Callers map each state to a visual badge.
 enum DoseSafety {
@@ -154,4 +156,87 @@ double? _asDouble(dynamic v) {
     return (parsed != null && parsed.isFinite) ? parsed : null;
   }
   return null;
+}
+
+// ----------------------------------------------------------------------
+// FLTR-11a — Temporary Flutter dose guardrail
+//
+// Prevents caution+ warnings from firing on nutritional-range doses
+// while waiting for pipeline E1.11 (dose-aware warning severity at
+// source). Narrow scope: a small allowlist of ingredients where we
+// know the pharmacologic/nutritional split crosses a clinical
+// threshold. Everything outside the allowlist passes through
+// unchanged — the UI never fabricates downgrade rules for
+// ingredients it hasn't been told about.
+//
+// Delete this block when E1.11 ships. The pipeline is the right
+// place to encode dose thresholds; this is insurance, not policy.
+// ----------------------------------------------------------------------
+
+/// Low-dose thresholds in the nutrient's own unit. A warning whose
+/// severity is caution/avoid/contraindicated AND whose ingredient's
+/// disclosed `quantity` (same unit) is strictly below the threshold
+/// gets downgraded to [Severity.monitor] by
+/// [applyLowDoseGuardrail]. Everything above the threshold —
+/// supplemental + pharmacologic doses — passes through untouched.
+///
+/// Kept intentionally small. Add an entry only when there is a
+/// concrete clinical threshold for the nutritional range (e.g.
+/// niacin 35 mg = tolerable upper intake for supplemental
+/// nicotinic acid; chromium 200 mcg = typical prenatal ceiling).
+const _lowDoseThresholds = <String, ({double value, String unit})>{
+  'niacin': (value: 35, unit: 'mg'),
+  'vitamin b3 (niacin)': (value: 35, unit: 'mg'),
+  'chromium': (value: 200, unit: 'mcg'),
+};
+
+/// Applies the FLTR-11a guardrail to a single warning given its
+/// matching ingredient row. Returns [severityBelow] (monitor) when
+/// the rule fires, else null (caller keeps the original severity).
+///
+/// Guardrail fires when ALL of:
+///   * warning.severity.weight >= Severity.caution.weight (don't
+///     touch monitor/informational/safe — already non-alarming)
+///   * warning.severity.weight < Severity.contraindicated.weight
+///     (never downgrade the worst tier — it's a hard stop)
+///   * the ingredient's standard_name matches an entry in
+///     [_lowDoseThresholds]
+///   * the ingredient's quantity/unit match the threshold unit and
+///     fall strictly below the threshold value
+Severity? downgradeIfLowDose({
+  required Severity severity,
+  required Map<String, dynamic>? ingredient,
+}) {
+  if (ingredient == null) return null;
+  // Leave informational/monitor/safe untouched — they're already
+  // non-alarming. Also never downgrade contraindicated.
+  if (severity.weight < Severity.caution.weight) return null;
+  if (severity == Severity.contraindicated) return null;
+
+  final name = ingredient['standard_name']?.toString().trim().toLowerCase();
+  if (name == null || name.isEmpty) return null;
+  final rule = _lowDoseThresholds[name];
+  if (rule == null) return null;
+
+  final qty = _asDouble(ingredient['quantity']);
+  final unit = ingredient['unit']?.toString().trim().toLowerCase();
+  if (qty == null || qty <= 0) return null;
+  if (unit != rule.unit) return null;
+
+  return qty < rule.value ? Severity.monitor : null;
+}
+
+/// Build a name → ingredient map for fast lookup in the warning
+/// transform pass. Keyed on lowercased `standard_name` so it
+/// matches the warning's `ingredient_name` after the same casing.
+Map<String, Map<String, dynamic>> indexIngredientsByStandardName(
+  List<Map<String, dynamic>> ingredients,
+) {
+  final out = <String, Map<String, dynamic>>{};
+  for (final ing in ingredients) {
+    final name = ing['standard_name']?.toString().trim().toLowerCase();
+    if (name == null || name.isEmpty) continue;
+    out[name] = ing;
+  }
+  return out;
 }
