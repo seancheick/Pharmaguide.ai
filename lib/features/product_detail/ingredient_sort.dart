@@ -33,3 +33,33 @@ List<Map<String, dynamic>> sortActivesForDisplay(
   }
   return <Map<String, dynamic>>[...disclosed, ...undisclosed];
 }
+
+/// FLTR-6 — collapse duplicate inactive ingredients.
+///
+/// Despite the handoff's claim that the blob ships with unique
+/// inactives, sampling the real blobs shows duplicates in
+/// practice (e.g. "cellulose" appears twice in dsld 299056
+/// GlutenAssure Multivitamin and dsld 287463 PS Plus; "ethyl
+/// vanillin" twice in dsld 302654). Dedupe at the UI boundary
+/// so the user sees one chip per distinct excipient.
+///
+/// Match key is the normalized (trimmed + lowercased) first
+/// non-empty value of `name`, `standard_name`, or
+/// `raw_source_text`. First occurrence wins — preserves the
+/// pipeline's declared order.
+List<Map<String, dynamic>> dedupeInactivesForDisplay(
+  Iterable<Map<String, dynamic>> inactives,
+) {
+  final out = <Map<String, dynamic>>[];
+  final seen = <String>{};
+  for (final ing in inactives) {
+    final raw = (ing['name'] ??
+            ing['standard_name'] ??
+            ing['raw_source_text'])
+        ?.toString();
+    final key = raw?.trim().toLowerCase() ?? '';
+    if (key.isEmpty) continue;
+    if (seen.add(key)) out.add(ing);
+  }
+  return out;
+}

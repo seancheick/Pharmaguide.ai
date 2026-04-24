@@ -1617,10 +1617,16 @@ class _DetailSection extends ConsumerWidget {
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         [];
-    final inactiveIngredients = (blob['inactive_ingredients'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        [];
+    // FLTR-6 — dedupe by normalized name at the parse boundary.
+    // Real blobs repeat excipients (e.g., "cellulose" twice on
+    // GlutenAssure Multivitamin, "ethyl vanillin" twice on Enhanced
+    // Krill Plus). Dedupe once; downstream renderers see a clean
+    // list.
+    final inactiveIngredients = dedupeInactivesForDisplay(
+      (blob['inactive_ingredients'] as List?)
+              ?.whereType<Map<String, dynamic>>() ??
+          const <Map<String, dynamic>>[],
+    );
 
     // FLTR-11 — per-ingredient UL evaluation lives under the top-level
     // rda_ul_data block. Pulled out here so _CollapsibleIngredients
@@ -1772,7 +1778,8 @@ class _DetailSection extends ConsumerWidget {
 
         // ---- Inactive Ingredients ----
         if (inactiveIngredients.isNotEmpty) ...[
-          _sectionTitle(theme, 'Other Ingredients', inactiveIngredients.length),
+          _sectionTitle(
+              theme, 'Other Ingredients', inactiveIngredients.length),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,

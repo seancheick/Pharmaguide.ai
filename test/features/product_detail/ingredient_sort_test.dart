@@ -88,4 +88,77 @@ void main() {
       expect(before, after, reason: 'caller list must stay as-is');
     });
   });
+
+  group('dedupeInactivesForDisplay (FLTR-6)', () {
+    test('collapses repeated inactives by normalized name', () {
+      // Real blob sample — cellulose twice on dsld 299056
+      // GlutenAssure Multivitamin.
+      final out = dedupeInactivesForDisplay([
+        {'name': 'Cellulose'},
+        {'name': 'Magnesium Stearate'},
+        {'name': 'cellulose'},
+      ]);
+      expect(out, hasLength(2));
+      expect(
+        out.map((i) => i['name']).toList(),
+        ['Cellulose', 'Magnesium Stearate'],
+      );
+    });
+
+    test('first occurrence wins (preserves pipeline order)', () {
+      final out = dedupeInactivesForDisplay([
+        {'name': 'First', 'source': 'a'},
+        {'name': 'First', 'source': 'b'},
+        {'name': 'First', 'source': 'c'},
+      ]);
+      expect(out, hasLength(1));
+      expect(out.single['source'], 'a');
+    });
+
+    test('name match is whitespace-tolerant', () {
+      final out = dedupeInactivesForDisplay([
+        {'name': 'Silicon Dioxide'},
+        {'name': '  silicon dioxide  '},
+      ]);
+      expect(out, hasLength(1));
+    });
+
+    test('falls back through name → standard_name → raw_source_text', () {
+      final out = dedupeInactivesForDisplay([
+        {'standard_name': 'gelatin'},
+        {'raw_source_text': 'Gelatin'},
+        {'name': 'GELATIN'},
+      ]);
+      expect(out, hasLength(1));
+    });
+
+    test('skips rows with no name fields', () {
+      final out = dedupeInactivesForDisplay([
+        <String, dynamic>{},
+        {'name': 'Visible'},
+        {'name': ''},
+        {'raw_source_text': '   '},
+      ]);
+      expect(
+        out.map((i) => i['name']).toList(),
+        ['Visible'],
+      );
+    });
+
+    test('empty input returns empty list', () {
+      expect(dedupeInactivesForDisplay(const []), isEmpty);
+    });
+
+    test('no duplicates passes through unchanged', () {
+      final input = [
+        {'name': 'A'},
+        {'name': 'B'},
+        {'name': 'C'},
+      ];
+      expect(
+        dedupeInactivesForDisplay(input).map((i) => i['name']).toList(),
+        ['A', 'B', 'C'],
+      );
+    });
+  });
 }
