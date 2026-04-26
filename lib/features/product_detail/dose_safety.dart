@@ -17,8 +17,6 @@
 
 library;
 
-import 'package:pharmaguide/core/constants/severity.dart';
-
 /// Per-ingredient dose safety state derived from the pipeline's UL
 /// analysis block. Callers map each state to a visual badge.
 enum DoseSafety {

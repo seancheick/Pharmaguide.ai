@@ -59,6 +59,8 @@ class SynergyDetailSection extends StatelessWidget {
             final name = cluster['name']?.toString() ??
                 cluster['cluster_name']?.toString() ?? '';
             final evidenceTier = cluster['evidence_tier']?.toString() ?? '';
+            final singleIngredientMatch =
+                cluster['single_ingredient_match'] == true;
             // Prefer Dr. Pham's authored benefit_short (layperson,
             // positive framing); fall back to bonus_explanation
             // (pipeline-generated), then the dense synergy_mechanism.
@@ -92,6 +94,27 @@ class SynergyDetailSection extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (singleIngredientMatch) ...[
+                          Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Single-ingredient match',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: scheme.onSecondaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
                         if (evidenceTier.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(

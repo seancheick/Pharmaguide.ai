@@ -14,7 +14,6 @@
 // "dose not evaluated" state.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 
 void main() {

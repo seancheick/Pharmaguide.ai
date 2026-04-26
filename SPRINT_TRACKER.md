@@ -69,6 +69,14 @@ Status legend:
 
 ## CURRENT SPRINT
 
+**Sprint 27.7: Product-detail contract sync + synergy surfacing** — ✅ DONE (2026-04-25)
+Status: DONE
+
+- [x] Synced the external Flutter handoff doc to current truth: shared premium shell, score-ring-first hierarchy, FLTR-22 shipped, FLTR-23 still open.
+- [x] Shipped FLTR-21: `synergy_detail_section.dart` now renders `Single-ingredient match` when `synergy_detail.clusters[*].single_ingredient_match == true`.
+- [x] Verified Flutter `assets/reference_data/rda_optimal_uls.json` already matches the pipeline copy byte-for-byte.
+- [x] Audited latest pipeline-vs-Flutter goal/synergy contracts: schema is still compatible end-to-end, but bundled `synergy_cluster.json` and `user_goals_to_clusters.json` are content-stale relative to the newly edited pipeline copies and should be synced in the next catalog asset refresh.
+
 **Sprint 27.6: Recall warning_message — drop (Path A) + re-author upstream (Path C)** — 🟡 IN PROGRESS
 Status: Path A ready to execute; Path C blocks on pipeline-side schema change + safety-team authoring pass.
 
