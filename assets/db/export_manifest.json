@@ -1,10 +1,10 @@
 {
-  "checksum": "sha256:5982f8b316552cf0a183bb462a1f2282f31ce5d71c0bd18f7d0b375dbf907b88",
-  "checksum_sha256": "5982f8b316552cf0a183bb462a1f2282f31ce5d71c0bd18f7d0b375dbf907b88",
-  "db_version": "2026.04.23.000925",
+  "checksum": "sha256:c685a7d2879e8328af2442b5e62ca2465ab9c88843a91e06f514eaf56a55b10f",
+  "checksum_sha256": "c685a7d2879e8328af2442b5e62ca2465ab9c88843a91e06f514eaf56a55b10f",
+  "db_version": "2026.04.26.061404",
   "detail_blob_count": 8169,
   "detail_blob_unique_count": 8169,
-  "detail_index_checksum": "sha256:b0be32ede42edd2e085a867bd97f9bac547cc09479267de30732f408a8f035df",
+  "detail_index_checksum": "sha256:1d44e2c873e06e9f1f849788f4451b7d288dbe2c3bb846ce7a35fb15e2969cfb",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -832,7 +832,7 @@
       "error": "[82303] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
     }
   ],
-  "generated_at": "2026-04-23T00:09:25.744899+00:00",
+  "generated_at": "2026-04-26T06:14:04.216579+00:00",
   "integrity": {
     "contract_failures": 0,
     "coverage_pct": 61.72,
@@ -857,7 +857,7 @@
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
   "product_count": 8169,
-  "release_staged_at": "2026-04-23T00:09:25Z",
+  "release_staged_at": "2026-04-26T06:14:04Z",
   "schema_version": "1.4.0",
   "scoring_config_checksum": "sha256:1d9d9ea5141016627f487030319ede46d005a45cf2847020f7855e42059b02a7",
   "scoring_version": "3.4.0",
