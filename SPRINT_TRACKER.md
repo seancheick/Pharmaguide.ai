@@ -69,16 +69,138 @@ Status legend:
 
 ## CURRENT SPRINT
 
+**Sprint 28 (BACKLOG): Tier 2 Research Evidence Surface + RXCUI bridge** — ⬜ READY
+Status: backlog — DO NOT START until pipeline-side Phase 1 (PubMed verification + duplicate cleanup) ships and Sean greenlights.
+
+Goal: surface the 30,101 supp.ai research_pairs that already ship in `assets/db/interaction_db.sqlite` (currently 21 MB of dead data — schema declared in `lib/data/database/tables/research_pairs_table.dart`, ZERO query consumers in `lib/`).
+
+- [ ] Pipeline: bridge drug CUIs → RXCUIs in `scripts/ingest_suppai.py` (today: `drug_anchors: 0` — all 30,101 pairs unreachable by RxNorm). See `docs/INTERACTION_TIER2_AND_BRIDGE_PLAN.md` Gap 1.
+- [ ] Pipeline: rebuild `interaction_db.sqlite` with populated `rxcui_a` / `rxcui_b` columns; verify via `interaction_db_output/ingest_suppai_report.json`.
+- [ ] Flutter: extend `lib/data/database/interaction_database.dart` with `lookupResearchPairsByCanonicalId(...)` + `lookupResearchPairsByRxcui(...)` (Drift queries against existing `research_pairs` table).
+- [ ] Flutter: NEW `lib/services/stack/research_pair_lookup.dart` — wrapper service returning top-N pairs by paper_count.
+- [ ] Flutter: NEW `lib/features/product_detail/widgets/research_evidence_chip.dart` — neutral "Research available — N papers" pill.
+- [ ] Flutter: NEW `lib/features/product_detail/widgets/research_evidence_drawer.dart` — modal with `top_sentences[]` + PubMed PMID links.
+- [ ] Flutter: integrate the chip in `product_detail_screen.dart` below `_InteractionConditionDetails`.
+- [ ] Tests: ≥10 widget tests for chip + drawer. Verify Tier 2 hits do NOT count toward `StackSafetyReport.overallSeverity`.
+- [ ] UX guardrails (per `INTERACTION_DB_SPEC.md` §11.2): neutral tone, no severity coding, "Research is not a recommendation" disclaimer.
+
+Already shipping (do NOT rebuild):
+- `lib/services/stack/depletion_checker.dart` — drug-induced nutrient depletion (metformin → B12 etc.)
+- `lib/services/stack/medication_depletion_nudge.dart` — one-time nudge UX
+- `lib/services/stack/timing_evaluation_service.dart` — 42 timing rules indexed
+- `lib/data/database/interaction_database.dart` (M3) — Drift binding for Tier 1 lookups
+- `lib/services/stack/stack_interaction_checker.dart` (M4) — 3 stack-pair check methods
+- `lib/features/product_detail/widgets/interaction_warnings.dart` (1204 LOC) — full warnings rendering w/ profile gating
+
+Full file map + cross-repo data flow: `dsld_clean/docs/INTERACTION_TIER2_AND_BRIDGE_PLAN.md`.
+
+Estimated effort: ~7 hours (3h pipeline + 4h Flutter + tests).
+
+---
+
+**Sprint 27.17: Supabase placeholder startup guard** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Traced raw `flutter run` startup fatals to `AuthStateService` touching `Supabase.instance` even when startup had already fallen back to guest mode because no dart-defines were provided.
+- [x] Made the guest fallback explicit: when `SupabaseConfig.isPlaceholder` is true, auth state now resolves to `guest` without probing the Supabase singleton.
+- [x] Broadened the defensive catch in `AuthStateService` to `on Object` so unexpected client-unavailable failures still degrade to guest mode instead of surfacing fatal startup noise.
+- [x] Added a focused unit test covering the placeholder fallback and basic signed-in/signed-out state transitions.
+- [x] Verified the fix in a live simulator boot: raw `flutter run -d 'iPhone 16 Pro'` no longer emits the previous fatal Supabase assertion after startup.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/services/auth_state_service_test.dart`.
+
+**Sprint 27.16: Drift test lifecycle cleanup** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Traced the pre-existing Drift multiple-database warnings to `test/features/product_detail/product_detail_screen_test.dart`.
+- [x] Confirmed the warning is a test-runtime false positive for intentionally separate in-memory Drift databases in that file, not a shared-executor production bug.
+- [x] Suppressed the warning locally in that test file with `driftRuntimeOptions.dontWarnAboutMultipleDatabases`, then reset it in `tearDownAll()` so the rest of the suite still surfaces genuine mistakes.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/product_detail/product_detail_screen_test.dart`.
+
+**Sprint 27.15: FLTR-7 stale RDA file cleanup** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Deleted the unused `data/rda_optimal_uls.json` copy.
+- [x] Verified runtime still reads `assets/reference_data/rda_optimal_uls.json` through `ReferenceDataRepository`; no code paths referenced the stale file.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/services/stack/stack_ul_checker_test.dart`.
+
+**Sprint 27.14: Scanner not-found + lookup transition polish** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Upgraded the scanner not-found sheet to a clearer premium layout with barcode pill, stronger explanation, and explicit `Scan again` / `Search by name` actions.
+- [x] Reworked the lookup transition overlay from a bare spinner into a clearer blocking state with context copy about the on-device catalog check.
+- [x] Improved the live scanner guidance copy in the camera state without touching the deferred missing-product submission flow.
+- [x] Verified the old tracker item about barcode-detect haptics was stale: scanner already fires `HapticFeedback.lightImpact()` on capture and `mediumImpact()` on verdict flash.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/scanner/scanner_screen_test.dart`.
+
+**Sprint 27.13: FLTR-15 status duplication guard + neutral status polish** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Added a defensive parse-time filter so legacy `status` warnings do not duplicate the structured `product_status` row when both appear in a blob.
+- [x] Kept the guard intentionally narrow: it only activates when `blob.product_status` already exists, and it only filters warnings explicitly tagged as `status` / `product_status`.
+- [x] Upgraded the neutral product-status explanation sheet to use type-aware copy for `discontinued`, `reformulated`, `off_market`, `limited_availability`, and `seasonal`.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/product_detail test/features/product_detail/product_status_chip_test.dart`.
+
+**Sprint 27.12: FLTR-8 warning grouping refinement** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Refined the personalized warning stack without changing medical severity logic.
+- [x] `Applies to you` now carries a short context line so the user understands those cards are sourced from their saved profile.
+- [x] `Other precautions` now stays collapsed but shows a calmer explanation plus up to three preview topic chips derived from the actual warning tags, making the hidden content legible before expansion.
+- [x] Kept the change local to `interaction_warnings.dart`; no pipeline reinterpretation and no new medical heuristics.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/product_detail/interaction_warnings_test.dart`.
+
+**Sprint 27.11: Search result chips aligned to product logic** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Replaced the off-target search chip set with product-relevant filters: `All`, `High Quality (80+)`, `Needs Review`, `Blocked / Unsafe`, plus dynamic category chips from the result set.
+- [x] Base filters now appear as soon as the user starts typing; result-derived category chips appear once search results land.
+- [x] Updated the search count row to explicit `Showing X results` / `Showing X of Y results` language.
+- [x] Kept the change UI-local to the search screen; no query-engine rewrite.
+- [x] Added a widget test covering count text, verdict filtering, and dynamic category chip rendering.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/search/search_screen_test.dart`.
+
+**Sprint 27.10: Hero score-teaser on product detail** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Added a compact `Why this score` teaser under the score ring area on product detail.
+- [x] Reused the existing pipeline `score_bonuses` / `score_penalties` contract rather than inventing local heuristics.
+- [x] Negative verdicts (`MODERATE` / `REVIEW` / `UNSAFE` / `BLOCKED`) now prefer a penalty-side score reason in the hero teaser; positive verdicts prefer a bonus-side reason.
+- [x] Kept the deeper `Why this product` section intact as the expanded explanation layer.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/product_detail`.
+
+**Sprint 27.9: FLTR-23 bioavailability-aid surfacing** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Surfaced `ingredient_quality_data.demoted_absorption_enhancers` inside the product-detail deep dive.
+- [x] `FormulationDetailSection` now renders a subdued `Includes bioavailability aid` block with labeled dose chips when the pipeline demotes sub-threshold absorption aids from scoring.
+- [x] Kept the signal explanatory only: no score change, no safety implication, no duplicate active-ingredient treatment.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/product_detail`.
+
+**Sprint 27.8: Goal/synergy asset refresh after pipeline rebuild** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Synced `assets/reference_data/synergy_cluster.json` to the fresh pipeline copy after the latest rebuild.
+- [x] Synced `assets/reference_data/user_goals_to_clusters.json` to the fresh pipeline copy after the latest rebuild.
+- [x] Verified byte-identical hashes between pipeline and Flutter for both files.
+- [x] Re-verified Flutter contract consumption: raw `synergy_clusters` shape still normalizes correctly, and goal-mapping loaders still accept 18 canonical goal entries.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/core/reference_data_contract_test.dart test/data/repositories/reference_data_repository_test.dart`.
+
 **Sprint 27.7: Product-detail contract sync + synergy surfacing** — ✅ DONE (2026-04-25)
 Status: DONE
 
 - [x] Synced the external Flutter handoff doc to current truth: shared premium shell, score-ring-first hierarchy, FLTR-22 shipped, FLTR-23 still open.
 - [x] Shipped FLTR-21: `synergy_detail_section.dart` now renders `Single-ingredient match` when `synergy_detail.clusters[*].single_ingredient_match == true`.
 - [x] Verified Flutter `assets/reference_data/rda_optimal_uls.json` already matches the pipeline copy byte-for-byte.
-- [x] Audited latest pipeline-vs-Flutter goal/synergy contracts: schema is still compatible end-to-end, but bundled `synergy_cluster.json` and `user_goals_to_clusters.json` are content-stale relative to the newly edited pipeline copies and should be synced in the next catalog asset refresh.
+- [x] Audited latest pipeline-vs-Flutter goal/synergy contracts: schema is still compatible end-to-end. The temporary content drift identified on 2026-04-25 was resolved by Sprint 27.8.
 
-**Sprint 27.6: Recall warning_message — drop (Path A) + re-author upstream (Path C)** — 🟡 IN PROGRESS
-Status: Path A ready to execute; Path C blocks on pipeline-side schema change + safety-team authoring pass.
+**Sprint 27.6: Recall warning_message cleanup + authored recall copy adoption** — ✅ DONE (2026-04-26)
+Status: DONE
+
+- [x] Legacy derived `warning_message` remains absent from the bundled recall asset and contract test.
+- [x] Flutter now consumes authored `safety_warning`, `safety_warning_one_liner`, and `ban_context` from `banned_recalled_ingredients.json`.
+- [x] The stack recall banner now uses authored recall framing instead of generic fallback copy, without deriving user-facing copy from `reason`.
+- [x] Contract coverage now enforces the authored recall fields and the allowed `ban_context` enum values.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/stack/recalled_ingredient_integration_test.dart test/core/reference_data_contract_test.dart`.
 
 > Sprint 27.6 details: see [Sprint 27.6 section below](#sprint-276--recall-warning_message-drop--re-author-upstream-2026-04-16)
 
@@ -110,11 +232,11 @@ Status: DONE
 - [x] **Recent Scans on home screen** — `recordScanEvent()` + `getRecentScans()` in UserDatabase (50-row cap, per-product dedup). Scanner fires `unawaited()` record. Home screen `_RecentScansSection` ConsumerStatefulWidget loads history in `initState`, renders via `ProductListItem`. Empty state with scan CTA when no history. Creates core retention loop.
 
 ### Remaining (ordered by impact)
-- [ ] **Search result count + filter chips** — Dynamic "Showing N results" badge below search bar + horizontal `FilterChip` row (All, Supplements, High Quality 80+, Needs Caution, BLOCKED/UNSAFE, by category). Client-side filtering with debounced input. **~2-3 days.**
-- [ ] **"Why this score?" 1-liner on product detail** — Compact expandable card right after the score ring. Surface top reason: e.g., "Contains banned ingredient: DMAA" or "Excellent formulation • Third-party tested". Color-coded icons. Data already in `detail_blob` (`score_bonuses[]` / `score_penalties[]`). **~1 day.**
+- [x] **Search result count + filter chips** — Shipped later in Sprint 27.11. Base filters now appear while typing; result-derived category chips appear once results load; count row now reads `Showing X results` / `Showing X of Y results`.
+- [x] **"Why this score?" 1-liner on product detail** — Shipped later in Sprint 27.10 as the hero-level `Why this score` teaser sourced from pipeline `score_bonuses[]` / `score_penalties[]`.
 - [ ] **Empty stack CTA with scanner shortcut** — Friendly illustration + "Your stack is empty" + subtext explaining value + "Scan your first supplement" primary CTA (opens scanner) + "Add medications manually" secondary. **~0.5 day.**
-- [ ] **Scanner "not found" copy polish** — Bottom sheet already exists (Sprint 3). Polish: add friendly illustration, update headline to "We couldn't find that barcode", add "Help us improve — report this barcode?" low-friction option. **~0.5 day.**
-- [ ] **Haptic on barcode detect** — `HapticFeedback.mediumImpact()` on barcode capture (before product lookup). Verdict flash already has haptic; this adds the "got it" moment. **~0.5 day.**
+- [x] **Scanner "not found" copy polish** — Shipped later in Sprint 27.14 with the stronger premium not-found sheet and improved lookup transition state.
+- [x] **Haptic on barcode detect** — This tracker line was stale. Scanner already had capture haptics and verdict haptics when re-audited in Sprint 27.14.
 
 ### Deferred to v2.0 (explicitly NOT this sprint)
 - ~~Product submission flow (crowdsourcing)~~ — Needs backend moderation pipeline, photo storage, abuse prevention. Park as v2.0 milestone.
