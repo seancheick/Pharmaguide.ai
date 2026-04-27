@@ -2,8 +2,8 @@
   "_metadata": {
     "description": "Ingredient synergy clusters for bonus scoring when complementary ingredients are combined",
     "purpose": "synergy_bonuses",
-    "schema_version": "5.1.0",
-    "last_updated": "2026-04-23",
+    "schema_version": "5.2.0",
+    "last_updated": "2026-04-24",
     "total_entries": 58,
     "citation_fields": "note + sources (phase_3 curated_no_query_placeholders)",
     "citation_coverage": {
@@ -22,7 +22,10 @@
     "flutter_top_level_key": "clusters",
     "reviewed_by": "Lead Clinician (PharmaGuide)",
     "reviewed_date": "2026-04-18",
-    "review_round": "synergy_layperson_pass_v1"
+    "review_round": "synergy_layperson_pass_v1",
+    "schema_notes": {
+      "primary_ingredients_review": "v5.2.0 — primary_ingredients reviewed and refined by Dr Pham (pharmaguide_clinical_team) on 2026-04-24. Headliner = ingredient that earns solo-headliner status via allow_single_ingredient; supportive ingredients stay in the cluster.ingredients list but do not earn solo match on their own."
+    }
   },
   "synergy_clusters": [
     {
@@ -79,12 +82,14 @@
       "synergy_benefit_short": "Turmeric or curcumin paired with black pepper (piperine) is absorbed up to 20× better — the pair unlocks the anti-inflammatory benefit together.",
       "allow_single_ingredient": true,
       "primary_ingredients": [
-        "curcumin phytosome",
+        "curcumin",
+        "turmeric",
         "meriva",
         "theracurmin",
         "bcm-95",
+        "curcugreen",
         "longvida",
-        "curcugreen"
+        "curcumin phytosome"
       ]
     },
     {
@@ -139,7 +144,11 @@
       "primary_ingredients": [
         "magnesium",
         "magnesium bisglycinate",
-        "magnesium malate"
+        "magnesium malate",
+        "vitamin b6",
+        "pyridoxine",
+        "p5p",
+        "taurine"
       ]
     },
     {
@@ -226,15 +235,14 @@
       "synergy_benefit_short": "Melatonin, magnesium, L-theanine, and glycine work on different parts of falling asleep — the stack covers wind-down, onset, and staying asleep.",
       "allow_single_ingredient": true,
       "primary_ingredients": [
+        "melatonin",
         "magnesium",
         "magnesium glycinate",
-        "melatonin",
         "l-theanine",
         "theanine",
         "suntheanine",
         "valerian root",
-        "valerian",
-        "ashwagandha"
+        "valerian"
       ]
     },
     {
@@ -376,7 +384,10 @@
         "lutein",
         "zeaxanthin",
         "astaxanthin",
-        "bilberry"
+        "vitamin c",
+        "vitamin e",
+        "zinc",
+        "omega-3"
       ]
     },
     {
@@ -628,11 +639,11 @@
       "primary_ingredients": [
         "vitamin c",
         "ascorbic acid",
+        "ester-c",
         "zinc",
         "zinc picolinate",
         "zinc bisglycinate",
-        "elderberry",
-        "echinacea",
+        "vitamin d",
         "vitamin d3",
         "cholecalciferol"
       ]
@@ -762,7 +773,20 @@
         "cordyceps"
       ],
       "evidence_note": "Each ingredient in this combination has individual evidence for the stated benefit, but no clinical trial has tested this specific combination together. Classified as a popular stack, not a proven synergy.",
-      "synergy_benefit_short": "Ashwagandha, rhodiola, L-theanine, and phosphatidylserine support calmer stress response — adaptogens and calming nutrients combined."
+      "synergy_benefit_short": "Ashwagandha, rhodiola, L-theanine, and phosphatidylserine support calmer stress response — adaptogens and calming nutrients combined.",
+      "allow_single_ingredient": true,
+      "primary_ingredients": [
+        "ashwagandha",
+        "ksm-66",
+        "sensoril",
+        "rhodiola",
+        "rhodiola rosea",
+        "l-theanine",
+        "theanine",
+        "suntheanine",
+        "magnesium",
+        "magnesium glycinate"
+      ]
     },
     {
       "id": "mood_balance",
@@ -961,11 +985,26 @@
       "allow_single_ingredient": true,
       "primary_ingredients": [
         "coq10",
+        "coenzyme q10",
         "ubiquinol",
-        "fish oil",
         "omega-3",
+        "fish oil",
         "epa",
-        "dha"
+        "dha",
+        "vitamin k2",
+        "mk-7",
+        "menaquinone",
+        "magnesium",
+        "magnesium glycinate",
+        "taurine",
+        "arginine",
+        "l-arginine",
+        "l-citrulline",
+        "citrulline",
+        "hawthorn berry",
+        "hawthorn",
+        "garlic extract",
+        "aged garlic extract"
       ]
     },
     {
@@ -1197,7 +1236,20 @@
       "allow_single_ingredient": true,
       "primary_ingredients": [
         "biotin",
-        "keratin"
+        "vitamin b7",
+        "silica",
+        "bamboo extract",
+        "zinc",
+        "zinc picolinate",
+        "collagen peptides",
+        "collagen",
+        "hyaluronic acid",
+        "vitamin c",
+        "ascorbic acid",
+        "msm",
+        "methylsulfonylmethane",
+        "keratin",
+        "iron"
       ]
     },
     {
@@ -1257,6 +1309,11 @@
         "milk thistle",
         "silymarin",
         "nac",
+        "n-acetyl-cysteine",
+        "alpha-lipoic acid",
+        "ala",
+        "selenium",
+        "selenomethionine",
         "tudca"
       ]
     },
@@ -1338,11 +1395,15 @@
         "calcium",
         "calcium citrate",
         "calcium carbonate",
+        "vitamin d",
         "vitamin d3",
         "cholecalciferol",
-        "vitamin d",
         "vitamin k2",
-        "mk-7"
+        "mk-7",
+        "menaquinone",
+        "magnesium",
+        "magnesium glycinate",
+        "boron"
       ]
     },
     {
@@ -1403,7 +1464,17 @@
       "synergy_benefit_short": "Iron with vitamin C and folate is absorbed better and supports red-blood-cell production — the partners help iron do its job.",
       "allow_single_ingredient": true,
       "primary_ingredients": [
-        "iron"
+        "iron",
+        "iron bisglycinate",
+        "iron fumarate",
+        "vitamin c",
+        "ascorbic acid",
+        "folate",
+        "folic acid",
+        "vitamin b12",
+        "methylcobalamin",
+        "copper",
+        "lactoferrin"
       ]
     },
     {
@@ -1778,8 +1849,13 @@
       "synergy_benefit_short": "Protein, creatine, HMB, and BCAAs cover muscle protein synthesis, strength, and recovery — the foundation for training gains.",
       "allow_single_ingredient": true,
       "primary_ingredients": [
-        "creatine",
+        "protein",
         "whey protein",
+        "casein protein",
+        "creatine",
+        "creapure",
+        "hmb",
+        "beta-hydroxy beta-methylbutyrate",
         "bcaa",
         "branched chain amino acids",
         "leucine"
@@ -2008,9 +2084,18 @@
       "synergy_benefit_short": "Lactobacillus, Bifidobacterium, and prebiotic fibers together establish and feed beneficial gut bacteria — the probiotic plus its food.",
       "allow_single_ingredient": true,
       "primary_ingredients": [
+        "probiotics",
         "lactobacillus",
         "bifidobacterium",
-        "saccharomyces boulardii"
+        "saccharomyces boulardii",
+        "prebiotics",
+        "inulin",
+        "fos",
+        "fructooligosaccharides",
+        "gos",
+        "galactooligosaccharides",
+        "postbiotics",
+        "butyrate"
       ]
     },
     {

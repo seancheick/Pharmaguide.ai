@@ -63,11 +63,12 @@ class ProductStatusChip extends StatelessWidget {
   }
 
   void _openExplanation(BuildContext context) {
+    final type = productStatus['type']?.toString().trim().toLowerCase();
     showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (ctx) => const _ProductStatusExplanationSheet(),
+      builder: (ctx) => _ProductStatusExplanationSheet(type: type),
     );
   }
 
@@ -128,7 +129,32 @@ class ProductStatusChip extends StatelessWidget {
 /// on its own without requiring a back-and-forth — the user sees
 /// the state, taps for context, returns.
 class _ProductStatusExplanationSheet extends StatelessWidget {
-  const _ProductStatusExplanationSheet();
+  final String? type;
+
+  const _ProductStatusExplanationSheet({this.type});
+
+  String _bodyCopy() {
+    switch (type) {
+      case 'reformulated':
+        return 'This product has been reformulated. Ingredients, doses, or '
+            'inactive components may differ from older bottles, so rescan '
+            'the exact version you have in hand.';
+      case 'off_market':
+        return 'This product appears to be off market or no longer broadly '
+            'available. That does not automatically mean it is unsafe, but '
+            'availability and listing details may be outdated.';
+      case 'limited_availability':
+        return 'This product has limited availability. Listing, stock, or '
+            'distribution details may change faster than usual.';
+      case 'seasonal':
+        return 'This product appears to be seasonal. Availability may vary '
+            'throughout the year, and newer lots may differ from older ones.';
+      case 'discontinued':
+      default:
+        return 'This product is no longer manufactured. Formulas may have '
+            'changed or been replaced in newer versions.';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -153,8 +179,7 @@ class _ProductStatusExplanationSheet extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           Text(
-            'This product is no longer manufactured. Formulas may '
-            'have changed or been replaced in newer versions.',
+            _bodyCopy(),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: scheme.onSurface,
               height: 1.45,

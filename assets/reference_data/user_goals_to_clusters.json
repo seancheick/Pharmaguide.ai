@@ -124,7 +124,7 @@
         "bone_health": 0.6,
         "cardiovascular_support": 0.6,
         "methylation_support": 0.6,
-        "blood_pressure_support": 0.5,
+        "blood_pressure_support": 0.35,
         "joint_inflammation": 0.5,
         "inflammation_control": 0.5
       },
@@ -142,7 +142,7 @@
         "fat_metabolism": 0.5,
         "liver_support": 0.4,
         "detox_pathway": 0.4,
-        "nerve_health_neuropathy_support": 0.4
+        "nerve_health_neuropathy_support": 0.25
       },
       "required_clusters": ["blood_sugar_regulation"],
       "blocked_by_clusters": [],

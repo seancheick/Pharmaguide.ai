@@ -362,6 +362,48 @@ class InteractionWarning {
       ..sort((a, b) => firstIndex[a]!.compareTo(firstIndex[b]!));
     return [for (final k in keys) best[k]!];
   }
+
+  static List<String> previewLabelsForWarnings(
+    Iterable<InteractionWarning> warnings,
+  ) {
+    final seen = <String>{};
+    final labels = <String>[];
+
+    void addLabel(String? raw) {
+      final label = raw?.trim();
+      if (label == null || label.isEmpty) return;
+      final key = label.toLowerCase();
+      if (seen.add(key)) {
+        labels.add(label);
+      }
+    }
+
+    for (final warning in warnings) {
+      for (final id in warning.conditionIds) {
+        addLabel(_humanizePreviewToken(id));
+      }
+      for (final id in warning.drugClassIds) {
+        addLabel(_humanizePreviewToken(id));
+      }
+      addLabel(warning.ingredientName);
+      addLabel(_humanizePreviewToken(warning.additiveCategory));
+      if (labels.length >= 3) break;
+    }
+
+    return labels.take(3).toList(growable: false);
+  }
+
+  static String? _humanizePreviewToken(String? raw) {
+    final trimmed = raw?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed
+        .split('_')
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) => part[0].toUpperCase() + part.substring(1).toLowerCase(),
+        )
+        .join(' ');
+  }
 }
 
 /// Renders sorted interaction warnings from the detail blob.
@@ -592,7 +634,12 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (applies.isNotEmpty) ...[
-          _sectionHeader(context, 'Applies to you', applies.length),
+          _sectionHeader(
+            context,
+            'Applies to you',
+            applies.length,
+            subtitle: 'Based on your saved profile.',
+          ),
           ..._loudCards(applies),
         ],
         if (other.isNotEmpty) ...[
@@ -602,6 +649,8 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
             expanded: _otherExpanded,
             onToggle: () =>
                 setState(() => _otherExpanded = !_otherExpanded),
+            previewLabels:
+                InteractionWarning.previewLabelsForWarnings(other),
             cards: _loudCards(other),
           ),
         ],
@@ -619,49 +668,68 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
   /// Section header row with a count pill. Used by both the
   /// no-profile combined path and the FLTR-18 "Applies to you"
   /// section so the style stays identical.
-  Widget _sectionHeader(BuildContext context, String label, int count) {
+  Widget _sectionHeader(
+    BuildContext context,
+    String label,
+    int count, {
+    String? subtitle,
+  }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(width: AppTheme.space8),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 3,
-            ),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh,
-              borderRadius:
-                  BorderRadius.circular(AppTheme.radiusFull),
-              border: Border.all(
-                color: scheme.outlineVariant,
-                width: 0.8,
-              ),
-            ),
-            child: Text(
-              '$count',
-              style: AppTheme.numeric(
-                TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 12,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
-                  height: 1.2,
+                  letterSpacing: -0.3,
                 ),
               ),
-            ),
+              const SizedBox(width: AppTheme.space8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius:
+                      BorderRadius.circular(AppTheme.radiusFull),
+                  border: Border.all(
+                    color: scheme.outlineVariant,
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  '$count',
+                  style: AppTheme.numeric(
+                    TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+          if (subtitle != null && subtitle.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.space6),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -713,12 +781,14 @@ class _OtherPrecautionsSection extends StatelessWidget {
   final int count;
   final bool expanded;
   final VoidCallback onToggle;
+  final List<String> previewLabels;
   final List<Widget> cards;
 
   const _OtherPrecautionsSection({
     required this.count,
     required this.expanded,
     required this.onToggle,
+    required this.previewLabels,
     required this.cards,
   });
 
@@ -797,12 +867,60 @@ class _OtherPrecautionsSection extends StatelessWidget {
             padding: const EdgeInsets.only(
               left: AppTheme.space12,
               bottom: AppTheme.space4,
+              right: AppTheme.space12,
             ),
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'General precautions that do not currently match your saved profile.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+                if (previewLabels.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space8),
+                  Wrap(
+                    spacing: AppTheme.space8,
+                    runSpacing: AppTheme.space8,
+                    children: previewLabels
+                        .map(
+                          (preview) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTheme.space12,
+                              vertical: AppTheme.space6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusFull,
+                              ),
+                              border: Border.all(
+                                color: scheme.outlineVariant,
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              preview,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                ],
+                const SizedBox(height: AppTheme.space8),
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         AnimatedSize(

@@ -6,7 +6,12 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 
 class FormulationDetailSection extends StatelessWidget {
   final Map<String, dynamic>? formulationDetail;
-  const FormulationDetailSection({super.key, this.formulationDetail});
+  final Map<String, dynamic>? ingredientQualityData;
+  const FormulationDetailSection({
+    super.key,
+    this.formulationDetail,
+    this.ingredientQualityData,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +29,18 @@ class FormulationDetailSection extends StatelessWidget {
             ?.map((e) => e.toString())
             .toList() ??
         [];
+    final demotedEnhancers =
+        (ingredientQualityData?['demoted_absorption_enhancers'] as List?)
+                ?.whereType<Map<dynamic, dynamic>>()
+                .map((raw) => _BioavailabilityAid.fromMap(raw))
+                .where((aid) => aid.label.isNotEmpty)
+                .toList() ??
+            const <_BioavailabilityAid>[];
 
-    if (deliveryForm.isEmpty && enhancers.isEmpty && botanicals.isEmpty) {
+    if (deliveryForm.isEmpty &&
+        enhancers.isEmpty &&
+        botanicals.isEmpty &&
+        demotedEnhancers.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -90,6 +105,71 @@ class FormulationDetailSection extends StatelessWidget {
                   .toList(),
             ),
           ],
+          if (demotedEnhancers.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(AppTheme.space12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(
+                  color: scheme.outlineVariant,
+                  width: 0.6,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    demotedEnhancers.length == 1
+                        ? 'Includes bioavailability aid'
+                        : 'Includes bioavailability aids',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Used to support absorption and not scored as a primary active.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: demotedEnhancers
+                        .map((aid) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.surface,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusFull,
+                                ),
+                                border: Border.all(
+                                  color: scheme.outlineVariant,
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                aid.label,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (botanicals.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -116,6 +196,26 @@ class FormulationDetailSection extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _BioavailabilityAid {
+  final String label;
+
+  const _BioavailabilityAid(this.label);
+
+  factory _BioavailabilityAid.fromMap(Map<dynamic, dynamic> raw) {
+    final name = raw['name']?.toString().trim() ?? '';
+    final quantity = raw['quantity'];
+    final unit = raw['unit']?.toString().trim() ?? '';
+
+    final quantityLabel = quantity is num
+        ? unit.isEmpty
+            ? quantity.toString()
+            : '${quantity.toString()} $unit'
+        : '';
+    final label = quantityLabel.isEmpty ? name : '$name $quantityLabel';
+    return _BioavailabilityAid(label);
   }
 }
 

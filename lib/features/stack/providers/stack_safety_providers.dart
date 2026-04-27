@@ -387,6 +387,10 @@ final recalledIngredientsReportProvider =
     final reason = recall['reason'] as String? ?? '';
     final effectiveDate = recall['effective_date'] as String? ?? '';
     final severity = recall['severity'] as String? ?? 'major';
+    final safetyWarning = recall['safety_warning'] as String? ?? '';
+    final safetyWarningOneLiner =
+        recall['safety_warning_one_liner'] as String? ?? '';
+    final banContext = recall['ban_context'] as String? ?? '';
 
     recalledMap[canonicalId] = RecalledIngredientAlert(
       canonicalId: canonicalId,
@@ -396,6 +400,9 @@ final recalledIngredientsReportProvider =
       reason: reason,
       effectiveDate: effectiveDate,
       severity: severity,
+      safetyWarning: safetyWarning,
+      safetyWarningOneLiner: safetyWarningOneLiner,
+      banContext: banContext,
     );
   }
 

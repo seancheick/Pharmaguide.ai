@@ -15,14 +15,16 @@ class AuthStateService extends StateNotifier<AuthMode> {
   }
 
   void _checkCurrentSession() {
+    if (SupabaseConfig.isPlaceholder) {
+      state = AuthMode.guest;
+      return;
+    }
     try {
       final session = supabase.auth.currentSession;
       state = session != null ? AuthMode.signedIn : AuthMode.guest;
-    } on StateError {
-      // Supabase.initialize() was not called successfully — stay guest.
-      state = AuthMode.guest;
-    } on Exception {
-      // Any other runtime error — default to guest so the app stays usable.
+    } on Object {
+      // Supabase.initialize() was not called successfully, or the client is
+      // otherwise unavailable. Stay in guest mode so the app remains usable.
       state = AuthMode.guest;
     }
   }

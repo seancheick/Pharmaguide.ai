@@ -691,9 +691,13 @@ class _RecallAlertSlot extends ConsumerWidget {
     return reportAsync.when(
       data: (report) {
         if (report.isEmpty) return const SizedBox.shrink();
-        final names = report.violations
-            .map((v) => v.productName)
-            .toList(growable: false);
+        final ordered = report.orderedViolations;
+        final primary = ordered.first;
+        final names = ordered.map((v) => v.productName).toList(growable: false);
+        final body = ordered.length == 1
+            ? primary.bannerMessage
+            : '${ordered.length} products need review. ${primary.bannerMessage} '
+                'Plus ${ordered.length - 1} more: ${names.skip(1).join(", ")}.';
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             AppTheme.space20,
@@ -704,11 +708,7 @@ class _RecallAlertSlot extends ConsumerWidget {
           child: PGSeverityBanner(
             tone: PGBannerTone.danger,
             title: 'Recall Alert',
-            body: names.length == 1
-                ? '${names.first} contains a recalled ingredient. '
-                    'Consider removing it from your stack.'
-                : '${names.length} products contain recalled ingredients: '
-                    '${names.join(", ")}.',
+            body: body,
           ),
         );
       },

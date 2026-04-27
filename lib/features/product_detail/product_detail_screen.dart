@@ -324,6 +324,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final blendDetail =
         detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
+    final whyItems = _extractWhyItems(detailBlob);
+    final heroScoreReason = _pickHeroScoreReason(
+      verdict: verdict,
+      items: whyItems,
+    );
 
     final isNotScored = _isNotScored(_product);
 
@@ -380,6 +385,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               bannedSubstanceDetail:
                   detailBlob?['banned_substance_detail']
                       as Map<String, dynamic>?,
+              scoreReason: heroScoreReason,
               onScoreInfoTap: () => _showScoreEducation(context),
               imageUrl: _product?.imageUrl,
               upc: _product?.upcSku,
@@ -535,6 +541,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       detailBlob?['evidence_data'] as Map<String, dynamic>?,
                   formulationDetail:
                       detailBlob?['formulation_detail']
+                          as Map<String, dynamic>?,
+                  ingredientQualityData:
+                      detailBlob?['ingredient_quality_data']
                           as Map<String, dynamic>?,
                   probioticDetail:
                       detailBlob?['probiotic_detail'] as Map<String, dynamic>?,
@@ -701,11 +710,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // handle profile-based suppression. Not emitting the gated list would
     // silently lose high-risk alerts the pipeline has already curated.
     final result = <InteractionWarning>[];
+    final hasStructuredProductStatus = blob['product_status'] is Map;
     for (final key in const ['warnings', 'warnings_profile_gated']) {
       final raw = blob[key];
       if (raw is! List) continue;
       result.addAll(
-        raw.whereType<Map<String, dynamic>>().map(InteractionWarning.fromJson),
+        raw
+            .whereType<Map<String, dynamic>>()
+            .where(
+              (warning) => !_isLegacyProductStatusWarning(
+                warning,
+                hasStructuredProductStatus: hasStructuredProductStatus,
+              ),
+            )
+            .map(InteractionWarning.fromJson),
       );
     }
     // FLTR-12 — real blobs contain duplicates in two shapes:
@@ -718,6 +736,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // before-dedup — the highest severity wins when collisions carry
     // mixed labels ("monitor" + "caution" → keep caution).
     return InteractionWarning.dedupe(result);
+  }
+
+  bool _isLegacyProductStatusWarning(
+    Map<String, dynamic> warning, {
+    required bool hasStructuredProductStatus,
+  }) {
+    if (!hasStructuredProductStatus) return false;
+    final tokens = [
+      warning['type'],
+      warning['source'],
+      warning['category'],
+      warning['warning_type'],
+    ].map((value) => value?.toString().trim().toLowerCase() ?? '');
+    return tokens.contains('status') || tokens.contains('product_status');
   }
 
   void _showScoreEducation(BuildContext context) {
@@ -1187,6 +1219,58 @@ class _InteractionHint {
   });
 }
 
+List<({String label, String detail, bool isPositive})> _extractWhyItems(
+  Map<String, dynamic>? blob,
+) {
+  if (blob == null) return const [];
+  final bonuses =
+      (blob['score_bonuses'] as List?)
+          ?.whereType<Map<String, dynamic>>()
+          .toList() ??
+      [];
+  final penalties =
+      (blob['score_penalties'] as List?)
+          ?.whereType<Map<String, dynamic>>()
+          .toList() ??
+      [];
+
+  return <({String label, String detail, bool isPositive})>[
+    ...bonuses.map(
+      (b) => (
+        label: b['label']?.toString() ?? b['reason']?.toString() ?? '',
+        detail: b['detail']?.toString() ?? b['description']?.toString() ?? '',
+        isPositive: true,
+      ),
+    ),
+    ...penalties.map(
+      (p) => (
+        label: p['label']?.toString() ?? p['reason']?.toString() ?? '',
+        detail: p['detail']?.toString() ?? p['description']?.toString() ?? '',
+        isPositive: false,
+      ),
+    ),
+  ].where((item) => item.label.trim().isNotEmpty).take(3).toList();
+}
+
+({String text, bool isPositive})? _pickHeroScoreReason({
+  required String verdict,
+  required List<({String label, String detail, bool isPositive})> items,
+}) {
+  if (items.isEmpty) return null;
+  final normalizedVerdict = verdict.trim().toUpperCase();
+  final preferPenalty = switch (normalizedVerdict) {
+    'MODERATE' || 'REVIEW' || 'UNSAFE' || 'BLOCKED' => true,
+    _ => false,
+  };
+
+  final preferred = items.where((item) => item.isPositive != preferPenalty);
+  final chosen = preferred.isNotEmpty ? preferred.first : items.first;
+  return (
+    text: chosen.label.trim().isNotEmpty ? chosen.label.trim() : chosen.detail,
+    isPositive: chosen.isPositive,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Header section
 // ---------------------------------------------------------------------------
@@ -1206,6 +1290,7 @@ class _HeaderSection extends ConsumerWidget {
   final bool isNotScored;
   final List<Map<String, dynamic>> topWarnings;
   final Map<String, dynamic>? bannedSubstanceDetail;
+  final ({String text, bool isPositive})? scoreReason;
   final VoidCallback onScoreInfoTap;
   final String? imageUrl;
   final String? upc;
@@ -1226,6 +1311,7 @@ class _HeaderSection extends ConsumerWidget {
     required this.isNotScored,
     required this.topWarnings,
     this.bannedSubstanceDetail,
+    this.scoreReason,
     required this.onScoreInfoTap,
     this.imageUrl,
     this.upc,
@@ -1375,6 +1461,13 @@ class _HeaderSection extends ConsumerWidget {
                                 ],
                               ],
                             ),
+                            if (scoreReason != null) ...[
+                              const SizedBox(height: AppTheme.space12),
+                              _HeroScoreReason(
+                                text: scoreReason!.text,
+                                isPositive: scoreReason!.isPositive,
+                              ),
+                            ],
                           ],
                         ],
                       ),
@@ -1430,6 +1523,71 @@ class _HeaderSection extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HeroScoreReason extends StatelessWidget {
+  final String text;
+  final bool isPositive;
+
+  const _HeroScoreReason({required this.text, required this.isPositive});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final color = isPositive
+        ? AppTheme.scoreExcellent
+        : AppTheme.scoreFair;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space12,
+        vertical: AppTheme.space8,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isPositive ? Icons.auto_awesome_outlined : Icons.info_outline,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: AppTheme.space8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Why this score',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  text,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1812,33 +1970,8 @@ class _DetailSection extends ConsumerWidget {
           ),
         )
         .toList();
-    final bonuses =
-        (blob['score_bonuses'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        [];
-    final penalties =
-        (blob['score_penalties'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        [];
     final ingredientsSummary = blob['ingredients_summary']?.toString() ?? '';
-    final whyItems = <({String label, String detail, bool isPositive})>[
-      ...bonuses.map(
-        (b) => (
-          label: b['label']?.toString() ?? b['reason']?.toString() ?? '',
-          detail: b['detail']?.toString() ?? b['description']?.toString() ?? '',
-          isPositive: true,
-        ),
-      ),
-      ...penalties.map(
-        (p) => (
-          label: p['label']?.toString() ?? p['reason']?.toString() ?? '',
-          detail: p['detail']?.toString() ?? p['description']?.toString() ?? '',
-          isPositive: false,
-        ),
-      ),
-    ].where((item) => item.label.trim().isNotEmpty).take(3).toList();
+    final whyItems = _extractWhyItems(blob);
 
     // Interaction summary with condition details
     final interactionSummary =
@@ -2914,6 +3047,7 @@ class _DeepDiveSection extends StatefulWidget {
   final Map<String, dynamic>? certificationDetail;
   final Map<String, dynamic>? evidenceData;
   final Map<String, dynamic>? formulationDetail;
+  final Map<String, dynamic>? ingredientQualityData;
   final Map<String, dynamic>? probioticDetail;
   final Map<String, dynamic>? synergyDetail;
   final Map<String, dynamic>? manufacturerDetail;
@@ -2932,6 +3066,7 @@ class _DeepDiveSection extends StatefulWidget {
     this.certificationDetail,
     this.evidenceData,
     this.formulationDetail,
+    this.ingredientQualityData,
     this.probioticDetail,
     this.synergyDetail,
     this.manufacturerDetail,
@@ -3068,6 +3203,7 @@ class _DeepDiveSectionState extends State<_DeepDiveSection>
                 const SizedBox(height: AppTheme.space8),
                 FormulationDetailSection(
                   formulationDetail: widget.formulationDetail,
+                  ingredientQualityData: widget.ingredientQualityData,
                 ),
                 const SizedBox(height: AppTheme.space8),
                 ProbioticDetailSection(probioticDetail: widget.probioticDetail),

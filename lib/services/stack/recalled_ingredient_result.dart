@@ -6,11 +6,9 @@ import 'package:pharmaguide/core/constants/severity.dart';
 /// derived strings in the bundled asset were found to be medically
 /// incorrect for ~30-40 of 139 entries (pre-baked sentences inverted
 /// the safety signal for pharmaceutical adulterants like metformin).
-/// Replacement: an authored `safety_warning` + `safety_warning_one_liner`
-/// + `ban_context` trio to be added upstream in the pipeline repo. When
-/// those ship, re-add them here as pass-through fields and rewrite
-/// [RecalledIngredientViolation.bannerMessage] with context-aware verb
-/// choice. See SPRINT_TRACKER.md Sprint 27.6 Path C.
+/// Replacement: the pipeline now ships authored `safety_warning` +
+/// `safety_warning_one_liner` + `ban_context`, and Flutter passes them
+/// through verbatim. No Flutter-side derivation from `reason`.
 class RecalledIngredientAlert {
   final String canonicalId;
   final List<String> commonNames;
@@ -19,6 +17,9 @@ class RecalledIngredientAlert {
   final String reason;
   final String effectiveDate;
   final String severity; // 'critical' or 'major'
+  final String safetyWarning;
+  final String safetyWarningOneLiner;
+  final String banContext;
 
   RecalledIngredientAlert({
     required this.canonicalId,
@@ -28,6 +29,9 @@ class RecalledIngredientAlert {
     required this.reason,
     required this.effectiveDate,
     required this.severity,
+    required this.safetyWarning,
+    required this.safetyWarningOneLiner,
+    required this.banContext,
   });
 
   /// Convert to Severity enum for consistent UI rendering
@@ -76,12 +80,33 @@ class RecalledIngredientViolation {
   /// Human-readable alert for the banner
   String get bannerMessage {
     if (recalledIngredients.isEmpty) return '';
+    final verb = _verbFor(recalledIngredients.first.banContext);
     if (recalledIngredients.length == 1) {
       final ing = recalledIngredients.first;
       final name = ing.commonNames.isNotEmpty ? ing.commonNames.first : ing.canonicalId;
-      return '${ing.statusLabel} — $productName contains $name';
+      final oneLiner = ing.safetyWarningOneLiner.trim();
+      final suffix = oneLiner.isEmpty ? '' : ' $oneLiner';
+      return '${ing.statusLabel} — $productName $verb $name.$suffix';
     }
-    return '${recalledIngredients.first.statusLabel} — $productName contains ${recalledIngredients.length} recalled ingredient(s)';
+    return '${recalledIngredients.first.statusLabel} — $productName '
+        '$verb ${recalledIngredients.length} flagged ingredient(s)';
+  }
+
+  String _verbFor(String banContext) {
+    switch (banContext) {
+      case 'adulterant_in_supplements':
+        return 'may contain undeclared';
+      case 'substance':
+        return 'contains banned';
+      case 'watchlist':
+        return 'contains watchlisted';
+      case 'export_restricted':
+        return 'contains export-restricted';
+      case 'contamination_recall':
+        return 'is subject to a recall involving';
+      default:
+        return 'contains flagged';
+    }
   }
 }
 

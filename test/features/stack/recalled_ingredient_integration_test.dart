@@ -60,6 +60,11 @@ Map<String, dynamic> _recallPayload(List<String> canonicalIds) {
           'reason': 'Test fixture. Not a real warning.',
           'effective_date': '2026-01-01',
           'severity': 'critical',
+          'ban_context': 'adulterant_in_supplements',
+          'safety_warning':
+              'A test-only prescription drug hidden in supplements.',
+          'safety_warning_one_liner':
+              'Prescription drug hidden in supplements. Stop.',
         },
     ],
   };
@@ -157,6 +162,12 @@ void main() {
       expect(v.productDsldId, 'TEST_SIBUTRAMINE_PRODUCT');
       expect(v.recalledIngredients, hasLength(1));
       expect(v.recalledIngredients.single.canonicalId, 'sibutramine');
+      expect(v.recalledIngredients.single.banContext,
+          'adulterant_in_supplements');
+      expect(
+        v.recalledIngredients.single.safetyWarningOneLiner,
+        'Prescription drug hidden in supplements. Stop.',
+      );
     });
 
     test('does NOT flag product when no canonical_id matches the recall list',

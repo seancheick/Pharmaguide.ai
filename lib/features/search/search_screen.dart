@@ -46,6 +46,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _isGridView = false;
   List<String> _recentSearches = [];
   _SearchFilter _activeFilter = _SearchFilter.all;
+  String? _activeCategoryChip;
 
   Timer? _debounce;
   int _searchVersion = 0;
@@ -108,6 +109,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     setState(() {
       _query = value;
       if (value.trim().isNotEmpty) _activeCategory = null;
+      _activeCategoryChip = null;
     });
 
     if (value.trim().isEmpty) {
@@ -161,6 +163,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _results = null;
       _loading = false;
       _activeCategory = null;
+      _activeFilter = _SearchFilter.all;
+      _activeCategoryChip = null;
     });
   }
 
@@ -214,8 +218,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
 
-            // Quality filter chips — only visible when results exist
-            if (_results != null && _results!.isNotEmpty)
+            // Search controls should appear as soon as search intent is
+            // clear, not only after the first result payload lands.
+            // Static verdict/quality filters can show immediately while
+            // category chips remain result-derived.
+            if (_showFilterChips)
               SizedBox(
                 height: 40,
                 child: ListView(
@@ -229,15 +236,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       padding: const EdgeInsets.only(right: 8),
                       child: PGFilterChip(
                         label: filter.label,
-                        selected: selected,
+                        selected: selected && _activeCategoryChip == null,
                         onTap: () => setState(() {
-                          _activeFilter = selected
-                              ? _SearchFilter.all
-                              : filter;
+                          if (selected && _activeCategoryChip == null) {
+                            _activeFilter = _SearchFilter.all;
+                          } else {
+                            _activeFilter = filter;
+                            _activeCategoryChip = null;
+                          }
                         }),
                       ),
                     );
-                  }).toList(),
+                  }).toList()
+                    ..addAll(
+                      _resultCategories.map((category) {
+                        final selected = _activeCategoryChip == category;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: PGFilterChip(
+                            label: _formatCategoryLabel(category),
+                            selected: selected,
+                            onTap: () => setState(() {
+                              _activeCategoryChip = selected ? null : category;
+                              if (!selected) {
+                                _activeFilter = _SearchFilter.all;
+                              }
+                            }),
+                          ),
+                        );
+                      }),
+                    ),
                 ),
               ),
 
@@ -397,14 +425,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             AppTheme.space8,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _resultsHeaderText(),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
+              Expanded(
+                child: Text(
+                  _resultsHeaderText(),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: AppTheme.space8),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -479,22 +511,46 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   List<ProductsCoreData> get _filteredResults {
     final results = _results;
     if (results == null) return [];
+    if (_activeCategoryChip != null) {
+      return results
+          .where((p) => p.primaryCategory == _activeCategoryChip)
+          .toList();
+    }
     if (_activeFilter == _SearchFilter.all) return results;
     return results.where(_activeFilter.matches).toList();
+  }
+
+  bool get _showFilterChips {
+    if (_query.trim().isNotEmpty) return true;
+    if (_loading) return true;
+    if (_activeCategory != null && _activeCategory!.isNotEmpty) return true;
+    return _results != null && _results!.isNotEmpty;
+  }
+
+  List<String> get _resultCategories {
+    final results = _results;
+    if (results == null || results.isEmpty) return const [];
+
+    final seen = <String>{};
+    final ordered = <String>[];
+    for (final product in results) {
+      final category = product.primaryCategory?.trim();
+      if (category == null || category.isEmpty) continue;
+      if (seen.add(category)) {
+        ordered.add(category);
+      }
+    }
+    return ordered;
   }
 
   String _resultsHeaderText() {
     final filtered = _filteredResults;
     final total = _results!.length;
     final count = filtered.length;
-    if (_activeFilter != _SearchFilter.all) {
-      return '$count of $total result${total == 1 ? '' : 's'}';
+    if (_activeFilter != _SearchFilter.all || _activeCategoryChip != null) {
+      return 'Showing $count of $total result${total == 1 ? '' : 's'}';
     }
-    if (_activeCategory != null && _query.isEmpty) {
-      final label = _activeCategory!.replaceAll('_', ' ');
-      return '$count $label result${count == 1 ? '' : 's'}';
-    }
-    return '$count result${count == 1 ? '' : 's'}';
+    return 'Showing $count result${count == 1 ? '' : 's'}';
   }
 }
 
@@ -530,9 +586,8 @@ class _SearchLoadingList extends StatelessWidget {
 enum _SearchFilter {
   all('All'),
   highQuality('High Quality (80+)'),
-  needsCaution('Needs Caution'),
-  thirdPartyTested('Third-Party Tested'),
-  organic('Organic');
+  needsReview('Needs Review'),
+  blockedUnsafe('Blocked / Unsafe');
 
   const _SearchFilter(this.label);
   final String label;
@@ -543,13 +598,24 @@ enum _SearchFilter {
         return true;
       case _SearchFilter.highQuality:
         return (p.score100Equivalent ?? 0) >= 80;
-      case _SearchFilter.needsCaution:
-        final v = (p.verdict ?? '').toLowerCase();
-        return v == 'caution' || v == 'avoid' || v == 'contraindicated';
-      case _SearchFilter.thirdPartyTested:
-        return p.hasThirdPartyTesting == 1;
-      case _SearchFilter.organic:
-        return p.isOrganic == 1;
+      case _SearchFilter.needsReview:
+        final v = (p.verdict ?? '').toUpperCase();
+        return v == 'MODERATE' || v == 'REVIEW';
+      case _SearchFilter.blockedUnsafe:
+        final v = (p.verdict ?? '').toUpperCase();
+        return v == 'BLOCKED' || v == 'UNSAFE';
     }
   }
+}
+
+String _formatCategoryLabel(String category) {
+  final parts = category
+      .split('_')
+      .where((part) => part.trim().isNotEmpty)
+      .map((part) {
+        final lower = part.toLowerCase();
+        return '${lower[0].toUpperCase()}${lower.substring(1)}';
+      })
+      .toList();
+  return parts.join(' ');
 }

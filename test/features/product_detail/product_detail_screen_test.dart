@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:drift/drift.dart' show MigrationStrategy;
+import 'package:drift/drift.dart' show MigrationStrategy, driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,6 +66,14 @@ void main() {
     userDb = UserDatabase.memory();
   });
 
+  setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  });
+
+  tearDownAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = false;
+  });
+
   testWidgets(
     'score education sheet describes the core product score accurately',
     (tester) async {
@@ -115,6 +123,72 @@ void main() {
       expect(find.text('30 pts'), findsOneWidget);
       expect(find.text('20 pts'), findsOneWidget);
       expect(find.text('5 pts'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+  testWidgets(
+    'hero score teaser prefers penalty reason for review verdicts',
+    (tester) async {
+      final reviewDb = _FakeCoreDatabase(
+        const ProductsCoreData(
+          dsldId: 'TEST_DETAIL_REVIEW_001',
+          productName: 'Review Blend',
+          productStatus: 'active',
+          scoreQuality80: 51.0,
+          score100Equivalent: 64.0,
+          grade: 'C',
+          verdict: 'REVIEW',
+          mappedCoverage: 0.92,
+          primaryCategory: 'blend',
+          exportVersion: 'test',
+          exportedAt: '2026-04-26T00:00:00Z',
+        ),
+      );
+      final reviewUserDb = UserDatabase.memory();
+
+      await reviewUserDb.cacheDetail(
+        'TEST_DETAIL_REVIEW_001',
+        jsonEncode(<String, Object>{
+          'warnings': <Object>[],
+          'score_bonuses': <Object>[
+            {
+              'label': 'Third-party tested',
+            },
+          ],
+          'score_penalties': <Object>[
+            {
+              'label': 'Contains proprietary blend',
+            },
+          ],
+        }),
+        null,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(reviewDb),
+            userDatabaseProvider.overrideWithValue(reviewUserDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            fitScoreServiceProvider.overrideWith((ref) async {
+              throw UnimplementedError('No FitScore in test');
+            }),
+          ],
+          child: const MaterialApp(
+            home: ProductDetailScreen(dsldId: 'TEST_DETAIL_REVIEW_001'),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Why this score'), findsOneWidget);
+      expect(find.text('Contains proprietary blend'), findsOneWidget);
+      expect(find.text('Third-party tested'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
