@@ -23,6 +23,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
 import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
@@ -44,41 +45,95 @@ class StackScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('My stack'),
-          actions: const [ShareClinicianReportButton()],
-          bottom: TabBar(
-            labelColor: Theme.of(context).colorScheme.primary,
-            unselectedLabelColor:
-                Theme.of(context).colorScheme.onSurfaceVariant,
-            indicatorColor: Theme.of(context).colorScheme.primary,
-            indicatorSize: TabBarIndicatorSize.label,
-            dividerColor: Colors.transparent,
-            labelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.1,
+        body: NestedScrollView(
+          // Float-down bar so the frosted treatment fades away when the
+          // user scrolls a tab body up; reappears on scroll-down. Matches
+          // iOS Settings / Mail.
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            const PGFrostedAppBar(
+              title: 'My stack',
+              automaticallyImplyLeading: false, // tab root
+              actions: [ShareClinicianReportButton()],
             ),
-            unselectedLabelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w500,
-              letterSpacing: -0.1,
+            // Pinned TabBar directly under the frosted bar — same iOS
+            // Settings/Wallet pattern.
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StackTabBarDelegate(
+                tabBar: TabBar(
+                  labelColor: scheme.primary,
+                  unselectedLabelColor: scheme.onSurfaceVariant,
+                  indicatorColor: scheme.primary,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  dividerColor: Colors.transparent,
+                  labelStyle: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                  unselectedLabelStyle: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.1,
+                  ),
+                  tabs: const [
+                    Tab(text: 'Stack'),
+                    Tab(text: 'Wishlist'),
+                  ],
+                ),
+                background: scheme.surface,
+              ),
             ),
-            tabs: const [
-              Tab(text: 'Stack'),
-              Tab(text: 'Wishlist'),
+          ],
+          body: const TabBarView(
+            children: [
+              _StackTab(),
+              _WishlistTab(),
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [
-            _StackTab(),
-            _WishlistTab(),
-          ],
-        ),
       ),
     );
+  }
+}
+
+/// Pins the stack-tab TabBar directly under [PGFrostedAppBar] so the
+/// tab strip stays visible while either tab body scrolls. Background
+/// color matches the page material so the strip blends with the bar
+/// when the frosted treatment fades in on scroll.
+class _StackTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  final Color background;
+
+  const _StackTabBarDelegate({
+    required this.tabBar,
+    required this.background,
+  });
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: background,
+      elevation: 0,
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StackTabBarDelegate oldDelegate) {
+    return oldDelegate.tabBar != tabBar || oldDelegate.background != background;
   }
 }
 
