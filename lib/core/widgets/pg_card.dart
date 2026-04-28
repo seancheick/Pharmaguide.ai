@@ -3,20 +3,49 @@ import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 
 /// Variants for [PGCard].
+///
+/// ### App-wide surface tier system (4 tiers)
+///
+/// Every visible *standalone* surface on a screen must map to exactly one
+/// of these four tiers. Maintaining strict tiering is what gives the app
+/// its first-party feel — calm hierarchy, no competing surfaces, no
+/// bespoke `Container + BoxDecoration` for visible chrome.
+///
+/// | Tier | Variant | Cardinality | Use |
+/// |---|---|---|---|
+/// | **hero** | (bespoke gradient — not a PGCard variant) | **1 per screen** | The dominant primary action. e.g. home_scan_cta. |
+/// | **standard** | [plain] / [elevated] | many | Default for any standalone content card. |
+/// | **accent** | [highlighted] | **0–1 per screen** | A single soft brand-tinted nudge that wants attention but isn't blocking. |
+/// | **recessed** | [recessed] | many | Quieter content (empty states, supporting panels). |
+///
+/// **Cardinality rules** are part of the contract — more than one accent
+/// surface on a screen creates competing emphasis and is the most common
+/// way home pages drift toward "busy" instead of "premium". If you need a
+/// second emphasized surface, pick one and demote the other to [plain].
+///
+/// **Intra-card layout primitives** (a `Container` with `BoxDecoration`
+/// *inside* an already-tiered PGCard — section dividers, tinted info
+/// chips, metric strips) are NOT a fifth tier. They are layout building
+/// blocks of the parent card. The tier rule applies to standalone
+/// surfaces.
 enum PGCardVariant {
-  /// Standard card — `surfaceContainer` + soft outline. The default.
+  /// Standard tier (default) — `surfaceContainer` + soft outline. Use for
+  /// any standalone content card with no special emphasis.
   plain,
 
-  /// Same as plain but with a subtle drop shadow for content that should
-  /// feel physically above the page (featured items, hero panels).
+  /// Standard tier with subtle drop shadow — for content that should feel
+  /// physically above the page (featured items, hero panels).
   elevated,
 
-  /// Brand-tinted highlight — for the single most important callout on a
-  /// screen. No outline, brand primary at low alpha.
+  /// **Accent tier** — brand-tinted highlight. Reserved for the single
+  /// most important callout on a screen (max 1 per screen). No outline,
+  /// brand primary at low alpha. If you find yourself wanting two of
+  /// these on one screen, demote one to [plain].
   highlighted,
 
-  /// Recessed — `surfaceContainerLow`, no outline. Use for nested groupings
-  /// inside an existing card (settings rows, inline info panels).
+  /// **Recessed tier** — `surfaceContainerLow`, no outline. Use for
+  /// quieter supporting content (empty states, info panels, nested
+  /// groupings inside an existing card).
   recessed,
 }
 
