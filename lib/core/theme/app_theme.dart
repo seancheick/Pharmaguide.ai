@@ -1,5 +1,19 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+/// On iOS, returning `null` from `ThemeData.fontFamily` lets Flutter fall
+/// through to the system font (.SF Pro Display / .SF Pro Text with optical
+/// sizing built in by the OS), which is essentially indistinguishable from
+/// the look of a first-party Apple app. On Android we keep Inter — it
+/// reads better than Roboto for our editorial typography.
+///
+/// Inter and SF are very close metrically, so swapping per platform
+/// doesn't break layouts. Using SF on iOS is the cheapest "feels native"
+/// upgrade in the entire app — zero asset cost (the OS provides it) and
+/// zero runtime cost.
+String? get _platformFontFamily => Platform.isIOS ? null : 'Inter';
 
 /// PharmaGuide design system.
 ///
@@ -323,7 +337,7 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       canvasColor: background,
-      fontFamily: 'Inter',
+      fontFamily: _platformFontFamily,
       textTheme: textTheme,
       primaryTextTheme: textTheme,
       splashFactory: InkSparkle.splashFactory,
@@ -347,7 +361,7 @@ abstract final class AppTheme {
         iconTheme: IconThemeData(color: textPrimary, size: 22),
         actionsIconTheme: IconThemeData(color: textPrimary, size: 22),
         titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 18,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.25,
@@ -393,7 +407,7 @@ abstract final class AppTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: _platformFontFamily,
             fontSize: 11.5,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             letterSpacing: 0.1,
@@ -421,19 +435,19 @@ abstract final class AppTheme {
           vertical: space16,
         ),
         hintStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 15,
           fontWeight: FontWeight.w400,
           color: textTertiary,
         ),
         labelStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: textSecondary,
         ),
         floatingLabelStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: scheme.primary,
@@ -471,8 +485,8 @@ abstract final class AppTheme {
           foregroundColor: filledButtonFg,
           disabledBackgroundColor: surfaceHigh,
           disabledForegroundColor: textTertiary,
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
+          textStyle: TextStyle(
+            fontFamily: _platformFontFamily,
             fontSize: 15,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.1,
@@ -495,8 +509,8 @@ abstract final class AppTheme {
           minimumSize: const Size.fromHeight(52),
           foregroundColor: textPrimary,
           side: BorderSide(color: outline, width: 1.0),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
+          textStyle: TextStyle(
+            fontFamily: _platformFontFamily,
             fontSize: 15,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.1,
@@ -514,8 +528,8 @@ abstract final class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
+          textStyle: TextStyle(
+            fontFamily: _platformFontFamily,
             fontSize: 15,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.1,
@@ -544,14 +558,14 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(radiusFull),
         ),
         labelStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 13,
           fontWeight: FontWeight.w500,
           color: textPrimary,
           letterSpacing: -0.05,
         ),
         secondaryLabelStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: scheme.primary,
@@ -592,14 +606,14 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(radiusXLarge),
         ),
         titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 20,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.3,
           color: textPrimary,
         ),
         contentTextStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 15,
           fontWeight: FontWeight.w400,
           color: textSecondary,
@@ -610,7 +624,7 @@ abstract final class AppTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: scheme.onInverseSurface,
@@ -634,14 +648,14 @@ abstract final class AppTheme {
         iconColor: textSecondary,
         textColor: textPrimary,
         titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: textPrimary,
           height: 1.4,
         ),
         subtitleTextStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: _platformFontFamily,
           fontSize: 13,
           fontWeight: FontWeight.w400,
           color: textSecondary,
