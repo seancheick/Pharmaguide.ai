@@ -16,9 +16,9 @@ class HomeScanCta extends StatelessWidget {
     final scheme = theme.colorScheme;
     final darkerBrand = Color.lerp(scheme.primary, scheme.scrim, 0.25)!;
     // Dynamic Type clamp — the gradient card has a fixed icon well and
-    // right chevron, so unbounded text scaling breaks the layout. Cap
-    // the text scaler at 1.3x on this single hero surface; long body
-    // content on this screen still honors full Dynamic Type.
+    // right chevron that break before the app-wide 1.4x cap. Tighten to
+    // 1.3x on this hero surface specifically. The clamp composes with
+    // (not bypasses) the global cap defined at MaterialApp.builder.
     final clampedScaler = MediaQuery.textScalerOf(
       context,
     ).clamp(minScaleFactor: 1.0, maxScaleFactor: 1.3);
