@@ -68,17 +68,38 @@ const bundledInteractionDatabaseAssetPath =
 /// The bundled asset must be the exact release snapshot that shipped with the
 /// app. This path should never point to a partial/sample database in
 /// production.
+///
+/// **Replacement on bundle upgrade.** When a new release ships a new
+/// `assets/db/pharmaguide_core.db`, the existing on-disk copy from a prior
+/// install is stale. We detect this by comparing byte length — same length
+/// means we keep the existing file (cheap path, preserves any OTA-downloaded
+/// catalog that's a byte-identical match for the bundle), different length
+/// means we re-materialize from the bundled asset.
+///
+/// This mirrors the pattern used by [ensureInteractionDatabaseAvailable].
+/// Trade-off: in the rare case a user OTA-downloaded a catalog that's newer
+/// than the bundle they later install, this will regress them to the bundle
+/// version for one session — `_refreshCatalogIfNeeded` will detect the
+/// remote-is-newer state on next launch and re-stage the OTA download.
 Future<void> ensureCoreDatabaseAvailable({
   required String dbPath,
   AssetBundle? bundle,
 }) async {
   final dbFile = File(dbPath);
-  if (await dbFile.exists()) return;
+  final assetData =
+      await (bundle ?? rootBundle).load(bundledCoreDatabaseAssetPath);
+  final assetBytes = assetData.buffer
+      .asUint8List(assetData.offsetInBytes, assetData.lengthInBytes);
 
-  final data = await (bundle ?? rootBundle).load(bundledCoreDatabaseAssetPath);
-  final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+  if (await dbFile.exists()) {
+    final existingLength = await dbFile.length();
+    if (existingLength == assetBytes.lengthInBytes) {
+      return; // Up to date.
+    }
+  }
+
   await dbFile.parent.create(recursive: true);
-  await dbFile.writeAsBytes(bytes, flush: true);
+  await dbFile.writeAsBytes(assetBytes, flush: true);
 }
 
 Future<CoreDatabase> openCoreDatabase({

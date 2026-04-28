@@ -31,18 +31,45 @@ void main() {
       expect(await file.readAsBytes(), [1, 2, 3, 4]);
     });
 
-    test('does not overwrite an existing local database', () async {
-      final tempDir = await Directory.systemTemp.createTemp('pharmaguide-db');
-      addTearDown(() async => tempDir.delete(recursive: true));
+    test(
+      'keeps the on-disk database when its byte length matches the bundle',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp('pharmaguide-db');
+        addTearDown(() async => tempDir.delete(recursive: true));
 
-      final dbPath = '${tempDir.path}/pharmaguide_core.db';
-      final file = File(dbPath);
-      await file.writeAsBytes([9, 9, 9]);
+        final dbPath = '${tempDir.path}/pharmaguide_core.db';
+        final file = File(dbPath);
+        // Same length as the bundle below (4 bytes) — the byte-length check
+        // treats this as "already up to date" and leaves the file alone.
+        // This branch also protects an OTA-downloaded catalog whose bytes
+        // happen to match the bundled asset.
+        await file.writeAsBytes([9, 9, 9, 9]);
 
-      final bundle = _FakeAssetBundle(Uint8List.fromList([1, 2, 3, 4]));
-      await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: bundle);
+        final bundle = _FakeAssetBundle(Uint8List.fromList([1, 2, 3, 4]));
+        await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: bundle);
 
-      expect(await file.readAsBytes(), [9, 9, 9]);
-    });
+        expect(await file.readAsBytes(), [9, 9, 9, 9]);
+      },
+    );
+
+    test(
+      'replaces the on-disk database when the bundle has a different byte length',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp('pharmaguide-db');
+        addTearDown(() async => tempDir.delete(recursive: true));
+
+        final dbPath = '${tempDir.path}/pharmaguide_core.db';
+        final file = File(dbPath);
+        // Stale on-disk DB from a prior install (3 bytes). The bundle now
+        // ships a different size — the new logic must re-materialize the
+        // bundled asset so users get the fresh catalog after upgrade.
+        await file.writeAsBytes([9, 9, 9]);
+
+        final bundle = _FakeAssetBundle(Uint8List.fromList([1, 2, 3, 4]));
+        await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: bundle);
+
+        expect(await file.readAsBytes(), [1, 2, 3, 4]);
+      },
+    );
   });
 }

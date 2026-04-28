@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/app.dart';
@@ -24,6 +25,15 @@ const String _sentryEnv = String.fromEnvironment(
 const String _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 
 void main() async {
+  // Suppress Drift's "created multiple times" warning. We legitimately
+  // instantiate `CoreDatabase` twice during bootstrap: once for the live
+  // app instance (kept alive via Riverpod) and once briefly inside
+  // `SyncService._validateStagedDatabase` to verify a freshly-downloaded
+  // OTA file matches the version the manifest promised. The two instances
+  // point to different file paths and never run queries concurrently, so
+  // the warning is benign noise here.
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
   // Bootstrap Sentry first so it wraps everything below in a Sentry zone.
   // When SENTRY_DSN is empty, this degrades to a buffer-only init and simply
   // runs [_runApp]. No-op safe.
