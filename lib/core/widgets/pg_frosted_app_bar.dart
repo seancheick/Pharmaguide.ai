@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
-import 'package:pharmaguide/core/widgets/pg_pressable.dart';
+import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
 
 /// Apple-grade frosted app bar — sliver variant.
 ///
@@ -107,24 +107,14 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     Widget? leadingWidget = leading;
     if (leadingWidget == null && automaticallyImplyLeading) {
       final canPop = ModalRoute.of(context)?.canPop ?? false;
       if (canPop) {
-        leadingWidget = PGPressable(
+        leadingWidget = PGCircularIconButton(
+          icon: Icons.arrow_back_ios_new_rounded,
           onTap: () => Navigator.of(context).maybePop(),
-          pressedScale: 0.94,
-          child: SizedBox(
-            width: 40,
-            height: 40,
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 18,
-              color: scheme.onSurface,
-            ),
-          ),
         );
       }
     }
