@@ -369,6 +369,226 @@ haptic, matching the home scan CTA's pressedScale.
 Plan: docs/superpowers/plans/2026-04-28-app-wide-apple-grade.md (Task 0.1)"
 ```
 
+### Task 0.2: Build `PGCircularIconButton`
+
+**Why:** The reference screenshots show top-chrome icon buttons (back, share, overflow) as ~38pt **circular** buttons with subtle outline + faint drop shadow — Apple Maps / News / Photos pattern. Flat icon-only buttons don't read as premium. This primitive gets used in `PGFrostedAppBar`'s back slot and `actions:` slot, plus anywhere else we need a "floating-circle" tap target (e.g. dismiss buttons on Cupertino sheets).
+
+**Files:**
+- Create: `lib/core/widgets/pg_circular_icon_button.dart`
+- Create: `test/core/widgets/pg_circular_icon_button_test.dart`
+
+- [ ] **Step 1: Write failing tests**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
+
+void main() {
+  group('PGCircularIconButton', () {
+    testWidgets('renders icon centered in a circle', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PGCircularIconButton(
+              icon: Icons.ios_share_rounded,
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+      expect(find.byIcon(Icons.ios_share_rounded), findsOneWidget);
+    });
+
+    testWidgets('fires onTap once per tap', (tester) async {
+      int taps = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PGCircularIconButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              onTap: () => taps++,
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(PGCircularIconButton));
+      await tester.pumpAndSettle();
+      expect(taps, 1);
+    });
+
+    testWidgets('respects custom tone color', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PGCircularIconButton(
+              icon: Icons.delete_outline_rounded,
+              tone: Colors.red,
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+      final iconWidget = tester.widget<Icon>(find.byType(Icon));
+      expect(iconWidget.color, Colors.red);
+    });
+
+    testWidgets('respects custom size', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PGCircularIconButton(
+              icon: Icons.close_rounded,
+              size: 44,
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+      final container = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(PGCircularIconButton),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (container.constraints?.minWidth ?? container.decoration != null
+                ? 44.0
+                : 0.0),
+        44.0,
+      );
+    });
+  });
+}
+```
+
+- [ ] **Step 2: Run — expect FAIL** (file doesn't exist)
+
+```
+flutter test test/core/widgets/pg_circular_icon_button_test.dart
+```
+
+- [ ] **Step 3: Build the primitive**
+
+Create `lib/core/widgets/pg_circular_icon_button.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/widgets/pg_pressable.dart';
+
+/// Circular icon button — Apple Maps / News / Photos top-chrome pattern.
+///
+/// A ~38pt circular surface with a subtle outline + faint drop shadow,
+/// containing a centered icon. Used by [PGFrostedAppBar] for the
+/// leading back chevron and trailing actions, and anywhere else a
+/// "floating circle" tap target is wanted (modal dismiss, etc.).
+///
+/// Press feedback via [PGPressable]: scales to 0.92 (slightly deeper
+/// than the 0.96 default — small surface area benefits from more depth)
+/// with a light haptic.
+///
+/// ```dart
+/// PGCircularIconButton(
+///   icon: Icons.ios_share_rounded,
+///   onTap: () => _showShareSheet(context),
+/// )
+/// ```
+class PGCircularIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  /// Outer diameter. Default 38 — Apple's iOS top-chrome icon-button size.
+  final double size;
+
+  /// Override the icon color. Defaults to `colorScheme.onSurface`.
+  /// Pass a destructive red for "Remove" / "Delete" actions.
+  final Color? tone;
+
+  /// Whether to fire a tap haptic. Default true; pass false when the
+  /// destination already produces a haptic on first present (e.g. iOS
+  /// share sheet) to avoid double-tap.
+  final bool haptic;
+
+  const PGCircularIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.size = 38,
+    this.tone,
+    this.haptic = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final iconColor = tone ?? scheme.onSurface;
+    return PGPressable(
+      onTap: onTap,
+      pressedScale: 0.92,
+      haptic: haptic,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow.withValues(alpha: 0.85),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.5),
+            width: 0.5,
+          ),
+          // Subtle drop shadow — the "3D high-end" cue. Buttons hover
+          // very slightly above the page material.
+          boxShadow: [
+            BoxShadow(
+              color: scheme.shadow.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(icon, size: size * 0.48, color: iconColor),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Run tests — expect PASS**
+
+- [ ] **Step 5: Update `PGFrostedAppBar` to use `PGCircularIconButton`**
+
+In `lib/core/widgets/pg_frosted_app_bar.dart`, replace the inline back-chevron `PGPressable` with:
+
+```dart
+leadingWidget = PGCircularIconButton(
+  icon: Icons.arrow_back_ios_new_rounded,
+  onTap: () => Navigator.of(context).maybePop(),
+);
+```
+
+The actions slot already accepts `List<Widget>` — callers (e.g. B.3b) pass `PGCircularIconButton` instances directly.
+
+- [ ] **Step 6: Run analyze + commit**
+
+```bash
+flutter analyze
+git add lib/core/widgets/pg_circular_icon_button.dart \
+  test/core/widgets/pg_circular_icon_button_test.dart \
+  lib/core/widgets/pg_frosted_app_bar.dart
+git commit -m "feat(core): PGCircularIconButton — premium top-chrome tap target
+
+Apple Maps / News / Photos pattern: ~38pt circular surface, subtle
+outline, faint drop shadow, centered icon. Replaces flat icon buttons
+in PGFrostedAppBar's back + actions slots. The drop shadow is the '3D
+high-end' cue that makes the chrome feel like physical objects floating
+above the page material instead of flat-painted glyphs.
+
+PressedScale 0.92 (vs. the 0.96 default for content cards) — small
+surface area, deeper feedback feels right.
+
+Plan: docs/superpowers/plans/2026-04-28-app-wide-apple-grade.md (Task 0.2)"
+```
+
 ---
 
 ## Phase A — Tab destinations (highest visual-impact)
@@ -867,31 +1087,26 @@ Widget build(BuildContext context, WidgetRef ref) {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (brandName.isNotEmpty) ...[
+                  // Inline dot-separated subtitle — Apple Health / App
+                  // Store pattern: `Brand · Form · Dose`. Renders only the
+                  // segments that have data (no orphan dots). Replaces
+                  // the prior brand-on-line-1, formFactor-on-line-2 stack
+                  // which felt list-like rather than premium.
+                  if (_hasAnySubtitle(brandName, formFactor, servingDose)) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      brandName,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: 14,
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                    Text.rich(
+                      _buildSubtitleSpan(
+                        context: context,
+                        brand: brandName,
+                        form: formFactor,
+                        dose: servingDose,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  if (formFactor.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      formFactor,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 14,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
                   if (dietaryTags.isNotEmpty) ...[
-                    const SizedBox(height: AppTheme.space8),
+                    const SizedBox(height: AppTheme.space12),
                     _HeroTrustChips(tags: dietaryTags),
                   ],
                 ],
@@ -1043,7 +1258,7 @@ Widget build(BuildContext context, WidgetRef ref) {
 }
 ```
 
-Add helper at file scope (or top of `_HeaderSection`):
+Add helpers at file scope (or top of `_HeaderSection`):
 
 ```dart
 /// "B • Good", "A- • Recommended", etc. — the grade plus the
@@ -1052,6 +1267,109 @@ String _gradeDescriptionLine(String grade, String verdict) {
   final label = VerdictBadge.labelFor(verdict);
   return '$grade  ·  $label';
 }
+
+/// True when at least one subtitle segment has content. Skip rendering
+/// the subtitle row entirely when all three are empty (rather than
+/// rendering an empty SizedBox).
+bool _hasAnySubtitle(String brand, String form, String? dose) =>
+    brand.isNotEmpty || form.isNotEmpty || (dose != null && dose.isNotEmpty);
+
+/// Builds the dot-separated subtitle: `Thorne · 60 Capsules · 135 mg
+/// per serving`. Drops orphan dots — if `brand` is empty but `form`
+/// is present, the result starts with `form`, not ` · form`.
+TextSpan _buildSubtitleSpan({
+  required BuildContext context,
+  required String brand,
+  required String form,
+  String? dose,
+}) {
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final segments = <String>[
+    if (brand.isNotEmpty) brand,
+    if (form.isNotEmpty) form,
+    if (dose != null && dose.isNotEmpty) dose,
+  ];
+  final joined = segments.join('  ·  ');
+  return TextSpan(
+    text: joined,
+    style: theme.textTheme.bodyMedium?.copyWith(
+      fontSize: 14,
+      color: scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.05,
+    ),
+  );
+}
+```
+
+**Note on `servingDose`**: this third segment is the lead ingredient's dose (e.g. `'135 mg per serving'`). It is NOT currently a top-level field on the product blob — derive from `ingredients[0].dose` if available; pass `null` if not. The reference shows it; ship without it on day one if the data path is gnarly, then add as a follow-up. Treat it as nullable throughout: `_HeaderSection.servingDose` is `String?` with default null.
+
+**Replace `_HeroMetaPill` usage in `_HeroTrustChips` with new outline-only chip widget.** The reference uses outlined pills with no icon — Apple's iOS chip style (App Store, Apple Music, App Library). Filled pills with icons read as Material / Android. Add the new widget at file scope:
+
+```dart
+/// Outline-only trust chip used in the product hero. No fill, no icon
+/// — just a clean text pill with a primary-tinted border. Matches the
+/// reference's `Vegan / Gluten-Free / NSF Certified` styling.
+///
+/// Certifications use brand primary; dietary tags use the success
+/// green so the eye reads "certified" as a louder signal than a tag.
+class _HeroTrustChipOutline extends StatelessWidget {
+  final String label;
+  final bool isCertification;
+
+  const _HeroTrustChipOutline({
+    required this.label,
+    required this.isCertification,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tone = isCertification ? scheme.primary : AppTheme.scoreExcellent;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: tone.withValues(alpha: 0.55),
+          width: 1.0,
+        ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: tone,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.1,
+        ),
+      ),
+    );
+  }
+}
+```
+
+Update `_HeroTrustChips.build` to use the new outline chip:
+
+```dart
+return Wrap(
+  spacing: 8,
+  runSpacing: 8,
+  children: [
+    ...visible.map(
+      (tag) => _HeroTrustChipOutline(
+        label: tag.label,
+        isCertification: tag.isCertification,
+      ),
+    ),
+    if (overflow > 0)
+      _HeroTrustChipOutline(
+        label: '+$overflow more',
+        isCertification: false,
+      ),
+  ],
+);
 ```
 
 - [ ] **Step 5: Build `_HeroVerdictBanner` (extracted widget)**
@@ -1239,9 +1557,11 @@ the sequence."
 
 This is the smaller, mechanical follow-up to B.3a. Two moves:
 
-- [ ] **Step 1: Replace SliverAppBar with PGFrostedAppBar (share button on top)**
+- [ ] **Step 1: Replace SliverAppBar with PGFrostedAppBar (circular share button on top)**
 
-Per the user direction: drop the floating "Scan Another" idea (the bottom nav makes it redundant — to scan again the user just taps the Scan tab or swipes back). Move the share affordance to the top right of the frosted app bar where it belongs in iOS apps (Photos, Safari, Wallet all put share in the top trailing slot).
+Per user direction: drop the floating "Scan Another" idea (the bottom nav makes it redundant — to scan again the user just taps the Scan tab or swipes back). Move the share affordance to the top right of the frosted app bar where it belongs in iOS apps (Photos, Safari, Wallet all put share in the top trailing slot). Use the new `PGCircularIconButton` (Phase 0.2) so the share button matches the reference's premium circular-button styling — subtle outline, faint drop shadow, icon centered. Apple Maps / News pattern.
+
+The leading back chevron is automatically rendered as a `PGCircularIconButton` by `PGFrostedAppBar` (Phase 0.1 + 0.2 wired this internally) when the route can pop — no need to pass `leading:` here.
 
 ```dart
 // Replace the existing SliverAppBar (around lines 341–365) with:
@@ -1251,20 +1571,23 @@ PGFrostedAppBar(
   // in the app bar would compete. iOS App Store uses the same trick.
   title: '',
   actions: [
-    PGPressable(
+    PGCircularIconButton(
+      icon: Icons.ios_share_rounded,
       onTap: () => _onShare(context, product),
-      pressedScale: 0.94,
-      haptic: false, // share sheet has its own iOS haptic on present
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Icon(
-          Icons.ios_share_rounded,
-          size: 22,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
+      // Skip haptic — the iOS share sheet fires its own haptic on
+      // present; firing one here would double-tap the user.
+      haptic: false,
     ),
+    // Optional follow-up: a 3-dot overflow menu (Save, Report,
+    // Mark-as-taken). Defer until we have a confirmed product
+    // decision on which secondary actions belong here. Adding it
+    // empty just to match the reference's three buttons would
+    // pollute the chrome.
+    //
+    // PGCircularIconButton(
+    //   icon: Icons.more_horiz_rounded,
+    //   onTap: () => _showProductOptionsSheet(context, product),
+    // ),
   ],
 ),
 ```
@@ -1798,27 +2121,28 @@ Add `Sprint 27.21: App-wide Apple-grade polish` entry above 27.20 with the full 
 | Priority | Task | Why this rank |
 |---|---|---|
 | 1  | **Phase 0.1** — Build PGFrostedAppBar | Every Phase A/B task depends on it |
-| 2  | **A.1** — Stack frosted bar | Highest-traffic tab; biggest user-visible win |
-| 3  | **A.2** — Settings 3-pack | Whole Profile tab elevates in one commit |
-| 4  | **A.3** — Scanner overlay | Quick win; user sees it on every scan |
-| 5  | **B.1** — Profile Setup | First-launch users see this; high impression weight |
-| 6  | **B.2** — Quick Check | Cross-app consistency |
-| 7  | **B.3a** — Product Detail Apple Altar hero | Highest-impact single visual change in the app — restructured hero, safety-override verdict, 96-pt centered ring |
-| 8  | **B.3b** — Product Detail frosted app bar + sections audit | Mechanical follow-up after the altar lands |
-| 9  | **C.1** — PGModal sweep | Touches many files; do as a batch |
-| 10 | **C.2** — Adaptive controls | Low-risk grep-and-replace |
-| 11 | **C.3** — Motion-token sweep | Stylistic; do after structural moves are stable |
-| 12 | **D.1** — Extract PGAdaptiveBackButton | Refactor only |
-| 13 | **D.2** — Empty-state audit | Polish on polish |
-| 14 | **F.0** — Data availability audit | **Gates F.1–F.6** — must run before any data-viz primitive is built |
-| 15 | **F.1** — PGDonutChart primitive | Standalone widget; can build in parallel with F.2/F.3 once F.0 greenlit |
-| 16 | **F.2** — PGPillarBar primitive | Same — parallelizable |
-| 17 | **F.3** — PGIngredientAtom primitive | Same — parallelizable |
-| 18 | **F.4** — Quality Score card | Composes F.1 + F.2; product-detail integration |
-| 19 | **F.5** — "For You" card | Independent of F.1–F.3 — could ship earlier |
-| 20 | **F.6** — Atom-style ingredients row | Composes F.3; product-detail integration |
-| 21 | **E.1** — Cross-screen smoke tests | Run continuously; finalize at the end |
-| 22 | **E.2** — Final verify + tracker | Sprint-close |
+| 2  | **Phase 0.2** — Build PGCircularIconButton | Premium circular top-chrome button; gets wired into PGFrostedAppBar's back + actions slots |
+| 3  | **A.1** — Stack frosted bar | Highest-traffic tab; biggest user-visible win |
+| 4  | **A.2** — Settings 3-pack | Whole Profile tab elevates in one commit |
+| 5  | **A.3** — Scanner overlay | Quick win; user sees it on every scan |
+| 6  | **B.1** — Profile Setup | First-launch users see this; high impression weight |
+| 7  | **B.2** — Quick Check | Cross-app consistency |
+| 8  | **B.3a** — Product Detail Apple Altar hero | Highest-impact single visual change in the app — restructured hero, safety-override verdict, 96-pt centered ring, inline subtitle, outline trust chips |
+| 9  | **B.3b** — Product Detail frosted app bar + circular share + sections audit | Mechanical follow-up after the altar lands |
+| 10 | **C.1** — PGModal sweep | Touches many files; do as a batch |
+| 11 | **C.2** — Adaptive controls | Low-risk grep-and-replace |
+| 12 | **C.3** — Motion-token sweep | Stylistic; do after structural moves are stable |
+| 13 | **D.1** — Extract PGAdaptiveBackButton | Refactor only (now redundant if Phase 0.2 ships first — fold into 0.2 if so) |
+| 14 | **D.2** — Empty-state audit | Polish on polish |
+| 15 | **F.0** — Data availability audit | **Gates F.1–F.6** — must run before any data-viz primitive is built |
+| 16 | **F.1** — PGDonutChart primitive | Standalone widget; can build in parallel with F.2/F.3 once F.0 greenlit |
+| 17 | **F.2** — PGPillarBar primitive | Same — parallelizable |
+| 18 | **F.3** — PGIngredientAtom primitive | Same — parallelizable |
+| 19 | **F.4** — Quality Score card | Composes F.1 + F.2; product-detail integration |
+| 20 | **F.5** — "For You" card | Independent of F.1–F.3 — could ship earlier |
+| 21 | **F.6** — Atom-style ingredients row | Composes F.3; product-detail integration |
+| 22 | **E.1** — Cross-screen smoke tests | Run continuously; finalize at the end |
+| 23 | **E.2** — Final verify + tracker | Sprint-close |
 
 **Estimated effort:**
 - **Phase 0 + A + B + C + D + E** (without data viz): 8–12 hours
@@ -1848,7 +2172,7 @@ Two execution options:
 1. **Subagent-Driven** (recommended for this scale) — fresh subagent per task, two-stage review between tasks, fast iteration. Good fit because Phase 0 + Phase A + B.3a are tightly sequenced (each depends on the previous), but Phase C and Phase F.1–F.3 tasks can be parallelized.
 2. **Inline Execution** — run tasks in this session with checkpoints between phases for review. Good fit if you want to feel the simulator after each migration before moving to the next — especially useful for B.3a (the altar) where the visual change is dramatic.
 
-Total tasks: 1 (Phase 0) + 3 (A) + 4 (B — including B.3a/B.3b split) + 3 (C) + 2 (D) + 7 (F — gated audit + 6 build tasks) + 2 (E) = **22 tasks**, ~40–50 commits, 14–22 hours.
+Total tasks: 2 (Phase 0 — PGFrostedAppBar + PGCircularIconButton) + 3 (A) + 4 (B — including B.3a/B.3b split) + 3 (C) + 2 (D) + 7 (F — gated audit + 6 build tasks) + 2 (E) = **23 tasks**, ~40–50 commits, 14–22 hours.
 
 **Recommended execution path:**
 - **Sprint 1 (10–14 hrs)**: 0.1 → A.1 → A.2 → A.3 → B.1 → B.2 → **B.3a (the altar)** → B.3b → C.1 → C.2 → C.3 → D.1 → D.2 → E.1 → E.2
