@@ -33,7 +33,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        find.textContaining(RegExp('Good (morning|afternoon|evening)')),
+        find.textContaining(
+          RegExp('Good morning|Hello there|Good evening|Good night'),
+        ),
         findsOneWidget,
       );
 

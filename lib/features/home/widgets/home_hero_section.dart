@@ -16,11 +16,23 @@ class HomeHeroSection extends StatelessWidget {
     'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
   ];
 
-  String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+  /// Time-of-day greeting copy, exposed as a static pure function so the
+  /// boundary hours can be unit-tested without rendering the widget.
+  ///
+  /// Bands:
+  /// - 05:00–11:59 → `Good morning`
+  /// - 12:00–16:59 → `Hello there`  (intentionally not "Good afternoon" —
+  ///   product decision to use a warmer, less formal mid-day copy)
+  /// - 17:00–20:59 → `Good evening`
+  /// - 21:00–04:59 → `Good night`
+  ///
+  /// [hour] should be a 24-hour value (0..23) — typically `DateTime.now().hour`.
+  @visibleForTesting
+  static String greetingFor(int hour) {
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Hello there';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
   }
 
   @override
@@ -48,7 +60,7 @@ class HomeHeroSection extends StatelessWidget {
         const SizedBox(height: AppTheme.space12),
         // Greeting — large, tight letter-spacing
         Text(
-          '${_greeting()}$name.',
+          '${greetingFor(DateTime.now().hour)}$name.',
           style: theme.textTheme.headlineLarge?.copyWith(
             fontSize: 30,
             fontWeight: FontWeight.w700,
