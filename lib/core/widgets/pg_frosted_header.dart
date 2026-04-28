@@ -68,6 +68,14 @@ class PGFrostedHeader extends StatelessWidget {
         final fillAlpha = (isDark ? 0.72 : 0.78) * p;
         // Hairline alpha — fades in alongside the fill.
         final hairlineAlpha = 0.6 * p;
+        // Dark-mode-only top glint — a faint white inner-edge that
+        // simulates light catching the top of frosted glass. iOS
+        // Settings / Wallet / Music all do this in dark mode and the
+        // surface looks flat without it. 4% white is enough to read as
+        // refractive without crossing into "decorative". Fades with
+        // scrollProgress so the edge only appears once the surface is
+        // actually frosted.
+        final glintAlpha = isDark ? 0.04 * p : 0.0;
 
         return ClipRect(
           child: BackdropFilter(
@@ -79,6 +87,12 @@ class PGFrostedHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.surface.withValues(alpha: fillAlpha),
                 border: Border(
+                  top: glintAlpha > 0
+                      ? BorderSide(
+                          color: Colors.white.withValues(alpha: glintAlpha),
+                          width: 0.5,
+                        )
+                      : BorderSide.none,
                   bottom: BorderSide(
                     color:
                         scheme.outlineVariant.withValues(alpha: hairlineAlpha),

@@ -110,5 +110,64 @@ void main() {
       await tester.pump();
       expect(find.byType(PGFrostedHeader), findsOneWidget);
     });
+
+    testWidgets('dark mode renders a faint white top-edge glint', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: Brightness.dark),
+          home: const Scaffold(
+            body: PGFrostedHeader(
+              scrollProgress: 1.0,
+              child: SizedBox(width: 200, height: 56),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final boxes = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .toList();
+      // Find the box rendered by PGFrostedHeader — it has both a non-zero
+      // bottom border (hairline) and the glint we want to assert.
+      final ourBox = boxes.firstWhere(
+        (b) => (b.decoration as BoxDecoration).border != null,
+      );
+      final border = (ourBox.decoration as BoxDecoration).border as Border;
+      expect(border.top.color.r, 1.0,
+          reason: 'glint should be white-channel');
+      expect(border.top.color.g, 1.0);
+      expect(border.top.color.b, 1.0);
+      expect(border.top.color.a, greaterThan(0.0),
+          reason: 'glint alpha should be > 0 at scrollProgress 1');
+      expect(border.top.color.a, lessThan(0.10),
+          reason: 'glint should be subtle (< 10% white)');
+    });
+
+    testWidgets('light mode does NOT render the glint (no top border)',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: Brightness.light),
+          home: const Scaffold(
+            body: PGFrostedHeader(
+              scrollProgress: 1.0,
+              child: SizedBox(width: 200, height: 56),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final boxes = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .toList();
+      final ourBox = boxes.firstWhere(
+        (b) => (b.decoration as BoxDecoration).border != null,
+      );
+      final border = (ourBox.decoration as BoxDecoration).border as Border;
+      expect(border.top, BorderSide.none,
+          reason: 'glint is dark-mode-only; light mode keeps top edge clean');
+    });
   });
 }
