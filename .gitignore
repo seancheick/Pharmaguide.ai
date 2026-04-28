@@ -45,6 +45,9 @@ pubspec.lock
 .opencode/
 *.DS_Store
 
+# Codex local skills cache
+.codex/
+
 # Flutter golden-test failure output — regenerated on every failing run,
 # not a tracked artifact. Keep the baseline goldens (test/**/goldens/)
 # but never commit the diff/master/test PNGs that land under failures/.
