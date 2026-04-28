@@ -57,7 +57,10 @@ void main() {
           ),
         ),
       );
-      await tester.pump();
+      // PGFrostedHeader internally uses TweenAnimationBuilder to crossfade
+      // alpha when scrollProgress changes; pumpAndSettle drives the tween
+      // to its end value so we can assert the final fill opacity.
+      await tester.pumpAndSettle();
 
       // Find the DecoratedBox that PGFrostedHeader renders inside its
       // BackdropFilter. Its color alpha should track the scrollProgress.

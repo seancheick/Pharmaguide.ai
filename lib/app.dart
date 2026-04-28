@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
@@ -100,6 +103,17 @@ class CatalogUnavailableScreen extends StatelessWidget {
   }
 }
 
+/// Returns a [Page] that maps to the platform's idiomatic page transition:
+/// [CupertinoPage] on iOS (slide-from-right + edge-swipe-back gesture)
+/// and [MaterialPage] elsewhere (Android slide-up / fade). Used by
+/// sub-page routes so iOS users get the swipe-back-from-edge gesture
+/// they expect from every other native iOS app.
+Page<dynamic> _platformPage(GoRouterState state, Widget child) {
+  return Platform.isIOS
+      ? CupertinoPage<void>(key: state.pageKey, child: child)
+      : MaterialPage<void>(key: state.pageKey, child: child);
+}
+
 GoRouter _buildRouter({
   required bool catalogAvailable,
   required bool hasSeenOnboarding,
@@ -139,32 +153,45 @@ GoRouter _buildRouter({
       // Sub-pages live outside the shell — they have their own app bar with
       // back button and (for product detail) a sticky action bar. Nesting
       // them inside the shell causes double-Scaffold conflicts.
+      //
+      // Use pageBuilder + _platformPage for routes that should support
+      // iOS swipe-back-from-edge (Apple HIG default for stack navigation).
+      // Onboarding intentionally stays Material — it's a linear flow and
+      // swipe-back would let users escape it before completing.
       GoRoute(
         path: Routes.onboarding,
         builder: (_, __) => const OnboardingScreen(),
       ),
       GoRoute(
         path: Routes.profileSetup,
-        builder: (_, __) => const ProfileSetupScreen(),
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProfileSetupScreen()),
       ),
       GoRoute(
         path: Routes.search,
-        builder: (_, state) => catalogRoute(
-          SearchScreen(
-            initialCategory: state.uri.queryParameters['category'],
-            initialQuery: state.uri.queryParameters['query'],
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          catalogRoute(
+            SearchScreen(
+              initialCategory: state.uri.queryParameters['category'],
+              initialQuery: state.uri.queryParameters['query'],
+            ),
           ),
         ),
       ),
       GoRoute(
         path: Routes.quickCheck,
-        builder: (_, __) => catalogRoute(const QuickCheckScreen()),
+        pageBuilder: (_, state) =>
+            _platformPage(state, catalogRoute(const QuickCheckScreen())),
       ),
       GoRoute(
         path: '${Routes.product}/:dsldId',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final dsldId = state.pathParameters['dsldId'] ?? '';
-          return catalogRoute(ProductDetailScreen(dsldId: dsldId));
+          return _platformPage(
+            state,
+            catalogRoute(ProductDetailScreen(dsldId: dsldId)),
+          );
         },
       ),
     ],
