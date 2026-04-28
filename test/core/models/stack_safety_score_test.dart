@@ -97,5 +97,37 @@ void main() {
         StackHealthLabel.solid,
       );
     });
+
+    // Boundary lock — monitor cap fires exactly at the optimized cutoff
+    // (score >= 85). Score 85 is in the optimized band, so the cap should
+    // demote it to solid. Score 84 is already in the solid band, so the
+    // cap is a no-op there. Score 86 with no monitor issues stays
+    // optimized (regression guard against the cap leaking into clean
+    // stacks).
+    test('monitor cap fires exactly at the optimized boundary (score 85)',
+        () {
+      expect(
+        buildScore(85, issues: [_issue(Severity.monitor)]).healthLabel,
+        StackHealthLabel.solid,
+        reason: 'score 85 is optimized → monitor caps it to solid',
+      );
+    });
+
+    test('monitor cap is a no-op below the optimized boundary (score 84)',
+        () {
+      expect(
+        buildScore(84, issues: [_issue(Severity.monitor)]).healthLabel,
+        StackHealthLabel.solid,
+        reason: 'score 84 is already solid; monitor cap leaves it unchanged',
+      );
+    });
+
+    test('clean stack at score 86 stays optimized (cap does not leak)', () {
+      expect(
+        buildScore(86).healthLabel,
+        StackHealthLabel.optimized,
+        reason: 'no caps apply → score 86 remains optimized',
+      );
+    });
   });
 }
