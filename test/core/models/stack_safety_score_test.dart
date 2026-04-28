@@ -1,5 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_safety_score.dart';
+
+InteractionResult _issue(Severity severity) => InteractionResult(
+      id: 'test',
+      type: InteractionType.supplementSupplement,
+      severity: severity,
+      evidenceLevel: EvidenceLevel.established,
+      agent1Name: 'A',
+      agent2Name: 'B',
+      mechanism: '',
+      management: '',
+      doseDependant: false,
+      doseThreshold: null,
+      sourceUrls: const [],
+      source: InteractionSource.stackEngine,
+    );
 
 void main() {
   group('RiskTier', () {
@@ -21,6 +38,64 @@ void main() {
       expect(RiskTier.fromScore(40), RiskTier.moderateRisk);
       expect(RiskTier.fromScore(39), RiskTier.highRisk);
       expect(RiskTier.fromScore(0), RiskTier.highRisk);
+    });
+  });
+
+  group('StackHealthLabel', () {
+    StackSafetyScore buildScore(
+      int score, {
+      List<InteractionResult> issues = const [],
+    }) {
+      return StackSafetyScore(
+        score: score,
+        riskTier: RiskTier.fromScore(score),
+        issues: issues,
+        synergies: const [],
+        optimizations: const [],
+      );
+    }
+
+    test('uses score bands when no safety caps apply', () {
+      expect(buildScore(92).healthLabel, StackHealthLabel.optimized);
+      expect(buildScore(78).healthLabel, StackHealthLabel.solid);
+      expect(buildScore(60).healthLabel, StackHealthLabel.decent);
+      expect(buildScore(42).healthLabel, StackHealthLabel.concerning);
+    });
+
+    test('unsafe severities override score', () {
+      expect(
+        buildScore(96, issues: [_issue(Severity.avoid)]).healthLabel,
+        StackHealthLabel.unsafe,
+      );
+      expect(
+        buildScore(
+          96,
+          issues: [_issue(Severity.contraindicated)],
+        ).healthLabel,
+        StackHealthLabel.unsafe,
+      );
+    });
+
+    test('caution caps optimistic labels at decent', () {
+      expect(
+        buildScore(88, issues: [_issue(Severity.caution)]).healthLabel,
+        StackHealthLabel.decent,
+      );
+      expect(
+        buildScore(72, issues: [_issue(Severity.caution)]).healthLabel,
+        StackHealthLabel.decent,
+      );
+    });
+
+    test('monitor caps optimized at solid only', () {
+      expect(
+        buildScore(90, issues: [_issue(Severity.monitor)]).healthLabel,
+        StackHealthLabel.solid,
+      );
+      expect(
+        buildScore(72, issues: [_issue(Severity.monitor)]).healthLabel,
+        StackHealthLabel.solid,
+      );
     });
   });
 }

@@ -212,10 +212,8 @@ class _StackSummaryCard extends ConsumerWidget {
     final medicationCount =
         stack.where((e) => e.type == 'medication').length;
 
-    // Stack Health score — same computation used by the home screen
-    // widget (StackSafetyScorer over the stackSafetyReportProvider).
-    // Using the same source of truth guarantees the two screens never
-    // disagree on the stack's health number.
+    // Shared stack-health computation — same source of truth used by the home
+    // card so both screens stay aligned on the user's current stack status.
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
     final safetyScore = reportAsync.whenOrNull(
@@ -246,8 +244,9 @@ class _StackSummaryCard extends ConsumerWidget {
       },
     );
 
-    // The score for the ring: prefer safety score (same as homepage).
-    // If still loading, show a shimmering ring with "Analyzing stack…".
+    // Keep the ring here for the fuller Stack view; Home uses the status label
+    // more prominently. If still loading, show a shimmering ring with
+    // "Analyzing stack…".
     final score = safetyScore?.score.toDouble();
     final isAnalyzing = reportAsync.isLoading || synergyAsync.isLoading;
 
@@ -273,7 +272,7 @@ class _StackSummaryCard extends ConsumerWidget {
                       isAnalyzing
                           ? 'Analyzing stack\u2026'
                           : safetyScore != null
-                              ? _safetyLabel(safetyScore.score)
+                              ? safetyScore.healthLabel.label
                               : 'No data yet',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
@@ -289,7 +288,7 @@ class _StackSummaryCard extends ConsumerWidget {
                     if (safetyScore != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Safety tier: ${safetyScore.riskTier.label}',
+                        'Status: ${safetyScore.healthLabel.label}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
@@ -340,16 +339,6 @@ class _StackSummaryCard extends ConsumerWidget {
     if (total <= 6) return 'Moderate — watch for nutrient overlap';
     if (total <= 10) return 'Heavy — review interactions carefully';
     return 'Very heavy — consult a healthcare provider';
-  }
-
-  /// Label mirrors the same score semantics as the homepage Stack Health.
-  /// Score is derived from interactions + synergies via [StackSafetyScorer].
-  static String _safetyLabel(int score) {
-    if (score >= 85) return 'Stack looks great';
-    if (score >= 70) return 'Stack is mostly safe';
-    if (score >= 55) return 'Mind your interactions';
-    if (score >= 40) return 'Review your stack';
-    return 'Consult a provider';
   }
 }
 

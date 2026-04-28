@@ -24,6 +24,22 @@ enum RiskTier {
   }
 }
 
+enum StackHealthLabel {
+  optimized(label: 'Optimized', color: Color(0xFF0F9D7A)),
+  solid(label: 'Solid', color: Color(0xFF22C55E)),
+  decent(label: 'Decent', color: Color(0xFFF59E0B)),
+  concerning(label: 'Concerning', color: Color(0xFFF97316)),
+  unsafe(label: 'Unsafe', color: Color(0xFFDC2626));
+
+  final String label;
+  final Color color;
+
+  const StackHealthLabel({
+    required this.label,
+    required this.color,
+  });
+}
+
 class StackSafetyScore {
   final int score;
   final RiskTier riskTier;
@@ -47,4 +63,38 @@ class StackSafetyScore {
 
   int get monitorCount =>
       issues.where((i) => i.severity == Severity.monitor).length;
+
+  Severity get maxSeverity {
+    Severity highest = Severity.safe;
+    for (final issue in issues) {
+      if (issue.severity.weight > highest.weight) highest = issue.severity;
+    }
+    return highest;
+  }
+
+  bool get hasUnsafeIssue =>
+      maxSeverity == Severity.contraindicated ||
+      maxSeverity == Severity.avoid;
+
+  StackHealthLabel get healthLabel {
+    if (hasUnsafeIssue) return StackHealthLabel.unsafe;
+
+    var label = switch (score) {
+      >= 85 => StackHealthLabel.optimized,
+      >= 70 => StackHealthLabel.solid,
+      >= 55 => StackHealthLabel.decent,
+      _ => StackHealthLabel.concerning,
+    };
+
+    if (maxSeverity == Severity.caution &&
+        (label == StackHealthLabel.optimized ||
+            label == StackHealthLabel.solid)) {
+      label = StackHealthLabel.decent;
+    } else if (maxSeverity == Severity.monitor &&
+        label == StackHealthLabel.optimized) {
+      label = StackHealthLabel.solid;
+    }
+
+    return label;
+  }
 }
