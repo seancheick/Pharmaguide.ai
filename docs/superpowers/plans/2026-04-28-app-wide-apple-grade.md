@@ -714,28 +714,566 @@ git commit -m "feat(quick-check): frosted bar + tactile suggestions + verdict ha
   banner first mounts — user feels the verdict before reading it"
 ```
 
-### Task B.3: Product Detail — SliverAppBar frosting + section consistency
+### Task B.3a: Product Detail — "Apple Altar" hero refactor
+
+**Why:** The current `_HeaderSection` (`product_detail_screen.dart:1301–1551`) is a two-row card with a 56-pt thumbnail + cramped score-row that visibly squeezes on a 320-pt iPhone SE. The score ring competes with verdict-text-and-pills for the same horizontal space; the trust chips, FitScore badge, and "View Supplement Label" button all stack as afterthoughts. Rebuild it as a single elevated PGCard with a horizontal identity row at the top and a centered vertical "altar" below — the Apple Health / Oura clinical-detail pattern. Score becomes a 96-pt focal point. Verdict becomes a full-width safety-aware banner (so a stack interaction overrides "Good match for sleep" with "Avoid with metformin" — medical-grade priority).
 
 **Files:**
-- Modify: `lib/features/product_detail/product_detail_screen.dart`
+- Modify: `lib/features/product_detail/product_detail_screen.dart` — `_HeaderSection`, `_HeroScoreReason`, `_HeroMetaPill`, `_HeroTrustChips`, `_BlockedBanner` if needed
+- Possibly create: `lib/features/product_detail/widgets/hero_verdict_banner.dart` (extract for testability)
+- Possibly create: `lib/features/product_detail/providers/hero_verdict_provider.dart` (the safety-override decision)
 
-The audit said this screen is structurally solid. Two surgical polish moves:
+- [ ] **Step 1: Read full current hero (`_HeaderSection`) and confirm what changes**
 
-- [ ] **Step 1: Replace the SliverAppBar with PGFrostedAppBar (or frost the existing SliverAppBar)**
+Before writing code, run `Read` on `product_detail_screen.dart` at offset 1300, limit 250. Map every existing element to its new home in the altar layout. Confirm: `ProductImage`, title/brand/form column, `_ScoreRingButton`, `VerdictBadge`, percentile text, grade pill (`_HeroMetaPill`), "Limited data" pill, `_HeroScoreReason` banner, `PGFitScoreBadge` row, `_HeroTrustChips`, "View Supplement Label" outline button, `_BlockedBanner` (when blocked).
 
-The audit found a `SliverAppBar` at lines 341–365. Two approaches:
+- [ ] **Step 2: Build the safety-override verdict provider**
 
-(A) Drop-in replace with `PGFrostedAppBar(title: product.name, actions: [shareButton])`. Loses the SliverAppBar's `flexibleSpace` if any.
+Create `lib/features/product_detail/providers/hero_verdict_provider.dart`:
 
-(B) If the SliverAppBar uses `flexibleSpace` for a hero image / large-title-collapse, keep the SliverAppBar but wrap its `flexibleSpace` in a `ClipRect > BackdropFilter` for the iOS frosted feel.
+```dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
-Default to (A) unless the screen has a hero image worth preserving. Confirm with a Read of lines 341–365 first.
+/// Safety-aware verdict for the product hero. Combines the product's
+/// static verdict (RECOMMENDED/GOOD/MODERATE/...) with the user's stack
+/// to produce a single headline that honors "safety > goal match".
+///
+/// Priority (highest first):
+///   1. UNSAFE / BLOCKED product verdict             → product-side block
+///   2. Contraindicated/avoid stack interaction      → "Avoid with X"
+///   3. Caution/monitor stack interaction            → "Monitor with X"
+///   4. Personal goal match (FitScore)               → "Good match for X"
+///   5. Plain product verdict                        → "Recommended" / etc.
+class HeroVerdict {
+  /// Headline copy shown in the banner (max 2 lines).
+  final String headline;
+  /// Severity drives the banner's tone color and haptic on first paint.
+  final Severity severity;
+  /// When non-null, names the offending agent (medication or supplement
+  /// in the user's stack). Used for "Avoid with metformin" copy.
+  final String? affectingAgent;
+  /// True when this is a safety override of the product's static verdict.
+  /// Used to gate analytics / extra warning chrome.
+  final bool isSafetyOverride;
+
+  const HeroVerdict({
+    required this.headline,
+    required this.severity,
+    this.affectingAgent,
+    this.isSafetyOverride = false,
+  });
+}
+
+final heroVerdictProvider = FutureProvider.autoDispose
+    .family<HeroVerdict, String>((ref, dsldId) async {
+  // 1. Static product verdict — always takes precedence for hard blocks.
+  // 2. Top stack interaction with this product — overrides goal copy when
+  //    severity >= caution.
+  // 3. Personal goal match — only the celebratory branch.
+  // 4. Plain verdict — generic "Recommended / Good / etc." fallback.
+  //
+  // Implementation pulls from existing providers — DO NOT invent new
+  // engine logic in this provider; just compose:
+  //   - product detail blob (already cached)
+  //   - stackInteractionsForProduct(dsldId) (existing)
+  //   - fitScoreForProductProvider(dsldId) (existing)
+  //
+  // Return the highest-priority HeroVerdict.
+
+  // ... compose existing providers ...
+  throw UnimplementedError('Composition of existing providers — see step 3');
+});
+```
+
+The TODO above is intentional — Step 3 fills it in once the existing provider names are confirmed by reading their files. Keep the public API (`HeroVerdict` shape, `heroVerdictProvider` family signature) stable.
+
+- [ ] **Step 3: Implement the priority ladder**
+
+Read `lib/services/stack/stack_interaction_checker.dart` to find the function name that returns the highest-severity interaction for a given product DSLD id against the current stack. Then fill in the provider body using `ref.watch` on the relevant providers and a switch on the priority ladder.
+
+Key behavior to preserve:
+- **Severity → tone color**: use `Severity.color` for banner background tint at low alpha (matches `_HeroScoreReason` pattern)
+- **Headline copy**: priority 2/3 use `'${severity.label} with ${affectingAgent}'` (e.g. "Avoid with metformin"); priority 4 uses `'Good match for ${goalName}'` only when FitScore matched; priority 5 uses `'${verdict.label}'` plain
+- **Reduce-motion**: no animation on this provider — animations live in the widget
+
+- [ ] **Step 4: Build the new hero — vertical altar**
+
+Replace the existing `_HeaderSection.build` with this structure (preserve all field declarations; only the build method changes):
+
+```dart
+@override
+Widget build(BuildContext context, WidgetRef ref) {
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final fitScoreAsync = ref.watch(fitScoreForProductProvider(dsldId));
+  final heroVerdictAsync = ref.watch(heroVerdictProvider(dsldId));
+
+  // Single elevated PGCard — drops the prior nested Container + DecoratedBox.
+  return PGCard(
+    variant: PGCardVariant.elevated,
+    padding: const EdgeInsets.all(AppTheme.space20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ────────────────────────────────────────────────
+        // ROW 1 — IDENTITY (horizontal, App Store pattern)
+        // ────────────────────────────────────────────────
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image bumped from 56 → 84pt for hero presence.
+            // Subtle drop shadow + 16pt radius makes it feel like an
+            // object on a surface, not a flat PNG.
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                    spreadRadius: -2,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: ProductImage(
+                  dsldId: dsldId,
+                  upc: upc,
+                  productName: productName,
+                  brandName: brandName,
+                  formFactor: formFactor,
+                  score: score100,
+                  size: 84,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppTheme.space16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    productName,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      height: 1.16,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (brandName.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      brandName,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (formFactor.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      formFactor,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 14,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (dietaryTags.isNotEmpty) ...[
+                    const SizedBox(height: AppTheme.space8),
+                    _HeroTrustChips(tags: dietaryTags),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        // Hard stop for blocked products — the altar never renders for
+        // these; the BlockedBanner takes over. Same behavior as today.
+        if (isBlocked) ...[
+          const SizedBox(height: AppTheme.space16),
+          _BlockedBanner(
+            verdict: verdict,
+            blockingReason: blockingReason,
+            topWarnings: topWarnings,
+            bannedSubstanceDetail: bannedSubstanceDetail,
+          ),
+        ] else ...[
+          const SizedBox(height: AppTheme.space24),
+
+          // ────────────────────────────────────────────────
+          // ROW 2 — THE ALTAR (vertical, centered)
+          // ────────────────────────────────────────────────
+
+          // 96-pt centered FitScore ring. Scales up with AppMotion.spring
+          // on first mount (entrance choreography in step 7).
+          Center(
+            child: _ScoreRingButton(
+              score: isNotScored ? null : score100,
+              size: 96,
+              onTap: onScoreInfoTap,
+            ),
+          ),
+
+          // Grade · Description directly below (centered, no
+          // percentile — hidden until the percentile context is
+          // strong enough to justify the cognitive load).
+          if (!isNotScored && grade.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.space12),
+            Center(
+              child: Text(
+                _gradeDescriptionLine(grade, verdict),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: AppTheme.space16),
+
+          // Full-width safety-aware verdict banner.
+          // - Plain product verdict on a calm tone background by default
+          // - Safety-override (caution/avoid/contraindicated stack
+          //   interaction) overrides the goal-match branch with strong
+          //   tone + the offending agent's name.
+          _HeroVerdictBanner(verdict: heroVerdictAsync),
+
+          // "Limited data" — promoted to its own line as a banner ONLY
+          // when present. Was previously buried in a pill row with the
+          // grade; that hid the trust signal that needs to be loudest.
+          if (mappedCoverage < 0.3) ...[
+            const SizedBox(height: AppTheme.space12),
+            const _LimitedDataBanner(),
+          ],
+
+          // Score reason banner — kept, full-width.
+          if (scoreReason != null) ...[
+            const SizedBox(height: AppTheme.space12),
+            _HeroScoreReason(
+              text: scoreReason!.text,
+              isPositive: scoreReason!.isPositive,
+            ),
+          ],
+
+          // ────────────────────────────────────────────────
+          // ROW 3 — PERSONAL FIT (conditional, tappable)
+          // ────────────────────────────────────────────────
+          if (fitScoreAsync.asData?.value != null) ...[
+            const SizedBox(height: AppTheme.space16),
+            PGPressable(
+              onTap: () =>
+                  context.push(Routes.profileSetup),
+              pressedScale: 0.98,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    size: 16,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: AppTheme.space8),
+                  Text(
+                    'Personalized for you',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // "View Supplement Label" — always last in the hero. Drops
+          // OutlinedButton.icon for a quieter PGPressable text-link, so
+          // it doesn't compete visually with the verdict banner.
+          if (imageUrl != null && imageUrl!.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.space12),
+            PGPressable(
+              onTap: () {
+                final uri = Uri.tryParse(imageUrl!);
+                if (uri != null) {
+                  launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              pressedScale: 0.98,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'View Supplement Label',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ],
+    ),
+  );
+}
+```
+
+Add helper at file scope (or top of `_HeaderSection`):
+
+```dart
+/// "B • Good", "A- • Recommended", etc. — the grade plus the
+/// human-readable verdict label.
+String _gradeDescriptionLine(String grade, String verdict) {
+  final label = VerdictBadge.labelFor(verdict);
+  return '$grade  ·  $label';
+}
+```
+
+- [ ] **Step 5: Build `_HeroVerdictBanner` (extracted widget)**
+
+This widget reads the `AsyncValue<HeroVerdict>` and renders three states:
+- **Loading** — `PGShimmerBox(height: 56, radius: AppTheme.radiusMedium)` (preserves layout)
+- **Error / null verdict** — render nothing (`SizedBox.shrink()`)
+- **Data** — full-width banner, severity-tinted background, icon + headline
+
+```dart
+class _HeroVerdictBanner extends StatelessWidget {
+  final AsyncValue<HeroVerdict> verdict;
+  const _HeroVerdictBanner({required this.verdict});
+
+  @override
+  Widget build(BuildContext context) {
+    return verdict.when(
+      loading: () => const PGShimmerBox(
+        height: 56,
+        radius: AppTheme.radiusMedium,
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (v) {
+        final theme = Theme.of(context);
+        final tone = v.severity.color;
+        final icon = _iconForSeverity(v.severity);
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.space16,
+            vertical: AppTheme.space12,
+          ),
+          decoration: BoxDecoration(
+            color: tone.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            border: Border.all(color: tone.withValues(alpha: 0.20)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(icon, color: tone, size: 20),
+              const SizedBox(width: AppTheme.space12),
+              Expanded(
+                child: Text(
+                  v.headline,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: tone,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  IconData _iconForSeverity(Severity s) {
+    switch (s) {
+      case Severity.contraindicated:
+      case Severity.avoid:
+        return Icons.warning_amber_rounded;
+      case Severity.caution:
+      case Severity.monitor:
+        return Icons.error_outline_rounded;
+      case Severity.informational:
+      case Severity.safe:
+        return Icons.check_circle_outline_rounded;
+    }
+  }
+}
+```
+
+- [ ] **Step 6: Build `_LimitedDataBanner`**
+
+Tiny widget, always identical:
+
+```dart
+class _LimitedDataBanner extends StatelessWidget {
+  const _LimitedDataBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space12,
+        vertical: AppTheme.space8,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.insufficientData.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.visibility_off_outlined,
+            size: 14,
+            color: AppTheme.insufficientData,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Limited data on this product — score may shift as we learn more.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.insufficientData,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 7: Add staggered entrance choreography**
+
+Wrap the hero card itself in a `TweenAnimationBuilder<double>` that drives an opacity + translateY for the entire hero (slide-in over 240ms). Inside, scale the score ring from 0.85 → 1.0 over 320ms with `AppMotion.spring` (300ms delay so it lands AFTER the identity row settles). Below cards (deep dive, pipeline sections) get a fade-up over 280ms with 450ms delay.
+
+Implement via a single `_HeroEntranceController` State that exposes three computed values (`identityProgress`, `ringScale`, `bodyProgress`) all driven from one `AnimationController` with sequenced intervals. Don't fire the animation when `MediaQuery.disableAnimationsOf(context)` is true — under reduce-motion all three jump to their final values instantly.
+
+Skipping the full code block here because the choreography is straightforward `Interval` math; refer to the home plan's Sprint 27.20 commit for the `TweenAnimationBuilder + Curves` pattern. Use `AppMotion.spring` for the ring (the one place spring with overshoot is genuinely warranted — bouncy entrance reads as triumphant) and `AppMotion.gentleRelease` for everything else.
+
+- [ ] **Step 8: Wire `_ScoreRingButton.size` parameter**
+
+The current `_ScoreRingButton` constructor likely doesn't accept a `size` param (it uses a fixed default). Add an optional `double size = 64` parameter and thread it through. Step 4's altar layout passes 96.
+
+- [ ] **Step 9: Run analyze + tests + manual smoke**
+
+```
+flutter analyze
+flutter test test/features/product_detail/
+```
+
+Manual smoke: open KSM-66 (the test product Sean has been using). Confirm:
+1. Image is visibly larger and feels like an object (shadow + radius)
+2. Score ring is centered and dominant
+3. Verdict banner is full-width and tinted
+4. With a contraindicated stack item present (e.g. add Metformin to stack first), the verdict banner FLIPS to "Avoid with metformin" instead of the goal-match copy
+5. Limited-data banner appears on its own line (not inline with grade) when `mappedCoverage < 0.3`
+6. The "Personalized for you" row taps through to profile setup
+7. Reduce-motion suppresses the entrance choreography
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add lib/features/product_detail/
+git commit -m "feat(product-detail): Apple Altar hero refactor
+
+Restructures _HeaderSection from a cramped 2-row card into a single
+elevated PGCard with a horizontal identity row (image + name) on top
+and a centered vertical 'altar' below. Apple Health / Oura clinical-
+detail pattern. Score ring moves from a sub-row component to a 96-pt
+focal point.
+
+The verdict badge becomes a full-width safety-aware banner via the
+new heroVerdictProvider — when a stack interaction is caution-or-
+worse, the banner overrides the goal-match copy with 'Avoid with
+[medication]'. Safety > goal match. Medical-grade priority encoded
+in pixel hierarchy.
+
+Hides the percentile (low signal-to-cognitive-cost ratio today),
+promotes 'Limited data' to its own banner line (was buried in a pill
+row), drops the OutlinedButton in favor of a quiet PGPressable text
+link, adds a tappable 'Personalized for you' row that routes to
+profile setup.
+
+Plus staggered entrance choreography: identity slide-in → ring scale-
+up with AppMotion.spring → body fade-up. Reduce-motion suppresses
+the sequence."
+```
+
+---
+
+### Task B.3b: Product Detail — frosted app bar (with share action) + pipeline-section surface audit
+
+**Files:**
+- Modify: `lib/features/product_detail/product_detail_screen.dart` — replace SliverAppBar (around line 341)
+- Audit: `lib/features/product_detail/widgets/pipeline_sections/*.dart`
+
+This is the smaller, mechanical follow-up to B.3a. Two moves:
+
+- [ ] **Step 1: Replace SliverAppBar with PGFrostedAppBar (share button on top)**
+
+Per the user direction: drop the floating "Scan Another" idea (the bottom nav makes it redundant — to scan again the user just taps the Scan tab or swipes back). Move the share affordance to the top right of the frosted app bar where it belongs in iOS apps (Photos, Safari, Wallet all put share in the top trailing slot).
+
+```dart
+// Replace the existing SliverAppBar (around lines 341–365) with:
+PGFrostedAppBar(
+  // Title is intentionally empty — the hero card below carries the
+  // product name as part of the identity row, so a duplicated title
+  // in the app bar would compete. iOS App Store uses the same trick.
+  title: '',
+  actions: [
+    PGPressable(
+      onTap: () => _onShare(context, product),
+      pressedScale: 0.94,
+      haptic: false, // share sheet has its own iOS haptic on present
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: Icon(
+          Icons.ios_share_rounded,
+          size: 22,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    ),
+  ],
+),
+```
 
 - [ ] **Step 2: Audit pipeline-section widgets for surface-tier compliance**
 
-The audit said pipeline-section widgets (probiotic_detail_section, evidence_detail_section, etc.) "should use PGCard tiers consistently." Walk each of:
+Walk each pipeline section in `lib/features/product_detail/widgets/pipeline_sections/` and `lib/features/product_detail/widgets/`:
 
-- `lib/features/product_detail/widgets/pipeline_sections/probiotic_detail_section.dart`
+- `probiotic_detail_section.dart`
 - `evidence_detail_section.dart`
 - `synergy_detail_section.dart`
 - `formulation_detail_section.dart`
@@ -743,8 +1281,11 @@ The audit said pipeline-section widgets (probiotic_detail_section, evidence_deta
 - `certification_detail_section.dart`
 - `heavy_metal_warning_card.dart`
 - `score_breakdown_card.dart`
+- `blocked_product_view.dart`
 
-For each, grep for `Container(` with a `BoxDecoration` that paints a visible background. Each one should be `PGCard(variant: ...)` per the 4-tier system. Most likely fine already (Sprint 27.18 pipeline-detail commit landed these); verify and migrate any stragglers.
+For each, grep for raw `Container(` with a `BoxDecoration` painting a visible background. Each one should be `PGCard(variant: ...)` per the 4-tier system. Most are likely fine post-Sprint 27.18; verify and migrate any stragglers. Note: per Sprint 27.19's audit, intra-card layout primitives (e.g. tinted info chips inside an already-tiered PGCard) are NOT a fifth tier and should stay as-is.
+
+Add `PGPressable` wrapping to any tappable card that currently uses `Material + InkWell` (apply the same pattern as Sprint 27.19's home-card adoption).
 
 - [ ] **Step 3: Run analyze + tests + commit**
 
@@ -752,7 +1293,16 @@ For each, grep for `Container(` with a `BoxDecoration` that paints a visible bac
 flutter analyze
 flutter test test/features/product_detail/
 git add lib/features/product_detail/
-git commit -m "feat(product-detail): PGFrostedAppBar + pipeline-section surface audit"
+git commit -m "feat(product-detail): PGFrostedAppBar with top-right share + section audit
+
+PGFrostedAppBar replaces the prior SliverAppBar (title intentionally
+empty — hero card below carries the product name). Share affordance
+moves to the top trailing slot via PGPressable + Icons.ios_share_rounded
+— iOS canonical placement (Photos, Safari, Wallet).
+
+Pipeline-section widgets audited for PGCard.variant compliance.
+PGPressable wrapping added to any remaining Material+InkWell card
+tappables — completes the home/sub-page tactile adoption pattern."
 ```
 
 ---
@@ -1028,6 +1578,147 @@ git commit -m "feat(<screen>): align empty state with home Recents pattern"
 
 ---
 
+## Phase F — Product Detail data visualization (Apple Altar H4)
+
+The Apple Altar spec calls for three data-viz primitives in the product detail body:
+
+- **Donut chart** — Quality Score (e.g. "82") rendered as a circular progress with center number
+- **Pillar bars** — horizontal bars for the four scoring pillars (Ingredient Quality, Safety & Purity, Evidence, Brand Trust)
+- **Atom-style ingredients** — circular pills (e.g. "Mg") with per-ingredient evidence badge ("Strong evidence" / "Limited data")
+
+**Data dependency caveat:** before building any of these, verify the underlying pipeline data exists. If the four pillars don't exist as discrete scores in the product blob, F.2 either (a) derives them from `score_bonuses[]` / `score_penalties[]` aggregation or (b) waits for a pipeline-side ticket to expose them. Don't ship a chart driven by invented numbers.
+
+### Task F.0: Data availability audit
+
+**Files (read-only audit):**
+- `lib/data/database/tables/products_core_table.dart` (or wherever the product schema lives)
+- `lib/services/score/` (any pillar-aggregation logic)
+- `assets/db/core_database.sqlite` (sample query if needed)
+- The detail blob shape: `lib/features/product_detail/providers/detail_blob_provider.dart`
+
+- [ ] **Step 1: Confirm or refute four-pillar score availability**
+
+Walk the product schema + score services. Document one of:
+- ✅ Four pillar scores exist as separate fields → F.2 is a pure UI build
+- ⚠️ Pillar scores can be derived from `score_bonuses[]` / `score_penalties[]` → F.2 needs a small aggregation step
+- ❌ No pillar data exists → split F.2 into a pipeline ticket + a Flutter follow-up
+
+- [ ] **Step 2: Confirm per-ingredient evidence-level data**
+
+The IQM dataset has evidence levels per ingredient. Confirm whether the product blob exposes the per-ingredient evidence level on the in-product ingredient list (not just the IQM tier dataset). Same three-way result as Step 1.
+
+- [ ] **Step 3: Document findings**
+
+Append to this plan as `Task F.0: Data Availability Audit Findings` with one of: GREEN / YELLOW (derive needed) / RED (pipeline blocker). The decision shapes how F.1–F.6 break down.
+
+### Task F.1: Build `PGDonutChart` primitive
+
+**Files:**
+- Create: `lib/core/widgets/pg_donut_chart.dart`
+- Create: `test/core/widgets/pg_donut_chart_test.dart`
+
+A scale-able donut chart with center number. Reuses `PGScoreRing`'s rendering DNA but with bigger center text and a configurable label below.
+
+- [ ] **Step 1: Write failing tests** (renders center number; respects `value` 0–100; centers in available space; honors `size` parameter)
+- [ ] **Step 2: Build using `CustomPainter` for the arc; the center text is a regular `Stack` child**
+
+Sketch:
+
+```dart
+class PGDonutChart extends StatelessWidget {
+  final double value;          // 0..100
+  final double size;           // outer diameter (default 140)
+  final double strokeWidth;    // default 12
+  final Color trackColor;      // default outline at low alpha
+  final Color progressColor;   // tone derived from value tier
+  final String? label;         // optional below-center label, e.g. "Quality"
+
+  const PGDonutChart({
+    super.key,
+    required this.value,
+    this.size = 140,
+    this.strokeWidth = 12,
+    this.trackColor = const Color(0x1A000000),
+    this.progressColor = const Color(0xFF0A7D6F),
+    this.label,
+  });
+  // ... build via CustomPaint + Stack with centered number ...
+}
+```
+
+- [ ] **Step 3: Run tests + commit**
+
+```
+git commit -m "feat(core): PGDonutChart — donut chart primitive for score visualization"
+```
+
+### Task F.2: Build `PGPillarBar` primitive
+
+**Files:**
+- Create: `lib/core/widgets/pg_pillar_bar.dart`
+- Create: `test/core/widgets/pg_pillar_bar_test.dart`
+
+Single horizontal bar with label + value. Used four times for the pillar breakdown.
+
+- [ ] **Step 1: Write failing tests** (renders label + percent; bar fills proportional to value; tone color derives from value tier; reduced height variant for dense lists)
+- [ ] **Step 2: Build with `LinearProgressIndicator` wrapped in custom decoration matching home's tier system**
+- [ ] **Step 3: Run tests + commit**
+
+### Task F.3: Build `PGIngredientAtom` primitive
+
+**Files:**
+- Create: `lib/core/widgets/pg_ingredient_atom.dart`
+- Create: `test/core/widgets/pg_ingredient_atom_test.dart`
+
+Circular ingredient pill (e.g. "Mg") with optional evidence badge in the corner.
+
+- [ ] **Step 1: Write failing tests** (renders symbol; evidence badge shows when level provided; tappable variant fires onTap; reduce-motion safe)
+- [ ] **Step 2: Build as a `Stack` with a `CircleAvatar`-like base + small badge overlay**
+- [ ] **Step 3: Wrap with PGPressable when `onTap` is provided**
+- [ ] **Step 4: Run tests + commit**
+
+### Task F.4: Quality Score card (donut + 4 pillar bars)
+
+**Files:**
+- Create: `lib/features/product_detail/widgets/quality_score_card.dart`
+- Modify: `lib/features/product_detail/product_detail_screen.dart` to compose this card after the hero altar
+
+- [ ] **Step 1: Build a `PGCard(variant: PGCardVariant.plain)` with:**
+  - PGDonutChart on the left at 120pt
+  - Right column with four PGPillarBar instances stacked
+  - Wrapped in PGPressable on tap → opens the existing score-breakdown sheet (`onScoreInfoTap` callback)
+- [ ] **Step 2: Compose into product detail screen** under the hero altar, before the deep-dive section
+- [ ] **Step 3: On 320-pt iPhone SE, the card stacks vertically (donut on top, pillars below)** — use `LayoutBuilder` for the breakpoint at `constraints.maxWidth < 360`
+- [ ] **Step 4: Run analyze + tests + commit**
+
+### Task F.5: "For You" card (Why this score · Your alerts)
+
+**Files:**
+- Create: `lib/features/product_detail/widgets/for_you_card.dart`
+- Modify: `lib/features/product_detail/product_detail_screen.dart`
+
+The Apple Altar spec called for a dual-column layout. Per my earlier pushback, on a 320pt phone two columns of ~140pt each are too cramped. Solution: small-screen stacks, larger-screen splits.
+
+- [ ] **Step 1: Build a `PGCard(variant: PGCardVariant.plain)` with two sections:**
+  - "Why this score" — checklist using the existing `score_bonuses[]` / `score_penalties[]` data
+  - "Your alerts" — nested PGSeverityPill list of any active interaction warnings
+- [ ] **Step 2: `LayoutBuilder` — under 380pt the two sections stack with a divider; above 380pt they split into a 50/50 row**
+- [ ] **Step 3: PGPressable wrapping each row item** (taps on alert rows scroll to the deep-dive interactions section via a `Scrollable.ensureVisible`)
+- [ ] **Step 4: Run analyze + tests + commit**
+
+### Task F.6: Atom-style ingredients row
+
+**Files:**
+- Create: `lib/features/product_detail/widgets/ingredients_atom_row.dart`
+- Modify: `lib/features/product_detail/product_detail_screen.dart` (replace the current ingredients listing if applicable)
+
+- [ ] **Step 1: Build a horizontal scrollable row of `PGIngredientAtom` instances, one per active ingredient**
+- [ ] **Step 2: Tap on an atom opens a Cupertino sheet (`PGModal.bottomSheet`) with the ingredient's evidence summary, dose, and IQM tier**
+- [ ] **Step 3: Empty state — when no active ingredients in the product blob, render `SizedBox.shrink()` (don't show a "no ingredients" empty state on a product page; that would be alarming)**
+- [ ] **Step 4: Run analyze + tests + commit**
+
+---
+
 ## Phase E — Tests + verification
 
 ### Task E.1: Cross-screen smoke tests
@@ -1104,44 +1795,63 @@ Add `Sprint 27.21: App-wide Apple-grade polish` entry above 27.20 with the full 
 
 ## Implementation order (priority — execute top-down)
 
-| Priority | Task | Why first |
+| Priority | Task | Why this rank |
 |---|---|---|
-| 1 | **Phase 0.1** — Build PGFrostedAppBar | Every Phase A/B task depends on it |
-| 2 | **A.1** — Stack frosted bar | Highest-traffic tab; biggest user-visible win |
-| 3 | **A.2** — Settings 3-pack | Whole Profile tab elevates in one commit |
-| 4 | **A.3** — Scanner overlay | Quick win; user sees it on every scan |
-| 5 | **B.1** — Profile Setup | First-launch users see this; high impression weight |
-| 6 | **B.2** — Quick Check | Cross-app consistency |
-| 7 | **B.3** — Product Detail | Heaviest screen; do after the primitive is battle-tested |
-| 8 | **C.1** — PGModal sweep | Touches many files; do as a batch |
-| 9 | **C.2** — Adaptive controls | Low-risk grep-and-replace |
-| 10 | **C.3** — Motion-token sweep | Stylistic; do after structural moves are stable |
-| 11 | **D.1** — Extract PGAdaptiveBackButton | Refactor only |
-| 12 | **D.2** — Empty-state audit | Polish on polish |
-| 13 | **E.1** — Smoke tests | Run continuously; finalize at the end |
-| 14 | **E.2** — Final verify + tracker | Sprint-close |
+| 1  | **Phase 0.1** — Build PGFrostedAppBar | Every Phase A/B task depends on it |
+| 2  | **A.1** — Stack frosted bar | Highest-traffic tab; biggest user-visible win |
+| 3  | **A.2** — Settings 3-pack | Whole Profile tab elevates in one commit |
+| 4  | **A.3** — Scanner overlay | Quick win; user sees it on every scan |
+| 5  | **B.1** — Profile Setup | First-launch users see this; high impression weight |
+| 6  | **B.2** — Quick Check | Cross-app consistency |
+| 7  | **B.3a** — Product Detail Apple Altar hero | Highest-impact single visual change in the app — restructured hero, safety-override verdict, 96-pt centered ring |
+| 8  | **B.3b** — Product Detail frosted app bar + sections audit | Mechanical follow-up after the altar lands |
+| 9  | **C.1** — PGModal sweep | Touches many files; do as a batch |
+| 10 | **C.2** — Adaptive controls | Low-risk grep-and-replace |
+| 11 | **C.3** — Motion-token sweep | Stylistic; do after structural moves are stable |
+| 12 | **D.1** — Extract PGAdaptiveBackButton | Refactor only |
+| 13 | **D.2** — Empty-state audit | Polish on polish |
+| 14 | **F.0** — Data availability audit | **Gates F.1–F.6** — must run before any data-viz primitive is built |
+| 15 | **F.1** — PGDonutChart primitive | Standalone widget; can build in parallel with F.2/F.3 once F.0 greenlit |
+| 16 | **F.2** — PGPillarBar primitive | Same — parallelizable |
+| 17 | **F.3** — PGIngredientAtom primitive | Same — parallelizable |
+| 18 | **F.4** — Quality Score card | Composes F.1 + F.2; product-detail integration |
+| 19 | **F.5** — "For You" card | Independent of F.1–F.3 — could ship earlier |
+| 20 | **F.6** — Atom-style ingredients row | Composes F.3; product-detail integration |
+| 21 | **E.1** — Cross-screen smoke tests | Run continuously; finalize at the end |
+| 22 | **E.2** — Final verify + tracker | Sprint-close |
 
-**Estimated effort:** 6–10 hours of focused execution. Lower bound assumes batched commits and skipped manual smokes; upper bound includes simulator visual checks per task.
+**Estimated effort:**
+- **Phase 0 + A + B + C + D + E** (without data viz): 8–12 hours
+- **Phase F** (data viz, full scope): +6–10 hours, but only if the F.0 audit returns GREEN
+- **Total**: 14–22 hours; the +24-task plan ships across 1–2 sprints depending on parallelization
 
 ---
 
 ## Self-Review Checklist (run before declaring complete)
 
-- [ ] Every screen flagged in the audit has a corresponding task in this plan (Stack, Settings, Scanner, Profile Setup, Quick Check, Product Detail)
+- [ ] Every screen flagged in the audit has a corresponding task (Stack, Settings, Scanner, Profile Setup, Quick Check, Product Detail)
 - [ ] Onboarding and Search are deliberately NOT in Phase A/B (already reference quality)
 - [ ] App Shell and Nav Bar are NOT in any task (already reference quality)
-- [ ] Every reusable primitive needed (`PGFrostedAppBar`, `PGModal`, `PGAdaptiveBackButton`) has a build task before any task that uses it
+- [ ] Every reusable primitive needed (`PGFrostedAppBar`, `PGModal`, `PGAdaptiveBackButton`, `PGDonutChart`, `PGPillarBar`, `PGIngredientAtom`) has a build task before any task that uses it
 - [ ] Every task ends with a commit
 - [ ] No placeholder text — every step has the actual code or exact command
 - [ ] Verification steps reference real test paths, not invented ones
-- [ ] Type/method/widget signatures across tasks are consistent (e.g. `PGFrostedAppBar.title` is used the same way in A.1 and B.1)
+- [ ] Type/method/widget signatures across tasks are consistent
+- [ ] **Data-dependency gating**: Phase F is explicitly blocked behind F.0 audit; no data-viz code references invented fields
+- [ ] **Apple Altar safety override is preserved**: B.3a's `heroVerdictProvider` priority ladder spells out medical priority (safety > goal match)
 
 ## Execution
 
 Plan saved to `docs/superpowers/plans/2026-04-28-app-wide-apple-grade.md`.
 
 Two execution options:
-1. **Subagent-Driven** (recommended for this scale) — fresh subagent per task, two-stage review between tasks, fast iteration. Good fit because Phase 0 + Phase A are tightly sequenced (each task depends on the previous), but Phase C tasks can be parallelized.
-2. **Inline Execution** — run tasks in this session with checkpoints between phases for review. Good fit if you want to feel the simulator after each migration before moving to the next.
+1. **Subagent-Driven** (recommended for this scale) — fresh subagent per task, two-stage review between tasks, fast iteration. Good fit because Phase 0 + Phase A + B.3a are tightly sequenced (each depends on the previous), but Phase C and Phase F.1–F.3 tasks can be parallelized.
+2. **Inline Execution** — run tasks in this session with checkpoints between phases for review. Good fit if you want to feel the simulator after each migration before moving to the next — especially useful for B.3a (the altar) where the visual change is dramatic.
 
-Total tasks: 1 (Phase 0) + 3 (A) + 3 (B) + 3 (C) + 2 (D) + 2 (E) = **14 tasks**, ~25–35 commits, 6–10 hours.
+Total tasks: 1 (Phase 0) + 3 (A) + 4 (B — including B.3a/B.3b split) + 3 (C) + 2 (D) + 7 (F — gated audit + 6 build tasks) + 2 (E) = **22 tasks**, ~40–50 commits, 14–22 hours.
+
+**Recommended execution path:**
+- **Sprint 1 (10–14 hrs)**: 0.1 → A.1 → A.2 → A.3 → B.1 → B.2 → **B.3a (the altar)** → B.3b → C.1 → C.2 → C.3 → D.1 → D.2 → E.1 → E.2
+  Ships visible app-wide polish + the new hero in one cohesive release. **F is intentionally deferred**.
+- **Sprint 2 (6–10 hrs)**: F.0 → F.1/F.2/F.3 (parallel) → F.4 → F.5 → F.6
+  Only proceeds if F.0's data audit comes back GREEN; otherwise spins out a pipeline ticket and revises scope.
