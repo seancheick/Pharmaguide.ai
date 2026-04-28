@@ -65,6 +65,39 @@ void main() {
     test('repeated underscores collapse to single space', () {
       expect(prettifyIngredientName('foo__bar'), 'Foo Bar');
     });
+
+    // Live-test fix (2026-04-29): the score-breakdown payload ships
+    // `ingredient_points` keys with whitespace separators ("vitamin c",
+    // "vitamin b6", "pantothenic acid vitamin b5") instead of the
+    // underscored form used elsewhere. The original implementation
+    // split on `_` only, so "vitamin c" rendered as "Vitamin c"
+    // (single-character title-casing). We now normalize whitespace
+    // runs to underscores before lookup AND fallback splitting.
+    test('space-separated key matches branded map (vitamin c → Vitamin C)',
+        () {
+      expect(prettifyIngredientName('vitamin c'), 'Vitamin C');
+    });
+
+    test('space-separated key matches branded map (vitamin b6 → Vitamin B6)',
+        () {
+      expect(prettifyIngredientName('vitamin b6'), 'Vitamin B6');
+    });
+
+    test('space-separated alias (ksm 66 → KSM-66)', () {
+      expect(prettifyIngredientName('ksm 66'), 'KSM-66');
+    });
+
+    test('multi-word fallback title-cases per word, not per first char', () {
+      expect(prettifyIngredientName('pantothenic acid vitamin b5'),
+          'Pantothenic Acid Vitamin B5');
+      expect(
+          prettifyIngredientName('magnesium glycinate'), 'Magnesium Glycinate');
+    });
+
+    test('mixed underscore + space separators normalize the same way', () {
+      expect(prettifyIngredientName('zinc picolinate'), 'Zinc Picolinate');
+      expect(prettifyIngredientName('zinc_picolinate'), 'Zinc Picolinate');
+    });
   });
 
   group('prettifyIngredientName — edge cases', () {

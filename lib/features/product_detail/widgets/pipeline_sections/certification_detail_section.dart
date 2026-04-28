@@ -73,11 +73,24 @@ class CertificationDetailSection extends StatelessWidget {
                   ],
                 ),
               )),
-          // Third-party program badges (NSF Sport, USP Verified, etc.)
+          // Third-party program badges (NSF Sport, USP Verified, etc.).
+          //
+          // Pipeline ships `programs` in two shapes — legacy plain
+          // strings, and newer `[{name, verified}, ...]` maps. The
+          // older `safeStringList` path called `.toString()` on the
+          // maps and produced "{name: Informed Choice, verified: true}"
+          // verbatim in the badge — same JSON-leak class as T0.3.
+          // Extract the `name` field defensively, fall through to the
+          // raw string when the entry is already a string.
           Builder(builder: (context) {
             final programs = certificationDetail!
                 .safeMap('third_party_programs')
-                .safeStringList('programs')
+                .safeList('programs')
+                .map<String>((e) {
+                  if (e is String) return e.trim();
+                  if (e is Map) return (e['name']?.toString() ?? '').trim();
+                  return '';
+                })
                 .where((s) => s.isNotEmpty)
                 .toList(growable: false);
             if (programs.isEmpty) return const SizedBox.shrink();

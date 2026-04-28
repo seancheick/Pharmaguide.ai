@@ -77,10 +77,18 @@ String prettifyIngredientName(String key) {
   final normalized = key.toLowerCase().trim();
   if (normalized.isEmpty) return '';
 
-  final brand = _brandedForms[normalized];
+  // Pipeline ingredient_points keys come in two shapes — underscored
+  // (`vitamin_c`, `ksm_66`) on the bonus payload and space-separated
+  // (`vitamin c`, `ksm 66`) on the score-breakdown payload. Normalize
+  // any run of whitespace to a single underscore so both shapes match
+  // the same canonical map entry and the title-case fallback below
+  // can split per word instead of per first-character.
+  final canonical = normalized.replaceAll(RegExp(r'\s+'), '_');
+
+  final brand = _brandedForms[canonical];
   if (brand != null) return brand;
 
-  return normalized
+  return canonical
       .split('_')
       .where((part) => part.isNotEmpty)
       .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
