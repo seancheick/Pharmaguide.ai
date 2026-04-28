@@ -22,6 +22,7 @@ import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
+import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
@@ -48,6 +49,7 @@ class StackScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('My stack'),
+          actions: const [ShareClinicianReportButton()],
           bottom: TabBar(
             labelColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor:

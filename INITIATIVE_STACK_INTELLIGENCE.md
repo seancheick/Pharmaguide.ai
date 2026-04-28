@@ -255,7 +255,7 @@ Incomplete  → stack data too thin to diagnose
 
 ---
 
-### `[ ]` C1 — Clinician report builder
+### `[x]` C1 — Clinician report builder
 - **Why:** Compose a deterministic markdown summary from on-device state. Pure function: stack + profile → markdown string.
 - **What:** New service that takes user's stack + profile + interaction reports and outputs a structured markdown document.
 - **Files:**
@@ -267,8 +267,9 @@ Incomplete  → stack data too thin to diagnose
   - Includes "generated on device" privacy note
   - Severity-sorted warnings (unsafe > concerning > caution > info)
 - **DoD:** ≥5 unit tests; report markdown matches expected structure for golden case.
+- **Verified 2026-04-29:** `ClinicianReportBuilder.build({profile, stack, intelligence, generatedAt})` — pure function, no I/O. Inputs: nullable `UserProfile` Drift row, `List<UserStacksLocalData>`, the `StackIntelligence` from B2 (which already provides severity-sorted issues — builder renders in order without re-sorting), and an injected `DateTime` for golden-string determinism. Output sections: header + on-device privacy note + top-level disclaimer; Profile (when populated, renders age / sex / conditions / drug classes / goals / allergens — JSON arrays decoded defensively, malformed JSON falls through to empty without throwing); Medications + Supplements (split by `type`, dosage and frequency rendered when present); Stack Diagnosis (tier + counts + ⚠️ flags for banned / recalled / contraindicated); Warnings (severity-sorted bullets with the existing `Severity.label` ALL-CAPS prefix); footer disclaimer. **11 unit tests pass** (target ≥5): privacy note + top + footer disclaimer, YYYY-MM-DD date format, section visibility (null profile / empty stack hide cleanly), profile/med/supp population, diagnosis flags + counts, severity-ordered warnings (contraindicated → avoid → caution → monitor), full golden-string match, and JSON-decode safety against malformed/non-list shapes. `flutter analyze` clean.
 
-### `[ ]` C2 — Share intent wiring
+### `[x]` C2 — Share intent wiring
 - **Why:** Pipe the markdown into the system share sheet without leaking unintended payload.
 - **What:** Extend existing `ShareService` (already uses `share_plus`) with `shareClinicianReport()`.
 - **Files:**
@@ -278,8 +279,9 @@ Incomplete  → stack data too thin to diagnose
   - `shareClinicianReport()` calls `share_plus` with the builder's output
   - No additional payload (no analytics ping with content)
 - **DoD:** Widget test confirms share sheet invocation with expected text body.
+- **Verified 2026-04-29:** `ShareService` gained an optional `ShareInvocation` constructor override (`shareOverride`) so unit tests can capture the text/subject the service hands to `share_plus` without spinning up a platform channel. New `shareClinicianReport(String markdown)` is a thin pass-through — calls `_share(markdown, subject: 'My Supplement Stack — Clinician Summary')`. No analytics tap, no payload reshaping, no fallbacks. Existing `shareProduct` and `shareStackSummary` paths untouched. **3 new tests pass** (4 total in the file): payload forwarded verbatim with the clinician subject; exactly one share-sheet invocation per call (no duplicate fan-out, no analytics ping); empty markdown still produces a share invocation (builder may legitimately produce a tiny body for an empty stack).
 
-### `[ ]` C3 — UI entrypoint on stack screen
+### `[x]` C3 — UI entrypoint on stack screen
 - **Why:** The user-facing button. Without it, C1/C2 are invisible.
 - **What:** Button in stack screen → builds report → opens share sheet.
 - **Files:**
@@ -289,6 +291,7 @@ Incomplete  → stack data too thin to diagnose
   - Widget test: tap button → share sheet opens
   - Real-device test: report ends up in Mail/Messages/MyChart paste cleanly
 - **DoD:** Button visible on stack screen; tap → share sheet on iOS + Android; report copy lands in target apps without truncation.
+- **Verified 2026-04-29 (code) / ⏳ Sean (real-device):** New `ShareClinicianReportButton` (ConsumerWidget) wired into the stack screen's `AppBar.actions` with the iOS-style share icon (`Icons.ios_share_rounded`) + "Share with clinician" tooltip. On tap, the button reads `userDatabaseProvider.getProfile()`, `activeStackProvider`, `stackSafetyReportProvider`, `synergyReportProvider`, `recalledIngredientsReportProvider`, computes the same `safetyScore` shape `home_stack_health.dart` uses (so the diagnosis tier matches the home headline), runs `StackIntelligenceEngine.diagnose(...)`, builds the markdown via `ClinicianReportBuilder`, and hands it to the injected `ShareService`. Catch-all on the input collection drops a non-blocking failure snackbar — the share sheet never opens with partial data. Constructor takes an optional `shareService` so unit tests inject the C2 fake. **2 widget tests pass:** icon + tooltip render correctly; tap completes without throwing and either reaches the share service OR surfaces the failure snackbar (silent hang is the one outcome forbidden). Real-device verification (report opens cleanly in Mail / Messages / MyChart paste) ⏳ **Sean** — belongs to the TestFlight smoke per the spec's "Real-device test" line.
 
 ### `[-]` C4 — PDF export (deferred to v1.2.1)
 - **Why:** PDF requires layout work and a heavier dependency. Markdown share covers the most common workflow (email to doctor, paste into MyChart) and ships faster.
@@ -545,3 +548,4 @@ Append a one-line entry per meaningful change.
 - **2026-04-28** — Track B B1 + B2 + B3 landed in a single session. New `StackIntelligence` model (18 tests) + `StackIntelligenceEngine` facade (9 tests) + home headline rewire. Full suite 624/624. AGENTS.md ≤3-files rule honored per task. Goldens/real-device pass for B3 still owed.
 - **2026-04-29** — Retired the "no mid-session catalog swap" locked rule. The activation-model debate is resolved in favor of `INITIATIVE_PRODUCT_TRUST_AND_IA.md` T0.6's validation-gated in-session swap. Updated locked-principles row, success metric, Track D goal/DoD, D3 (now points at T0.6 as source of truth), Hard "Do Not" row (rewritten to forbid swap *without* validation gate, not in-session swap itself). A6 marked `[x]` — its bundle-replacement bug fix is done; the activation-snackbar work belongs to T0.6.
 - **2026-04-29** — Trust & IA Sprint 0 shipped (commits `813aa0b` + `2a35eb8`). Cross-initiative impact: full test suite now 741/741 across both initiatives (was 624/624 after Track B). Stack Intelligence's Track A B1/B2/B3 work continues to be green inside the larger 741. No Stack Intelligence code-side changes in those Trust & IA commits.
+- **2026-04-29** — Track C V1.2 Clinician Share Report code-complete. C1 + C2 + C3 all `[x]`. New `ClinicianReportBuilder` (pure function, golden-string tested) + `ShareService.shareClinicianReport` (DI-friendly via `ShareInvocation` override) + `ShareClinicianReportButton` wired into the stack screen's AppBar. AGENTS.md ≤3-files rule honored per task. Full suite 741 → 757 (+16: 11 C1 + 3 C2 + 2 C3). C3 real-device pass (Mail / Messages / MyChart paste) still ⏳ Sean per the spec's "Real-device test" DoD line.

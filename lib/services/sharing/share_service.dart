@@ -1,8 +1,47 @@
 import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 
+/// Function shape used to invoke the system share sheet. Production
+/// callers leave it `null` and the service routes through
+/// [SharePlus.instance.share]. Unit tests pass a fake to assert the
+/// payload without standing up a platform channel.
+typedef ShareInvocation = Future<void> Function(String text, {String? subject});
+
 /// Handles sharing products and stack summaries.
 class ShareService {
+  /// Optional override for the share-sheet invocation. Wired in by
+  /// tests so they can capture the text/subject the service hands to
+  /// `share_plus` without invoking the real platform channel.
+  /// Production constructs `ShareService()` and the default
+  /// [SharePlus] path runs.
+  final ShareInvocation? _shareOverride;
+
+  ShareService({ShareInvocation? shareOverride})
+      : _shareOverride = shareOverride;
+
+  Future<void> _share(String text, {String? subject}) {
+    final override = _shareOverride;
+    if (override != null) return override(text, subject: subject);
+    return SharePlus.instance.share(
+      ShareParams(text: text, subject: subject),
+    );
+  }
+
+  /// Share the markdown summary built by `ClinicianReportBuilder`.
+  ///
+  /// Spec: INITIATIVE_STACK_INTELLIGENCE.md, Track C, C2.
+  ///
+  /// The method is intentionally a thin pass-through — no analytics
+  /// ping, no payload reshaping, no fallbacks. The builder owns the
+  /// content; this method only routes it into the system share sheet
+  /// with a stable subject line.
+  Future<void> shareClinicianReport(String markdown) async {
+    await _share(
+      markdown,
+      subject: 'My Supplement Stack — Clinician Summary',
+    );
+  }
+
   /// Share a product using pre-computed fields from products_core.
   Future<void> shareProduct({
     required String? shareTitle,
