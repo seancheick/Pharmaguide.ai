@@ -6,6 +6,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 
 void main() {
   // DBs are created and closed inside each test body (not via setUp/tearDown).
@@ -118,6 +119,59 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
       await userDb.close();
+    });
+
+    testWidgets('exits first-launch mode when stack gains an item (reactive)',
+        (tester) async {
+      // Reactivity contract: home must re-evaluate first-launch when the
+      // active stack changes. Previously the provider used ref.read inside
+      // a FutureProvider — which captures the future once and never re-fires.
+      // After ref.watch fix, invalidating activeStackProvider must cause home
+      // to flip from collapsed (first-launch) to expanded.
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      final container = ProviderContainer(overrides: [
+        coreDatabaseProvider.overrideWithValue(coreDb),
+        userDatabaseProvider.overrideWithValue(userDb),
+      ]);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Initial state — empty DB, first-launch variant.
+      expect(find.text('Stack Health'), findsNothing,
+          reason: 'first-launch should hide Stack Health');
+
+      // User mutation: add a stack item AND invalidate (mirrors what
+      // StackActions.addProduct does in production at active_stack_provider:188).
+      await userDb.addToStack(
+        const UserStacksLocalCompanion(
+          id: Value('stack-react'),
+          type: Value('supplement'),
+          name: Value('Reactive Test'),
+          dsldId: Value('dsld-react'),
+        ),
+      );
+      container.invalidate(activeStackProvider);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // After fix: home re-evaluates first-launch → expanded sections render.
+      expect(find.text('Stack Health'), findsOneWidget,
+          reason: 'after stack mutation + invalidation, expanded home should '
+              'render — bug under ref.read is that this stays hidden');
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+      container.dispose();
     });
 
     testWidgets('shows expanded home sections after user activity',

@@ -14,10 +14,23 @@ import 'package:pharmaguide/features/home/widgets/home_stack_health.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
-final _isFirstLaunchHomeProvider = FutureProvider.autoDispose<bool>((ref) async {
-  final userDb = ref.read(userDatabaseProvider);
-  final stack = await ref.read(activeStackProvider.future);
+/// True when the user has no scans AND no stack — first-launch state. Drives
+/// the collapsed home variant. Re-evaluates whenever [activeStackProvider]
+/// emits or is invalidated, so adding the first stack item / first scan
+/// flips home into the expanded variant on the next frame.
+///
+/// Exposed for testing because reactivity is part of the contract: a
+/// regression to `ref.read` here would silently leave first-launch users
+/// stuck in collapsed mode after their first scan — exactly the moment
+/// expanded mode matters most.
+@visibleForTesting
+final isFirstLaunchHomeProvider =
+    FutureProvider.autoDispose<bool>((ref) async {
+  // ref.watch — not ref.read — so this provider re-fires when activeStack
+  // is invalidated (which StackActions does on every add/remove).
+  final stack = await ref.watch(activeStackProvider.future);
   if (stack.isNotEmpty) return false;
+  final userDb = ref.watch(userDatabaseProvider);
   final scans = await userDb.getRecentScans(limit: 1);
   return scans.isEmpty;
 });
@@ -37,7 +50,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
-    final firstLaunchAsync = ref.watch(_isFirstLaunchHomeProvider);
+    final firstLaunchAsync = ref.watch(isFirstLaunchHomeProvider);
     final mq = MediaQuery.of(context);
     final isFirstLaunch = firstLaunchAsync.asData?.value == true;
     final showExpandedSections = firstLaunchAsync.asData?.value == false;
