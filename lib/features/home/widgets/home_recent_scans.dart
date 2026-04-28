@@ -2,6 +2,8 @@
 // loading state, an empty state, and a "scan your first" CTA. Loads from
 // user_scan_history joined against core product data.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
@@ -80,19 +83,7 @@ class HomeRecentScansSection extends ConsumerWidget {
             const SizedBox(height: AppTheme.space12),
             SizedBox(
               height: 210,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                itemCount: scans.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final scan = scans[index];
-                  return _RecentScanCard(
-                    product: scan.product,
-                    scannedAt: scan.scannedAt,
-                  );
-                },
-              ),
+              child: _RecentScansSnapCarousel(scans: scans),
             ),
           ],
         );
@@ -214,7 +205,76 @@ class HomeRecentScansSection extends ConsumerWidget {
   }
 }
 
-/// Horizontal shimmer row that matches the data-state ListView geometry
+/// Object-like snap carousel for the populated Recents state.
+///
+/// Uses a PageView with `viewportFraction: 0.42` so each card occupies a
+/// ~164-pt slot — close to the 156-pt visible card width with a 12-pt
+/// gutter. `PageScrollPhysics` produces the iOS snap behavior — App Store
+/// "Up Next" / Apple TV row pattern. On every page change a selection
+/// haptic fires (iOS-feel signature: Apple Music's mini-player, Photos
+/// year/month/day toggle, Wallet card swipe).
+///
+/// Stateful because we own a PageController and dispose it on unmount.
+class _RecentScansSnapCarousel extends StatefulWidget {
+  final List<_RecentScanDisplay> scans;
+
+  const _RecentScansSnapCarousel({required this.scans});
+
+  @override
+  State<_RecentScansSnapCarousel> createState() =>
+      _RecentScansSnapCarouselState();
+}
+
+class _RecentScansSnapCarouselState extends State<_RecentScansSnapCarousel> {
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(viewportFraction: 0.42);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: _controller,
+      // padEnds:false keeps the first card flush with the leading edge —
+      // otherwise PageView centers the first/last item, which puts a
+      // huge gap before card 1 that breaks the chrome rhythm.
+      padEnds: false,
+      physics: const PageScrollPhysics(),
+      itemCount: widget.scans.length,
+      onPageChanged: (_) {
+        // Light selection haptic on each card-snap event. Decorative, so
+        // suppressed under reduce-motion via PGHaptics.tap.
+        unawaited(PGHaptics.tap(context));
+      },
+      itemBuilder: (context, index) {
+        final scan = widget.scans[index];
+        // The visual gutter between cards comes from viewportFraction's
+        // natural slack: a 0.42 slot on a 390-pt phone is ~164pt, the
+        // card is 156pt fixed, the trailing ~8pt reads as the gutter.
+        // On smaller phones the gutter compresses but never overflows
+        // because the card has a hard SizedBox at 156pt.
+        return Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: _RecentScanCard(
+            product: scan.product,
+            scannedAt: scan.scannedAt,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Horizontal shimmer row that matches the data-state slot geometry
 /// (156-px-wide cards, 12-px gaps, 4-px outer padding). Top-level widget so
 /// the parent's `_buildLoadingState` stays `const`.
 class _RecentScansShimmerRow extends StatelessWidget {
