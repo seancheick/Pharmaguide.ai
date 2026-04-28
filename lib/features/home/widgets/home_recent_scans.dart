@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
@@ -389,45 +388,41 @@ class _OutlineScanButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return AnimatedContainer(
-      duration: AppMotion.fast,
-      curve: AppMotion.standard,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-        border: Border.all(color: scheme.outlineVariant, width: 0.8),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.space16,
-              vertical: AppTheme.space8,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.qr_code_scanner_rounded,
-                  size: 16,
+    // PGPressable replaces Material+InkWell so the empty-state CTA gets
+    // the same tactile feel as the rest of home — scale 0.96 + spring +
+    // light haptic. The pill shape (radiusFull) is preserved.
+    return PGPressable(
+      onTap: onTap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          border: Border.all(color: scheme.outlineVariant, width: 0.8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.space16,
+            vertical: AppTheme.space8,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.qr_code_scanner_rounded,
+                size: 16,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Scan your first supplement',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                   color: scheme.primary,
+                  letterSpacing: -0.05,
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  'Scan your first supplement',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: scheme.primary,
-                    letterSpacing: -0.05,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
