@@ -51,40 +51,46 @@ class PGFrostedHeader extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    final p = scrollProgress.clamp(0.0, 1.0);
+    final target = scrollProgress.clamp(0.0, 1.0);
 
-    // Surface fill alpha — peak 0.78 (light) / 0.72 (dark), matching the
-    // PGFrostedNavBar curve. At progress 0 the fill is transparent so
-    // the header is visually invisible; at progress 1 the fill reaches
-    // peak opacity and reads as a clear frosted surface.
-    final fillAlpha = (isDark ? 0.72 : 0.78) * p;
+    // Smooth the progress so a binary scrollProgress flip (e.g. driven by
+    // SliverPersistentHeader's overlapsContent) crossfades over ~200ms
+    // instead of snapping. If the host already passes a smooth value, this
+    // tween simply tracks it tightly; if the host passes 0/1, we get the
+    // crossfade for free.
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: target),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      builder: (context, p, _) {
+        // Surface fill alpha — peak 0.78 (light) / 0.72 (dark), matching
+        // the PGFrostedNavBar curve.
+        final fillAlpha = (isDark ? 0.72 : 0.78) * p;
+        // Hairline alpha — fades in alongside the fill.
+        final hairlineAlpha = 0.6 * p;
 
-    // Hairline alpha — fades in alongside the fill so the bottom edge
-    // appears only once content is actually underneath the header.
-    final hairlineAlpha = 0.6 * p;
-
-    return ClipRect(
-      child: BackdropFilter(
-        // Blur scales smoothly from 0 to full intensity. ImageFilter.blur
-        // with sigma 0 is a no-op (passthrough), so this is fine to mount
-        // even when the header should be visually inert.
-        filter: ImageFilter.blur(
-          sigmaX: blurSigma * p,
-          sigmaY: blurSigma * p,
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: scheme.surface.withValues(alpha: fillAlpha),
-            border: Border(
-              bottom: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: hairlineAlpha),
-                width: 0.5,
+        return ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: blurSigma * p,
+              sigmaY: blurSigma * p,
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.surface.withValues(alpha: fillAlpha),
+                border: Border(
+                  bottom: BorderSide(
+                    color:
+                        scheme.outlineVariant.withValues(alpha: hairlineAlpha),
+                    width: 0.5,
+                  ),
+                ),
               ),
+              child: child,
             ),
           ),
-          child: child,
-        ),
-      ),
+        );
+      },
     );
   }
 }

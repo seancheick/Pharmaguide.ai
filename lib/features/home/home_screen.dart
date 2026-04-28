@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/widgets/home_citation_strip.dart';
@@ -61,18 +62,32 @@ class HomeScreen extends ConsumerWidget {
           parent: AlwaysScrollableScrollPhysics(),
         ),
         slivers: [
-          // Top safe area (no app bar — home uses free-floating hero)
-          SliverToBoxAdapter(
-            child: SizedBox(height: mq.padding.top + AppTheme.space12),
+          // ----------------------------------------------------------------
+          // Search launcher — pinned scroll-aware system surface.
+          //
+          // First sliver, with the status-bar inset baked into the delegate
+          // so the launcher renders below the notch / Dynamic Island. At
+          // scroll offset 0 the surrounding chrome is fully transparent
+          // (looks like page material). Once content scrolls past below,
+          // PGFrostedHeader inside the delegate fades in a translucent
+          // surface + bottom hairline — Settings / Mail / App Store top-
+          // chrome pattern.
+          // ----------------------------------------------------------------
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedSearchHeaderDelegate(
+              topPadding: mq.padding.top,
+            ),
           ),
 
           // ----------------------------------------------------------------
-          // Hero — date pill, greeting, tagline
+          // Hero — date pill, greeting, tagline. Sits below the pinned
+          // search and scrolls away naturally on user scroll.
           // ----------------------------------------------------------------
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(
               AppTheme.space20,
-              AppTheme.space8,
+              AppTheme.space12,
               AppTheme.space20,
               0,
             ),
@@ -93,19 +108,6 @@ class HomeScreen extends ConsumerWidget {
               0,
             ),
             sliver: SliverToBoxAdapter(child: HomeScanCta()),
-          ),
-
-          // ----------------------------------------------------------------
-          // Search launcher (tap → opens full search screen)
-          // ----------------------------------------------------------------
-          const SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              AppTheme.space20,
-              AppTheme.space12,
-              AppTheme.space20,
-              0,
-            ),
-            sliver: SliverToBoxAdapter(child: HomeSearchLauncher()),
           ),
 
           if (isFirstLaunch)
@@ -205,5 +207,66 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Pinned-search header delegate.
+///
+/// Renders [HomeSearchLauncher] inside a [PGFrostedHeader] whose
+/// scroll-progress is driven by `overlapsContent`: 0 while the search is
+/// floating in its natural inline position, 1 once the user has scrolled
+/// past it and content is now sliding underneath. PGFrostedHeader
+/// internally crossfades over ~220ms so the binary flip reads as a smooth
+/// material transition (App Store / Settings pattern).
+///
+/// [maxExtent] equals [minExtent] — no shrink-on-pin behavior. The search
+/// stays its natural height, only the surrounding chrome fades.
+class _PinnedSearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  /// System status-bar inset; we draw inside this padding so the search
+  /// field never sits underneath the notch / Dynamic Island.
+  final double topPadding;
+
+  /// Fixed total height of the header zone: status-bar inset + vertical
+  /// padding above and below the launcher + the launcher itself
+  /// (≈ 52pt). Tuned to match the prior inline rhythm.
+  static const double _verticalPadding = 12;
+  static const double _launcherHeight = 52;
+
+  _PinnedSearchHeaderDelegate({required this.topPadding});
+
+  double get _height =>
+      topPadding + _verticalPadding * 2 + _launcherHeight;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return PGFrostedHeader(
+      // Binary signal — TweenAnimationBuilder inside PGFrostedHeader
+      // smooths the flip into a 220ms crossfade.
+      scrollProgress: overlapsContent ? 1.0 : 0.0,
+      child: Padding(
+        padding: EdgeInsets.only(
+          top: topPadding + _verticalPadding,
+          left: AppTheme.space20,
+          right: AppTheme.space20,
+          bottom: _verticalPadding,
+        ),
+        child: const HomeSearchLauncher(),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedSearchHeaderDelegate oldDelegate) {
+    return oldDelegate.topPadding != topPadding;
   }
 }
