@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
@@ -47,7 +47,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     if (value == null || value.isEmpty) return;
 
     setState(() => _hasScanned = true);
-    unawaited(HapticFeedback.lightImpact());
+    // Decorative tap haptic — confirms barcode was captured. Suppressed
+    // under reduce-motion via PGHaptics.tap.
+    unawaited(PGHaptics.tap(context));
     _lookUpProduct(value);
   }
 
@@ -87,7 +89,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   /// Flash the verdict color briefly, trigger haptic feedback, then navigate.
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
-    unawaited(HapticFeedback.mediumImpact());
+    // Verdict-result haptic — safety-critical signal that always fires
+    // (PGHaptics.warning is medium impact and bypasses reduce-motion).
+    // Future enhancement: derive intensity from product.verdict severity
+    // (safe → success, caution → warning, contraindicated → danger).
+    unawaited(PGHaptics.warning());
 
     final color = verdictFlashColor(product.verdict);
     setState(() {
