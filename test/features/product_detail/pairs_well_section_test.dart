@@ -73,4 +73,105 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Piperine inhibits'), findsOneWidget);
   });
+
+  testWidgets('T0.4: badge count equals rendered card count for 4 pairs',
+      (tester) async {
+    SynergyMatch make(String id, String name) => SynergyMatch(
+          clusterId: id,
+          clusterName: name,
+          matchedIngredients: [id],
+          mechanism: 'mechanism for $id',
+          bonusPoints: 2,
+          evidenceTier: 'moderate',
+          citations: const [],
+        );
+    final fourPairs = [
+      make('a', 'Iron + Vitamin C'),
+      make('b', 'Curcumin + Piperine'),
+      make('c', 'Magnesium + Vitamin D'),
+      make('d', 'Zinc + Copper Balance'),
+    ];
+
+    await tester.pumpWidget(wrap(
+      const PairsWellSection(dsldId: '12345'),
+      overrides: [
+        pairsWellWithStackProvider('12345').overrideWith((_) async => fourPairs),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    // Badge shows total count
+    expect(find.text('4'), findsOneWidget);
+    // All four cluster names render — not just the first three
+    expect(find.text('Iron + Vitamin C'), findsOneWidget);
+    expect(find.text('Curcumin + Piperine'), findsOneWidget);
+    expect(find.text('Magnesium + Vitamin D'), findsOneWidget);
+    expect(find.text('Zinc + Copper Balance'), findsOneWidget);
+  });
+
+  testWidgets('T0.4: 1 pair renders singular subtitle', (tester) async {
+    final match = SynergyMatch(
+      clusterId: 'iron_vitamin_c',
+      clusterName: 'Iron + Vitamin C',
+      matchedIngredients: const ['iron', 'vitamin_c'],
+      mechanism: 'absorption mechanism',
+      bonusPoints: 3,
+      evidenceTier: 'strong',
+      citations: const [],
+    );
+    await tester.pumpWidget(wrap(
+      const PairsWellSection(dsldId: '12345'),
+      overrides: [
+        pairsWellWithStackProvider('12345').overrideWith((_) async => [match]),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1'), findsOneWidget);
+    expect(
+      find.textContaining('this ingredient combination'),
+      findsOneWidget,
+    );
+    // Should NOT contain the plural form
+    expect(
+      find.textContaining('these ingredient combinations'),
+      findsNothing,
+    );
+    // Should NOT contain the old vague subtitle
+    expect(
+      find.textContaining("Based on what's already in your stack"),
+      findsNothing,
+    );
+  });
+
+  testWidgets('T0.4: 2+ pairs render plural subtitle', (tester) async {
+    SynergyMatch make(String id, String name) => SynergyMatch(
+          clusterId: id,
+          clusterName: name,
+          matchedIngredients: [id],
+          mechanism: 'mechanism',
+          bonusPoints: 2,
+          evidenceTier: 'moderate',
+          citations: const [],
+        );
+    await tester.pumpWidget(wrap(
+      const PairsWellSection(dsldId: '12345'),
+      overrides: [
+        pairsWellWithStackProvider('12345').overrideWith((_) async => [
+              make('a', 'Iron + C'),
+              make('b', 'Curcumin + Piperine'),
+            ]),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('these ingredient combinations'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('this ingredient combination '),
+      findsNothing,
+    );
+  });
 }

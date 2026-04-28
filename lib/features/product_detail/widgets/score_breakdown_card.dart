@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/util/ingredient_display.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
 /// Score breakdown card — four tappable sub-section bars with expandable
@@ -206,11 +207,11 @@ class ScoreBreakdownCard extends StatelessWidget {
     final lines = <_ExplainLine>[];
 
     final matched = sub['matched_entries'];
-    if (matched is num && matched > 0) {
-      lines.add(_ExplainLine(
-        text: '${matched.toInt()} ingredients matched in research database',
-        isPositive: true,
-      ));
+    if (matched is num) {
+      final summary = researchMatchSummary(matched.toInt());
+      if (summary != null) {
+        lines.add(_ExplainLine(text: summary, isPositive: true));
+      }
     }
 
     final ingredientPoints =
@@ -218,10 +219,9 @@ class ScoreBreakdownCard extends StatelessWidget {
     for (final entry in ingredientPoints.entries) {
       final pts = entry.value;
       if (pts is num && pts > 0) {
-        final name = entry.key.replaceAll('_', ' ');
         lines.add(_ExplainLine(
           text:
-              '${name[0].toUpperCase()}${name.substring(1)}: ${pts.toStringAsFixed(1)} pts',
+              '${prettifyIngredientName(entry.key)} — research-backed bonus',
           isPositive: true,
         ));
       }

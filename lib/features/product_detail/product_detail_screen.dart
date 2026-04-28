@@ -1219,6 +1219,27 @@ class _InteractionHint {
   });
 }
 
+/// Strip noisy numeric or "Tier N" detail strings emitted by the
+/// pipeline (e.g. `score_bonuses[i].detail == "3"` for the delivery
+/// tier). The user can't interpret a bare number under a label like
+/// "Advanced delivery system" — it reads as a bug.
+///
+/// Pipeline-side fix to emit prose detail directly is tracked as T3.4
+/// in `INITIATIVE_PRODUCT_TRUST_AND_IA.md`. This is the Flutter-side
+/// safety net.
+///
+/// Returns an empty string when the input is null, blank, a bare
+/// integer, or "Tier N" (case-insensitive). Otherwise returns the
+/// trimmed input unchanged.
+final RegExp _whyDetailNoise = RegExp(r'^(?:\d+|tier\s+\d+)$', caseSensitive: false);
+String sanitizeWhyDetail(String? raw) {
+  if (raw == null) return '';
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return '';
+  if (_whyDetailNoise.hasMatch(trimmed)) return '';
+  return trimmed;
+}
+
 List<({String label, String detail, bool isPositive})> _extractWhyItems(
   Map<String, dynamic>? blob,
 ) {
@@ -1238,14 +1259,16 @@ List<({String label, String detail, bool isPositive})> _extractWhyItems(
     ...bonuses.map(
       (b) => (
         label: b['label']?.toString() ?? b['reason']?.toString() ?? '',
-        detail: b['detail']?.toString() ?? b['description']?.toString() ?? '',
+        detail: sanitizeWhyDetail(
+            b['detail']?.toString() ?? b['description']?.toString()),
         isPositive: true,
       ),
     ),
     ...penalties.map(
       (p) => (
         label: p['label']?.toString() ?? p['reason']?.toString() ?? '',
-        detail: p['detail']?.toString() ?? p['description']?.toString() ?? '',
+        detail: sanitizeWhyDetail(
+            p['detail']?.toString() ?? p['description']?.toString()),
         isPositive: false,
       ),
     ),
@@ -2221,7 +2244,7 @@ class _WhyThisProductSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Why this product',
+            'Highlights',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
             ),
@@ -3199,6 +3222,8 @@ class _DeepDiveSectionState extends State<_DeepDiveSection>
                 ExcipientDensityCard(
                   activeIngredients: widget.activeIngredients,
                   inactiveIngredients: widget.inactiveIngredients,
+                  dosageForm:
+                      widget.formulationDetail?['delivery_form']?.toString(),
                 ),
                 const SizedBox(height: AppTheme.space8),
                 FormulationDetailSection(

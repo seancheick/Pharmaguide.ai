@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -14,8 +15,14 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
+import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
+
+/// SharedPreferences key for the most recently activated catalog
+/// version. Persisting this means a relaunch with the same remote
+/// version doesn't trigger a redundant download/swap cycle (T0.6).
+const String _kCatalogVersionPrefKey = 'activeCatalogVersion';
 
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnv = String.fromEnvironment(
@@ -126,6 +133,8 @@ class PharmaGuideBootstrap extends StatefulWidget {
 
 class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   final SyncService _syncService = SyncService();
+  late final CatalogSwapper _swapper =
+      CatalogSwapper.production(syncService: _syncService);
 
   CoreDatabase? _coreDb;
   String? _activeCatalogVersion;
@@ -154,6 +163,14 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   Future<void> _bootstrapCatalog() async {
     CoreDatabase? initialDb;
     String? initialReason;
+
+    // T0.6: prime _activeCatalogVersion from SharedPreferences so the
+    // version guard in _refreshCatalogIfNeeded recognizes a no-op
+    // refresh on relaunch (same remote version → skip download). The
+    // value is overwritten by validateCatalogSnapshot() once the DB
+    // actually opens, so a stale prefs entry can't cause us to skip
+    // legitimate updates — it only affects the very first refresh tick.
+    _activeCatalogVersion = await _restoreActiveCatalogVersion();
 
     if (widget.supabaseReady) {
       try {
@@ -239,8 +256,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         return;
       }
 
-      final shouldDownload =
-          forceDownload || remoteVersion != _activeCatalogVersion || _coreDb == null;
+      final shouldDownload = forceDownload ||
+          remoteVersion != _activeCatalogVersion ||
+          _coreDb == null;
       if (!shouldDownload) {
         return;
       }
@@ -249,29 +267,54 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         expectedVersion: remoteVersion,
       );
 
-      if (_coreDb != null) {
-        debugPrint(
-          'Catalog update $downloadedVersion staged for next app start. '
-          'Current session remains on $_activeCatalogVersion.',
-        );
-        return;
+      // T0.6: in-session activation. Until 2026-04-29 this branch
+      // staged-and-deferred when `_coreDb != null`, leaving users on
+      // stale data until the next cold start. Now we run the swap
+      // routine inline. The validation gate inside
+      // `_validateStagedDatabase` (PRAGMA integrity_check + version
+      // match) has already cleared this file before we get here, and
+      // `CatalogSwapper.swap()` adds a second-line defense by closing
+      // the new DB on a validation failure during open.
+      final swapResult = await _swapper.swap();
+
+      switch (swapResult) {
+        case SwapSuccess(:final newDb, :final version):
+          if (!mounted) {
+            await newDb.close();
+            return;
+          }
+          final oldDb = _coreDb;
+          setState(() {
+            _coreDb = newDb;
+            _activeCatalogVersion = version;
+            _catalogAvailable = true;
+            _catalogUnavailableReason = null;
+            _scopeVersion++;
+          });
+          // Fire-and-forget: persistence is best-effort; a failure here
+          // just means the next launch may redundantly re-download the
+          // same version, which is harmless.
+          unawaited(_persistActiveCatalogVersion(version));
+          // Close the previous DB after the new one is wired into
+          // ProviderScope. Drift releases the (now-unlinked) old inode
+          // when the connection drops; in-flight queries against the
+          // old DB finish cleanly.
+          unawaited(oldDb?.close());
+          _showCatalogUpdatedSnackbar(version);
+        case SwapRolledBack(:final reason):
+          // The swap routine restored the original file via
+          // `SyncService.activateStagedCoreDbIfPresent`'s backup logic
+          // and (if we got far enough) closed the new DB. Current
+          // session keeps using `_coreDb`.
+          debugPrint('Catalog swap rolled back: $reason');
+        case SwapNoStaging():
+          // Race: stageCoreDbDownload returned a version but the
+          // staging file vanished (e.g. cleanup hook ran). Log and
+          // move on — the next refresh tick will retry.
+          debugPrint(
+              'Catalog swap: no staging file present after download '
+              'returned $downloadedVersion');
       }
-
-      await _syncService.activateStagedCoreDbIfPresent();
-      final nextDb = await _openValidatedCatalog();
-
-      if (!mounted) {
-        await nextDb.close();
-        return;
-      }
-
-      setState(() {
-        _coreDb = nextDb;
-        _activeCatalogVersion = downloadedVersion;
-        _catalogAvailable = true;
-        _catalogUnavailableReason = null;
-        _scopeVersion++;
-      });
     } on Object catch (e) {
       debugPrint('Catalog refresh failed: $e');
       if (mounted && _coreDb == null) {
@@ -285,6 +328,41 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       _syncInFlight = false;
       _scheduleCatalogRefresh();
     }
+  }
+
+  /// Persist the activated catalog version so the next launch's
+  /// version guard can short-circuit a redundant download when the
+  /// remote hasn't changed.
+  Future<void> _persistActiveCatalogVersion(String version) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kCatalogVersionPrefKey, version);
+    } on Object catch (e) {
+      debugPrint('Catalog version persistence failed: $e');
+    }
+  }
+
+  Future<String?> _restoreActiveCatalogVersion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_kCatalogVersionPrefKey);
+    } on Object catch (e) {
+      debugPrint('Catalog version restore failed: $e');
+      return null;
+    }
+  }
+
+  void _showCatalogUpdatedSnackbar(String version) {
+    final messenger = scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Catalog updated to v$version'),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   String _unavailableReason({required bool includeRetryHint}) {

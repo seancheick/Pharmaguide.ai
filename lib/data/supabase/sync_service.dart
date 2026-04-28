@@ -148,6 +148,24 @@ class SyncService {
   }) async {
     final db = CoreDatabase.open(dbPath);
     try {
+      // T0.6: SQLite-level integrity check guards against corrupted
+      // bytes that would still pass the version check (torn pages,
+      // broken indexes, truncated payloads). PRAGMA integrity_check
+      // returns a single row with the literal `'ok'` on success or one
+      // or more rows describing the corruption.
+      final integrityRows =
+          await db.customSelect('PRAGMA integrity_check').get();
+      if (integrityRows.isEmpty) {
+        throw StateError('PRAGMA integrity_check returned no rows');
+      }
+      final integrityResult =
+          integrityRows.first.data.values.first?.toString();
+      if (integrityResult != 'ok') {
+        throw StateError(
+          'Catalog integrity_check failed: ${integrityResult ?? "(null)"}',
+        );
+      }
+
       final validatedVersion = await db.validateCatalogSnapshot();
       if (validatedVersion != expectedVersion) {
         throw StateError(

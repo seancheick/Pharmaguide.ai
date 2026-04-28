@@ -403,4 +403,46 @@ void main() {
     expect(isUnsafeVerdict(null), isFalse);
     expect(isUnsafeVerdict(''), isFalse);
   });
+
+  group('sanitizeWhyDetail (T0.2)', () {
+    test('null → empty string', () {
+      expect(sanitizeWhyDetail(null), '');
+    });
+
+    test('empty / whitespace → empty string', () {
+      expect(sanitizeWhyDetail(''), '');
+      expect(sanitizeWhyDetail('   '), '');
+    });
+
+    test('bare integer "3" is stripped (delivery-tier noise)', () {
+      expect(sanitizeWhyDetail('3'), '');
+    });
+
+    test('multi-digit integer is stripped', () {
+      expect(sanitizeWhyDetail('42'), '');
+    });
+
+    test('"Tier 3" is stripped (case-insensitive)', () {
+      expect(sanitizeWhyDetail('Tier 3'), '');
+      expect(sanitizeWhyDetail('tier 3'), '');
+      expect(sanitizeWhyDetail('TIER 3'), '');
+    });
+
+    test('prose detail passes through unchanged', () {
+      expect(sanitizeWhyDetail('Standardized, botanical'),
+          'Standardized, botanical');
+    });
+
+    test('prose with embedded number passes through (we only strip pure noise)',
+        () {
+      expect(sanitizeWhyDetail('3 study citations'), '3 study citations');
+      expect(sanitizeWhyDetail('Backed by Tier 3 evidence'),
+          'Backed by Tier 3 evidence');
+    });
+
+    test('leading/trailing whitespace is trimmed off prose', () {
+      expect(sanitizeWhyDetail('  Liposomal delivery format  '),
+          'Liposomal delivery format');
+    });
+  });
 }

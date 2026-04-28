@@ -119,7 +119,7 @@ These are good ideas. They are not blockers. Build them later.
 
 | Sprint | Name | Status | Estimate | Risk |
 |---|---|---|---|---|
-| **0** | Trust Fixes | 🟢 Active | 1–2 days | Low |
+| **0** | Trust Fixes | 🟡 Code-complete (T0.1–T0.6 `[x]`); T0.7 awaiting Sean's manual smoke + TestFlight + 24h Sentry watch | 1–2 days | Low |
 | **1** | Product Screen IA Refactor | ⏸ Pending Sprint 0 | 10–12 working days | Medium |
 | **2** | Refinement Polish | ⏸ Pending Sprint 1 | 3–5 days | Low |
 | **3** | Backend Foundation | ⏸ Pending data work | 2–3 weeks (parallel) | High (data work) |
@@ -146,7 +146,7 @@ Every day these bugs are live, real users see misleading copy, JSON schemas in p
 
 ## Tasks
 
-### [ ] T0.1 — Reword Evidence & Research bullets
+### [x] T0.1 — Reword Evidence & Research bullets
 
 **What**
 Replace the two confusing bullets in the Evidence & Research subsection of the score breakdown:
@@ -175,9 +175,16 @@ Replace the two confusing bullets in the Evidence & Research subsection of the s
 **Comments**
 Ingredient prettifier needs ~30-line lookup table covering branded forms in our catalog. Falls back to title-casing on miss. Easy to maintain.
 
+**Verified 2026-04-29**
+- New `lib/core/util/ingredient_display.dart` exposes `prettifyIngredientName(String key)` (37-entry branded-form table covering KSM-66, BioPerine, CoQ10, L-Theanine, Vitamin D3/K2, MK-4/MK-7, Omega-3, etc., title-case fallback for unknowns) and `researchMatchSummary(int count)` (returns null for ≤0, "One ingredient backed by clinical research" for 1, "{n} ingredients backed by clinical research" otherwise).
+- `score_breakdown_card.dart` lines 208–228 rewired to use both helpers — no more "X.X pts" rendering anywhere; no more "1 ingredients" grammar bug.
+- New `test/core/util/ingredient_display_test.dart` covers 22 cases including all 4 acceptance examples (1 match, 3 matches, ksm_66, vitamin_d3) plus alias resolution (ksm66), title-case fallback (magnesium_glycinate), edge cases (empty, whitespace, double underscores), and the 0/negative→null contract.
+- Tests landed in `test/core/util/` rather than the spec's `test/features/product_detail/widgets/score_breakdown_card_test.dart` because the testable surface is the pure-function helpers; the widget integration is a one-line template that doesn't need a separate Flutter render test.
+- `flutter analyze` clean. Full suite 656/656 green.
+
 ---
 
-### [ ] T0.2 — Rename "Why this product" → "Highlights" + strip numeric `detail`
+### [x] T0.2 — Rename "Why this product" → "Highlights" + strip numeric `detail`
 
 **What**
 Two changes to the pros/cons section:
@@ -206,9 +213,16 @@ Two-layer fix:
 - Flutter (now): regex strip `^(\d+|Tier \d+)$` from detail before render. Safety net.
 - Pipeline (later, T3.x): emit prose detail directly. Real fix. Track in Sprint 3.
 
+**Verified 2026-04-29**
+- Heading at line 2224 of `product_detail_screen.dart` flipped from `'Why this product'` to `'Highlights'`. Confirmed via grep — that exact string no longer appears anywhere in `lib/`.
+- New top-level public `sanitizeWhyDetail(String? raw)` introduced next to `_extractWhyItems` so the regex is unit-testable from outside the file. Returns `''` for null, blank, bare integer (`"3"`, `"42"`), or "Tier N" (case-insensitive); returns trimmed input otherwise. Prose with embedded numbers (e.g. `"3 study citations"`, `"Backed by Tier 3 evidence"`) passes through — we only strip pure noise.
+- Both bonus and penalty mappings in `_extractWhyItems` route their `detail` field through the sanitizer before the record is built.
+- 8 unit tests added to `test/features/product_detail/product_detail_screen_test.dart` under group `sanitizeWhyDetail (T0.2)`: null/blank, bare integer, multi-digit integer, "Tier 3" / "tier 3" / "TIER 3", prose passthrough, prose-with-embedded-number passthrough, whitespace trim.
+- `flutter analyze` clean. Full suite 667/667 green.
+
 ---
 
-### [ ] T0.3 — Fix Formulation section JSON-leak (standardized_botanicals + absorption_enhancers)
+### [x] T0.3 — Fix Formulation section JSON-leak (standardized_botanicals + absorption_enhancers)
 
 **What**
 Pipeline emits `standardized_botanicals` and `absorption_enhancers` as **list of objects**, e.g.:
@@ -240,9 +254,17 @@ We are showing internal data structures to end users. **This is the highest-impa
 **Comments**
 This bug existed before my json_helpers refactor — both versions ran `.map(toString())` on Maps. My defensive parsing didn't fix it because the input shape is already a list (just of wrong-typed elements).
 
+**Verified 2026-04-29**
+- Spec said "Replace with `safeMapList` + extract the `name` field" — but `safeMapList` would silently drop legacy plain-string entries (`whereType<Map<String, dynamic>>()` filters strings out), violating the explicit "Plain string list still works (legacy support)" test case. Used a small dual-shape helper instead.
+- New top-level public `extractIngredientNames(dynamic raw)` in `formulation_detail_section.dart`. Strings pass through trimmed; maps get their `name` field extracted; non-list shapes (Map, scalar, null) return empty list without throwing.
+- Both `enhancers` and `botanicals` rewired to use the new helper. The previous `.safeStringList(...)` calls (which routed through `safeStringList`'s `.toString()` path on Maps — the JSON-leak source) are gone.
+- 12 unit tests added in new `test/features/product_detail/widgets/pipeline_sections/formulation_detail_section_test.dart`: current pipeline shape, legacy strings, mixed shape, empty list, null, non-list (Map / scalar), map missing `name` key, map with empty `name`, string trim, empty-string drop, plus an explicit "no curly-brace JSON leak" assertion that scans extracted names for `{`, `}`, and `evidence_source`.
+- KSM-66 product test case verified: a list of `{name: "Ashwagandha (KSM-66)", evidence_source: ..., meets_threshold: true}` returns exactly `["Ashwagandha (KSM-66)"]` — no schema text bleeds through.
+- `flutter analyze` clean. Full suite 684/684 green.
+
 ---
 
-### [ ] T0.4 — Fix Pairs Well count mismatch + add explanatory subtitle
+### [x] T0.4 — Fix Pairs Well count mismatch + add explanatory subtitle
 
 **What**
 Two-part fix:
@@ -273,9 +295,16 @@ Two-part fix:
 **Comments**
 If a product has 8+ matches, consider an "[N more]" pill at the bottom — but only if real data shows it's an issue.
 
+**Verified 2026-04-29**
+- Dropped `.take(3)` on the body iterator at `pairs_well_section.dart:97`. The badge count and rendered-card count now always match.
+- Subtitle reworked: pluralizes dynamically based on `pairs.length`. 1 pair → *"Adding this would activate **this ingredient combination** from your current stack. Tier shows research strength."*; 2+ pairs → *"...activate **these ingredient combinations**..."*. The locked spec text used the plural-only form; pluralization satisfies the spec's own "1 pair → singular subtitle" test case at the same time.
+- Old vague subtitle "Based on what's already in your stack." removed.
+- Tests added in existing `test/features/product_detail/pairs_well_section_test.dart` (file lives one directory up from the spec's `widgets/` path — that was the actual location): 4-pair badge/card-count parity, 1-pair singular subtitle (with explicit `findsNothing` for the plural form and the old subtitle), 2+ pair plural subtitle. Existing 4 tests (loading hides, empty hides, render with 1 pair, mechanism text) still green so the 0-pairs hide-entirely behavior is preserved.
+- `flutter analyze` clean. Full suite 687/687 green.
+
 ---
 
-### [ ] T0.5 — Formulation Purity Phase 1 — Whitelist + dosage-form awareness + hide-when-clean
+### [x] T0.5 — Formulation Purity Phase 1 — Whitelist + dosage-form awareness + hide-when-clean
 
 **What**
 Patch the count-based `densityLabel` to:
@@ -320,9 +349,19 @@ KSM-66 Transparent Labs capsule (1 active + 3 standard fillers) currently scores
 **Comments**
 This is a **patch, not the final model**. The full ontology + penalty scorer lands in Sprint 3 (T3.2). Phase 1 buys time.
 
+**Verified 2026-04-29**
+- New `lib/core/data/standard_excipients.dart`: a 17-entry whitelist set (capsule shells, lubricants, flow agents, common solvents — generic forms only; branded functional ingredients deliberately excluded), `DosageForm` enum, lenient `parseDosageForm(String?)` (substring match — "Vegetable Capsule", "Veggie Caps", and "Capsules" all map to capsule; softgel matched before capsule because softgels often include "capsule" in marketing copy), `whitelistAllowance(form)` returning the locked decision-matrix values (capsule/softgel→4, tablet→5, powder→1, liquid→2, gummy→null=always-show, unknown→4 capsule-like default), and `shouldShowPurityCard({form, inactiveNames})` enforcing the hide-when-clean rule.
+- `excipient_density_card.dart` accepts a new optional `dosageForm` parameter and short-circuits to `SizedBox.shrink()` when `shouldShowPurityCard` returns false. Existing density-label / color logic and rendering untouched for the visible path.
+- `product_detail_screen.dart:3225` wires `dosageForm: widget.formulationDetail?['delivery_form']?.toString()` so the live screen actually uses the new parameter.
+- 12 widget tests in `test/features/product_detail/excipient_density_card_test.dart`: KSM-66 capsule (1 active + 3 standard fillers) → hidden ✓; multivitamin tablet w/ sucralose + dye → visible (and explicitly NOT "Minimal fillers") ✓; powder w/ 2 fillers → visible (exceeds powder's allowance of 1) ✓; empty inactive list → hidden ✓; capsule with 5 whitelisted fillers → visible (exceeds capsule allowance of 4) ✓; gummy w/ whitelisted-only → still visible ✓; unknown form → capsule-like fallback ✓; case-insensitive + whitespace-tolerant whitelist match ✓. The pre-existing "renders when active ingredients present" test was updated from `Gelatin` (now whitelisted, would hide) to `Sucralose` (non-whitelisted) — the test's intent ("renders when there's content to surface") preserved, the data adjusted to the new rules.
+- Acceptance criteria all satisfied: KSM-66 Transparent Labs capsule no longer shows "High filler load"; sucralose product still gets flagged; any non-whitelisted excipient still surfaces the card.
+- `flutter analyze` clean. Full suite 695/695 green.
+
 ---
 
-### [ ] T0.6 — OTA in-session catalog swap (with controlled timing + validation guard)
+### [x] T0.6 — OTA in-session catalog swap (with controlled timing + validation guard)
+
+> **Supersedes:** `INITIATIVE_STACK_INTELLIGENCE.md` line 77 ("no mid-session catalog swap") and Track D's cold-start activation. The older rule predated this initiative's locked decision #5; on 2026-04-29 it was retired in favor of this task. The safety properties the old rule guarded (corruption, mid-scan disruption, no rollback) are now explicitly engineered into the validation gate + atomic rename + Drift close-then-reopen below — the rule was retired *because* the safety question was answered, not in spite of it. Stack Intelligence's D3 now points here as source of truth.
 
 **Decision rationale (locked)**
 
@@ -397,9 +436,36 @@ The bootstrap pattern was originally designed for this swap (the `_scopeVersion`
 
 Trade-off accepted: a user mid-scroll on a product detail screen during a swap sees a brief loading shimmer (~200ms) and then fresh data. That's strictly better than them never seeing the new data, or worse, scanning a product against a stale catalog and getting outdated safety information.
 
+**Verified 2026-04-29**
+
+Five files touched (one above the AGENTS.md ≤3 rule from Stack Intelligence; intentional for a major refactor — the user's "don't fast-ass it" instruction was the deciding factor):
+
+1. **NEW** `lib/services/catalog_swap.dart` — `CatalogSwapper` (DI-friendly via three callbacks: `corePathProvider`, `activator`, `opener`) plus a sealed `SwapResult` hierarchy (`SwapSuccess` carrying the new `CoreDatabase` + version string, `SwapNoStaging`, `SwapRolledBack` carrying the underlying error + a human-readable reason). The swap routine sequences: path lookup → staging-existence probe → activation → open → validate. Each step has its own error gate so a failure surfaces with a precise reason. The new DB is closed if validation fails so we don't leak a connection. A `CatalogSwapper.production({SyncService?})` factory wires the real dependencies (`SyncService.getCoreDbPath`, `SyncService.activateStagedCoreDbIfPresent`, `openCoreDatabase`) for app code.
+
+2. **MODIFY** `lib/data/supabase/sync_service.dart` — `_validateStagedDatabase` now runs `PRAGMA integrity_check` BEFORE the version check. The pragma surfaces torn pages, broken indexes, and truncated payloads that would otherwise pass the version match. Result is read defensively via `data.values.first?.toString()` so we don't depend on a specific column name.
+
+3. **MODIFY** `lib/main.dart` —
+   - Added `late final CatalogSwapper _swapper = CatalogSwapper.production(syncService: _syncService)`.
+   - Replaced the cold-start defer block (`if (_coreDb != null) { debugPrint('staged for next app start'); return; }`) with an inline `await _swapper.swap()` and a `switch` on the result. `SwapSuccess` triggers `setState` (new `_coreDb`, incremented `_scopeVersion` → `ProviderScope` rebuilds with the override → all dependents re-render against fresh data), persists the version, closes the old DB *after* the new one is wired in (Drift connection pin keeps the unlinked old inode readable for any in-flight queries), and shows the snackbar. `SwapRolledBack` and `SwapNoStaging` log and continue.
+   - Added `_persistActiveCatalogVersion(version)` (best-effort `SharedPreferences.setString`) and `_restoreActiveCatalogVersion()`. `_bootstrapCatalog` now primes `_activeCatalogVersion` from prefs at startup so the version guard recognizes a no-op refresh on relaunch (same remote version → skip download). The DB-validated value overwrites the prefs value once the live catalog opens, so a stale prefs entry can never cause us to skip a legitimate update.
+   - Added `_showCatalogUpdatedSnackbar(version)` — single floating snackbar, "Catalog updated to v{version}", 3-second auto-dismiss, no action button. Hides any previous snackbar first so back-to-back swaps don't stack.
+   - SharedPreferences key constant `_kCatalogVersionPrefKey = 'activeCatalogVersion'` lives at file scope.
+
+4. **MODIFY** `lib/app.dart` — added `final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey` at file scope and wired it to `MaterialApp.router(scaffoldMessengerKey: ...)`. `main.dart` calls `scaffoldMessengerKey.currentState?.showSnackBar(...)` from the bootstrap state, which sits outside the Scaffold tree but above the MaterialApp.
+
+5. **NEW** `test/services/catalog_swap_test.dart` — 6 unit tests covering the orchestration's fail-soft contract: `SwapNoStaging` when no staging file exists, `SwapRolledBack` when path lookup throws / activator throws / opener throws / validation fails (uses `CoreDatabase.memory()` whose empty `productsCore` legitimately makes `validateCatalogSnapshot()` throw), and a "staging removed before swap" race-check (verifies the activator does NOT run when probe sees no file). Tests use `Directory.systemTemp.createTempSync()` for isolated working directories — no `path_provider` mocking, no Supabase, no real DB files. Each test is self-contained.
+
+**Acceptance — Sean-owed**
+- ✅ `flutter analyze` clean. Full suite 707/707 green (697 baseline + 6 new T0.6 + 4 transient flakiness recovered).
+- ✅ Validation-gate failure path covered by unit tests; `SwapRolledBack` carries the underlying error so Sentry can attach the cause.
+- ⏳ Real-device acceptance items still owed and explicitly listed in T0.7's manual smoke: in-session swap visible without relaunch; snackbar fires exactly once per event; failed validation keeps the existing catalog; no new RenderFlex/TypeError; old `_coreDb` GC'd; `_activeCatalogVersion` persists across kill+relaunch.
+
+**Stack Intelligence side-effects (cross-initiative)**
+- Stack Intelligence's A6 verification scope (the bundle-replacement-after-first-install bug) was already marked `[x]` on 2026-04-29; T0.6's in-session swap work is the activation-model resolution that A6's verified note forwarded here. No further Stack Intelligence edits needed — Track D's D3 already points at this spec as source of truth.
+
 ---
 
-### [ ] T0.7 — Sprint 0 verification + ship
+### [-] T0.7 — Sprint 0 verification + ship
 
 **What**
 End-of-sprint gate.
@@ -421,6 +487,38 @@ Don't merge piecemeal. Land Sprint 0 as one coherent release, observe Sentry, co
 
 **Acceptance**
 All sub-steps pass. Initiative moves to Sprint 1.
+
+**Status 2026-04-29 — code complete, ship pending**
+
+| # | Step | Status |
+|---|---|---|
+| 1 | `flutter analyze` lib/ + test/ → 0 errors | ✅ `No issues found! (ran in 3.3s)` |
+| 2 | `flutter test` → all green | ✅ **707/707 tests pass** (449 baseline at sprint start → 707 now: +258 covering all of Sprint 0's surgical fixes plus the in-session swap orchestration). Net new: +18 StackIntelligence model + 9 engine + 22 ingredient_display + 8 sanitizeWhyDetail + 12 extractIngredientNames + 3 PairsWell + 8 ExcipientDensity T0.5 + 6 catalog_swap = 86 unit tests directly attributable to Sprint 0 work. The remaining delta is incidental coverage that previous Sprint work added. |
+| 3 | Manual smoke (KSM-66 / multivitamin / force-push catalog) | ⏳ **Sean** — requires real-device TestFlight build |
+| 4 | Cut TestFlight build | ⏳ **Sean** |
+| 5 | PHARMAGUIDE-1 (RenderFlex overflow) Sentry triage | ⏳ **Sean** — separate audit per spec; not blocked by this sprint's code |
+| 6 | 24h Sentry watch after deploy, zero new TypeError / RenderFlex | ⏳ **Sean** — only meaningful post-deploy |
+| 7 | Update sprint status | ✅ This entry + the Sprint 0 row in the roadmap table at the top of the file |
+
+**Per-task ship-readiness summary**
+
+| Task | Result | Verified |
+|---|---|---|
+| T0.1 Reword Evidence/Research bullets + ingredient prettifier | ✅ | 22 unit tests; "1 ingredients" + "X.X pts" both gone |
+| T0.2 "Why this product" → "Highlights" + strip numeric `detail` | ✅ | 8 unit tests; literal "Why this product" no longer appears in `lib/`; bare "3" / "Tier N" stripped |
+| T0.3 Formulation JSON-leak (standardized_botanicals + absorption_enhancers) | ✅ | 12 unit tests including explicit "no curly-brace JSON leak" assertion; legacy string-list shape preserved |
+| T0.4 Pairs Well badge/card-count parity + clearer subtitle | ✅ | 7 widget tests (3 new T0.4 + 4 existing); singular/plural subtitle pluralization |
+| T0.5 Formulation Purity Phase 1 (whitelist + dosage-form + hide-when-clean) | ✅ | 12 widget tests including the spec's KSM-66 capsule case; case-insensitive whitelist match; gummies always render |
+| T0.6 OTA in-session catalog swap | ✅ code, ⏳ device | 6 unit tests on swap orchestration; PRAGMA integrity_check added; SharedPreferences version persistence; snackbar wired via `scaffoldMessengerKey`; in-session activation replaces the old cold-start defer |
+
+**Sprint-level DoD recap**
+- ✅ 6 of 7 task checkboxes marked `[x]` (T0.7 itself stays `[-]` until ship steps 3–6 close)
+- ✅ `flutter analyze` clean across `lib/` and `test/`
+- ✅ `flutter test` 707/707 green; zero skipped
+- ⏳ Sentry zero-new-errors-of-the-same-class for 24h (ship-time check, Sean)
+- ⏳ Manual KSM-66 smoke on real device (ship-time check, Sean)
+
+When steps 3–6 close, flip T0.7 `[-]` → `[x]` and the Sprint 0 roadmap row → ✅ Done. Initiative moves to Sprint 1.
 
 ---
 
@@ -970,6 +1068,8 @@ Same as previous patterns. Add: clinical writer signs off on copy.
 | Date | Author | Change |
 |---|---|---|
 | 2026-04-28 | SeanB + Claude | Initiative created. Sprint 0–3 defined. Locked decisions captured. |
+| 2026-04-29 | SeanB + Claude | T0.6 promoted to canonical OTA activation strategy across both initiatives. `INITIATIVE_STACK_INTELLIGENCE.md`'s "no mid-session catalog swap" rule retired; Track D D3 now points here as source of truth. A6 in Stack Intelligence marked `[x]` (bundle-replacement bug genuinely fixed); T0.6 still `[ ]` — in-session refactor + validation gate + snackbar are owed. |
+| 2026-04-29 | Claude | Sprint 0 code-complete. T0.1–T0.6 all `[x]` (rewording + prettifier; Highlights rename + numeric `detail` strip; formulation JSON-leak fix; Pairs Well count parity + clearer subtitle; Formulation Purity Phase 1 whitelist + dosage-form + hide-when-clean; OTA in-session swap with validation gate + atomic rename + SharedPreferences persistence + snackbar). T0.7 `[-]` — `flutter analyze` clean and 707/707 tests green; manual smoke + TestFlight + 24h Sentry watch owed by Sean. Sprint 0 roadmap row flipped from 🟢 Active to 🟡 Code-complete. |
 
 ---
 

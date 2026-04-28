@@ -13,6 +13,14 @@ import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
+/// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
+/// "catalog updated" snackbar from outside the widget tree when the OTA
+/// in-session swap completes (T0.6). Defining it here keeps the
+/// `MaterialApp.router(scaffoldMessengerKey: …)` wiring colocated with
+/// the messenger consumers.
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 // Placeholder screens — will be replaced by real implementations
 class _PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -255,6 +263,7 @@ class PharmaGuideApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'PharmaGuide',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,

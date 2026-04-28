@@ -5,6 +5,30 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
+/// Extract display names from a pipeline list field that may ship in
+/// either of two shapes:
+///
+/// 1. Legacy: `["Piperine", "BioPerine"]` (older catalogs)
+/// 2. Current: `[{"name": "Ashwagandha (KSM-66)", "evidence_source": ...,
+///    "meets_threshold": true}]`
+///
+/// Strings pass through trimmed; maps get their `name` field extracted.
+/// Non-list values, non-string non-map entries, and entries with empty
+/// names are dropped. The previous `.toString()` path was the source of
+/// the "Ashwagandha {name: ..., evidence_source: ...}" JSON-leak users
+/// saw in the formulation section (T0.3).
+List<String> extractIngredientNames(dynamic raw) {
+  if (raw is! List) return const <String>[];
+  return raw
+      .map<String>((e) {
+        if (e is String) return e.trim();
+        if (e is Map) return (e['name']?.toString() ?? '').trim();
+        return '';
+      })
+      .where((s) => s.isNotEmpty)
+      .toList(growable: false);
+}
+
 class FormulationDetailSection extends StatelessWidget {
   final Map<String, dynamic>? formulationDetail;
   final Map<String, dynamic>? ingredientQualityData;
@@ -22,9 +46,10 @@ class FormulationDetailSection extends StatelessWidget {
 
     final deliveryForm = formulationDetail!['delivery_form']?.toString() ?? '';
     final deliveryTier = formulationDetail!['delivery_tier']?.toString() ?? '';
-    final enhancers = formulationDetail!.safeStringList('absorption_enhancers');
+    final enhancers =
+        extractIngredientNames(formulationDetail!['absorption_enhancers']);
     final botanicals =
-        formulationDetail!.safeStringList('standardized_botanicals');
+        extractIngredientNames(formulationDetail!['standardized_botanicals']);
     // `demoted_absorption_enhancers` is a list of {name, quantity, unit}
     // records; `safeList` returns const [] on any non-list shape, then we
     // filter to maps only via `whereType` before constructing the value

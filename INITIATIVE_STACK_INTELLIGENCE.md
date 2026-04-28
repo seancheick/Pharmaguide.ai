@@ -47,7 +47,7 @@ This initiative replaces the score-headline architecture with a diagnostic syste
 | Stack Health surfaces a tier verdict + actionable issues, not a score | `home_stack_health.dart` renders tier label as headline; 0–100 number relegated to secondary signal |
 | Banned/recalled ingredients always trigger an "Unsafe" headline regardless of other quality signals | Unit tests assert `unsafe` tier in every gate-trigger scenario |
 | Users can share a clinician-ready stack summary in 2 taps | Markdown report → system share sheet; manually verified on real device |
-| TestFlight/Play users receive catalog updates without reinstalling the app | OTA bundle download on launch; activation at next cold start; rollback on failure |
+| TestFlight/Play users receive catalog updates without reinstalling the app | OTA bundle download on launch; validation-gated activation in-session; rollback on failure |
 | Affiliate program ready to plug in once V1.2 ships, **without** Amazon PA-API exposure | Impact Radius approved + retailer enrollments live; no PA-API code in repo |
 | Every change respects the AGENTS.md "max 3 files / surgical diff" rule | Each task delivers a single PR with ≤3 files |
 
@@ -74,7 +74,7 @@ This initiative replaces the score-headline architecture with a diagnostic syste
 | **Hard safety gates override every other signal** | A banned ingredient is never averaged away by quality. |
 | **No invented clinical thresholds** | No "covered/under-dosed/missing" verdicts unless reference data has clinician-authored thresholds. Use neutral language ("no matched ingredients found", "below typical study doses"). |
 | **No Amazon PA-API integration** | PA-API deprecates 2026-05-15. Skip Amazon entirely until Creators API requirements stabilize. Use Impact Radius (iHerb/Vitacost/Swanson) as the commerce backbone. |
-| **No mid-session catalog swap** | OTA updates download in background, activate at next cold start. |
+| **Catalog refresh activates in-session, gated by validation** | Supersedes the original "no mid-session swap" rule (retired 2026-04-29). Spec lives in `INITIATIVE_PRODUCT_TRUST_AND_IA.md` §5 + T0.6. The safety properties the old rule guarded — corruption, mid-scan disruption, no rollback — are explicitly engineered into T0.6 (validation gate before live-DB touch, atomic file rename, Drift close-then-reopen, Sentry-logged rollback). |
 
 ---
 
@@ -170,7 +170,7 @@ Incomplete  → stack data too thin to diagnose
 - **Tests:** Smoke test the uploaded build by installing from TestFlight on a real device.
 - **DoD:** Internal testers can install and launch.
 
-### `[-]` A6 — OTA database refresh fix verification
+### `[x]` A6 — OTA database refresh fix verification
 - **Why:** Bug found in 2026-04-28 session: `ensureCoreDatabaseAvailable` only copies on first install. Without the fix, TestFlight users get stuck on the catalog version that shipped with the app forever.
 - **What:** The fix landed in today's session (`lib/data/providers/database_providers.dart`, `lib/main.dart`, `test/data/providers/database_providers_test.dart`). Verify it survives review and works on real device.
 - **Files:** Already modified — re-verify.
@@ -178,7 +178,7 @@ Incomplete  → stack data too thin to diagnose
   - `test/data/providers/database_providers_test.dart` — assert refresh on subsequent launches
   - Manual: install build, push pipeline catalog refresh, relaunch app, verify new catalog version shows
 - **DoD:** Repeat-launch catalog refresh works on real device; rollback path tested.
-- **Status 2026-04-28:** Unit-test portion green inside the 597-test suite run. Real-device verification still pending Sean's TestFlight push.
+- **Verified 2026-04-29:** Bundle-replacement bug fix is done and unit tests are green inside the 624-test suite. **Activation-model work (in-session vs cold-start) is tracked separately in `INITIATIVE_PRODUCT_TRUST_AND_IA.md` T0.6** — A6 was scoped to the "bundle no longer copies after first install" defect, which is fixed regardless of activation strategy. Real-device pass on the activation snackbar belongs to T0.6's acceptance.
 
 ---
 
@@ -301,13 +301,13 @@ Incomplete  → stack data too thin to diagnose
 
 # Track D — V1.3 OTA Catalog Refresh (3–4 dev days)
 
-**Goal:** Solid background catalog refresh. Download in background; activate at next cold start; safe rollback on failure.
+**Goal:** Solid background catalog refresh. Download in background; activate **in current session via T0.6's validated swap routine**; rollback to old DB on failure.
 
 **Definition of Done (sprint-level):**
 - App polls a versioned manifest on launch
 - Newer bundles download to a staging directory in the background
-- Active session is never disrupted by a mid-session DB swap
-- Activation happens at next cold start with a subtle "catalog updated" indicator
+- Validation gate runs against the staged file before the live DB is touched
+- Activation happens in-session via T0.6's swap routine with a subtle "catalog updated" indicator
 - Failed bundle (corruption, schema mismatch) rolls back to last-known-good without user-visible error
 
 ---
@@ -335,18 +335,12 @@ Incomplete  → stack data too thin to diagnose
   - SHA mismatch on download → discard, retry next launch
 - **DoD:** ≥4 unit tests with mocked HTTP; staging directory cleanup on failure.
 
-### `[ ]` D3 — Activate at next cold start
-- **Why:** Atomic swap before opening the DB ensures consistency.
-- **What:** At app start, before opening core DB, check staging directory; if newer bundle present, atomically swap then open. Show subtle "Catalog updated to {version}" banner first launch after swap.
-- **Files (flutter):**
-  - `lib/data/providers/database_providers.dart` (MODIFY)
-  - `test/data/providers/database_providers_test.dart` (MODIFY)
-  - `lib/main.dart` (MODIFY — single hook to surface the banner via existing snackbar/notice mechanism)
-- **Tests:**
-  - Staging present → swap + open new DB
-  - Staging absent → open existing DB
-  - Swap-then-open failure → rollback (D4)
-- **DoD:** Real-device test: install old build, push new pipeline release, relaunch app, confirm new catalog active + banner shown once.
+### `[ ]` D3 — Wire in-session swap into the launch refresh path
+- **Why:** Connects the background download (D2) and rollback safety (D4) to the live app via an atomic, validated swap. No relaunch required — freshness arrives within the session that detected it.
+- **What:** Wire T0.6's swap routine into `_refreshCatalogIfNeeded` so a successful, validated download activates immediately. Surface the snackbar via the existing notice mechanism.
+- **Source of truth:** Implementation spec, sequencing, validation gate details, snackbar copy, and unit-test list all live in `INITIATIVE_PRODUCT_TRUST_AND_IA.md` **T0.6**. D3 tracks the Stack-Intelligence-side checkbox; do not duplicate the spec here.
+- **Files (flutter):** see T0.6 (`lib/main.dart`, `lib/data/supabase/sync_service.dart`, `lib/services/catalog_swap.dart`).
+- **DoD:** Same as T0.6's acceptance — new catalog visible in-session, snackbar fires once, validation failure rolls back cleanly, `_activeCatalogVersion` persists across kill+relaunch.
 
 ### `[ ]` D4 — Rollback safety
 - **Why:** Bundle corruption or schema drift must never brick the app.
@@ -477,7 +471,7 @@ Incomplete  → stack data too thin to diagnose
 | Send health data in analytics events | Privacy moat breaks; legal exposure |
 | Touch >3 files per task | Violates AGENTS.md |
 | Land commerce before V1.2 trust ships | Affiliate bias before clinical credibility = brand damage |
-| Swap the SQLite DB mid-session | Disrupts active scans; data integrity risk |
+| Swap the SQLite DB without validation gate or atomic rename | Corruption / data-integrity risk. T0.6 specifies the validation-gate + atomic-rename + Drift-close-reopen pattern that makes in-session swap safe; in-session swap itself is allowed and expected. |
 | Add affiliate disclosure that mentions Amazon | We don't ship Amazon; disclosure must match active providers only |
 
 ---
@@ -549,3 +543,4 @@ Append a one-line entry per meaningful change.
 - **2026-04-28** — Initiative created. Tracks A–E defined. Locked architectural principles, tier vocabulary, Amazon PA-API skip decision, hard "do not" rules.
 - **2026-04-28** — A1 + A2 verified (`analyze` clean, 597 tests pass after pruning stale "category chips" test). A4 confirmed already shipped in Sprint 27.18. A6 unit tests green; real-device pass still owed.
 - **2026-04-28** — Track B B1 + B2 + B3 landed in a single session. New `StackIntelligence` model (18 tests) + `StackIntelligenceEngine` facade (9 tests) + home headline rewire. Full suite 624/624. AGENTS.md ≤3-files rule honored per task. Goldens/real-device pass for B3 still owed.
+- **2026-04-29** — Retired the "no mid-session catalog swap" locked rule. The activation-model debate is resolved in favor of `INITIATIVE_PRODUCT_TRUST_AND_IA.md` T0.6's validation-gated in-session swap. Updated locked-principles row, success metric, Track D goal/DoD, D3 (now points at T0.6 as source of truth), Hard "Do Not" row (rewritten to forbid swap *without* validation gate, not in-session swap itself). A6 marked `[x]` — its bundle-replacement bug fix is done; the activation-snackbar work belongs to T0.6.

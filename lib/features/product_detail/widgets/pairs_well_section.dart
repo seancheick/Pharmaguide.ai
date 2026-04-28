@@ -88,13 +88,17 @@ class _PairsWellBody extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space4),
           Text(
-            'Based on what\'s already in your stack.',
+            pairs.length == 1
+                ? 'Adding this would activate this ingredient combination '
+                    'from your current stack. Tier shows research strength.'
+                : 'Adding this would activate these ingredient combinations '
+                    'from your current stack. Tier shows research strength.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppTheme.space12),
-          ...pairs.take(3).map((pair) {
+          ...pairs.map((pair) {
             final tierColor = _tierColor(pair.evidenceTier);
             return Padding(
               padding: const EdgeInsets.only(bottom: AppTheme.space8),
