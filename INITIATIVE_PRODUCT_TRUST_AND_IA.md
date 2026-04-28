@@ -182,6 +182,9 @@ Ingredient prettifier needs ~30-line lookup table covering branded forms in our 
 - Tests landed in `test/core/util/` rather than the spec's `test/features/product_detail/widgets/score_breakdown_card_test.dart` because the testable surface is the pure-function helpers; the widget integration is a one-line template that doesn't need a separate Flutter render test.
 - `flutter analyze` clean. Full suite 656/656 green.
 
+**Follow-up — caught running the app on iPhone 17 Pro simulator (2026-04-29)**
+Live-test exposed a bug the unit tests missed: pipeline ships score-breakdown `ingredient_points` keys with **whitespace** separators (`"vitamin c"`, `"vitamin b6"`, `"pantothenic acid vitamin b5"`) instead of the underscored form. Original split was on `_` only, so "vitamin c" rendered as "Vitamin c" — single-character title-case — instead of "Vitamin C". Fix in [`prettifyIngredientName`](lib/core/util/ingredient_display.dart): normalize whitespace runs to underscores BEFORE the branded-form map lookup AND before the title-case fallback split. Hot-reloaded the running app, confirmed all bullets render correctly: Vitamin C, Vitamin B6, Vitamin B12, Pantothenic Acid Vitamin B5, Magnesium Generic, Zinc Picolinate, Potassium, Boswellia Serrata. 5 new unit tests (vitamin c, vitamin b6, ksm 66, multi-word fallback, mixed underscore + space). Shipped in commit `2a35eb8`.
+
 ---
 
 ### [x] T0.2 — Rename "Why this product" → "Highlights" + strip numeric `detail`
@@ -261,6 +264,9 @@ This bug existed before my json_helpers refactor — both versions ran `.map(toS
 - 12 unit tests added in new `test/features/product_detail/widgets/pipeline_sections/formulation_detail_section_test.dart`: current pipeline shape, legacy strings, mixed shape, empty list, null, non-list (Map / scalar), map missing `name` key, map with empty `name`, string trim, empty-string drop, plus an explicit "no curly-brace JSON leak" assertion that scans extracted names for `{`, `}`, and `evidence_source`.
 - KSM-66 product test case verified: a list of `{name: "Ashwagandha (KSM-66)", evidence_source: ..., meets_threshold: true}` returns exactly `["Ashwagandha (KSM-66)"]` — no schema text bleeds through.
 - `flutter analyze` clean. Full suite 684/684 green.
+
+**Follow-up — sister JSON-leak caught in certifications card during simulator run (2026-04-29)**
+Same bug class as T0.3, different file. While scrolling the live product detail's Deep Dive → Certifications card, the "Third-Party Verified" pill rendered `{name: Informed Choice, verified: true}` verbatim. Pipeline now ships `third_party_programs.programs` as `[{name, verified}, …]` maps, but [`certification_detail_section.dart:80`](lib/features/product_detail/widgets/pipeline_sections/certification_detail_section.dart) still used `.safeStringList(...)` which `.toString()`'s the embedded maps. Fix: localized 3-line dual-shape extractor (strings pass through trimmed; maps get `name`). Did NOT consolidate into `json_helpers.dart` yet — if a third site shows up, that's the right time to extract `safeNameList` into the shared helper module. Hot-reloaded; pill now reads "Informed Choice" with checkmark icon. Shipped in commit `2a35eb8`.
 
 ---
 
@@ -492,9 +498,12 @@ All sub-steps pass. Initiative moves to Sprint 1.
 
 | # | Step | Status |
 |---|---|---|
-| 1 | `flutter analyze` lib/ + test/ → 0 errors | ✅ `No issues found! (ran in 3.3s)` |
-| 2 | `flutter test` → all green | ✅ **707/707 tests pass** (449 baseline at sprint start → 707 now: +258 covering all of Sprint 0's surgical fixes plus the in-session swap orchestration). Net new: +18 StackIntelligence model + 9 engine + 22 ingredient_display + 8 sanitizeWhyDetail + 12 extractIngredientNames + 3 PairsWell + 8 ExcipientDensity T0.5 + 6 catalog_swap = 86 unit tests directly attributable to Sprint 0 work. The remaining delta is incidental coverage that previous Sprint work added. |
-| 3 | Manual smoke (KSM-66 / multivitamin / force-push catalog) | ⏳ **Sean** — requires real-device TestFlight build |
+| # | Step | Status |
+|---|---|---|
+| 1 | `flutter analyze` lib/ + test/ → 0 errors | ✅ `No issues found! (ran in 3.8s)` |
+| 2 | `flutter test` → all green | ✅ **741/741 tests pass** (449 baseline at sprint start → 741 now). Direct Sprint 0 contributions: +27 ingredient_display (incl. 5 live-test follow-up) + 8 sanitizeWhyDetail + 12 extractIngredientNames + 3 PairsWell + 8 ExcipientDensity + 6 catalog_swap + 18 StackIntelligence model + 9 StackIntelligenceEngine = 91 unit tests. |
+| 3 | Manual smoke (KSM-66 / multivitamin / force-push catalog) | ⏳ **Sean** — requires real-device TestFlight build. Simulator pre-flight done by Claude on 2026-04-29 (see "Simulator live test" row). |
+| 3a | Simulator live test (Claude, 2026-04-29) | ✅ App launched cleanly on iPhone 17 Pro simulator. T0.2 "Highlights" heading verified visually. T0.1 verified live after a casing follow-up fix (whitespace-separated keys). T0.3 verified live AND a sister JSON-leak found in certifications card and fixed (commit `2a35eb8`). T0.4/T0.5 not visually confirmed (need paired stack / specific products) — unit tests cover both. No crashes from the OTA in-session refactor. |
 | 4 | Cut TestFlight build | ⏳ **Sean** |
 | 5 | PHARMAGUIDE-1 (RenderFlex overflow) Sentry triage | ⏳ **Sean** — separate audit per spec; not blocked by this sprint's code |
 | 6 | 24h Sentry watch after deploy, zero new TypeError / RenderFlex | ⏳ **Sean** — only meaningful post-deploy |
@@ -1070,6 +1079,7 @@ Same as previous patterns. Add: clinical writer signs off on copy.
 | 2026-04-28 | SeanB + Claude | Initiative created. Sprint 0–3 defined. Locked decisions captured. |
 | 2026-04-29 | SeanB + Claude | T0.6 promoted to canonical OTA activation strategy across both initiatives. `INITIATIVE_STACK_INTELLIGENCE.md`'s "no mid-session catalog swap" rule retired; Track D D3 now points here as source of truth. A6 in Stack Intelligence marked `[x]` (bundle-replacement bug genuinely fixed); T0.6 still `[ ]` — in-session refactor + validation gate + snackbar are owed. |
 | 2026-04-29 | Claude | Sprint 0 code-complete. T0.1–T0.6 all `[x]` (rewording + prettifier; Highlights rename + numeric `detail` strip; formulation JSON-leak fix; Pairs Well count parity + clearer subtitle; Formulation Purity Phase 1 whitelist + dosage-form + hide-when-clean; OTA in-session swap with validation gate + atomic rename + SharedPreferences persistence + snackbar). T0.7 `[-]` — `flutter analyze` clean and 707/707 tests green; manual smoke + TestFlight + 24h Sentry watch owed by Sean. Sprint 0 roadmap row flipped from 🟢 Active to 🟡 Code-complete. |
+| 2026-04-29 | Claude (live test) | Ran the shipped Sprint 0 build on iPhone 17 Pro simulator. Two real production bugs caught and fixed in commit `2a35eb8` (3 files, surgical): (1) T0.1 prettifier fell back to single-character title-case for whitespace-separated `ingredient_points` keys ("vitamin c" → "Vitamin c" instead of "Vitamin C"); fix normalizes whitespace runs to underscores before lookup + split. (2) Same JSON-leak class as T0.3 in `certification_detail_section.dart` — "Third-Party Verified" pill rendered `{name: Informed Choice, verified: true}` verbatim; fixed with localized dual-shape extractor. Both verified live via Flutter SIGUSR1 hot-reload. Test count 707 → 741. |
 
 ---
 
