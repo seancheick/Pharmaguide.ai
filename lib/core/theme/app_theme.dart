@@ -91,6 +91,21 @@ abstract final class AppTheme {
 
   // ===========================================================================
   // DARK PALETTE
+  //
+  // Cool blue-gray rather than iOS-neutral systemGray. This is intentional —
+  // the brand is teal/seafoam, and a strict neutral gray ladder
+  // (systemGray6/5/4) clashes with that brand. The cool tint gives the
+  // dark theme a coherent atmosphere with the primary color.
+  //
+  // The *spacing* between tiers (~4–5 luminance points) matches Apple's
+  // dark mode ladder (systemGray6→5→4 spans ~5 luminance points), which is
+  // what creates the iOS feel of layered depth. We trade hex-exactness for
+  // brand coherence; the depth-perception cue is preserved.
+  //
+  //                            iOS reference          ours
+  //   surfaceContainer        systemGray6 #1C1C1E    #11181F (cooler/darker)
+  //   surfaceContainerHigh    systemGray5 #2C2C2E    #17202A
+  //   surfaceContainerHighest systemGray4 #3A3A3C    #1D2732
   // ===========================================================================
 
   static const darkBackground = Color(0xFF0B1116);
