@@ -99,6 +99,13 @@ class HomeRecentScansSection extends ConsumerWidget {
 
   /// Shown while the DB query is in flight — prevents the flash-of-empty-state
   /// that previously showed "Nothing scanned yet" during loading.
+  ///
+  /// Uses a horizontal ListView of fixed-width (156) shimmer cards that
+  /// match the real `_RecentScanCard` silhouette exactly. The previous
+  /// `Row + Expanded x3` produced ~124-px-wide shimmers on a 390 iPhone,
+  /// causing a visible width-jump when data landed. Shape-preserving
+  /// skeletons mean the data crossfade is opacity-only, with zero layout
+  /// shift.
   static Widget _buildLoadingState() {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,15 +118,7 @@ class HomeRecentScansSection extends ConsumerWidget {
         SizedBox(height: AppTheme.space12),
         SizedBox(
           height: 210,
-          child: Row(
-            children: [
-              Expanded(child: PGShimmerCard(height: 210)),
-              SizedBox(width: 12),
-              Expanded(child: PGShimmerCard(height: 210)),
-              SizedBox(width: 12),
-              Expanded(child: PGShimmerCard(height: 210)),
-            ],
-          ),
+          child: _RecentScansShimmerRow(),
         ),
       ],
     );
@@ -214,6 +213,28 @@ class HomeRecentScansSection extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// Horizontal shimmer row that matches the data-state ListView geometry
+/// (156-px-wide cards, 12-px gaps, 4-px outer padding). Top-level widget so
+/// the parent's `_buildLoadingState` stays `const`.
+class _RecentScansShimmerRow extends StatelessWidget {
+  const _RecentScansShimmerRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 3,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (_, __) => const SizedBox(
+        width: 156,
+        child: PGShimmerCard(height: 210),
+      ),
     );
   }
 }
