@@ -108,6 +108,17 @@ Status: DONE
 - [x] Verified the fix in a live simulator boot: raw `flutter run -d 'iPhone 16 Pro'` no longer emits the previous fatal Supabase assertion after startup.
 - [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/services/auth_state_service_test.dart`.
 
+**Sprint 27.18: Home premium composition pass** — ✅ DONE (2026-04-28)
+Status: DONE
+
+- [x] Re-composed Home into a cleaner premium order: hero → scan → search → profile nudge → Stack Health → Recent scans → Quick Check → trust strip.
+- [x] Removed the generic category rail from Home and replaced the search-launcher count hint with a calm static `Search supplements` placeholder.
+- [x] Fixed Home footer layout shift by reserving citation-strip space during catalog load with a skeleton instead of collapsing to zero height.
+- [x] Upgraded Recent scans to own its header, show skeleton cards while loading, and expose `Show all` in an adaptive bottom sheet for up to 25 recent unique scans.
+- [x] Reworked Stack Health language on Home and Stack from the old tiered score copy to shared user-facing labels: `Optimized / Solid / Decent / Concerning / Unsafe`.
+- [x] Added shared label-contract coverage in `test/core/models/stack_safety_score_test.dart` so severity caps and score bands cannot drift silently.
+- [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/home/home_screen_test.dart test/features/stack/stack_screen_test.dart test/core/models/stack_safety_score_test.dart`.
+
 **Sprint 27.16: Drift test lifecycle cleanup** — ✅ DONE (2026-04-26)
 Status: DONE
 

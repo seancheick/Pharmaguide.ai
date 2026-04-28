@@ -1,0 +1,984 @@
+# Initiative: Product Trust & IA Rebuild
+
+> **Note:** This document is **separate from `SPRINT_TRACKER.md`** (the main project roadmap). It tracks one focused initiative — rebuilding the product detail screen for trust, clarity, and decision-readiness — over four sprint phases (0–3). Sprint numbers in this file are **local** to this initiative; they do not correspond to the global Sprint 30/31/32 numbering used in the main tracker. Future phases of the main project may diverge from what's planned here.
+
+---
+
+## Metadata
+
+| Field | Value |
+|---|---|
+| **Initiative name** | Product Trust & IA Rebuild |
+| **Owner** | SeanB |
+| **Started** | 2026-04-28 |
+| **Target completion** | 2026-05-31 |
+| **Status** | 🟢 Active |
+| **Phases** | 4 (Sprint 0 → Sprint 3) |
+| **Related project tracker** | [SPRINT_TRACKER.md](SPRINT_TRACKER.md) — independent |
+
+---
+
+## Why this initiative exists
+
+The product detail screen has accumulated organic complexity over 27+ sprints. Several issues have surfaced that erode user trust:
+
+1. **Misleading signals** — "Avoid + Personal fit 88/100" combinations confuse rather than guide
+2. **Schema-leaks in UI** — pipeline JSON is rendering raw in human-facing copy ("Ashwagandha {name: ..., evidence_source: ...}")
+3. **Numeric noise** — point values exposed where words would be clearer ("ksm 66: 4.0 pts")
+4. **False positives in Formulation Purity** — every standard capsule scores "high filler load" because the proxy is count-based
+5. **Inconsistent IA** — Personal Fit, Quality, Alerts, Score Reason scattered across the hero
+6. **OTA UX surprise** — fresh catalog requires app relaunch (defer-to-next-launch behavior)
+
+**The strategic line guiding all four sprints:**
+
+> Purity should measure unnecessary and risky formulation — not punish standard manufacturing.
+> Fit should answer "is this for me?" — not produce a number that contradicts the verdict.
+> Score should reward engineering quality — not muddy itself with personalization.
+
+---
+
+## Locked decisions (do not revisit)
+
+These are settled. If you find yourself reopening one, stop and remember it was locked here.
+
+### 1. Scoring model
+
+| Surface | Type | Personalized? |
+|---|---|---|
+| **PG Score** | Numeric (0–100) | Never |
+| **Fit** | State (Strong / Good / Limited / Not recommended) | Yes (gated by risk) |
+| **Risk** | Severity tier — overrides everything | N/A |
+
+**Implication:** if a product is "Avoid" for the user, **the Fit pill is hidden entirely**. No "Avoid + 88/100" combinations possible.
+
+### 2. Coverage policy
+
+**Always show coverage.** Never hide.
+
+| Coverage | Color | Subtitle |
+|---|---|---|
+| ≥80% | Green | Confidence: High |
+| 40–79% | Yellow | Confidence: Moderate |
+| <40% | Red | Confidence: Low — *This analysis may be incomplete* |
+
+**Hard rule (already in CLAUDE.md):** never display verdict "Safe" when `mapped_coverage < 0.3`.
+
+### 3. IA structure
+
+The 14-section structure agreed in the design spec is final:
+1. Identity → 2. For You → 3. Product Quality → 4. Ingredients → 5. Tradeoffs → 6. What we don't know → 7. Interactions → 8. Populations → 9. Evidence → 10. Product Details → 11. Better Alternatives (conditional) → 12. Deep Dive → 13. Transparency Footer → 14. Sticky Action Bar.
+
+### 4. Formulation Purity model
+
+- **Phase 1 (Sprint 0):** whitelist + dosage-form awareness + hide-when-clean (the patch). Removes worst false positives.
+- **Phase 2 (Sprint 3):** full ontology + penalty-based scorer. Replaces the count proxy entirely.
+
+### 5. Catalog update strategy
+
+**Auto-swap in current session — never restart-based.**
+
+| Surface | Behavior |
+|---|---|
+| **Remote catalog version detected** | Download → validate → swap atomically → user sees new data within ~10s |
+| **Validation fails on staged file** | Roll back. Keep current catalog live. Log to Sentry. User never sees a broken state. |
+| **Same version detected** | No-op. Version guard prevents redundant swaps across launches. |
+
+**Why this is the right call for PharmaGuide specifically:**
+> Freshness > UI stability — within reason.
+
+A user scanning a product against a stale catalog after we shipped a fix is a silent trust violation. Banking apps and games can defer; a clinical-data app cannot. The brief loading shimmer when a swap completes mid-screen is strictly better than a user getting outdated safety information.
+
+Implementation details and refinements are locked in **T0.6**.
+
+---
+
+## Out of scope (deferred — do NOT build now)
+
+These are good ideas. They are not blockers. Build them later.
+
+| Deferred | Why deferred | Earliest target |
+|---|---|---|
+| **Personalized alternative fit delta** ("+9 fit for you") | Requires N FitScore computations per product page render. Cost/value bad in V1. V1 ships "Higher quality alternatives" instead. | V1.1 (Sprint 2+) |
+| **Percentile ranking** ("Top 15% of products") | Requires pipeline emission of `score_percentile`. Not in current catalog schema. | Sprint 3+ |
+| **Per-product "last verified" dates** | Pipeline only emits catalog-wide `generated_at`. A per-product clinician-review date doesn't exist as data yet. V1 uses catalog `generated_at` and labels it "Last updated". | TBD (needs data source) |
+| **Full formulation ontology (excipient classification DB)** | Real project — needs pharmacist for initial classification of FDA inactive ingredient list. 1-2 weeks of curation work, not a code change. | Sprint 3 |
+| **Editorial evidence summaries** ("Improves sleep onset by ~17 minutes") | Requires clinical-writer authored content per cluster. Auto-extraction from PMIDs is the Yuka mistake. | Sprint 3+ (with clinical writer) |
+| **General interactions list (7.2)** | Only ship if you have curated content. Empty section is worse than no section. | Sprint 3+ |
+
+---
+
+## Status legend
+
+- `[ ]` Not started
+- `[x]` Done — meets DoD, merged
+- `[-]` Pending / paused / blocked
+
+---
+
+## Sprint roadmap
+
+| Sprint | Name | Status | Estimate | Risk |
+|---|---|---|---|---|
+| **0** | Trust Fixes | 🟢 Active | 1–2 days | Low |
+| **1** | Product Screen IA Refactor | ⏸ Pending Sprint 0 | 10–12 working days | Medium |
+| **2** | Refinement Polish | ⏸ Pending Sprint 1 | 3–5 days | Low |
+| **3** | Backend Foundation | ⏸ Pending data work | 2–3 weeks (parallel) | High (data work) |
+
+---
+
+# Sprint 0 — Trust Fixes
+
+## Phase goal
+Eliminate user-visible bugs that erode trust **before** any structural refactor. Land surgical fixes that take hours, not days.
+
+## Why
+Every day these bugs are live, real users see misleading copy, JSON schemas in plain text, and false-positive "high filler" warnings. These are **reputation killers, not feature gaps.** Fix first, refactor second.
+
+## Estimate
+**1–2 days** of focused work. No design dependency.
+
+## Definition of Done (sprint-level)
+- All 7 tasks below: `[x]`
+- `flutter analyze` clean across `lib/`
+- `flutter test` passes (current count + new test cases)
+- Sentry shows zero new errors of the same class for 24h after deploy
+- Manual smoke test: scan KSM-66 from Transparent Labs and confirm none of the 5 reported bugs reproduce
+
+## Tasks
+
+### [ ] T0.1 — Reword Evidence & Research bullets
+
+**What**
+Replace the two confusing bullets in the Evidence & Research subsection of the score breakdown:
+- "1 ingredients matched in research database" → proper pluralization + clearer wording
+- "Ksm 66: 4.0 pts" → drop the points number, prettify the ingredient name
+
+**Why**
+"1 ingredients" is a grammar bug. "Ksm 66: 4.0 pts" exposes a raw scoring number to users — they don't know what 4.0 means and the per-ingredient point isn't actionable.
+
+**Files**
+- `lib/features/product_detail/widgets/score_breakdown_card.dart` (lines 208–228)
+- New helper for ingredient name prettifier (likely in `lib/core/util/ingredient_display.dart`)
+
+**Tests**
+- `test/features/product_detail/widgets/score_breakdown_card_test.dart` — new cases:
+  - 1 match → "One ingredient backed by clinical research"
+  - 3 matches → "3 ingredients backed by clinical research"
+  - `ksm_66` → renders as "KSM-66 — research-backed bonus"
+  - `vitamin_d3` → renders as "Vitamin D3 — research-backed bonus"
+
+**Acceptance**
+- Pluralization correct
+- No "X.X pts" text appears anywhere in the evidence bullets
+- Branded ingredients render with proper casing (KSM-66, not Ksm 66)
+
+**Comments**
+Ingredient prettifier needs ~30-line lookup table covering branded forms in our catalog. Falls back to title-casing on miss. Easy to maintain.
+
+---
+
+### [ ] T0.2 — Rename "Why this product" → "Highlights" + strip numeric `detail`
+
+**What**
+Two changes to the pros/cons section:
+1. Rename the section heading from "Why this product" to **"Highlights"**
+2. In `_extractWhyItems`, sanitize `detail` strings — if `detail` is just a number or "Tier N", drop it or replace with prose
+
+**Why**
+"Why this product" reads like a marketing question; users (your own) don't understand it. "Highlights" reads like editorial content. Separately, the pipeline emits `detail: "3"` for the delivery tier, which renders as a bare "3" under "Advanced delivery system" — looks like a bug to the user.
+
+**Files**
+- `lib/features/product_detail/product_detail_screen.dart` — line 2224 (`'Why this product'` heading) and lines 1222–1252 (`_extractWhyItems`)
+
+**Tests**
+- `test/features/product_detail/product_detail_screen_test.dart` — new cases:
+  - Heading text is "Highlights"
+  - Bonus with `detail: "3"` renders without the literal "3" or replaces it with prose
+  - Bonus with `detail: "Standardized, botanical"` renders unchanged
+
+**Acceptance**
+- "Why this product" string no longer appears in source
+- "Advanced delivery system" no longer renders a bare numeric line beneath it
+- Other detail strings (prose) render unchanged
+
+**Comments**
+Two-layer fix:
+- Flutter (now): regex strip `^(\d+|Tier \d+)$` from detail before render. Safety net.
+- Pipeline (later, T3.x): emit prose detail directly. Real fix. Track in Sprint 3.
+
+---
+
+### [ ] T0.3 — Fix Formulation section JSON-leak (standardized_botanicals + absorption_enhancers)
+
+**What**
+Pipeline emits `standardized_botanicals` and `absorption_enhancers` as **list of objects**, e.g.:
+```json
+[{"name": "Ashwagandha (KSM-66)", "evidence_source": "branded_form", "meets_threshold": true}]
+```
+Current Flutter code does `.map((e) => e.toString())`, which on a Map produces `{name: ..., evidence_source: ...}`. That's the "JSON schema" the user sees rendered as plain text.
+
+Replace with `safeMapList` + extract the `name` field. Same fix for both lists.
+
+**Why**
+We are showing internal data structures to end users. **This is the highest-impact bug in Sprint 0** — users seeing raw JSON immediately lose confidence in the app.
+
+**Files**
+- `lib/features/product_detail/widgets/pipeline_sections/formulation_detail_section.dart` (lines 22–28)
+
+**Tests**
+- New widget test in `test/features/product_detail/widgets/pipeline_sections/formulation_detail_section_test.dart`:
+  - Pipeline shape `[{name: "Ashwagandha (KSM-66)", ...}]` → renders "Ashwagandha (KSM-66)"
+  - Plain string list `["Piperine", "BioPerine"]` → still renders correctly (legacy support)
+  - Empty list → section hidden
+  - Non-list shape → section hidden, no exception
+
+**Acceptance**
+- No `{...}` curly-brace text appears in formulation section anywhere
+- KSM-66 product specifically: standardized botanicals row reads "Ashwagandha (KSM-66)"
+- No regression on simple string-list shape (older catalogs)
+
+**Comments**
+This bug existed before my json_helpers refactor — both versions ran `.map(toString())` on Maps. My defensive parsing didn't fix it because the input shape is already a list (just of wrong-typed elements).
+
+---
+
+### [ ] T0.4 — Fix Pairs Well count mismatch + add explanatory subtitle
+
+**What**
+Two-part fix:
+1. The badge shows `pairs.length` (e.g. "4") but the body renders `pairs.take(3)` (only 3 visible). Reconcile.
+2. Add a clearer subtitle so users understand what the section means.
+
+**Files**
+- `lib/features/product_detail/widgets/pairs_well_section.dart` — lines 71–95 (badge + subtitle), line 97 (.take(3))
+
+**Why**
+"Why does it say 4 but I only see 3?" is a real user question. Separately, "Pairs Well with Your Stack" + "Based on what's already in your stack" is too vague — users don't know if the 3 listed clusters mean it's GOOD to add this product, or something to be cautious about.
+
+**Decision (lock)**
+- Show **all matches** (drop `.take(3)`). If users routinely have >5, revisit then.
+- Replace subtitle with: *"Adding this would activate these ingredient combinations from your current stack. Tier shows research strength."*
+
+**Tests**
+- `test/features/product_detail/widgets/pairs_well_section_test.dart` — new cases:
+  - 4 pairs in input → badge shows "4" AND 4 cards render
+  - 1 pair → badge "1" AND 1 card AND singular subtitle
+  - 0 pairs → section hides entirely (existing behavior preserved)
+
+**Acceptance**
+- Badge count == rendered card count
+- Subtitle answers "what does this mean?" in one sentence
+- "limited" tier badge clearly separated from cluster name visually
+
+**Comments**
+If a product has 8+ matches, consider an "[N more]" pill at the bottom — but only if real data shows it's an issue.
+
+---
+
+### [ ] T0.5 — Formulation Purity Phase 1 — Whitelist + dosage-form awareness + hide-when-clean
+
+**What**
+Patch the count-based `densityLabel` to:
+1. **Whitelist standard capsule excipients** — gelatin, HPMC, magnesium stearate, microcrystalline cellulose (MCC), silicon dioxide, dicalcium phosphate, vegetable cellulose. Excluded from filler count.
+2. **Dosage-form aware thresholds** — capsules tolerate more excipients than powders/liquids before triggering a warning.
+3. **Hide entire card when "clean"** — if all inactive ingredients are whitelisted AND inactive count is reasonable for the form, render nothing.
+
+**Why**
+KSM-66 Transparent Labs capsule (1 active + 3 standard fillers) currently scores "High filler load" — false positive that erodes trust on a clean product. This is Phase 1 of the formulation rework. Phase 2 (full ontology) is Sprint 3.
+
+**Files**
+- `lib/features/product_detail/widgets/excipient_density_card.dart`
+- New `lib/core/data/standard_excipients.dart` — whitelist constants
+- New tests
+
+**Decision matrix (lock for Phase 1)**
+
+| Form | Whitelisted excipients allowed | Trigger threshold |
+|---|---|---|
+| Capsule / softgel | up to 4 | >0 non-whitelisted OR >4 whitelisted |
+| Tablet | up to 5 | >0 non-whitelisted OR >5 whitelisted |
+| Powder | up to 1 | >0 non-whitelisted OR >1 whitelisted |
+| Liquid / tincture | up to 2 | >0 non-whitelisted OR >2 whitelisted |
+| Gummy | always show (sugars/dyes inherent) | render full bar |
+
+**When to hide entire card**
+- All inactive ingredients are whitelisted
+- AND inactive count ≤ form's allowance
+- AND no flagged additives present
+
+**Tests**
+- KSM-66 capsule (1 active + 3 standard fillers) → card hidden
+- Multivitamin tablet with sucralose + dye → card visible, "Moderate" tier minimum
+- Powder with 2 fillers → card visible
+- Empty inactive list → card hidden (existing behavior)
+
+**Acceptance**
+- KSM-66 from Transparent Labs no longer shows "High filler load"
+- A product with sucralose still gets flagged
+- No false negative: any non-whitelisted excipient still surfaces the card
+
+**Comments**
+This is a **patch, not the final model**. The full ontology + penalty scorer lands in Sprint 3 (T3.2). Phase 1 buys time.
+
+---
+
+### [ ] T0.6 — OTA in-session catalog swap (with controlled timing + validation guard)
+
+**Decision rationale (locked)**
+
+> **Freshness > UI stability — within reason.**
+
+PharmaGuide's value proposition is *"up-to-date, clinically reliable supplement and interaction data."* A user scanning a product against a stale catalog after we shipped a fix is a silent trust violation. Banking apps and games defer database swaps; PharmaGuide cannot.
+
+This is the right architectural choice for **this product** specifically — not a generic best practice. Treat that as a locked decision.
+
+**What — the must-ship core**
+
+Refactor `_refreshCatalogIfNeeded` in `lib/main.dart` (lines 220–278) so a successful remote download activates **in the current session** instead of staging for next launch:
+
+1. **Version guard** — only proceed if `remoteVersion != _activeCatalogVersion`. Persist `_activeCatalogVersion` so a relaunch with the same remote version doesn't trigger a no-op swap cycle.
+2. **Stage download** — existing logic. New file lands at `pharmaguide_core.db.staging`.
+3. **Validate the staged file BEFORE touching the live one** — open via raw SQLite, read `db_version`, confirm match with the version we asked for. (We already do this in `_validateStagedDatabase`.)
+4. **If validation fails: rollback** — delete the staged file, log the error to Sentry, **keep the existing `_coreDb` live**, exit early. The user keeps using the previous catalog. Better than crashing or silent corruption.
+5. **If validation succeeds: swap atomically**
+   - Close the existing `_coreDb` (flushes connections, releases the file handle)
+   - `File.rename()` staged → live (atomic at the filesystem level)
+   - Open new `CoreDatabase` against the live path
+   - `setState` to update `_coreDb` + increment `_scopeVersion`
+   - `ProviderScope` rebuilds with the new override → all dependent widgets re-render against fresh data
+6. **Subtle user feedback** — single `SnackBar`: *"Catalog updated to v{date}"*. Auto-dismisses in 3s. No action button. Don't toast on every refresh check, only when an actual swap completes.
+
+**Why this is safe**
+
+- **No corruption risk:** the validation gate runs before we touch the live DB. If anything's wrong with the new file, we throw it away and keep the old one.
+- **No data loss:** atomic file rename + Drift connection close means the old DB is fully released before the new one opens. SQLite WAL mode handles in-flight queries gracefully — they fail with a closed-database error that Riverpod retries on rebuild.
+- **No surprise UX flash for users at rest:** if user is scrolling stably on the home screen, a swap completes invisibly except for the snackbar.
+- **Recoverable failure:** if validation throws, we log + roll back. User never sees a broken state.
+
+**Files**
+- `lib/main.dart` — `_refreshCatalogIfNeeded` (lines 220–278); also persist `_activeCatalogVersion` to `SharedPreferences` so it survives kill+relaunch
+- `lib/data/supabase/sync_service.dart` — strengthen `_validateStagedDatabase` to also do `PRAGMA integrity_check` before returning success
+- New: `lib/services/catalog_swap.dart` — extract the swap routine as a testable async function
+
+**Tests**
+
+Unit (testable):
+- `swapCatalog` with valid staged file → returns `SwapResult.success(version)`, old DB closed, new DB readable
+- `swapCatalog` with corrupt staged file (truncated bytes) → returns `SwapResult.rolledBack(reason)`, staging file deleted, old DB still open
+- `swapCatalog` with version mismatch (manifest says v1, file says v2) → rollback path
+- Version guard: invoking refresh when `remoteVersion == activeVersion` → no-op, no file operations
+
+Integration (manual):
+- Kick a remote catalog version change while the app is on the home screen → snackbar appears within ~10s, "Updated 2 days ago" line refreshes
+- Same, while sitting on a product detail screen → page re-renders briefly with new data, no crash, no infinite loading
+
+**Acceptance**
+- New catalog version visible in the same session (no relaunch required)
+- Snackbar appears exactly once per swap event
+- Failed validation → user keeps existing catalog, error in Sentry, no UI disruption
+- No "RenderFlex overflowed" or "TypeError" events introduced
+- Memory profile: old `_coreDb` is garbage-collected (verify via DevTools heap snapshot)
+- `_activeCatalogVersion` persists across kill+relaunch so we don't redundantly swap the same version
+
+**Deferred to Sprint 2 (NOT required for ship)**
+
+These are the senior advisor's "context-aware swap timing" suggestions. They're refinements, not must-haves:
+
+- **Safe-moment trigger** — defer the swap if user is mid-scan or mid-product-detail. Implementation: subscribe to GoRouter's current route; if route is `/scan` or `/product/:id`, queue the swap until the user returns to home or backgrounds the app.
+  - **Why deferred:** the base implementation already handles mid-screen swaps gracefully via Riverpod rebuild. The "mid-scan" worry is largely theoretical — scans complete in <300ms; users are never "stuck mid-scan" for long. Adding a route-aware queue is real complexity for a small UX win. Ship the base, watch user feedback, only add this if real users complain.
+  - If user feedback in Sprint 2 shows people noticing the flash, add this then.
+
+- **Configurable feedback verbosity** — toggle between snackbar / silent / inline banner per user preference.
+  - **Why deferred:** YAGNI until users ask.
+
+**Comments**
+
+The bootstrap pattern was originally designed for this swap (the `_scopeVersion` keyed `ProviderScope` at [main.dart:312-313](lib/main.dart:312)). The refresh path just doesn't use it — we're connecting two pieces that were always meant to talk to each other.
+
+Trade-off accepted: a user mid-scroll on a product detail screen during a swap sees a brief loading shimmer (~200ms) and then fresh data. That's strictly better than them never seeing the new data, or worse, scanning a product against a stale catalog and getting outdated safety information.
+
+---
+
+### [ ] T0.7 — Sprint 0 verification + ship
+
+**What**
+End-of-sprint gate.
+
+**Why**
+Don't merge piecemeal. Land Sprint 0 as one coherent release, observe Sentry, confirm fixes worked.
+
+**Steps**
+1. `flutter analyze lib/ test/` → 0 errors
+2. `flutter test` → all green
+3. Manual smoke test on Sean's iPhone:
+   - Scan KSM-66 Transparent Labs → verify all 5 bugs gone
+   - Scan a multivitamin with sucralose → verify Formulation Purity still flags it
+   - Force-push a catalog update → verify in-session swap works
+4. Cut TestFlight build
+5. Mark Sentry issue PHARMAGUIDE-1 (overflow) status — separate audit may be needed
+6. Watch Sentry for 24h after deploy, no new TypeError or RenderFlex events
+7. Update sprint status
+
+**Acceptance**
+All sub-steps pass. Initiative moves to Sprint 1.
+
+---
+
+# Sprint 1 — Product Screen IA Refactor
+
+## Phase goal
+Ship the **structure** of the new 14-section product screen IA. Risk-gated Fit. Merged "For You" block. PG Score relocated. Each section rendering, even with v1 placeholder content where data isn't ready.
+
+## Why
+The current screen is organic complexity from 27 sprints. Users are confused by scattered signals (Personal Fit pill + FitScore + alerts + Quality grade + percentile + score reason — all in the hero). The new IA answers, in order: *(1) Can I take this? → (2) Does it fit me? → (3) Is it a good product? → (4) Why? → (5) Details.*
+
+## Estimate
+**10–12 working days** (one sprint).
+
+## Definition of Done (sprint-level)
+- All 14 sections render, even where content is V1 placeholder
+- Risk-gated Fit logic live: Avoid/Contraindicated → Fit pill hidden entirely
+- "For You" merged block replaces Personal Fit pill in hero
+- PG Score moved out of hero into Section 3 (Product Quality)
+- Coverage policy enforced (always show, color by ratio)
+- Old hero scaffolding removed (no dead code)
+- All existing widget tests pass + new tests for risk-gating logic
+- Manual walkthrough: scan 5 distinct products (safe / caution / avoid / blocked / not-scored) — each renders correctly
+
+## Tasks
+
+### [ ] T1.1 — Identity section refactor (Section 1)
+
+**What**
+Hero becomes pure identity: 96px product image · product name (1 line) · "Brand · count · dose" · dietary chips · staleness pill (top-right). No verdicts, no scores, no fit pills.
+
+**Why**
+The hero currently does too much. Identity-only hero gives users a moment to ground before the decision content arrives.
+
+**Files**
+- `lib/features/product_detail/product_detail_screen.dart` — `_HeaderSection` heavy edit
+- `lib/core/widgets/pg_dietary_chips.dart` (extract if not already)
+
+**Tests**
+- Hero renders product image, name, brand line, dietary chips
+- Hero does NOT render Personal Fit pill (moved to Section 2)
+- Hero does NOT render Score Ring (moved to Section 3)
+- Long product name → truncates with ellipsis (no overflow)
+
+**Acceptance**
+Hero matches spec exactly: image left, identity right, chips below, staleness top-right. Nothing else.
+
+---
+
+### [ ] T1.2 — "For You" merged block (Section 2)
+
+**What**
+New widget consolidating: context chips (with Edit) + verdict (✅/🟡/❌) + 1-line key explanation + alerts (priority-sorted, only contraindicated/avoid/caution) + expandable "Why this fits you" (4-bullet deterministic explanation).
+
+**Why**
+Currently scattered across hero, alerts widget, and FitScore sheet. Consolidation = decision clarity.
+
+**Files**
+- New: `lib/features/product_detail/widgets/for_you_section.dart`
+- Refactors: existing `interaction_warnings.dart`, `fit_score_sheet.dart` — content reused, presentation new
+
+**Tests**
+- Safe + good fit profile → "✅ Strong match for your sleep goal"
+- Avoid tier → "❌ Not recommended for your profile" AND no Fit number anywhere
+- Empty profile → "Add your profile to personalize →"
+- Multiple alerts stack in priority order: contraindicated > avoid > caution
+- Why-this-fits expander → 4 deterministic bullets, no AI
+
+**Acceptance**
+- All 4 verdict states render correctly
+- Risk-gating works: Avoid hides Fit, shows "Not recommended"
+- Alerts limited to contraindicated/avoid/caution (monitor/safe filtered out)
+
+---
+
+### [ ] T1.3 — Risk-gated Fit core logic
+
+**What**
+Helper function: `FitDisplay computeFitDisplay({verdict, fitResult})` that returns a state-based display (`StrongMatch | GoodMatch | LimitedFit | NotRecommended | Hidden`). When verdict is Avoid/Contraindicated, returns `Hidden` regardless of underlying fit number.
+
+**Why**
+The most important UX decision in this initiative. Prevents "Avoid + 88/100" combinations.
+
+**Files**
+- New: `lib/services/fit_score/fit_display.dart`
+- Updates: `lib/features/product_detail/widgets/for_you_section.dart` consumes this
+
+**Tests**
+- Verdict Avoid → Hidden (regardless of fit score)
+- Verdict Contraindicated → Hidden
+- Verdict Caution + fit≥80 → GoodMatch (caution doesn't hide fit, just adds an alert)
+- Verdict Safe + fit≥85 → StrongMatch
+- Verdict Safe + fit 60-84 → GoodMatch
+- Verdict Safe + fit 35-59 → LimitedFit
+- Verdict Safe + fit<35 → NotRecommended (low fit even when safe)
+
+**Acceptance**
+Pure-function helper. No widget dependency. 100% test coverage.
+
+---
+
+### [ ] T1.4 — Product Quality section (Section 3)
+
+**What**
+Score ring (relocated from hero) · grade label · pillars decomposition (Ingredient Quality / Safety & Purity / Evidence & Research / Brand Trust with progress bars) · Coverage line.
+
+**Why**
+PG Score is your differentiator. Give it room. Decompose into pillars to support trust.
+
+**Files**
+- `lib/features/product_detail/widgets/score_breakdown_card.dart` — already exists, repurpose as the section body
+- `lib/core/widgets/pg_score_ring.dart` — already exists, used here
+
+**Tests**
+- Score ring renders with correct color tier
+- 4 pillars render with progress bars
+- Coverage line renders with correct color (green/yellow/red)
+- Tap on pillar → expands inspector
+- Low-coverage product (<30%) → "This analysis may be incomplete" subtitle visible
+
+**Acceptance**
+- Score number is the only large numeric display in this section
+- Coverage policy enforced
+- Pillar tap opens inspector with sub-scores in words (no "X.X pts")
+
+---
+
+### [ ] T1.5 — Ingredients section (Section 4)
+
+**What**
+Active ingredients with: name + dose + form + bio-availability + dose-vs-effective-range note + evidence badges. Inactive ingredients as chips with on-tap explanation ("Used as capsule shell" etc.).
+
+**Files**
+- `lib/features/product_detail/widgets/ingredients_section.dart` — new wrapper
+- Reuses: existing active/inactive widgets
+
+**Tests**
+- Active row renders all 5 elements (name, dose, form, dose-vs-range, evidence)
+- Inactive chip tap shows correct explanation
+- Empty inactive list → no chip row
+- Long ingredient name → ellipsis, no overflow
+
+**Acceptance**
+Section reads as actionable, not raw. User understands what each ingredient does, why it's there, and whether the dose is effective.
+
+---
+
+### [ ] T1.6 — Tradeoffs section (Section 5)
+
+**What**
+Two-column "👍 What's good" / "⚖️ What to consider" — pulled from `score_bonuses` and `score_penalties` in the detail blob. Replace the renamed Section 2 ("Highlights" from T0.2) with this richer split.
+
+**Why**
+Bullets-with-icons reads better than a prose paragraph. Pros vs cons separation reduces cognitive load.
+
+**Files**
+- New: `lib/features/product_detail/widgets/tradeoffs_section.dart`
+- Refactor: `_WhyThisProductSection` becomes this
+
+**Tests**
+- Bonuses → 👍 column
+- Penalties → ⚖️ column
+- Empty bonus list → only ⚖️ renders, or section hides if both empty
+- Long detail strings → wrap properly, no overflow
+
+**Acceptance**
+Renders cleanly with mixed bonus/penalty inputs. Correctly empty when blob has neither.
+
+---
+
+### [ ] T1.7 — What we don't know (Section 6)
+
+**What**
+Surface unknowns transparently: "No third-party heavy metal test available", "Manufacturer hasn't published recent COAs", etc. Soft visual treatment (less contrast).
+
+**Why**
+**Trust amplifies through admitted uncertainty.** Most apps hide unknowns; surfacing them differentiates from Yuka.
+
+**Files**
+- New: `lib/features/product_detail/widgets/unknowns_section.dart`
+
+**Logic**
+Surfaces an "unknown" when:
+- `isTrustedManufacturer == false` AND no COA URL → "Manufacturer hasn't published recent COAs"
+- `hasThirdPartyTesting == false` → "No third-party heavy metal test available"
+- `mappedCoverage < 0.5` → "Some ingredients couldn't be mapped to our database"
+- `score_evidence_research < max_evidence_research * 0.4` → "Limited clinical research data"
+
+**Tests**
+- All trust signals positive → section hidden
+- One unknown → renders 1 bullet
+- Multiple unknowns → render all, one bullet each
+- Low coverage product → renders coverage unknown line
+
+**Acceptance**
+Section never lists more than 4 unknowns (truncate with "…"). Renders with softer color treatment than other sections.
+
+---
+
+### [ ] T1.8 — Interactions refactor (Section 7)
+
+**What**
+**7.1 With your stack (priority):** alerts grouped by user's actual medications/supplements. ⚠ for issues, ✓ for "no interaction". Tap → expand to mechanism + recommendation + citations.
+
+Defer 7.2 (general interactions) to Sprint 3 — only ship if curated content is ready.
+
+**Files**
+- `lib/features/product_detail/widgets/interaction_warnings.dart` — heavy refactor
+
+**Tests**
+- 1 stack med with conflict → renders ⚠ row + expandable
+- 1 stack med no conflict → renders ✓ row (positive trust signal)
+- Empty stack → section hidden
+- Tap expand → mechanism, recommendation, evidence_level visible
+
+**Acceptance**
+- Per-user-med rows replace generic "interaction warnings" list
+- ✓ rows shown for medications confirmed safe (positive, not just absence of warning)
+
+---
+
+### [ ] T1.9 — Populations dedupe (Section 8)
+
+**What**
+"Extra caution for: Pregnancy, Kidney disease, Children under 12. (You are already covered for Lisinopril)" — auto-dedupe against user's profile so they don't see warnings already shown elsewhere.
+
+**Files**
+- New: `lib/features/product_detail/widgets/populations_section.dart`
+
+**Tests**
+- Population matches user → moved to "(already covered)" line
+- Population doesn't match → bulleted in main list
+- All populations match user → section reduces to "(already covered for X, Y)" only
+
+**Acceptance**
+No duplicate warnings between Section 7 (Interactions) and Section 8 (Populations).
+
+---
+
+### [ ] T1.10 — Evidence section (Section 9)
+
+**What**
+"Clinical support: STRONG / MODERATE / LIMITED" + study count + meta-analysis flag. **No editorial quote in V1** (deferred). Tap → full citations.
+
+**Files**
+- Refactor: existing `lib/features/product_detail/widgets/pipeline_sections/evidence_detail_section.dart`
+
+**Tests**
+- Strong evidence (≥5 studies, meta available) → STRONG label
+- Limited evidence (<3 studies) → LIMITED label
+- Tap → citation list with PMIDs
+- No editorial quote present in V1
+
+**Acceptance**
+Tier label matches actual evidence count. PMIDs link out to PubMed.
+
+---
+
+### [ ] T1.11 — Product Details (Section 10) — collapsed by default
+
+**What**
+Serving size, servings, manufacturer. Low priority — collapsed expander.
+
+**Files**
+- New: `lib/features/product_detail/widgets/product_details_section.dart`
+
+**Tests**
+- Renders 3 fields when present
+- Collapsed by default (single-line header)
+- Tap → expands
+
+**Acceptance**
+Always rendered, always collapsed initially.
+
+---
+
+### [ ] T1.12 — Better Alternatives (Section 11) — V1: non-personalized
+
+**What**
+Conditional render: only when current product is `LimitedFit | NotRecommended | low quality`. Show 2-3 higher-PG-score alternatives in same category. **V1 = "Higher quality alternatives"**, no personalized fit delta.
+
+**Files**
+- Existing `lib/features/product_detail/widgets/better_alternatives.dart` — minor refactor for new copy
+
+**Tests**
+- Strong fit + high quality → section hidden
+- Limited fit → section visible
+- Low quality (<60) → section visible
+- Each alternative renders score + brand
+- No "+N fit" delta visible (deferred)
+
+**Acceptance**
+Conditional logic correct. V1 copy exact: "Higher quality alternatives".
+
+---
+
+### [ ] T1.13 — Deep Dive collapsed (Section 12)
+
+**What**
+Wrap existing deep-dive sections (Full mechanism, Manufacturing, Heavy metals) in a collapsed expander.
+
+**Files**
+- `lib/features/product_detail/product_detail_screen.dart` — wrap `_DeepDiveSection`
+
+**Tests**
+- Section collapsed by default
+- Tap header → expands
+- All existing deep-dive content preserved
+
+**Acceptance**
+No behavior change other than initial collapsed state.
+
+---
+
+### [ ] T1.14 — Transparency footer (Section 13)
+
+**What**
+Always-visible footer: "Last updated: {catalog generated_at} · Coverage: {n}/{total} · Sources: NIH · FDA · PubMed · PharmaGuide does not sell supplements. Educational only."
+
+**Files**
+- New: `lib/features/product_detail/widgets/transparency_footer.dart`
+
+**Tests**
+- Date format: "Apr 28" or "Updated 2 days ago"
+- Coverage matches Product Quality section
+- Disclaimer always present
+
+**Acceptance**
+Footer renders on every product page. No personalization (it's site-wide trust language).
+
+---
+
+### [ ] T1.15 — Sticky action bar (Section 14)
+
+**What**
+Bottom sticky bar: [Add to Stack] [Log Dose]. Conditional: [See Safer Alternatives] when verdict = Avoid/Contraindicated.
+
+**Files**
+- Refactor existing sticky bar in `product_detail_screen.dart`
+
+**Tests**
+- Safe product → 2 buttons
+- Avoid product → "See Safer Alternatives" replaces "Add to Stack"
+- Already-in-stack → "Remove" + "Log Dose"
+- Tap [Add to Stack] → existing flow (no behavior change)
+
+**Acceptance**
+Conditional logic matches verdict tier.
+
+---
+
+### [ ] T1.16 — Sprint 1 verification + ship
+
+**What**
+End-of-sprint gate.
+
+**Steps**
+1. `flutter analyze` clean
+2. `flutter test` all green (existing + new)
+3. Manual walkthrough on 5 product types:
+   - Safe + good fit (e.g. Thorne Magnesium Bisglycinate with sleep goal)
+   - Caution + good fit (e.g. iron supplement with Lisinopril)
+   - Avoid (banned substance product)
+   - Contraindicated (pregnancy + Vitamin A high dose)
+   - Not-scored (insufficient data)
+4. Verify each section renders or hides correctly per spec
+5. Sentry watch 24h post-deploy
+
+**Acceptance**
+All sections render. No new error classes in Sentry. Ready for Sprint 2.
+
+---
+
+# Sprint 2 — Refinement Polish
+
+## Phase goal
+Polish what shipped in Sprint 1. Tighten copy. Address any UX issues surfaced during Sprint 1 manual testing. Add the deferred low-cost improvements.
+
+## Why
+Sprint 1 ships **structure**. Sprint 2 ships **delight**. Real user feedback (yours + early TestFlight) drives this sprint's content.
+
+## Estimate
+**3–5 days.**
+
+## Definition of Done (sprint-level)
+- All Sprint 1 manual-testing notes addressed
+- Overflow audit complete (Sentry RenderFlex count → 0)
+- Copy review complete (no remaining numeric/JSON leaks)
+
+## Tasks
+
+### [ ] T2.1 — Overflow audit + sweep
+
+**What**
+Sentry shows ~8 unresolved RenderFlex overflow events. Walk through every screen on simulator, identify yellow stripes, fix each.
+
+**Files**
+- Various; common offenders: any `Row` with bare `Text` lacking `Flexible`/`Expanded`
+
+**Acceptance**
+- 0 RenderFlex events in Sentry over 7 days post-deploy
+- Visual smoke test: long product names + long brand names + long ingredient names render without truncation issues
+
+---
+
+### [ ] T2.2 — Ingredient prettifier expansion
+
+**What**
+The ingredient-name lookup table from T0.1 starts with ~30 entries. Audit catalog for the top 100 most-frequent ingredient keys and add prettified forms.
+
+**Files**
+- `lib/core/util/ingredient_display.dart`
+
+---
+
+### [ ] T2.3 — Tradeoffs copy refinement
+
+**What**
+After Sprint 1 ships, watch real `score_bonuses`/`score_penalties` content for awkward strings. Add Flutter-side prose patches as needed.
+
+---
+
+### [ ] T2.4 — Empty-state polish
+
+**What**
+Each section should have a graceful empty state. Ensure no section ever shows "Loading…" indefinitely or a blank panel.
+
+---
+
+### [ ] T2.5 — Animation pass
+
+**What**
+Section expand/collapse uses `AnimatedSize` with 200ms easeInOut. Tap feedback uses `InkWell`. No jarring layout jumps.
+
+---
+
+### [ ] T2.6 — Sprint 2 verification
+
+Same as T0.7 / T1.16 pattern.
+
+---
+
+# Sprint 3 — Backend Foundation
+
+## Phase goal
+Land the data work that unlocks deferred V1.1 features: full formulation ontology, percentile ranking, personalized alternative delta, editorial evidence summaries.
+
+## Why
+These features are **data problems**, not Flutter problems. They need pipeline emissions or curated content that doesn't exist yet. Schedule them properly with a real timeline, don't rush.
+
+## Estimate
+**2–3 weeks**, runs in parallel with Sprint 2 polish (different surface area).
+
+## Definition of Done (sprint-level)
+- Excipient ontology v1 reviewed by pharmacist, in pipeline source
+- Pipeline emits `score_percentile`, `formulation_purity_tier`, prose `score_bonuses[].detail`
+- Editorial evidence summaries authored for top-10 most-prescribed clusters
+- Personalized alternative-fit-delta provider implemented and benchmarked
+
+## Tasks
+
+### [ ] T3.1 — Excipient ontology v1
+
+**What**
+Build `excipient_classification.json` in pipeline:
+- Source of truth: FDA inactive ingredient database + USP-NF + EFSA opinions
+- Tags per excipient: `function` (capsule_shell | lubricant | flow_agent | sweetener | dye | preservative | …) + `tier` (expected | neutral | unnecessary | flagged)
+- Pharmacist review for ~50 controversial entries (titanium dioxide, sucralose, certain dyes)
+
+**Why**
+Layer 1 of the formulation 4-layer model. All later phases depend on this data existing.
+
+**Owner**
+Pipeline team + clinical reviewer. Not a Flutter task.
+
+---
+
+### [ ] T3.2 — Penalty-based purity scorer (replaces Phase 1)
+
+**What**
+Pipeline emits `formulation_purity` block:
+```json
+{
+  "tier": "Clean | Moderate | LowPurity | ContainsConcerns",
+  "rationale": "Standard capsule excipients only.",
+  "penalty_breakdown": {...}
+}
+```
+Flutter widget renders the new tier; Phase 1 logic in Sprint 0 becomes obsolete and is removed.
+
+---
+
+### [ ] T3.3 — Pipeline emits `score_percentile`
+
+**What**
+Build-time: compute percentile rank for each product within its category. Emit as `score_percentile` field in `products_core`.
+
+**Flutter consumer:** Section 3 subtitle reads "High Quality · Top 15%".
+
+---
+
+### [ ] T3.4 — Pipeline emits prose `score_bonuses[].detail`
+
+**What**
+Replace numeric `detail` ("3", "Tier 3") with prose ("Liposomal delivery format", "Premium delivery system"). Removes the need for the regex strip from T0.2.
+
+---
+
+### [ ] T3.5 — Editorial evidence summaries
+
+**What**
+Hire/contract clinical writer. Author 10–20 cluster summaries (e.g. magnesium for sleep, vitamin D for bone health). Stored in `assets/reference_data/editorial_summaries.json`.
+
+**Flutter consumer:** Section 9 quote line.
+
+---
+
+### [ ] T3.6 — Personalized alternative fit delta
+
+**What**
+Provider that, given current product + user profile, returns top-3 alternatives in same category sorted by personalized fit score. Displayed in Section 11 as "+9 fit for you".
+
+**Performance budget**
+<200ms total compute on a typical device. Profile before merging.
+
+---
+
+### [ ] T3.7 — Sprint 3 verification
+
+Same as previous patterns. Add: clinical writer signs off on copy.
+
+---
+
+## Risks & mitigations
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Sprint 1 IA refactor introduces visual regressions | Medium | High | Manual walkthrough on 5 product types is the gate |
+| Excipient ontology curation slips | Medium | Low (Sprint 3) | Phase 1 (Sprint 0) buys time — even a 4-week delay doesn't block users |
+| OTA in-session swap causes mid-scan glitches | Low | Medium | Snackbar gives users context; queries fail-soft via Riverpod retry |
+| Risk-gated Fit confuses users who expected the number | Low | Low | "Not recommended" + alert provides better signal than a number; if user feedback insists, add an info-icon explainer |
+
+---
+
+## Change log
+
+| Date | Author | Change |
+|---|---|---|
+| 2026-04-28 | SeanB + Claude | Initiative created. Sprint 0–3 defined. Locked decisions captured. |
+
+---
+
+## How to use this file
+
+1. **At the start of each work session** — open this file. Jump to the active sprint. Pick the next `[ ]` task.
+2. **When a task completes** — change `[ ]` to `[x]`, fill in the actual outcome under "Comments" if it differed from the plan.
+3. **When a task is paused/blocked** — change `[ ]` to `[-]`, add a short note in "Comments" explaining why.
+4. **At sprint boundaries** — run the sprint-verification task. Update the roadmap table at the top.
+5. **If scope shifts** — append to the change log with date + reason. Do NOT silently delete tasks.
+
+If you find yourself wanting to do something that's listed in **Out of scope**, stop. That's deferred for a reason. Add a note in the change log if the deferral reason no longer applies, and discuss before reopening.
