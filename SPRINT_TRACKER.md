@@ -27,7 +27,7 @@ related:
 
 **Version:** V1.0
 **Updated:** 2026-04-28
-**Current Sprint:** Sprint 27.19 — Apple-grade home (physics layer + iOS chrome + bug fixes)
+**Current Sprint:** Sprint 27.20 — Apple-grade home polish refinements (haptic patterns, gentle release, glass glint, gesture-conflict smoke test)
 **Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5 ALL DONE. **449 Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
 
 ## TARGET: V1.0 Ship by 2026-05-11
@@ -118,6 +118,21 @@ Status: DONE
 - [x] Reworked Stack Health language on Home and Stack from the old tiered score copy to shared user-facing labels: `Optimized / Solid / Decent / Concerning / Unsafe`.
 - [x] Added shared label-contract coverage in `test/core/models/stack_safety_score_test.dart` so severity caps and score bands cannot drift silently.
 - [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/home/home_screen_test.dart test/features/stack/stack_screen_test.dart test/core/models/stack_safety_score_test.dart`.
+
+**Sprint 27.20: Apple-grade home polish refinements** — ✅ DONE (2026-04-28)
+Status: DONE — 4/4 tasks shipped. Follow-up to Sprint 27.19 addressing two reviewer notes (chained-impact "notification" patterns, critically-damped press release) and two original-plan caveats (dark-mode top-edge glint, gesture-conflict smoke test for the pinned search header).
+
+- [x] **Task 1: Severity-gated verdict haptics with iOS notification patterns.** Adds `PGHaptics.successPattern()` (di-DUP — light → 80ms → medium, Apple Pay completion cadence) and `PGHaptics.errorPattern()` (di-da-DUP — medium → 60ms → medium → 60ms → heavy, system-error cadence). Adds `PGHaptics.forVerdict(verdict, [context])` mapping `RECOMMENDED/GOOD → successPattern`, `MODERATE/REVIEW → warning`, `UNSAFE → danger`, `BLOCKED → errorPattern`, `NOT_SCORED → success`, `null/unknown → no haptic`. Updates `PGHaptics.forSeverity(contraindicated)` to use the full errorPattern instead of a single heavy impact — strict no-go tier deserves a more distinct tactile signal than `avoid` (which stays heavy). Scanner verdict-flash now calls `forVerdict(product.verdict, context)` so a successful safe-product scan rewards the user with the recognizable Apple Pay completion pattern, and a BLOCKED scan fires the full system-error cadence. 21 unit tests via mock platform-channel recorder verify the exact chained sequence of `HapticFeedbackType.*` calls for every input.
+- [x] **Task 2: `AppMotion.gentleRelease` zero-overshoot press-up curve.** Apple's iOS press-up has a near-zero rebound — the previous PGPressable release used `AppMotion.spring` (15% overshoot) which read as toy-like. Adds `AppMotion.gentleRelease = Curves.easeOutCubic` and switches PGPressable's release transition to it. `AppMotion.spring` retained for state flips and toggles where a touch of overshoot adds personality. Doc comments on both curves clarify which to reach for: spring → toggles, gentleRelease → press-up.
+- [x] **Task 3: Dark-mode top-edge glint on PGFrostedHeader.** iOS frosted-glass surfaces in dark mode show a faint white inner-edge highlight along the top — simulates light catching the top edge of glass. Adds a 4% white top BorderSide that fades in alongside `scrollProgress`, so the edge only appears once the surface is actually frosted. Light mode keeps the top edge clean (`BorderSide.none`) — the glint disappears against light surfaces anyway. Two new widget tests verify dark mode produces a > 0 / < 10% white top border and light mode renders no top border.
+- [x] **Task 4: Gesture-conflict smoke test for pinned search header.** Verifies the SliverPersistentHeader pinned search remains tappable after the user scrolls past the hero. Seeds a populated state, drags the scroll view up by 400 pt to force the pin, then asserts (a) the placeholder still renders (proves the pin worked) and (b) a PGPressable ancestor is reachable in the search's render tree (proves the tap-handler chain is intact and not obscured by the frosted overlay or by the parent CustomScrollView's drag recognizer). Manual `tester.pump()` instead of `pumpAndSettle()` because BouncingScrollPhysics + the snap-paginated Recents PageView produce ongoing micro-animations that pumpAndSettle never considers idle.
+
+**Verification:**
+- `/Users/seancheick/Development/flutter/bin/flutter analyze` → No issues found
+- `/Users/seancheick/Development/flutter/bin/flutter test` → 736/736 tests pass (up from 712 in Sprint 27.19 — +24 new tests across pg_haptics_test.dart, pg_frosted_header_test.dart, and home_screen_test.dart)
+- 4 commits pushed: `38ee7ea` (haptics), `7aaade1` (gentleRelease), `662d1e3` (glint), `c617331` (gesture test)
+
+---
 
 **Sprint 27.19: Apple-grade home — physics layer + iOS chrome + audit bug fixes** — ✅ DONE (2026-04-28)
 Status: DONE — 28/28 tasks shipped across 7 phases. Plan archived at `docs/superpowers/plans/2026-04-28-home-apple-grade.md`.
