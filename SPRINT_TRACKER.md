@@ -26,9 +26,9 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-28
-**Current Sprint:** Sprint 27.20 — Apple-grade home polish refinements (haptic patterns, gentle release, glass glint, gesture-conflict smoke test)
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5 ALL DONE. **449 Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
+**Updated:** 2026-04-29
+**Current Sprint:** Two parallel initiatives in flight (see "Parallel Initiatives" section below). Sprint 27.20 was the last numbered sprint here.
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.20 ALL DONE. **757 Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **V1.1 + V1.2 code shipped 2026-04-29 via initiative tracks (see Parallel Initiatives section).**
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -39,8 +39,11 @@ related:
 | Wk 2 | Stack interaction engine + product-scan warnings | 13 (M4), 14 (M5) | ✅ Done |
 | Wk 2 | Feature Blitz: synergy, recalls, health score, M5 fix, Quick Check, pipeline data | 21 | ✅ Done |
 | Wk 2 | **V1.0-beta ship gate** — CI, accessibility, error matrix, 0 skipped tests | 8 | ✅ Done |
-| Wk 3 | **TestFlight + Play internal builds** — store metadata, screenshots | — | ⬜ Next |
+| Wk 3 | **TestFlight + Play internal builds** — store metadata, screenshots | — | ⬜ Next (code ready; build owed by Sean) |
 | Wk 3-4 | V1.0-release — auth (Google/Apple), analytics SDK, usage limits | 7 (partial) | ⬜ Next |
+| Wk 3-4 | **V1.1 Stack Intelligence (diagnostic tier headline)** | Track B (initiative) | ✅ Code-complete 2026-04-29 — see Parallel Initiatives ↓ |
+| Wk 3-4 | **V1.2 Clinician Share Report** | Track C (initiative) | ✅ Code-complete 2026-04-29 — see Parallel Initiatives ↓ |
+| Wk 3-4 | **V1.0 Trust Fixes Sprint 0** (KSM-66 false positive, JSON-leak, Highlights rename, Pairs Well count, OTA in-session swap) | Sprint 0 (initiative) | ✅ Code-complete 2026-04-29 — see Parallel Initiatives ↓ |
 
 Update rules:
 
@@ -64,6 +67,53 @@ Status legend:
 4. **Update this file after every completed task.**
 5. **Add to [[lessons-learned]] when something unexpected happens.**
 6. **Partial completion is NOT completion. Use `[-]` for in-progress.**
+
+---
+
+## Parallel Initiatives (in flight, 2026-04-28 → present)
+
+Two focused initiatives are running outside the numbered-sprint flow above. Each has its own architectural thesis, locked decisions, and detail-tracker doc. When an initiative retires, its completed tasks roll up here as a sprint reference and the initiative doc moves to `archive/`.
+
+### `[INITIATIVE_STACK_INTELLIGENCE.md]` — V1.0 → V1.4+
+
+> Move PharmaGuide from a single-number Stack Score to a diagnostic system (tier verdict + actionable issues), then layer commerce on top once trust is established. See the initiative doc for locked architectural principles, tier vocabulary (Optimized / Solid / Decent / Concerning / Unsafe + Incomplete), and the "no Amazon PA-API" decision.
+
+| Track | Scope | Status |
+|---|---|---|
+| **A** — V1.0 Hardening (analyze clean, full-suite green, OTA bundle-replacement bug fix, "Stack Score" → "Stack Health" copy) | A1, A2, A4, A6 | ✅ All `[x]` (code) — A3 real-device scan + A5 TestFlight build still ⏳ Sean |
+| **B** — V1.1 Stack Intelligence (`StackIntelligence` model + `StackIntelligenceEngine` facade + home headline rewire) | B1, B2, B3 | ✅ All `[x]` (code) — B3 goldens + real-device pass ⏳ Sean |
+| **C** — V1.2 Clinician Share Report (`ClinicianReportBuilder` + `ShareService.shareClinicianReport` + stack-screen entrypoint button) | C1, C2, C3 | ✅ All `[x]` (code) — C3 real-device paste-into-Mail/MyChart ⏳ Sean. C4 PDF export deferred to v1.2.1 |
+| **D** — V1.3 OTA Catalog Refresh (D3 redirected to T0.6 in-session swap) | D1, D2, D4 leftovers | ⬜ **Next coding chunk** — D1 manifest endpoint (pipeline) + D2 background updater + D4 rollback safety. Note: D3 cold-start activation rule was retired 2026-04-29 in favor of T0.6's validation-gated in-session swap (see Trust & IA below). |
+| **E** — V1.4+ Commerce | E6 → E11 | ⏸ Deferred until V1.2 trust ships |
+
+### `[INITIATIVE_PRODUCT_TRUST_AND_IA.md]` — Sprint 0 → 3
+
+> Rebuild the product detail screen for trust, clarity, and decision-readiness. Locked decisions: scoring model (PG Score never personalized; risk-gated Fit), coverage policy (always shown), 14-section IA, formulation purity Phase 1 patch, in-session catalog swap.
+
+| Sprint | Scope | Status |
+|---|---|---|
+| **0 — Trust Fixes** (T0.1 reword evidence + ingredient prettifier; T0.2 "Why this product" → "Highlights" + strip noisy detail; T0.3 formulation JSON-leak; T0.4 Pairs Well badge ↔ card-count parity; T0.5 Formulation Purity Phase 1 hide-when-clean; T0.6 OTA in-session catalog swap with validation gate + atomic rename + SharedPreferences persistence + snackbar) | T0.1 → T0.6 | ✅ All `[x]` (code). T0.7 ship gate `[-]` — manual smoke + TestFlight + 24h Sentry watch ⏳ Sean. **Two live-test bugs caught and fixed during simulator pre-flight** (T0.1 whitespace-key prettifier follow-up; T0.3 sister JSON-leak in `certification_detail_section.dart`) — commit `2a35eb8`. |
+| **1 — Product Screen IA Refactor** (T1.1 → T1.16 — risk-gated Fit, "For You" merged block, PG Score relocated to Section 3, 14-section IA, transparency footer + sticky action bar) | 14 tasks | ⬜ Next coding chunk after Track D leftovers |
+| **2 — Refinement Polish** | 6 tasks | ⏸ Pending Sprint 1 |
+| **3 — Backend Foundation** (excipient ontology, prose `score_bonuses[].detail`, percentile ranking, editorial summaries — most pipeline-side) | 7 tasks | ⏸ Pending data work |
+
+### Cross-references between the two initiatives
+
+- **OTA activation strategy:** Stack Intelligence's original "no mid-session catalog swap" locked rule was retired on 2026-04-29 in favor of Trust & IA T0.6's validation-gated in-session swap. Stack Intelligence Track D D3 now points at T0.6 as source of truth. See either initiative's update log for the full retirement rationale.
+- **Stack Intelligence A6 ↔ Trust & IA T0.6:** A6 was scoped to the "bundle no longer copies after first install" defect (fixed regardless of activation strategy). T0.6 is the activation-model resolution. A6 is `[x]` because the bundle bug is fixed; the activation snackbar belongs to T0.6.
+
+### Coding sequence locked with Sean (2026-04-29)
+
+1. **Now:** Track D leftovers (D1 + D2 + D4) — pipeline-side manifest endpoint + Flutter background updater + rollback safety. T0.6 already shipped the in-session activation, so this is reliability/polish on top.
+2. **Then:** Trust & IA Sprint 1 — Product Screen IA Refactor (10–12 dev days, T1.1 → T1.16).
+3. **Later:** Enhance Track C (Clinician Share Report) — already shipped baseline; future work fleshes out clinician-share UX based on real-device feedback.
+
+### Owed back to Sean (parallel to coding)
+
+- TestFlight + Play Internal builds (Track A5 + T0.7 step 4)
+- Real-device smoke for B3 home headline + T0.4 / T0.5 visual edges + C3 paste-into-Mail (T0.7 step 3)
+- PHARMAGUIDE-1 (RenderFlex overflow) Sentry triage
+- 24h Sentry watch post-deploy
 
 ---
 
@@ -1135,8 +1185,8 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [ ] Performance profiling: scan-to-result <500ms, search <300ms, app launch <3s
 - [ ] Memory profiling: no leaks on repeated scan/detail/back cycles
 - [ ] CI setup: flutter analyze + flutter test on every PR
-- [ ] TestFlight build and internal testing
-- [ ] Google Play internal track build and testing
+- [-] TestFlight build and internal testing — **code-side ready** as of 2026-04-29; build cut ⏳ Sean
+- [-] Google Play internal track build and testing — **code-side ready** as of 2026-04-29; build cut ⏳ Sean
 - [ ] Store metadata: screenshots, description, privacy policy, encryption questionnaire
 - [ ] App Store Privacy Nutrition Label
 - [x] Final security audit: no PHI in analytics, AI disclaimers visible, no hardcoded keys — PHI grep test (257 LOC) enforces medication-never-syncs, no .env committed
@@ -2013,7 +2063,7 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 - [ ] User-contributed photos: "Help improve PharmaGuide — snap a photo of this bottle?" → store in Supabase → use as display image (post-launch data moat)
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
 - [x] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0 — **done in Sprint 27.5 (schema-alignment audit follow-up)**
-- [ ] TestFlight / Play internal builds
+- [-] TestFlight / Play internal builds — **code-side ready** as of 2026-04-29 (V1.0 hardening + V1.1 + V1.2 all `[x]` per Parallel Initiatives section above; 757/757 tests green; analyze clean). Build cut + upload still ⏳ Sean.
 
 ---
 
