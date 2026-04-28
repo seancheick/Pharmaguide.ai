@@ -1,6 +1,7 @@
 // Synergy detail — cluster matches, evidence, PMIDs.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
@@ -13,10 +14,7 @@ class SynergyDetailSection extends StatelessWidget {
     if (synergyDetail == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final clusters = (synergyDetail!['clusters'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        [];
+    final clusters = synergyDetail!.safeMapList('clusters');
 
     if (clusters.isEmpty) return const SizedBox.shrink();
 
@@ -67,10 +65,7 @@ class SynergyDetailSection extends StatelessWidget {
             final explanation = cluster['benefit_short']?.toString().isNotEmpty == true
                 ? cluster['benefit_short'].toString()
                 : (cluster['bonus_explanation']?.toString() ?? '');
-            final pmids = (cluster['pmids'] as List?)
-                    ?.map((e) => e.toString())
-                    .toList() ??
-                [];
+            final pmids = cluster.safeStringList('pmids');
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Container(

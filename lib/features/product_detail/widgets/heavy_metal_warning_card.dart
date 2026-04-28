@@ -9,6 +9,7 @@
 //   }
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
@@ -20,10 +21,7 @@ class HeavyMetalWarningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (heavyMetalDetail == null) return const SizedBox.shrink();
-    final signals = (heavyMetalDetail!['signals'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        [];
+    final signals = heavyMetalDetail!.safeMapList('signals');
     if (signals.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);

@@ -1,6 +1,7 @@
 // Evidence & Research detail — clinical matches, PMIDs, claim support.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,11 +15,9 @@ class EvidenceDetailSection extends StatelessWidget {
     if (evidenceData == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final matchCount = evidenceData!['match_count'] as num? ?? 0;
-    final clinicalMatches =
-        (evidenceData!['clinical_matches'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? [];
-    final unsubstantiated =
-        (evidenceData!['unsubstantiated_claims'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final matchCount = evidenceData!.safeNum('match_count') ?? 0;
+    final clinicalMatches = evidenceData!.safeMapList('clinical_matches');
+    final unsubstantiated = evidenceData!.safeStringList('unsubstantiated_claims');
 
     if (matchCount == 0 && clinicalMatches.isEmpty) return const SizedBox.shrink();
 
@@ -61,7 +60,7 @@ class EvidenceDetailSection extends StatelessWidget {
             ...clinicalMatches.take(5).map((match) {
               final ingredient = match['ingredient']?.toString() ?? '';
               final evidence = match['evidence_level']?.toString() ?? '';
-              final pmids = (match['pmids'] as List?)?.map((e) => e.toString()).toList() ?? [];
+              final pmids = match.safeStringList('pmids');
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(

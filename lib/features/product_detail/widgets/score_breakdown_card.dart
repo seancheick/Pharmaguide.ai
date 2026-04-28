@@ -141,8 +141,8 @@ class ScoreBreakdownCard extends StatelessWidget {
     if (lines.isEmpty) {
       final score = sub['score'];
       final max = sub['max'];
-      if (score != null && max != null) {
-        final fraction = (score as num) / (max as num);
+      if (score is num && max is num && max != 0) {
+        final fraction = score / max;
         lines.add(_ExplainLine(
           text: fraction >= 0.7
               ? 'Good ingredient forms and dosing'
@@ -177,7 +177,8 @@ class ScoreBreakdownCard extends StatelessWidget {
         if (e is Map) {
           final nutrient = e['nutrient']?.toString() ?? '';
           if (nutrient.isEmpty) continue;
-          final pctUl = (e['pct_ul'] as num?)?.toDouble();
+          final pctUlRaw = e['pct_ul'];
+          final pctUl = pctUlRaw is num ? pctUlRaw.toDouble() : null;
           final amount = e['amount'];
           final ul = e['ul'];
           final isAggregated = e['aggregation'] == 'canonical_sum';
@@ -247,8 +248,8 @@ class ScoreBreakdownCard extends StatelessWidget {
     if (lines.isEmpty) {
       final score = sub['score'];
       final max = sub['max'];
-      if (score != null && max != null) {
-        final fraction = (score as num) / (max as num);
+      if (score is num && max is num && max != 0) {
+        final fraction = score / max;
         lines.add(_ExplainLine(
           text: fraction >= 0.6
               ? 'Established brand with good track record'

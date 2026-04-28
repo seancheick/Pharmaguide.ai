@@ -1,6 +1,7 @@
 // Probiotic detail — strains, CFU, clinical strains.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
@@ -13,11 +14,21 @@ class ProbioticDetailSection extends StatelessWidget {
     if (probioticDetail == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final strains = (probioticDetail!['strains'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? [];
-    final totalCfu = probioticDetail!['total_cfu']?.toString() ?? '';
-    final clinicalStrains = probioticDetail!['clinical_strains'] as int? ?? 0;
-    final prebioticPresent = probioticDetail!['prebiotic_present'] == true;
-    final survivability = probioticDetail!['survivability']?.toString() ?? '';
+    final strains = probioticDetail!.safeMapList('strains');
+    final totalCfu = probioticDetail!.safeString('total_cfu');
+    // The pipeline emits `clinical_strains` as a list of strain records
+    // ([{strain_name, cfu}, ...]) per the M5 detail-blob schema. Older
+    // catalogs occasionally emitted just the count as an int, so we accept
+    // both shapes here — JSON parsing must degrade gracefully (CLAUDE.md).
+    final clinicalStrainsRaw = probioticDetail!['clinical_strains'];
+    final clinicalStrains = switch (clinicalStrainsRaw) {
+      final List<dynamic> l => l.length,
+      final int n => n,
+      final num n => n.toInt(),
+      _ => 0,
+    };
+    final prebioticPresent = probioticDetail!.safeBool('prebiotic_present');
+    final survivability = probioticDetail!.safeString('survivability');
 
     if (strains.isEmpty && totalCfu.isEmpty) return const SizedBox.shrink();
 

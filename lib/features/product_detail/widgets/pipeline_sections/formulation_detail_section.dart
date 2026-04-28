@@ -1,6 +1,7 @@
 // Formulation detail — delivery form, absorption enhancers, botanicals.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
@@ -21,21 +22,19 @@ class FormulationDetailSection extends StatelessWidget {
 
     final deliveryForm = formulationDetail!['delivery_form']?.toString() ?? '';
     final deliveryTier = formulationDetail!['delivery_tier']?.toString() ?? '';
-    final enhancers = (formulationDetail!['absorption_enhancers'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
-    final botanicals = (formulationDetail!['standardized_botanicals'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
-    final demotedEnhancers =
-        (ingredientQualityData?['demoted_absorption_enhancers'] as List?)
-                ?.whereType<Map<dynamic, dynamic>>()
-                .map((raw) => _BioavailabilityAid.fromMap(raw))
-                .where((aid) => aid.label.isNotEmpty)
-                .toList() ??
-            const <_BioavailabilityAid>[];
+    final enhancers = formulationDetail!.safeStringList('absorption_enhancers');
+    final botanicals =
+        formulationDetail!.safeStringList('standardized_botanicals');
+    // `demoted_absorption_enhancers` is a list of {name, quantity, unit}
+    // records; `safeList` returns const [] on any non-list shape, then we
+    // filter to maps only via `whereType` before constructing the value
+    // object.
+    final demotedEnhancers = (ingredientQualityData ?? const <String, dynamic>{})
+        .safeList('demoted_absorption_enhancers')
+        .whereType<Map<dynamic, dynamic>>()
+        .map((raw) => _BioavailabilityAid.fromMap(raw))
+        .where((aid) => aid.label.isNotEmpty)
+        .toList(growable: false);
 
     if (deliveryForm.isEmpty &&
         enhancers.isEmpty &&

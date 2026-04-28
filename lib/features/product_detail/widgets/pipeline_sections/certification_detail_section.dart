@@ -2,6 +2,7 @@
 // third-party programs (NSF Sport, USP Verified, etc.).
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
@@ -15,11 +16,12 @@ class CertificationDetailSection extends StatelessWidget {
     final theme = Theme.of(context);
 
     final checks = <(String, bool)>[
-      ('GMP Certified', certificationDetail!['gmp'] == true),
-      ('Purity Verified', certificationDetail!['purity_verified'] == true),
-      ('Heavy Metal Tested', certificationDetail!['heavy_metal_tested'] == true),
+      ('GMP Certified', certificationDetail!.safeBool('gmp')),
+      ('Purity Verified', certificationDetail!.safeBool('purity_verified')),
+      ('Heavy Metal Tested',
+          certificationDetail!.safeBool('heavy_metal_tested')),
       ('Label Accuracy Verified',
-          certificationDetail!['label_accuracy_verified'] == true),
+          certificationDetail!.safeBool('label_accuracy_verified')),
     ];
 
     // Only show if at least one certification is true
@@ -73,14 +75,11 @@ class CertificationDetailSection extends StatelessWidget {
               )),
           // Third-party program badges (NSF Sport, USP Verified, etc.)
           Builder(builder: (context) {
-            final tpData = certificationDetail!['third_party_programs'];
-            final programs = (tpData is Map)
-                ? ((tpData['programs'] as List?)
-                        ?.map((e) => e.toString())
-                        .where((s) => s.isNotEmpty)
-                        .toList() ??
-                    [])
-                : <String>[];
+            final programs = certificationDetail!
+                .safeMap('third_party_programs')
+                .safeStringList('programs')
+                .where((s) => s.isNotEmpty)
+                .toList(growable: false);
             if (programs.isEmpty) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,

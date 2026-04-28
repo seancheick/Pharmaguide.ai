@@ -27,6 +27,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 
 class ManufacturerViolationsSection extends StatelessWidget {
@@ -36,12 +37,11 @@ class ManufacturerViolationsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (manufacturerDetail == null) return const SizedBox.shrink();
-    final violations = ((manufacturerDetail!['violations']
-                as Map<String, dynamic>?)?['violations']
-            as List?)
-        ?.whereType<Map<String, dynamic>>()
-        .toList() ??
-        [];
+    // The pipeline nests violations under `violations.violations` — both
+    // levels need defensive parsing so a schema flattening can't crash.
+    final violations = manufacturerDetail!
+        .safeMap('violations')
+        .safeMapList('violations');
     if (violations.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);

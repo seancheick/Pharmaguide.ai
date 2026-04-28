@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
@@ -78,15 +79,23 @@ class BlockedProductView extends ConsumerWidget {
     // fetched or when the product row carries no SHA (not-scored
     // edge case); we gracefully fall back to the coarse reason.
     final blobAsync = ref.watch(detailBlobProvider(dsldId));
-    final bsd = blobAsync.asData?.value?['banned_substance_detail']
-        as Map<String, dynamic>?;
-    final substanceName = (bsd?['substance_name'] as String?)?.trim();
-    final oneLiner =
-        (bsd?['safety_warning_one_liner'] as String?)?.trim();
-    final safetyWarning = (bsd?['safety_warning'] as String?)?.trim();
+    // Pipeline emits banned_substance_detail as an object; defend against
+    // a List/scalar shift by checking shape before reading fields. A wrong
+    // shape here would otherwise crash the blocked-product screen — the
+    // worst place to crash since it's our explicit safety-block UI.
+    final blobMap = blobAsync.asData?.value;
+    final rawBsd = blobMap?['banned_substance_detail'];
+    final bsd = rawBsd is Map<String, dynamic>
+        ? rawBsd
+        : rawBsd is Map
+            ? Map<String, dynamic>.from(rawBsd)
+            : null;
+    final substanceName = bsd?.safeString('substance_name').trim();
+    final oneLiner = bsd?.safeString('safety_warning_one_liner').trim();
+    final safetyWarning = bsd?.safeString('safety_warning').trim();
     // Prefer a pipeline-emitted reference (future-compat) and fall
     // back to FDA's CDER tainted-supplements database when absent.
-    final pipelineSource = (bsd?['source_url'] as String?)?.trim();
+    final pipelineSource = bsd?.safeString('source_url').trim();
     final learnMoreUrl = (pipelineSource != null && pipelineSource.isNotEmpty)
         ? pipelineSource
         : _kFdaTaintedSupplementsUrl;
