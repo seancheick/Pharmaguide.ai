@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -66,159 +71,188 @@ class HomeScreen extends ConsumerWidget {
         ? SystemUiOverlayStyle.light
         : SystemUiOverlayStyle.dark;
 
+    final scrollView = CustomScrollView(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      slivers: [
+        // Pull-to-refresh on iOS (CupertinoSliverRefreshControl is iOS-only —
+        // sliver lives at the very top so the rubber-band drag reveals it).
+        // Android branch wraps the entire scroll view in RefreshIndicator
+        // below; the two paths are mutually exclusive.
+        if (Platform.isIOS)
+          CupertinoSliverRefreshControl(onRefresh: () => _onHomeRefresh(ref)),
+
+        // ----------------------------------------------------------------
+        // Search launcher — pinned scroll-aware system surface.
+        //
+        // First content sliver, with the status-bar inset baked into the
+        // delegate so the launcher renders below the notch / Dynamic Island.
+        // At scroll offset 0 the surrounding chrome is fully transparent
+        // (looks like page material). Once content scrolls past below,
+        // PGFrostedHeader inside the delegate fades in a translucent
+        // surface + bottom hairline — Settings / Mail / App Store top-
+        // chrome pattern.
+        // ----------------------------------------------------------------
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _PinnedSearchHeaderDelegate(topPadding: mq.padding.top),
+        ),
+
+        // ----------------------------------------------------------------
+        // Hero — date pill, greeting, tagline. Sits below the pinned
+        // search and scrolls away naturally on user scroll.
+        // ----------------------------------------------------------------
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space12,
+            AppTheme.space20,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: HomeHeroSection(nickname: profile.nickname),
+          ),
+        ),
+
+        // ----------------------------------------------------------------
+        // Primary CTA — scan. The single most important action on this
+        // screen, so it gets the only gradient surface in the whole app.
+        // ----------------------------------------------------------------
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space20,
+            AppTheme.space20,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(child: HomeScanCta()),
+        ),
+
+        if (isFirstLaunch)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space16,
+              AppTheme.space20,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                'Check supplement quality, safety, and fit in seconds.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ),
+
+        // ----------------------------------------------------------------
+        // Profile completeness (conditional, highlighted card)
+        // ----------------------------------------------------------------
+        if (showExpandedSections && profile.completeness < 60)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space16,
+              AppTheme.space20,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: HomeProfileCompletenessCard(
+                completeness: profile.completeness,
+              ),
+            ),
+          ),
+
+        // Stack health — premium Oura-style card
+        // ----------------------------------------------------------------
+        if (showExpandedSections) ...[
+          const SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space32,
+              AppTheme.space20,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(child: HomeStackHealthWidget()),
+          ),
+          const SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space24,
+              AppTheme.space20,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(child: HomeRecentScansSection()),
+          ),
+        ],
+
+        // ----------------------------------------------------------------
+        // Quick Check CTA — useful, but secondary to scan/search/stack.
+        // ----------------------------------------------------------------
+        if (showExpandedSections)
+          const SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space32,
+              AppTheme.space20,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(child: HomeQuickCheckCta()),
+          ),
+
+        // ----------------------------------------------------------------
+        // Trust footer — sources, updated date, disclaimer
+        // ----------------------------------------------------------------
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space32,
+            AppTheme.space20,
+            AppTheme.space8,
+          ),
+          sliver: SliverToBoxAdapter(child: HomeCitationStrip()),
+        ),
+
+        // Bottom space for frosted nav bar + safe area
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: mq.padding.bottom + kPGNavBarHeight + AppTheme.space8,
+          ),
+        ),
+      ],
+    );
+
+    // Android: pull-to-refresh comes from a Material RefreshIndicator that
+    // wraps the whole scroll view (CupertinoSliverRefreshControl is
+    // iOS-only and would render incorrectly on Android).
+    final body = Platform.isIOS
+        ? scrollView
+        : RefreshIndicator(
+            onRefresh: () => _onHomeRefresh(ref),
+            child: scrollView,
+          );
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
-      child: Scaffold(
-        body: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            // ----------------------------------------------------------------
-            // Search launcher — pinned scroll-aware system surface.
-            //
-            // First sliver, with the status-bar inset baked into the delegate
-            // so the launcher renders below the notch / Dynamic Island. At
-            // scroll offset 0 the surrounding chrome is fully transparent
-            // (looks like page material). Once content scrolls past below,
-            // PGFrostedHeader inside the delegate fades in a translucent
-            // surface + bottom hairline — Settings / Mail / App Store top-
-            // chrome pattern.
-            // ----------------------------------------------------------------
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _PinnedSearchHeaderDelegate(topPadding: mq.padding.top),
-            ),
-
-            // ----------------------------------------------------------------
-            // Hero — date pill, greeting, tagline. Sits below the pinned
-            // search and scrolls away naturally on user scroll.
-            // ----------------------------------------------------------------
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.space20,
-                AppTheme.space12,
-                AppTheme.space20,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(
-                child: HomeHeroSection(nickname: profile.nickname),
-              ),
-            ),
-
-            // ----------------------------------------------------------------
-            // Primary CTA — scan. The single most important action on this
-            // screen, so it gets the only gradient surface in the whole app.
-            // ----------------------------------------------------------------
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                AppTheme.space20,
-                AppTheme.space20,
-                AppTheme.space20,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(child: HomeScanCta()),
-            ),
-
-            if (isFirstLaunch)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  AppTheme.space16,
-                  AppTheme.space20,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: Text(
-                    'Check supplement quality, safety, and fit in seconds.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-              ),
-
-            // ----------------------------------------------------------------
-            // Profile completeness (conditional, highlighted card)
-            // ----------------------------------------------------------------
-            if (showExpandedSections && profile.completeness < 60)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  AppTheme.space16,
-                  AppTheme.space20,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: HomeProfileCompletenessCard(
-                    completeness: profile.completeness,
-                  ),
-                ),
-              ),
-
-            // Stack health — premium Oura-style card
-            // ----------------------------------------------------------------
-            if (showExpandedSections) ...[
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  AppTheme.space32,
-                  AppTheme.space20,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: HomeStackHealthWidget()),
-              ),
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  AppTheme.space24,
-                  AppTheme.space20,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: HomeRecentScansSection()),
-              ),
-            ],
-
-            // ----------------------------------------------------------------
-            // Quick Check CTA — useful, but secondary to scan/search/stack.
-            // ----------------------------------------------------------------
-            if (showExpandedSections)
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  AppTheme.space32,
-                  AppTheme.space20,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: HomeQuickCheckCta()),
-              ),
-
-            // ----------------------------------------------------------------
-            // Trust footer — sources, updated date, disclaimer
-            // ----------------------------------------------------------------
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                AppTheme.space20,
-                AppTheme.space32,
-                AppTheme.space20,
-                AppTheme.space8,
-              ),
-              sliver: SliverToBoxAdapter(child: HomeCitationStrip()),
-            ),
-
-            // Bottom space for frosted nav bar + safe area
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: mq.padding.bottom + kPGNavBarHeight + AppTheme.space8,
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: Scaffold(body: body),
     );
   }
+}
+
+/// Refresh handler — fires a light haptic, invalidates the home-relevant
+/// providers, and waits a short beat so the indicator animation feels
+/// purposeful rather than a flicker. Shared by the iOS sliver-refresh
+/// control and the Android Material refresh indicator.
+Future<void> _onHomeRefresh(WidgetRef ref) async {
+  unawaited(PGHaptics.tap());
+  ref.invalidate(isFirstLaunchHomeProvider);
+  ref.invalidate(activeStackProvider);
+  refreshHomeRecents(ref);
+  await Future<void>.delayed(const Duration(milliseconds: 350));
 }
 
 /// Pinned-search header delegate.

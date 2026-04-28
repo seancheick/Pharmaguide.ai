@@ -29,6 +29,15 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 /// real history without cluttering the day-one experience.
 const int kShowAllRecentsMin = 5;
 
+/// Force-refresh the recents carousel — invalidates both the 10-card
+/// (carousel) and 25-card (Show all bottom sheet) variants so they
+/// re-fetch on next build. Called by HomeScreen's pull-to-refresh
+/// handler. Keeps the underlying provider file-private.
+void refreshHomeRecents(WidgetRef ref) {
+  ref.invalidate(_recentScansProvider(10));
+  ref.invalidate(_recentScansProvider(25));
+}
+
 /// Loads recent scan history joined with core product data.
 /// Auto-disposes when the home screen is not visible, ensuring fresh data
 /// on each visit (fixes stale scans after navigating back from scanner).
