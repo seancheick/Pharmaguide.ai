@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
@@ -31,20 +32,20 @@ const int kShowAllRecentsMin = 5;
 /// on each visit (fixes stale scans after navigating back from scanner).
 final _recentScansProvider = FutureProvider.autoDispose
     .family<List<_RecentScanDisplay>, int>((ref, limit) async {
-  final userDb = ref.watch(userDatabaseProvider);
-  final coreDb = ref.watch(coreDatabaseProvider);
-  final history = await userDb.getRecentScans(limit: limit);
-  final results = <_RecentScanDisplay>[];
-  for (final scan in history) {
-    final product = await coreDb.findById(scan.dsldId);
-    if (product != null) {
-      results.add(
-        _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
-      );
-    }
-  }
-  return results;
-});
+      final userDb = ref.watch(userDatabaseProvider);
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final history = await userDb.getRecentScans(limit: limit);
+      final results = <_RecentScanDisplay>[];
+      for (final scan in history) {
+        final product = await coreDb.findById(scan.dsldId);
+        if (product != null) {
+          results.add(
+            _RecentScanDisplay(product: product, scannedAt: scan.scannedAt),
+          );
+        }
+      }
+      return results;
+    });
 
 class HomeRecentScansSection extends ConsumerWidget {
   const HomeRecentScansSection({super.key});
@@ -69,8 +70,9 @@ class HomeRecentScansSection extends ConsumerWidget {
               title: 'Recent scans',
               subtitle: 'Your last checked products',
               padding: EdgeInsets.zero,
-              actionLabel:
-                  scans.length >= kShowAllRecentsMin ? 'Show all' : null,
+              actionLabel: scans.length >= kShowAllRecentsMin
+                  ? 'Show all'
+                  : null,
               onActionTap: scans.length >= kShowAllRecentsMin
                   ? () => _showAllRecents(context, ref)
                   : null,
@@ -117,10 +119,7 @@ class HomeRecentScansSection extends ConsumerWidget {
           padding: EdgeInsets.zero,
         ),
         SizedBox(height: AppTheme.space12),
-        SizedBox(
-          height: 210,
-          child: _RecentScansShimmerRow(),
-        ),
+        SizedBox(height: 210, child: _RecentScansShimmerRow()),
       ],
     );
   }
@@ -155,10 +154,7 @@ class HomeRecentScansSection extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                  border: Border.all(
-                    color: scheme.outlineVariant,
-                    width: 0.8,
-                  ),
+                  border: Border.all(color: scheme.outlineVariant, width: 0.8),
                 ),
                 child: Icon(
                   Icons.history_rounded,
@@ -232,10 +228,8 @@ class _RecentScansShimmerRow extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 3,
       separatorBuilder: (_, __) => const SizedBox(width: 12),
-      itemBuilder: (_, __) => const SizedBox(
-        width: 156,
-        child: PGShimmerCard(height: 210),
-      ),
+      itemBuilder: (_, __) =>
+          const SizedBox(width: 156, child: PGShimmerCard(height: 210)),
     );
   }
 }
@@ -262,67 +256,65 @@ class _RecentScanCard extends StatelessWidget {
 
     return SizedBox(
       width: 156,
-      child: PGCard(
+      child: PGPressable(
         onTap: () => GoRouter.of(context).push('/product/${product.dsldId}'),
-        padding: const EdgeInsets.all(AppTheme.space12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product image (OFF photo or branded placeholder)
-            Center(
-              child: ProductImage(
-                dsldId: product.dsldId,
-                upc: product.upcSku,
-                productName: product.productName,
-                brandName: product.brandName ?? '',
-                formFactor: product.formFactor,
-                score: score,
-                size: 48,
-              ),
-            ),
-            const SizedBox(height: AppTheme.space6),
-            // Score ring centered
-            Center(
-              child: PGScoreRing(
-                score: score,
-                size: 40,
-                strokeWidth: 3.5,
-              ),
-            ),
-            const SizedBox(height: AppTheme.space6),
-            // Product name
-            Text(
-              product.productName,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.1,
-                height: 1.25,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            // Brand
-            if (product.brandName != null && product.brandName!.isNotEmpty)
-              Text(
-                product.brandName!,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+        child: PGCard(
+          padding: const EdgeInsets.all(AppTheme.space12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Product image (OFF photo or branded placeholder)
+              Center(
+                child: ProductImage(
+                  dsldId: product.dsldId,
+                  upc: product.upcSku,
+                  productName: product.productName,
+                  brandName: product.brandName ?? '',
+                  formFactor: product.formFactor,
+                  score: score,
+                  size: 48,
                 ),
-                maxLines: 1,
+              ),
+              const SizedBox(height: AppTheme.space6),
+              // Score ring centered
+              Center(
+                child: PGScoreRing(score: score, size: 40, strokeWidth: 3.5),
+              ),
+              const SizedBox(height: AppTheme.space6),
+              // Product name
+              Text(
+                product.productName,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.1,
+                  height: 1.25,
+                ),
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-            const Spacer(),
-            // Time ago
-            Text(
-              relativeTime(scannedAt),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontSize: 10,
+              const SizedBox(height: 2),
+              // Brand
+              if (product.brandName != null && product.brandName!.isNotEmpty)
+                Text(
+                  product.brandName!,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              const Spacer(),
+              // Time ago
+              Text(
+                relativeTime(scannedAt),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 10,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -368,11 +360,11 @@ class _OutlineScanButton extends StatelessWidget {
                 Text(
                   'Scan your first supplement',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.primary,
-                        letterSpacing: -0.05,
-                      ),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.primary,
+                    letterSpacing: -0.05,
+                  ),
                 ),
               ],
             ),
@@ -503,73 +495,72 @@ class _RecentScanListTile extends StatelessWidget {
   final ProductsCoreData product;
   final DateTime scannedAt;
 
-  const _RecentScanListTile({
-    required this.product,
-    required this.scannedAt,
-  });
+  const _RecentScanListTile({required this.product, required this.scannedAt});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    return PGCard(
+    return PGPressable(
       onTap: () => GoRouter.of(context).push('/product/${product.dsldId}'),
-      padding: const EdgeInsets.all(AppTheme.space12),
-      child: Row(
-        children: [
-          ProductImage(
-            dsldId: product.dsldId,
-            upc: product.upcSku,
-            productName: product.productName,
-            brandName: product.brandName ?? '',
-            formFactor: product.formFactor,
-            score: product.score100Equivalent,
-            size: 48,
-          ),
-          const SizedBox(width: AppTheme.space12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.productName,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (product.brandName != null &&
-                    product.brandName!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+      child: PGCard(
+        padding: const EdgeInsets.all(AppTheme.space12),
+        child: Row(
+          children: [
+            ProductImage(
+              dsldId: product.dsldId,
+              upc: product.upcSku,
+              productName: product.productName,
+              brandName: product.brandName ?? '',
+              formFactor: product.formFactor,
+              score: product.score100Equivalent,
+              size: 48,
+            ),
+            const SizedBox(width: AppTheme.space12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    product.brandName!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                    product.productName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.1,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ],
-                const SizedBox(height: 6),
-                Text(
-                  relativeTime(scannedAt),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                  if (product.brandName != null &&
+                      product.brandName!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      product.brandName!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    relativeTime(scannedAt),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: AppTheme.space12),
-          PGScoreRing(
-            score: product.score100Equivalent,
-            size: 40,
-            strokeWidth: 3.5,
-          ),
-        ],
+            const SizedBox(width: AppTheme.space12),
+            PGScoreRing(
+              score: product.score100Equivalent,
+              size: 40,
+              strokeWidth: 3.5,
+            ),
+          ],
+        ),
       ),
     );
   }
