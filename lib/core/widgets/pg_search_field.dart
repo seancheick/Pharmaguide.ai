@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 
 /// Premium search field with animated focus ring and icon.
 ///
@@ -134,17 +135,19 @@ class _PGSearchFieldState extends State<PGSearchField> {
       ),
     );
 
-    // When read-only + tap handler, wrap in Material+InkWell so the whole
-    // surface feels tappable (not just the text area).
+    // Read-only launcher path: wrap with PGPressable so the whole surface
+    // gets the iOS press feel — a 0.99 micro-scale + spring release. No
+    // haptic on tap-down because the destination search screen owns the
+    // entry haptic; firing one here would double-tap the user. The
+    // micro-scale is intentionally subtle (0.99 vs the 0.96 default for
+    // standalone cards) — the search field is top chrome, not a content
+    // card, so it should compress just enough to register as live.
     if (widget.readOnly && widget.onTap != null) {
-      return Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: widget.onTap,
-          child: container,
-        ),
+      return PGPressable(
+        onTap: widget.onTap,
+        haptic: false,
+        pressedScale: 0.99,
+        child: container,
       );
     }
 
