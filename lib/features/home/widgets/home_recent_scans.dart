@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
@@ -253,15 +254,6 @@ class _RecentScanCard extends StatelessWidget {
 
   const _RecentScanCard({required this.product, required this.scannedAt});
 
-  String _timeAgo() {
-    final diff = DateTime.now().difference(scannedAt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays == 1) return 'Yesterday';
-    return '${diff.inDays}d ago';
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -324,7 +316,7 @@ class _RecentScanCard extends StatelessWidget {
             const Spacer(),
             // Time ago
             Text(
-              _timeAgo(),
+              relativeTime(scannedAt),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: scheme.onSurfaceVariant,
                 fontSize: 10,
@@ -516,15 +508,6 @@ class _RecentScanListTile extends StatelessWidget {
     required this.scannedAt,
   });
 
-  String _timeAgo() {
-    final diff = DateTime.now().difference(scannedAt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays == 1) return 'Yesterday';
-    return '${diff.inDays}d ago';
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -572,7 +555,7 @@ class _RecentScanListTile extends StatelessWidget {
                 ],
                 const SizedBox(height: 6),
                 Text(
-                  _timeAgo(),
+                  relativeTime(scannedAt),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
