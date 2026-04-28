@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/widgets/pg_citation_strip.dart';
+import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
 class HomeCitationStrip extends ConsumerWidget {
@@ -14,7 +15,9 @@ class HomeCitationStrip extends ConsumerWidget {
     final catalogAsync = ref.watch(catalogInfoProvider);
 
     final info = catalogAsync.asData?.value;
-    if (info == null) return const SizedBox.shrink(); // Still loading
+    if (info == null) {
+      return const PGShimmerBox(height: 72, radius: 16);
+    }
     final sourceCount = info.productCount;
     final buildDate = info.buildDate ?? DateTime.now();
 

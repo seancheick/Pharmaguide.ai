@@ -9,6 +9,8 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_section_header.dart';
+import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -17,11 +19,11 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 /// Loads recent scan history joined with core product data.
 /// Auto-disposes when the home screen is not visible, ensuring fresh data
 /// on each visit (fixes stale scans after navigating back from scanner).
-final _recentScansProvider =
-    FutureProvider.autoDispose<List<_RecentScanDisplay>>((ref) async {
+final _recentScansProvider = FutureProvider.autoDispose
+    .family<List<_RecentScanDisplay>, int>((ref, limit) async {
   final userDb = ref.watch(userDatabaseProvider);
   final coreDb = ref.watch(coreDatabaseProvider);
-  final history = await userDb.getRecentScans(limit: 10);
+  final history = await userDb.getRecentScans(limit: limit);
   final results = <_RecentScanDisplay>[];
   for (final scan in history) {
     final product = await coreDb.findById(scan.dsldId);
@@ -41,30 +43,45 @@ class HomeRecentScansSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final scansAsync = ref.watch(_recentScansProvider);
+    final scansAsync = ref.watch(_recentScansProvider(10));
 
     return scansAsync.when(
-      loading: () => _buildLoadingState(scheme),
+      loading: () => _buildLoadingState(),
       error: (_, __) => _buildEmptyState(theme, scheme, context),
       data: (scans) {
         if (scans.isEmpty) {
           return _buildEmptyState(theme, scheme, context);
         }
-        return SizedBox(
-          height: 210,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            itemCount: scans.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final scan = scans[index];
-              return _RecentScanCard(
-                product: scan.product,
-                scannedAt: scan.scannedAt,
-              );
-            },
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PGSectionHeader(
+              title: 'Recent scans',
+              subtitle: 'Your last checked products',
+              padding: EdgeInsets.zero,
+              actionLabel: scans.length >= 10 ? 'Show all' : null,
+              onActionTap: scans.length >= 10
+                  ? () => _showAllRecents(context, ref)
+                  : null,
+            ),
+            const SizedBox(height: AppTheme.space12),
+            SizedBox(
+              height: 210,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: scans.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final scan = scans[index];
+                  return _RecentScanCard(
+                    product: scan.product,
+                    scannedAt: scan.scannedAt,
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
@@ -72,19 +89,29 @@ class HomeRecentScansSection extends ConsumerWidget {
 
   /// Shown while the DB query is in flight — prevents the flash-of-empty-state
   /// that previously showed "Nothing scanned yet" during loading.
-  static Widget _buildLoadingState(ColorScheme scheme) {
-    return SizedBox(
-      height: 120,
-      child: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: scheme.onSurfaceVariant,
+  static Widget _buildLoadingState() {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PGSectionHeader(
+          title: 'Recent scans',
+          subtitle: 'Your last checked products',
+          padding: EdgeInsets.zero,
+        ),
+        SizedBox(height: AppTheme.space12),
+        SizedBox(
+          height: 210,
+          child: Row(
+            children: [
+              Expanded(child: PGShimmerCard(height: 210)),
+              SizedBox(width: 12),
+              Expanded(child: PGShimmerCard(height: 210)),
+              SizedBox(width: 12),
+              Expanded(child: PGShimmerCard(height: 210)),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -93,54 +120,90 @@ class HomeRecentScansSection extends ConsumerWidget {
     ColorScheme scheme,
     BuildContext context,
   ) {
-    return PGCard(
-      variant: PGCardVariant.recessed,
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.space16,
-        AppTheme.space24,
-        AppTheme.space16,
-        AppTheme.space20,
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-              border: Border.all(
-                color: scheme.outlineVariant,
-                width: 0.8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PGSectionHeader(
+          title: 'Recent scans',
+          subtitle: 'Your last checked products',
+          padding: EdgeInsets.zero,
+        ),
+        const SizedBox(height: AppTheme.space12),
+        PGCard(
+          variant: PGCardVariant.recessed,
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space16,
+            AppTheme.space24,
+            AppTheme.space16,
+            AppTheme.space20,
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  border: Border.all(
+                    color: scheme.outlineVariant,
+                    width: 0.8,
+                  ),
+                ),
+                child: Icon(
+                  Icons.history_rounded,
+                  size: 26,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            child: Icon(
-              Icons.history_rounded,
-              size: 26,
-              color: scheme.onSurfaceVariant,
-            ),
+              const SizedBox(height: AppTheme.space12),
+              Text(
+                'Nothing scanned yet',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Your last 10 scanned supplements will appear here.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppTheme.space16),
+              _OutlineScanButton(
+                onTap: () => GoRouter.of(context).go(Routes.scan),
+              ),
+            ],
           ),
-          const SizedBox(height: AppTheme.space12),
-          Text(
-            'Nothing scanned yet',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Your last 10 scanned supplements will appear here.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppTheme.space16),
-          _OutlineScanButton(
-            onTap: () => GoRouter.of(context).go(Routes.scan),
-          ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  static Future<void> _showAllRecents(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (sheetContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final allScansAsync = ref.watch(_recentScansProvider(25));
+            return allScansAsync.when(
+              loading: () => const _RecentScansSheetSkeleton(),
+              error: (_, __) => const _RecentScansSheetEmpty(),
+              data: (scans) => _RecentScansSheet(scans: scans),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -292,6 +355,207 @@ class _OutlineScanButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RecentScansSheet extends StatelessWidget {
+  final List<_RecentScanDisplay> scans;
+
+  const _RecentScansSheet({required this.scans});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          0,
+          AppTheme.space20,
+          AppTheme.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Recent scans',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Your last ${scans.length} scanned products',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space16),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: scans.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final scan = scans[index];
+                  return _RecentScanListTile(
+                    product: scan.product,
+                    scannedAt: scan.scannedAt,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentScansSheetSkeleton extends StatelessWidget {
+  const _RecentScansSheetSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          0,
+          AppTheme.space20,
+          AppTheme.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PGShimmerBox(height: 28, width: 160, radius: 10),
+            SizedBox(height: 8),
+            PGShimmerBox(height: 16, width: 220, radius: 8),
+            SizedBox(height: AppTheme.space16),
+            PGShimmerCard(height: 84),
+            SizedBox(height: 12),
+            PGShimmerCard(height: 84),
+            SizedBox(height: 12),
+            PGShimmerCard(height: 84),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentScansSheetEmpty extends StatelessWidget {
+  const _RecentScansSheetEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          0,
+          AppTheme.space20,
+          AppTheme.space24,
+        ),
+        child: Text(
+          'No recent scans yet.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentScanListTile extends StatelessWidget {
+  final ProductsCoreData product;
+  final DateTime scannedAt;
+
+  const _RecentScanListTile({
+    required this.product,
+    required this.scannedAt,
+  });
+
+  String _timeAgo() {
+    final diff = DateTime.now().difference(scannedAt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays}d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return PGCard(
+      onTap: () => GoRouter.of(context).push('/product/${product.dsldId}'),
+      padding: const EdgeInsets.all(AppTheme.space12),
+      child: Row(
+        children: [
+          ProductImage(
+            dsldId: product.dsldId,
+            upc: product.upcSku,
+            productName: product.productName,
+            brandName: product.brandName ?? '',
+            formFactor: product.formFactor,
+            score: product.score100Equivalent,
+            size: 48,
+          ),
+          const SizedBox(width: AppTheme.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.productName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (product.brandName != null &&
+                    product.brandName!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    product.brandName!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  _timeAgo(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppTheme.space12),
+          PGScoreRing(
+            score: product.score100Equivalent,
+            size: 40,
+            strokeWidth: 3.5,
+          ),
+        ],
       ),
     );
   }

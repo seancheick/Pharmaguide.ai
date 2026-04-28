@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
-import 'package:pharmaguide/core/widgets/pg_section_header.dart';
-import 'package:pharmaguide/features/home/widgets/home_category_rail.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/widgets/home_citation_strip.dart';
 import 'package:pharmaguide/features/home/widgets/home_hero_section.dart';
 import 'package:pharmaguide/features/home/widgets/home_profile_completeness_card.dart';
@@ -12,11 +12,20 @@ import 'package:pharmaguide/features/home/widgets/home_scan_cta.dart';
 import 'package:pharmaguide/features/home/widgets/home_search_launcher.dart';
 import 'package:pharmaguide/features/home/widgets/home_stack_health.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+
+final _isFirstLaunchHomeProvider = FutureProvider.autoDispose<bool>((ref) async {
+  final userDb = ref.read(userDatabaseProvider);
+  final stack = await ref.read(activeStackProvider.future);
+  if (stack.isNotEmpty) return false;
+  final scans = await userDb.getRecentScans(limit: 1);
+  return scans.isEmpty;
+});
 
 /// The home screen.
 ///
 /// Editorial-premium composition: hero greeting → scan CTA → search →
-/// categories → stack → recent scans → disclaimer. Each section has its own
+/// personal state → recents → utilities → trust. Each section has its own
 /// spacing rhythm; nothing is on a uniform 16/16/16 grid.
 ///
 /// Every visual section is a dedicated widget under `widgets/` so the shell
@@ -28,7 +37,10 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
+    final firstLaunchAsync = ref.watch(_isFirstLaunchHomeProvider);
     final mq = MediaQuery.of(context);
+    final isFirstLaunch = firstLaunchAsync.asData?.value == true;
+    final showExpandedSections = firstLaunchAsync.asData?.value == false;
 
     return Scaffold(
       body: CustomScrollView(
@@ -83,23 +95,30 @@ class HomeScreen extends ConsumerWidget {
             sliver: SliverToBoxAdapter(child: HomeSearchLauncher()),
           ),
 
-          // ----------------------------------------------------------------
-          // Quick Check CTA — "Safe to Take Together?"
-          // ----------------------------------------------------------------
-          const SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              AppTheme.space20,
-              AppTheme.space12,
-              AppTheme.space20,
-              0,
+          if (isFirstLaunch)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space20,
+                AppTheme.space16,
+                AppTheme.space20,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: Text(
+                  'Check supplement quality, safety, and fit in seconds.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.45,
+                      ),
+                ),
+              ),
             ),
-            sliver: SliverToBoxAdapter(child: HomeQuickCheckCta()),
-          ),
 
           // ----------------------------------------------------------------
           // Profile completeness (conditional, highlighted card)
           // ----------------------------------------------------------------
-          if (profile.completeness < 60)
+          if (showExpandedSections && profile.completeness < 60)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
                 AppTheme.space20,
@@ -114,55 +133,42 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
+          // Stack health — premium Oura-style card
           // ----------------------------------------------------------------
-          // Categories
-          // ----------------------------------------------------------------
-          const SliverToBoxAdapter(
-            child: PGSectionHeader(
-              title: 'Browse categories',
-              subtitle: 'Popular supplement types',
+          if (showExpandedSections) ...[
+            const SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 AppTheme.space20,
                 AppTheme.space32,
                 AppTheme.space20,
-                AppTheme.space12,
+                0,
               ),
+              sliver: SliverToBoxAdapter(child: HomeStackHealthWidget()),
             ),
-          ),
-          const SliverToBoxAdapter(child: HomeCategoryRail()),
-
-          // ----------------------------------------------------------------
-          // Stack health — premium Oura-style card
-          // ----------------------------------------------------------------
-          const SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              AppTheme.space20,
-              AppTheme.space24,
-              AppTheme.space20,
-              0,
-            ),
-            sliver: SliverToBoxAdapter(child: HomeStackHealthWidget()),
-          ),
-
-          // ----------------------------------------------------------------
-          // Recent scans
-          // ----------------------------------------------------------------
-          const SliverToBoxAdapter(
-            child: PGSectionHeader(
-              title: 'Recent scans',
-              subtitle: 'Your last checked products',
+            const SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 AppTheme.space20,
                 AppTheme.space24,
                 AppTheme.space20,
-                AppTheme.space12,
+                0,
               ),
+              sliver: SliverToBoxAdapter(child: HomeRecentScansSection()),
             ),
-          ),
-          const SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: AppTheme.space20),
-            sliver: SliverToBoxAdapter(child: HomeRecentScansSection()),
-          ),
+          ],
+
+          // ----------------------------------------------------------------
+          // Quick Check CTA — useful, but secondary to scan/search/stack.
+          // ----------------------------------------------------------------
+          if (showExpandedSections)
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                AppTheme.space20,
+                AppTheme.space32,
+                AppTheme.space20,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(child: HomeQuickCheckCta()),
+            ),
 
           // ----------------------------------------------------------------
           // Trust footer — sources, updated date, disclaimer
@@ -179,7 +185,9 @@ class HomeScreen extends ConsumerWidget {
 
           // Bottom space for frosted nav bar + safe area
           SliverToBoxAdapter(
-            child: SizedBox(height: mq.padding.bottom + 96),
+            child: SizedBox(
+              height: mq.padding.bottom + kPGNavBarHeight + AppTheme.space8,
+            ),
           ),
         ],
       ),

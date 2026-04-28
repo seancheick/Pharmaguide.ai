@@ -1,6 +1,6 @@
-// Premium stack health widget — Oura-style card with animated score, one-line
-// insight, micro metrics, top issue callout, and action CTA. Reactively
-// watches the active stack, stack safety report, and synergy report.
+// Premium stack health widget — compact status card with one-line insight,
+// micro metrics, top issue callout, and action CTA. Reactively watches the
+// active stack, stack safety report, and synergy report.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +8,14 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/models/stack_intelligence.dart';
+import 'package:pharmaguide/core/models/stack_safety_score.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
-import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 
 /// Premium stack health widget. Shows empty-state card when the stack is
@@ -74,7 +76,7 @@ class HomeStackHealthWidget extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Add supplements to see safety scores & interactions.',
+                  'Add supplements to review interactions, overlap, and coverage.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                     height: 1.4,
@@ -106,8 +108,10 @@ class _StackHealthCard extends ConsumerWidget {
 
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
+    final recallAsync = ref.watch(recalledIngredientsReportProvider);
 
-    // Compute safety score from report
+    // Compute the internal stack score from report signals. The user-facing
+    // surface renders a health label derived from this score + severity caps.
     final safetyScore = reportAsync.whenOrNull(
       data: (report) {
         final allIssues = <InteractionResult>[
@@ -139,7 +143,6 @@ class _StackHealthCard extends ConsumerWidget {
       },
     );
 
-    final score = safetyScore?.score;
     final serious = safetyScore?.seriousCount ?? 0;
     final moderate = safetyScore?.moderateCount ?? 0;
     final supplementCount =
@@ -148,23 +151,37 @@ class _StackHealthCard extends ConsumerWidget {
         stack.where((e) => e.type == 'medication').length;
     final interactionCount = serious + moderate;
 
-    // Top issue — most severe interaction
-    final topIssue = reportAsync.whenOrNull(
-      data: (report) {
-        final ordered = report.orderedWarnings;
-        if (ordered.isEmpty) return null;
-        final first = ordered.first;
-        if (first is InteractionResult) return first.mechanism;
-        return null;
-      },
-    );
+    // Diagnostic verdict: lets recalled/banned ingredients dominate the
+    // headline regardless of the numeric score. Falls back to the
+    // score-derived label while any input is still loading so the UI
+    // does not flicker.
+    final StackIntelligence? intelligence =
+        (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
+            ? const StackIntelligenceEngine().diagnose(
+                stackSize: stack.length,
+                safetyReport: reportAsync.value!,
+                recalledReport: recallAsync.value!,
+                synergyReport: synergyAsync.value!,
+                qualityScore: safetyScore?.score,
+              )
+            : null;
+    final status = intelligence?.tier.healthLabel ?? safetyScore?.healthLabel;
 
-    // Dynamic subtitle
-    final subtitle = _subtitle(serious, moderate, interactionCount);
-    // One-line insight
-    final insight = _insight(serious, moderate, interactionCount);
-    // Score glow color
-    final glowColor = _glowColor(score);
+    // Top issue — recall first (when present), else most severe interaction.
+    final topIssue = (intelligence != null && intelligence.issues.isNotEmpty)
+        ? intelligence.issues.first.headline
+        : reportAsync.whenOrNull(
+            data: (report) {
+              final ordered = report.orderedWarnings;
+              if (ordered.isEmpty) return null;
+              final first = ordered.first;
+              if (first is InteractionResult) return first.mechanism;
+              return null;
+            },
+          );
+
+    final insight = _insight(status, serious, moderate);
+    final tone = status?.color ?? scheme.primary;
 
     return PGCard(
       variant: PGCardVariant.elevated,
@@ -184,6 +201,7 @@ class _StackHealthCard extends ConsumerWidget {
               children: [
                 // Title row
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
@@ -198,33 +216,35 @@ class _StackHealthCard extends ConsumerWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            subtitle,
+                            _contextLine(supplementCount, medicationCount),
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: glowColor,
-                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // Animated score ring with glow
                     Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: score != null
-                            ? [
-                                BoxShadow(
-                                  color: glowColor.withValues(alpha: 0.22),
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.space12,
+                        vertical: AppTheme.space8,
                       ),
-                      child: PGScoreRing(
-                        score: score?.toDouble(),
-                        size: 64,
-                        strokeWidth: 5,
+                      decoration: BoxDecoration(
+                        color: tone.withValues(alpha: 0.1),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusFull),
+                        border: Border.all(
+                          color: tone.withValues(alpha: 0.2),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        status?.label ?? 'Analyzing',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: tone,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.1,
+                        ),
                       ),
                     ),
                   ],
@@ -238,23 +258,23 @@ class _StackHealthCard extends ConsumerWidget {
                     vertical: AppTheme.space8,
                   ),
                   decoration: BoxDecoration(
-                    color: glowColor.withValues(alpha: 0.08),
+                    color: tone.withValues(alpha: 0.08),
                     borderRadius:
                         BorderRadius.circular(AppTheme.radiusSmall),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _insightIcon(serious),
+                        _insightIcon(status, serious),
                         size: 14,
-                        color: glowColor,
+                        color: tone,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           insight,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: glowColor,
+                            color: tone,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
@@ -288,13 +308,13 @@ class _StackHealthCard extends ConsumerWidget {
               children: [
                 _MicroMetric(
                   icon: Icons.medication_outlined,
-                  label: '$supplementCount supplements',
+                  label: _countLabel(supplementCount, 'supplement'),
                   color: scheme.primary,
                 ),
                 const SizedBox(width: AppTheme.space16),
                 _MicroMetric(
                   icon: Icons.local_pharmacy_outlined,
-                  label: '$medicationCount medications',
+                  label: _countLabel(medicationCount, 'medication'),
                   color: AppTheme.info,
                 ),
                 const SizedBox(width: AppTheme.space16),
@@ -391,13 +411,29 @@ class _StackHealthCard extends ConsumerWidget {
     );
   }
 
-  String _subtitle(int serious, int moderate, int total) {
-    if (serious > 0) return 'Your stack needs attention';
-    if (moderate > 0) return 'Minor optimizations available';
-    return 'Your stack is well optimized';
+  String _contextLine(int supplementCount, int medicationCount) {
+    return '${_countLabel(supplementCount, 'supplement')} · '
+        '${_countLabel(medicationCount, 'medication')}';
   }
 
-  String _insight(int serious, int moderate, int total) {
+  String _countLabel(int count, String noun) {
+    return '$count ${count == 1 ? noun : '${noun}s'}';
+  }
+
+  String _insight(
+    StackHealthLabel? status,
+    int serious,
+    int moderate,
+  ) {
+    if (status == null) {
+      return 'Checking your current stack for interactions and overlap';
+    }
+    if (status == StackHealthLabel.unsafe) {
+      return '$serious high-risk interaction${serious == 1 ? '' : 's'} needs attention';
+    }
+    if (status == StackHealthLabel.concerning) {
+      return 'This stack needs closer review for interactions and overlap';
+    }
     if (serious > 0) {
       return '$serious high-risk interaction${serious == 1 ? '' : 's'} needs attention';
     }
@@ -407,16 +443,13 @@ class _StackHealthCard extends ConsumerWidget {
     return 'No major interactions detected';
   }
 
-  Color _glowColor(int? score) {
-    if (score == null) return AppTheme.insufficientData;
-    if (score >= 85) return AppTheme.scoreExceptional;
-    if (score >= 70) return AppTheme.scoreExcellent;
-    if (score >= 55) return AppTheme.scoreFair;
-    return AppTheme.severityContraindicated;
-  }
-
-  IconData _insightIcon(int serious) {
-    if (serious > 0) return Icons.error_outline_rounded;
+  IconData _insightIcon(StackHealthLabel? status, int serious) {
+    if (status == StackHealthLabel.unsafe || serious > 0) {
+      return Icons.error_outline_rounded;
+    }
+    if (status == StackHealthLabel.concerning) {
+      return Icons.warning_amber_rounded;
+    }
     return Icons.check_circle_outline;
   }
 }

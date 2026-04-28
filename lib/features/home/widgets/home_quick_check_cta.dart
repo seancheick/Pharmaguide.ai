@@ -48,7 +48,7 @@ class HomeQuickCheckCta extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Check any two products for interactions',
+                    'Check two supplements or medications',
                     style:
                         Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context)

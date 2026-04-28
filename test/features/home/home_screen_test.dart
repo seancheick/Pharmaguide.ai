@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -48,14 +49,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.textContaining('Search'), findsWidgets);
+      expect(find.text('Search supplements'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
       await userDb.close();
     });
 
-    testWidgets('shows category filter chips', (tester) async {
+    testWidgets('does not show category rail on home', (tester) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
 
@@ -63,12 +64,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Scroll past Quick Check CTA + profile card to reach categories.
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -250));
-      await tester.pump();
-
-      expect(find.text('Omega-3'), findsOneWidget);
-      expect(find.text('Probiotics'), findsOneWidget);
+      expect(find.text('Browse categories'), findsNothing);
+      expect(find.text('Omega-3'), findsNothing);
+      expect(find.text('Probiotics'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
@@ -79,6 +77,14 @@ void main() {
         (tester) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
+      await userDb.addToStack(
+        const UserStacksLocalCompanion(
+          id: Value('stack-profile'),
+          type: Value('supplement'),
+          name: Value('Seeded Product'),
+          dsldId: Value('dsld-profile'),
+        ),
+      );
 
       await tester.pumpWidget(buildTestWidget(coreDb, userDb));
       await tester.pump();
@@ -91,7 +97,8 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('shows recent scans empty state', (tester) async {
+    testWidgets('shows first-launch variant when stack and history are empty',
+        (tester) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
 
@@ -99,16 +106,52 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Scroll the CustomScrollView to ensure the Recent scans section is
-      // rendered — in the default 800×600 test viewport it starts below
-      // the fold. Use manual drag + pump instead of scrollUntilVisible
-      // (which calls pumpAndSettle and can hang with async providers).
-      final scrollable = find.byType(Scrollable).first;
-      await tester.drag(scrollable, const Offset(0, -600));
+      expect(
+        find.text('Check supplement quality, safety, and fit in seconds.'),
+        findsOneWidget,
+      );
+      expect(find.text('Stack Health'), findsNothing);
+      expect(find.text('Recent scans'), findsNothing);
+      expect(find.text('Safe to take together?'), findsNothing);
+      expect(find.text('Complete your health profile'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    testWidgets('shows expanded home sections after user activity',
+        (tester) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await userDb.recordScanEvent(
+        dsldId: 'dsld-1',
+        productName: 'Seeded Product',
+      );
+      await userDb.addToStack(
+        const UserStacksLocalCompanion(
+          id: Value('stack-1'),
+          type: Value('supplement'),
+          name: Value('Seeded Product'),
+          dsldId: Value('dsld-1'),
+        ),
+      );
+
+      await tester.pumpWidget(buildTestWidget(coreDb, userDb));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Nothing scanned yet'), findsOneWidget);
+      expect(find.text('Stack Health'), findsOneWidget);
+      final scrollable = find.byType(Scrollable).first;
+      await tester.drag(scrollable, const Offset(0, -700));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Safe to take together?'), findsOneWidget);
+      expect(
+        find.text('Check supplement quality, safety, and fit in seconds.'),
+        findsNothing,
+      );
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();

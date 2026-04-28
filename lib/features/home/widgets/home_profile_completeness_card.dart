@@ -71,7 +71,7 @@ class HomeProfileCompletenessCard extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           Text(
-            'Add your meds, conditions, and allergies for personalized safety scores.',
+            'Add your meds, conditions, and allergies for more personal stack guidance.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.4,
