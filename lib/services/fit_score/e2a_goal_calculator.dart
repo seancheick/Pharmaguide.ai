@@ -1,3 +1,5 @@
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
+
 /// E2a Goal Alignment Calculator (legacy/fallback path).
 ///
 /// Used ONLY when `products_core.goal_matches` hasn't been populated by the
@@ -25,7 +27,7 @@ class E2aGoalCalculator {
   }) {
     if (userGoals.isEmpty || productClusters.isEmpty) return 0.0;
 
-    final mappings = goalData['user_goal_mappings'] as List? ?? [];
+    final mappings = goalData.safeList('user_goal_mappings');
     final clusterSet = productClusters.toSet();
     double confidenceSum = 0.0;
     int matchedGoals = 0;
@@ -37,16 +39,17 @@ class E2aGoalCalculator {
           );
       if (goalMapping == null) continue;
 
-      final clusterWeights =
-          (goalMapping['cluster_weights'] as Map?)?.cast<String, num>() ?? {};
-      final requiredClusters =
-          (goalMapping['required_clusters'] as List?)?.cast<String>() ??
-              const [];
-      final blockedClusters =
-          (goalMapping['blocked_by_clusters'] as List?)?.cast<String>() ??
-              const [];
-      final minMatchScore =
-          (goalMapping['min_match_score'] as num?)?.toDouble() ?? 0.5;
+      final rawWeights = goalMapping['cluster_weights'];
+      final Map<String, num> clusterWeights = {};
+      if (rawWeights is Map) {
+        for (final entry in rawWeights.entries) {
+          final value = entry.value;
+          if (value is num) clusterWeights[entry.key.toString()] = value;
+        }
+      }
+      final requiredClusters = goalMapping.safeStringList('required_clusters');
+      final blockedClusters = goalMapping.safeStringList('blocked_by_clusters');
+      final minMatchScore = goalMapping.safeDouble('min_match_score', 0.5);
 
       // Gate 1: blocked clusters disqualify regardless of score.
       if (blockedClusters.any(clusterSet.contains)) continue;

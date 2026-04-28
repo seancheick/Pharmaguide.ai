@@ -71,9 +71,13 @@ final _fitScoreBlobByDsldIdProvider = FutureProvider.family
     final age = DateTime.now().difference(cached.cachedAt);
     if (age < cacheTtl) {
       try {
-        return jsonDecode(cached.blobJson) as Map<String, dynamic>;
+        final decoded = jsonDecode(cached.blobJson);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+        // Decoded to an unexpected shape (List/scalar). Treat as corrupt
+        // cache and fall through to the network fetch below.
       } on FormatException {
-        // Corrupt cache — fall through to network.
+        // Malformed JSON — fall through to network.
       }
     }
   }

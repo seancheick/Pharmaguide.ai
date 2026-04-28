@@ -44,7 +44,16 @@ final detailBlobProvider = FutureProvider.family
   if (cached != null) {
     final age = DateTime.now().difference(cached.cachedAt);
     if (age < kDetailBlobCacheTtl) {
-      return jsonDecode(cached.blobJson) as Map<String, dynamic>;
+      // The cache row was written by us in jsonEncode form, but defend
+      // against a corrupt entry by checking the decoded shape — a non-map
+      // value would crash the entire detail screen if we cast blindly.
+      try {
+        final decoded = jsonDecode(cached.blobJson);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } on FormatException {
+        // Fall through to network fetch below.
+      }
     }
   }
 

@@ -57,7 +57,14 @@ class ReferenceDataRepository {
 
   Future<Map<String, dynamic>> _loadJson(String path) async {
     final raw = await rootBundle.loadString(path);
-    return jsonDecode(raw) as Map<String, dynamic>;
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    // Reference assets are bundled with the app, so a non-map shape here
+    // means a corrupt or wrongly-shaped asset shipped — surface that as a
+    // hard failure rather than silently returning empty data, since
+    // downstream callers depend on these maps being non-empty.
+    throw FormatException('Reference data at $path is not a JSON object');
   }
 }
 

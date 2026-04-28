@@ -24,7 +24,10 @@ class DetailBlobService {
           .from(SupabaseContract.storageBucket)
           .download('${SupabaseContract.blobPrefix}/$prefix/$sha256.json');
       final json = utf8.decode(bytes);
-      return jsonDecode(json) as Map<String, dynamic>;
+      final decoded = jsonDecode(json);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      return null;
     } on Object {
       return null;
     }

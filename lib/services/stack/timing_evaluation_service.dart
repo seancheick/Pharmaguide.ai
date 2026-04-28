@@ -1,4 +1,5 @@
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 
 /// Evaluates the user's supplement + medication stack against timing rules
@@ -111,11 +112,10 @@ class TimingEvaluationService {
   /// Call once at app startup or when the reference data cache refreshes.
   /// The returned instance is immutable and safe to share across isolates.
   factory TimingEvaluationService.fromJson(Map<String, dynamic> json) {
-    final rawRules = json['timing_rules'] as List<dynamic>? ?? [];
+    final rawRules = json.safeMapList('timing_rules');
     final parsed = <_ParsedTimingRule>[];
 
     for (final raw in rawRules) {
-      if (raw is! Map<String, dynamic>) continue;
       parsed.add(_ParsedTimingRule.fromJson(raw));
     }
 
@@ -420,31 +420,35 @@ class _ParsedTimingRule {
   });
 
   factory _ParsedTimingRule.fromJson(Map<String, dynamic> json) {
-    final sources = (json['sources'] as List<dynamic>?)
-            ?.map((s) => (s as Map<String, dynamic>)['url'] as String? ?? '')
-            .where((url) => url.isNotEmpty)
-            .toList() ??
-        const <String>[];
+    final sources = json
+        .safeMapList('sources')
+        .map((s) => s.safeString('url'))
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
 
-    final evidenceStr = (json['evidence_level'] as String?) ?? 'possible';
+    final evidenceStr = json.safeString('evidence_level', 'possible');
     // Map "possible" → "theoretical" since EvidenceLevel enum doesn't have "possible"
     final mappedEvidence =
         evidenceStr == 'possible' ? 'theoretical' : evidenceStr;
 
+    final ingredient1 = json.safeString('ingredient1');
+    final ingredient2 = json.safeString('ingredient2');
+    final separationRaw = json['separation_hours'];
+
     return _ParsedTimingRule(
-      id: json['id'] as String? ?? '',
-      ingredient1Display: json['ingredient1'] as String? ?? '',
-      ingredient2Display: json['ingredient2'] as String? ?? '',
-      ingredient1Normalized:
-          (json['ingredient1'] as String? ?? '').toLowerCase().trim(),
-      ingredient2Normalized:
-          (json['ingredient2'] as String? ?? '').toLowerCase().trim(),
+      id: json.safeString('id'),
+      ingredient1Display: ingredient1,
+      ingredient2Display: ingredient2,
+      ingredient1Normalized: ingredient1.toLowerCase().trim(),
+      ingredient2Normalized: ingredient2.toLowerCase().trim(),
       ruleType: TimingRuleType.fromString(
-          json['rule_type'] as String? ?? 'separate'),
-      advice: json['advice'] as String? ?? '',
-      mechanism: json['mechanism'] as String?,
-      separationHours: json['separation_hours'] as int?,
-      scoreImpact: json['score_impact'] as int? ?? 0,
+          json.safeString('rule_type', 'separate')),
+      advice: json.safeString('advice'),
+      mechanism: json['mechanism'] is String
+          ? json['mechanism'] as String
+          : null,
+      separationHours: separationRaw is num ? separationRaw.toInt() : null,
+      scoreImpact: json.safeInt('score_impact'),
       evidenceLevel: EvidenceLevel.fromString(mappedEvidence),
       sourceUrls: sources,
     );

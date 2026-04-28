@@ -54,7 +54,10 @@ final _detailBlobByDsldIdProvider =
     final age = DateTime.now().difference(cached.cachedAt);
     if (age < cacheTtl) {
       try {
-        return jsonDecode(cached.blobJson) as Map<String, dynamic>;
+        final decoded = jsonDecode(cached.blobJson);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+        // Decoded to an unexpected shape — fall through to network.
       } on FormatException {
         // Corrupt cache entry — fall through to network fetch.
       }

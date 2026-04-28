@@ -11,6 +11,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
@@ -52,29 +53,21 @@ final pairsWellWithStackProvider =
     return [];
   }
 
-  final clustersList =
-      (clustersData['clusters'] as List?)?.whereType<Map<String, dynamic>>() ??
-          [];
+  final clustersList = clustersData.safeMapList('clusters');
   final matches = <SynergyMatch>[];
 
   for (final cluster in clustersList) {
-    final clusterId = cluster['cluster_id'] as String?;
-    final name = cluster['name'] as String?;
-    if (clusterId == null || name == null) continue;
+    final clusterId = cluster.safeString('cluster_id');
+    final name = cluster.safeString('name');
+    if (clusterId.isEmpty || name.isEmpty) continue;
 
-    final ingredients = (cluster['ingredients'] as List<dynamic>?)
-            ?.map((i) => i.toString())
-            .toList() ??
-        [];
+    final ingredients = cluster.safeStringList('ingredients');
     if (ingredients.length < 2) continue;
 
-    final mechanism = cluster['mechanism']?.toString() ?? '';
-    final bonusPoints = cluster['bonus_points'] as int? ?? 0;
-    final evidenceTier = cluster['evidence_tier']?.toString() ?? 'limited';
-    final citations = (cluster['citations'] as List<dynamic>?)
-            ?.map((c) => c.toString())
-            .toList() ??
-        [];
+    final mechanism = cluster.safeString('mechanism');
+    final bonusPoints = cluster.safeInt('bonus_points');
+    final evidenceTier = cluster.safeString('evidence_tier', 'limited');
+    final citations = cluster.safeStringList('citations');
 
     // This product contributes at least one ingredient to the cluster.
     final productContributes =

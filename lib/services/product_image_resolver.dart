@@ -101,8 +101,16 @@ class ProductImageResolver {
       return null;
     }
 
-    final body = json.decode(response.body) as Map<String, dynamic>;
-    final status = body['status'] as int? ?? 0;
+    final decoded = json.decode(response.body);
+    if (decoded is! Map) {
+      await _userDb.cacheImageUrl(dsldId, _noImageMarker);
+      return null;
+    }
+    final body = decoded is Map<String, dynamic>
+        ? decoded
+        : Map<String, dynamic>.from(decoded);
+    final statusRaw = body['status'];
+    final status = statusRaw is num ? statusRaw.toInt() : 0;
 
     if (status != 1) {
       await _userDb.cacheImageUrl(dsldId, _noImageMarker);
@@ -114,7 +122,8 @@ class ProductImageResolver {
       await _userDb.cacheImageUrl(dsldId, _noImageMarker);
       return null;
     }
-    final imageUrl = productRaw['image_front_url'] as String?;
+    final imageUrlRaw = productRaw['image_front_url'];
+    final imageUrl = imageUrlRaw is String ? imageUrlRaw : null;
 
     if (imageUrl == null || imageUrl.isEmpty) {
       await _userDb.cacheImageUrl(dsldId, _noImageMarker);
