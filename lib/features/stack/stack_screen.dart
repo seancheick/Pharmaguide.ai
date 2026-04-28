@@ -285,15 +285,10 @@ class _StackSummaryCard extends ConsumerWidget {
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
-                    if (safetyScore != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Status: ${safetyScore.healthLabel.label}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                    // (Status label intentionally not repeated here — the
+                    // healthLabel.label already renders as the card title
+                    // above. Repeating it as 'Status: ...' was visible
+                    // duplication.)
                   ],
                 ),
               ),
