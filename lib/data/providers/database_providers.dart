@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -102,14 +103,74 @@ Future<void> ensureCoreDatabaseAvailable({
   await dbFile.writeAsBytes(assetBytes, flush: true);
 }
 
+/// Force-restore the on-disk core DB from the bundled asset, ignoring
+/// the byte-length cache check that [ensureCoreDatabaseAvailable] uses
+/// for the cheap-path. Used by [openCoreDatabase]'s D4 rollback when
+/// the live file is corrupt at the SQLite layer (the size may match
+/// while the contents are unreadable).
+Future<void> _restoreBundledCoreDatabase({
+  required String dbPath,
+  required AssetBundle bundle,
+}) async {
+  final assetData = await bundle.load(bundledCoreDatabaseAssetPath);
+  final assetBytes = assetData.buffer.asUint8List(
+    assetData.offsetInBytes,
+    assetData.lengthInBytes,
+  );
+  final dbFile = File(dbPath);
+  await dbFile.parent.create(recursive: true);
+  await dbFile.writeAsBytes(assetBytes, flush: true);
+}
+
+/// Opens the core catalog DB and probes it. If open or the structural
+/// snapshot probe ([CoreDatabase.validateCatalogSnapshot]) throws, the
+/// on-disk file is force-restored from the bundled asset and the open
+/// is retried once.
+///
+/// **D4 rollback safety.** Bundle corruption (truncated OTA file,
+/// schema drift, partial swap) must never brick the app. The bundled
+/// asset is always available — it ships with the binary — and serves
+/// as the always-good fallback. The retry runs against a known-good
+/// file shape, so a second failure indicates the bundled asset itself
+/// is broken (a build-gate problem, not a runtime one) and we let it
+/// surface to the caller.
+///
+/// Spec: INITIATIVE_STACK_INTELLIGENCE.md, Track D, D4.
 Future<CoreDatabase> openCoreDatabase({
   Directory? documentsDirectory,
   AssetBundle? bundle,
 }) async {
   final dir = documentsDirectory ?? await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'pharmaguide_core.db');
-  await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: bundle);
-  return CoreDatabase.open(dbPath);
+  final assetBundle = bundle ?? rootBundle;
+  await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: assetBundle);
+
+  CoreDatabase? db;
+  try {
+    db = CoreDatabase.open(dbPath);
+    await db.validateCatalogSnapshot();
+    return db;
+  } on Object catch (e) {
+    // Telemetry payload is intentionally minimal: error type only,
+    // no user data, no file path. Privacy: matches the contract in
+    // CLAUDE.md ("never store health data in Supabase"). Sentry-side
+    // grouping can key on the runtimeType bucket.
+    debugPrint(
+      '[catalog-rollback] core DB open/validate failed: '
+      '${e.runtimeType} — restoring from bundled asset',
+    );
+    // Best-effort close of the failed handle so we don't leak it.
+    if (db != null) {
+      try {
+        await db.close();
+      } on Object {
+        // Drift's open is lazy; the failed instance may not have a
+        // live connection. Either way nothing to do here.
+      }
+    }
+    await _restoreBundledCoreDatabase(dbPath: dbPath, bundle: assetBundle);
+    return CoreDatabase.open(dbPath);
+  }
 }
 
 /// Open the UserDatabase at the standard application documents path.

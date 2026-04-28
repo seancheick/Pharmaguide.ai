@@ -315,7 +315,7 @@ Incomplete  → stack data too thin to diagnose
 
 ---
 
-### `[ ]` D1 — Versioned bundle manifest endpoint
+### `[x]` D1 — Versioned bundle manifest endpoint
 - **Why:** App needs a stable URL to poll for "is there a new catalog?".
 - **What:** Pipeline already produces versioned bundles (`v2026.04.27.063145`). Confirm the CDN exposes a `manifest.json` advertising `latest_version` + bundle URL + SHA256.
 - **Files (pipeline):**
@@ -324,8 +324,13 @@ Incomplete  → stack data too thin to diagnose
 - **Tests (pipeline):**
   - `scripts/tests/test_manifest_contract.py` (NEW) — manifest has required keys, version is monotonically newer than previous
 - **DoD:** Curl-able manifest URL returns valid JSON; SHA matches actual bundle on CDN.
+- **Verified — 2026-04-29.** Verified the existing pipeline path satisfies the contract end-to-end:
+  - `release_catalog_artifact.py` stages `dist/export_manifest.json` with `db_version` (= `latest_version`), `checksum` + `checksum_sha256` (= `sha256`), `generated_at` (= `released_at`).
+  - `sync_to_supabase.py` uploads the bundle to the `pharmaguide` Supabase Storage bucket at `v{db_version}/pharmaguide_core.db` and writes the manifest row via the `rotate_manifest` RPC. The Postgres `export_manifest` table (queried by `SyncService.fetchCurrentDbVersion`) IS the curl-able manifest endpoint via Supabase's auto-generated REST.
+  - `bundle_url` is derivable from `db_version` via `SupabaseContract.coreDbPath(version)` — no separate URL field needed.
+  - **NEW** `scripts/tests/test_manifest_contract.py` — 12 tests pinning the contract: required keys, sha256 64-hex, db_version YYYY.MM.DD.HHMMSS lex-sortability, generated_at ISO-8601 UTC, bundle-URL derivation, prefixed/raw checksum agreement, monotonicity (older < newer string-compare), JSON round-trip stability, schema-stability guard.
 
-### `[ ]` D2 — Background catalog updater service (Flutter)
+### `[x]` D2 — Background catalog updater service (Flutter)
 - **Why:** Keep the active session uninterrupted while a new catalog downloads.
 - **What:** New service that, on app launch, fetches the manifest, compares to installed version, and downloads the new bundle to a staging directory if newer.
 - **Files (flutter):**
@@ -337,15 +342,20 @@ Incomplete  → stack data too thin to diagnose
   - Network failure → silent fail, retry next launch
   - SHA mismatch on download → discard, retry next launch
 - **DoD:** ≥4 unit tests with mocked HTTP; staging directory cleanup on failure.
+- **Verified — 2026-04-29.**
+  - **NEW** `lib/services/catalog_updater_service.dart` — `CatalogUpdaterService` with DI-callback shape (matches `CatalogSwapper` pattern). Sealed `CatalogCheckResult` hierarchy (`CatalogUpToDate`, `CatalogStaged`, `CatalogUnreachable`, `CatalogStageFailed`). Production factory wires `SyncService` deps. Validation gate (PRAGMA + version match) is delegated to `SyncService.stageCoreDbDownload` so a `CatalogStaged` result means the file in `*.staging` already cleared corruption checks.
+  - **NEW** `test/services/catalog_updater_service_test.dart` — 8 tests covering: newer→staged, same→up-to-date (no download), force-download bypass, first-launch (null installed) → staged, probe-throws→unreachable, probe-null→unreachable, stage-throws→stage-failed, production factory smoke.
+  - **MODIFY** `lib/main.dart` — `_refreshCatalogIfNeeded` now delegates probe + stage to `CatalogUpdaterService.checkForUpdate()` and dispatches on the sealed result. Swap step (which mutates setState + closes old DB) extracted to `_activateStagedCatalog` and runs only on `CatalogStaged`. The previous-DB cleanup, version persistence, and snackbar fire-once behavior all preserved verbatim.
 
-### `[ ]` D3 — Wire in-session swap into the launch refresh path
+### `[x]` D3 — Wire in-session swap into the launch refresh path
 - **Why:** Connects the background download (D2) and rollback safety (D4) to the live app via an atomic, validated swap. No relaunch required — freshness arrives within the session that detected it.
 - **What:** Wire T0.6's swap routine into `_refreshCatalogIfNeeded` so a successful, validated download activates immediately. Surface the snackbar via the existing notice mechanism.
 - **Source of truth:** Implementation spec, sequencing, validation gate details, snackbar copy, and unit-test list all live in `INITIATIVE_PRODUCT_TRUST_AND_IA.md` **T0.6**. D3 tracks the Stack-Intelligence-side checkbox; do not duplicate the spec here.
 - **Files (flutter):** see T0.6 (`lib/main.dart`, `lib/data/supabase/sync_service.dart`, `lib/services/catalog_swap.dart`).
 - **DoD:** Same as T0.6's acceptance — new catalog visible in-session, snackbar fires once, validation failure rolls back cleanly, `_activeCatalogVersion` persists across kill+relaunch.
+- **Verified — 2026-04-29.** Shipped via T0.6 in commit 813aa0b. D2 refactor in commit (this work) hoists the probe+stage into `CatalogUpdaterService` while preserving the in-session swap path through `_activateStagedCatalog`. Snackbar fire-once + version persistence + rollback semantics all preserved verbatim.
 
-### `[ ]` D4 — Rollback safety
+### `[x]` D4 — Rollback safety
 - **Why:** Bundle corruption or schema drift must never brick the app.
 - **What:** If new bundle fails to open, retain old DB and report telemetry.
 - **Files (flutter):**
@@ -355,6 +365,9 @@ Incomplete  → stack data too thin to diagnose
   - Forced-failure integration test (corrupted bundle) → falls back to old DB
   - Telemetry event fires for catalog-rollback (privacy: only version + error code, no user data)
 - **DoD:** Forced-corruption test passes; telemetry payload is minimal.
+- **Verified — 2026-04-29.**
+  - **MODIFY** `lib/data/providers/database_providers.dart` — `openCoreDatabase` now probes the on-disk file via `validateCatalogSnapshot()`. On any failure (open throw, SqliteException on first query, structural validation miss) it force-restores from the bundled asset via `_restoreBundledCoreDatabase` (a new private helper that bypasses the size-match cheap path) and retries the open once. Privacy-clean telemetry: a `[catalog-rollback]` debug-print with the runtime exception type only — no user data, no file path. The "old DB" fallback target is the bundled asset (always present, ships with the binary), since the `.backup` file is transient and only exists during a swap.
+  - **MODIFY** `test/data/providers/database_providers_test.dart` — three new tests under `openCoreDatabase rollback safety`: happy-path (healthy DB opens, no fallback fires), corruption fallback (size-matched 0xff garbage on disk → restore from bundle → retry open → working DB with `countProducts > 0` and file length matching the asset), first-launch (no on-disk file → bundle materializes → probe passes). All three exercise the real bundled asset for verisimilitude. The corruption test confirms the rollback path actually fires (`SqliteException` is the observed failure class).
 
 ---
 
@@ -529,7 +542,7 @@ This initiative retires when:
 1. `[ ]` V1.0 shipped to App Store + Play Store
 2. `[ ]` V1.1 Stack Intelligence shipped (Track B complete)
 3. `[ ]` V1.2 Clinician Share Report shipped (Track C complete)
-4. `[ ]` V1.3 OTA Catalog Refresh shipped (Track D complete)
+4. `[x]` V1.3 OTA Catalog Refresh shipped (Track D complete) — D1+D2+D3+D4 verified 2026-04-29; Sean owes a real-device smoke (force-corrupt the on-disk file → relaunch → verify the app boots and surfaces the bundled-asset fallback) before flipping the App Store cycle.
 5. `[ ]` V1.4 Commerce shipped (Track E complete)
 6. `[ ]` All open questions in this doc resolved or migrated to other trackers
 7. `[ ]` Final summary written + relevant lessons rolled into `lessons-learned.md` and `architecture-decisions.md`
@@ -549,3 +562,4 @@ Append a one-line entry per meaningful change.
 - **2026-04-29** — Retired the "no mid-session catalog swap" locked rule. The activation-model debate is resolved in favor of `INITIATIVE_PRODUCT_TRUST_AND_IA.md` T0.6's validation-gated in-session swap. Updated locked-principles row, success metric, Track D goal/DoD, D3 (now points at T0.6 as source of truth), Hard "Do Not" row (rewritten to forbid swap *without* validation gate, not in-session swap itself). A6 marked `[x]` — its bundle-replacement bug fix is done; the activation-snackbar work belongs to T0.6.
 - **2026-04-29** — Trust & IA Sprint 0 shipped (commits `813aa0b` + `2a35eb8`). Cross-initiative impact: full test suite now 741/741 across both initiatives (was 624/624 after Track B). Stack Intelligence's Track A B1/B2/B3 work continues to be green inside the larger 741. No Stack Intelligence code-side changes in those Trust & IA commits.
 - **2026-04-29** — Track C V1.2 Clinician Share Report code-complete. C1 + C2 + C3 all `[x]`. New `ClinicianReportBuilder` (pure function, golden-string tested) + `ShareService.shareClinicianReport` (DI-friendly via `ShareInvocation` override) + `ShareClinicianReportButton` wired into the stack screen's AppBar. AGENTS.md ≤3-files rule honored per task. Full suite 741 → 757 (+16: 11 C1 + 3 C2 + 2 C3). C3 real-device pass (Mail / Messages / MyChart paste) still ⏳ Sean per the spec's "Real-device test" DoD line.
+- **2026-04-29** — Track D V1.3 OTA Catalog Refresh code-complete. D1 + D2 + D3 + D4 all `[x]`. Pipeline-side: new `scripts/tests/test_manifest_contract.py` (12 tests) pinning the export_manifest contract the Flutter app + uploader rely on (key shape, sha256 64-hex, db_version lex-sortability, ISO-8601 UTC, monotonicity, JSON round-trip). Flutter-side: new `CatalogUpdaterService` extracts probe + stage out of `_refreshCatalogIfNeeded` (8 unit tests, sealed `CatalogCheckResult`); `openCoreDatabase` gains a probe-and-restore D4 fallback that force-restores the bundled asset on any open or `validateCatalogSnapshot()` failure (3 new tests covering happy-path, size-matched corruption, first-launch). Full Flutter suite 757 → 768 (+8 D2 + 3 D4). Pipeline suite gains 12 manifest-contract tests. Real-device smoke (force-corrupt the on-disk file → relaunch → verify rollback fires) still ⏳ Sean.

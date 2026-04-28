@@ -28,7 +28,7 @@ related:
 **Version:** V1.0
 **Updated:** 2026-04-29
 **Current Sprint:** Two parallel initiatives in flight (see "Parallel Initiatives" section below). Sprint 27.20 was the last numbered sprint here.
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.20 ALL DONE. **757 Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **V1.1 + V1.2 code shipped 2026-04-29 via initiative tracks (see Parallel Initiatives section).**
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.20 ALL DONE. **768 Flutter tests pass, 0 skipped, 0 failures + 248 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **V1.1 + V1.2 + V1.3 OTA code shipped 2026-04-29 via initiative tracks (see Parallel Initiatives section).**
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -44,6 +44,7 @@ related:
 | Wk 3-4 | **V1.1 Stack Intelligence (diagnostic tier headline)** | Track B (initiative) | ✅ Code-complete 2026-04-29 — see Parallel Initiatives ↓ |
 | Wk 3-4 | **V1.2 Clinician Share Report** | Track C (initiative) | ✅ Code-complete 2026-04-29 — see Parallel Initiatives ↓ |
 | Wk 3-4 | **V1.0 Trust Fixes Sprint 0** (KSM-66 false positive, JSON-leak, Highlights rename, Pairs Well count, OTA in-session swap) | Sprint 0 (initiative) | ✅ Code-complete 2026-04-29 — see Parallel Initiatives ↓ |
+| Wk 3-4 | **V1.3 OTA Catalog Refresh** (manifest contract, background updater service, in-session swap, bundled-asset rollback) | Track D (initiative) | ✅ Code-complete 2026-04-29 — see Parallel Initiatives ↓ |
 
 Update rules:
 
@@ -83,7 +84,7 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
 | **A** — V1.0 Hardening (analyze clean, full-suite green, OTA bundle-replacement bug fix, "Stack Score" → "Stack Health" copy) | A1, A2, A4, A6 | ✅ All `[x]` (code) — A3 real-device scan + A5 TestFlight build still ⏳ Sean |
 | **B** — V1.1 Stack Intelligence (`StackIntelligence` model + `StackIntelligenceEngine` facade + home headline rewire) | B1, B2, B3 | ✅ All `[x]` (code) — B3 goldens + real-device pass ⏳ Sean |
 | **C** — V1.2 Clinician Share Report (`ClinicianReportBuilder` + `ShareService.shareClinicianReport` + stack-screen entrypoint button) | C1, C2, C3 | ✅ All `[x]` (code) — C3 real-device paste-into-Mail/MyChart ⏳ Sean. C4 PDF export deferred to v1.2.1 |
-| **D** — V1.3 OTA Catalog Refresh (D3 redirected to T0.6 in-session swap) | D1, D2, D4 leftovers | ⬜ **Next coding chunk** — D1 manifest endpoint (pipeline) + D2 background updater + D4 rollback safety. Note: D3 cold-start activation rule was retired 2026-04-29 in favor of T0.6's validation-gated in-session swap (see Trust & IA below). |
+| **D** — V1.3 OTA Catalog Refresh (D3 redirected to T0.6 in-session swap) | D1, D2, D3, D4 | ✅ All `[x]` (code) 2026-04-29 — D1 `scripts/tests/test_manifest_contract.py` (12 tests), D2 `lib/services/catalog_updater_service.dart` (8 tests, sealed `CatalogCheckResult`), D3 already-shipped via T0.6, D4 `openCoreDatabase` probe-and-restore fallback (3 new tests). Real-device force-corruption smoke ⏳ Sean. |
 | **E** — V1.4+ Commerce | E6 → E11 | ⏸ Deferred until V1.2 trust ships |
 
 ### `[INITIATIVE_PRODUCT_TRUST_AND_IA.md]` — Sprint 0 → 3
@@ -104,14 +105,14 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
 
 ### Coding sequence locked with Sean (2026-04-29)
 
-1. **Now:** Track D leftovers (D1 + D2 + D4) — pipeline-side manifest endpoint + Flutter background updater + rollback safety. T0.6 already shipped the in-session activation, so this is reliability/polish on top.
-2. **Then:** Trust & IA Sprint 1 — Product Screen IA Refactor (10–12 dev days, T1.1 → T1.16).
+1. ~~Track D leftovers (D1 + D2 + D4)~~ ✅ Done 2026-04-29 — see Track D row above.
+2. **Now:** Trust & IA Sprint 1 — Product Screen IA Refactor (10–12 dev days, T1.1 → T1.16).
 3. **Later:** Enhance Track C (Clinician Share Report) — already shipped baseline; future work fleshes out clinician-share UX based on real-device feedback.
 
 ### Owed back to Sean (parallel to coding)
 
 - TestFlight + Play Internal builds (Track A5 + T0.7 step 4)
-- Real-device smoke for B3 home headline + T0.4 / T0.5 visual edges + C3 paste-into-Mail (T0.7 step 3)
+- Real-device smoke for B3 home headline + T0.4 / T0.5 visual edges + C3 paste-into-Mail (T0.7 step 3) + Track D D4 force-corruption rollback
 - PHARMAGUIDE-1 (RenderFlex overflow) Sentry triage
 - 24h Sentry watch post-deploy
 

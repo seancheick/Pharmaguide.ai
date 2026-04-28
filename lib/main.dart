@@ -16,6 +16,7 @@ import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
+import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 
@@ -135,6 +136,8 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   final SyncService _syncService = SyncService();
   late final CatalogSwapper _swapper =
       CatalogSwapper.production(syncService: _syncService);
+  late final CatalogUpdaterService _updater =
+      CatalogUpdaterService.production(syncService: _syncService);
 
   CoreDatabase? _coreDb;
   String? _activeCatalogVersion;
@@ -251,82 +254,94 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
     _syncInFlight = true;
     try {
-      final remoteVersion = await _syncService.fetchCurrentDbVersion();
-      if (remoteVersion == null) {
-        return;
-      }
-
-      final shouldDownload = forceDownload ||
-          remoteVersion != _activeCatalogVersion ||
-          _coreDb == null;
-      if (!shouldDownload) {
-        return;
-      }
-
-      final downloadedVersion = await _syncService.stageCoreDbDownload(
-        expectedVersion: remoteVersion,
+      // D2: probe + stage logic lives in CatalogUpdaterService now.
+      // The widget keeps ownership of the swap step (which mutates
+      // setState and closes the previous DB) — see swap branch below.
+      // `_coreDb == null` forces a download even when the remote
+      // version matches `_activeCatalogVersion`: a primed-from-prefs
+      // version with no live DB means we still need to fetch.
+      final checkResult = await _updater.checkForUpdate(
+        installedVersion: _activeCatalogVersion,
+        forceDownload: forceDownload || _coreDb == null,
       );
 
-      // T0.6: in-session activation. Until 2026-04-29 this branch
-      // staged-and-deferred when `_coreDb != null`, leaving users on
-      // stale data until the next cold start. Now we run the swap
-      // routine inline. The validation gate inside
-      // `_validateStagedDatabase` (PRAGMA integrity_check + version
-      // match) has already cleared this file before we get here, and
-      // `CatalogSwapper.swap()` adds a second-line defense by closing
-      // the new DB on a validation failure during open.
-      final swapResult = await _swapper.swap();
-
-      switch (swapResult) {
-        case SwapSuccess(:final newDb, :final version):
-          if (!mounted) {
-            await newDb.close();
-            return;
+      switch (checkResult) {
+        case CatalogUpToDate():
+          return;
+        case CatalogUnreachable(:final error):
+          // Probe missed (offline, table empty, RPC error). Surface
+          // the "catalog unavailable" UI only if we have nothing to
+          // fall back on; otherwise stay quiet and let the next
+          // refresh tick retry.
+          if (error != null) {
+            debugPrint('Catalog probe failed: $error');
           }
-          final oldDb = _coreDb;
-          setState(() {
-            _coreDb = newDb;
-            _activeCatalogVersion = version;
-            _catalogAvailable = true;
-            _catalogUnavailableReason = null;
-            _scopeVersion++;
-          });
-          // Fire-and-forget: persistence is best-effort; a failure here
-          // just means the next launch may redundantly re-download the
-          // same version, which is harmless.
-          unawaited(_persistActiveCatalogVersion(version));
-          // Close the previous DB after the new one is wired into
-          // ProviderScope. Drift releases the (now-unlinked) old inode
-          // when the connection drops; in-flight queries against the
-          // old DB finish cleanly.
-          unawaited(oldDb?.close());
-          _showCatalogUpdatedSnackbar(version);
-        case SwapRolledBack(:final reason):
-          // The swap routine restored the original file via
-          // `SyncService.activateStagedCoreDbIfPresent`'s backup logic
-          // and (if we got far enough) closed the new DB. Current
-          // session keeps using `_coreDb`.
-          debugPrint('Catalog swap rolled back: $reason');
-        case SwapNoStaging():
-          // Race: stageCoreDbDownload returned a version but the
-          // staging file vanished (e.g. cleanup hook ran). Log and
-          // move on — the next refresh tick will retry.
-          debugPrint(
-              'Catalog swap: no staging file present after download '
-              'returned $downloadedVersion');
-      }
-    } on Object catch (e) {
-      debugPrint('Catalog refresh failed: $e');
-      if (mounted && _coreDb == null) {
-        setState(() {
-          _catalogAvailable = false;
-          _catalogUnavailableReason =
-              _unavailableReason(includeRetryHint: true);
-        });
+          if (mounted && _coreDb == null) {
+            setState(() {
+              _catalogAvailable = false;
+              _catalogUnavailableReason =
+                  _unavailableReason(includeRetryHint: true);
+            });
+          }
+          return;
+        case CatalogStageFailed(:final reason):
+          // Network drop mid-download or sha mismatch. Partial file
+          // is already cleaned by SyncService.stageCoreDbDownload.
+          debugPrint('Catalog stage failed: $reason');
+          if (mounted && _coreDb == null) {
+            setState(() {
+              _catalogAvailable = false;
+              _catalogUnavailableReason =
+                  _unavailableReason(includeRetryHint: true);
+            });
+          }
+          return;
+        case CatalogStaged(:final version):
+          // Bundle validated and waiting in `*.staging`. Fall through
+          // to the swap routine below.
+          await _activateStagedCatalog(downloadedVersion: version);
       }
     } finally {
       _syncInFlight = false;
       _scheduleCatalogRefresh();
+    }
+  }
+
+  /// Activate a freshly-staged catalog file in-session.
+  ///
+  /// Spec: T0.6 / Track D D3. The validation gate inside
+  /// `_validateStagedDatabase` has already cleared the file by the
+  /// time `CatalogUpdaterService` returns [CatalogStaged]; the swap
+  /// routine adds a second-line defense by closing the new DB on a
+  /// validation failure during open.
+  Future<void> _activateStagedCatalog({
+    required String downloadedVersion,
+  }) async {
+    final swapResult = await _swapper.swap();
+
+    switch (swapResult) {
+      case SwapSuccess(:final newDb, :final version):
+        if (!mounted) {
+          await newDb.close();
+          return;
+        }
+        final oldDb = _coreDb;
+        setState(() {
+          _coreDb = newDb;
+          _activeCatalogVersion = version;
+          _catalogAvailable = true;
+          _catalogUnavailableReason = null;
+          _scopeVersion++;
+        });
+        unawaited(_persistActiveCatalogVersion(version));
+        unawaited(oldDb?.close());
+        _showCatalogUpdatedSnackbar(version);
+      case SwapRolledBack(:final reason):
+        debugPrint('Catalog swap rolled back: $reason');
+      case SwapNoStaging():
+        debugPrint(
+            'Catalog swap: no staging file present after download '
+            'returned $downloadedVersion');
     }
   }
 
