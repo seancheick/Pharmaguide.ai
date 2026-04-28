@@ -26,8 +26,8 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-16
-**Current Sprint:** Sprint 27.5 — Schema-alignment audit follow-ups (asset remap, bucket contract, docstring)
+**Updated:** 2026-04-28
+**Current Sprint:** Sprint 27.19 — Apple-grade home (physics layer + iOS chrome + bug fixes)
 **Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5 ALL DONE. **449 Flutter tests pass, 0 skipped, 0 failures + 236 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **Sprint 22 shipped 2026-04-14.**
 
 ## TARGET: V1.0 Ship by 2026-05-11
@@ -118,6 +118,63 @@ Status: DONE
 - [x] Reworked Stack Health language on Home and Stack from the old tiered score copy to shared user-facing labels: `Optimized / Solid / Decent / Concerning / Unsafe`.
 - [x] Added shared label-contract coverage in `test/core/models/stack_safety_score_test.dart` so severity caps and score bands cannot drift silently.
 - [x] Verification passed with `/Users/seancheick/Development/flutter/bin/flutter analyze` and `/Users/seancheick/Development/flutter/bin/flutter test test/features/home/home_screen_test.dart test/features/stack/stack_screen_test.dart test/core/models/stack_safety_score_test.dart`.
+
+**Sprint 27.19: Apple-grade home — physics layer + iOS chrome + audit bug fixes** — ✅ DONE (2026-04-28)
+Status: DONE — 28/28 tasks shipped across 7 phases. Plan archived at `docs/superpowers/plans/2026-04-28-home-apple-grade.md`.
+
+Goal: take the home screen from the Sprint 27.18 redesign baseline to first-party Apple-grade by fixing audit defects, building the missing physics layer (haptics, press-feedback, frosted scroll-aware search, snap-paginated Recents), and adding the iOS chrome (status-bar style, pull-to-refresh, swipe-back, SF font, Dynamic Type clamp).
+
+**Phase A — Foundation bug fixes (8 tasks):**
+- [x] A1: Fixed `isFirstLaunchHomeProvider` reactivity gap — `ref.read` → `ref.watch` so first-launch users exit collapsed mode immediately after their first scan/stack add. Renamed `@visibleForTesting`. Added stream-driven widget test.
+- [x] A2: Lowered Recents `Show all` threshold from 10 → 5 (extracted to `kShowAllRecentsMin`). Users with 5–9 scans were previously locked out of the bottom sheet entirely.
+- [x] A3: Fixed shimmer width-shift in Recents loading state — replaced `Row + Expanded × 3` (~124 px wide) with a horizontal `ListView` of fixed-156-px shimmer cards matching the real silhouette. Eliminates the residual layout shift the Sprint 27.18 commit had claimed but didn't fully solve.
+- [x] A4: Deleted dead `lib/features/home/widgets/home_category_rail.dart` (orphaned after Sprint 27.18 removed it from the screen).
+- [x] A5: Extracted duplicated `_timeAgo()` from two `_RecentScan*` classes into shared `lib/core/utils/relative_time.dart` with 9 unit tests across the case ladder (Just now / Nm / Nh / Yesterday / Nd).
+- [x] A6: Removed duplicate `Status:` health-label rendering from Stack screen summary card — title was sufficient.
+- [x] A7: Added boundary tests for tier-cap at score 84/85/86 in `stack_safety_score_test.dart` to lock the optimized→solid demotion contract against off-by-one regressions.
+- [x] A8: Updated greeting copy to four-tier (`Good morning` / `Hello there` / `Good evening` / `Good night`) per product direction. Refactored `_greeting()` to static `greetingFor(int)` with unit tests at every boundary hour and an explicit "never says afternoon" regression guard.
+
+**Phase B — Material hierarchy unification (3 tasks):**
+- [x] B1: Walked every visible home surface (9 widget files, ~50 surfaces). Audit doc at `docs/superpowers/plans/2026-04-28-home-apple-grade.surfaces.md`. Result: 0 migrations required — the codebase actually has 4 valid tiers (hero / standard / accent / recessed), not the plan's hypothesized 3, because `PGCard` ships a `highlighted` variant for callouts. Cardinality contracts hold (1 hero = scan CTA; 1 accent = profile completeness).
+- [x] B2: Codified the 4-tier surface system in `pg_card.dart` doc comments — explicit cardinality rules and the "intra-card layout primitives are not a fifth tier" clarification so the next dev has the rule written, not implied.
+- [x] B3: Documented the dark surface ladder design choice in `app_theme.dart` — surfaces are intentionally cool blue-gray (not iOS-neutral systemGray) to harmonize with brand teal. The luminance-step spacing matches Apple's dark-mode ladder; we trade hex-exactness for brand coherence.
+
+**Phase C — Tactile/motion: PGPressable + haptic vocabulary adoption (6 tasks):**
+- [x] C1: Built `lib/core/widgets/pg_pressable.dart` — Apple-style press wrapper with 0.96 scale-down on press-in, spring-release via `AppMotion.spring`, optional haptic on tap. Honors `MediaQueryData.disableAnimations` (reduce-motion). Six widget tests.
+- [x] C2: Wrapped both `_RecentScanCard` (carousel) and `_RecentScanListTile` (Show all sheet) with PGPressable.
+- [x] C3: Replaced Material+InkWell+Ink on the Scan CTA hero with PGPressable+Container — gradient + drop shadow now scale together. Hero gets a deeper 0.94 pressedScale.
+- [x] C4: Wrapped Quick Check CTA with PGPressable.
+- [x] C5: Wrapped Profile Completeness card with PGPressable.
+- [x] C6: Migrated `scanner_screen.dart` from raw `HapticFeedback.lightImpact()` / `mediumImpact()` to `PGHaptics.tap()` / `PGHaptics.warning()`. Last raw-haptic call site in `lib/`. Now every haptic in the app routes through PGHaptics → reduce-motion respect and severity-tier mapping are consistent everywhere.
+
+**Phase D — Search as scroll-aware embedded system surface (3 tasks):**
+- [x] D1: Built `lib/core/widgets/pg_frosted_header.dart` — companion to PGFrostedNavBar but for top-of-screen mounting. BackdropFilter blur + translucent surface fill + bottom hairline, all driven by a 0..1 `scrollProgress`. Internally uses TweenAnimationBuilder so binary `overlapsContent` flips crossfade over 220 ms. Five widget tests.
+- [x] D2: Converted home shell to a sliver-mounted pinned frosted search — `SliverPersistentHeader(pinned: true)` with `_PinnedSearchHeaderDelegate`. Search now sits at the very top of home (Settings / Mail / App Store pattern); status-bar inset baked into the delegate. Hero scrolls below it.
+- [x] D3: Replaced Material+InkWell wrapper on PGSearchField's readOnly+onTap launcher branch with PGPressable (`pressedScale: 0.99`, `haptic: false` because the destination owns the entry haptic).
+
+**Phase E — Recents as object-like carousel (2 tasks):**
+- [x] E1: Replaced `ListView.separated` carousel with a `PageView` snap pattern — `viewportFraction: 0.42`, `padEnds: false`, `PageScrollPhysics`. Each card-snap event fires `PGHaptics.tap` (decorative; reduce-motion-aware). App Store / Apple TV / Apple Music row signature. Carousel extracted to a `_RecentScansSnapCarousel` StatefulWidget so it owns and disposes its `PageController`.
+- [x] E2: Replaced `_OutlineScanButton`'s Material+InkWell with PGPressable so the empty-state CTA gets the same scale + spring + haptic as the rest of home.
+
+**Phase F — iOS chrome (4 tasks):**
+- [x] F1: Already shipped in Sprint 27.18 — bottom safe-area uses `mq.padding.bottom + kPGNavBarHeight + AppTheme.space8`, not the previously hardcoded 96 pt.
+- [x] F2: Wrapped Scaffold in `AnnotatedRegion<SystemUiOverlayStyle>` — dark icons on light theme, light icons on dark theme. Important now that the pinned frosted header changes the visual material under the status bar.
+- [x] F3: Platform-adaptive pull-to-refresh — `CupertinoSliverRefreshControl` on iOS (first sliver), Material `RefreshIndicator` wrapping CustomScrollView on Android. Shared `_onHomeRefresh` handler fires `PGHaptics.tap`, invalidates `isFirstLaunchHomeProvider` + `activeStackProvider` + recents (via new `refreshHomeRecents` helper that keeps the file-private provider behind a public-facing function), and waits 350 ms so the indicator animation reads as purposeful.
+- [x] F4: `CupertinoPageRoute` on iOS for left-edge swipe-back gesture — sub-page routes (`profileSetup`, `search`, `quickCheck`, `product/:dsldId`) now use a `pageBuilder` + `_platformPage` helper that returns CupertinoPage on iOS, MaterialPage elsewhere. Onboarding intentionally stays Material (linear flow; users shouldn't be able to swipe out).
+
+**Phase G — Polish (2 tasks):**
+- [x] G1: Conditional SF font on iOS — `ThemeData.fontFamily` returns `null` on iOS so Flutter falls through to the system font (`.SF Pro Display` / `.SF Pro Text` with OS-provided optical sizing). Inter retained on Android. Encapsulated in a `_platformFontFamily` getter so the choice has one home; all 13 prior `fontFamily: 'Inter'` references now route through it.
+- [x] G2: Global Dynamic Type clamp at 0.9–1.4x via `MaterialApp.builder` MediaQuery override. Protects card layouts at iOS AX5 / Android max accessibility text-scale settings. The scan CTA's local 1.3x clamp stays — composes with (not bypasses) the global cap because the hero's fixed icon-well + chevron break before the global ceiling.
+
+**Verification:**
+- `/Users/seancheick/Development/flutter/bin/flutter analyze` → No issues found
+- `/Users/seancheick/Development/flutter/bin/flutter test` → 712/712 tests pass
+- 32 commits across 7 phases pushed to `origin/main` between `6f7c923` (A1) and `5479182` (G2)
+
+**Known caveats / follow-ups:**
+- The pinned search delegate uses `overlapsContent` for the binary frosted-state signal. The PGFrostedHeader's internal TweenAnimationBuilder smooths it to a 220 ms crossfade. If users want a smooth offset-driven gradient (rather than binary-then-crossfade), that's a follow-up that would require a ScrollController-driven ValueNotifier passed into the delegate.
+- `PageView.viewportFraction: 0.42` is tuned for phones. On tablet form factors the slot becomes too wide and cards stretch noticeably. Tablet support is out-of-scope for this sprint.
+- Sub-page Cupertino routes haven't been smoke-tested for swipe-gesture conflicts with internal scrollables (e.g. product detail's horizontal pairs-with row). If conflicts emerge, the fix is per-route gesture priority, not a router-level change.
 
 **Sprint 27.16: Drift test lifecycle cleanup** — ✅ DONE (2026-04-26)
 Status: DONE
