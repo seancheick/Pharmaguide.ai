@@ -269,19 +269,25 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         case CatalogUpToDate():
           return;
         case CatalogUnreachable(:final error):
-          // Probe missed (offline, table empty, RPC error). Surface
-          // the "catalog unavailable" UI only if we have nothing to
-          // fall back on; otherwise stay quiet and let the next
-          // refresh tick retry.
+          // Two sub-cases under one variant:
+          //   error == null → probe returned no row (legit "no
+          //                   manifest yet" / first-push state).
+          //                   Match pre-D2 behavior: silent return,
+          //                   no UI flip — even if `_coreDb == null`,
+          //                   the bundled-asset bootstrap path
+          //                   handles that downstream.
+          //   error != null → probe threw (network/RPC failure).
+          //                   Flip the "catalog unavailable" UI iff
+          //                   we have nothing to fall back on.
           if (error != null) {
             debugPrint('Catalog probe failed: $error');
-          }
-          if (mounted && _coreDb == null) {
-            setState(() {
-              _catalogAvailable = false;
-              _catalogUnavailableReason =
-                  _unavailableReason(includeRetryHint: true);
-            });
+            if (mounted && _coreDb == null) {
+              setState(() {
+                _catalogAvailable = false;
+                _catalogUnavailableReason =
+                    _unavailableReason(includeRetryHint: true);
+              });
+            }
           }
           return;
         case CatalogStageFailed(:final reason):
