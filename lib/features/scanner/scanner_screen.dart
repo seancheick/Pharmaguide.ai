@@ -89,11 +89,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   /// Flash the verdict color briefly, trigger haptic feedback, then navigate.
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
-    // Verdict-result haptic — safety-critical signal that always fires
-    // (PGHaptics.warning is medium impact and bypasses reduce-motion).
-    // Future enhancement: derive intensity from product.verdict severity
-    // (safe → success, caution → warning, contraindicated → danger).
-    unawaited(PGHaptics.warning());
+    // Verdict-result haptic — severity-gated via PGHaptics.forVerdict so
+    // the user feels the outcome before reading the screen:
+    //   RECOMMENDED / GOOD  → di-DUP (Apple Pay success pattern)
+    //   MODERATE / REVIEW   → medium (warning)
+    //   UNSAFE              → heavy (danger)
+    //   BLOCKED             → di-da-DUP (error pattern)
+    // Safety-critical tiers always fire even under reduce-motion;
+    // success patterns suppress under reduce-motion (passes context).
+    unawaited(PGHaptics.forVerdict(product.verdict, context));
 
     final color = verdictFlashColor(product.verdict);
     setState(() {
