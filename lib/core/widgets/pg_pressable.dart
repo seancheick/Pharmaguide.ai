@@ -85,9 +85,12 @@ class _PGPressableState extends State<PGPressable> {
     final scaled = AnimatedScale(
       scale: shouldScale ? widget.pressedScale : 1.0,
       // Press-down is fast and decisive (standard ease-out); release
-      // uses the subtle spring curve for a satisfying lift.
+      // uses the gentleRelease curve — pure ease-out, zero overshoot.
+      // iOS press-up has a near-zero rebound; AppMotion.spring (with
+      // its 15% overshoot) is reserved for state flips / toggles where
+      // a touch of bounce adds personality.
       duration: _pressed ? AppMotion.fast : AppMotion.medium,
-      curve: _pressed ? AppMotion.standard : AppMotion.spring,
+      curve: _pressed ? AppMotion.standard : AppMotion.gentleRelease,
       child: widget.child,
     );
 

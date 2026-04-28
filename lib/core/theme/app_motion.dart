@@ -31,8 +31,21 @@ abstract final class AppMotion {
   static const accelerate = Cubic(0.4, 0.0, 1.0, 1.0);
 
   /// Subtle spring — small overshoot, premium but never bouncy.
-  /// Use sparingly — press states and toggles only.
+  /// Reserve for **state flips and toggles** where a touch of overshoot
+  /// adds personality (chip on/off, switch toggle, success badge mount).
+  ///
+  /// **Do NOT use this for press-release** on cards or buttons. Apple's
+  /// iOS press-up has a near-zero rebound — using a spring with overshoot
+  /// here reads as toy-like rather than premium. Prefer
+  /// [gentleRelease] for press-up transitions.
   static const spring = Cubic(0.175, 0.885, 0.32, 1.15);
+
+  /// Press-release curve — pure ease-out, no overshoot. The
+  /// iOS button-press rebound profile: fast at the start (the finger
+  /// just lifted), gracefully decelerating to rest with no oscillation.
+  /// Use for the "press-up" half of any tactile widget (PGPressable,
+  /// custom button rebounds).
+  static const gentleRelease = Curves.easeOutCubic;
 }
 
 /// Elevation tokens — shadow sets for layered depth.
