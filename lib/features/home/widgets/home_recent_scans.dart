@@ -16,6 +16,15 @@ import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
+/// Threshold above which the "Show all" affordance appears on the Recents
+/// header. Below this count the user can see every scan in the carousel
+/// itself, so a separate full-list view is unnecessary.
+///
+/// Previously 10, which created a UX cliff: users with 5–9 scans had no way
+/// to open the bottom sheet at all. Five surfaces it once the user has any
+/// real history without cluttering the day-one experience.
+const int kShowAllRecentsMin = 5;
+
 /// Loads recent scan history joined with core product data.
 /// Auto-disposes when the home screen is not visible, ensuring fresh data
 /// on each visit (fixes stale scans after navigating back from scanner).
@@ -59,8 +68,9 @@ class HomeRecentScansSection extends ConsumerWidget {
               title: 'Recent scans',
               subtitle: 'Your last checked products',
               padding: EdgeInsets.zero,
-              actionLabel: scans.length >= 10 ? 'Show all' : null,
-              onActionTap: scans.length >= 10
+              actionLabel:
+                  scans.length >= kShowAllRecentsMin ? 'Show all' : null,
+              onActionTap: scans.length >= kShowAllRecentsMin
                   ? () => _showAllRecents(context, ref)
                   : null,
             ),
