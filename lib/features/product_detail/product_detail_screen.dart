@@ -37,6 +37,7 @@ import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
@@ -2241,11 +2242,24 @@ class _DetailSection extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        // Interaction warnings (filtered by profile; dose severity
-        // handled at the pipeline source as of E1.11). FLTR-18 — pass
-        // the user's conditions / drug classes so the widget can
-        // split into "Applies to you" vs "Other precautions". Empty
-        // profile preserves the pre-FLTR-18 combined rendering.
+        // T1.7 Section 7.1 — "With your stack" per-profile-entry
+        // interaction summary. One row per drug class / condition the
+        // user has on file: ⚠ when a warning matches, ✓ when none
+        // does (positive trust signal). Tap-expandable for the ⚠
+        // rows showing mechanism + recommendation + citations.
+        // Hides entirely when the profile has no signals.
+        WithYourStackSection(
+          warnings: guardedWarnings,
+          userConditions: userConditions,
+          userDrugClasses: userDrugClasses,
+        ),
+        if (userConditions.isNotEmpty || userDrugClasses.isNotEmpty)
+          const SizedBox(height: AppTheme.space12),
+
+        // Generic precautions list (FLTR-18 split kept for now —
+        // T1.7's per-profile rows above don't replace the generic
+        // "Other precautions" bucket; T1.7's spec explicitly defers
+        // 7.2 general interactions to Sprint 3).
         InteractionWarningsList(
           warnings: guardedWarnings,
           userConditions: userConditions,
