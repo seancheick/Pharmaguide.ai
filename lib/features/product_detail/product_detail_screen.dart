@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
@@ -1340,52 +1342,64 @@ class _HeaderSection extends ConsumerWidget {
       bannedSubstanceDetail: bannedSubstanceDetail,
     );
 
-    return Container(
-      color: scheme.surface,
+    // Single elevated surface for the hero — replaces the previous
+    // nested Container + DecoratedBox. PGCard.elevated handles
+    // surface fill, outline, soft shadow, and dark-mode-aware tint
+    // in one place per the design system.
+    final disableAnimations =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+    return Padding(
+      // The outer Container's `color: scheme.surface` + symmetrical
+      // padding becomes a Padding here. The screen's CustomScrollView
+      // background already paints surface color.
       padding: const EdgeInsets.fromLTRB(
         AppTheme.space20,
         AppTheme.space12,
         AppTheme.space20,
         AppTheme.space16,
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-          border: Border.all(color: scheme.outlineVariant),
-          boxShadow: [
-            BoxShadow(
-              color: scheme.shadow.withValues(alpha: 0.06),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
+      child: TweenAnimationBuilder<double>(
+        // Hero entrance: fade + translate-up over 240ms. Reduce-motion
+        // jumps to the final value instantly via `disableAnimations`.
+        duration: disableAnimations ? Duration.zero : AppMotion.medium,
+        curve: AppMotion.standard,
+        tween: Tween<double>(begin: 0.0, end: 1.0),
+        builder: (context, t, child) {
+          return Opacity(
+            opacity: t,
+            child: Transform.translate(
+              offset: Offset(0, (1 - t) * 8),
+              child: child,
             ),
-          ],
-        ),
-        child: Padding(
+          );
+        },
+        child: PGCard(
+          variant: PGCardVariant.elevated,
           padding: const EdgeInsets.all(AppTheme.space16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Identity row — 96pt image + name / brand / form column.
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image stays at 56pt (BrandedPlaceholder's compact-
-                  // mode threshold). Above 56pt the placeholder switches
-                  // to a full-card Column with brand label/initial that
-                  // overflows the 1:1 box by ~2px. The premium hero feel
-                  // comes from the centered score altar + the wider
-                  // identity column, not from pixel size on the thumbnail.
-                  ProductImage(
-                    dsldId: dsldId,
-                    upc: upc,
-                    productName: productName,
-                    brandName: brandName,
-                    formFactor: formFactor,
-                    score: score100,
-                    size: 56,
-                  ),
-                  const SizedBox(width: AppTheme.space16),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Identity row — 96pt image + name / brand / form column.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 96pt thumbnail — the hero's identity anchor. compact:true
+                // forces BrandedPlaceholder's clean colored-square layout
+                // even at this size (the default multi-row "full card"
+                // layout above 56pt is sized for list items and overflows
+                // when stretched to hero proportions).
+                ProductImage(
+                  dsldId: dsldId,
+                  upc: upc,
+                  productName: productName,
+                  brandName: brandName,
+                  formFactor: formFactor,
+                  score: score100,
+                  size: 96,
+                  compact: true,
+                ),
+                const SizedBox(width: AppTheme.space16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1512,6 +1526,7 @@ class _HeaderSection extends ConsumerWidget {
   }
 }
 
+
 // _HeroScoreReason removed in T1.1 — see comment above _pickHeroScoreReason.
 // Reasoning lives in T1.6 Tradeoffs section; "Why this score" rows there
 // will reuse this DNA once T1.4 / T1.6 are wired.
@@ -1533,74 +1548,41 @@ class _ScoreRingButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Open score explanation',
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: Container(
-            padding: const EdgeInsets.all(4),
+      // PGPressable for the Apple-style press response: 0.96 scale
+      // compression on tap-down, spring back on release, light haptic
+      // tick on the tap. Replaces the previous Material+InkWell which
+      // used a dim ripple (Material idiom) instead of the iOS press
+      // depth idiom that matches the rest of the app's polish layer.
+      child: PGPressable(
+        onTap: onTap,
+        // pressedScale defaults to 0.96 — the App Store / Apple TV tile
+        // depth, which feels right for a hero focal element. A more
+        // dramatic 0.92 would feel cartoonish at this size.
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: hasScore
+                ? [
+                    BoxShadow(
+                      color: _glowColor(score!).withValues(alpha: 0.16),
+                      blurRadius: 28,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              boxShadow: hasScore
-                  ? [
-                      BoxShadow(
-                        color: _glowColor(score!).withValues(alpha: 0.16),
-                        blurRadius: 28,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
+              color: scheme.surface,
             ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: scheme.surface,
-              ),
-              child: PGScoreRing(score: score, size: 88, strokeWidth: 6),
-            ),
+            // Hero altar: 96pt × 7pt stroke. Slightly thinner stroke
+            // than the default 8 (proven not to overflow PGScoreRing's
+            // inner Column at this size with no internal label slot).
+            child: PGScoreRing(score: score, size: 96, strokeWidth: 7),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HeroMetaPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _HeroMetaPill({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1617,28 +1599,66 @@ class _HeroTrustChips extends StatelessWidget {
     final overflow = tags.length - visible.length;
 
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        ...visible.map((tag) {
-          final color = tag.isCertification
-              ? AppTheme.severitySafe
-              : AppTheme.scoreExcellent;
-          return _HeroMetaPill(
-            icon: tag.isCertification
-                ? Icons.verified_outlined
-                : Icons.check_circle_outline_rounded,
+        ...visible.map(
+          (tag) => _HeroTrustChipOutline(
             label: tag.label,
-            color: color,
-          );
-        }),
+            isCertification: tag.isCertification,
+          ),
+        ),
         if (overflow > 0)
-          _HeroMetaPill(
-            icon: Icons.more_horiz_rounded,
+          _HeroTrustChipOutline(
             label: '+$overflow more',
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            isCertification: false,
           ),
       ],
+    );
+  }
+}
+
+/// Outline-only trust chip — Apple iOS chip style.
+///
+/// No fill, no icon — just a clean text pill with a primary-tinted border.
+/// Replaces the filled `_HeroMetaPill` for hero trust signals where the
+/// premium iOS feel matters more than the visual loudness of a tinted pill.
+///
+/// Certifications use `colorScheme.primary` for the border tone (the
+/// "this is verified by a real authority" signal); dietary tags use
+/// `AppTheme.scoreExcellent` (success green — louder than primary, but
+/// still calmer than a filled chip).
+class _HeroTrustChipOutline extends StatelessWidget {
+  final String label;
+  final bool isCertification;
+
+  const _HeroTrustChipOutline({
+    required this.label,
+    required this.isCertification,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tone = isCertification ? scheme.primary : AppTheme.scoreExcellent;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: tone.withValues(alpha: 0.55),
+          width: 1.0,
+        ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: tone,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.1,
+        ),
+      ),
     );
   }
 }
