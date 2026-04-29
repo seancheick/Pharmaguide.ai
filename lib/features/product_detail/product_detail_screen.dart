@@ -535,12 +535,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       onRetry: () =>
                           ref.invalidate(detailBlobProvider(widget.dsldId)),
                     )
-                  : _DetailSection(
+                  : DetailSection(
                       detailBlob: detailBlob,
                       warnings: warnings,
                       // T1.7 inputs — trust signals for the
                       // "What we don't know" section. Read off the
-                      // product directly here so _DetailSection
+                      // product directly here so DetailSection
                       // stays decoupled from the screen-state.
                       isTrustedManufacturer:
                           _product?.isTrustedManufacturer == 1,
@@ -2110,7 +2110,7 @@ class _BlockedBanner extends StatelessWidget {
 // Detail section (loaded from blob)
 // ---------------------------------------------------------------------------
 
-class _DetailSection extends ConsumerWidget {
+class DetailSection extends ConsumerWidget {
   final Map<String, dynamic>? detailBlob;
   final List<InteractionWarning> warnings;
 
@@ -2133,7 +2133,8 @@ class _DetailSection extends ConsumerWidget {
   final String? netContentsUnit;
   final String? formFactor;
 
-  const _DetailSection({
+  const DetailSection({
+    super.key,
     required this.detailBlob,
     required this.warnings,
     this.isTrustedManufacturer = false,
@@ -2290,22 +2291,27 @@ class _DetailSection extends ConsumerWidget {
     final hiddenInactivesCount =
         inactiveIngredients.length - visibleInactives.length;
 
+    // Section ordering matches the IA spec exactly — see
+    // INITIATIVE_PRODUCT_TRUST_AND_IA.md "IA structure":
+    //   §4 Ingredients (active + inactive)
+    //   §5 Tradeoffs
+    //   §6 What we don't know
+    //   §7 Interactions  (7.1 With your stack + 7.2 legacy generic)
+    //   §8 Populations
+    //   §10 Product Details (collapsed)
+    //
+    // Section 9 (Evidence), §11 (Better Alternatives), §12 (Deep Dive),
+    // §13 (Transparency Footer) and §14 (Sticky Action Bar) live on
+    // the outer screen, not inside this Column.
+    //
+    // Pre-2026-04-29-review ordering rendered Tradeoffs BEFORE
+    // ingredients and stranded `_InteractionConditionDetails` between
+    // §4 and §6. Both bugs caught by Sean's dev review and fixed
+    // here. See T1.16 close-out notes for context.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (whyItems.isNotEmpty) ...[
-          // T1.6 — replaces the pre-Sprint-1 single-column Highlights
-          // with a two-column "What's good / What to consider" split.
-          // Same upstream `whyItems` record list (already sanitized
-          // via T0.2's `sanitizeWhyDetail` inside `_extractWhyItems`),
-          // routed through the new `TradeoffsSection` which splits +
-          // renders + handles the empty-side and SE-class
-          // single-column fallback.
-          TradeoffsSection(items: whyItems),
-          const SizedBox(height: 20),
-        ],
-
-        // ---- Active Ingredients (collapsible — long for multivitamins) ----
+        // ---- §4 Active Ingredients (collapsible — long for multivitamins) ----
         if (ingredients.isNotEmpty) ...[
           _CollapsibleIngredients(
             ingredients: ingredients,
@@ -2337,7 +2343,7 @@ class _DetailSection extends ConsumerWidget {
         // potential reuse (e.g. a dedicated explainer) — it's no
         // longer wired into the scroll.
 
-        // ---- Inactive Ingredients ----
+        // ---- §4 Inactive Ingredients ----
         if (inactiveIngredients.isNotEmpty) ...[
           _sectionTitle(theme, 'Other Ingredients', inactiveIngredients.length),
           const SizedBox(height: 8),
@@ -2382,22 +2388,25 @@ class _DetailSection extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        // ---- Condition-specific interaction details (filtered by profile) ----
-        if (interactionSummary != null) ...[
-          _InteractionConditionDetails(
-            summary: interactionSummary,
-            userConditions: userConditions,
-            userDrugClasses: userDrugClasses,
-          ),
+        // ---- §5 Tradeoffs ----
+        if (whyItems.isNotEmpty) ...[
+          // T1.6 — replaces the pre-Sprint-1 single-column Highlights
+          // with a two-column "What's good / What to consider" split.
+          // Same upstream `whyItems` record list (already sanitized
+          // via T0.2's `sanitizeWhyDetail` inside `_extractWhyItems`),
+          // routed through the new `TradeoffsSection` which splits +
+          // renders + handles the empty-side and SE-class
+          // single-column fallback.
+          TradeoffsSection(items: whyItems),
           const SizedBox(height: 20),
         ],
 
-        // T1.7 Section 6 — "What we don't know". Surfaces gaps in the
-        // data PharmaGuide has on this product (no third-party heavy
-        // metal test, manufacturer hasn't published recent COAs, low
-        // mapped coverage, limited evidence). Soft visual treatment —
-        // context, not warning. Hides entirely when all four trust
-        // signals are positive.
+        // ---- §6 What we don't know ----
+        // T1.7 — surfaces gaps in the data PharmaGuide has on this
+        // product (no third-party testing, manufacturer hasn't
+        // published recent COAs, low mapped coverage, limited
+        // evidence). Soft visual treatment — context, not warning.
+        // Hides entirely when all four trust signals are positive.
         UnknownsSection(
           isTrustedManufacturer: isTrustedManufacturer,
           hasThirdPartyTesting: hasThirdPartyTesting,
@@ -2407,12 +2416,12 @@ class _DetailSection extends ConsumerWidget {
         ),
         const SizedBox(height: AppTheme.space12),
 
-        // T1.8 Section 7.1 — "With your stack" per-profile-entry
-        // interaction summary. One row per drug class / condition the
-        // user has on file: ⚠ when a warning matches, ✓ when none
-        // does (positive trust signal). Tap-expandable for the ⚠
-        // rows showing mechanism + recommendation + citations.
-        // Hides entirely when the profile has no signals.
+        // ---- §7.1 With your stack (per-profile-entry interactions) ----
+        // T1.8 — one row per drug class / condition the user has on
+        // file: ⚠ when a warning matches, ✓ when none does (positive
+        // trust signal). Tap-expandable for the ⚠ rows showing
+        // mechanism + recommendation + citations. Hides entirely when
+        // the profile has no signals.
         WithYourStackSection(
           warnings: guardedWarnings,
           userConditions: userConditions,
@@ -2421,7 +2430,31 @@ class _DetailSection extends ConsumerWidget {
         if (userConditions.isNotEmpty || userDrugClasses.isNotEmpty)
           const SizedBox(height: AppTheme.space12),
 
-        // T1.9 Section 8 — at-risk populations dedupe. Aggregates
+        // ---- §7.2 Legacy condition-specific details (deferred to
+        // Sprint 3 retire/refactor — moved into the §7 grouping
+        // 2026-04-29 per dev review). ----
+        if (interactionSummary != null) ...[
+          _InteractionConditionDetails(
+            summary: interactionSummary,
+            userConditions: userConditions,
+            userDrugClasses: userDrugClasses,
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // ---- §7.2 Generic precautions list (FLTR-18 split kept for
+        // now — T1.7's per-profile rows above don't replace the
+        // generic "Other precautions" bucket; T1.7's spec explicitly
+        // defers 7.2 general interactions to Sprint 3). ----
+        InteractionWarningsList(
+          warnings: guardedWarnings,
+          userConditions: userConditions,
+          userDrugClasses: userDrugClasses,
+        ),
+        const SizedBox(height: AppTheme.space12),
+
+        // ---- §8 Populations ----
+        // T1.9 — at-risk populations dedupe. Aggregates
         // populationWarnings across all warnings, dedupes by string,
         // filters out entries that match the user's profile (those
         // are already surfaced in Section 7's WithYourStackSection),
@@ -2436,17 +2469,6 @@ class _DetailSection extends ConsumerWidget {
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
           ageBracket: ref.watch(profileProvider).ageBracket,
-        ),
-        const SizedBox(height: AppTheme.space12),
-
-        // Generic precautions list (FLTR-18 split kept for now —
-        // T1.7's per-profile rows above don't replace the generic
-        // "Other precautions" bucket; T1.7's spec explicitly defers
-        // 7.2 general interactions to Sprint 3).
-        InteractionWarningsList(
-          warnings: guardedWarnings,
-          userConditions: userConditions,
-          userDrugClasses: userDrugClasses,
         ),
 
         // T1.11 Section 10 — Product Details, collapsed by default.

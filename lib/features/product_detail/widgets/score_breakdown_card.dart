@@ -59,7 +59,11 @@ class ScoreBreakdownCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Score breakdown',
+                // Spec §3 trust framing — was "Score breakdown" (V0
+                // score-first language). 2026-04-29 dev review caught
+                // the copy drift; changed to match the IA spec which
+                // calls Section 3 "Product Quality".
+                'Product Quality',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.15,

@@ -56,18 +56,26 @@ void main() {
       expect(unknowns.first, contains('COA'));
     });
 
-    test('no third-party testing → "no heavy metal test" bullet', () {
-      final unknowns = buildUnknowns(
-        isTrustedManufacturer: true,
-        hasThirdPartyTesting: false,
-        mappedCoverage: 0.9,
-        scoreEvidenceResearch: 18,
-        scoreEvidenceResearchMax: 20,
-      );
-      expect(unknowns, hasLength(1));
-      expect(unknowns.first, contains('third-party'));
-      expect(unknowns.first, contains('heavy metal'));
-    });
+    test(
+      'no third-party testing → "No third-party testing available" bullet',
+      () {
+        // Copy generalised 2026-04-29 — see unknowns_section.dart for
+        // rationale (the pipeline flag is generic, the heavy-metal-
+        // specific claim was overstated).
+        final unknowns = buildUnknowns(
+          isTrustedManufacturer: true,
+          hasThirdPartyTesting: false,
+          mappedCoverage: 0.9,
+          scoreEvidenceResearch: 18,
+          scoreEvidenceResearchMax: 20,
+        );
+        expect(unknowns, hasLength(1));
+        expect(unknowns.first, contains('third-party'));
+        // Defensive — the new copy must NOT make heavy-metal-
+        // specific claims off a generic flag.
+        expect(unknowns.first, isNot(contains('heavy metal')));
+      },
+    );
 
     test('mappedCoverage at 0.49 (just below threshold) → coverage bullet', () {
       final unknowns = buildUnknowns(
@@ -210,10 +218,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('What we don\'t know'), findsOneWidget);
-      expect(
-        find.text('No third-party heavy metal test available'),
-        findsOneWidget,
-      );
+      expect(find.text('No third-party testing available'), findsOneWidget);
     });
 
     testWidgets('multiple unknowns → all render', (tester) async {
@@ -226,10 +231,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('What we don\'t know'), findsOneWidget);
-      expect(
-        find.text('No third-party heavy metal test available'),
-        findsOneWidget,
-      );
+      expect(find.text('No third-party testing available'), findsOneWidget);
       expect(
         find.text('Manufacturer hasn\'t published recent COAs'),
         findsOneWidget,
@@ -270,10 +272,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('No third-party heavy metal test available'),
-        findsOneWidget,
-      );
+      expect(find.text('No third-party testing available'), findsOneWidget);
       expect(
         find.text('Manufacturer hasn\'t published recent COAs'),
         findsOneWidget,

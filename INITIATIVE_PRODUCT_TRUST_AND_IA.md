@@ -1129,6 +1129,22 @@ Addressed during a deep-dive audit run for the Sentry 24h DoD:
 
 These were not strict spec requirements — they're DoD-driven prophylactics against new error classes appearing in the 24h post-deploy Sentry watch. Three of the four fixes were already on the T2.6 backlog; pulled forward to keep Sprint 1 shippable.
 
+**Post-T1.16 dev-review pass — 2026-04-29.**
+Sean's dev reviewer caught four IA / copy issues that the section-by-section trace claim glossed over. All four legitimate; all four fixed before Sprint 2 entry.
+
+| # | P | Finding | Fix |
+|---|---|---------|-----|
+| 1 | P1 | `_DetailSection` rendered §5 Tradeoffs **before** §4 Ingredients — contradicts the IA spec ("ingredients basis before score pros/cons") | Reordered the section column: Active+Inactive Ingredients first, Tradeoffs after. Header comment block in the file now points at the spec's IA structure as the source of truth. |
+| 2 | P1 | Legacy `_InteractionConditionDetails` rendered between §4 (Ingredients) and §6 (Unknowns) — putting personalized interaction content ahead of "What we don't know" and outside the §7 grouping. Also `InteractionWarningsList` was AFTER Populations §8, so §7 / §8 / §7 was the actual sequence. | Both legacy interaction blocks (`_InteractionConditionDetails` + `InteractionWarningsList`) now sit adjacent inside the §7 grouping, after `WithYourStackSection` (§7.1) and before `PopulationsSection` (§8). Final order: §4 → §5 → §6 → §7.1 → §7.2 (×2 legacy) → §8 → §10. |
+| 3 | P2 | `ScoreBreakdownCard` header still read **"Score breakdown"** — V0 score-first language, contradicts the IA spec which calls Section 3 **"Product Quality"**. Visible copy drift. | Header now reads "Product Quality". Comment in source notes the rationale + dev-review date. No tests referenced the old string. |
+| 4 | P2 | `buildUnknowns` rendered **"No third-party heavy metal test available"** off the generic `hasThirdPartyTesting` flag (an integer 0/1 from `products_core` — doesn't prove a heavy-metal-specific test is absent). For a medical-adjacent trust section that's overstating specificity. | Broadened to "No third-party testing available". Updated 4 test assertions accordingly + added a defensive negative-assertion `expect(unknowns.first, isNot(contains('heavy metal')))` so the narrower copy can't sneak back without a regression failure. When the pipeline ships a typed `certification_detail.heavy_metal_tested` signal we can re-tighten and key off it. |
+
+**Plus:** Promoted `_DetailSection` → public `DetailSection` (5 references replaced) so the new section-order regression test can mount it directly. State class kept private per Flutter convention.
+
+**NEW** `test/features/product_detail/widgets/detail_section_order_test.dart` — pin-the-order regression test that mounts `DetailSection` with a full-fixture `detail_blob` (every branch fires) + a drug-class-tagged warning, then reads the top-edge Y coordinate of each section's outer widget and asserts the spec ordering (§4 → §5 → §6 → §7 → §8 → §10) holds. The pre-fix code would have failed this test on the first two assertions. Catches the dev-reviewer's first finding for good.
+
+Test count 1074 → 1075 (+1). flutter analyze --fatal-infos clean. dart format --set-exit-if-changed lib/ test/ → 0 changed.
+
 ---
 
 # Sprint 2 — Refinement Polish

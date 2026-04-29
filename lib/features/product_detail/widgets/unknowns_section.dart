@@ -47,7 +47,15 @@ List<String> buildUnknowns({
   final unknowns = <String>[];
 
   if (!hasThirdPartyTesting) {
-    unknowns.add('No third-party heavy metal test available');
+    // Copy generalised 2026-04-29 per dev review. The pipeline's
+    // `hasThirdPartyTesting` flag is a generic boolean off
+    // `products_core` — it doesn't prove a heavy-metal-specific
+    // test is absent. For a medical-adjacent trust section the
+    // narrower "heavy metal test" claim was overstating
+    // specificity. Once the pipeline surfaces a typed signal (e.g.
+    // `certification_detail.heavy_metal_tested`) we can re-tighten
+    // the copy and key off that field directly.
+    unknowns.add('No third-party testing available');
   }
 
   if (!isTrustedManufacturer) {
