@@ -36,6 +36,7 @@ import 'package:pharmaguide/features/product_detail/providers/fit_score_provider
 import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
@@ -2121,7 +2122,14 @@ class _DetailSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (whyItems.isNotEmpty) ...[
-          _WhyThisProductSection(items: whyItems),
+          // T1.6 — replaces the pre-Sprint-1 single-column Highlights
+          // with a two-column "What's good / What to consider" split.
+          // Same upstream `whyItems` record list (already sanitized
+          // via T0.2's `sanitizeWhyDetail` inside `_extractWhyItems`),
+          // routed through the new `TradeoffsSection` which splits +
+          // renders + handles the empty-side and SE-class
+          // single-column fallback.
+          TradeoffsSection(items: whyItems),
           const SizedBox(height: 20),
         ],
 
@@ -2270,45 +2278,11 @@ class _DetailSection extends ConsumerWidget {
   }
 }
 
-class _WhyThisProductSection extends StatelessWidget {
-  final List<({String label, String detail, bool isPositive})> items;
-
-  const _WhyThisProductSection({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.space16),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Highlights',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppTheme.space12),
-          ...items.map(
-            (item) => _ProConTile(
-              label: item.label,
-              detail: item.detail,
-              isPositive: item.isPositive,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// _WhyThisProductSection + _ProConTile removed in T1.6 (2026-04-29).
+// The single-column "Highlights" card was superseded by `TradeoffsSection`
+// (lib/features/product_detail/widgets/tradeoffs_section.dart), which
+// splits the same `_extractWhyItems` record list into a two-column
+// 👍 What's good / ⚖️ What to consider layout with SE-class fallback.
 
 /// Collapsible wrapper for the Active Ingredients list.
 ///
@@ -2758,68 +2732,9 @@ class _SafetyTag extends StatelessWidget {
   }
 }
 
-/// A pro or con item with icon and label.
-class _ProConTile extends StatelessWidget {
-  final String label;
-  final String detail;
-  final bool isPositive;
-
-  const _ProConTile({
-    required this.label,
-    required this.detail,
-    required this.isPositive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (label.isEmpty) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final color = isPositive ? AppTheme.severitySafe : AppTheme.severityAvoid;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(
-              isPositive
-                  ? Icons.add_circle_outline
-                  : Icons.remove_circle_outline,
-              size: 16,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (detail.isNotEmpty) ...[
-                  const SizedBox(height: 1),
-                  Text(
-                    detail,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// _ProConTile removed in T1.6 (2026-04-29) along with its only call
+// site (_WhyThisProductSection). The colored-bullet equivalent now
+// lives as `TradeoffRow` inside `tradeoffs_section.dart`.
 
 /// Shows which specific conditions and drug classes are affected and why.
 ///
