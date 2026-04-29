@@ -1041,7 +1041,7 @@ Footer renders on every product page. No personalization (it's site-wide trust l
 
 ---
 
-### [ ] T1.15 — Sticky action bar (Section 14)
+### [x] T1.15 — Sticky action bar (Section 14)
 
 **What**
 Bottom sticky bar: [Add to Stack] [Log Dose]. Conditional: [See Safer Alternatives] when verdict = Avoid/Contraindicated.
@@ -1057,6 +1057,12 @@ Bottom sticky bar: [Add to Stack] [Log Dose]. Conditional: [See Safer Alternativ
 
 **Acceptance**
 Conditional logic matches verdict tier.
+
+**Verified — 2026-04-29.**
+- **REFACTOR** `lib/features/product_detail/widgets/pg_stack_action_buttons.dart` — added 3 new constructor params: `isUnsafe` (caller passes `isUnsafeVerdict(_product?.verdict)`), `onSeeAlternatives` callback (tap target for the unsafe-state primary), `onLogDose` callback (always-visible secondary). Replaced old V0 Share/Save dual-outline-button row with a single full-width "Log dose" outlined button. Conditional primary state machine: **unsafe wins over in-stack** → `_SeeSaferButton` (severityAvoid-tinted FilledButton, `shield_outlined` icon) which fires `onSeeAlternatives`; else if in-stack → existing `_InStackPanel` (Remove inline); else → existing `_AddButton` (V0 add flow preserved end-to-end — `_handleAdd` body unchanged). Log Dose disabled when not in stack OR when unsafe (defense in depth — logging a dose for an untracked or banned product is incoherent).
+- **MODIFY** `lib/features/product_detail/product_detail_screen.dart` — added `_alternativesKey` GlobalKey on the screen state, attached to the `SliverToBoxAdapter` wrapping the Better Alternatives section. Removed `bottomNavigationBar = isBlocked ? null : ...` (V0 left blocked products with NO bottom bar — broken UX); now always renders the bar with `isUnsafe: isBlocked` passed through. Two new screen-state methods: `_handleSeeAlternatives` calls `Scrollable.ensureVisible` on the alternatives key's context (280ms easeOutCubic, alignment 0.1 so the section lands near the top of the viewport, no-op if section currently returns SizedBox.shrink); `_handleLogDose` shows a "Dose logging coming soon." snackbar — placeholder per V1 (Sprint 2 wires the real flow).
+- **NEW** `test/features/product_detail/widgets/pg_stack_action_buttons_test.dart` — 9 widget tests: safe + not-in-stack → 2 buttons (Add + Log dose), unsafe verdict → "See safer alternatives" replaces Add (Log dose still rendered), in-stack → "In your stack" panel + Remove inline + Log dose, **unsafe-wins-over-in-stack edge case** (catalog flipped a previously-tracked product to UNSAFE — Remove panel suppressed in favour of See safer alternatives), Log dose disabled when not in stack, Log dose enabled when in stack (tap fires callback), Log dose disabled in unsafe state even when in stack, See safer alternatives tap fires callback, Add button onPressed non-null (V0 wiring intact). Tests use `CoreDatabase.memory()` + `UserDatabase.memory()` overrides + a `_seedProduct(verdict:)` + `_addToStack(...)` helper pair.
+- Test count 1065 → 1074 (+9). flutter analyze clean.
 
 ---
 

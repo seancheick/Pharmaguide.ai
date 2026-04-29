@@ -79,6 +79,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   ProductsCoreData? _product;
   bool _productLoading = true;
 
+  /// Anchors the Better Alternatives sliver so the T1.15 sticky-bar
+  /// "See safer alternatives" button can scroll the page to it.
+  /// Lives on the screen state because the sliver gets rebuilt on
+  /// state changes; a stable key keeps the scroll target intact.
+  final GlobalKey _alternativesKey = GlobalKey();
+
   // User stack entry for this product (null = not in stack). Powers the
   // refill-reminder card; we need addedAt for the days-remaining math.
   UserStacksLocalData? _stackEntry;
@@ -658,6 +664,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // fit math evolves.
           // ----------------------------------------------------------------
           SliverToBoxAdapter(
+            key: _alternativesKey,
             child: Consumer(
               builder: (context, innerRef, _) {
                 final fitAsync = innerRef.watch(
@@ -721,27 +728,34 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
         ],
       ),
-      // Sticky action bar — always reachable
-      bottomNavigationBar: isBlocked
-          ? null
-          : Container(
-              padding: EdgeInsets.fromLTRB(
-                AppTheme.space20,
-                AppTheme.space12,
-                AppTheme.space20,
-                MediaQuery.of(context).padding.bottom + AppTheme.space12,
-              ),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: PGStackActionButtons(dsldId: widget.dsldId),
+      // T1.15 Section 14 — sticky action bar. Always rendered (used to
+      // be `isBlocked ? null : …` which left blocked products with no
+      // bottom affordance). Now blocked/unsafe products get a "See safer
+      // alternatives" primary that scrolls to the Better Alternatives
+      // section via [_alternativesKey].
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          AppTheme.space12,
+          AppTheme.space20,
+          MediaQuery.of(context).padding.bottom + AppTheme.space12,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              width: 0.5,
             ),
+          ),
+        ),
+        child: PGStackActionButtons(
+          dsldId: widget.dsldId,
+          isUnsafe: isBlocked,
+          onSeeAlternatives: _handleSeeAlternatives,
+          onLogDose: _handleLogDose,
+        ),
+      ),
     );
   }
 
@@ -750,6 +764,36 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   // from `better_alternatives.dart`. The new helper is fit-aware
   // (FitLimitedFit / FitNotRecommended also fire the section) and
   // the threshold tightened from 55 → 60 per T1.12 spec.
+
+  /// T1.15 — primary tap target for the unsafe-verdict sticky bar.
+  /// Scrolls the screen to the Better Alternatives sliver. No-op
+  /// when the sliver hasn't been laid out yet (off-screen or
+  /// shouldShowBetterAlternatives returned false).
+  void _handleSeeAlternatives() {
+    final ctx = _alternativesKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      alignment: 0.1,
+    );
+  }
+
+  /// T1.15 — placeholder secondary tap for "Log dose". Sprint 2
+  /// wires the real dose-logging flow. V1 surfaces a snackbar so
+  /// the affordance is discoverable without committing to an
+  /// implementation we don't yet have.
+  void _handleLogDose() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Dose logging coming soon.'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   /// Worst-applicable severity across the personalized + blob warnings —
   /// drives T1.3's risk-gate inside the For You section. Empty list →

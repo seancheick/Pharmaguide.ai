@@ -8,25 +8,46 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
-/// Action buttons at the bottom of the product detail screen:
-/// Add-to-Stack (or In-Stack with remove), Share, Save.
+/// Sticky action bar at the bottom of the product detail screen.
 ///
-/// - **Add flow:** runs the safety check sheet first, then (if confirmed)
-///   inserts and shows a success snackbar with Undo.
-/// - **Already-in-stack state:** Add button is replaced with a pill
-///   showing "In your stack" + a quick Remove button.
-/// - **Remove flow:** fires the soft-delete action and shows a snackbar
-///   with a 5-second Undo window that calls `stackActions.restore(id)`.
+/// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.15.
+///
+/// Conditional primary button per state:
+///   - **Unsafe verdict (BLOCKED / UNSAFE):** "See safer alternatives" —
+///     onTap scrolls the screen to the Better Alternatives section
+///     (the screen wires the actual scroll via [onSeeAlternatives]).
+///   - **Already in stack:** [_InStackPanel] with Remove inline.
+///   - **Default (safe, not in stack):** "Add to my stack" — runs the
+///     safety-check sheet → addProduct flow (unchanged from V0).
+///
+/// Secondary button is always **Log Dose** — placeholder in V1 (calls
+/// [onLogDose] which the screen wires to a "Coming soon" snackbar
+/// until the dose-logging flow ships in Sprint 2). Disabled when the
+/// product isn't yet in the user's stack (logging a dose for a product
+/// you aren't tracking is incoherent).
 class PGStackActionButtons extends ConsumerWidget {
   final String dsldId;
-  final VoidCallback? onShare;
-  final VoidCallback? onSave;
+
+  /// True when the product carries a BLOCKED or UNSAFE verdict —
+  /// caller passes `isUnsafeVerdict(_product?.verdict)`. Drives the
+  /// "See safer alternatives" primary swap.
+  final bool isUnsafe;
+
+  /// Tap target when the unsafe-state primary fires. Screen wires
+  /// this to scroll the page to the Better Alternatives section.
+  /// No-op if null.
+  final VoidCallback? onSeeAlternatives;
+
+  /// Tap target for the always-visible Log Dose secondary. V1 wires
+  /// this to a placeholder snackbar; Sprint 2 wires the real flow.
+  final VoidCallback? onLogDose;
 
   const PGStackActionButtons({
     super.key,
     required this.dsldId,
-    this.onShare,
-    this.onSave,
+    this.isUnsafe = false,
+    this.onSeeAlternatives,
+    this.onLogDose,
   });
 
   @override
@@ -39,47 +60,69 @@ class PGStackActionButtons extends ConsumerWidget {
       children: [
         entryAsync.when(
           loading: () => const _LoadingPrimary(),
-          error: (_, __) => _AddButton(
-            onTap: () => _handleAdd(context, ref),
-          ),
-          data: (entry) {
-            if (entry == null) {
-              return _AddButton(
-                onTap: () => _handleAdd(context, ref),
-              );
-            }
-            return _InStackPanel(
-              entryId: entry.id,
-              onRemove: () => _handleRemove(context, ref, entry.id),
-            );
-          },
+          error: (_, __) => _primary(context, ref, inStack: false),
+          data: (entry) =>
+              _primary(context, ref, inStack: entry != null, entry: entry),
         ),
         const SizedBox(height: AppTheme.space12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onShare,
-                icon: const Icon(Icons.ios_share_rounded, size: 18),
-                label: const Text('Share'),
-              ),
-            ),
-            const SizedBox(width: AppTheme.space12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onSave,
-                icon: const Icon(Icons.bookmark_border_rounded, size: 18),
-                label: const Text('Save'),
-              ),
-            ),
-          ],
+        // Secondary — always visible Log Dose (Sprint 2 wires real flow).
+        // Disabled until the product is in the stack: logging a dose
+        // before tracking the product is incoherent. Wraps the in-stack
+        // resolution so the disabled state is reactive.
+        entryAsync.when(
+          loading: () => _logDoseButton(context, enabled: false),
+          error: (_, __) => _logDoseButton(context, enabled: false),
+          data: (entry) =>
+              _logDoseButton(context, enabled: entry != null && !isUnsafe),
         ),
       ],
     );
   }
 
+  Widget _primary(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool inStack,
+    Object? entry,
+  }) {
+    // Unsafe always wins over in-stack — even if the user already has
+    // the product in their stack, the right primary action is to
+    // direct them to safer alternatives, not let them re-open the
+    // remove flow as the loudest button.
+    if (isUnsafe) {
+      return _SeeSaferButton(onTap: () {
+        PGHaptics.press();
+        onSeeAlternatives?.call();
+      });
+    }
+    if (inStack && entry != null) {
+      // entry is dynamic-typed (`UserStacksLocalData`) — look up the
+      // id via reflection-free path: callers always pass the entry
+      // directly so we cast inline here.
+      // ignore: avoid_dynamic_calls
+      final id = (entry as dynamic).id as String;
+      return _InStackPanel(
+        entryId: id,
+        onRemove: () => _handleRemove(context, ref, id),
+      );
+    }
+    return _AddButton(onTap: () => _handleAdd(context, ref));
+  }
+
+  Widget _logDoseButton(BuildContext context, {required bool enabled}) {
+    return OutlinedButton.icon(
+      onPressed: enabled ? () {
+        PGHaptics.tap();
+        onLogDose?.call();
+      } : null,
+      icon: const Icon(Icons.history_edu_outlined, size: 18),
+      label: const Text('Log dose'),
+    );
+  }
+
   // ---------------------------------------------------------------------
-  // Add flow
+  // Add flow — unchanged from V0 per T1.15 acceptance:
+  // "Tap [Add to Stack] → existing flow (no behavior change)".
   // ---------------------------------------------------------------------
   Future<void> _handleAdd(BuildContext context, WidgetRef ref) async {
     await PGHaptics.press();
@@ -151,7 +194,7 @@ class PGStackActionButtons extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------
-  // Remove flow (with undo)
+  // Remove flow (with undo) — unchanged from V0.
   // ---------------------------------------------------------------------
   Future<void> _handleRemove(
     BuildContext context,
@@ -232,6 +275,27 @@ class _AddButton extends StatelessWidget {
       onPressed: onTap,
       icon: const Icon(Icons.add_rounded, size: 20),
       label: const Text('Add to my stack'),
+    );
+  }
+}
+
+/// Unsafe-verdict primary — replaces "Add to my stack" when the
+/// product is BLOCKED or UNSAFE. Tap scrolls the screen to the
+/// Better Alternatives section.
+class _SeeSaferButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SeeSaferButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: AppTheme.severityAvoid,
+        foregroundColor: Colors.white,
+      ),
+      icon: const Icon(Icons.shield_outlined, size: 20),
+      label: const Text('See safer alternatives'),
     );
   }
 }
