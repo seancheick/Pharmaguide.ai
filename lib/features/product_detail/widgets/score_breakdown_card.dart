@@ -9,6 +9,13 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 ///
 /// When [sectionBreakdown] is available (from the detail blob), tapping a
 /// bar expands it to show sub-scores, bonuses, penalties, and certifications.
+///
+/// Sprint 1 T1.4 additions:
+/// - `heroScore` renders an inline continuity label
+///   ("Your 82 breaks down as:") above the pillars so the user can
+///   trace the hero's Quality Score number into its pillar makeup.
+/// - `mappedCoverage` renders a colored coverage line below the pillars.
+///   Tier-tinted by ratio: green ≥ 0.7, yellow ≥ 0.3, red below.
 class ScoreBreakdownCard extends StatelessWidget {
   final double? ingredientQuality;
   final double? safetyPurity;
@@ -17,6 +24,15 @@ class ScoreBreakdownCard extends StatelessWidget {
   final Map<String, dynamic>? sectionBreakdown;
   final bool hasThirdPartyTesting;
   final bool isTrustedManufacturer;
+
+  /// Hero Quality Score (0..100) shown as an inline continuity label
+  /// above the pillars: "Your 82 breaks down as:". Null hides the label.
+  final double? heroScore;
+
+  /// Mapped-coverage ratio (0..1) — fraction of the product's
+  /// ingredients that resolved against the IQM dataset. Drives the
+  /// coverage-line tier color + subtitle. Null hides the line.
+  final double? mappedCoverage;
 
   const ScoreBreakdownCard({
     super.key,
@@ -27,6 +43,8 @@ class ScoreBreakdownCard extends StatelessWidget {
     this.sectionBreakdown,
     this.hasThirdPartyTesting = false,
     this.isTrustedManufacturer = false,
+    this.heroScore,
+    this.mappedCoverage,
   });
 
   @override
@@ -68,6 +86,19 @@ class ScoreBreakdownCard extends StatelessWidget {
                 ),
               ),
             ),
+          // T1.4 continuity label — links the hero's Quality Score
+          // back to its pillar makeup so users can trace the number
+          // they saw at the top into its components down here.
+          if (heroScore != null) ...[
+            const SizedBox(height: AppTheme.space8),
+            Text(
+              'Your ${heroScore!.round()} breaks down as:',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: AppTheme.space16),
           _ExpandableSectionBar(
             label: 'Ingredient quality',
@@ -120,6 +151,13 @@ class ScoreBreakdownCard extends StatelessWidget {
             ],
             explainFn: _explainBrandTrust,
           ),
+          // T1.4 coverage line — colored badge by ratio + descriptor
+          // subtitle. Lives below the pillars so users see how
+          // confidently the score above was computed.
+          if (mappedCoverage != null) ...[
+            const SizedBox(height: AppTheme.space16),
+            _CoverageLine(coverage: mappedCoverage!),
+          ],
         ],
       ),
     );
@@ -497,6 +535,118 @@ class _ExplainBadge extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// T1.4 coverage line — single row with a colored dot, percentage, and
+/// short descriptor explaining how complete the IQM mapping is for the
+/// scored ingredients. Tier-tinted by the same ratio thresholds used in
+/// the hero's "Limited data" guard (≥0.7 great / ≥0.3 partial /
+/// otherwise limited).
+///
+/// Pulled out of the main card body so the visual treatment can evolve
+/// without churning the Column above it.
+class _CoverageLine extends StatelessWidget {
+  final double coverage; // 0..1
+  const _CoverageLine({required this.coverage});
+
+  /// Map a 0..1 coverage ratio to a tone + descriptor copy.
+  ///
+  /// The thresholds mirror the existing [_buildAllTags] / hero
+  /// "Limited data" gate (`mappedCoverage < 0.3`) so the same product
+  /// reads consistently across surfaces.
+  ({Color tone, String label}) _tierFor(double c) {
+    if (c >= 0.7) {
+      return (
+        tone: AppTheme.scoreExcellent,
+        label: 'Most ingredients in our database — high-confidence score',
+      );
+    }
+    if (c >= 0.3) {
+      return (
+        tone: AppTheme.scoreFair,
+        label: 'Some ingredients aren\'t in our database — partial coverage',
+      );
+    }
+    return (
+      tone: AppTheme.insufficientData,
+      label: 'Limited data — only part of this product is in our database',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    // Clamp defensively; pipeline could ship a >1 ratio if someone
+    // miscounts mapped > total.
+    final clamped = coverage.clamp(0.0, 1.0);
+    final tier = _tierFor(clamped);
+    final pct = (clamped * 100).round();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space12,
+        vertical: AppTheme.space8,
+      ),
+      decoration: BoxDecoration(
+        color: tier.tone.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: tier.tone.withValues(alpha: 0.20),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Colored coverage dot — high-contrast cue, no icon noise.
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: tier.tone,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: AppTheme.space8),
+          // Coverage label — "Coverage" + percent (tabular figures so
+          // animating between values doesn't reflow the row).
+          Text(
+            'Coverage',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+              color: tier.tone,
+            ),
+          ),
+          const SizedBox(width: AppTheme.space8),
+          Text(
+            '$pct%',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: tier.tone,
+            ),
+          ),
+          const SizedBox(width: AppTheme.space12),
+          // Descriptor — flexes to fill the rest of the row, ellipsis
+          // truncates on very narrow screens (the dot+pct still convey
+          // the tier even if the label gets clipped).
+          Expanded(
+            child: Text(
+              tier.label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

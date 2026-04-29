@@ -493,6 +493,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       detailBlob?['section_breakdown'] as Map<String, dynamic>?,
                   hasThirdPartyTesting: _product?.hasThirdPartyTesting == 1,
                   isTrustedManufacturer: _product?.isTrustedManufacturer == 1,
+                  // T1.4 — hero continuity label + coverage line.
+                  // heroScore links Section 3 back to the Quality Score
+                  // ring in the hero (T1.1). mappedCoverage drives the
+                  // tier-tinted coverage line below the pillars.
+                  heroScore: score100,
+                  mappedCoverage: mappedCoverage,
                 ),
               ),
             ),
