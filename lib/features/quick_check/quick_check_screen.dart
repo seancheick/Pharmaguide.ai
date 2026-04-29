@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -126,6 +130,26 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
           _results = results;
           _checking = false;
         });
+        // Severity-gated haptic — fires after the result banner mounts so
+        // the user FEELS the verdict before reading it. Same pattern as
+        // home Sprint 27.20's verdict-flash for scanned products.
+        if (results.isNotEmpty) {
+          // Take the highest-severity interaction. Severity enum is ordered
+          // contraindicated (index 0) → safe (index 5), so the lowest index
+          // wins. comparator: r.severity.index < acc.index → pick r.
+          final worst = results.fold<Severity>(
+            Severity.safe,
+            (acc, r) => r.severity.index < acc.index ? r.severity : acc,
+          );
+          if (mounted) {
+            unawaited(PGHaptics.forSeverity(worst, context));
+          }
+        } else {
+          // Clean check — fire the gentle success haptic.
+          if (mounted) {
+            unawaited(PGHaptics.success(context));
+          }
+        }
       }
     } on UnimplementedError {
       // Provider stub not overridden (test environment).
@@ -142,113 +166,131 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
     final canCheck = _product1 != null && _product2 != null && !_checking;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Safe to Take Together?'),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppTheme.space20),
-          children: [
-            // Intro text
-            Text(
-              'Check if two supplements or medications interact '
-              'before you take them together.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppTheme.space20),
-
-            // Product 1 search
-            _ProductSearchField(
-              controller: _controller1,
-              label: 'First product',
-              selected: _product1,
-              suggestions: _suggestions1,
-              onChanged: _onQuery1Changed,
-              onSelect: _selectProduct1,
-              onClear: () => setState(() {
-                _product1 = null;
-                _controller1.clear();
-                _suggestions1 = const [];
-                _results = null;
-              }),
-            ),
-            const SizedBox(height: AppTheme.space16),
-
-            // Product 2 search
-            _ProductSearchField(
-              controller: _controller2,
-              label: 'Second product',
-              selected: _product2,
-              suggestions: _suggestions2,
-              onChanged: _onQuery2Changed,
-              onSelect: _selectProduct2,
-              onClear: () => setState(() {
-                _product2 = null;
-                _controller2.clear();
-                _suggestions2 = const [];
-                _results = null;
-              }),
-            ),
-            const SizedBox(height: AppTheme.space24),
-
-            // Check button
-            FilledButton.icon(
-              onPressed: canCheck ? _checkInteractions : null,
-              icon: _checking
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.health_and_safety_outlined),
-              label: Text(_checking ? 'Checking...' : 'Check Interactions'),
-            ),
-            const SizedBox(height: AppTheme.space24),
-
-            // Results — distinguish clean check vs error vs insufficient data
-            if (_checkError)
-              PGCard(
-                padding: const EdgeInsets.all(AppTheme.space20),
-                child: Column(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppTheme.severityAvoid, size: 48),
-                    const SizedBox(height: AppTheme.space12),
-                    Text('Interaction check unavailable',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: AppTheme.space8),
-                    Text('The interaction database could not be loaded. Please try again later.',
-                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                        textAlign: TextAlign.center),
-                  ],
-                ),
-              )
-            else if (_insufficientData)
-              PGCard(
-                padding: const EdgeInsets.all(AppTheme.space20),
-                child: Column(
-                  children: [
-                    const Icon(Icons.info_outline, color: AppTheme.severityCaution, size: 48),
-                    const SizedBox(height: AppTheme.space12),
-                    Text('Insufficient ingredient data',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: AppTheme.space8),
-                    Text('One or both products lack detailed ingredient data. '
-                        'We cannot reliably check for interactions.',
-                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                        textAlign: TextAlign.center),
-                  ],
-                ),
-              )
-            else if (_results != null)
-              _buildResults(theme, scheme),
-          ],
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
         ),
+        slivers: [
+          const PGFrostedAppBar(title: 'Safe to Take Together?'),
+          SliverPadding(
+            padding: const EdgeInsets.all(AppTheme.space20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // Intro text
+                Text(
+                  'Check if two supplements or medications interact '
+                  'before you take them together.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: AppTheme.space20),
+
+                // Product 1 search
+                _ProductSearchField(
+                  controller: _controller1,
+                  label: 'First product',
+                  selected: _product1,
+                  suggestions: _suggestions1,
+                  onChanged: _onQuery1Changed,
+                  onSelect: _selectProduct1,
+                  onClear: () => setState(() {
+                    _product1 = null;
+                    _controller1.clear();
+                    _suggestions1 = const [];
+                    _results = null;
+                  }),
+                ),
+                const SizedBox(height: AppTheme.space16),
+
+                // Product 2 search
+                _ProductSearchField(
+                  controller: _controller2,
+                  label: 'Second product',
+                  selected: _product2,
+                  suggestions: _suggestions2,
+                  onChanged: _onQuery2Changed,
+                  onSelect: _selectProduct2,
+                  onClear: () => setState(() {
+                    _product2 = null;
+                    _controller2.clear();
+                    _suggestions2 = const [];
+                    _results = null;
+                  }),
+                ),
+                const SizedBox(height: AppTheme.space24),
+
+                // Check button — wraps _checkInteractions with a press haptic
+                FilledButton.icon(
+                  onPressed: canCheck
+                      ? () {
+                          PGHaptics.press(context);
+                          _checkInteractions();
+                        }
+                      : null,
+                  icon: _checking
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.health_and_safety_outlined),
+                  label: Text(_checking ? 'Checking...' : 'Check Interactions'),
+                ),
+                const SizedBox(height: AppTheme.space24),
+
+                // Results — distinguish clean check vs error vs insufficient data
+                if (_checkError)
+                  PGCard(
+                    padding: const EdgeInsets.all(AppTheme.space20),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: AppTheme.severityAvoid, size: 48),
+                        const SizedBox(height: AppTheme.space12),
+                        Text('Interaction check unavailable',
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: AppTheme.space8),
+                        Text(
+                            'The interaction database could not be loaded. '
+                            'Please try again later.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                            textAlign: TextAlign.center),
+                      ],
+                    ),
+                  )
+                else if (_insufficientData)
+                  PGCard(
+                    padding: const EdgeInsets.all(AppTheme.space20),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.info_outline,
+                            color: AppTheme.severityCaution, size: 48),
+                        const SizedBox(height: AppTheme.space12),
+                        Text('Insufficient ingredient data',
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: AppTheme.space8),
+                        Text(
+                            'One or both products lack detailed ingredient '
+                            'data. We cannot reliably check for interactions.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                            textAlign: TextAlign.center),
+                      ],
+                    ),
+                  )
+                else if (_results != null)
+                  _buildResults(theme, scheme),
+              ]),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -394,34 +436,38 @@ class _ProductSearchField extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final product = suggestions[index];
-                return ListTile(
-                  key: ValueKey(product.dsldId),
-                  dense: true,
-                  title: Text(
-                    product.productName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  subtitle: product.brandName != null
-                      ? Text(
-                          product.brandName!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        )
-                      : null,
-                  trailing: product.score100Equivalent != null
-                      ? Text(
-                          '${product.score100Equivalent!.round()}',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        )
-                      : null,
+                return PGPressable(
                   onTap: () => onSelect(product),
+                  pressedScale: 0.97,
+                  child: ListTile(
+                    key: ValueKey(product.dsldId),
+                    dense: true,
+                    title: Text(
+                      product.productName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    subtitle: product.brandName != null
+                        ? Text(
+                            product.brandName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          )
+                        : null,
+                    trailing: product.score100Equivalent != null
+                        ? Text(
+                            '${product.score100Equivalent!.round()}',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : null,
+                    // onTap removed — PGPressable owns the gesture.
+                  ),
                 );
               },
             ),
