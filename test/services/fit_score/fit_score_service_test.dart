@@ -23,7 +23,6 @@ void main() {
       );
 
       final result = service.calculate(
-        scoreQuality80: 65.0,
         nutrients: const <Map<String, dynamic>>[],
         productClusters: const <String>[],
         interactionSummary: const <String, dynamic>{},
@@ -35,7 +34,6 @@ void main() {
       // E1: 0 (no nutrients), E2a: 0 (no clusters), E2b: 0 (no nutrients), E2c: 8.0 (no interactions)
       expect(result.e2c, 8.0);
       expect(result.scoreFit20, 8.0);
-      expect(result.scoreCombined100, 73.0); // (65 + 8) * 100 / 100
     });
 
     test('reports missing fields', () {
@@ -53,7 +51,6 @@ void main() {
       );
 
       final result = service.calculate(
-        scoreQuality80: 65.0,
         nutrients: const <Map<String, dynamic>>[],
         productClusters: const <String>[],
         interactionSummary: const <String, dynamic>{},
@@ -80,7 +77,6 @@ void main() {
 
       // No profile: max = 80 + 4 + 8 = 92 (E1 baseline mode, no E2a, no E2b)
       final empty = service.calculate(
-        scoreQuality80: 65.0,
         nutrients: const <Map<String, dynamic>>[],
         productClusters: const <String>[],
         interactionSummary: const <String, dynamic>{},
@@ -89,7 +85,6 @@ void main() {
 
       // Full profile: max = 80 + 7 + 2 + 3 + 8 = 100
       final full = service.calculate(
-        scoreQuality80: 65.0,
         nutrients: const <Map<String, dynamic>>[],
         productClusters: const <String>[],
         interactionSummary: const <String, dynamic>{},
@@ -109,7 +104,6 @@ void main() {
       );
 
       final partial = service.calculate(
-        scoreQuality80: 65.0,
         nutrients: const [],
         productClusters: const [],
         interactionSummary: const {},
@@ -136,7 +130,6 @@ void main() {
       );
 
       final result = service.calculate(
-        scoreQuality80: 70.0,
         nutrients: const [],
         productClusters: const [],
         productGoalMatches: const ['GOAL_SLEEP_QUALITY'],
@@ -161,7 +154,6 @@ void main() {
       );
 
       final result = service.calculate(
-        scoreQuality80: 70.0,
         nutrients: const [],
         productClusters: const [],
         interactionSummary: const {},

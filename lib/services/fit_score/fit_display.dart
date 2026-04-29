@@ -30,37 +30,32 @@ sealed class FitDisplay {
   const FitDisplay();
 }
 
-/// Score is in the strong band (≥85) and the product is safe-or-mild
-/// for this user. Render with the most prominent positive treatment.
+/// Fit fraction is in the strong band (≥0.85 of scoreFit20/20) and the
+/// product is safe-or-mild for this user. Render with the most prominent
+/// positive treatment. Tier label only — no number shown to the user.
 final class FitStrongMatch extends FitDisplay {
-  /// 0..100 combined fit-and-quality score, used for the "X/100"
-  /// visible on the pill.
-  final double score;
-  const FitStrongMatch({required this.score});
+  const FitStrongMatch();
 }
 
-/// Score is good (60..84) and product is safe-or-mild. Renders with
-/// neutral-positive treatment.
+/// Fit fraction is in the good band (0.60..0.84). Renders with
+/// neutral-positive treatment. Tier label only — no number shown.
 final class FitGoodMatch extends FitDisplay {
-  final double score;
-  const FitGoodMatch({required this.score});
+  const FitGoodMatch();
 }
 
-/// Score is in the middle band (35..59). Render with cautious-neutral
-/// treatment — the product is safe to take but the fit math doesn't
-/// support a strong recommendation.
+/// Fit fraction is in the middle band (0.35..0.59). Render with
+/// cautious-neutral treatment — the product is safe to take but the fit
+/// math doesn't support a strong recommendation. Tier label only.
 final class FitLimitedFit extends FitDisplay {
-  final double score;
-  const FitLimitedFit({required this.score});
+  const FitLimitedFit();
 }
 
-/// Score is below threshold (<35) even though the product itself is
-/// safe-or-mild. Render with concerned-neutral treatment ("Low fit —
-/// not recommended for your goals"). Distinct from [FitHidden]: here
-/// the product is fine, the fit is the issue.
+/// Fit fraction is below threshold (<0.35) even though the product itself
+/// is safe-or-mild. Render with concerned-neutral treatment. Distinct from
+/// [FitHidden]: here the product is fine, the fit is the issue.
+/// Tier label only — no number shown to the user.
 final class FitNotRecommended extends FitDisplay {
-  final double score;
-  const FitNotRecommended({required this.score});
+  const FitNotRecommended();
 }
 
 /// Severity is at the product-blocking tier (contraindicated / avoid).
@@ -84,15 +79,19 @@ final class FitIncomplete extends FitDisplay {
   const FitIncomplete();
 }
 
-/// Tier thresholds. Public so the UI can describe them in copy
-/// ("scores ≥85 are a strong match") without re-hardcoding.
+/// Tier thresholds expressed as fractions of scoreFit20 / 20.
+/// The number is intentionally NOT shown to the user — these only band
+/// the internal score into the four user-facing tier labels.
 abstract final class FitDisplayThresholds {
-  static const double strongMatch = 85;
-  static const double goodMatch = 60;
-  static const double limitedFit = 35;
+  /// Fit-percentage thresholds (scoreFit20 / 20).
+  /// Number is intentionally NOT shown to the user — these only band
+  /// the internal score into the four user-facing tiers.
+  static const double strongMatch = 0.85;
+  static const double goodMatch = 0.60;
+  static const double limitedFit = 0.35;
 }
 
-/// Decide the [FitDisplay] state for the Personal Fit pill.
+/// Decide the [FitDisplay] state for the For You section.
 ///
 /// Inputs:
 ///   * [verdict] — the worst-applicable severity affecting this
@@ -101,19 +100,20 @@ abstract final class FitDisplayThresholds {
 ///   * [fitResult] — the output of `FitScoreService.calculate(...)`.
 ///
 /// Decision order (highest priority first):
-///   1. Contraindicated / Avoid → [FitHidden]. Hides the fit pill
-///      regardless of the underlying score, even if the score is
-///      high. This is the core risk-gating rule.
+///   1. Contraindicated / Avoid → [FitHidden]. Hides the fit tier
+///      label regardless of the underlying score. This is the core
+///      risk-gating rule.
 ///   2. Profile incomplete → [FitIncomplete]. The math couldn't
-///      produce a useful fit number, so render the "complete your
+///      produce a meaningful result, so render the "complete your
 ///      profile" affordance instead.
-///   3. Otherwise band the [FitScoreResult.scoreCombined100] into
+///   3. Otherwise band the fit fraction (scoreFit20 / 20) into
 ///      Strong / Good / Limited / NotRecommended using the
-///      thresholds above.
+///      thresholds above. The number itself is never shown to
+///      the user — only the tier label is displayed.
 ///
 /// Caution / Monitor / Informational severities pass through the
-/// risk-gate untouched: they don't hide the fit pill — the alert is
-/// shown alongside it. (E.g. "Good match — 78/100 · ⚠ Caution: take
+/// risk-gate untouched: they don't hide the fit tier label — the
+/// alert is shown alongside it. (E.g. "Good match — ⚠ Caution: take
 /// 4h apart from levothyroxine".)
 ///
 /// Pure function — no I/O, no widget refs, no providers. Test by
@@ -124,32 +124,34 @@ FitDisplay computeFitDisplay({
 }) {
   // Step 1: risk-gate. Contraindicated and Avoid are the
   // product-blocking severities — fit is suppressed entirely so the
-  // user can't mis-read a high fit number as permission to take
+  // user can't mis-read a strong tier label as permission to take
   // something they shouldn't.
   if (verdict == Severity.contraindicated || verdict == Severity.avoid) {
     return FitHidden(verdict: verdict);
   }
 
   // Step 2: profile completeness. If the math couldn't run, the
-  // score number is meaningless and we redirect the user to the
+  // tier label is meaningless and we redirect the user to the
   // profile setup flow.
   if (fitResult.state == FitAssessmentState.incompleteProfile) {
     return const FitIncomplete();
   }
 
-  // Step 3: band by score. We band on `scoreCombined100` (PG quality
-  // × personal fit) rather than `scoreFit20` (raw fit) so the user
-  // sees a 0–100 number consistent with the product's quality score.
-  final score = fitResult.scoreCombined100;
+  // Step 3: band by fit fraction (scoreFit20 / 20). The number is
+  // internal-only — never shown to the user — but its banding drives
+  // the Strong/Good/Limited/NotRecommended tier label that IS shown.
+  // Banding on raw fit (not quality+fit combined) keeps Quality and
+  // Fit as separate axes: PG Score = product, Fit = profile-match.
+  final fitFraction = fitResult.scoreFit20 / 20.0;
 
-  if (score >= FitDisplayThresholds.strongMatch) {
-    return FitStrongMatch(score: score);
+  if (fitFraction >= FitDisplayThresholds.strongMatch) {
+    return const FitStrongMatch();
   }
-  if (score >= FitDisplayThresholds.goodMatch) {
-    return FitGoodMatch(score: score);
+  if (fitFraction >= FitDisplayThresholds.goodMatch) {
+    return const FitGoodMatch();
   }
-  if (score >= FitDisplayThresholds.limitedFit) {
-    return FitLimitedFit(score: score);
+  if (fitFraction >= FitDisplayThresholds.limitedFit) {
+    return const FitLimitedFit();
   }
-  return FitNotRecommended(score: score);
+  return const FitNotRecommended();
 }

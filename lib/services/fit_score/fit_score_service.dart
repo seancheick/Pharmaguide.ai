@@ -20,7 +20,6 @@ class FitScoreService {
   });
 
   FitScoreResult calculate({
-    required double scoreQuality80,
     required List<Map<String, dynamic>> nutrients,
     required List<String> productClusters,
     List<String> productGoalMatches = const [],
@@ -59,7 +58,6 @@ class FitScoreService {
     );
 
     final scoreFit20 = e1Score + e2aScore + e2bScore + e2cScore;
-    final scoreCombined100 = (scoreQuality80 + scoreFit20) * 100 / 100;
 
     final missingFields = <String>[];
     if (ageBracket == null) missingFields.add('age');
@@ -84,7 +82,6 @@ class FitScoreService {
 
     return FitScoreResult(
       scoreFit20: scoreFit20,
-      scoreCombined100: scoreCombined100,
       e1: e1Score,
       e2a: e2aScore,
       e2b: e2bScore,

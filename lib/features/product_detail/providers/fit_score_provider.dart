@@ -124,12 +124,6 @@ final fitScoreForProductProvider = FutureProvider.family
   }
   if (product == null) return null;
 
-  final quality80 = product.scoreQuality80;
-  if (quality80 == null) {
-    // Product has no core score — nothing for FitScore to adjust on top of.
-    return null;
-  }
-
   // Detail blob (for ingredients nutrients + interaction_summary)
   Map<String, dynamic>? blob;
   try {
@@ -145,7 +139,6 @@ final fitScoreForProductProvider = FutureProvider.family
   final productGoalMatches = _extractGoalMatches(product);
 
   return service.calculate(
-    scoreQuality80: quality80,
     nutrients: nutrients,
     productClusters: productClusters,
     productGoalMatches: productGoalMatches,

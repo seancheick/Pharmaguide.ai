@@ -18,7 +18,6 @@ import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 FitScoreResult _result(List<String> reasons) {
   return FitScoreResult(
     scoreFit20: 0,
-    scoreCombined100: 80,
     e1: 0,
     e2a: 0,
     e2b: 0,

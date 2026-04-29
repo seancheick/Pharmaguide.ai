@@ -8,7 +8,6 @@ enum FitAssessmentState {
 
 class FitScoreResult {
   final double scoreFit20;
-  final double scoreCombined100;
   final double e1;
   final double e2a;
   final double e2b;
@@ -22,7 +21,6 @@ class FitScoreResult {
 
   const FitScoreResult({
     required this.scoreFit20,
-    required this.scoreCombined100,
     required this.e1,
     required this.e2a,
     required this.e2b,

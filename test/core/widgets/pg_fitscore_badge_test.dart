@@ -21,7 +21,6 @@ void main() {
   }) {
     return FitScoreResult(
       scoreFit20: 0,
-      scoreCombined100: 75,
       e1: 0,
       e2a: 0,
       e2b: 0,

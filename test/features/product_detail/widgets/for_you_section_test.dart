@@ -10,14 +10,14 @@ import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 /// Test fixture builder — keeps every test's setup short.
+/// [scoreFit20] drives the tier banding (0..20); state defaults to goodFit.
 FitScoreResult _fit({
-  required double scoreCombined100,
+  required double scoreFit20,
   FitAssessmentState state = FitAssessmentState.goodFit,
   List<String> reasons = const [],
 }) {
   return FitScoreResult(
-    scoreFit20: 0,
-    scoreCombined100: scoreCombined100,
+    scoreFit20: scoreFit20,
     e1: 0,
     e2a: 0,
     e2b: 0,
@@ -127,7 +127,7 @@ void main() {
         await _pumpSection(
           tester,
           profile: const ProfileState(allergens: ['peanut']),
-          fitResult: _fit(scoreCombined100: 80),
+          fitResult: _fit(scoreFit20: 16),
           maxSeverity: Severity.safe,
         );
         // Empty-state CTA must NOT render.
@@ -147,13 +147,11 @@ void main() {
         await _pumpSection(
           tester,
           profile: const ProfileState(goals: ['sleep_quality']),
-          fitResult: _fit(scoreCombined100: 92),
+          fitResult: _fit(scoreFit20: 18.4),
           maxSeverity: Severity.safe,
           topGoalLabel: 'sleep',
         );
         expect(find.text('Strong match for your sleep goal'), findsOneWidget);
-        // FitScore pill IS present (fit number visible when not gated).
-        expect(find.textContaining('/100'), findsOneWidget);
       },
     );
 
@@ -164,13 +162,11 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreCombined100: 88),
+        fitResult: _fit(scoreFit20: 17.6),
         maxSeverity: Severity.avoid,
         topGoalLabel: 'sleep',
       );
       expect(find.text('Not recommended for your profile'), findsOneWidget);
-      // The fit pill must not be rendered — looking for a "/100" text.
-      expect(find.textContaining('/100'), findsNothing);
       // The headline must not name the goal — degrades to "your profile".
       expect(find.textContaining('sleep goal'), findsNothing);
     });
@@ -180,12 +176,11 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreCombined100: 95),
+        fitResult: _fit(scoreFit20: 19),
         maxSeverity: Severity.contraindicated,
         topGoalLabel: 'sleep',
       );
       expect(find.text('Not recommended for your profile'), findsOneWidget);
-      expect(find.textContaining('/100'), findsNothing);
     });
 
     testWidgets('Caution + fit 80 → "Good match for your profile" — fit shown',
@@ -194,12 +189,11 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreCombined100: 80),
+        fitResult: _fit(scoreFit20: 16),
         warnings: [_warning(severity: Severity.caution)],
         maxSeverity: Severity.caution,
       );
       expect(find.text('Good match for your profile'), findsOneWidget);
-      expect(find.textContaining('/100'), findsOneWidget);
       // Caution alert IS rendered.
       expect(find.text('CAUTION'), findsOneWidget);
     });
@@ -209,7 +203,7 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreCombined100: 35),
+        fitResult: _fit(scoreFit20: 7.0),
         maxSeverity: Severity.safe,
       );
       expect(find.text('Limited fit for your profile'), findsOneWidget);
@@ -223,12 +217,10 @@ void main() {
         await _pumpSection(
           tester,
           profile: const ProfileState(goals: ['sleep_quality']),
-          fitResult: _fit(scoreCombined100: 25),
+          fitResult: _fit(scoreFit20: 5),
           maxSeverity: Severity.safe,
         );
         expect(find.text('Not recommended for your profile'), findsOneWidget);
-        // No /100 — NotRecommended doesn't show the score pill.
-        expect(find.textContaining('/100'), findsNothing);
       },
     );
 
@@ -253,7 +245,7 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(drugClasses: ['anticoagulants']),
-        fitResult: _fit(scoreCombined100: 70),
+        fitResult: _fit(scoreFit20: 14),
         warnings: [
           _warning(
             severity: Severity.caution,
@@ -292,7 +284,7 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(drugClasses: ['anticoagulants']),
-        fitResult: _fit(scoreCombined100: 70),
+        fitResult: _fit(scoreFit20: 14),
         warnings: [
           _warning(severity: Severity.monitor, alertHeadline: 'Monitor row'),
           _warning(severity: Severity.informational, alertHeadline: 'Info row'),
@@ -312,7 +304,7 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreCombined100: 90),
+        fitResult: _fit(scoreFit20: 18),
         warnings: const [],
         maxSeverity: Severity.safe,
       );
@@ -331,7 +323,7 @@ void main() {
           tester,
           profile: const ProfileState(goals: ['sleep_quality']),
           fitResult: _fit(
-            scoreCombined100: 88,
+            scoreFit20: 17.6,
             reasons: const [
               'Matches your sleep_quality goal',
               'Effective magnesium dose for sleep',
@@ -356,7 +348,7 @@ void main() {
           tester,
           profile: const ProfileState(goals: ['sleep_quality']),
           fitResult: _fit(
-            scoreCombined100: 88,
+            scoreFit20: 17.6,
             reasons: const [
               'Reason one',
               'Reason two',
@@ -382,7 +374,7 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreCombined100: 90, reasons: const []),
+        fitResult: _fit(scoreFit20: 18, reasons: const []),
         maxSeverity: Severity.safe,
       );
       expect(find.text('Why this fits you'), findsNothing);
@@ -400,7 +392,7 @@ void main() {
             conditions: ['hypertension'],
             drugClasses: ['anticoagulants'],
           ),
-          fitResult: _fit(scoreCombined100: 80),
+          fitResult: _fit(scoreFit20: 16),
           maxSeverity: Severity.safe,
         );
         // snake_case → "Snake Case" humanizer.
@@ -422,7 +414,7 @@ void main() {
             conditions: ['c_one', 'c_two'],
             drugClasses: ['d_one', 'd_two'],
           ),
-          fitResult: _fit(scoreCombined100: 80),
+          fitResult: _fit(scoreFit20: 16),
           maxSeverity: Severity.safe,
         );
         // Cap is 4: 2 goals + 2 conditions = 4. d_one / d_two should

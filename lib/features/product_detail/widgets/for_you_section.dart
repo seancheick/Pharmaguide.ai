@@ -310,20 +310,6 @@ class _VerdictRow extends StatelessWidget {
             ),
           ),
         ),
-        if (display is FitStrongMatch ||
-            display is FitGoodMatch ||
-            display is FitLimitedFit) ...[
-          const SizedBox(width: AppTheme.space8),
-          _FitScorePill(
-            score: switch (display) {
-              FitStrongMatch(:final score) => score,
-              FitGoodMatch(:final score) => score,
-              FitLimitedFit(:final score) => score,
-              _ => 0,
-            },
-            tone: tone,
-          ),
-        ],
       ],
     );
   }
@@ -366,33 +352,6 @@ class _VerdictRow extends StatelessWidget {
           AppTheme.insufficientData,
         ),
     };
-  }
-}
-
-class _FitScorePill extends StatelessWidget {
-  final double score;
-  final Color tone;
-  const _FitScorePill({required this.score, required this.tone});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-      ),
-      child: Text(
-        '${score.round()}/100',
-        style: TextStyle(
-          color: tone,
-          fontFeatures: const [FontFeature.tabularFigures()],
-          fontWeight: FontWeight.w800,
-          fontSize: 13,
-          letterSpacing: -0.2,
-        ),
-      ),
-    );
   }
 }
 

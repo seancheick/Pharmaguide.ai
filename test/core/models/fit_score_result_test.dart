@@ -6,7 +6,6 @@ void main() {
     test('displayText with complete profile', () {
       const result = FitScoreResult(
         scoreFit20: 15.0,
-        scoreCombined100: 85.0,
         e1: 5.0,
         e2a: 2.0,
         e2b: 3.0,
@@ -21,7 +20,6 @@ void main() {
     test('displayText with missing fields', () {
       const result = FitScoreResult(
         scoreFit20: 8.0,
-        scoreCombined100: 73.0,
         e1: 5.0,
         e2a: 0.0,
         e2b: 3.0,
