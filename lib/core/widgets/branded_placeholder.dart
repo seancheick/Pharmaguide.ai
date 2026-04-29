@@ -14,6 +14,14 @@ class BrandedPlaceholder extends StatelessWidget {
   final double? score;
   final double size;
 
+  /// When true, force the simple colored-square-with-initial layout
+  /// regardless of [size]. Use this for hero contexts where the
+  /// placeholder must fit cleanly into a 1:1 box at large sizes —
+  /// the default multi-row "full card" layout is sized to fit
+  /// list-item dimensions and overflows by ~2px when stretched
+  /// to hero proportions (96pt+) due to its inner Column metrics.
+  final bool compact;
+
   const BrandedPlaceholder({
     super.key,
     required this.productName,
@@ -21,6 +29,7 @@ class BrandedPlaceholder extends StatelessWidget {
     this.formFactor,
     this.score,
     this.size = 52,
+    this.compact = false,
   });
 
   /// Derives a stable hue from the brand name so the same brand always
@@ -54,8 +63,9 @@ class BrandedPlaceholder extends StatelessWidget {
             ? Colors.white
             : Colors.black;
 
-    // Compact mode — just the colored square with initial (for list items)
-    if (size <= 56) {
+    // Compact mode — just the colored square with initial (for list
+    // items, OR when the caller forces it via [compact] for hero use).
+    if (compact || size <= 56) {
       return Container(
         width: size,
         height: size,
