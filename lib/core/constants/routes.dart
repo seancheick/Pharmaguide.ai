@@ -18,4 +18,10 @@ abstract final class Routes {
 
   /// "Safe to Take Together?" quick pair interaction check.
   static const quickCheck = '/quick-check';
+
+  /// Brand-reveal splash intro played between the native splash and
+  /// the app's first content screen. The destination route after the
+  /// animation is passed as the `next` query parameter (e.g.
+  /// `/splash?next=/home`).
+  static const splashIntro = '/splash';
 }

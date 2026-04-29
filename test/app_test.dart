@@ -17,8 +17,22 @@ void main() {
         coreDatabaseProvider.overrideWithValue(coreDb),
         userDatabaseProvider.overrideWithValue(userDb),
       ],
-      child: const PharmaGuideApp(),
+      // hasSeenOnboarding: true so splash ?next=/ → home shell.
+      child: const PharmaGuideApp(hasSeenOnboarding: true),
     );
+  }
+
+  /// Pump past the 600ms animated splash so the shell (nav bar, tabs) is
+  /// visible. Tests that interact with tabs must call this helper first.
+  ///
+  /// Uses explicit time-step pumps (not pumpAndSettle) because HomeScreen
+  /// may contain widgets that keep animations active indefinitely, which
+  /// would cause pumpAndSettle to time out.
+  Future<void> pumpPastSplash(WidgetTester tester) async {
+    await tester.pump(); // initial frame
+    await tester.pump(const Duration(milliseconds: 650)); // past 600ms ctrl.forward()
+    await tester.pump(); // process the GoRouter.go() navigation
+    await tester.pump(const Duration(milliseconds: 100)); // settle first shell frame
   }
 
   testWidgets('App renders with 5 navigation tabs', (tester) async {
@@ -26,8 +40,7 @@ void main() {
     final userDb = UserDatabase.memory();
 
     await tester.pumpWidget(buildApp(coreDb, userDb));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await pumpPastSplash(tester);
 
     // Verify 5 navigation destinations exist
     expect(find.byType(NavigationDestination), findsNWidgets(5));
@@ -48,8 +61,7 @@ void main() {
     final userDb = UserDatabase.memory();
 
     await tester.pumpWidget(buildApp(coreDb, userDb));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await pumpPastSplash(tester);
 
     // Home screen content should be visible
     expect(find.text('Home'), findsWidgets); // nav + screen title
@@ -64,8 +76,7 @@ void main() {
     final userDb = UserDatabase.memory();
 
     await tester.pumpWidget(buildApp(coreDb, userDb));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await pumpPastSplash(tester);
 
     await tester.tap(find.text('Scan'));
     await tester.pump();
@@ -83,8 +94,7 @@ void main() {
     final userDb = UserDatabase.memory();
 
     await tester.pumpWidget(buildApp(coreDb, userDb));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await pumpPastSplash(tester);
 
     await tester.tap(find.text('Stack'));
     await tester.pump();
@@ -103,8 +113,7 @@ void main() {
     final userDb = UserDatabase.memory();
 
     await tester.pumpWidget(buildApp(coreDb, userDb));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await pumpPastSplash(tester);
 
     await tester.tap(find.text('Profile'));
     await tester.pump();

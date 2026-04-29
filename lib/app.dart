@@ -14,6 +14,7 @@ import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
+import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
@@ -132,7 +133,8 @@ GoRouter _buildRouter({
     // Fresh installs start at onboarding; returning users go straight to
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.
-    initialLocation: hasSeenOnboarding ? Routes.home : Routes.onboarding,
+    initialLocation: '${Routes.splashIntro}?next='
+        '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}',
     routes: [
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
@@ -158,6 +160,13 @@ GoRouter _buildRouter({
       // iOS swipe-back-from-edge (Apple HIG default for stack navigation).
       // Onboarding intentionally stays Material — it's a linear flow and
       // swipe-back would let users escape it before completing.
+      GoRoute(
+        path: Routes.splashIntro,
+        builder: (_, state) {
+          final next = state.uri.queryParameters['next'] ?? Routes.home;
+          return AnimatedSplashScreen(nextRoute: next);
+        },
+      ),
       GoRoute(
         path: Routes.onboarding,
         builder: (_, __) => const OnboardingScreen(),
