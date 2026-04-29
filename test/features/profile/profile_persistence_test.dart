@@ -25,7 +25,10 @@ void main() {
         allergens: ['ALLERGEN_SOY', 'ALLERGEN_GLUTEN'],
       );
       final companion = state.toCompanion();
-      expect(companion.goals.value, '["GOAL_SLEEP_QUALITY","GOAL_INCREASE_ENERGY"]');
+      expect(
+        companion.goals.value,
+        '["GOAL_SLEEP_QUALITY","GOAL_INCREASE_ENERGY"]',
+      );
       expect(companion.conditions.value, '["diabetes","hypertension"]');
       expect(companion.drugClasses.value, '["statins"]');
       expect(companion.allergens.value, '["ALLERGEN_SOY","ALLERGEN_GLUTEN"]');

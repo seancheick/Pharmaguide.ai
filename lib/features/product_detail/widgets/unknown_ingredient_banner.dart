@@ -8,10 +8,7 @@ import 'package:pharmaguide/core/constants/app_colors.dart';
 class UnknownIngredientBanner extends StatelessWidget {
   final double mappedCoverage;
 
-  const UnknownIngredientBanner({
-    super.key,
-    required this.mappedCoverage,
-  });
+  const UnknownIngredientBanner({super.key, required this.mappedCoverage});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +16,9 @@ class UnknownIngredientBanner extends StatelessWidget {
 
     final isLowCoverage = mappedCoverage < 0.3;
     final color = isLowCoverage ? AppColors.red : AppColors.orange;
-    final icon = isLowCoverage ? Icons.warning_amber_rounded : Icons.info_outline;
+    final icon = isLowCoverage
+        ? Icons.warning_amber_rounded
+        : Icons.info_outline;
     final message = isLowCoverage
         ? 'Limited data available. Use with caution.'
         : 'Some ingredients could not be fully verified.';

@@ -46,20 +46,23 @@ class FormulationDetailSection extends StatelessWidget {
 
     final deliveryForm = formulationDetail!['delivery_form']?.toString() ?? '';
     final deliveryTier = formulationDetail!['delivery_tier']?.toString() ?? '';
-    final enhancers =
-        extractIngredientNames(formulationDetail!['absorption_enhancers']);
-    final botanicals =
-        extractIngredientNames(formulationDetail!['standardized_botanicals']);
+    final enhancers = extractIngredientNames(
+      formulationDetail!['absorption_enhancers'],
+    );
+    final botanicals = extractIngredientNames(
+      formulationDetail!['standardized_botanicals'],
+    );
     // `demoted_absorption_enhancers` is a list of {name, quantity, unit}
     // records; `safeList` returns const [] on any non-list shape, then we
     // filter to maps only via `whereType` before constructing the value
     // object.
-    final demotedEnhancers = (ingredientQualityData ?? const <String, dynamic>{})
-        .safeList('demoted_absorption_enhancers')
-        .whereType<Map<dynamic, dynamic>>()
-        .map((raw) => _BioavailabilityAid.fromMap(raw))
-        .where((aid) => aid.label.isNotEmpty)
-        .toList(growable: false);
+    final demotedEnhancers =
+        (ingredientQualityData ?? const <String, dynamic>{})
+            .safeList('demoted_absorption_enhancers')
+            .whereType<Map<dynamic, dynamic>>()
+            .map((raw) => _BioavailabilityAid.fromMap(raw))
+            .where((aid) => aid.label.isNotEmpty)
+            .toList(growable: false);
 
     if (deliveryForm.isEmpty &&
         enhancers.isEmpty &&
@@ -106,26 +109,31 @@ class FormulationDetailSection extends StatelessWidget {
               spacing: 6,
               runSpacing: 4,
               children: enhancers
-                  .map((e) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppTheme.severitySafe.withValues(alpha: 0.08),
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusFull),
-                          border: Border.all(
-                            color: AppTheme.severitySafe.withValues(alpha: 0.3),
-                          ),
+                  .map(
+                    (e) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.severitySafe.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusFull,
                         ),
-                        child: Text(
-                          e,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.severitySafe,
-                          ),
+                        border: Border.all(
+                          color: AppTheme.severitySafe.withValues(alpha: 0.3),
                         ),
-                      ))
+                      ),
+                      child: Text(
+                        e,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.severitySafe,
+                        ),
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -136,10 +144,7 @@ class FormulationDetailSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(
-                  color: scheme.outlineVariant,
-                  width: 0.6,
-                ),
+                border: Border.all(color: scheme.outlineVariant, width: 0.6),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,30 +169,32 @@ class FormulationDetailSection extends StatelessWidget {
                     spacing: 6,
                     runSpacing: 4,
                     children: demotedEnhancers
-                        .map((aid) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
+                        .map(
+                          (aid) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.surface,
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusFull,
                               ),
-                              decoration: BoxDecoration(
-                                color: scheme.surface,
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusFull,
-                                ),
-                                border: Border.all(
-                                  color: scheme.outlineVariant,
-                                  width: 0.8,
-                                ),
+                              border: Border.all(
+                                color: scheme.outlineVariant,
+                                width: 0.8,
                               ),
-                              child: Text(
-                                aid.label,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                            ),
+                            child: Text(
+                              aid.label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: scheme.onSurfaceVariant,
                               ),
-                            ))
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ],
@@ -203,19 +210,23 @@ class FormulationDetailSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppTheme.space4),
-            ...botanicals.map((b) => Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Row(
-                    children: [
-                      Icon(Icons.eco_outlined,
-                          size: 13, color: scheme.primary),
-                      const SizedBox(width: AppTheme.space6),
-                      Text(b,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                )),
+            ...botanicals.map(
+              (b) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  children: [
+                    Icon(Icons.eco_outlined, size: 13, color: scheme.primary),
+                    const SizedBox(width: AppTheme.space6),
+                    Text(
+                      b,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -235,8 +246,8 @@ class _BioavailabilityAid {
 
     final quantityLabel = quantity is num
         ? unit.isEmpty
-            ? quantity.toString()
-            : '${quantity.toString()} $unit'
+              ? quantity.toString()
+              : '${quantity.toString()} $unit'
         : '';
     final label = quantityLabel.isEmpty ? name : '$name $quantityLabel';
     return _BioavailabilityAid(label);

@@ -18,8 +18,11 @@ class BlendWarningBanner extends StatelessWidget {
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.visibility_off_outlined,
-              color: AppColors.orange, size: 18),
+          Icon(
+            Icons.visibility_off_outlined,
+            color: AppColors.orange,
+            size: 18,
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Text(

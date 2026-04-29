@@ -21,19 +21,14 @@ void main() {
       // Disable animations so the ring renders at its final state
       // deterministically. Real animation is covered by widget tests.
       builder: (context, widgetChild) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          disableAnimations: true,
-          textScaler: TextScaler.noScaling,
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(disableAnimations: true, textScaler: TextScaler.noScaling),
         child: widgetChild!,
       ),
       home: Scaffold(
         body: Center(
-          child: SizedBox(
-            width: 120,
-            height: 120,
-            child: Center(child: child),
-          ),
+          child: SizedBox(width: 120, height: 120, child: Center(child: child)),
         ),
       ),
     );
@@ -41,9 +36,9 @@ void main() {
 
   group('PGScoreRing golden — light mode', () {
     testWidgets('exceptional tier (score 95)', (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 95, label: 'score', size: 96),
-      ));
+      await tester.pumpWidget(
+        wrap(const PGScoreRing(score: 95, label: 'score', size: 96)),
+      );
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(PGScoreRing),
@@ -52,9 +47,9 @@ void main() {
     });
 
     testWidgets('excellent tier (score 78)', (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 78, label: 'score', size: 96),
-      ));
+      await tester.pumpWidget(
+        wrap(const PGScoreRing(score: 78, label: 'score', size: 96)),
+      );
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(PGScoreRing),
@@ -63,9 +58,9 @@ void main() {
     });
 
     testWidgets('good tier (score 62)', (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 62, label: 'score', size: 96),
-      ));
+      await tester.pumpWidget(
+        wrap(const PGScoreRing(score: 62, label: 'score', size: 96)),
+      );
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(PGScoreRing),
@@ -74,9 +69,9 @@ void main() {
     });
 
     testWidgets('fair tier (score 48)', (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 48, label: 'score', size: 96),
-      ));
+      await tester.pumpWidget(
+        wrap(const PGScoreRing(score: 48, label: 'score', size: 96)),
+      );
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(PGScoreRing),
@@ -85,9 +80,9 @@ void main() {
     });
 
     testWidgets('below average tier (score 32)', (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 32, label: 'score', size: 96),
-      ));
+      await tester.pumpWidget(
+        wrap(const PGScoreRing(score: 32, label: 'score', size: 96)),
+      );
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(PGScoreRing),
@@ -96,9 +91,9 @@ void main() {
     });
 
     testWidgets('poor tier (score 18)', (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 18, label: 'score', size: 96),
-      ));
+      await tester.pumpWidget(
+        wrap(const PGScoreRing(score: 18, label: 'score', size: 96)),
+      );
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(PGScoreRing),
@@ -107,9 +102,9 @@ void main() {
     });
 
     testWidgets('insufficient data (score null)', (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: null, label: 'no data', size: 96),
-      ));
+      await tester.pumpWidget(
+        wrap(const PGScoreRing(score: null, label: 'no data', size: 96)),
+      );
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(PGScoreRing),
@@ -119,12 +114,9 @@ void main() {
   });
 
   group('PGScoreRing behavior', () {
-    testWidgets('renders Semantics label with score and tier',
-        (tester) async {
+    testWidgets('renders Semantics label with score and tier', (tester) async {
       // 87 is in the exceptional tier (≥85 per PGScoreRing._colorFor).
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 87, size: 96),
-      ));
+      await tester.pumpWidget(wrap(const PGScoreRing(score: 87, size: 96)));
       await tester.pumpAndSettle();
 
       expect(
@@ -133,11 +125,10 @@ void main() {
       );
     });
 
-    testWidgets('renders Semantics label for insufficient data',
-        (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: null, size: 96),
-      ));
+    testWidgets('renders Semantics label for insufficient data', (
+      tester,
+    ) async {
+      await tester.pumpWidget(wrap(const PGScoreRing(score: null, size: 96)));
       await tester.pumpAndSettle();
 
       expect(
@@ -148,14 +139,11 @@ void main() {
       );
     });
 
-    testWidgets('respects disableAnimations (reduce motion)',
-        (tester) async {
+    testWidgets('respects disableAnimations (reduce motion)', (tester) async {
       // With disableAnimations: true, the ring should jump to final
       // progress immediately — we verify by checking that the score
       // number is already at its final value without pumping frames.
-      await tester.pumpWidget(wrap(
-        const PGScoreRing(score: 85, size: 96),
-      ));
+      await tester.pumpWidget(wrap(const PGScoreRing(score: 85, size: 96)));
       // Single pump, no settle — if animation was running, the score
       // would still be 0 here. disableAnimations forces the final value.
       await tester.pump();

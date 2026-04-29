@@ -54,16 +54,10 @@ class SynergyReport {
 
   bool get isEmpty => matches.isEmpty;
 
-  SynergyReport({
-    required this.matches,
-    required this.totalBonusPoints,
-  });
+  SynergyReport({required this.matches, required this.totalBonusPoints});
 
   factory SynergyReport.empty() {
-    return SynergyReport(
-      matches: const [],
-      totalBonusPoints: 0,
-    );
+    return SynergyReport(matches: const [], totalBonusPoints: 0);
   }
 
   /// Synergies sorted by evidence tier (strong first) then bonus points (high first)

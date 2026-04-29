@@ -40,10 +40,9 @@ class ProductImage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final imageAsync = ref.watch(_productImageProvider((
-      dsldId: dsldId,
-      upc: upc,
-    )));
+    final imageAsync = ref.watch(
+      _productImageProvider((dsldId: dsldId, upc: upc)),
+    );
 
     // Build placeholder once per frame — avoids allocating on every
     // .when() branch and CachedNetworkImage callback.
@@ -83,6 +82,6 @@ typedef _ImageParams = ({String dsldId, String? upc});
 /// Resolves product image URL via cache → OFF API → null.
 final _productImageProvider = FutureProvider.family
     .autoDispose<String?, _ImageParams>((ref, params) async {
-  final resolver = ref.read(productImageResolverProvider);
-  return resolver.resolve(params.dsldId, params.upc);
-});
+      final resolver = ref.read(productImageResolverProvider);
+      return resolver.resolve(params.dsldId, params.upc);
+    });

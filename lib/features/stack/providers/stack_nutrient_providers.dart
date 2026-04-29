@@ -34,8 +34,9 @@ final detailBlobServiceProvider = Provider<DetailBlobService>((ref) {
 /// Singleton reference-data repository that caches JSON asset loads.
 /// Kept as a Provider so the cache persists for the app's lifetime —
 /// rda_optimal_uls.json is small and the cache hit rate is ~100%.
-final referenceDataRepositoryProvider =
-    Provider<ReferenceDataRepository>((ref) {
+final referenceDataRepositoryProvider = Provider<ReferenceDataRepository>((
+  ref,
+) {
   return ReferenceDataRepository();
 });
 
@@ -44,38 +45,38 @@ final referenceDataRepositoryProvider =
 /// reuse the same cache-first lookup.
 final _detailBlobByDsldIdProvider =
     FutureProvider.family<Map<String, dynamic>?, String>((ref, dsldId) async {
-  final userDb = ref.watch(userDatabaseProvider);
-  final service = ref.watch(detailBlobServiceProvider);
+      final userDb = ref.watch(userDatabaseProvider);
+      final service = ref.watch(detailBlobServiceProvider);
 
-  // Cache-first: check local store, honour 24-hour TTL.
-  const cacheTtl = Duration(hours: 24);
-  final cached = await userDb.getCachedDetail(dsldId);
-  if (cached != null) {
-    final age = DateTime.now().difference(cached.cachedAt);
-    if (age < cacheTtl) {
-      try {
-        final decoded = jsonDecode(cached.blobJson);
-        if (decoded is Map<String, dynamic>) return decoded;
-        if (decoded is Map) return Map<String, dynamic>.from(decoded);
-        // Decoded to an unexpected shape — fall through to network.
-      } on FormatException {
-        // Corrupt cache entry — fall through to network fetch.
+      // Cache-first: check local store, honour 24-hour TTL.
+      const cacheTtl = Duration(hours: 24);
+      final cached = await userDb.getCachedDetail(dsldId);
+      if (cached != null) {
+        final age = DateTime.now().difference(cached.cachedAt);
+        if (age < cacheTtl) {
+          try {
+            final decoded = jsonDecode(cached.blobJson);
+            if (decoded is Map<String, dynamic>) return decoded;
+            if (decoded is Map) return Map<String, dynamic>.from(decoded);
+            // Decoded to an unexpected shape — fall through to network.
+          } on FormatException {
+            // Corrupt cache entry — fall through to network fetch.
+          }
+        }
       }
-    }
-  }
 
-  // Cache miss or stale — fetch from Supabase by SHA-256 hash.
-  final coreDb = ref.watch(coreDatabaseProvider);
-  final product = await coreDb.findById(dsldId);
-  final sha256 = product?.detailBlobSha256;
-  if (sha256 == null || sha256.isEmpty) return null;
+      // Cache miss or stale — fetch from Supabase by SHA-256 hash.
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final product = await coreDb.findById(dsldId);
+      final sha256 = product?.detailBlobSha256;
+      if (sha256 == null || sha256.isEmpty) return null;
 
-  final blob = await service.fetchDetailBlobByHash(sha256);
-  if (blob != null) {
-    await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
-  }
-  return blob;
-});
+      final blob = await service.fetchDetailBlobByHash(sha256);
+      if (blob != null) {
+        await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
+      }
+      return blob;
+    });
 
 /// The primary M1 provider. Returns a list of [NutrientStatus]
 /// classifications for every nutrient present in the user's stack.
@@ -88,8 +89,9 @@ final _detailBlobByDsldIdProvider =
 /// detail blobs cannot be fetched are silently skipped — M1 is a
 /// best-effort safety surface, not a hard gate. If every blob fails to
 /// load the result is still an empty list with no thrown error.
-final stackNutrientStatusesProvider =
-    FutureProvider<List<NutrientStatus>>((ref) async {
+final stackNutrientStatusesProvider = FutureProvider<List<NutrientStatus>>((
+  ref,
+) async {
   final userDb = ref.watch(userDatabaseProvider);
   final coreDb = ref.watch(coreDatabaseProvider);
   final refRepo = ref.watch(referenceDataRepositoryProvider);
@@ -131,11 +133,13 @@ final stackNutrientStatusesProvider =
     final ingredients = _readIngredientsList(blob);
     if (ingredients.isEmpty) continue;
 
-    items.add(StackItemNutrients(
-      stackEntryId: entry.id,
-      productName: entry.name,
-      ingredients: ingredients,
-    ));
+    items.add(
+      StackItemNutrients(
+        stackEntryId: entry.id,
+        productName: entry.name,
+        ingredients: ingredients,
+      ),
+    );
   }
 
   if (items.isEmpty) {
@@ -174,17 +178,13 @@ final stackNutrientStatusesProvider =
 List<Map<String, dynamic>> _readIngredientsList(Map<String, dynamic> blob) {
   final direct = blob['ingredients'];
   if (direct is List) {
-    return direct
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
+    return direct.whereType<Map<String, dynamic>>().toList(growable: false);
   }
   final iqd = blob['ingredient_quality_data'];
   if (iqd is Map<String, dynamic>) {
     final nested = iqd['ingredients'] ?? iqd['ingredients_scorable'];
     if (nested is List) {
-      return nested
-          .whereType<Map<String, dynamic>>()
-          .toList(growable: false);
+      return nested.whereType<Map<String, dynamic>>().toList(growable: false);
     }
   }
   return const <Map<String, dynamic>>[];

@@ -34,9 +34,7 @@ void main() {
         userDatabaseProvider.overrideWithValue(userDb),
       ],
       child: MaterialApp(
-        home: Scaffold(
-          appBar: AppBar(actions: [child]),
-        ),
+        home: Scaffold(appBar: AppBar(actions: [child])),
       ),
     );
   }
@@ -45,11 +43,9 @@ void main() {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
 
-    await tester.pumpWidget(wrap(
-      const ShareClinicianReportButton(),
-      coreDb: coreDb,
-      userDb: userDb,
-    ));
+    await tester.pumpWidget(
+      wrap(const ShareClinicianReportButton(), coreDb: coreDb, userDb: userDb),
+    );
     await tester.pump();
 
     expect(find.byType(IconButton), findsOneWidget);
@@ -61,8 +57,7 @@ void main() {
     await userDb.close();
   });
 
-  testWidgets(
-      'tap completes without throwing and either reaches the share '
+  testWidgets('tap completes without throwing and either reaches the share '
       'service or surfaces the failure snackbar — never hangs', (tester) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
@@ -74,11 +69,13 @@ void main() {
       },
     );
 
-    await tester.pumpWidget(wrap(
-      ShareClinicianReportButton(shareService: fakeShareService),
-      coreDb: coreDb,
-      userDb: userDb,
-    ));
+    await tester.pumpWidget(
+      wrap(
+        ShareClinicianReportButton(shareService: fakeShareService),
+        coreDb: coreDb,
+        userDb: userDb,
+      ),
+    );
     await tester.pump();
 
     await tester.tap(find.byTooltip('Share with clinician'));
@@ -98,17 +95,23 @@ void main() {
         .evaluate()
         .isNotEmpty;
 
-    expect(shareReached || snackbarShown, isTrue,
-        reason: 'tap must result in ONE of: share-service invocation '
-            'OR a user-visible failure snackbar — silent hang is the '
-            'one outcome we forbid');
+    expect(
+      shareReached || snackbarShown,
+      isTrue,
+      reason:
+          'tap must result in ONE of: share-service invocation '
+          'OR a user-visible failure snackbar — silent hang is the '
+          'one outcome we forbid',
+    );
 
     if (shareReached) {
       // When the empty-stack codepath did succeed end-to-end, the
       // captured payload should be the builder output (not a
       // placeholder).
-      expect(capturedMarkdown!,
-          contains('# My Supplement Stack — Clinician Summary'));
+      expect(
+        capturedMarkdown!,
+        contains('# My Supplement Stack — Clinician Summary'),
+      );
       expect(capturedMarkdown!, contains('Generated on device'));
       expect(capturedMarkdown!, contains('not medical advice'));
     }

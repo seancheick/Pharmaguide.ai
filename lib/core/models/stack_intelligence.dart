@@ -18,13 +18,13 @@ enum StackTier {
   /// Matching [StackHealthLabel] for the five user-facing tiers, or
   /// `null` when this is the internal `incomplete` fallback.
   StackHealthLabel? get healthLabel => switch (this) {
-        StackTier.optimized => StackHealthLabel.optimized,
-        StackTier.solid => StackHealthLabel.solid,
-        StackTier.decent => StackHealthLabel.decent,
-        StackTier.concerning => StackHealthLabel.concerning,
-        StackTier.unsafe => StackHealthLabel.unsafe,
-        StackTier.incomplete => null,
-      };
+    StackTier.optimized => StackHealthLabel.optimized,
+    StackTier.solid => StackHealthLabel.solid,
+    StackTier.decent => StackHealthLabel.decent,
+    StackTier.concerning => StackHealthLabel.concerning,
+    StackTier.unsafe => StackHealthLabel.unsafe,
+    StackTier.incomplete => null,
+  };
 }
 
 /// One actionable issue surfaced in the diagnosis. [severity] reuses the
@@ -34,10 +34,7 @@ class StackIssue {
   final Severity severity;
   final String headline;
 
-  const StackIssue({
-    required this.severity,
-    required this.headline,
-  });
+  const StackIssue({required this.severity, required this.headline});
 }
 
 /// Diagnostic output of `StackIntelligenceEngine` (B2). The model itself

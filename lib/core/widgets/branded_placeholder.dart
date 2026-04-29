@@ -42,14 +42,14 @@ class BrandedPlaceholder extends StatelessWidget {
   }
 
   IconData _formIcon() => switch (formFactor?.toLowerCase()) {
-        'capsule' => Icons.medication_outlined,
-        'softgel' => Icons.circle_outlined,
-        'tablet' => Icons.crop_square_rounded,
-        'gummy' => Icons.favorite_outline,
-        'powder' => Icons.grain,
-        'liquid' => Icons.water_drop_outlined,
-        _ => Icons.medication_outlined,
-      };
+    'capsule' => Icons.medication_outlined,
+    'softgel' => Icons.circle_outlined,
+    'tablet' => Icons.crop_square_rounded,
+    'gummy' => Icons.favorite_outline,
+    'powder' => Icons.grain,
+    'liquid' => Icons.water_drop_outlined,
+    _ => Icons.medication_outlined,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -60,8 +60,8 @@ class BrandedPlaceholder extends StatelessWidget {
     // has L=0.45 (dark) but we derive dynamically so it adapts if that changes.
     final onBrand =
         ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-            ? Colors.white
-            : Colors.black;
+        ? Colors.white
+        : Colors.black;
 
     // Compact mode — just the colored square with initial (for list
     // items, OR when the caller forces it via [compact] for hero use).
@@ -92,10 +92,7 @@ class BrandedPlaceholder extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(
-          color: color.withValues(alpha: 0.18),
-          width: 0.8,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.18), width: 0.8),
       ),
       padding: const EdgeInsets.all(AppTheme.space8),
       child: Column(

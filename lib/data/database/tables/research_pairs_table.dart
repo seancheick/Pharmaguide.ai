@@ -29,17 +29,14 @@ class ResearchPairs extends Table {
   TextColumn get entityAType => text().named('entity_a_type')();
   TextColumn get entityBType => text().named('entity_b_type')();
 
-  TextColumn get canonicalIdA =>
-      text().named('canonical_id_a').nullable()();
-  TextColumn get canonicalIdB =>
-      text().named('canonical_id_b').nullable()();
+  TextColumn get canonicalIdA => text().named('canonical_id_a').nullable()();
+  TextColumn get canonicalIdB => text().named('canonical_id_b').nullable()();
   TextColumn get rxcuiA => text().named('rxcui_a').nullable()();
   TextColumn get rxcuiB => text().named('rxcui_b').nullable()();
 
   IntColumn get paperCount => integer().named('paper_count')();
   IntColumn get humanStudyCount => integer().named('human_study_count')();
-  IntColumn get clinicalStudyCount =>
-      integer().named('clinical_study_count')();
+  IntColumn get clinicalStudyCount => integer().named('clinical_study_count')();
 
   /// JSON array of up to 3 representative sentences from supp.ai.
   TextColumn get topSentencesJson => text().named('top_sentences_json')();
@@ -50,8 +47,7 @@ class ResearchPairs extends Table {
   IntColumn get latestPaperYear =>
       integer().named('latest_paper_year').nullable()();
 
-  TextColumn get source =>
-      text().withDefault(const Constant('suppai'))();
+  TextColumn get source => text().withDefault(const Constant('suppai'))();
   TextColumn get lastUpdated => text().named('last_updated')();
 
   @override

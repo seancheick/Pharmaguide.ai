@@ -77,8 +77,9 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('shows profile completeness banner for incomplete profile',
-        (tester) async {
+    testWidgets('shows profile completeness banner for incomplete profile', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
       await userDb.addToStack(
@@ -101,8 +102,9 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('shows first-launch variant when stack and history are empty',
-        (tester) async {
+    testWidgets('shows first-launch variant when stack and history are empty', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
 
@@ -124,8 +126,9 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('exits first-launch mode when stack gains an item (reactive)',
-        (tester) async {
+    testWidgets('exits first-launch mode when stack gains an item (reactive)', (
+      tester,
+    ) async {
       // Reactivity contract: home must re-evaluate first-launch when the
       // active stack changes. Previously the provider used ref.read inside
       // a FutureProvider — which captures the future once and never re-fires.
@@ -133,10 +136,12 @@ void main() {
       // to flip from collapsed (first-launch) to expanded.
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
-      final container = ProviderContainer(overrides: [
-        coreDatabaseProvider.overrideWithValue(coreDb),
-        userDatabaseProvider.overrideWithValue(userDb),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+        ],
+      );
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -148,8 +153,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // Initial state — empty DB, first-launch variant.
-      expect(find.text('Stack Health'), findsNothing,
-          reason: 'first-launch should hide Stack Health');
+      expect(
+        find.text('Stack Health'),
+        findsNothing,
+        reason: 'first-launch should hide Stack Health',
+      );
 
       // User mutation: add a stack item AND invalidate (mirrors what
       // StackActions.addProduct does in production at active_stack_provider:188).
@@ -167,9 +175,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       // After fix: home re-evaluates first-launch → expanded sections render.
-      expect(find.text('Stack Health'), findsOneWidget,
-          reason: 'after stack mutation + invalidation, expanded home should '
-              'render — bug under ref.read is that this stays hidden');
+      expect(
+        find.text('Stack Health'),
+        findsOneWidget,
+        reason:
+            'after stack mutation + invalidation, expanded home should '
+            'render — bug under ref.read is that this stays hidden',
+      );
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
@@ -177,8 +189,9 @@ void main() {
       container.dispose();
     });
 
-    testWidgets('shows expanded home sections after user activity',
-        (tester) async {
+    testWidgets('shows expanded home sections after user activity', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
       await userDb.recordScanEvent(
@@ -215,14 +228,17 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('exits first-launch mode when first scan is recorded',
-        (tester) async {
+    testWidgets('exits first-launch mode when first scan is recorded', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
-      final container = ProviderContainer(overrides: [
-        coreDatabaseProvider.overrideWithValue(coreDb),
-        userDatabaseProvider.overrideWithValue(userDb),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+        ],
+      );
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -255,74 +271,81 @@ void main() {
       container.dispose();
     });
 
-    testWidgets(
-      'pinned search remains hit-testable after scrolling past hero',
-      (tester) async {
-        // Gesture-conflict smoke test for the SliverPersistentHeader pinned
-        // search. The concern: once the search reaches the top and pins, is
-        // it still reachable for taps, or has the parent CustomScrollView's
-        // drag-recognizer eaten the hit-test path?
-        //
-        // We assert two things:
-        //   1. The search placeholder is still found after a scroll drag
-        //      (proves pinning works — the search didn't scroll off).
-        //   2. A PGPressable ancestor is reachable through the search
-        //      placeholder's render tree (proves the tap-handler chain is
-        //      intact and not obscured by the frosted overlay or scroll
-        //      gesture detection).
-        final coreDb = CoreDatabase.memory();
-        final userDb = UserDatabase.memory();
-        // Seed enough activity to render the expanded layout — gives the
-        // scroll view content tall enough to actually scroll.
-        await userDb.recordScanEvent(
-          dsldId: 'dsld-gesture',
-          productName: 'Gesture Test',
-        );
-        await userDb.addToStack(
-          const UserStacksLocalCompanion(
-            id: Value('stack-gesture'),
-            type: Value('supplement'),
-            name: Value('Gesture Test'),
-            dsldId: Value('dsld-gesture'),
-          ),
-        );
+    testWidgets('pinned search remains hit-testable after scrolling past hero', (
+      tester,
+    ) async {
+      // Gesture-conflict smoke test for the SliverPersistentHeader pinned
+      // search. The concern: once the search reaches the top and pins, is
+      // it still reachable for taps, or has the parent CustomScrollView's
+      // drag-recognizer eaten the hit-test path?
+      //
+      // We assert two things:
+      //   1. The search placeholder is still found after a scroll drag
+      //      (proves pinning works — the search didn't scroll off).
+      //   2. A PGPressable ancestor is reachable through the search
+      //      placeholder's render tree (proves the tap-handler chain is
+      //      intact and not obscured by the frosted overlay or scroll
+      //      gesture detection).
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      // Seed enough activity to render the expanded layout — gives the
+      // scroll view content tall enough to actually scroll.
+      await userDb.recordScanEvent(
+        dsldId: 'dsld-gesture',
+        productName: 'Gesture Test',
+      );
+      await userDb.addToStack(
+        const UserStacksLocalCompanion(
+          id: Value('stack-gesture'),
+          type: Value('supplement'),
+          name: Value('Gesture Test'),
+          dsldId: Value('dsld-gesture'),
+        ),
+      );
 
-        await tester.pumpWidget(buildTestWidget(coreDb, userDb));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpWidget(buildTestWidget(coreDb, userDb));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-        // Inline state: search visible.
-        expect(find.text('Search supplements'), findsOneWidget);
+      // Inline state: search visible.
+      expect(find.text('Search supplements'), findsOneWidget);
 
-        // Scroll up to push the hero past the pinned search header.
-        // Manual pumps instead of pumpAndSettle because the BouncingScrollPhysics
-        // + snap-paginated Recents PageView produce ongoing micro-animations
-        // that pumpAndSettle never considers idle.
-        final scrollable = find.byType(Scrollable).first;
-        await tester.drag(scrollable, const Offset(0, -400));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
+      // Scroll up to push the hero past the pinned search header.
+      // Manual pumps instead of pumpAndSettle because the BouncingScrollPhysics
+      // + snap-paginated Recents PageView produce ongoing micro-animations
+      // that pumpAndSettle never considers idle.
+      final scrollable = find.byType(Scrollable).first;
+      await tester.drag(scrollable, const Offset(0, -400));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-        // Pinned state: search still rendered.
-        expect(find.text('Search supplements'), findsOneWidget,
-            reason: 'pinned search should remain rendered after scroll '
-                'past hero');
+      // Pinned state: search still rendered.
+      expect(
+        find.text('Search supplements'),
+        findsOneWidget,
+        reason:
+            'pinned search should remain rendered after scroll '
+            'past hero',
+      );
 
-        // Hit-test path intact: the search placeholder has a PGPressable
-        // ancestor — taps will still reach it.
-        final pressableAncestor = find.ancestor(
-          of: find.text('Search supplements'),
-          matching: find.byType(PGPressable),
-        );
-        expect(pressableAncestor, findsOneWidget,
-            reason: 'PGPressable wrapping the launcher should be in the '
-                'ancestor chain — if the parent scroll had eaten the '
-                'gesture path this would fail.');
+      // Hit-test path intact: the search placeholder has a PGPressable
+      // ancestor — taps will still reach it.
+      final pressableAncestor = find.ancestor(
+        of: find.text('Search supplements'),
+        matching: find.byType(PGPressable),
+      );
+      expect(
+        pressableAncestor,
+        findsOneWidget,
+        reason:
+            'PGPressable wrapping the launcher should be in the '
+            'ancestor chain — if the parent scroll had eaten the '
+            'gesture path this would fail.',
+      );
 
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      },
-    );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
   });
 }

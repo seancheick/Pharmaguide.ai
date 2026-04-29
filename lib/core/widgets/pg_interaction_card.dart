@@ -178,8 +178,7 @@ class _PGInteractionCardState extends State<PGInteractionCard> {
                   alignment: Alignment.topCenter,
                   child: _expanded && widget.management.isNotEmpty
                       ? Padding(
-                          padding: const EdgeInsets.only(
-                              top: AppTheme.space12),
+                          padding: const EdgeInsets.only(top: AppTheme.space12),
                           child: _ManagementBlock(
                             text: widget.management,
                             accent: accent,

@@ -166,8 +166,7 @@ class ProductDetailsSection extends StatefulWidget {
   });
 
   @override
-  State<ProductDetailsSection> createState() =>
-      _ProductDetailsSectionState();
+  State<ProductDetailsSection> createState() => _ProductDetailsSectionState();
 }
 
 class _ProductDetailsSectionState extends State<ProductDetailsSection> {
@@ -236,8 +235,7 @@ class _ProductDetailsSectionState extends State<ProductDetailsSection> {
                     padding: const EdgeInsets.only(top: AppTheme.space8),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final stack =
-                            constraints.maxWidth < _narrowBreakpoint;
+                        final stack = constraints.maxWidth < _narrowBreakpoint;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

@@ -24,7 +24,10 @@ Future<void> _pump(WidgetTester tester, Widget child) {
 void main() {
   group('UnmappedActivesDisclosure', () {
     testWidgets('renders nothing when blob is null', (tester) async {
-      await _pump(tester, const UnmappedActivesDisclosure(unmappedActives: null));
+      await _pump(
+        tester,
+        const UnmappedActivesDisclosure(unmappedActives: null),
+      );
       expect(find.byKey(const Key('unmapped-actives-card')), findsNothing);
     });
 
@@ -46,9 +49,7 @@ void main() {
       await _pump(
         tester,
         const UnmappedActivesDisclosure(
-          unmappedActives: <String, dynamic>{
-            'names': <String>[],
-          },
+          unmappedActives: <String, dynamic>{'names': <String>[]},
         ),
       );
       expect(find.byKey(const Key('unmapped-actives-card')), findsNothing);
@@ -66,10 +67,7 @@ void main() {
         ),
       );
       expect(find.byKey(const Key('unmapped-actives-card')), findsOneWidget);
-      expect(
-        find.textContaining('2 ingredients'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('2 ingredients'), findsOneWidget);
     });
 
     testWidgets('uses singular noun for total = 1', (tester) async {
@@ -102,7 +100,9 @@ void main() {
       expect(find.text('Typo Ingredient'), findsOneWidget);
     });
 
-    testWidgets('renders count without names when names list is empty', (tester) async {
+    testWidgets('renders count without names when names list is empty', (
+      tester,
+    ) async {
       // Defensive: pipeline should never emit total > 0 with empty
       // names, but if it does, the card still renders the headline
       // and skips the names section gracefully.
@@ -120,7 +120,9 @@ void main() {
       expect(find.textContaining('3 ingredients'), findsOneWidget);
     });
 
-    testWidgets('handles raw List from JSON decode (List<dynamic>)', (tester) async {
+    testWidgets('handles raw List from JSON decode (List<dynamic>)', (
+      tester,
+    ) async {
       // jsonDecode produces List<dynamic>, not List<String>. The widget
       // must accept that without crashing.
       await _pump(
@@ -137,7 +139,9 @@ void main() {
       expect(find.text('Bar Powder'), findsOneWidget);
     });
 
-    testWidgets('handles total provided as string from loose JSON', (tester) async {
+    testWidgets('handles total provided as string from loose JSON', (
+      tester,
+    ) async {
       // Defensive against type drift in the blob format.
       await _pump(
         tester,

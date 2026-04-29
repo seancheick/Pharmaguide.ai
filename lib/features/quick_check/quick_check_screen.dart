@@ -120,11 +120,7 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
         return;
       }
 
-      final results = await runPairCheck(
-        _product1!,
-        _product2!,
-        interactionDb,
-      );
+      final results = await runPairCheck(_product1!, _product2!, interactionDb);
       if (mounted) {
         setState(() {
           _results = results;
@@ -153,9 +149,19 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
       }
     } on UnimplementedError {
       // Provider stub not overridden (test environment).
-      if (mounted) setState(() { _checkError = true; _checking = false; });
+      if (mounted) {
+        setState(() {
+          _checkError = true;
+          _checking = false;
+        });
+      }
     } on Exception {
-      if (mounted) setState(() { _checkError = true; _checking = false; });
+      if (mounted) {
+        setState(() {
+          _checkError = true;
+          _checking = false;
+        });
+      }
     }
   }
 
@@ -248,19 +254,27 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
                     padding: const EdgeInsets.all(AppTheme.space20),
                     child: Column(
                       children: [
-                        const Icon(Icons.error_outline,
-                            color: AppTheme.severityAvoid, size: 48),
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppTheme.severityAvoid,
+                          size: 48,
+                        ),
                         const SizedBox(height: AppTheme.space12),
-                        Text('Interaction check unavailable',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(
+                          'Interaction check unavailable',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: AppTheme.space8),
                         Text(
-                            'The interaction database could not be loaded. '
-                            'Please try again later.',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                            textAlign: TextAlign.center),
+                          'The interaction database could not be loaded. '
+                          'Please try again later.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   )
@@ -269,19 +283,27 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
                     padding: const EdgeInsets.all(AppTheme.space20),
                     child: Column(
                       children: [
-                        const Icon(Icons.info_outline,
-                            color: AppTheme.severityCaution, size: 48),
+                        const Icon(
+                          Icons.info_outline,
+                          color: AppTheme.severityCaution,
+                          size: 48,
+                        ),
                         const SizedBox(height: AppTheme.space12),
-                        Text('Insufficient ingredient data',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(
+                          'Insufficient ingredient data',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: AppTheme.space8),
                         Text(
-                            'One or both products lack detailed ingredient '
-                            'data. We cannot reliably check for interactions.',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                            textAlign: TextAlign.center),
+                          'One or both products lack detailed ingredient '
+                          'data. We cannot reliably check for interactions.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   )
@@ -337,14 +359,16 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
           ),
         ),
         const SizedBox(height: AppTheme.space12),
-        ..._results!.map((result) => Padding(
-              padding: const EdgeInsets.only(bottom: AppTheme.space12),
-              child: PGSeverityBanner(
-                tone: toneForSeverity(result.severity),
-                title: result.severity.name.toUpperCase(),
-                body: result.mechanism,
-              ),
-            )),
+        ..._results!.map(
+          (result) => Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.space12),
+            child: PGSeverityBanner(
+              tone: toneForSeverity(result.severity),
+              title: result.severity.name.toUpperCase(),
+              body: result.mechanism,
+            ),
+          ),
+        ),
         const SizedBox(height: AppTheme.space8),
         Text(
           'This is educational information, not medical advice. '
@@ -358,7 +382,6 @@ class _QuickCheckScreenState extends ConsumerState<QuickCheckScreen> {
       ],
     );
   }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -402,9 +425,7 @@ class _ProductSearchField extends StatelessWidget {
             labelText: label,
             hintText: 'Search by name...',
             prefixIcon: Icon(
-              selected != null
-                  ? Icons.check_circle
-                  : Icons.search_rounded,
+              selected != null ? Icons.check_circle : Icons.search_rounded,
               color: selected != null ? AppTheme.severitySafe : null,
             ),
             suffixIcon: selected != null
@@ -430,10 +451,8 @@ class _ProductSearchField extends StatelessWidget {
               shrinkWrap: true,
               padding: EdgeInsets.zero,
               itemCount: suggestions.length,
-              separatorBuilder: (_, __) => Divider(
-                height: 0.5,
-                color: scheme.outlineVariant,
-              ),
+              separatorBuilder: (_, __) =>
+                  Divider(height: 0.5, color: scheme.outlineVariant),
               itemBuilder: (context, index) {
                 final product = suggestions[index];
                 return PGPressable(

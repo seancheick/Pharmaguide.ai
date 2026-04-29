@@ -6,19 +6,19 @@ import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 
 InteractionResult _issue(Severity severity) => InteractionResult(
-      id: 'test',
-      type: InteractionType.supplementSupplement,
-      severity: severity,
-      evidenceLevel: EvidenceLevel.established,
-      agent1Name: 'A',
-      agent2Name: 'B',
-      mechanism: '',
-      management: '',
-      doseDependant: false,
-      doseThreshold: null,
-      sourceUrls: [],
-      source: InteractionSource.stackEngine,
-    );
+  id: 'test',
+  type: InteractionType.supplementSupplement,
+  severity: severity,
+  evidenceLevel: EvidenceLevel.established,
+  agent1Name: 'A',
+  agent2Name: 'B',
+  mechanism: '',
+  management: '',
+  doseDependant: false,
+  doseThreshold: null,
+  sourceUrls: [],
+  source: InteractionSource.stackEngine,
+);
 
 void main() {
   late StackSafetyScorer scorer;
@@ -38,8 +38,7 @@ void main() {
     });
 
     test('contraindicated caps at 25', () {
-      final result =
-          scorer.compute(issues: [_issue(Severity.contraindicated)]);
+      final result = scorer.compute(issues: [_issue(Severity.contraindicated)]);
       expect(result.score, 25);
       expect(result.riskTier, RiskTier.highRisk);
     });
@@ -67,16 +66,18 @@ void main() {
     });
 
     test('floor is 25 even with massive penalties', () {
-      final result = scorer.compute(issues: [
-        _issue(Severity.caution),
-        _issue(Severity.caution),
-        _issue(Severity.caution),
-        _issue(Severity.caution),
-        _issue(Severity.caution),
-        _issue(Severity.caution),
-        _issue(Severity.caution),
-        _issue(Severity.caution),
-      ]);
+      final result = scorer.compute(
+        issues: [
+          _issue(Severity.caution),
+          _issue(Severity.caution),
+          _issue(Severity.caution),
+          _issue(Severity.caution),
+          _issue(Severity.caution),
+          _issue(Severity.caution),
+          _issue(Severity.caution),
+          _issue(Severity.caution),
+        ],
+      );
       expect(result.score, greaterThanOrEqualTo(25));
     });
   });

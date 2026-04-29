@@ -83,15 +83,18 @@ void main() {
       expect(out.first.isCovered, isFalse);
     });
 
-    test('nutrient present, no threshold authored → CoverageLevel.adequate', () {
-      final out = checker.check(
-        medications: [(name: 'Metformin', drugClassId: null)],
-        depletionsData: _metforminB12Fixture(),
-        stackCanonicalIds: {'vitamin_b12'},
-      );
-      expect(out.first.coverageLevel, CoverageLevel.adequate);
-      expect(out.first.isCovered, isTrue);
-    });
+    test(
+      'nutrient present, no threshold authored → CoverageLevel.adequate',
+      () {
+        final out = checker.check(
+          medications: [(name: 'Metformin', drugClassId: null)],
+          depletionsData: _metforminB12Fixture(),
+          stackCanonicalIds: {'vitamin_b12'},
+        );
+        expect(out.first.coverageLevel, CoverageLevel.adequate);
+        expect(out.first.isCovered, isTrue);
+      },
+    );
 
     test(
       'nutrient present, threshold authored, no dose data → CoverageLevel.partial',
@@ -110,24 +113,21 @@ void main() {
       },
     );
 
-    test(
-      'dose above threshold → CoverageLevel.adequate',
-      () {
-        final out = checker.check(
-          medications: [(name: 'Metformin', drugClassId: null)],
-          depletionsData: _metforminB12Fixture(adequacyMcg: 500),
-          stackCanonicalIds: {'vitamin_b12'},
-          stackDoses: [
-            const StackSupplementDose(
-              canonicalId: 'vitamin_b12',
-              doseAmount: 1000,
-              doseUnit: 'mcg',
-            ),
-          ],
-        );
-        expect(out.first.coverageLevel, CoverageLevel.adequate);
-      },
-    );
+    test('dose above threshold → CoverageLevel.adequate', () {
+      final out = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+        stackCanonicalIds: {'vitamin_b12'},
+        stackDoses: [
+          const StackSupplementDose(
+            canonicalId: 'vitamin_b12',
+            doseAmount: 1000,
+            doseUnit: 'mcg',
+          ),
+        ],
+      );
+      expect(out.first.coverageLevel, CoverageLevel.adequate);
+    });
 
     test('dose below threshold → CoverageLevel.partial', () {
       final out = checker.check(
@@ -194,13 +194,16 @@ void main() {
     test('authored fields flow through to DepletionMatch', () {
       final out = checker.check(
         medications: [(name: 'Metformin', drugClassId: null)],
-        depletionsData: _metforminB12Fixture(authoredCopy: {
-          'alert_headline': 'May lower vitamin B12 over time',
-          'alert_body': 'Long-term metformin use can reduce B12 absorption.',
-          'acknowledgement_note':
-              'Nice — you are taking B12, which doctors recommend.',
-          'monitoring_tip_short': 'Consider checking B12 levels every 2-3 years.',
-        }),
+        depletionsData: _metforminB12Fixture(
+          authoredCopy: {
+            'alert_headline': 'May lower vitamin B12 over time',
+            'alert_body': 'Long-term metformin use can reduce B12 absorption.',
+            'acknowledgement_note':
+                'Nice — you are taking B12, which doctors recommend.',
+            'monitoring_tip_short':
+                'Consider checking B12 levels every 2-3 years.',
+          },
+        ),
       );
       final m = out.first;
       expect(m.alertHeadline, 'May lower vitamin B12 over time');
@@ -214,12 +217,14 @@ void main() {
       // metformin/B12 — supplement is more reliable than food.
       final out = checker.check(
         medications: [(name: 'Metformin', drugClassId: null)],
-        depletionsData: _metforminB12Fixture(authoredCopy: {
-          'food_sources_short':
-              'Because metformin reduces B12 absorption, food sources may '
-              'not be enough on their own — a supplement is often more '
-              'reliable.',
-        }),
+        depletionsData: _metforminB12Fixture(
+          authoredCopy: {
+            'food_sources_short':
+                'Because metformin reduces B12 absorption, food sources may '
+                'not be enough on their own — a supplement is often more '
+                'reliable.',
+          },
+        ),
       );
       expect(out.first.foodSourcesShort, isNotNull);
       expect(out.first.foodSourcesShort, contains('food sources may not'));
@@ -281,8 +286,11 @@ void main() {
         stackCanonicalIds: {'n1', 'n2'},
       );
       // none (C) first, partial (B) next, adequate (A) last.
-      expect(out.map((m) => m.depletionId).toList(),
-          ['C_NONE', 'B_PARTIAL', 'A_ADEQUATE']);
+      expect(out.map((m) => m.depletionId).toList(), [
+        'C_NONE',
+        'B_PARTIAL',
+        'A_ADEQUATE',
+      ]);
     });
   });
 

@@ -13,11 +13,9 @@ class ScanLimitService {
   final SharedPreferences _prefs;
   final bool _isSignedIn;
 
-  ScanLimitService({
-    required SharedPreferences prefs,
-    required bool isSignedIn,
-  })  : _prefs = prefs,
-        _isSignedIn = isSignedIn;
+  ScanLimitService({required SharedPreferences prefs, required bool isSignedIn})
+    : _prefs = prefs,
+      _isSignedIn = isSignedIn;
 
   /// How many scans the guest has used (lifetime).
   int get guestScansUsed => _prefs.getInt(_guestScanCountKey) ?? 0;
@@ -33,8 +31,7 @@ class ScanLimitService {
   }
 
   /// The total limit for the current user type.
-  int get scanLimit =>
-      _isSignedIn ? _signedInDailyLimit : _guestLifetimeLimit;
+  int get scanLimit => _isSignedIn ? _signedInDailyLimit : _guestLifetimeLimit;
 
   /// Whether the user can perform another scan.
   bool get canScan => scansRemaining > 0;

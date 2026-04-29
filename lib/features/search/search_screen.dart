@@ -230,51 +230,51 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppTheme.space16,
                   ),
-                  children: _SearchFilter.values.map((filter) {
-                    final selected = _activeFilter == filter;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: PGFilterChip(
-                        label: filter.label,
-                        selected: selected && _activeCategoryChip == null,
-                        onTap: () => setState(() {
-                          if (selected && _activeCategoryChip == null) {
-                            _activeFilter = _SearchFilter.all;
-                          } else {
-                            _activeFilter = filter;
-                            _activeCategoryChip = null;
-                          }
-                        }),
-                      ),
-                    );
-                  }).toList()
-                    ..addAll(
-                      _resultCategories.map((category) {
-                        final selected = _activeCategoryChip == category;
+                  children:
+                      _SearchFilter.values.map((filter) {
+                        final selected = _activeFilter == filter;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: PGFilterChip(
-                            label: _formatCategoryLabel(category),
-                            selected: selected,
+                            label: filter.label,
+                            selected: selected && _activeCategoryChip == null,
                             onTap: () => setState(() {
-                              _activeCategoryChip = selected ? null : category;
-                              if (!selected) {
+                              if (selected && _activeCategoryChip == null) {
                                 _activeFilter = _SearchFilter.all;
+                              } else {
+                                _activeFilter = filter;
+                                _activeCategoryChip = null;
                               }
                             }),
                           ),
                         );
-                      }),
-                    ),
+                      }).toList()..addAll(
+                        _resultCategories.map((category) {
+                          final selected = _activeCategoryChip == category;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: PGFilterChip(
+                              label: _formatCategoryLabel(category),
+                              selected: selected,
+                              onTap: () => setState(() {
+                                _activeCategoryChip = selected
+                                    ? null
+                                    : category;
+                                if (!selected) {
+                                  _activeFilter = _SearchFilter.all;
+                                }
+                              }),
+                            ),
+                          );
+                        }),
+                      ),
                 ),
               ),
 
             // Body content
             Expanded(
               child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: mq.bottom + kPGNavBarHeight,
-                ),
+                padding: EdgeInsets.only(bottom: mq.bottom + kPGNavBarHeight),
                 child: _buildBody(),
               ),
             ),
@@ -481,9 +481,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         endIndent: AppTheme.space16,
         color: scheme.outlineVariant,
       ),
-      itemBuilder: (context, index) => ProductListItem(
-        product: items[index],
-      ),
+      itemBuilder: (context, index) => ProductListItem(product: items[index]),
     );
   }
 
@@ -502,9 +500,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         childAspectRatio: 0.85,
       ),
       itemCount: items.length,
-      itemBuilder: (context, index) => ProductGridItem(
-        product: items[index],
-      ),
+      itemBuilder: (context, index) => ProductGridItem(product: items[index]),
     );
   }
 
@@ -609,13 +605,11 @@ enum _SearchFilter {
 }
 
 String _formatCategoryLabel(String category) {
-  final parts = category
-      .split('_')
-      .where((part) => part.trim().isNotEmpty)
-      .map((part) {
-        final lower = part.toLowerCase();
-        return '${lower[0].toUpperCase()}${lower.substring(1)}';
-      })
-      .toList();
+  final parts = category.split('_').where((part) => part.trim().isNotEmpty).map(
+    (part) {
+      final lower = part.toLowerCase();
+      return '${lower[0].toUpperCase()}${lower.substring(1)}';
+    },
+  ).toList();
   return parts.join(' ');
 }

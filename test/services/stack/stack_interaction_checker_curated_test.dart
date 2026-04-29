@@ -58,17 +58,21 @@ InteractionsCompanion _row({
     agent1Type: a1Type,
     agent1Name: a1Name,
     agent1Id: a1Id,
-    agent1CanonicalId:
-        a1Canonical == null ? const drift.Value.absent() : drift.Value(a1Canonical),
-    agent1DrugClass:
-        a1Class == null ? const drift.Value.absent() : drift.Value(a1Class),
+    agent1CanonicalId: a1Canonical == null
+        ? const drift.Value.absent()
+        : drift.Value(a1Canonical),
+    agent1DrugClass: a1Class == null
+        ? const drift.Value.absent()
+        : drift.Value(a1Class),
     agent2Type: a2Type,
     agent2Name: a2Name,
     agent2Id: a2Id,
-    agent2CanonicalId:
-        a2Canonical == null ? const drift.Value.absent() : drift.Value(a2Canonical),
-    agent2DrugClass:
-        a2Class == null ? const drift.Value.absent() : drift.Value(a2Class),
+    agent2CanonicalId: a2Canonical == null
+        ? const drift.Value.absent()
+        : drift.Value(a2Canonical),
+    agent2DrugClass: a2Class == null
+        ? const drift.Value.absent()
+        : drift.Value(a2Class),
     severity: severity,
     effectType: effectType == null
         ? const drift.Value.absent()
@@ -79,8 +83,9 @@ InteractionsCompanion _row({
     sourceUrlsJson: sourceUrlsJson,
     sourcePmidsJson: '[]',
     doseDependent: drift.Value(doseDependent),
-    retiredAt:
-        retiredAt == null ? const drift.Value.absent() : drift.Value(retiredAt),
+    retiredAt: retiredAt == null
+        ? const drift.Value.absent()
+        : drift.Value(retiredAt),
     typeAuthored: 'curated',
     source: 'curated',
     provenance: 'test',
@@ -249,11 +254,7 @@ void main() {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const <String>[],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Iron 30mg',
-            ingredientKeys: '["iron"]',
-          ),
+          _supplement(id: 'u1', name: 'Iron 30mg', ingredientKeys: '["iron"]'),
         ],
         db: db,
       );
@@ -273,11 +274,7 @@ void main() {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium'],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Iron 30mg',
-            ingredientKeys: '["iron"]',
-          ),
+          _supplement(id: 'u1', name: 'Iron 30mg', ingredientKeys: '["iron"]'),
         ],
         db: db,
         newProductName: 'Cal-Mag Complex',
@@ -332,34 +329,21 @@ void main() {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium'],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Iron Plus',
-            ingredientKeys: '["iron"]',
-          ),
-          _supplement(
-            id: 'u2',
-            name: 'Hema Boost',
-            ingredientKeys: '["iron"]',
-          ),
+          _supplement(id: 'u1', name: 'Iron Plus', ingredientKeys: '["iron"]'),
+          _supplement(id: 'u2', name: 'Hema Boost', ingredientKeys: '["iron"]'),
         ],
         db: db,
       );
       expect(results, hasLength(1));
     });
 
-    test('returns multiple distinct rows for multiple distinct hits',
-        () async {
+    test('returns multiple distinct rows for multiple distinct hits', () async {
       // New product has calcium + zinc; stack has iron and copper.
       // Should fire both DDI_IRON_CALCIUM and DDI_ZINC_COPPER.
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium', 'zinc'],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Iron Plus',
-            ingredientKeys: '["iron"]',
-          ),
+          _supplement(id: 'u1', name: 'Iron Plus', ingredientKeys: '["iron"]'),
           _supplement(
             id: 'u2',
             name: 'Copper 2mg',
@@ -375,40 +359,34 @@ void main() {
       );
     });
 
-    test('skips a stack supplement with malformed ingredient_keys JSON',
-        () async {
-      // Garbage JSON on one row must NOT abort the call. The valid row
-      // should still match.
-      final results = await checker.checkSupplementPairInteractions(
-        newProductCanonicalIds: const ['calcium'],
-        stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Garbage',
-            ingredientKeys: 'not-json',
-          ),
-          _supplement(
-            id: 'u2',
-            name: 'Iron Plus',
-            ingredientKeys: '["iron"]',
-          ),
-        ],
-        db: db,
-      );
-      expect(results, hasLength(1));
-      expect(results.single.id, 'DDI_IRON_CALCIUM');
-    });
+    test(
+      'skips a stack supplement with malformed ingredient_keys JSON',
+      () async {
+        // Garbage JSON on one row must NOT abort the call. The valid row
+        // should still match.
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const ['calcium'],
+          stackSupplements: [
+            _supplement(id: 'u1', name: 'Garbage', ingredientKeys: 'not-json'),
+            _supplement(
+              id: 'u2',
+              name: 'Iron Plus',
+              ingredientKeys: '["iron"]',
+            ),
+          ],
+          db: db,
+        );
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DDI_IRON_CALCIUM');
+      },
+    );
 
     test('skips a stack supplement with null ingredient_keys', () async {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium'],
         stackSupplements: [
           _supplement(id: 'u1', name: 'No Ingredients'),
-          _supplement(
-            id: 'u2',
-            name: 'Iron Plus',
-            ingredientKeys: '["iron"]',
-          ),
+          _supplement(id: 'u2', name: 'Iron Plus', ingredientKeys: '["iron"]'),
         ],
         db: db,
       );
@@ -451,11 +429,7 @@ void main() {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['  CALCIUM  '],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Iron',
-            ingredientKeys: '["IRON"]',
-          ),
+          _supplement(id: 'u1', name: 'Iron', ingredientKeys: '["IRON"]'),
         ],
         db: db,
       );
@@ -499,11 +473,7 @@ void main() {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium'],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Iron',
-            ingredientKeys: '["iron"]',
-          ),
+          _supplement(id: 'u1', name: 'Iron', ingredientKeys: '["iron"]'),
         ],
         db: db,
       );
@@ -514,11 +484,7 @@ void main() {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium'],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Iron',
-            ingredientKeys: '["iron"]',
-          ),
+          _supplement(id: 'u1', name: 'Iron', ingredientKeys: '["iron"]'),
         ],
         db: db,
       );
@@ -543,11 +509,7 @@ void main() {
       final asCopper = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['copper'],
         stackSupplements: [
-          _supplement(
-            id: 'u1',
-            name: 'Zinc 50mg',
-            ingredientKeys: '["zinc"]',
-          ),
+          _supplement(id: 'u1', name: 'Zinc 50mg', ingredientKeys: '["zinc"]'),
         ],
         db: db,
       );
@@ -717,33 +679,39 @@ void main() {
       expect(results.single.agent2Name, 'Brand K2');
     });
 
-    test('preserves effect_type from row (warfarin/vit K = inhibitor)',
-        () async {
-      final results = await checker.checkMedicationInteractions(
-        newProductCanonicalIds: const ['vitamin_k'],
-        stackMedications: [
-          _medication(id: 'm1', name: 'Warfarin', rxcui: '11289'),
-        ],
-        db: db,
-      );
-      expect(results.single.effectType, EffectType.inhibitor);
-    });
+    test(
+      'preserves effect_type from row (warfarin/vit K = inhibitor)',
+      () async {
+        final results = await checker.checkMedicationInteractions(
+          newProductCanonicalIds: const ['vitamin_k'],
+          stackMedications: [
+            _medication(id: 'm1', name: 'Warfarin', rxcui: '11289'),
+          ],
+          db: db,
+        );
+        expect(results.single.effectType, EffectType.inhibitor);
+      },
+    );
 
     test('does NOT return tombstoned rows', () async {
       // Build a fake retired row keyed off a med rxcui by inserting it
       // into the same DB.
-      await db.into(db.interactions).insert(_row(
-            id: 'DDI_RETIRED_DRUG',
-            a1Type: 'drug',
-            a1Id: '888',
-            a1Name: 'Retired Drug',
-            a2Type: 'supplement',
-            a2Id: 'C0000003',
-            a2Name: 'Some Vitamin',
-            a2Canonical: 'some_vitamin',
-            severity: 'avoid',
-            retiredAt: '2025-01-01T00:00:00Z',
-          ));
+      await db
+          .into(db.interactions)
+          .insert(
+            _row(
+              id: 'DDI_RETIRED_DRUG',
+              a1Type: 'drug',
+              a1Id: '888',
+              a1Name: 'Retired Drug',
+              a2Type: 'supplement',
+              a2Id: 'C0000003',
+              a2Name: 'Some Vitamin',
+              a2Canonical: 'some_vitamin',
+              severity: 'avoid',
+              retiredAt: '2025-01-01T00:00:00Z',
+            ),
+          );
       final results = await checker.checkMedicationInteractions(
         newProductCanonicalIds: const ['some_vitamin'],
         stackMedications: [
@@ -754,25 +722,27 @@ void main() {
       expect(results, isEmpty);
     });
 
-    test('multiple meds and multiple new ingredients produce correct hits',
-        () async {
-      final results = await checker.checkMedicationInteractions(
-        newProductCanonicalIds: const ['vitamin_k', 'potassium'],
-        stackMedications: [
-          _medication(id: 'm1', name: 'Coumadin', rxcui: '11289'),
-          _medication(
-            id: 'm2',
-            name: 'Lisinopril',
-            drugClassesJson: '["class:ace_inhibitors"]',
-          ),
-        ],
-        db: db,
-      );
-      expect(results, hasLength(2));
-      final ids = results.map((r) => r.id).toSet();
-      expect(ids, contains('DDI_WARFARIN_VITK'));
-      expect(ids, contains('DDI_ACE_POTASSIUM'));
-    });
+    test(
+      'multiple meds and multiple new ingredients produce correct hits',
+      () async {
+        final results = await checker.checkMedicationInteractions(
+          newProductCanonicalIds: const ['vitamin_k', 'potassium'],
+          stackMedications: [
+            _medication(id: 'm1', name: 'Coumadin', rxcui: '11289'),
+            _medication(
+              id: 'm2',
+              name: 'Lisinopril',
+              drugClassesJson: '["class:ace_inhibitors"]',
+            ),
+          ],
+          db: db,
+        );
+        expect(results, hasLength(2));
+        final ids = results.map((r) => r.id).toSet();
+        expect(ids, contains('DDI_WARFARIN_VITK'));
+        expect(ids, contains('DDI_ACE_POTASSIUM'));
+      },
+    );
 
     test('trims whitespace inside drug class json', () async {
       final results = await checker.checkMedicationInteractions(
@@ -793,9 +763,7 @@ void main() {
       // Empty rxcui must NOT call the lookupPair path with ''.
       final results = await checker.checkMedicationInteractions(
         newProductCanonicalIds: const ['vitamin_k'],
-        stackMedications: [
-          _medication(id: 'm1', name: 'Coumadin', rxcui: ''),
-        ],
+        stackMedications: [_medication(id: 'm1', name: 'Coumadin', rxcui: '')],
         db: db,
       );
       expect(results, isEmpty);

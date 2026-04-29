@@ -57,12 +57,14 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _scale = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: AppMotion.standard),
-    );
-    _fade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeIn),
-    );
+    _scale = Tween<double>(
+      begin: 0.85,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: AppMotion.standard));
+    _fade = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeIn));
   }
 
   @override
@@ -70,8 +72,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
     super.didChangeDependencies();
     if (_reduceMotionChecked) return;
     _reduceMotionChecked = true;
-    final reduceMotion =
-        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     if (reduceMotion) {
       // Skip the animation; brief brand-impression delay before navigating.
       Future.delayed(const Duration(milliseconds: 200), _goNext);

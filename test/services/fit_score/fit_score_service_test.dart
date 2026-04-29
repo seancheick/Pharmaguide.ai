@@ -95,23 +95,26 @@ void main() {
       expect(full.maxPossible, 100.0);
     });
 
-    test('maxPossible reflects degraded E1 behavior when age exists without sex', () {
-      final service = FitScoreService(
-        e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
-        e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
-        e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
-        e2c: E2cMedicalCalculator(),
-      );
+    test(
+      'maxPossible reflects degraded E1 behavior when age exists without sex',
+      () {
+        final service = FitScoreService(
+          e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
+          e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
+          e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
+          e2c: E2cMedicalCalculator(),
+        );
 
-      final partial = service.calculate(
-        nutrients: const [],
-        productClusters: const [],
-        interactionSummary: const {},
-        ageBracket: '19-30',
-      );
+        final partial = service.calculate(
+          nutrients: const [],
+          productClusters: const [],
+          interactionSummary: const {},
+          ageBracket: '19-30',
+        );
 
-      expect(partial.maxPossible, 91.0);
-    });
+        expect(partial.maxPossible, 91.0);
+      },
+    );
 
     test('prefers pipeline goal matches over local cluster fallback', () {
       final service = FitScoreService(

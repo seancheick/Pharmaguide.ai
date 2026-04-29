@@ -61,8 +61,7 @@ class CatalogInfo {
 }
 
 const bundledCoreDatabaseAssetPath = 'assets/db/pharmaguide_core.db';
-const bundledInteractionDatabaseAssetPath =
-    'assets/db/interaction_db.sqlite';
+const bundledInteractionDatabaseAssetPath = 'assets/db/interaction_db.sqlite';
 
 /// Ensures that a local core database exists before opening it.
 ///
@@ -87,10 +86,13 @@ Future<void> ensureCoreDatabaseAvailable({
   AssetBundle? bundle,
 }) async {
   final dbFile = File(dbPath);
-  final assetData =
-      await (bundle ?? rootBundle).load(bundledCoreDatabaseAssetPath);
-  final assetBytes = assetData.buffer
-      .asUint8List(assetData.offsetInBytes, assetData.lengthInBytes);
+  final assetData = await (bundle ?? rootBundle).load(
+    bundledCoreDatabaseAssetPath,
+  );
+  final assetBytes = assetData.buffer.asUint8List(
+    assetData.offsetInBytes,
+    assetData.lengthInBytes,
+  );
 
   if (await dbFile.exists()) {
     final existingLength = await dbFile.length();
@@ -207,10 +209,13 @@ Future<void> ensureInteractionDatabaseAvailable({
   AssetBundle? bundle,
 }) async {
   final dbFile = File(dbPath);
-  final assetData =
-      await (bundle ?? rootBundle).load(bundledInteractionDatabaseAssetPath);
-  final assetBytes = assetData.buffer
-      .asUint8List(assetData.offsetInBytes, assetData.lengthInBytes);
+  final assetData = await (bundle ?? rootBundle).load(
+    bundledInteractionDatabaseAssetPath,
+  );
+  final assetBytes = assetData.buffer.asUint8List(
+    assetData.offsetInBytes,
+    assetData.lengthInBytes,
+  );
 
   if (await dbFile.exists()) {
     final existingLength = await dbFile.length();

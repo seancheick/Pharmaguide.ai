@@ -153,13 +153,13 @@ class SyncService {
       // broken indexes, truncated payloads). PRAGMA integrity_check
       // returns a single row with the literal `'ok'` on success or one
       // or more rows describing the corruption.
-      final integrityRows =
-          await db.customSelect('PRAGMA integrity_check').get();
+      final integrityRows = await db
+          .customSelect('PRAGMA integrity_check')
+          .get();
       if (integrityRows.isEmpty) {
         throw StateError('PRAGMA integrity_check returned no rows');
       }
-      final integrityResult =
-          integrityRows.first.data.values.first?.toString();
+      final integrityResult = integrityRows.first.data.values.first?.toString();
       if (integrityResult != 'ok') {
         throw StateError(
           'Catalog integrity_check failed: ${integrityResult ?? "(null)"}',

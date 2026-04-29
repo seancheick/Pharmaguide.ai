@@ -43,11 +43,13 @@ void main() {
       // E2c medical-compatibility reasons, dosage feedback, etc.
       // None of these match the goal pattern.
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Effective magnesium dose for sleep',
-          'Brand has third-party testing',
-          'No conditions on file conflict',
-        ])),
+        topGoalLabelFromFit(
+          _result(const [
+            'Effective magnesium dose for sleep',
+            'Brand has third-party testing',
+            'No conditions on file conflict',
+          ]),
+        ),
         isNull,
       );
     });
@@ -74,21 +76,25 @@ void main() {
       // relevance — the engine's call site gives us the top match
       // first. Verify we honor that order.
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Sleep Quality goal.',
-          'Supports your Increase Energy goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const [
+            'Supports your Sleep Quality goal.',
+            'Supports your Increase Energy goal.',
+          ]),
+        ),
         'Sleep Quality',
       );
     });
 
     test('skips non-matching reasons until a goal-shaped one appears', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Effective magnesium dose for sleep',
-          'No conditions on file conflict',
-          'Supports your Sleep Quality goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const [
+            'Effective magnesium dose for sleep',
+            'No conditions on file conflict',
+            'Supports your Sleep Quality goal.',
+          ]),
+        ),
         'Sleep Quality',
       );
     });
@@ -97,9 +103,9 @@ void main() {
       // FitScoreService capitalizes "Supports", but be tolerant if
       // the producer changes capitalization.
       expect(
-        topGoalLabelFromFit(_result(const [
-          'SUPPORTS YOUR Sleep Quality GOAL.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['SUPPORTS YOUR Sleep Quality GOAL.']),
+        ),
         'Sleep Quality',
       );
     });
@@ -109,18 +115,18 @@ void main() {
       // matches the word boundary, so the period doesn't enter the
       // capture.
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Sleep Quality goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Sleep Quality goal.']),
+        ),
         'Sleep Quality',
       );
     });
 
     test('handles trailing exclamation', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Sleep Quality goal!',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Sleep Quality goal!']),
+        ),
         'Sleep Quality',
       );
     });
@@ -131,9 +137,11 @@ void main() {
       // match) would require a different anchor and the spec
       // doesn't call for it.
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Sleep Quality goal — also a secondary goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const [
+            'Supports your Sleep Quality goal — also a secondary goal.',
+          ]),
+        ),
         'Sleep Quality',
       );
     });
@@ -142,18 +150,18 @@ void main() {
       // \b word boundary anchor ensures we don't false-match on
       // longer words containing "goal".
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Sleep Quality goalkeeper.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Sleep Quality goalkeeper.']),
+        ),
         isNull,
       );
     });
 
     test('handles whitespace variants (tabs, multiple spaces)', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports  your   Sleep Quality   goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports  your   Sleep Quality   goal.']),
+        ),
         'Sleep Quality',
       );
     });
@@ -173,54 +181,54 @@ void main() {
     // dropped. Each one lives in production SchemaIds.goalLabels.
     test('"Reduce Stress/Anxiety" — has /', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Reduce Stress/Anxiety goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Reduce Stress/Anxiety goal.']),
+        ),
         'Reduce Stress/Anxiety',
       );
     });
 
     test('"Cardiovascular/Heart Health" — has /', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Cardiovascular/Heart Health goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Cardiovascular/Heart Health goal.']),
+        ),
         'Cardiovascular/Heart Health',
       );
     });
 
     test('"Focus & Mental Clarity" — has &', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Focus & Mental Clarity goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Focus & Mental Clarity goal.']),
+        ),
         'Focus & Mental Clarity',
       );
     });
 
     test('"Skin, Hair, & Nails" — has comma + &', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Skin, Hair, & Nails goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Skin, Hair, & Nails goal.']),
+        ),
         'Skin, Hair, & Nails',
       );
     });
 
     test('"Healthy Aging/Longevity" — has /', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Healthy Aging/Longevity goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Healthy Aging/Longevity goal.']),
+        ),
         'Healthy Aging/Longevity',
       );
     });
 
     test('"Prenatal/Pregnancy Support" — has /', () {
       expect(
-        topGoalLabelFromFit(_result(const [
-          'Supports your Prenatal/Pregnancy Support goal.',
-        ])),
+        topGoalLabelFromFit(
+          _result(const ['Supports your Prenatal/Pregnancy Support goal.']),
+        ),
         'Prenatal/Pregnancy Support',
       );
     });

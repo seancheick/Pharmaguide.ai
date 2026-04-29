@@ -21,90 +21,100 @@ import 'package:pharmaguide/services/stack/synergy_result.dart';
 /// added to the user's stack. Empty list = no pairs, widget hides itself.
 final pairsWellWithStackProvider =
     FutureProvider.family<List<SynergyMatch>, String>((ref, dsldId) async {
-  final coreDb = ref.watch(coreDatabaseProvider);
+      final coreDb = ref.watch(coreDatabaseProvider);
 
-  // Get this product's canonical ingredient IDs.
-  final product = await coreDb.findById(dsldId);
-  if (product == null) return [];
-  final productIds = _productCanonicalIds(
-      product.keyIngredientTags, product.ingredientFingerprint);
-  if (productIds.isEmpty) return [];
+      // Get this product's canonical ingredient IDs.
+      final product = await coreDb.findById(dsldId);
+      if (product == null) return [];
+      final productIds = _productCanonicalIds(
+        product.keyIngredientTags,
+        product.ingredientFingerprint,
+      );
+      if (productIds.isEmpty) return [];
 
-  // Get the current stack's canonical IDs (supplements only).
-  final stack = await ref.watch(activeStackProvider.future);
-  if (stack.isEmpty) return [];
-  final stackIds = <String>{};
-  for (final entry in stack) {
-    if (entry.type != 'supplement') continue;
-    final id = entry.dsldId;
-    if (id == null || id.isEmpty || id == dsldId) continue;
-    final p = await coreDb.findById(id);
-    if (p == null) continue;
-    stackIds.addAll(
-        _productCanonicalIds(p.keyIngredientTags, p.ingredientFingerprint));
-  }
+      // Get the current stack's canonical IDs (supplements only).
+      final stack = await ref.watch(activeStackProvider.future);
+      if (stack.isEmpty) return [];
+      final stackIds = <String>{};
+      for (final entry in stack) {
+        if (entry.type != 'supplement') continue;
+        final id = entry.dsldId;
+        if (id == null || id.isEmpty || id == dsldId) continue;
+        final p = await coreDb.findById(id);
+        if (p == null) continue;
+        stackIds.addAll(
+          _productCanonicalIds(p.keyIngredientTags, p.ingredientFingerprint),
+        );
+      }
 
-  // Load synergy cluster data.
-  final refRepo = ReferenceDataRepository();
-  final Map<String, dynamic> clustersData;
-  try {
-    clustersData = await refRepo.loadSynergyClusters();
-  } on Object {
-    return [];
-  }
+      // Load synergy cluster data.
+      final refRepo = ReferenceDataRepository();
+      final Map<String, dynamic> clustersData;
+      try {
+        clustersData = await refRepo.loadSynergyClusters();
+      } on Object {
+        return [];
+      }
 
-  final clustersList = clustersData.safeMapList('clusters');
-  final matches = <SynergyMatch>[];
+      final clustersList = clustersData.safeMapList('clusters');
+      final matches = <SynergyMatch>[];
 
-  for (final cluster in clustersList) {
-    final clusterId = cluster.safeString('cluster_id');
-    final name = cluster.safeString('name');
-    if (clusterId.isEmpty || name.isEmpty) continue;
+      for (final cluster in clustersList) {
+        final clusterId = cluster.safeString('cluster_id');
+        final name = cluster.safeString('name');
+        if (clusterId.isEmpty || name.isEmpty) continue;
 
-    final ingredients = cluster.safeStringList('ingredients');
-    if (ingredients.length < 2) continue;
+        final ingredients = cluster.safeStringList('ingredients');
+        if (ingredients.length < 2) continue;
 
-    final mechanism = cluster.safeString('mechanism');
-    final bonusPoints = cluster.safeInt('bonus_points');
-    final evidenceTier = cluster.safeString('evidence_tier', 'limited');
-    final citations = cluster.safeStringList('citations');
+        final mechanism = cluster.safeString('mechanism');
+        final bonusPoints = cluster.safeInt('bonus_points');
+        final evidenceTier = cluster.safeString('evidence_tier', 'limited');
+        final citations = cluster.safeStringList('citations');
 
-    // This product contributes at least one ingredient to the cluster.
-    final productContributes =
-        ingredients.any((ing) => productIds.contains(ing));
-    // Stack already has at least one complementary ingredient.
-    final stackComplements = ingredients.any((ing) => stackIds.contains(ing));
+        // This product contributes at least one ingredient to the cluster.
+        final productContributes = ingredients.any(
+          (ing) => productIds.contains(ing),
+        );
+        // Stack already has at least one complementary ingredient.
+        final stackComplements = ingredients.any(
+          (ing) => stackIds.contains(ing),
+        );
 
-    if (productContributes && stackComplements) {
-      matches.add(SynergyMatch(
-        clusterId: clusterId,
-        clusterName: name,
-        matchedIngredients: ingredients,
-        mechanism: mechanism,
-        bonusPoints: bonusPoints,
-        evidenceTier: evidenceTier,
-        citations: citations,
-      ));
-    }
-  }
+        if (productContributes && stackComplements) {
+          matches.add(
+            SynergyMatch(
+              clusterId: clusterId,
+              clusterName: name,
+              matchedIngredients: ingredients,
+              mechanism: mechanism,
+              bonusPoints: bonusPoints,
+              evidenceTier: evidenceTier,
+              citations: citations,
+            ),
+          );
+        }
+      }
 
-  // Sort: strong first, then by bonus points desc.
-  matches.sort((a, b) {
-    const tierOrder = {'strong': 0, 'moderate': 1, 'limited': 2};
-    final ta = tierOrder[a.evidenceTier] ?? 3;
-    final tb = tierOrder[b.evidenceTier] ?? 3;
-    if (ta != tb) return ta.compareTo(tb);
-    return b.bonusPoints.compareTo(a.bonusPoints);
-  });
+      // Sort: strong first, then by bonus points desc.
+      matches.sort((a, b) {
+        const tierOrder = {'strong': 0, 'moderate': 1, 'limited': 2};
+        final ta = tierOrder[a.evidenceTier] ?? 3;
+        final tb = tierOrder[b.evidenceTier] ?? 3;
+        if (ta != tb) return ta.compareTo(tb);
+        return b.bonusPoints.compareTo(a.bonusPoints);
+      });
 
-  return matches;
-});
+      return matches;
+    });
 
 /// Extracts canonical IDs from a product's `key_ingredient_tags` JSON
 /// (primary) and `ingredient_fingerprint.herbs` list (secondary).
 /// Mirrors `_canonicalIdsForProduct` in stack_providers.dart.
 Set<String> _productCanonicalIds(
-    String? keyIngredientTags, String? ingredientFingerprint) {
+  String? keyIngredientTags,
+  String? ingredientFingerprint,
+) {
   final ids = <String>{};
   if (keyIngredientTags != null && keyIngredientTags.isNotEmpty) {
     try {
@@ -115,7 +125,9 @@ Set<String> _productCanonicalIds(
           if (s.isNotEmpty) ids.add(s);
         }
       }
-    } on FormatException {/* fall through */}
+    } on FormatException {
+      /* fall through */
+    }
   }
   if (ingredientFingerprint != null && ingredientFingerprint.isNotEmpty) {
     try {
@@ -129,7 +141,9 @@ Set<String> _productCanonicalIds(
           }
         }
       }
-    } on FormatException {/* best-effort */}
+    } on FormatException {
+      /* best-effort */
+    }
   }
   return ids;
 }

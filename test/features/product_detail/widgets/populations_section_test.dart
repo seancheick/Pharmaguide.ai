@@ -74,17 +74,19 @@ void main() {
       expect(s.alreadyCovered, ['Pregnancy']);
     });
 
-    test('keyword match — "diabetic" in population matches diabetes condition',
-        () {
-      // The keyword map maps "diabetic" → "diabetes" signal.
-      final s = splitPopulations(
-        populations: const ['Diabetic patients should monitor closely'],
-        userConditions: const {'diabetes'},
-        userDrugClasses: const {},
-      );
-      expect(s.mainList, isEmpty);
-      expect(s.alreadyCovered, ['Diabetes']);
-    });
+    test(
+      'keyword match — "diabetic" in population matches diabetes condition',
+      () {
+        // The keyword map maps "diabetic" → "diabetes" signal.
+        final s = splitPopulations(
+          populations: const ['Diabetic patients should monitor closely'],
+          userConditions: const {'diabetes'},
+          userDrugClasses: const {},
+        );
+        expect(s.mainList, isEmpty);
+        expect(s.alreadyCovered, ['Diabetes']);
+      },
+    );
 
     test('word-boundary — "fish" doesn\'t match inside "fishing"', () {
       // Defensive — make sure substring matches respect word
@@ -113,16 +115,11 @@ void main() {
       expect(s.alreadyCovered, ['Pregnancy']);
     });
 
-    test('multiple populations match the same user signal → covered once',
-        () {
+    test('multiple populations match the same user signal → covered once', () {
       // Both "Pregnancy" and "Pregnant women" map to the pregnancy
       // signal. The covered-list should mention it once.
       final s = splitPopulations(
-        populations: const [
-          'Pregnancy',
-          'Pregnant women',
-          'Children',
-        ],
+        populations: const ['Pregnancy', 'Pregnant women', 'Children'],
         userConditions: const {'pregnancy'},
         userDrugClasses: const {},
       );
@@ -220,8 +217,7 @@ void main() {
       expect(s.alreadyCovered, isEmpty);
     });
 
-    test('age bracket — middle-age brackets do not match either signal',
-        () {
+    test('age bracket — middle-age brackets do not match either signal', () {
       for (final b in ['19-30', '31-50']) {
         final s = splitPopulations(
           populations: const ['Children should avoid'],
@@ -229,11 +225,9 @@ void main() {
           userDrugClasses: const {},
           ageBracket: b,
         );
-        expect(
-          s.mainList,
-          ['Children should avoid'],
-          reason: 'bracket "$b" should not map',
-        );
+        expect(s.mainList, [
+          'Children should avoid',
+        ], reason: 'bracket "$b" should not map');
         expect(s.alreadyCovered, isEmpty);
       }
     });
@@ -260,8 +254,7 @@ void main() {
       expect(s.mainList, ['Pregnancy']);
     });
 
-    test('alreadyCovered list is alphabetically sorted (deterministic)',
-        () {
+    test('alreadyCovered list is alphabetically sorted (deterministic)', () {
       final s = splitPopulations(
         populations: const ['Pregnancy', 'Diabetic'],
         userConditions: const {'pregnancy', 'diabetes'},
@@ -315,10 +308,12 @@ void main() {
         await _pump(
           tester,
           warnings: [
-            _w(populationWarnings: const [
-              'Pregnancy',
-              'Children — immature gut barrier',
-            ]),
+            _w(
+              populationWarnings: const [
+                'Pregnancy',
+                'Children — immature gut barrier',
+              ],
+            ),
           ],
           userConditions: {'pregnancy'},
         );

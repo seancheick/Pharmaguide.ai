@@ -122,13 +122,11 @@ const Map<String, InactivePurpose> _inactivePurposes = {
   // Common solvents
   'water': InactivePurpose(
     role: 'Solvent',
-    detail:
-        'Carrier for the active ingredients in liquids and tinctures.',
+    detail: 'Carrier for the active ingredients in liquids and tinctures.',
   ),
   'purified water': InactivePurpose(
     role: 'Solvent',
-    detail:
-        'Filtered water used as a carrier for the active ingredients.',
+    detail: 'Filtered water used as a carrier for the active ingredients.',
   ),
 
   // Common sweeteners / colorants (these are the ones that should

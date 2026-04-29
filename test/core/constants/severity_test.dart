@@ -4,7 +4,10 @@ import 'package:pharmaguide/core/constants/severity.dart';
 void main() {
   group('Severity', () {
     test('ordering is contraindicated > avoid > caution > monitor > safe', () {
-      expect(Severity.contraindicated.weight, greaterThan(Severity.avoid.weight));
+      expect(
+        Severity.contraindicated.weight,
+        greaterThan(Severity.avoid.weight),
+      );
       expect(Severity.avoid.weight, greaterThan(Severity.caution.weight));
       expect(Severity.caution.weight, greaterThan(Severity.monitor.weight));
       expect(Severity.monitor.weight, greaterThan(Severity.safe.weight));
@@ -33,9 +36,15 @@ void main() {
 
   group('EvidenceLevel', () {
     test('fromString parses valid levels', () {
-      expect(EvidenceLevel.fromString('established'), EvidenceLevel.established);
+      expect(
+        EvidenceLevel.fromString('established'),
+        EvidenceLevel.established,
+      );
       expect(EvidenceLevel.fromString('probable'), EvidenceLevel.probable);
-      expect(EvidenceLevel.fromString('theoretical'), EvidenceLevel.theoretical);
+      expect(
+        EvidenceLevel.fromString('theoretical'),
+        EvidenceLevel.theoretical,
+      );
     });
 
     test('fromString returns theoretical for unknown', () {

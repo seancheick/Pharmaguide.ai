@@ -42,10 +42,12 @@ class TimingAdviceCard extends StatelessWidget {
     if (optimizations.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
-    final separations =
-        optimizations.where((o) => o.isSeparation).toList(growable: false);
-    final others =
-        optimizations.where((o) => !o.isSeparation).toList(growable: false);
+    final separations = optimizations
+        .where((o) => o.isSeparation)
+        .toList(growable: false);
+    final others = optimizations
+        .where((o) => !o.isSeparation)
+        .toList(growable: false);
 
     return Padding(
       padding: margin,
@@ -90,9 +92,12 @@ class TimingAdviceCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusMedium),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
                         ),
                         child: Text(
                           '${optimizations.length}',

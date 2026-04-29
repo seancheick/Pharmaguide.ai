@@ -28,8 +28,18 @@ class PGCitationStrip extends StatelessWidget {
   });
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _formatDate(DateTime d) =>
@@ -72,10 +82,7 @@ class PGCitationStrip extends StatelessWidget {
               ),
               const SizedBox(width: AppTheme.space6),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppTheme.evidenceStrong.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),

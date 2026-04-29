@@ -27,13 +27,13 @@ void main() {
       expect(
         stagePassedExpected,
         '2026.04.28.013000',
-        reason: 'service must pin the version it just probed so the '
+        reason:
+            'service must pin the version it just probed so the '
             'staged file is exactly what the manifest advertised',
       );
     });
 
-    test('remote == installed → CatalogUpToDate, no download fired',
-        () async {
+    test('remote == installed → CatalogUpToDate, no download fired', () async {
       var stageCalls = 0;
       final svc = CatalogUpdaterService(
         probeRemoteVersion: () async => '2026.04.27.063145',
@@ -49,12 +49,14 @@ void main() {
 
       expect(result, isA<CatalogUpToDate>());
       expect((result as CatalogUpToDate).version, '2026.04.27.063145');
-      expect(stageCalls, 0,
-          reason: 'a same-version no-op must not touch the network');
+      expect(
+        stageCalls,
+        0,
+        reason: 'a same-version no-op must not touch the network',
+      );
     });
 
-    test('forceDownload bypasses the version-match short-circuit',
-        () async {
+    test('forceDownload bypasses the version-match short-circuit', () async {
       var stageCalls = 0;
       final svc = CatalogUpdaterService(
         probeRemoteVersion: () async => '2026.04.27.063145',
@@ -74,25 +76,26 @@ void main() {
       expect(stageCalls, 1);
     });
 
-    test('first launch (installedVersion=null) always stages the remote',
-        () async {
-      var stageCalls = 0;
-      final svc = CatalogUpdaterService(
-        probeRemoteVersion: () async => '2026.04.27.063145',
-        stageDownload: ({String? expectedVersion}) async {
-          stageCalls++;
-          return '2026.04.27.063145';
-        },
-      );
+    test(
+      'first launch (installedVersion=null) always stages the remote',
+      () async {
+        var stageCalls = 0;
+        final svc = CatalogUpdaterService(
+          probeRemoteVersion: () async => '2026.04.27.063145',
+          stageDownload: ({String? expectedVersion}) async {
+            stageCalls++;
+            return '2026.04.27.063145';
+          },
+        );
 
-      final result = await svc.checkForUpdate();
+        final result = await svc.checkForUpdate();
 
-      expect(result, isA<CatalogStaged>());
-      expect(stageCalls, 1);
-    });
+        expect(result, isA<CatalogStaged>());
+        expect(stageCalls, 1);
+      },
+    );
 
-    test('probe throws → CatalogUnreachable, no download fired',
-        () async {
+    test('probe throws → CatalogUnreachable, no download fired', () async {
       var stageCalls = 0;
       final svc = CatalogUpdaterService(
         probeRemoteVersion: () async {
@@ -113,47 +116,55 @@ void main() {
       expect(stageCalls, 0);
     });
 
-    test('probe returns null → CatalogUnreachable (table empty / first push)',
-        () async {
-      var stageCalls = 0;
-      final svc = CatalogUpdaterService(
-        probeRemoteVersion: () async => null,
-        stageDownload: ({String? expectedVersion}) async {
-          stageCalls++;
-          return 'unused';
-        },
-      );
+    test(
+      'probe returns null → CatalogUnreachable (table empty / first push)',
+      () async {
+        var stageCalls = 0;
+        final svc = CatalogUpdaterService(
+          probeRemoteVersion: () async => null,
+          stageDownload: ({String? expectedVersion}) async {
+            stageCalls++;
+            return 'unused';
+          },
+        );
 
-      final result = await svc.checkForUpdate(
-        installedVersion: '2026.04.27.063145',
-      );
+        final result = await svc.checkForUpdate(
+          installedVersion: '2026.04.27.063145',
+        );
 
-      expect(result, isA<CatalogUnreachable>());
-      expect((result as CatalogUnreachable).error, isNull,
-          reason: 'a null probe is a soft "no manifest" — there is no '
-              'underlying error to attach');
-      expect(stageCalls, 0);
-    });
+        expect(result, isA<CatalogUnreachable>());
+        expect(
+          (result as CatalogUnreachable).error,
+          isNull,
+          reason:
+              'a null probe is a soft "no manifest" — there is no '
+              'underlying error to attach',
+        );
+        expect(stageCalls, 0);
+      },
+    );
 
-    test('stage fails (network drop / sha mismatch) → CatalogStageFailed',
-        () async {
-      final svc = CatalogUpdaterService(
-        probeRemoteVersion: () async => '2026.04.28.013000',
-        stageDownload: ({String? expectedVersion}) async {
-          throw StateError('SHA-256 mismatch on staged bundle');
-        },
-      );
+    test(
+      'stage fails (network drop / sha mismatch) → CatalogStageFailed',
+      () async {
+        final svc = CatalogUpdaterService(
+          probeRemoteVersion: () async => '2026.04.28.013000',
+          stageDownload: ({String? expectedVersion}) async {
+            throw StateError('SHA-256 mismatch on staged bundle');
+          },
+        );
 
-      final result = await svc.checkForUpdate(
-        installedVersion: '2026.04.27.063145',
-      );
+        final result = await svc.checkForUpdate(
+          installedVersion: '2026.04.27.063145',
+        );
 
-      expect(result, isA<CatalogStageFailed>());
-      final failed = result as CatalogStageFailed;
-      expect(failed.error, isA<StateError>());
-      expect(failed.reason, contains('stageCoreDbDownload'));
-      expect(failed.reason, contains('SHA-256 mismatch'));
-    });
+        expect(result, isA<CatalogStageFailed>());
+        final failed = result as CatalogStageFailed;
+        expect(failed.error, isA<StateError>());
+        expect(failed.reason, contains('stageCoreDbDownload'));
+        expect(failed.reason, contains('SHA-256 mismatch'));
+      },
+    );
 
     test('production factory constructs without crashing', () {
       // Smoke test only — wiring the real SyncService here would

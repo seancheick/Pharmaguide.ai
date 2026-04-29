@@ -34,9 +34,9 @@ class E2aGoalCalculator {
 
     for (final goalId in userGoals) {
       final goalMapping = mappings.cast<Map<String, dynamic>?>().firstWhere(
-            (m) => m != null && m['id'] == goalId,
-            orElse: () => null,
-          );
+        (m) => m != null && m['id'] == goalId,
+        orElse: () => null,
+      );
       if (goalMapping == null) continue;
 
       final rawWeights = goalMapping['cluster_weights'];

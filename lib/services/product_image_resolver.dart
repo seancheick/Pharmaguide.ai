@@ -21,7 +21,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 /// Rate limiting: max 2 concurrent OFF requests via semaphore.
 class ProductImageResolver {
   ProductImageResolver(this._userDb, {http.Client? httpClient})
-      : _http = httpClient ?? http.Client();
+    : _http = httpClient ?? http.Client();
 
   final UserDatabase _userDb;
   final http.Client _http;
@@ -73,10 +73,7 @@ class ProductImageResolver {
     try {
       await _acquireSemaphore();
       try {
-        return await _queryOff(
-        dsldId,
-        upc.replaceAll(RegExp(r'[^0-9]'), ''),
-      );
+        return await _queryOff(dsldId, upc.replaceAll(RegExp(r'[^0-9]'), ''));
       } finally {
         _releaseSemaphore();
       }

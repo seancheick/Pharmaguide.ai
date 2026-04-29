@@ -23,11 +23,7 @@ class PGEvidenceBadge extends StatelessWidget {
           bars: 3,
         );
       case EvidenceLevel.probable:
-        return (
-          color: AppTheme.evidenceGood,
-          label: 'Good evidence',
-          bars: 2,
-        );
+        return (color: AppTheme.evidenceGood, label: 'Good evidence', bars: 2);
       case EvidenceLevel.theoretical:
         return (
           color: AppTheme.evidenceTheoretical,

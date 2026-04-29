@@ -122,29 +122,31 @@ void main() {
       expect(intelligence.issues.first.headline, contains('Banned Product'));
     });
 
-    test('warning-status recall → unsafe + hasRecalledIngredient (not banned)',
-        () {
-      final recall = RecalledIngredientsReport(
-        violations: [
-          _violation(
-            productName: 'Watchlist Product',
-            recallStatus: 'warning',
-            severity: 'major',
-          ),
-        ],
-      );
+    test(
+      'warning-status recall → unsafe + hasRecalledIngredient (not banned)',
+      () {
+        final recall = RecalledIngredientsReport(
+          violations: [
+            _violation(
+              productName: 'Watchlist Product',
+              recallStatus: 'warning',
+              severity: 'major',
+            ),
+          ],
+        );
 
-      final intelligence = engine.diagnose(
-        stackSize: 4,
-        safetyReport: const StackSafetyReport(),
-        recalledReport: recall,
-        synergyReport: emptySynergy,
-      );
+        final intelligence = engine.diagnose(
+          stackSize: 4,
+          safetyReport: const StackSafetyReport(),
+          recalledReport: recall,
+          synergyReport: emptySynergy,
+        );
 
-      expect(intelligence.tier, StackTier.unsafe);
-      expect(intelligence.hasRecalledIngredient, isTrue);
-      expect(intelligence.hasBannedIngredient, isFalse);
-    });
+        expect(intelligence.tier, StackTier.unsafe);
+        expect(intelligence.hasRecalledIngredient, isTrue);
+        expect(intelligence.hasBannedIngredient, isFalse);
+      },
+    );
 
     test('contraindicated interaction → unsafe', () {
       final report = StackSafetyReport(
@@ -167,9 +169,7 @@ void main() {
 
     test('avoid-level interaction → concerning', () {
       final report = StackSafetyReport(
-        stackInteractions: [
-          _interaction(id: 's1', severity: Severity.avoid),
-        ],
+        stackInteractions: [_interaction(id: 's1', severity: Severity.avoid)],
       );
 
       final intelligence = engine.diagnose(
@@ -210,8 +210,10 @@ void main() {
 
       expect(intelligence.tier, StackTier.concerning);
       expect(intelligence.nutrientWarningCount, 2);
-      expect(intelligence.issues.any((i) => i.headline == 'zinc over UL'),
-          isTrue);
+      expect(
+        intelligence.issues.any((i) => i.headline == 'zinc over UL'),
+        isTrue,
+      );
     });
 
     test('clean stack with qualityScore 90 → optimized', () {
@@ -240,42 +242,44 @@ void main() {
       expect(intelligence.tier, StackTier.solid);
     });
 
-    test('issues sort with recalls before interactions and severity-ordered',
-        () {
-      final report = StackSafetyReport(
-        stackInteractions: [
-          _interaction(
-            id: 'sx',
-            severity: Severity.caution,
-            mechanism: 'mid-tier supplement issue',
-          ),
-        ],
-        medicationInteractions: [
-          _interaction(
-            id: 'mx',
-            severity: Severity.avoid,
-            mechanism: 'medication conflict',
-          ),
-        ],
-      );
-      final recall = RecalledIngredientsReport(
-        violations: [
-          _violation(productName: 'Tainted', recallStatus: 'banned'),
-        ],
-      );
+    test(
+      'issues sort with recalls before interactions and severity-ordered',
+      () {
+        final report = StackSafetyReport(
+          stackInteractions: [
+            _interaction(
+              id: 'sx',
+              severity: Severity.caution,
+              mechanism: 'mid-tier supplement issue',
+            ),
+          ],
+          medicationInteractions: [
+            _interaction(
+              id: 'mx',
+              severity: Severity.avoid,
+              mechanism: 'medication conflict',
+            ),
+          ],
+        );
+        final recall = RecalledIngredientsReport(
+          violations: [
+            _violation(productName: 'Tainted', recallStatus: 'banned'),
+          ],
+        );
 
-      final intelligence = engine.diagnose(
-        stackSize: 5,
-        safetyReport: report,
-        recalledReport: recall,
-        synergyReport: emptySynergy,
-      );
+        final intelligence = engine.diagnose(
+          stackSize: 5,
+          safetyReport: report,
+          recalledReport: recall,
+          synergyReport: emptySynergy,
+        );
 
-      // Recall first.
-      expect(intelligence.issues.first.headline, contains('Tainted'));
-      // Then medication avoid before supplement caution.
-      expect(intelligence.issues[1].headline, 'medication conflict');
-      expect(intelligence.issues[2].headline, 'mid-tier supplement issue');
-    });
+        // Recall first.
+        expect(intelligence.issues.first.headline, contains('Tainted'));
+        // Then medication avoid before supplement caution.
+        expect(intelligence.issues[1].headline, 'medication conflict');
+        expect(intelligence.issues[2].headline, 'mid-tier supplement issue');
+      },
+    );
   });
 }

@@ -73,13 +73,11 @@ class _PGPressableState extends State<PGPressable> {
     }
   }
 
-  bool get _isInteractive =>
-      widget.onTap != null || widget.onLongPress != null;
+  bool get _isInteractive => widget.onTap != null || widget.onLongPress != null;
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion =
-        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final shouldScale = _pressed && !reduceMotion;
 
     final scaled = AnimatedScale(

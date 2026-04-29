@@ -34,8 +34,11 @@ class HeavyMetalWarningCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.warning_amber_rounded,
-                  size: 18, color: AppTheme.severityAvoid),
+              const Icon(
+                Icons.warning_amber_rounded,
+                size: 18,
+                color: AppTheme.severityAvoid,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Heavy Metal Risk',
@@ -46,8 +49,7 @@ class HeavyMetalWarningCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppTheme.severityAvoid.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),

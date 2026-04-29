@@ -36,11 +36,10 @@ class FormAbsorptionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Only include ingredients that actually have a bio_score.
-    final scored = ingredients
-        .where((i) => i['bio_score'] != null)
-        .toList()
-      ..sort((a, b) =>
-          (b['bio_score'] as num).compareTo(a['bio_score'] as num));
+    final scored = ingredients.where((i) => i['bio_score'] != null).toList()
+      ..sort(
+        (a, b) => (b['bio_score'] as num).compareTo(a['bio_score'] as num),
+      );
 
     // Need at least 2 scored ingredients to make a comparison meaningful.
     if (scored.length < 2) return const SizedBox.shrink();
@@ -57,8 +56,11 @@ class FormAbsorptionSection extends StatelessWidget {
           // Header
           Row(
             children: [
-              const Icon(Icons.biotech_outlined,
-                  size: 18, color: AppTheme.evidenceStrong),
+              const Icon(
+                Icons.biotech_outlined,
+                size: 18,
+                color: AppTheme.evidenceStrong,
+              ),
               const SizedBox(width: AppTheme.space6),
               Text(
                 'Form & Absorption',
@@ -81,7 +83,8 @@ class FormAbsorptionSection extends StatelessWidget {
           const SizedBox(height: AppTheme.space12),
           // Per-ingredient bars, ranked highest first.
           ...scored.take(6).map((ing) {
-            final name = ing['name']?.toString() ??
+            final name =
+                ing['name']?.toString() ??
                 ing['standard_name']?.toString() ??
                 '';
             final form = ing['form']?.toString() ?? '';
@@ -167,9 +170,9 @@ class FormAbsorptionSection extends StatelessWidget {
           children: [
             Text(
               'About Bioavailability Scores',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: AppTheme.space12),
             const Text(
@@ -181,21 +184,25 @@ class FormAbsorptionSection extends StatelessWidget {
             ),
             const SizedBox(height: AppTheme.space16),
             const _ExplainerRow(
-                label: 'Excellent (12–18)',
-                description: 'Highly bioavailable form',
-                tier: 'excellent'),
+              label: 'Excellent (12–18)',
+              description: 'Highly bioavailable form',
+              tier: 'excellent',
+            ),
             const _ExplainerRow(
-                label: 'Good (8–11)',
-                description: 'Well-absorbed form',
-                tier: 'good'),
+              label: 'Good (8–11)',
+              description: 'Well-absorbed form',
+              tier: 'good',
+            ),
             const _ExplainerRow(
-                label: 'Fair (4–7)',
-                description: 'Moderate absorption',
-                tier: 'fair'),
+              label: 'Fair (4–7)',
+              description: 'Moderate absorption',
+              tier: 'fair',
+            ),
             const _ExplainerRow(
-                label: 'Poor (0–3)',
-                description: 'Low bioavailability',
-                tier: 'poor'),
+              label: 'Poor (0–3)',
+              description: 'Low bioavailability',
+              tier: 'poor',
+            ),
             const SizedBox(height: AppTheme.space8),
           ],
         ),
@@ -237,10 +244,7 @@ class _ExplainerRow extends StatelessWidget {
           Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(
-              color: _color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: _color, shape: BoxShape.circle),
           ),
           const SizedBox(width: AppTheme.space8),
           Text(

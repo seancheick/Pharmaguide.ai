@@ -16,7 +16,9 @@ Future<void> _seedProduct(
   String dsldId = _dsldId,
   String verdict = 'GOOD',
 }) async {
-  await coreDb.into(coreDb.productsCore).insert(
+  await coreDb
+      .into(coreDb.productsCore)
+      .insert(
         ProductsCoreCompanion.insert(
           dsldId: dsldId,
           productName: 'Test Product',
@@ -162,11 +164,7 @@ void main() {
         await _seedProduct(coreDb);
 
         var taps = 0;
-        await tester.pumpWidget(_wrap(
-          coreDb,
-          userDb,
-          onLogDose: () => taps++,
-        ));
+        await tester.pumpWidget(_wrap(coreDb, userDb, onLogDose: () => taps++));
         await tester.pumpAndSettle();
 
         // Tap should be ignored when disabled.
@@ -189,11 +187,7 @@ void main() {
         await _addToStack(userDb);
 
         var taps = 0;
-        await tester.pumpWidget(_wrap(
-          coreDb,
-          userDb,
-          onLogDose: () => taps++,
-        ));
+        await tester.pumpWidget(_wrap(coreDb, userDb, onLogDose: () => taps++));
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Log dose'));
@@ -217,12 +211,9 @@ void main() {
         await _addToStack(userDb);
 
         var taps = 0;
-        await tester.pumpWidget(_wrap(
-          coreDb,
-          userDb,
-          isUnsafe: true,
-          onLogDose: () => taps++,
-        ));
+        await tester.pumpWidget(
+          _wrap(coreDb, userDb, isUnsafe: true, onLogDose: () => taps++),
+        );
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Log dose'));
@@ -243,12 +234,14 @@ void main() {
         await _seedProduct(coreDb, verdict: 'UNSAFE');
 
         var taps = 0;
-        await tester.pumpWidget(_wrap(
-          coreDb,
-          userDb,
-          isUnsafe: true,
-          onSeeAlternatives: () => taps++,
-        ));
+        await tester.pumpWidget(
+          _wrap(
+            coreDb,
+            userDb,
+            isUnsafe: true,
+            onSeeAlternatives: () => taps++,
+          ),
+        );
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('See safer alternatives'));
@@ -285,8 +278,11 @@ void main() {
             matching: find.byType(FilledButton),
           ),
         );
-        expect(addButton.onPressed, isNotNull,
-            reason: 'V0 _handleAdd handler should be wired up');
+        expect(
+          addButton.onPressed,
+          isNotNull,
+          reason: 'V0 _handleAdd handler should be wired up',
+        );
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();

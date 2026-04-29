@@ -21,8 +21,9 @@ void main() {
       expect(find.text('My Stack'), findsOneWidget);
     });
 
-    testWidgets('renders leading back button by default in nested route',
-        (tester) async {
+    testWidgets('renders leading back button by default in nested route', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(
@@ -58,10 +59,7 @@ void main() {
                 PGFrostedAppBar(
                   title: 'Profile',
                   actions: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () {},
-                    ),
+                    IconButton(icon: const Icon(Icons.edit), onPressed: () {}),
                   ],
                 ),
               ],
@@ -73,17 +71,15 @@ void main() {
       expect(find.byIcon(Icons.edit), findsOneWidget);
     });
 
-    testWidgets('hides leading when automaticallyImplyLeading is false',
-        (tester) async {
+    testWidgets('hides leading when automaticallyImplyLeading is false', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
             body: CustomScrollView(
               slivers: [
-                PGFrostedAppBar(
-                  title: 'Tab',
-                  automaticallyImplyLeading: false,
-                ),
+                PGFrostedAppBar(title: 'Tab', automaticallyImplyLeading: false),
               ],
             ),
           ),

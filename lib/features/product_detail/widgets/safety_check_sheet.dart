@@ -18,10 +18,10 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 /// future caller skips the upstream FLTR-16 UI guard.
 final _sheetProductVerdictProvider = FutureProvider.family
     .autoDispose<String?, String>((ref, dsldId) async {
-  final db = ref.watch(coreDatabaseProvider);
-  final product = await db.findById(dsldId);
-  return product?.verdict;
-});
+      final db = ref.watch(coreDatabaseProvider);
+      final product = await db.findById(dsldId);
+      return product?.verdict;
+    });
 
 /// Pre-add safety check sheet.
 ///
@@ -44,10 +44,8 @@ Future<bool> showSafetyCheckSheet(
 }) async {
   final result = await PGModal.bottomSheet<bool>(
     context: context,
-    builder: (ctx) => _SafetyCheckSheet(
-      dsldId: dsldId,
-      productName: productName,
-    ),
+    builder: (ctx) =>
+        _SafetyCheckSheet(dsldId: dsldId, productName: productName),
   );
   return result ?? false;
 }
@@ -56,10 +54,7 @@ class _SafetyCheckSheet extends ConsumerWidget {
   final String dsldId;
   final String productName;
 
-  const _SafetyCheckSheet({
-    required this.dsldId,
-    required this.productName,
-  });
+  const _SafetyCheckSheet({required this.dsldId, required this.productName});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -229,7 +224,8 @@ class _SafetyCheckError extends StatelessWidget {
     return const PGSeverityBanner(
       tone: PGBannerTone.neutral,
       title: 'Could not verify interactions',
-      body: 'Add is still available, but we recommend reviewing your '
+      body:
+          'Add is still available, but we recommend reviewing your '
           'stack for potential overlap.',
     );
   }
@@ -248,7 +244,8 @@ class _UnsafeProductBanner extends StatelessWidget {
     return const PGSeverityBanner(
       tone: PGBannerTone.danger,
       title: 'This product cannot be added',
-      body: 'It is flagged as unsafe at the product level. Stack '
+      body:
+          'It is flagged as unsafe at the product level. Stack '
           'interaction checks are skipped — the safety concern '
           'applies regardless of what else you are taking.',
     );
@@ -269,7 +266,8 @@ class _SafetyResults extends StatelessWidget {
       return const PGSeverityBanner(
         tone: PGBannerTone.success,
         title: 'No stack interactions found',
-        body: 'This product does not overlap with anything currently in '
+        body:
+            'This product does not overlap with anything currently in '
             'your stack. Safe to add.',
       );
     }
@@ -297,60 +295,60 @@ class _SafetyResults extends StatelessWidget {
         PGSeverityBanner(
           tone: tone,
           title: bannerTitle,
-          body: 'Found ${warnings.length} issue'
+          body:
+              'Found ${warnings.length} issue'
               '${warnings.length == 1 ? '' : 's'} with your current stack.',
         ),
         const SizedBox(height: AppTheme.space12),
-        ...warnings.map((w) => Padding(
-              padding: const EdgeInsets.only(bottom: AppTheme.space8),
-              child: PGCard(
-                padding: const EdgeInsets.all(AppTheme.space12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PGSeverityPill(
-                      severity: w.severity,
-                      compact: true,
+        ...warnings.map(
+          (w) => Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.space8),
+            child: PGCard(
+              padding: const EdgeInsets.all(AppTheme.space12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PGSeverityPill(severity: w.severity, compact: true),
+                  const SizedBox(height: AppTheme.space8),
+                  Text(
+                    'With ${w.agent2Name}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
+                  ),
+                  const SizedBox(height: AppTheme.space4),
+                  Text(
+                    w.mechanism,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.45,
+                    ),
+                  ),
+                  if (w.management.isNotEmpty) ...[
                     const SizedBox(height: AppTheme.space8),
-                    Text(
-                      'With ${w.agent2Name}',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppTheme.space4),
-                    Text(
-                      w.mechanism,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        height: 1.45,
-                      ),
-                    ),
-                    if (w.management.isNotEmpty) ...[
-                      const SizedBox(height: AppTheme.space8),
-                      Container(
-                        padding: const EdgeInsets.all(AppTheme.space8),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusMedium,
-                          ),
-                        ),
-                        child: Text(
-                          w.management,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurface,
-                            fontWeight: FontWeight.w500,
-                            height: 1.45,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.all(AppTheme.space8),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
                         ),
                       ),
-                    ],
+                      child: Text(
+                        w.management,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }

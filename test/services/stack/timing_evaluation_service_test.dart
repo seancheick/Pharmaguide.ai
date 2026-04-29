@@ -5,10 +5,7 @@ import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
 
 /// Minimal timing_rules.json for testing — 6 rules covering each rule type.
 final _testTimingRulesJson = {
-  '_metadata': {
-    'schema_version': '5.0.0',
-    'total_entries': 6,
-  },
+  '_metadata': {'schema_version': '5.0.0', 'total_entries': 6},
   'timing_rules': [
     {
       'id': 'timing_iron_calcium_separate',
@@ -21,7 +18,10 @@ final _testTimingRulesJson = {
       'score_impact': -2,
       'evidence_level': 'established',
       'sources': [
-        {'source_type': 'pubmed', 'url': 'https://pubmed.ncbi.nlm.nih.gov/1984335/'}
+        {
+          'source_type': 'pubmed',
+          'url': 'https://pubmed.ncbi.nlm.nih.gov/1984335/',
+        },
       ],
     },
     {
@@ -228,23 +228,29 @@ void main() {
     });
 
     group('deduplication', () {
-      test('each rule fires at most once even with multiple matching products', () {
-        final results = service.evaluateStack(
-          supplementTags: {
-            'Iron Bisglycinate': {'iron'},
-            'Ferrous Sulfate': {'iron'},
-            'Calcium Citrate': {'calcium'},
-            'Calcium Carbonate': {'calcium'},
-          },
-          medicationNames: [],
-        );
+      test(
+        'each rule fires at most once even with multiple matching products',
+        () {
+          final results = service.evaluateStack(
+            supplementTags: {
+              'Iron Bisglycinate': {'iron'},
+              'Ferrous Sulfate': {'iron'},
+              'Calcium Citrate': {'calcium'},
+              'Calcium Carbonate': {'calcium'},
+            },
+            medicationNames: [],
+          );
 
-        final ironCalcium = results
-            .where((r) => r.ruleId == 'timing_iron_calcium_separate')
-            .toList();
-        expect(ironCalcium, hasLength(1),
-            reason: 'Same rule should not fire multiple times');
-      });
+          final ironCalcium = results
+              .where((r) => r.ruleId == 'timing_iron_calcium_separate')
+              .toList();
+          expect(
+            ironCalcium,
+            hasLength(1),
+            reason: 'Same rule should not fire multiple times',
+          );
+        },
+      );
     });
 
     group('priority ordering', () {
@@ -262,8 +268,11 @@ void main() {
 
         // First result should be the medication interaction (higher priority).
         final first = results.first;
-        expect(first.ruleId, 'timing_thyroid_med_iron_separate',
-            reason: 'Medication interaction should sort first');
+        expect(
+          first.ruleId,
+          'timing_thyroid_med_iron_separate',
+          reason: 'Medication interaction should sort first',
+        );
       });
     });
 
@@ -278,7 +287,8 @@ void main() {
         );
 
         final ironCalcium = results.firstWhere(
-            (r) => r.ruleId == 'timing_iron_calcium_separate');
+          (r) => r.ruleId == 'timing_iron_calcium_separate',
+        );
         expect(ironCalcium.evidenceLevel, EvidenceLevel.established);
       });
 
@@ -291,7 +301,8 @@ void main() {
         );
 
         final mag = results.firstWhere(
-            (r) => r.ruleId == 'timing_magnesium_evening');
+          (r) => r.ruleId == 'timing_magnesium_evening',
+        );
         expect(mag.evidenceLevel, EvidenceLevel.theoretical);
       });
     });
@@ -305,21 +316,32 @@ void main() {
         expect(results, isEmpty);
       });
 
-      test('returns empty list for medications-only stack with no matching rules', () {
-        final results = service.evaluateStack(
-          supplementTags: {},
-          medicationNames: ['Metformin 500mg'],
-        );
-        expect(results, isEmpty);
-      });
+      test(
+        'returns empty list for medications-only stack with no matching rules',
+        () {
+          final results = service.evaluateStack(
+            supplementTags: {},
+            medicationNames: ['Metformin 500mg'],
+          );
+          expect(results, isEmpty);
+        },
+      );
     });
 
     group('large stack performance', () {
       test('handles 50+ item stack without timeout', () {
         final largeSuppTags = <String, Set<String>>{};
         final nutrients = [
-          'iron', 'calcium', 'magnesium', 'zinc', 'vitamin_c',
-          'vitamin_d', 'vitamin_e', 'vitamin_k', 'coq10', 'omega_3',
+          'iron',
+          'calcium',
+          'magnesium',
+          'zinc',
+          'vitamin_c',
+          'vitamin_d',
+          'vitamin_e',
+          'vitamin_k',
+          'coq10',
+          'omega_3',
         ];
         for (var i = 0; i < 50; i++) {
           largeSuppTags['Product $i'] = {nutrients[i % nutrients.length]};
@@ -332,8 +354,11 @@ void main() {
         );
         stopwatch.stop();
 
-        expect(stopwatch.elapsedMilliseconds, lessThan(100),
-            reason: 'Timing evaluation should complete in <100ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(100),
+          reason: 'Timing evaluation should complete in <100ms',
+        );
         expect(results, isNotEmpty);
       });
     });
@@ -342,10 +367,22 @@ void main() {
   group('TimingRuleType', () {
     test('parses all rule types from string', () {
       expect(TimingRuleType.fromString('separate'), TimingRuleType.separate);
-      expect(TimingRuleType.fromString('take_together'), TimingRuleType.takeTogether);
-      expect(TimingRuleType.fromString('take_with_food'), TimingRuleType.takeWithFood);
-      expect(TimingRuleType.fromString('take_on_empty_stomach'), TimingRuleType.takeOnEmptyStomach);
-      expect(TimingRuleType.fromString('time_of_day'), TimingRuleType.timeOfDay);
+      expect(
+        TimingRuleType.fromString('take_together'),
+        TimingRuleType.takeTogether,
+      );
+      expect(
+        TimingRuleType.fromString('take_with_food'),
+        TimingRuleType.takeWithFood,
+      );
+      expect(
+        TimingRuleType.fromString('take_on_empty_stomach'),
+        TimingRuleType.takeOnEmptyStomach,
+      );
+      expect(
+        TimingRuleType.fromString('time_of_day'),
+        TimingRuleType.timeOfDay,
+      );
     });
 
     test('defaults to separate for unknown type', () {
@@ -392,14 +429,22 @@ void main() {
 
     test('isSeparation returns true only for separate type', () {
       const sep = TimingOptimization(
-        ruleId: 'test', ingredient1: 'a', ingredient2: 'b',
-        advice: 'test', ruleType: TimingRuleType.separate,
-        scoreImpact: 0, evidenceLevel: EvidenceLevel.established,
+        ruleId: 'test',
+        ingredient1: 'a',
+        ingredient2: 'b',
+        advice: 'test',
+        ruleType: TimingRuleType.separate,
+        scoreImpact: 0,
+        evidenceLevel: EvidenceLevel.established,
       );
       const food = TimingOptimization(
-        ruleId: 'test', ingredient1: 'a', ingredient2: 'b',
-        advice: 'test', ruleType: TimingRuleType.takeWithFood,
-        scoreImpact: 0, evidenceLevel: EvidenceLevel.established,
+        ruleId: 'test',
+        ingredient1: 'a',
+        ingredient2: 'b',
+        advice: 'test',
+        ruleType: TimingRuleType.takeWithFood,
+        scoreImpact: 0,
+        evidenceLevel: EvidenceLevel.established,
       );
 
       expect(sep.isSeparation, isTrue);

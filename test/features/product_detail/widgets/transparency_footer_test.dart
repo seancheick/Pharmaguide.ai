@@ -133,8 +133,9 @@ void main() {
   });
 
   group('TransparencyFooter — render', () {
-    testWidgets('disclaimer always present (acceptance — site-wide trust)',
-        (tester) async {
+    testWidgets('disclaimer always present (acceptance — site-wide trust)', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
 
       // Render with full data.
@@ -146,23 +147,20 @@ void main() {
       await coreDb.close();
     });
 
-    testWidgets(
-      'disclaimer renders even when coverage data is null',
-      (tester) async {
-        final coreDb = CoreDatabase.memory();
+    testWidgets('disclaimer renders even when coverage data is null', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
 
-        await tester.pumpWidget(_wrap(
-          coreDb,
-          mappedCoverage: null,
-          totalIngredientCount: null,
-        ));
-        await tester.pumpAndSettle();
-        expect(find.text(kTransparencyDisclaimer), findsOneWidget);
+      await tester.pumpWidget(
+        _wrap(coreDb, mappedCoverage: null, totalIngredientCount: null),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(kTransparencyDisclaimer), findsOneWidget);
 
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-      },
-    );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+    });
 
     testWidgets('renders sources list', (tester) async {
       final coreDb = CoreDatabase.memory();
@@ -171,15 +169,18 @@ void main() {
 
       // The sources line is concatenated into the summary row, not
       // each as separate widgets — so use textContaining.
-      expect(find.textContaining('Sources: NIH · FDA · PubMed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Sources: NIH · FDA · PubMed'),
+        findsOneWidget,
+      );
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
     });
 
-    testWidgets('renders coverage segment when both inputs present',
-        (tester) async {
+    testWidgets('renders coverage segment when both inputs present', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
       await tester.pumpWidget(_wrap(coreDb));
       await tester.pumpAndSettle();
@@ -195,10 +196,7 @@ void main() {
       'omits coverage segment when data missing — disclaimer + sources still render',
       (tester) async {
         final coreDb = CoreDatabase.memory();
-        await tester.pumpWidget(_wrap(
-          coreDb,
-          mappedCoverage: null,
-        ));
+        await tester.pumpWidget(_wrap(coreDb, mappedCoverage: null));
         await tester.pumpAndSettle();
 
         expect(find.textContaining('Coverage:'), findsNothing);

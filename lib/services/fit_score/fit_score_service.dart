@@ -64,7 +64,12 @@ class FitScoreService {
     if (sex == null) missingFields.add('sex');
     if (userGoals.isEmpty) missingFields.add('goals');
 
-    final maxPossible = _maxPossible(ageBracket, sex, userGoals, userConditions);
+    final maxPossible = _maxPossible(
+      ageBracket,
+      sex,
+      userGoals,
+      userConditions,
+    );
     final assessment = _buildAssessment(
       scoreFit20: scoreFit20,
       maxPossible: maxPossible,
@@ -185,8 +190,9 @@ class FitScoreService {
       }
       return _Assessment(
         state: FitAssessmentState.incompleteProfile,
-        maxRelevantSeverity:
-            maxSeverity == Severity.safe ? null : maxSeverity.name,
+        maxRelevantSeverity: maxSeverity == Severity.safe
+            ? null
+            : maxSeverity.name,
         reasons: reasons.take(3).toList(growable: false),
       );
     }
@@ -195,14 +201,17 @@ class FitScoreService {
       reasons.add(
         'Ingredient mapping coverage is low, so this fit is conservative.',
       );
-      reasons.addAll(_goalReasons(
-        userGoals: userGoals,
-        selectedGoalMatches: selectedGoalMatches,
-      ));
+      reasons.addAll(
+        _goalReasons(
+          userGoals: userGoals,
+          selectedGoalMatches: selectedGoalMatches,
+        ),
+      );
       return _Assessment(
         state: FitAssessmentState.limitedFit,
-        maxRelevantSeverity:
-            maxSeverity == Severity.safe ? null : maxSeverity.name,
+        maxRelevantSeverity: maxSeverity == Severity.safe
+            ? null
+            : maxSeverity.name,
         reasons: reasons.take(3).toList(growable: false),
       );
     }
@@ -210,7 +219,8 @@ class FitScoreService {
     var state = FitAssessmentState.limitedFit;
     if (selectedGoalMatches.isNotEmpty) {
       final matchedAllGoals =
-          userGoals.isNotEmpty && selectedGoalMatches.length == userGoals.length;
+          userGoals.isNotEmpty &&
+          selectedGoalMatches.length == userGoals.length;
       state = matchedAllGoals && e2aScore >= 1.5
           ? FitAssessmentState.strongMatch
           : FitAssessmentState.goodFit;
@@ -223,19 +233,19 @@ class FitScoreService {
       reasons.addAll(_riskReasons(matches));
     }
 
-    reasons.addAll(_goalReasons(
-      userGoals: userGoals,
-      selectedGoalMatches: selectedGoalMatches,
-    ));
-    reasons.addAll(_signalReasons(
-      e1Score: e1Score,
-      e2bScore: e2bScore,
-    ));
+    reasons.addAll(
+      _goalReasons(
+        userGoals: userGoals,
+        selectedGoalMatches: selectedGoalMatches,
+      ),
+    );
+    reasons.addAll(_signalReasons(e1Score: e1Score, e2bScore: e2bScore));
 
     return _Assessment(
       state: state,
-      maxRelevantSeverity:
-          maxSeverity == Severity.safe ? null : maxSeverity.name,
+      maxRelevantSeverity: maxSeverity == Severity.safe
+          ? null
+          : maxSeverity.name,
       reasons: reasons.take(3).toList(growable: false),
     );
   }
@@ -255,32 +265,38 @@ class FitScoreService {
       final raw = conditionSummary[id];
       if (raw is! Map) continue;
       final data = Map<String, dynamic>.from(raw);
-      out.add(_RelevantMatch(
-        label: data['label']?.toString() ?? id,
-        severity: Severity.fromString(
-          data['highest_severity']?.toString() ?? 'safe',
+      out.add(
+        _RelevantMatch(
+          label: data['label']?.toString() ?? id,
+          severity: Severity.fromString(
+            data['highest_severity']?.toString() ?? 'safe',
+          ),
+          ingredients:
+              (data['ingredients'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList(growable: false) ??
+              const <String>[],
         ),
-        ingredients: (data['ingredients'] as List?)
-                ?.map((e) => e.toString())
-                .toList(growable: false) ??
-            const <String>[],
-      ));
+      );
     }
 
     for (final id in userDrugClasses) {
       final raw = drugSummary[id];
       if (raw is! Map) continue;
       final data = Map<String, dynamic>.from(raw);
-      out.add(_RelevantMatch(
-        label: data['label']?.toString() ?? id,
-        severity: Severity.fromString(
-          data['highest_severity']?.toString() ?? 'safe',
+      out.add(
+        _RelevantMatch(
+          label: data['label']?.toString() ?? id,
+          severity: Severity.fromString(
+            data['highest_severity']?.toString() ?? 'safe',
+          ),
+          ingredients:
+              (data['ingredients'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList(growable: false) ??
+              const <String>[],
         ),
-        ingredients: (data['ingredients'] as List?)
-                ?.map((e) => e.toString())
-                .toList(growable: false) ??
-            const <String>[],
-      ));
+      );
     }
 
     out.sort((a, b) => b.severity.weight.compareTo(a.severity.weight));
@@ -293,12 +309,15 @@ class FitScoreService {
   }
 
   List<String> _riskReasons(List<_RelevantMatch> matches) {
-    return matches.take(2).map((match) {
-      final ingredients = match.ingredients.isEmpty
-          ? ''
-          : ' from ${match.ingredients.join(', ')}';
-      return '${match.label}: ${match.severity.label.toLowerCase()}$ingredients.';
-    }).toList(growable: false);
+    return matches
+        .take(2)
+        .map((match) {
+          final ingredients = match.ingredients.isEmpty
+              ? ''
+              : ' from ${match.ingredients.join(', ')}';
+          return '${match.label}: ${match.severity.label.toLowerCase()}$ingredients.';
+        })
+        .toList(growable: false);
   }
 
   List<String> _goalReasons({
@@ -310,10 +329,13 @@ class FitScoreService {
       return const ['Does not strongly support your selected goals.'];
     }
 
-    return selectedGoalMatches.take(2).map((goalId) {
-      final label = SchemaIds.goalLabels[goalId] ?? goalId;
-      return 'Supports your $label goal.';
-    }).toList(growable: false);
+    return selectedGoalMatches
+        .take(2)
+        .map((goalId) {
+          final label = SchemaIds.goalLabels[goalId] ?? goalId;
+          return 'Supports your $label goal.';
+        })
+        .toList(growable: false);
   }
 
   List<String> _signalReasons({

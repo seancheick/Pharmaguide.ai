@@ -98,8 +98,9 @@ class EvidenceDetailSection extends StatelessWidget {
     final scheme = theme.colorScheme;
     final matchCount = evidenceData!.safeNum('match_count') ?? 0;
     final clinicalMatches = evidenceData!.safeMapList('clinical_matches');
-    final unsubstantiated =
-        evidenceData!.safeStringList('unsubstantiated_claims');
+    final unsubstantiated = evidenceData!.safeStringList(
+      'unsubstantiated_claims',
+    );
 
     if (matchCount == 0 && clinicalMatches.isEmpty) {
       return const SizedBox.shrink();

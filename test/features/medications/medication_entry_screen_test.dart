@@ -44,7 +44,7 @@ import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 /// path that should trigger the bundled drug-class picker.
 class _FakeHttp {
   _FakeHttp({Map<String, String>? responses, this.throwOnAll = false})
-      : _responses = responses ?? const <String, String>{};
+    : _responses = responses ?? const <String, String>{};
 
   final Map<String, String> _responses;
   final bool throwOnAll;
@@ -71,7 +71,7 @@ class _Offline implements Exception {
 /// rxnorm + user-db providers overridden. Returns the in-memory user
 /// database so tests can assert what was inserted.
 ({Widget widget, UserDatabase userDb, InteractionDatabase interactionDb})
-    _harness({_FakeHttp? http}) {
+_harness({_FakeHttp? http}) {
   final fakeHttp = http ?? _FakeHttp();
   final userDb = UserDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
@@ -89,9 +89,7 @@ class _Offline implements Exception {
       userDatabaseProvider.overrideWith((ref) => userDb),
       interactionDatabaseProvider.overrideWith((ref) => interactionDb),
     ],
-    child: const MaterialApp(
-      home: MedicationEntryScreen(),
-    ),
+    child: const MaterialApp(home: MedicationEntryScreen()),
   );
 
   return (widget: widget, userDb: userDb, interactionDb: interactionDb);
@@ -100,7 +98,9 @@ class _Offline implements Exception {
 /// Seed three drug-class rows into the in-memory interaction DB so the
 /// offline fallback has something to render.
 Future<void> _seedDrugClasses(InteractionDatabase db) async {
-  await db.into(db.drugClassMap).insert(
+  await db
+      .into(db.drugClassMap)
+      .insert(
         DrugClassMapCompanion.insert(
           classId: 'class:ace_inhibitors',
           className: 'ACE Inhibitors',
@@ -109,7 +109,9 @@ Future<void> _seedDrugClasses(InteractionDatabase db) async {
           lastUpdated: '2026-01-01',
         ),
       );
-  await db.into(db.drugClassMap).insert(
+  await db
+      .into(db.drugClassMap)
+      .insert(
         DrugClassMapCompanion.insert(
           classId: 'class:beta_blockers',
           className: 'Beta Blockers',
@@ -118,7 +120,9 @@ Future<void> _seedDrugClasses(InteractionDatabase db) async {
           lastUpdated: '2026-01-01',
         ),
       );
-  await db.into(db.drugClassMap).insert(
+  await db
+      .into(db.drugClassMap)
+      .insert(
         DrugClassMapCompanion.insert(
           classId: 'class:statins',
           className: 'Statins',
@@ -161,8 +165,9 @@ void main() {
   // after ~90s. Closing inside the body (before the test returns)
   // drains cleanly.
 
-  testWidgets('initial state shows no suggestions and disabled save',
-      (tester) async {
+  testWidgets('initial state shows no suggestions and disabled save', (
+    tester,
+  ) async {
     final h = _harness();
 
     await tester.pumpWidget(h.widget);
@@ -183,18 +188,16 @@ void main() {
     await h.interactionDb.close();
   });
 
-  testWidgets('single-char query does NOT trigger autocomplete',
-      (tester) async {
-    final fake = _FakeHttp(responses: const {
-      '/REST/approximateTerm.json': _searchWarfarinJson,
-    });
+  testWidgets('single-char query does NOT trigger autocomplete', (
+    tester,
+  ) async {
+    final fake = _FakeHttp(
+      responses: const {'/REST/approximateTerm.json': _searchWarfarinJson},
+    );
     final h = _harness(http: fake);
 
     await tester.pumpWidget(h.widget);
-    await tester.enterText(
-      find.byKey(const Key('med-entry-search')),
-      'w',
-    );
+    await tester.enterText(find.byKey(const Key('med-entry-search')), 'w');
     // Wait past the debounce window.
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump();
@@ -206,11 +209,12 @@ void main() {
     await h.interactionDb.close();
   });
 
-  testWidgets('typing 2+ chars triggers debounced search and renders results',
-      (tester) async {
-    final fake = _FakeHttp(responses: const {
-      '/REST/approximateTerm.json': _searchWarfarinJson,
-    });
+  testWidgets('typing 2+ chars triggers debounced search and renders results', (
+    tester,
+  ) async {
+    final fake = _FakeHttp(
+      responses: const {'/REST/approximateTerm.json': _searchWarfarinJson},
+    );
     final h = _harness(http: fake);
 
     await tester.pumpWidget(h.widget);
@@ -228,8 +232,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('med-entry-suggestion-list')), findsOneWidget);
-    expect(find.byKey(const Key('med-entry-suggestion-11289')),
-        findsOneWidget);
+    expect(find.byKey(const Key('med-entry-suggestion-11289')), findsOneWidget);
     expect(find.byKey(const Key('med-entry-suggestion-1234')), findsOneWidget);
     expect(find.text('warfarin'), findsWidgets);
 
@@ -238,12 +241,15 @@ void main() {
     await h.interactionDb.close();
   });
 
-  testWidgets('selecting a suggestion populates summary + resolves classes',
-      (tester) async {
-    final fake = _FakeHttp(responses: const {
-      '/REST/approximateTerm.json': _searchWarfarinJson,
-      '/REST/rxclass/class/byRxcui.json': _classesWarfarinJson,
-    });
+  testWidgets('selecting a suggestion populates summary + resolves classes', (
+    tester,
+  ) async {
+    final fake = _FakeHttp(
+      responses: const {
+        '/REST/approximateTerm.json': _searchWarfarinJson,
+        '/REST/rxclass/class/byRxcui.json': _classesWarfarinJson,
+      },
+    );
     final h = _harness(http: fake);
 
     await tester.pumpWidget(h.widget);
@@ -260,8 +266,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.byKey(const Key('med-entry-selection-summary')),
-        findsOneWidget);
+    expect(
+      find.byKey(const Key('med-entry-selection-summary')),
+      findsOneWidget,
+    );
     expect(find.text('warfarin'), findsWidgets);
     expect(find.text('RxCUI 11289'), findsOneWidget);
     expect(find.text('Anticoagulants'), findsOneWidget);
@@ -278,12 +286,15 @@ void main() {
     await h.interactionDb.close();
   });
 
-  testWidgets('save inserts a medication row with expected shape',
-      (tester) async {
-    final fake = _FakeHttp(responses: const {
-      '/REST/approximateTerm.json': _searchWarfarinJson,
-      '/REST/rxclass/class/byRxcui.json': _classesWarfarinJson,
-    });
+  testWidgets('save inserts a medication row with expected shape', (
+    tester,
+  ) async {
+    final fake = _FakeHttp(
+      responses: const {
+        '/REST/approximateTerm.json': _searchWarfarinJson,
+        '/REST/rxclass/class/byRxcui.json': _classesWarfarinJson,
+      },
+    );
     final h = _harness(http: fake);
 
     // Mount the screen directly. We used to wrap it in a Navigator +
@@ -329,8 +340,7 @@ void main() {
     await h.interactionDb.close();
   });
 
-  testWidgets(
-      'offline path: empty search results show drug-class picker '
+  testWidgets('offline path: empty search results show drug-class picker '
       'and a class selection enables save', (tester) async {
     final fake = _FakeHttp(throwOnAll: true);
     final h = _harness(http: fake);
@@ -349,25 +359,33 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.byKey(const Key('med-entry-offline-classes')),
-        findsOneWidget);
-    expect(find.byKey(const Key('med-entry-class-class:ace_inhibitors')),
-        findsOneWidget);
-    expect(find.byKey(const Key('med-entry-class-class:beta_blockers')),
-        findsOneWidget);
-    expect(find.byKey(const Key('med-entry-class-class:statins')),
-        findsOneWidget);
+    expect(find.byKey(const Key('med-entry-offline-classes')), findsOneWidget);
+    expect(
+      find.byKey(const Key('med-entry-class-class:ace_inhibitors')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('med-entry-class-class:beta_blockers')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('med-entry-class-class:statins')),
+      findsOneWidget,
+    );
 
     // Pick ACE Inhibitors.
-    await tester
-        .tap(find.byKey(const Key('med-entry-class-class:ace_inhibitors')));
+    await tester.tap(
+      find.byKey(const Key('med-entry-class-class:ace_inhibitors')),
+    );
     await tester.pump();
 
     // Selection summary appears. The offline picker humanizes the slug
     // (`class:ace_inhibitors` → `Ace Inhibitors`), not the bundled
     // className, because the screen only has the id at pick time.
-    expect(find.byKey(const Key('med-entry-selection-summary')),
-        findsOneWidget);
+    expect(
+      find.byKey(const Key('med-entry-selection-summary')),
+      findsOneWidget,
+    );
     expect(find.text('Ace Inhibitors'), findsWidgets);
 
     // Save button enabled and the row carries the class id but no rxcui.
@@ -386,8 +404,7 @@ void main() {
     expect(rows, hasLength(1));
     expect(rows.single.type, 'medication');
     expect(rows.single.rxcui, isNull);
-    expect(jsonDecode(rows.single.drugClassesCol!),
-        ['class:ace_inhibitors']);
+    expect(jsonDecode(rows.single.drugClassesCol!), ['class:ace_inhibitors']);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await h.userDb.close();
@@ -395,36 +412,40 @@ void main() {
   });
 
   testWidgets(
-      'offline path with no bundled classes shows the empty state instead',
-      (tester) async {
-    final fake = _FakeHttp(throwOnAll: true);
-    final h = _harness(http: fake);
+    'offline path with no bundled classes shows the empty state instead',
+    (tester) async {
+      final fake = _FakeHttp(throwOnAll: true);
+      final h = _harness(http: fake);
 
-    // No _seedDrugClasses call — the bundled DB is empty.
+      // No _seedDrugClasses call — the bundled DB is empty.
 
-    await tester.pumpWidget(h.widget);
-    await tester.enterText(
-      find.byKey(const Key('med-entry-search')),
-      'lisinopril',
+      await tester.pumpWidget(h.widget);
+      await tester.enterText(
+        find.byKey(const Key('med-entry-search')),
+        'lisinopril',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byKey(const Key('med-entry-offline-classes')), findsNothing);
+      expect(find.text('No matches'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await h.userDb.close();
+      await h.interactionDb.close();
+    },
+  );
+
+  testWidgets('typing a new query after picking clears the selection', (
+    tester,
+  ) async {
+    final fake = _FakeHttp(
+      responses: const {
+        '/REST/approximateTerm.json': _searchWarfarinJson,
+        '/REST/rxclass/class/byRxcui.json': _classesWarfarinJson,
+      },
     );
-    await tester.pump(const Duration(milliseconds: 350));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.byKey(const Key('med-entry-offline-classes')), findsNothing);
-    expect(find.text('No matches'), findsOneWidget);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await h.userDb.close();
-    await h.interactionDb.close();
-  });
-
-  testWidgets('typing a new query after picking clears the selection',
-      (tester) async {
-    final fake = _FakeHttp(responses: const {
-      '/REST/approximateTerm.json': _searchWarfarinJson,
-      '/REST/rxclass/class/byRxcui.json': _classesWarfarinJson,
-    });
     final h = _harness(http: fake);
 
     await tester.pumpWidget(h.widget);
@@ -438,8 +459,10 @@ void main() {
     await tester.tap(find.byKey(const Key('med-entry-suggestion-11289')));
     await tester.pump();
     await tester.pump();
-    expect(find.byKey(const Key('med-entry-selection-summary')),
-        findsOneWidget);
+    expect(
+      find.byKey(const Key('med-entry-selection-summary')),
+      findsOneWidget,
+    );
 
     // Type something new — selection should clear.
     await tester.enterText(

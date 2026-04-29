@@ -39,10 +39,10 @@ void main() {
 
     test('returns SwapRolledBack when corePathProvider throws', () async {
       final swapper = CatalogSwapper(
-        corePathProvider: () async => throw const FileSystemException(
-              'documents dir unavailable',
-            ),
-        activator: () async => fail('activator must not run after path failure'),
+        corePathProvider: () async =>
+            throw const FileSystemException('documents dir unavailable'),
+        activator: () async =>
+            fail('activator must not run after path failure'),
         opener: () async => fail('opener must not run after path failure'),
       );
 
@@ -63,7 +63,8 @@ void main() {
         activator: () async {
           throw StateError('rename failed: permission denied');
         },
-        opener: () async => fail('opener must not run after activation failure'),
+        opener: () async =>
+            fail('opener must not run after activation failure'),
       );
 
       final result = await swapper.swap();
@@ -79,7 +80,9 @@ void main() {
 
       final swapper = CatalogSwapper(
         corePathProvider: tempPath,
-        activator: () async {/* no-op: pretend rename succeeded */},
+        activator: () async {
+          /* no-op: pretend rename succeeded */
+        },
         opener: () async {
           throw StateError('cannot open core db: corrupt header');
         },
@@ -93,8 +96,7 @@ void main() {
       expect(rolledBack.error, isA<StateError>());
     });
 
-    test(
-        'returns SwapRolledBack when validation fails — '
+    test('returns SwapRolledBack when validation fails — '
         'and closes the new DB (no leaked connection)', () async {
       File(stagingPath).writeAsBytesSync([0x00]);
 
@@ -106,7 +108,9 @@ void main() {
 
       final swapper = CatalogSwapper(
         corePathProvider: tempPath,
-        activator: () async {/* no-op */},
+        activator: () async {
+          /* no-op */
+        },
         opener: () async => memoryDb,
       );
 
@@ -138,8 +142,11 @@ void main() {
       final result = await swapper.swap();
 
       expect(result, isA<SwapNoStaging>());
-      expect(activatorCalled, isFalse,
-          reason: 'No staging file → activator must not run');
+      expect(
+        activatorCalled,
+        isFalse,
+        reason: 'No staging file → activator must not run',
+      );
     });
   });
 }

@@ -162,14 +162,10 @@ void main() {
         jsonEncode(<String, Object>{
           'warnings': <Object>[],
           'score_bonuses': <Object>[
-            {
-              'label': 'Third-party tested',
-            },
+            {'label': 'Third-party tested'},
           ],
           'score_penalties': <Object>[
-            {
-              'label': 'Contains proprietary blend',
-            },
+            {'label': 'Contains proprietary blend'},
           ],
         }),
         null,
@@ -446,20 +442,28 @@ void main() {
     });
 
     test('prose detail passes through unchanged', () {
-      expect(sanitizeWhyDetail('Standardized, botanical'),
-          'Standardized, botanical');
+      expect(
+        sanitizeWhyDetail('Standardized, botanical'),
+        'Standardized, botanical',
+      );
     });
 
-    test('prose with embedded number passes through (we only strip pure noise)',
-        () {
-      expect(sanitizeWhyDetail('3 study citations'), '3 study citations');
-      expect(sanitizeWhyDetail('Backed by Tier 3 evidence'),
-          'Backed by Tier 3 evidence');
-    });
+    test(
+      'prose with embedded number passes through (we only strip pure noise)',
+      () {
+        expect(sanitizeWhyDetail('3 study citations'), '3 study citations');
+        expect(
+          sanitizeWhyDetail('Backed by Tier 3 evidence'),
+          'Backed by Tier 3 evidence',
+        );
+      },
+    );
 
     test('leading/trailing whitespace is trimmed off prose', () {
-      expect(sanitizeWhyDetail('  Liposomal delivery format  '),
-          'Liposomal delivery format');
+      expect(
+        sanitizeWhyDetail('  Liposomal delivery format  '),
+        'Liposomal delivery format',
+      );
     });
   });
 }

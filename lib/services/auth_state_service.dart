@@ -39,7 +39,8 @@ class AuthStateService extends StateNotifier<AuthMode> {
   void onSignedOut() => state = AuthMode.guest;
 }
 
-final authStateProvider =
-    StateNotifierProvider<AuthStateService, AuthMode>((ref) {
+final authStateProvider = StateNotifierProvider<AuthStateService, AuthMode>((
+  ref,
+) {
   return AuthStateService();
 });

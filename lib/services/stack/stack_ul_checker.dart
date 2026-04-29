@@ -91,12 +91,9 @@ class StackUlChecker {
 
     final results = <NutrientStatus>[];
     for (final total in aggregated.values) {
-      results.add(_classifyOne(
-        total,
-        recommendations,
-        ageBracket: ageBracket,
-        sex: sex,
-      ));
+      results.add(
+        _classifyOne(total, recommendations, ageBracket: ageBracket, sex: sex),
+      );
     }
     return results;
   }
@@ -123,12 +120,13 @@ class StackUlChecker {
     final pctOfRda = (rda != null && rda > 0)
         ? (total.totalAmount / rda) * 100.0
         : null;
-    final pctOfUl =
-        (ul != null && ul > 0) ? (total.totalAmount / ul) * 100.0 : null;
+    final pctOfUl = (ul != null && ul > 0)
+        ? (total.totalAmount / ul) * 100.0
+        : null;
 
     final tier = _classify(pctOfRda: pctOfRda, pctOfUl: pctOfUl);
-    final warning = (tier == NutrientTier.approachingUl ||
-            tier == NutrientTier.exceedsUl)
+    final warning =
+        (tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl)
         ? _warningFor(total.canonicalId, tier)
         : null;
 
@@ -313,8 +311,7 @@ class StackUlChecker {
 
   static const Map<String, String> _specificWarnings = {
     'zinc': 'Exceeds Upper Limit — risk of copper depletion',
-    'iron':
-        'Exceeds Upper Limit — risk of GI toxicity and oxidative stress',
+    'iron': 'Exceeds Upper Limit — risk of GI toxicity and oxidative stress',
     'vitamin_a':
         'Exceeds Upper Limit — risk of hepatotoxicity and teratogenicity',
     'vitamin_d':
@@ -323,25 +320,19 @@ class StackUlChecker {
         'Exceeds Upper Limit — risk of hypercalcemia and kidney damage',
     'vitamin_b6':
         'Exceeds Upper Limit — risk of sensory neuropathy with chronic use',
-    'vitamin_b3':
-        'Exceeds Upper Limit — risk of flushing and hepatotoxicity',
-    'niacin':
-        'Exceeds Upper Limit — risk of flushing and hepatotoxicity',
-    'folate':
-        'Exceeds Upper Limit — may mask vitamin B12 deficiency',
-    'folic_acid':
-        'Exceeds Upper Limit — may mask vitamin B12 deficiency',
+    'vitamin_b3': 'Exceeds Upper Limit — risk of flushing and hepatotoxicity',
+    'niacin': 'Exceeds Upper Limit — risk of flushing and hepatotoxicity',
+    'folate': 'Exceeds Upper Limit — may mask vitamin B12 deficiency',
+    'folic_acid': 'Exceeds Upper Limit — may mask vitamin B12 deficiency',
     'calcium':
         'Exceeds Upper Limit — risk of kidney stones and cardiovascular events',
     'magnesium':
         'Exceeds Upper Limit — risk of diarrhea and electrolyte imbalance',
-    'selenium':
-        'Exceeds Upper Limit — risk of selenosis and hair/nail loss',
+    'selenium': 'Exceeds Upper Limit — risk of selenosis and hair/nail loss',
     'copper': 'Exceeds Upper Limit — risk of hepatotoxicity',
     'manganese':
         'Exceeds Upper Limit — risk of neurotoxicity with chronic exposure',
-    'iodine':
-        'Exceeds Upper Limit — risk of thyroid dysfunction',
+    'iodine': 'Exceeds Upper Limit — risk of thyroid dysfunction',
   };
 
   static double? _asDouble(dynamic v) {

@@ -117,18 +117,14 @@ void main() {
     });
 
     test('returns empty list on malformed JSON without throwing', () async {
-      final fake = _FakeHttp(const {
-        '/REST/approximateTerm.json': 'not json',
-      });
+      final fake = _FakeHttp(const {'/REST/approximateTerm.json': 'not json'});
       final svc = RxNormApiService(httpGet: fake.call);
 
       expect(await svc.search('foo'), isEmpty);
     });
 
     test('returns empty list on missing approximateGroup', () async {
-      final fake = _FakeHttp(const {
-        '/REST/approximateTerm.json': '{}',
-      });
+      final fake = _FakeHttp(const {'/REST/approximateTerm.json': '{}'});
       final svc = RxNormApiService(httpGet: fake.call);
 
       expect(await svc.search('foo'), isEmpty);
@@ -255,14 +251,17 @@ void main() {
       expect(classes, ['class:ace_inhibitors', 'class:diuretics']);
     });
 
-    test('returns empty list when payload has no rxclassDrugInfoList', () async {
-      final fake = _FakeHttp(const {
-        '/REST/rxclass/class/byRxcui.json': '{}',
-      });
-      final svc = RxNormApiService(httpGet: fake.call);
+    test(
+      'returns empty list when payload has no rxclassDrugInfoList',
+      () async {
+        final fake = _FakeHttp(const {
+          '/REST/rxclass/class/byRxcui.json': '{}',
+        });
+        final svc = RxNormApiService(httpGet: fake.call);
 
-      expect(await svc.getClasses('1234'), isEmpty);
-    });
+        expect(await svc.getClasses('1234'), isEmpty);
+      },
+    );
 
     test('returns empty list on network error (offline)', () async {
       final svc = RxNormApiService(httpGet: _throwingHttp);
@@ -304,9 +303,7 @@ void main() {
     });
 
     test('returns null when properties block missing', () async {
-      final fake = _FakeHttp(const {
-        '/REST/rxcui/9999/properties.json': '{}',
-      });
+      final fake = _FakeHttp(const {'/REST/rxcui/9999/properties.json': '{}'});
       final svc = RxNormApiService(httpGet: fake.call);
 
       expect(await svc.getDrugInfo('9999'), isNull);
@@ -354,58 +351,71 @@ void main() {
       expect(fake.callCount, 4);
     });
 
-    test('hit re-bubbles entry to MRU position so it survives eviction',
-        () async {
-      final fake = _FakeHttp(const {
-        '/REST/rxcui.json': '{"idGroup": {"rxnormId": ["1"]}}',
-      });
-      final svc = RxNormApiService(httpGet: fake.call, cacheSize: 3);
+    test(
+      'hit re-bubbles entry to MRU position so it survives eviction',
+      () async {
+        final fake = _FakeHttp(const {
+          '/REST/rxcui.json': '{"idGroup": {"rxnormId": ["1"]}}',
+        });
+        final svc = RxNormApiService(httpGet: fake.call, cacheSize: 3);
 
-      await svc.getRxcui('a');
-      await svc.getRxcui('b');
-      await svc.getRxcui('c');
-      // Touch 'a' so it bubbles to MRU.
-      await svc.getRxcui('a');
-      // Insert 'd' → should now evict 'b' (oldest after the bubble).
-      await svc.getRxcui('d');
+        await svc.getRxcui('a');
+        await svc.getRxcui('b');
+        await svc.getRxcui('c');
+        // Touch 'a' so it bubbles to MRU.
+        await svc.getRxcui('a');
+        // Insert 'd' → should now evict 'b' (oldest after the bubble).
+        await svc.getRxcui('d');
 
-      final snap = svc.debugCacheSnapshot();
-      expect(snap.containsKey('rxcui:a'), isTrue,
-          reason: 'a was bubbled to MRU and should survive');
-      expect(snap.containsKey('rxcui:b'), isFalse,
-          reason: 'b is oldest after the bubble and should be evicted');
-      expect(snap.containsKey('rxcui:c'), isTrue);
-      expect(snap.containsKey('rxcui:d'), isTrue);
-    });
+        final snap = svc.debugCacheSnapshot();
+        expect(
+          snap.containsKey('rxcui:a'),
+          isTrue,
+          reason: 'a was bubbled to MRU and should survive',
+        );
+        expect(
+          snap.containsKey('rxcui:b'),
+          isFalse,
+          reason: 'b is oldest after the bubble and should be evicted',
+        );
+        expect(snap.containsKey('rxcui:c'), isTrue);
+        expect(snap.containsKey('rxcui:d'), isTrue);
+      },
+    );
   });
 
   group('rate limiter', () {
-    test('throttles when requestsPerSecond cap is reached in 1s window',
-        () async {
-      // Set cap to 3 to keep the test fast — the throttle code path is
-      // independent of the actual numeric value.
-      final fake = _FakeHttp(const {
-        '/REST/rxcui.json': '{"idGroup": {"rxnormId": ["1"]}}',
-      });
-      final svc = RxNormApiService(
-        httpGet: fake.call,
-        requestsPerSecond: 3,
-        cacheSize: 100, // big enough that no eviction happens
-      );
+    test(
+      'throttles when requestsPerSecond cap is reached in 1s window',
+      () async {
+        // Set cap to 3 to keep the test fast — the throttle code path is
+        // independent of the actual numeric value.
+        final fake = _FakeHttp(const {
+          '/REST/rxcui.json': '{"idGroup": {"rxnormId": ["1"]}}',
+        });
+        final svc = RxNormApiService(
+          httpGet: fake.call,
+          requestsPerSecond: 3,
+          cacheSize: 100, // big enough that no eviction happens
+        );
 
-      final stopwatch = Stopwatch()..start();
-      // 4 distinct queries to bypass the cache; the 4th must sleep
-      // until the 1-second window slides forward.
-      await svc.getRxcui('a');
-      await svc.getRxcui('b');
-      await svc.getRxcui('c');
-      await svc.getRxcui('d');
-      stopwatch.stop();
+        final stopwatch = Stopwatch()..start();
+        // 4 distinct queries to bypass the cache; the 4th must sleep
+        // until the 1-second window slides forward.
+        await svc.getRxcui('a');
+        await svc.getRxcui('b');
+        await svc.getRxcui('c');
+        await svc.getRxcui('d');
+        stopwatch.stop();
 
-      expect(stopwatch.elapsedMilliseconds, greaterThanOrEqualTo(900),
-          reason: '4th request should have slept ~1s for the window');
-      expect(fake.callCount, 4);
-    });
+        expect(
+          stopwatch.elapsedMilliseconds,
+          greaterThanOrEqualTo(900),
+          reason: '4th request should have slept ~1s for the window',
+        );
+        expect(fake.callCount, 4);
+      },
+    );
   });
 
   group('offlineDrugClasses', () {
@@ -414,7 +424,9 @@ void main() {
       addTearDown(db.close);
 
       // Seed the in-memory DB with a few class rows.
-      await db.into(db.drugClassMap).insert(
+      await db
+          .into(db.drugClassMap)
+          .insert(
             DrugClassMapCompanion.insert(
               classId: 'class:statins',
               className: 'HMG-CoA Reductase Inhibitors',
@@ -423,7 +435,9 @@ void main() {
               lastUpdated: '2026-01-01',
             ),
           );
-      await db.into(db.drugClassMap).insert(
+      await db
+          .into(db.drugClassMap)
+          .insert(
             DrugClassMapCompanion.insert(
               classId: 'class:ace_inhibitors',
               className: 'ACE Inhibitors',
@@ -432,7 +446,9 @@ void main() {
               lastUpdated: '2026-01-01',
             ),
           );
-      await db.into(db.drugClassMap).insert(
+      await db
+          .into(db.drugClassMap)
+          .insert(
             DrugClassMapCompanion.insert(
               classId: 'class:beta_blockers',
               className: 'Beta Blockers',
@@ -442,10 +458,7 @@ void main() {
             ),
           );
 
-      final svc = RxNormApiService(
-        httpGet: _throwingHttp,
-        offlineDb: db,
-      );
+      final svc = RxNormApiService(httpGet: _throwingHttp, offlineDb: db);
 
       final ids = await svc.offlineDrugClasses();
       expect(ids, [

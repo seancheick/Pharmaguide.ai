@@ -43,7 +43,8 @@ void main() {
     test('returns 3 for "Take 1 capsule three times daily"', () {
       expect(
         RefillReminderCard.estimateDailyServings(
-            'Take 1 capsule three times daily'),
+          'Take 1 capsule three times daily',
+        ),
         3,
       );
     });
@@ -51,7 +52,8 @@ void main() {
     test('returns 4 for "Take 1 capsule four times daily"', () {
       expect(
         RefillReminderCard.estimateDailyServings(
-            'Take 1 capsule four times daily'),
+          'Take 1 capsule four times daily',
+        ),
         4,
       );
     });
@@ -59,16 +61,14 @@ void main() {
     test('returns N for "Take 1 capsule 5 times daily"', () {
       expect(
         RefillReminderCard.estimateDailyServings(
-            'Take 1 capsule 5 times daily'),
+          'Take 1 capsule 5 times daily',
+        ),
         5,
       );
     });
 
     test('falls back to 1 when frequency phrase is unrecognized', () {
-      expect(
-        RefillReminderCard.estimateDailyServings('Take as needed'),
-        1,
-      );
+      expect(RefillReminderCard.estimateDailyServings('Take as needed'), 1);
     });
   });
 
@@ -109,14 +109,17 @@ void main() {
       expect(result, 10);
     });
 
-    test('60 servings, 1/day, added 90 days ago → 0 (clamped, not negative)', () {
-      final result = RefillReminderCard.estimateDaysRemaining(
-        servingsPerContainer: 60,
-        dailyServings: 1,
-        addedAt: _daysAgo(90),
-      );
-      expect(result, 0);
-    });
+    test(
+      '60 servings, 1/day, added 90 days ago → 0 (clamped, not negative)',
+      () {
+        final result = RefillReminderCard.estimateDaysRemaining(
+          servingsPerContainer: 60,
+          dailyServings: 1,
+          addedAt: _daysAgo(90),
+        );
+        expect(result, 0);
+      },
+    );
 
     test('handles future addedAt (clock issue) by clamping to full bottle', () {
       final result = RefillReminderCard.estimateDaysRemaining(
@@ -130,7 +133,9 @@ void main() {
   });
 
   group('RefillReminderCard widget', () {
-    testWidgets('renders nothing when servingsPerContainer is null', (tester) async {
+    testWidgets('renders nothing when servingsPerContainer is null', (
+      tester,
+    ) async {
       await _pump(
         tester,
         RefillReminderCard(
@@ -219,7 +224,9 @@ void main() {
       expect(find.textContaining('Out'), findsOneWidget);
     });
 
-    testWidgets('shows net contents in card subtitle when available', (tester) async {
+    testWidgets('shows net contents in card subtitle when available', (
+      tester,
+    ) async {
       await _pump(
         tester,
         RefillReminderCard(

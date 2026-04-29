@@ -69,8 +69,7 @@ void main() {
       expect(unknowns.first, contains('heavy metal'));
     });
 
-    test('mappedCoverage at 0.49 (just below threshold) → coverage bullet',
-        () {
+    test('mappedCoverage at 0.49 (just below threshold) → coverage bullet', () {
       final unknowns = buildUnknowns(
         isTrustedManufacturer: true,
         hasThirdPartyTesting: true,
@@ -96,21 +95,18 @@ void main() {
       );
     });
 
-    test(
-      'evidence < 40% of max → "limited clinical research" bullet',
-      () {
-        // 7/20 = 35% — below the 40% threshold.
-        final unknowns = buildUnknowns(
-          isTrustedManufacturer: true,
-          hasThirdPartyTesting: true,
-          mappedCoverage: 0.9,
-          scoreEvidenceResearch: 7,
-          scoreEvidenceResearchMax: 20,
-        );
-        expect(unknowns, hasLength(1));
-        expect(unknowns.first, contains('Limited clinical'));
-      },
-    );
+    test('evidence < 40% of max → "limited clinical research" bullet', () {
+      // 7/20 = 35% — below the 40% threshold.
+      final unknowns = buildUnknowns(
+        isTrustedManufacturer: true,
+        hasThirdPartyTesting: true,
+        mappedCoverage: 0.9,
+        scoreEvidenceResearch: 7,
+        scoreEvidenceResearchMax: 20,
+      );
+      expect(unknowns, hasLength(1));
+      expect(unknowns.first, contains('Limited clinical'));
+    });
 
     test('evidence at exactly 40% → no evidence bullet (boundary)', () {
       // 8/20 = 40% — on the threshold.
@@ -155,8 +151,7 @@ void main() {
       );
     });
 
-    test('scoreEvidenceResearchMax == 0 (defensive) → no divide-by-zero',
-        () {
+    test('scoreEvidenceResearchMax == 0 (defensive) → no divide-by-zero', () {
       expect(
         buildUnknowns(
           isTrustedManufacturer: true,
@@ -187,8 +182,9 @@ void main() {
   });
 
   group('UnknownsSection — render', () {
-    testWidgets('all positive signals → section hides entirely',
-        (tester) async {
+    testWidgets('all positive signals → section hides entirely', (
+      tester,
+    ) async {
       await _pump(
         tester,
         isTrustedManufacturer: true,
@@ -244,8 +240,7 @@ void main() {
       );
     });
 
-    testWidgets('low coverage product → coverage line renders',
-        (tester) async {
+    testWidgets('low coverage product → coverage line renders', (tester) async {
       await _pump(
         tester,
         isTrustedManufacturer: true,
@@ -262,8 +257,9 @@ void main() {
       );
     });
 
-    testWidgets('all 4 unknowns → all 4 bullets render with no overflow line',
-        (tester) async {
+    testWidgets('all 4 unknowns → all 4 bullets render with no overflow line', (
+      tester,
+    ) async {
       await _pump(
         tester,
         isTrustedManufacturer: false,

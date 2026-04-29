@@ -13,12 +13,7 @@ void main() {
     });
 
     test('safeDouble handles numbers and strings', () {
-      final m = <String, dynamic>{
-        'a': 3.14,
-        'b': 42,
-        'c': '99.5',
-        'd': 'bad',
-      };
+      final m = <String, dynamic>{'a': 3.14, 'b': 42, 'c': '99.5', 'd': 'bad'};
       expect(m.safeDouble('a'), 3.14);
       expect(m.safeDouble('b'), 42.0);
       expect(m.safeDouble('c'), 99.5);
@@ -101,36 +96,33 @@ void main() {
       },
     );
 
-    test(
-      'safeMapList filters to Map<String, dynamic> records and returns [] '
-      'for non-list inputs',
-      () {
-        final m = <String, dynamic>{
-          // The shape the probiotic crash hit — a list-of-maps where the
-          // widget expected an int. safeMapList preserves the records.
-          'a': [
-            {'name': 'L. acidophilus'},
-            {'name': 'B. lactis'},
-          ],
-          // Mixed list — non-map elements get dropped, not thrown on.
-          'b': [
-            {'name': 'good'},
-            'string',
-            42,
-            null,
-          ],
-          // Wrong shape — must return empty without throwing.
-          'c': {'not': 'a list'},
-          'd': 99,
-        };
-        expect(m.safeMapList('a').length, 2);
-        expect(m.safeMapList('a').first['name'], 'L. acidophilus');
-        expect(m.safeMapList('b').length, 1);
-        expect(m.safeMapList('c'), isEmpty);
-        expect(m.safeMapList('d'), isEmpty);
-        expect(m.safeMapList('missing'), isEmpty);
-      },
-    );
+    test('safeMapList filters to Map<String, dynamic> records and returns [] '
+        'for non-list inputs', () {
+      final m = <String, dynamic>{
+        // The shape the probiotic crash hit — a list-of-maps where the
+        // widget expected an int. safeMapList preserves the records.
+        'a': [
+          {'name': 'L. acidophilus'},
+          {'name': 'B. lactis'},
+        ],
+        // Mixed list — non-map elements get dropped, not thrown on.
+        'b': [
+          {'name': 'good'},
+          'string',
+          42,
+          null,
+        ],
+        // Wrong shape — must return empty without throwing.
+        'c': {'not': 'a list'},
+        'd': 99,
+      };
+      expect(m.safeMapList('a').length, 2);
+      expect(m.safeMapList('a').first['name'], 'L. acidophilus');
+      expect(m.safeMapList('b').length, 1);
+      expect(m.safeMapList('c'), isEmpty);
+      expect(m.safeMapList('d'), isEmpty);
+      expect(m.safeMapList('missing'), isEmpty);
+    });
 
     test('safeNum returns num/parsed-num/null without throwing', () {
       final m = <String, dynamic>{

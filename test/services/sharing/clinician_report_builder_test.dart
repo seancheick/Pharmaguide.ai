@@ -69,8 +69,7 @@ const _emptyIntelligence = StackIntelligence(
 );
 
 void main() {
-  group('ClinicianReportBuilder.build — privacy + disclaimer (T0.1 of C1)',
-      () {
+  group('ClinicianReportBuilder.build — privacy + disclaimer (T0.1 of C1)', () {
     test('always includes the on-device privacy note', () {
       final out = _builder.build(
         profile: null,
@@ -79,8 +78,10 @@ void main() {
         generatedAt: _generatedAt,
       );
       expect(out, contains('Generated on device'));
-      expect(out,
-          contains('PharmaGuide does not store this report on any server'));
+      expect(
+        out,
+        contains('PharmaGuide does not store this report on any server'),
+      );
     });
 
     test('always includes the educational-not-medical-advice disclaimer', () {
@@ -95,14 +96,9 @@ void main() {
       // Footer disclaimer.
       expect(
         out,
-        contains(
-          'This is an educational summary, not medical advice.',
-        ),
+        contains('This is an educational summary, not medical advice.'),
       );
-      expect(
-        out,
-        contains('consult your healthcare provider'),
-      );
+      expect(out, contains('consult your healthcare provider'));
     });
 
     test('formats date as YYYY-MM-DD', () {
@@ -130,25 +126,27 @@ void main() {
       expect(out, isNot(contains('## Warnings')));
     });
 
-    test('profile populated → Profile section renders the populated fields',
-        () {
-      final out = _builder.build(
-        profile: _profile(
-          ageBracket: '35-44',
-          sex: 'female',
-          conditions: '["diabetes","hypertension"]',
-          drugClasses: '["metformin","lisinopril"]',
-        ),
-        stack: const [],
-        intelligence: _emptyIntelligence,
-        generatedAt: _generatedAt,
-      );
-      expect(out, contains('## Profile'));
-      expect(out, contains('- Age: 35-44'));
-      expect(out, contains('- Sex: female'));
-      expect(out, contains('- Conditions: diabetes, hypertension'));
-      expect(out, contains('- Drug classes: metformin, lisinopril'));
-    });
+    test(
+      'profile populated → Profile section renders the populated fields',
+      () {
+        final out = _builder.build(
+          profile: _profile(
+            ageBracket: '35-44',
+            sex: 'female',
+            conditions: '["diabetes","hypertension"]',
+            drugClasses: '["metformin","lisinopril"]',
+          ),
+          stack: const [],
+          intelligence: _emptyIntelligence,
+          generatedAt: _generatedAt,
+        );
+        expect(out, contains('## Profile'));
+        expect(out, contains('- Age: 35-44'));
+        expect(out, contains('- Sex: female'));
+        expect(out, contains('- Conditions: diabetes, hypertension'));
+        expect(out, contains('- Drug classes: metformin, lisinopril'));
+      },
+    );
 
     test('medications + supplements split into separate sections', () {
       final stack = [
@@ -166,11 +164,7 @@ void main() {
           dosage: '5000 IU',
           frequency: 'once daily',
         ),
-        _stack(
-          id: '3',
-          name: 'Magnesium Glycinate',
-          type: 'supplement',
-        ),
+        _stack(id: '3', name: 'Magnesium Glycinate', type: 'supplement'),
       ];
       final out = _builder.build(
         profile: null,
@@ -218,61 +212,63 @@ void main() {
       expect(out, isNot(contains('Recalled ingredient detected')));
     });
 
-    test('warnings section renders issues already severity-sorted by engine',
-        () {
-      const intelligence = StackIntelligence(
-        tier: StackTier.concerning,
-        stackSize: 4,
-        issues: [
-          // Engine emits in this order; builder must NOT re-sort.
-          StackIssue(
-            severity: Severity.contraindicated,
-            headline: 'Warfarin + Vitamin K — direct contraindication',
-          ),
-          StackIssue(
-            severity: Severity.avoid,
-            headline: 'Iron + thyroid med — separate by 4h',
-          ),
-          StackIssue(
-            severity: Severity.caution,
-            headline: 'Calcium + iron — reduced absorption',
-          ),
-          StackIssue(
-            severity: Severity.monitor,
-            headline: 'Magnesium glucose tracking advised',
-          ),
-        ],
-        interactionCount: 4,
-        nutrientWarningCount: 0,
-        hasRecalledIngredient: false,
-        hasContraindicatedInteraction: true,
-        hasBannedIngredient: false,
-      );
-      final out = _builder.build(
-        profile: null,
-        stack: const [],
-        intelligence: intelligence,
-        generatedAt: _generatedAt,
-      );
+    test(
+      'warnings section renders issues already severity-sorted by engine',
+      () {
+        const intelligence = StackIntelligence(
+          tier: StackTier.concerning,
+          stackSize: 4,
+          issues: [
+            // Engine emits in this order; builder must NOT re-sort.
+            StackIssue(
+              severity: Severity.contraindicated,
+              headline: 'Warfarin + Vitamin K — direct contraindication',
+            ),
+            StackIssue(
+              severity: Severity.avoid,
+              headline: 'Iron + thyroid med — separate by 4h',
+            ),
+            StackIssue(
+              severity: Severity.caution,
+              headline: 'Calcium + iron — reduced absorption',
+            ),
+            StackIssue(
+              severity: Severity.monitor,
+              headline: 'Magnesium glucose tracking advised',
+            ),
+          ],
+          interactionCount: 4,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: true,
+          hasBannedIngredient: false,
+        );
+        final out = _builder.build(
+          profile: null,
+          stack: const [],
+          intelligence: intelligence,
+          generatedAt: _generatedAt,
+        );
 
-      expect(out, contains('## Warnings (most severe first)'));
-      // Verify ordering: the contraindicated headline must appear
-      // before avoid, which appears before caution, which appears
-      // before monitor.
-      final iCon = out.indexOf('direct contraindication');
-      final iAvoid = out.indexOf('separate by 4h');
-      final iCaution = out.indexOf('reduced absorption');
-      final iMonitor = out.indexOf('glucose tracking');
-      expect(iCon, greaterThan(0));
-      expect(iAvoid, greaterThan(iCon));
-      expect(iCaution, greaterThan(iAvoid));
-      expect(iMonitor, greaterThan(iCaution));
-      // Severity labels render in caps (matches Severity.label).
-      expect(out, contains('**BLOCK — Do Not Use**'));
-      expect(out, contains('**AVOID**'));
-      expect(out, contains('**CAUTION**'));
-      expect(out, contains('**MONITOR**'));
-    });
+        expect(out, contains('## Warnings (most severe first)'));
+        // Verify ordering: the contraindicated headline must appear
+        // before avoid, which appears before caution, which appears
+        // before monitor.
+        final iCon = out.indexOf('direct contraindication');
+        final iAvoid = out.indexOf('separate by 4h');
+        final iCaution = out.indexOf('reduced absorption');
+        final iMonitor = out.indexOf('glucose tracking');
+        expect(iCon, greaterThan(0));
+        expect(iAvoid, greaterThan(iCon));
+        expect(iCaution, greaterThan(iAvoid));
+        expect(iMonitor, greaterThan(iCaution));
+        // Severity labels render in caps (matches Severity.label).
+        expect(out, contains('**BLOCK — Do Not Use**'));
+        expect(out, contains('**AVOID**'));
+        expect(out, contains('**CAUTION**'));
+        expect(out, contains('**MONITOR**'));
+      },
+    );
   });
 
   group('ClinicianReportBuilder.build — golden-string contract', () {
@@ -356,15 +352,11 @@ _This is an educational summary, not medical advice. Always consult your healthc
     });
   });
 
-  group('ClinicianReportBuilder.build — JSON profile arrays decode safely',
-      () {
+  group('ClinicianReportBuilder.build — JSON profile arrays decode safely', () {
     test('malformed JSON in profile field falls through to empty', () {
       // Should NOT throw; should just skip the field.
       final out = _builder.build(
-        profile: _profile(
-          conditions: 'not-json',
-          goals: '[}',
-        ),
+        profile: _profile(conditions: 'not-json', goals: '[}'),
         stack: const [],
         intelligence: _emptyIntelligence,
         generatedAt: _generatedAt,
@@ -375,9 +367,7 @@ _This is an educational summary, not medical advice. Always consult your healthc
 
     test('non-list JSON shape (object) is dropped silently', () {
       final out = _builder.build(
-        profile: _profile(
-          conditions: '{"key":"value"}',
-        ),
+        profile: _profile(conditions: '{"key":"value"}'),
         stack: const [],
         intelligence: _emptyIntelligence,
         generatedAt: _generatedAt,

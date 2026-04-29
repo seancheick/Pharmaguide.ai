@@ -56,7 +56,9 @@ class PGFilterChip extends StatelessWidget {
                   Icon(
                     icon,
                     size: 16,
-                    color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+                    color: selected
+                        ? scheme.onPrimary
+                        : scheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 6),
                 ],

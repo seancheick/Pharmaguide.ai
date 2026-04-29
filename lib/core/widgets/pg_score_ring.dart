@@ -138,59 +138,63 @@ class _PGScoreRingState extends State<PGScoreRing>
       // the readable label.
       child: ExcludeSemantics(
         child: SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: AnimatedBuilder(
-        animation: _anim,
-        builder: (context, _) {
-          final progress = targetFraction * _anim.value;
-          final displayNumber = hasScore
-              ? (widget.score! * _anim.value).round().toString()
-              : '–';
+          width: widget.size,
+          height: widget.size,
+          child: AnimatedBuilder(
+            animation: _anim,
+            builder: (context, _) {
+              final progress = targetFraction * _anim.value;
+              final displayNumber = hasScore
+                  ? (widget.score! * _anim.value).round().toString()
+                  : '–';
 
-          return CustomPaint(
-            painter: _RingPainter(
-              progress: progress,
-              color: color,
-              trackColor: scheme.surfaceContainerHigh,
-              stroke: widget.strokeWidth,
-              dashed: !hasScore,
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    displayNumber,
-                    style: AppTheme.numeric(
-                      Theme.of(context).textTheme.headlineLarge!.copyWith(
-                        fontSize: widget.size * 0.34,
-                        fontWeight: FontWeight.w700,
-                        color: color,
-                        letterSpacing: -0.6,
-                        height: 1.0,
-                      ),
-                    ),
-                  ),
-                  if (widget.label != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        widget.label!.toUpperCase(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontSize: (widget.size * 0.13).clamp(9.0, 12.0),
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurfaceVariant,
-                          letterSpacing: 0.6,
+              return CustomPaint(
+                painter: _RingPainter(
+                  progress: progress,
+                  color: color,
+                  trackColor: scheme.surfaceContainerHigh,
+                  stroke: widget.strokeWidth,
+                  dashed: !hasScore,
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayNumber,
+                        style: AppTheme.numeric(
+                          Theme.of(context).textTheme.headlineLarge!.copyWith(
+                            fontSize: widget.size * 0.34,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                            letterSpacing: -0.6,
+                            height: 1.0,
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
+                      if (widget.label != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            widget.label!.toUpperCase(),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  fontSize: (widget.size * 0.13).clamp(
+                                    9.0,
+                                    12.0,
+                                  ),
+                                  fontWeight: FontWeight.w600,
+                                  color: scheme.onSurfaceVariant,
+                                  letterSpacing: 0.6,
+                                ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

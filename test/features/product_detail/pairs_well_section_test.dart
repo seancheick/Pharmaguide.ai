@@ -19,18 +19,21 @@ void main() {
   });
 
   testWidgets('renders nothing when no pairs found', (tester) async {
-    await tester.pumpWidget(wrap(
-      const PairsWellSection(dsldId: '12345'),
-      overrides: [
-        pairsWellWithStackProvider('12345').overrideWith((_) async => []),
-      ],
-    ));
+    await tester.pumpWidget(
+      wrap(
+        const PairsWellSection(dsldId: '12345'),
+        overrides: [
+          pairsWellWithStackProvider('12345').overrideWith((_) async => []),
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Pairs Well with Your Stack'), findsNothing);
   });
 
-  testWidgets('renders section title and cluster name when pairs found',
-      (tester) async {
+  testWidgets('renders section title and cluster name when pairs found', (
+    tester,
+  ) async {
     final match = SynergyMatch(
       clusterId: 'iron_vitamin_c',
       clusterName: 'Iron + Vitamin C',
@@ -40,13 +43,16 @@ void main() {
       evidenceTier: 'strong',
       citations: const ['32891485'],
     );
-    await tester.pumpWidget(wrap(
-      const PairsWellSection(dsldId: '12345'),
-      overrides: [
-        pairsWellWithStackProvider('12345')
-            .overrideWith((_) async => [match]),
-      ],
-    ));
+    await tester.pumpWidget(
+      wrap(
+        const PairsWellSection(dsldId: '12345'),
+        overrides: [
+          pairsWellWithStackProvider(
+            '12345',
+          ).overrideWith((_) async => [match]),
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Pairs Well with Your Stack'), findsOneWidget);
     expect(find.text('Iron + Vitamin C'), findsOneWidget);
@@ -63,28 +69,32 @@ void main() {
       evidenceTier: 'strong',
       citations: const [],
     );
-    await tester.pumpWidget(wrap(
-      const PairsWellSection(dsldId: '12345'),
-      overrides: [
-        pairsWellWithStackProvider('12345')
-            .overrideWith((_) async => [match]),
-      ],
-    ));
+    await tester.pumpWidget(
+      wrap(
+        const PairsWellSection(dsldId: '12345'),
+        overrides: [
+          pairsWellWithStackProvider(
+            '12345',
+          ).overrideWith((_) async => [match]),
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.textContaining('Piperine inhibits'), findsOneWidget);
   });
 
-  testWidgets('T0.4: badge count equals rendered card count for 4 pairs',
-      (tester) async {
+  testWidgets('T0.4: badge count equals rendered card count for 4 pairs', (
+    tester,
+  ) async {
     SynergyMatch make(String id, String name) => SynergyMatch(
-          clusterId: id,
-          clusterName: name,
-          matchedIngredients: [id],
-          mechanism: 'mechanism for $id',
-          bonusPoints: 2,
-          evidenceTier: 'moderate',
-          citations: const [],
-        );
+      clusterId: id,
+      clusterName: name,
+      matchedIngredients: [id],
+      mechanism: 'mechanism for $id',
+      bonusPoints: 2,
+      evidenceTier: 'moderate',
+      citations: const [],
+    );
     final fourPairs = [
       make('a', 'Iron + Vitamin C'),
       make('b', 'Curcumin + Piperine'),
@@ -92,12 +102,16 @@ void main() {
       make('d', 'Zinc + Copper Balance'),
     ];
 
-    await tester.pumpWidget(wrap(
-      const PairsWellSection(dsldId: '12345'),
-      overrides: [
-        pairsWellWithStackProvider('12345').overrideWith((_) async => fourPairs),
-      ],
-    ));
+    await tester.pumpWidget(
+      wrap(
+        const PairsWellSection(dsldId: '12345'),
+        overrides: [
+          pairsWellWithStackProvider(
+            '12345',
+          ).overrideWith((_) async => fourPairs),
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
 
     // Badge shows total count
@@ -119,24 +133,22 @@ void main() {
       evidenceTier: 'strong',
       citations: const [],
     );
-    await tester.pumpWidget(wrap(
-      const PairsWellSection(dsldId: '12345'),
-      overrides: [
-        pairsWellWithStackProvider('12345').overrideWith((_) async => [match]),
-      ],
-    ));
+    await tester.pumpWidget(
+      wrap(
+        const PairsWellSection(dsldId: '12345'),
+        overrides: [
+          pairsWellWithStackProvider(
+            '12345',
+          ).overrideWith((_) async => [match]),
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('1'), findsOneWidget);
-    expect(
-      find.textContaining('this ingredient combination'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('this ingredient combination'), findsOneWidget);
     // Should NOT contain the plural form
-    expect(
-      find.textContaining('these ingredient combinations'),
-      findsNothing,
-    );
+    expect(find.textContaining('these ingredient combinations'), findsNothing);
     // Should NOT contain the old vague subtitle
     expect(
       find.textContaining("Based on what's already in your stack"),
@@ -146,32 +158,33 @@ void main() {
 
   testWidgets('T0.4: 2+ pairs render plural subtitle', (tester) async {
     SynergyMatch make(String id, String name) => SynergyMatch(
-          clusterId: id,
-          clusterName: name,
-          matchedIngredients: [id],
-          mechanism: 'mechanism',
-          bonusPoints: 2,
-          evidenceTier: 'moderate',
-          citations: const [],
-        );
-    await tester.pumpWidget(wrap(
-      const PairsWellSection(dsldId: '12345'),
-      overrides: [
-        pairsWellWithStackProvider('12345').overrideWith((_) async => [
+      clusterId: id,
+      clusterName: name,
+      matchedIngredients: [id],
+      mechanism: 'mechanism',
+      bonusPoints: 2,
+      evidenceTier: 'moderate',
+      citations: const [],
+    );
+    await tester.pumpWidget(
+      wrap(
+        const PairsWellSection(dsldId: '12345'),
+        overrides: [
+          pairsWellWithStackProvider('12345').overrideWith(
+            (_) async => [
               make('a', 'Iron + C'),
               make('b', 'Curcumin + Piperine'),
-            ]),
-      ],
-    ));
+            ],
+          ),
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(
       find.textContaining('these ingredient combinations'),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('this ingredient combination '),
-      findsNothing,
-    );
+    expect(find.textContaining('this ingredient combination '), findsNothing);
   });
 }

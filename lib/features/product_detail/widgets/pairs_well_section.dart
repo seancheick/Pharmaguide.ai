@@ -69,8 +69,7 @@ class _PairsWellBody extends StatelessWidget {
               ),
               const SizedBox(width: AppTheme.space8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: scheme.primaryContainer,
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
@@ -90,9 +89,9 @@ class _PairsWellBody extends StatelessWidget {
           Text(
             pairs.length == 1
                 ? 'Adding this would activate this ingredient combination '
-                    'from your current stack. Tier shows research strength.'
+                      'from your current stack. Tier shows research strength.'
                 : 'Adding this would activate these ingredient combinations '
-                    'from your current stack. Tier shows research strength.',
+                      'from your current stack. Tier shows research strength.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -129,7 +128,9 @@ class _PairsWellBody extends StatelessWidget {
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: tierColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(4),

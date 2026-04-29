@@ -19,8 +19,7 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('single product with single ingredient produces single total',
-        () {
+    test('single product with single ingredient produces single total', () {
       final stack = [
         const StackItemNutrients(
           stackEntryId: 's1',
@@ -79,38 +78,40 @@ void main() {
       );
     });
 
-    test('multiple nutrients across multiple products aggregate independently',
-        () {
-      final stack = [
-        _productOf('s1', 'Multi A', [
-          _ing('zinc', 'Zinc', 15, 'mg'),
-          _ing('magnesium', 'Magnesium', 200, 'mg'),
-        ]),
-        _productOf('s2', 'Immune', [
-          _ing('zinc', 'Zinc (Picolinate)', 22, 'mg'),
-          _ing('vitamin_c', 'Vitamin C', 500, 'mg'),
-        ]),
-        _productOf('s3', 'Zinc Supplement', [
-          _ing('zinc', 'Zinc', 15, 'mg'),
-        ]),
-      ];
-      final result = aggregator.aggregate(stack);
-      expect(result, hasLength(3));
-      expect(result['zinc']!.totalAmount, 52);
-      expect(result['zinc']!.contributions, hasLength(3));
-      expect(result['magnesium']!.totalAmount, 200);
-      expect(result['vitamin_c']!.totalAmount, 500);
-    });
+    test(
+      'multiple nutrients across multiple products aggregate independently',
+      () {
+        final stack = [
+          _productOf('s1', 'Multi A', [
+            _ing('zinc', 'Zinc', 15, 'mg'),
+            _ing('magnesium', 'Magnesium', 200, 'mg'),
+          ]),
+          _productOf('s2', 'Immune', [
+            _ing('zinc', 'Zinc (Picolinate)', 22, 'mg'),
+            _ing('vitamin_c', 'Vitamin C', 500, 'mg'),
+          ]),
+          _productOf('s3', 'Zinc Supplement', [_ing('zinc', 'Zinc', 15, 'mg')]),
+        ];
+        final result = aggregator.aggregate(stack);
+        expect(result, hasLength(3));
+        expect(result['zinc']!.totalAmount, 52);
+        expect(result['zinc']!.contributions, hasLength(3));
+        expect(result['magnesium']!.totalAmount, 200);
+        expect(result['vitamin_c']!.totalAmount, 500);
+      },
+    );
 
     test('zinc stacking example matches spec — 52mg from 3 products', () {
       // From the spec's UX mockup. This exact scenario is the reason
       // M1 exists: per-product UL checks miss the accumulation.
       final stack = [
         _productOf('multi', 'Multi A', [_ing('zinc', 'Zinc', 15, 'mg')]),
-        _productOf('immune', 'Immune Support',
-            [_ing('zinc', 'Zinc', 22, 'mg')]),
-        _productOf(
-            'zinc_pico', 'Zinc Picolinate', [_ing('zinc', 'Zinc', 15, 'mg')]),
+        _productOf('immune', 'Immune Support', [
+          _ing('zinc', 'Zinc', 22, 'mg'),
+        ]),
+        _productOf('zinc_pico', 'Zinc Picolinate', [
+          _ing('zinc', 'Zinc', 15, 'mg'),
+        ]),
       ];
       final total = aggregator.aggregate(stack)['zinc']!;
       expect(total.totalAmount, 52);
@@ -121,31 +122,28 @@ void main() {
     test('reads canonical_id when mapped_name is absent', () {
       final stack = [
         _productOf('s1', 'X', [
-          {
-            'canonical_id': 'iron',
-            'name': 'Iron',
-            'amount': 10,
-            'unit': 'mg',
-          },
+          {'canonical_id': 'iron', 'name': 'Iron', 'amount': 10, 'unit': 'mg'},
         ]),
       ];
       expect(aggregator.aggregate(stack)['iron']!.totalAmount, 10);
     });
 
-    test('reads standard_name when canonical_id and mapped_name are absent',
-        () {
-      final stack = [
-        _productOf('s1', 'X', [
-          {
-            'standard_name': 'Magnesium',
-            'name': 'Mg',
-            'amount': 200,
-            'unit': 'mg',
-          },
-        ]),
-      ];
-      expect(aggregator.aggregate(stack)['magnesium']!.totalAmount, 200);
-    });
+    test(
+      'reads standard_name when canonical_id and mapped_name are absent',
+      () {
+        final stack = [
+          _productOf('s1', 'X', [
+            {
+              'standard_name': 'Magnesium',
+              'name': 'Mg',
+              'amount': 200,
+              'unit': 'mg',
+            },
+          ]),
+        ];
+        expect(aggregator.aggregate(stack)['magnesium']!.totalAmount, 200);
+      },
+    );
 
     test('reads normalizedAmount (camelCase) when amount is absent', () {
       final stack = [
@@ -179,53 +177,49 @@ void main() {
     test('parses amount from int, double, and numeric string uniformly', () {
       final stack = [
         _productOf('s1', 'Int', [
-          {'mapped_name': 'iron', 'name': 'Iron', 'amount': 5, 'unit': 'mg'}
+          {'mapped_name': 'iron', 'name': 'Iron', 'amount': 5, 'unit': 'mg'},
         ]),
         _productOf('s2', 'Double', [
-          {
-            'mapped_name': 'iron',
-            'name': 'Iron',
-            'amount': 2.5,
-            'unit': 'mg'
-          }
+          {'mapped_name': 'iron', 'name': 'Iron', 'amount': 2.5, 'unit': 'mg'},
         ]),
         _productOf('s3', 'String', [
           {
             'mapped_name': 'iron',
             'name': 'Iron',
             'amount': '7.5',
-            'unit': 'mg'
-          }
+            'unit': 'mg',
+          },
         ]),
       ];
       expect(aggregator.aggregate(stack)['iron']!.totalAmount, 15);
     });
 
-    test('case-insensitive canonical matching merges uppercase and lowercase',
-        () {
-      final stack = [
-        _productOf('s1', 'A',
-            [_ing('Zinc', 'Zinc', 10, 'mg', keyField: 'mapped_name')]),
-        _productOf('s2', 'B',
-            [_ing('ZINC', 'Zinc', 15, 'mg', keyField: 'mapped_name')]),
-        _productOf('s3', 'C',
-            [_ing('zinc', 'Zinc', 5, 'mg', keyField: 'mapped_name')]),
-      ];
-      final result = aggregator.aggregate(stack);
-      expect(result.keys, hasLength(1));
-      expect(result['zinc']!.totalAmount, 30);
-    });
+    test(
+      'case-insensitive canonical matching merges uppercase and lowercase',
+      () {
+        final stack = [
+          _productOf('s1', 'A', [
+            _ing('Zinc', 'Zinc', 10, 'mg', keyField: 'mapped_name'),
+          ]),
+          _productOf('s2', 'B', [
+            _ing('ZINC', 'Zinc', 15, 'mg', keyField: 'mapped_name'),
+          ]),
+          _productOf('s3', 'C', [
+            _ing('zinc', 'Zinc', 5, 'mg', keyField: 'mapped_name'),
+          ]),
+        ];
+        final result = aggregator.aggregate(stack);
+        expect(result.keys, hasLength(1));
+        expect(result['zinc']!.totalAmount, 30);
+      },
+    );
   });
 
   group('StackNutrientAggregator — skip rules', () {
     test('skips rows with no canonical id', () {
       final stack = [
         _productOf('s1', 'Mystery', [
-          {
-            'name': 'Proprietary Blend',
-            'amount': 500,
-            'unit': 'mg',
-          },
+          {'name': 'Proprietary Blend', 'amount': 500, 'unit': 'mg'},
         ]),
       ];
       expect(aggregator.aggregate(stack), isEmpty);
@@ -331,22 +325,25 @@ void main() {
   });
 
   group('StackNutrientAggregator — unit conflict handling', () {
-    test('mismatched units flag the total and sum only matching contributions',
-        () {
-      final stack = [
-        _productOf('s1', 'Folate A', [_ing('folate', 'Folate', 400, 'mcg')]),
-        _productOf('s2', 'Folate B', [_ing('folate', 'Folate', 800, 'mcg')]),
-        _productOf('s3', 'Folate C (weird)',
-            [_ing('folate', 'Folate', 1, 'mg')]),
-      ];
-      final total = aggregator.aggregate(stack)['folate']!;
-      // First-seen unit is mcg, so only the two mcg contributions sum.
-      expect(total.unit, 'mcg');
-      expect(total.totalAmount, 1200);
-      expect(total.hasUnitConflict, isTrue);
-      // All three contributions appear for UI transparency.
-      expect(total.contributions, hasLength(3));
-    });
+    test(
+      'mismatched units flag the total and sum only matching contributions',
+      () {
+        final stack = [
+          _productOf('s1', 'Folate A', [_ing('folate', 'Folate', 400, 'mcg')]),
+          _productOf('s2', 'Folate B', [_ing('folate', 'Folate', 800, 'mcg')]),
+          _productOf('s3', 'Folate C (weird)', [
+            _ing('folate', 'Folate', 1, 'mg'),
+          ]),
+        ];
+        final total = aggregator.aggregate(stack)['folate']!;
+        // First-seen unit is mcg, so only the two mcg contributions sum.
+        expect(total.unit, 'mcg');
+        expect(total.totalAmount, 1200);
+        expect(total.hasUnitConflict, isTrue);
+        // All three contributions appear for UI transparency.
+        expect(total.contributions, hasLength(3));
+      },
+    );
 
     test('missing unit on one contribution matches any other unit', () {
       // Intentionally loose: prefer to sum rather than drop a row just
@@ -372,8 +369,9 @@ void main() {
     test('keeps the longest display name across contributions', () {
       final stack = [
         _productOf('s1', 'A', [_ing('vitamin_d3', 'D3', 1000, 'IU')]),
-        _productOf('s2', 'B',
-            [_ing('vitamin_d3', 'Vitamin D3 (Cholecalciferol)', 2000, 'IU')]),
+        _productOf('s2', 'B', [
+          _ing('vitamin_d3', 'Vitamin D3 (Cholecalciferol)', 2000, 'IU'),
+        ]),
         _productOf('s3', 'C', [_ing('vitamin_d3', 'Vitamin D', 1000, 'IU')]),
       ];
       final total = aggregator.aggregate(stack)['vitamin_d3']!;
@@ -387,12 +385,11 @@ StackItemNutrients _productOf(
   String id,
   String name,
   List<Map<String, dynamic>> ingredients,
-) =>
-    StackItemNutrients(
-      stackEntryId: id,
-      productName: name,
-      ingredients: ingredients,
-    );
+) => StackItemNutrients(
+  stackEntryId: id,
+  productName: name,
+  ingredients: ingredients,
+);
 
 /// Helper: build a single ingredient row.
 Map<String, dynamic> _ing(
@@ -401,11 +398,10 @@ Map<String, dynamic> _ing(
   num amount,
   String unit, {
   String keyField = 'mapped_name',
-}) =>
-    {
-      keyField: canonical,
-      'name': display,
-      'amount': amount,
-      'unit': unit,
-      'is_active': true,
-    };
+}) => {
+  keyField: canonical,
+  'name': display,
+  'amount': amount,
+  'unit': unit,
+  'is_active': true,
+};

@@ -164,16 +164,13 @@ void main() {
       expect(first, containsPair('ban_context', isA<String>()));
       expect((first['safety_warning'] as String).trim(), isNotEmpty);
       expect((first['safety_warning_one_liner'] as String).trim(), isNotEmpty);
-      expect(
-        const {
-          'adulterant_in_supplements',
-          'contamination_recall',
-          'export_restricted',
-          'substance',
-          'watchlist',
-        },
-        contains(first['ban_context']),
-      );
+      expect(const {
+        'adulterant_in_supplements',
+        'contamination_recall',
+        'export_restricted',
+        'substance',
+        'watchlist',
+      }, contains(first['ban_context']));
 
       // Sprint 27.6: the old derived field must stay gone now that the
       // authored replacement is present.

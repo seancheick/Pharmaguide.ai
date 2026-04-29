@@ -34,17 +34,26 @@ class DepletionCheckerCard extends StatelessWidget {
 
   _CardState get _state {
     if (depletions.isEmpty) return _CardState.empty;
-    final anyUncovered =
-        depletions.any((d) => d.coverageLevel == CoverageLevel.none);
-    final anyPartial =
-        depletions.any((d) => d.coverageLevel == CoverageLevel.partial);
+    final anyUncovered = depletions.any(
+      (d) => d.coverageLevel == CoverageLevel.none,
+    );
+    final anyPartial = depletions.any(
+      (d) => d.coverageLevel == CoverageLevel.partial,
+    );
     if (!anyUncovered && !anyPartial) return _CardState.allCovered;
     if (!anyUncovered) return _CardState.partial;
     return _CardState.noneOrMixed;
   }
 
-  ({Color border, Color bg, Color fg, IconData icon, String title, String subtitle})
-      _chrome() {
+  ({
+    Color border,
+    Color bg,
+    Color fg,
+    IconData icon,
+    String title,
+    String subtitle,
+  })
+  _chrome() {
     switch (_state) {
       case _CardState.allCovered:
         return (
@@ -232,8 +241,9 @@ class _DepletionItemState extends State<_DepletionItem> {
                         primaryCopy,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurface.withValues(alpha: 0.86),
-                          fontStyle:
-                              isValidation ? FontStyle.normal : FontStyle.normal,
+                          fontStyle: isValidation
+                              ? FontStyle.normal
+                              : FontStyle.normal,
                         ),
                       ),
                       if (d.monitoringTipShort != null &&
@@ -327,7 +337,9 @@ class _DepletionItemState extends State<_DepletionItem> {
   }
 
   String _subtitleForCoverage(DepletionMatch d) {
-    final drugShort = d.drugDisplayName.isEmpty ? 'your medication' : d.drugDisplayName;
+    final drugShort = d.drugDisplayName.isEmpty
+        ? 'your medication'
+        : d.drugDisplayName;
     final onset = d.onsetTimeline?.toLowerCase();
     final onsetCue = switch (onset) {
       'years' => 'long-term',
@@ -374,8 +386,7 @@ class _DetailSection extends StatelessWidget {
             _labelled(theme, 'What can happen', d.clinicalImpact!),
             const SizedBox(height: AppTheme.space8),
           ],
-          if (d.foodSourcesShort != null &&
-              d.foodSourcesShort!.isNotEmpty) ...[
+          if (d.foodSourcesShort != null && d.foodSourcesShort!.isNotEmpty) ...[
             _labelled(theme, 'From food', d.foodSourcesShort!),
             const SizedBox(height: AppTheme.space8),
           ],
@@ -433,9 +444,7 @@ class _SourcesRow extends StatelessWidget {
           onTap: () {
             final uri = Uri.tryParse(url);
             if (uri == null) return;
-            unawaited(
-              launchUrl(uri, mode: LaunchMode.externalApplication),
-            );
+            unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
           },
           borderRadius: BorderRadius.circular(AppTheme.radiusFull),
           child: Container(
@@ -443,10 +452,7 @@ class _SourcesRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: scheme.surface,
               borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-              border: Border.all(
-                color: scheme.outlineVariant,
-                width: 0.8,
-              ),
+              border: Border.all(color: scheme.outlineVariant, width: 0.8),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

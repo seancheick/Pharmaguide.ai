@@ -59,8 +59,8 @@ DoseSafety resolveDoseSafety({
   // used for stack aggregation. Using it would double-count the
   // serving math and fire false-positive UL alerts on any product
   // whose label allows multiple servings.
-  final quantity = _asDouble(entry['quantity']) ??
-      _asDouble(ingredient['quantity']);
+  final quantity =
+      _asDouble(entry['quantity']) ?? _asDouble(ingredient['quantity']);
   if (quantity == null || quantity <= 0) return DoseSafety.withinLimits;
 
   // UL resolution order honoring the pipeline contract:
@@ -68,7 +68,8 @@ DoseSafety resolveDoseSafety({
   //      resolved one for the anonymous default (adult 19-30).
   //   2. highest_ul — worst-case UL across demographics, used when
   //      the pipeline couldn't resolve a profile-specific UL.
-  final ul = _asDouble(entry['ul_for_default_profile']) ??
+  final ul =
+      _asDouble(entry['ul_for_default_profile']) ??
       _asDouble(entry['highest_ul']);
   if (ul == null || ul <= 0) return DoseSafety.withinLimits;
 

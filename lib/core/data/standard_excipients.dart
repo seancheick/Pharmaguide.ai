@@ -13,15 +13,7 @@
 /// safe fallback when the pipeline didn't ship a `delivery_form` field
 /// — we treat it like a capsule (the most common form) so behavior is
 /// reasonable for partial data.
-enum DosageForm {
-  capsule,
-  softgel,
-  tablet,
-  powder,
-  liquid,
-  gummy,
-  unknown,
-}
+enum DosageForm { capsule, softgel, tablet, powder, liquid, gummy, unknown }
 
 /// Generic excipients that are normal manufacturing components, not
 /// "fillers" in the negative sense. Branded functional ingredients

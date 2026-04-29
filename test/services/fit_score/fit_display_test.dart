@@ -44,15 +44,17 @@ void main() {
       expect((out as FitHidden).verdict, Severity.avoid);
     });
 
-    test('Avoid + low fit fraction → still Hidden (risk-gate, not score-gate)',
-        () {
-      // Sanity: hide regardless of the underlying fit fraction.
-      final out = computeFitDisplay(
-        verdict: Severity.avoid,
-        fitResult: _result(scoreFit20: 2),
-      );
-      expect(out, isA<FitHidden>());
-    });
+    test(
+      'Avoid + low fit fraction → still Hidden (risk-gate, not score-gate)',
+      () {
+        // Sanity: hide regardless of the underlying fit fraction.
+        final out = computeFitDisplay(
+          verdict: Severity.avoid,
+          fitResult: _result(scoreFit20: 2),
+        );
+        expect(out, isA<FitHidden>());
+      },
+    );
   });
 
   group('computeFitDisplay — caution/monitor pass-through', () {
@@ -182,17 +184,19 @@ void main() {
   });
 
   group('computeFitDisplay — incomplete profile', () {
-    test('Safe + incompleteProfile → FitIncomplete (regardless of fit fraction)',
-        () {
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(
-          scoreFit20: 15,
-          state: FitAssessmentState.incompleteProfile,
-        ),
-      );
-      expect(out, isA<FitIncomplete>());
-    });
+    test(
+      'Safe + incompleteProfile → FitIncomplete (regardless of fit fraction)',
+      () {
+        final out = computeFitDisplay(
+          verdict: Severity.safe,
+          fitResult: _result(
+            scoreFit20: 15,
+            state: FitAssessmentState.incompleteProfile,
+          ),
+        );
+        expect(out, isA<FitIncomplete>());
+      },
+    );
 
     test('Caution + incompleteProfile → FitIncomplete (still incomplete)', () {
       // Profile incompleteness applies even when there are alerts —
@@ -208,8 +212,7 @@ void main() {
       expect(out, isA<FitIncomplete>());
     });
 
-    test(
-        'Avoid + incompleteProfile → FitHidden (risk-gate trumps '
+    test('Avoid + incompleteProfile → FitHidden (risk-gate trumps '
         'incompleteness)', () {
       // Risk-gate runs BEFORE the incomplete-profile check. A
       // contraindicated/avoid product hides the fit even if profile

@@ -62,38 +62,38 @@ final _fitScoreBlobServiceProvider = Provider<DetailBlobService>((ref) {
 
 final _fitScoreBlobByDsldIdProvider = FutureProvider.family
     .autoDispose<Map<String, dynamic>?, String>((ref, dsldId) async {
-  final userDb = ref.watch(userDatabaseProvider);
-  final service = ref.watch(_fitScoreBlobServiceProvider);
+      final userDb = ref.watch(userDatabaseProvider);
+      final service = ref.watch(_fitScoreBlobServiceProvider);
 
-  const cacheTtl = Duration(hours: 24);
-  final cached = await userDb.getCachedDetail(dsldId);
-  if (cached != null) {
-    final age = DateTime.now().difference(cached.cachedAt);
-    if (age < cacheTtl) {
-      try {
-        final decoded = jsonDecode(cached.blobJson);
-        if (decoded is Map<String, dynamic>) return decoded;
-        if (decoded is Map) return Map<String, dynamic>.from(decoded);
-        // Decoded to an unexpected shape (List/scalar). Treat as corrupt
-        // cache and fall through to the network fetch below.
-      } on FormatException {
-        // Malformed JSON — fall through to network.
+      const cacheTtl = Duration(hours: 24);
+      final cached = await userDb.getCachedDetail(dsldId);
+      if (cached != null) {
+        final age = DateTime.now().difference(cached.cachedAt);
+        if (age < cacheTtl) {
+          try {
+            final decoded = jsonDecode(cached.blobJson);
+            if (decoded is Map<String, dynamic>) return decoded;
+            if (decoded is Map) return Map<String, dynamic>.from(decoded);
+            // Decoded to an unexpected shape (List/scalar). Treat as corrupt
+            // cache and fall through to the network fetch below.
+          } on FormatException {
+            // Malformed JSON — fall through to network.
+          }
+        }
       }
-    }
-  }
 
-  // Look up the SHA-256 hash from the core DB to fetch the blob.
-  final coreDb = ref.watch(coreDatabaseProvider);
-  final product = await coreDb.findById(dsldId);
-  final sha256 = product?.detailBlobSha256;
-  if (sha256 == null || sha256.isEmpty) return null;
+      // Look up the SHA-256 hash from the core DB to fetch the blob.
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final product = await coreDb.findById(dsldId);
+      final sha256 = product?.detailBlobSha256;
+      if (sha256 == null || sha256.isEmpty) return null;
 
-  final blob = await service.fetchDetailBlobByHash(sha256);
-  if (blob != null) {
-    await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
-  }
-  return blob;
-});
+      final blob = await service.fetchDetailBlobByHash(sha256);
+      if (blob != null) {
+        await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
+      }
+      return blob;
+    });
 
 /// Primary FitScore provider, keyed by `dsldId`.
 ///
@@ -107,51 +107,51 @@ final _fitScoreBlobByDsldIdProvider = FutureProvider.family
 /// prompt instead of a misleading low score.
 final fitScoreForProductProvider = FutureProvider.family
     .autoDispose<FitScoreResult?, String>((ref, dsldId) async {
-  final service = await ref.watch(fitScoreServiceProvider.future);
-  final coreDb = ref.watch(coreDatabaseProvider);
+      final service = await ref.watch(fitScoreServiceProvider.future);
+      final coreDb = ref.watch(coreDatabaseProvider);
 
-  // Watch the profile so every profile edit (add a condition, set age, etc)
-  // automatically invalidates this provider and recomputes. FitScore must
-  // never be persisted — it's a fresh computation every time.
-  final profile = ref.watch(profileProvider);
+      // Watch the profile so every profile edit (add a condition, set age, etc)
+      // automatically invalidates this provider and recomputes. FitScore must
+      // never be persisted — it's a fresh computation every time.
+      final profile = ref.watch(profileProvider);
 
-  // Product row (for score_quality_80 + primary_category → cluster)
-  ProductsCoreData? product;
-  try {
-    product = await coreDb.findById(dsldId);
-  } on Exception {
-    return null;
-  }
-  if (product == null) return null;
+      // Product row (for score_quality_80 + primary_category → cluster)
+      ProductsCoreData? product;
+      try {
+        product = await coreDb.findById(dsldId);
+      } on Exception {
+        return null;
+      }
+      if (product == null) return null;
 
-  // Detail blob (for ingredients nutrients + interaction_summary)
-  Map<String, dynamic>? blob;
-  try {
-    blob = await ref.watch(_fitScoreBlobByDsldIdProvider(dsldId).future);
-  } on Exception {
-    return null;
-  }
-  if (blob == null) return null;
+      // Detail blob (for ingredients nutrients + interaction_summary)
+      Map<String, dynamic>? blob;
+      try {
+        blob = await ref.watch(_fitScoreBlobByDsldIdProvider(dsldId).future);
+      } on Exception {
+        return null;
+      }
+      if (blob == null) return null;
 
-  final nutrients = _extractNutrients(blob);
-  final interactionSummary = _extractInteractionSummary(blob);
-  final productClusters = _extractClusters(blob);
-  final productGoalMatches = _extractGoalMatches(product);
+      final nutrients = _extractNutrients(blob);
+      final interactionSummary = _extractInteractionSummary(blob);
+      final productClusters = _extractClusters(blob);
+      final productGoalMatches = _extractGoalMatches(product);
 
-  return service.calculate(
-    nutrients: nutrients,
-    productClusters: productClusters,
-    productGoalMatches: productGoalMatches,
-    productGoalMatchConfidence: product.goalMatchConfidence,
-    interactionSummary: interactionSummary,
-    ageBracket: profile.ageBracket,
-    sex: profile.sex,
-    userGoals: profile.goals,
-    userConditions: profile.conditions,
-    userDrugClasses: profile.drugClasses,
-    mappedCoverage: product.mappedCoverage ?? 0.0,
-  );
-});
+      return service.calculate(
+        nutrients: nutrients,
+        productClusters: productClusters,
+        productGoalMatches: productGoalMatches,
+        productGoalMatchConfidence: product.goalMatchConfidence,
+        interactionSummary: interactionSummary,
+        ageBracket: profile.ageBracket,
+        sex: profile.sex,
+        userGoals: profile.goals,
+        userConditions: profile.conditions,
+        userDrugClasses: profile.drugClasses,
+        mappedCoverage: product.mappedCoverage ?? 0.0,
+      );
+    });
 
 // ---------------------------------------------------------------------------
 // Blob extractors — tolerant of the multiple shapes the pipeline has emitted.

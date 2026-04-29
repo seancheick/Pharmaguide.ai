@@ -48,18 +48,16 @@ class ManufacturerViolationsSection extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     // Sort critical → high → moderate so the most serious lands first.
-    final severityRank = <String, int>{
-      'critical': 0,
-      'high': 1,
-      'moderate': 2,
-    };
+    final severityRank = <String, int>{'critical': 0, 'high': 1, 'moderate': 2};
     final sorted = List<Map<String, dynamic>>.from(violations)
       ..sort((a, b) {
-        final ra = severityRank[
-                (a['severity_level']?.toString() ?? '').toLowerCase()] ??
+        final ra =
+            severityRank[(a['severity_level']?.toString() ?? '')
+                .toLowerCase()] ??
             99;
-        final rb = severityRank[
-                (b['severity_level']?.toString() ?? '').toLowerCase()] ??
+        final rb =
+            severityRank[(b['severity_level']?.toString() ?? '')
+                .toLowerCase()] ??
             99;
         return ra.compareTo(rb);
       });
@@ -82,12 +80,10 @@ class ManufacturerViolationsSection extends StatelessWidget {
               ),
               const SizedBox(width: AppTheme.space8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: scheme.secondaryContainer,
-                  borderRadius:
-                      BorderRadius.circular(AppTheme.radiusFull),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                 ),
                 child: Text(
                   '${sorted.length}',
@@ -109,8 +105,8 @@ class ManufacturerViolationsSection extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           ...sorted.take(5).map((v) {
-            final severity =
-                (v['severity_level']?.toString() ?? 'moderate').toLowerCase();
+            final severity = (v['severity_level']?.toString() ?? 'moderate')
+                .toLowerCase();
             final summary = v['brand_trust_summary']?.toString() ?? '';
             final reason = v['reason']?.toString() ?? '';
             // Prefer Dr. Pham's authored brand_trust_summary; fall back to
@@ -134,8 +130,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
                 padding: const EdgeInsets.all(AppTheme.space12),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerLowest,
-                  borderRadius:
-                      BorderRadius.circular(AppTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   border: Border.all(
                     color: severity == 'critical'
                         ? severityColor.withValues(alpha: 0.5)
@@ -150,7 +145,9 @@ class ManufacturerViolationsSection extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: severityColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
@@ -201,9 +198,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
                         'Ref: $violationId',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant,
-                          fontFeatures: const [
-                            FontFeature.tabularFigures(),
-                          ],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ],

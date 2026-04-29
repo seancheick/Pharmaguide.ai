@@ -34,10 +34,7 @@ void main() {
     });
 
     test('unknown name → null', () {
-      expect(
-        inactiveIngredientPurpose('made-up-additive-7'),
-        isNull,
-      );
+      expect(inactiveIngredientPurpose('made-up-additive-7'), isNull);
     });
 
     test('empty string → null (defensive)', () {
@@ -76,7 +73,8 @@ void main() {
         expect(
           inactiveIngredientPurpose(name),
           isNotNull,
-          reason: 'T0.5 whitelist excipient "$name" must have a '
+          reason:
+              'T0.5 whitelist excipient "$name" must have a '
               'purpose entry — leaving it null falls through to the '
               'generic "added during manufacturing" copy and the user '
               'loses the specific explanation.',
@@ -89,14 +87,19 @@ void main() {
       // detail copy should be honest about what they are. Pin a few
       // specifics so future copy edits don't accidentally erase the
       // honesty.
-      expect(inactiveIngredientPurpose('sucralose')?.role,
-          contains('sweetener'));
-      expect(inactiveIngredientPurpose('titanium dioxide')?.role,
-          contains('colorant'));
+      expect(
+        inactiveIngredientPurpose('sucralose')?.role,
+        contains('sweetener'),
+      );
+      expect(
+        inactiveIngredientPurpose('titanium dioxide')?.role,
+        contains('colorant'),
+      );
       expect(
         inactiveIngredientPurpose('titanium dioxide')?.detail,
         contains('EU'),
-        reason: 'TiO2 detail copy should surface the EU regulatory '
+        reason:
+            'TiO2 detail copy should surface the EU regulatory '
             'context — that\'s why a user would tap the chip.',
       );
     });
@@ -116,14 +119,17 @@ void main() {
         // The chip is intentionally not ellipsis-clipped at the chip
         // level — it can wrap inside the Wrap parent. Just verify
         // the widget renders without throwing.
-        const longName = 'Hydroxypropylmethylcellulose Acetate Succinate '
+        const longName =
+            'Hydroxypropylmethylcellulose Acetate Succinate '
             '(HPMC-AS) — Sustained Release Polymer';
-        await tester.pumpWidget(wrap(
-          const SizedBox(
-            width: 320,
-            child: InactiveIngredientChip(name: longName),
+        await tester.pumpWidget(
+          wrap(
+            const SizedBox(
+              width: 320,
+              child: InactiveIngredientChip(name: longName),
+            ),
           ),
-        ));
+        );
         expect(find.text(longName), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
@@ -164,10 +170,7 @@ void main() {
         // No purpose entry → role falls back to "Inactive ingredient"
         // and detail is the generic manufacturing copy.
         expect(find.text('Inactive ingredient'), findsOneWidget);
-        expect(
-          find.textContaining('manufacturing'),
-          findsAtLeastNWidgets(1),
-        );
+        expect(find.textContaining('manufacturing'), findsAtLeastNWidgets(1));
       },
     );
 
@@ -192,9 +195,7 @@ void main() {
   group('IngredientsSection — wrapper', () {
     testWidgets('passes child through unchanged', (tester) async {
       await tester.pumpWidget(
-        wrap(const IngredientsSection(
-          child: Text('inner content marker'),
-        )),
+        wrap(const IngredientsSection(child: Text('inner content marker'))),
       );
 
       expect(find.text('inner content marker'), findsOneWidget);

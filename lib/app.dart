@@ -35,10 +35,7 @@ class _PlaceholderScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Center(
-        child: Text(
-          title,
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
+        child: Text(title, style: Theme.of(context).textTheme.headlineMedium),
       ),
     );
   }
@@ -61,11 +58,7 @@ class CatalogUnavailableScreen extends StatelessWidget {
   final String? message;
   final VoidCallback? onRetry;
 
-  const CatalogUnavailableScreen({
-    super.key,
-    this.message,
-    this.onRetry,
-  });
+  const CatalogUnavailableScreen({super.key, this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -133,23 +126,30 @@ GoRouter _buildRouter({
     // Fresh installs start at onboarding; returning users go straight to
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.
-    initialLocation: '${Routes.splashIntro}?next='
+    initialLocation:
+        '${Routes.splashIntro}?next='
         '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}',
     routes: [
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
           GoRoute(
-              path: Routes.home,
-              builder: (_, __) => catalogRoute(const HomeScreen())),
+            path: Routes.home,
+            builder: (_, __) => catalogRoute(const HomeScreen()),
+          ),
           GoRoute(
-              path: Routes.scan,
-              builder: (_, __) => catalogRoute(const ScanScreen())),
+            path: Routes.scan,
+            builder: (_, __) => catalogRoute(const ScanScreen()),
+          ),
           GoRoute(
-              path: Routes.stack,
-              builder: (_, __) => catalogRoute(const StackScreen())),
+            path: Routes.stack,
+            builder: (_, __) => catalogRoute(const StackScreen()),
+          ),
           GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
-          GoRoute(path: Routes.profile, builder: (_, __) => const SettingsScreen()),
+          GoRoute(
+            path: Routes.profile,
+            builder: (_, __) => const SettingsScreen(),
+          ),
         ],
       ),
       // Sub-pages live outside the shell — they have their own app bar with

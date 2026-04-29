@@ -9,10 +9,7 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 class NutrientProgressBar extends StatefulWidget {
-  const NutrientProgressBar({
-    super.key,
-    required this.status,
-  });
+  const NutrientProgressBar({super.key, required this.status});
 
   final NutrientStatus status;
 
@@ -123,10 +120,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
             ),
             if (widget.status.warning != null) ...[
               const SizedBox(height: AppTheme.space6),
-              _WarningChip(
-                text: widget.status.warning!,
-                color: tierColor,
-              ),
+              _WarningChip(text: widget.status.warning!, color: tierColor),
             ],
             if (total.hasUnitConflict) ...[
               const SizedBox(height: AppTheme.space4),

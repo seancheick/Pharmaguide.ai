@@ -18,7 +18,8 @@
 // sealed result back, and dispatch on it.
 
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/widgets/verdict_badge.dart' show isUnsafeVerdict;
+import 'package:pharmaguide/core/widgets/verdict_badge.dart'
+    show isUnsafeVerdict;
 
 /// Sealed verdict outcome the hero renders.
 sealed class HeroVerdict {
@@ -57,21 +58,17 @@ final class HeroVerdictAvoid extends HeroVerdict {
   /// degrades to "Avoid for your stack" / "Do not take" copy.
   final String? offendingAgent;
 
-  const HeroVerdictAvoid({
-    required this.severity,
-    this.offendingAgent,
-  })  : assert(
-          severity == Severity.avoid || severity == Severity.contraindicated,
-          'HeroVerdictAvoid is only valid for Avoid or Contraindicated '
-          'severities — lower tiers belong in Section 2.',
-        );
+  const HeroVerdictAvoid({required this.severity, this.offendingAgent})
+    : assert(
+        severity == Severity.avoid || severity == Severity.contraindicated,
+        'HeroVerdictAvoid is only valid for Avoid or Contraindicated '
+        'severities — lower tiers belong in Section 2.',
+      );
 
   /// Banner headline, composed from severity + agent. Public so the
   /// hero widget can render it directly without re-deriving.
   String get headline {
-    final base = severity == Severity.contraindicated
-        ? 'Do not take'
-        : 'Avoid';
+    final base = severity == Severity.contraindicated ? 'Do not take' : 'Avoid';
     if (offendingAgent != null && offendingAgent!.trim().isNotEmpty) {
       return '$base with ${offendingAgent!.trim()}';
     }

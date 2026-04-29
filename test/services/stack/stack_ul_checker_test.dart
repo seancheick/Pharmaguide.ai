@@ -21,12 +21,7 @@ void main() {
         'highest_ul': 4000,
         'data': [
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 600, 'ul': 4000},
-          {
-            'group': 'Female',
-            'age_range': '19-30',
-            'rda_ai': 600,
-            'ul': 4000
-          },
+          {'group': 'Female', 'age_range': '19-30', 'rda_ai': 600, 'ul': 4000},
           {'group': 'Male', 'age_range': '31-50', 'rda_ai': 600, 'ul': 4000},
         ],
       },
@@ -137,8 +132,7 @@ void main() {
     test('UL precedence: exceedsUl wins over abundant RDA', () {
       // Magnesium male: RDA=400, UL=350. Total=500 → 125% RDA but 143% UL
       // Result must be exceedsUl, not abundant.
-      final totals =
-          _totals([_total('magnesium', 'Magnesium', 500, 'mg')]);
+      final totals = _totals([_total('magnesium', 'Magnesium', 500, 'mg')]);
       final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
       expect(results.first.tier, NutrientTier.exceedsUl);
     });
@@ -172,19 +166,21 @@ void main() {
       expect(results.first.rda, isNotNull);
     });
 
-    test('anonymous user with null age/sex still gets UL check via highest_ul',
-        () {
-      final totals = _totals([_total('zinc', 'Zinc', 45, 'mg')]);
-      final results = checker.check(totals);
-      // Anonymous users now receive a baseline RDA (Female 19-30) so
-      // %RDA displays without a profile. UL check still dominates —
-      // 45mg > 40mg UL takes precedence over any RDA-based tiering.
-      expect(results.first.rda, 8.0);
-      expect(results.first.rdaIsBaseline, isTrue);
-      expect(results.first.ul, 40);
-      expect(results.first.tier, NutrientTier.exceedsUl);
-      expect(results.first.warning, contains('copper depletion'));
-    });
+    test(
+      'anonymous user with null age/sex still gets UL check via highest_ul',
+      () {
+        final totals = _totals([_total('zinc', 'Zinc', 45, 'mg')]);
+        final results = checker.check(totals);
+        // Anonymous users now receive a baseline RDA (Female 19-30) so
+        // %RDA displays without a profile. UL check still dominates —
+        // 45mg > 40mg UL takes precedence over any RDA-based tiering.
+        expect(results.first.rda, 8.0);
+        expect(results.first.rdaIsBaseline, isTrue);
+        expect(results.first.ul, 40);
+        expect(results.first.tier, NutrientTier.exceedsUl);
+        expect(results.first.warning, contains('copper depletion'));
+      },
+    );
 
     test('anonymous adequate amount uses baseline RDA without UL warning', () {
       final totals = _totals([_total('zinc', 'Zinc', 10, 'mg')]);
@@ -200,11 +196,7 @@ void main() {
 
     test('profile-matched RDA is not flagged as baseline', () {
       final totals = _totals([_total('zinc', 'Zinc', 10, 'mg')]);
-      final results = checker.check(
-        totals,
-        ageBracket: '19-30',
-        sex: 'Male',
-      );
+      final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
       // Profile match should set rdaIsBaseline = false so the UI
       // renders the value without the "*" hint.
       expect(results.first.rda, isNotNull);
@@ -245,9 +237,7 @@ void main() {
 
   group('StackUlChecker — nutrients with no UL', () {
     test('vitamin B12 (no UL) classifies purely by RDA', () {
-      final totals = _totals([
-        _total('vitamin_b12', 'Vitamin B12', 5, 'mcg'),
-      ]);
+      final totals = _totals([_total('vitamin_b12', 'Vitamin B12', 5, 'mcg')]);
       final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
       // RDA=2.4, 5mcg = 208% RDA, no UL → aboveTypical
       expect(results.first.tier, NutrientTier.aboveTypical);
@@ -270,8 +260,7 @@ void main() {
         ageBracket: '19-30',
         sex: 'Male',
       );
-      expect(results.first.warning,
-          contains('copper depletion'));
+      expect(results.first.warning, contains('copper depletion'));
     });
 
     test('iron excess produces GI/oxidative warning', () {
@@ -307,16 +296,13 @@ void main() {
 
   group('StackUlChecker — empty and edge cases', () {
     test('empty aggregation returns empty list', () {
-      expect(
-        checker.check(<String, NutrientTotal>{}),
-        isEmpty,
-      );
+      expect(checker.check(<String, NutrientTotal>{}), isEmpty);
     });
 
     test('checker with empty rda data returns noRda for everything', () {
-      const emptyChecker = StackUlChecker(rdaData: {
-        'nutrient_recommendations': <dynamic>[],
-      });
+      const emptyChecker = StackUlChecker(
+        rdaData: {'nutrient_recommendations': <dynamic>[]},
+      );
       final results = emptyChecker.check(
         _totals([_total('zinc', 'Zinc', 15, 'mg')]),
       );
@@ -324,13 +310,15 @@ void main() {
     });
 
     test('checker with malformed rda data does not crash', () {
-      const brokenChecker = StackUlChecker(rdaData: {
-        'nutrient_recommendations': [
-          'not a map',
-          {'id': 'valid_but_no_data'},
-          {'id': 'bad_data', 'data': 'not a list'},
-        ],
-      });
+      const brokenChecker = StackUlChecker(
+        rdaData: {
+          'nutrient_recommendations': [
+            'not a map',
+            {'id': 'valid_but_no_data'},
+            {'id': 'bad_data', 'data': 'not a list'},
+          ],
+        },
+      );
       expect(
         () => brokenChecker.check(
           _totals([_total('zinc', 'Zinc', 15, 'mg')]),
@@ -344,19 +332,18 @@ void main() {
 }
 
 Map<String, NutrientTotal> _totals(List<NutrientTotal> list) => {
-      for (final t in list) t.canonicalId: t,
-    };
+  for (final t in list) t.canonicalId: t,
+};
 
 NutrientTotal _total(
   String canonicalId,
   String displayName,
   double amount,
   String unit,
-) =>
-    NutrientTotal(
-      canonicalId: canonicalId,
-      displayName: displayName,
-      totalAmount: amount,
-      unit: unit,
-      contributions: const [],
-    );
+) => NutrientTotal(
+  canonicalId: canonicalId,
+  displayName: displayName,
+  totalAmount: amount,
+  unit: unit,
+  contributions: const [],
+);

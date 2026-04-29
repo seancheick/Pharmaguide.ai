@@ -84,7 +84,8 @@ class ForYouSection extends ConsumerWidget {
     // warning, even if no goals/conditions/meds are set. Without this,
     // an allergens-only profile would render the empty-state affordance
     // and miss the alerts list entirely.
-    final hasProfile = profile.goals.isNotEmpty ||
+    final hasProfile =
+        profile.goals.isNotEmpty ||
         profile.conditions.isNotEmpty ||
         profile.drugClasses.isNotEmpty ||
         profile.allergens.isNotEmpty;
@@ -117,10 +118,7 @@ class ForYouSection extends ConsumerWidget {
             _ContextChips(chips: _buildContextChips(profile)),
           ],
           const SizedBox(height: AppTheme.space16),
-          _VerdictRow(
-            display: fitDisplay,
-            topGoalLabel: topGoalLabel,
-          ),
+          _VerdictRow(display: fitDisplay, topGoalLabel: topGoalLabel),
           if (filteredWarnings.isNotEmpty) ...[
             const SizedBox(height: AppTheme.space12),
             _AlertsList(warnings: filteredWarnings),
@@ -152,11 +150,7 @@ class ForYouSection extends ConsumerWidget {
   static List<InteractionWarning> _filterPrioritized(
     List<InteractionWarning> all,
   ) {
-    const allow = {
-      Severity.contraindicated,
-      Severity.avoid,
-      Severity.caution,
-    };
+    const allow = {Severity.contraindicated, Severity.avoid, Severity.caution};
     final filtered = all.where((w) => allow.contains(w.severity)).toList();
     filtered.sort((a, b) => b.severity.weight.compareTo(a.severity.weight));
     return filtered;
@@ -242,17 +236,11 @@ class _ContextChips extends StatelessWidget {
       children: chips
           .map(
             (c) => Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                border: Border.all(
-                  color: scheme.outlineVariant,
-                  width: 0.8,
-                ),
+                border: Border.all(color: scheme.outlineVariant, width: 0.8),
               ),
               child: Text(
                 _humanize(c),
@@ -322,35 +310,35 @@ class _VerdictRow extends StatelessWidget {
         : 'your profile';
     return switch (display) {
       FitStrongMatch() => (
-          '✅',
-          'Strong match for $goalSuffix',
-          AppTheme.scoreExceptional,
-        ),
+        '✅',
+        'Strong match for $goalSuffix',
+        AppTheme.scoreExceptional,
+      ),
       FitGoodMatch() => (
-          '✅',
-          'Good match for $goalSuffix',
-          AppTheme.scoreExcellent,
-        ),
+        '✅',
+        'Good match for $goalSuffix',
+        AppTheme.scoreExcellent,
+      ),
       FitLimitedFit() => (
-          '🟡',
-          'Limited fit for $goalSuffix',
-          AppTheme.scoreFair,
-        ),
+        '🟡',
+        'Limited fit for $goalSuffix',
+        AppTheme.scoreFair,
+      ),
       FitNotRecommended() => (
-          '❌',
-          'Not recommended for your profile',
-          AppTheme.scoreLow,
-        ),
+        '❌',
+        'Not recommended for your profile',
+        AppTheme.scoreLow,
+      ),
       FitHidden() => (
-          '❌',
-          'Not recommended for your profile',
-          AppTheme.scoreLow,
-        ),
+        '❌',
+        'Not recommended for your profile',
+        AppTheme.scoreLow,
+      ),
       FitIncomplete() => (
-          'ℹ️',
-          'Add more details to personalize',
-          AppTheme.insufficientData,
-        ),
+        'ℹ️',
+        'Add more details to personalize',
+        AppTheme.insufficientData,
+      ),
     };
   }
 }
@@ -386,10 +374,9 @@ class _AlertRow extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final tone = warning.severity.color;
-    final headline =
-        (warning.alertHeadline?.trim().isNotEmpty ?? false)
-            ? warning.alertHeadline!.trim()
-            : warning.title;
+    final headline = (warning.alertHeadline?.trim().isNotEmpty ?? false)
+        ? warning.alertHeadline!.trim()
+        : warning.title;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -406,11 +393,7 @@ class _AlertRow extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(
-              _iconFor(warning.severity),
-              size: 16,
-              color: tone,
-            ),
+            child: Icon(_iconFor(warning.severity), size: 16, color: tone),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -443,11 +426,11 @@ class _AlertRow extends StatelessWidget {
   }
 
   static IconData _iconFor(Severity s) => switch (s) {
-        Severity.contraindicated => Icons.do_not_disturb_on_outlined,
-        Severity.avoid => Icons.error_outline_rounded,
-        Severity.caution => Icons.warning_amber_rounded,
-        _ => Icons.info_outline_rounded,
-      };
+    Severity.contraindicated => Icons.do_not_disturb_on_outlined,
+    Severity.avoid => Icons.error_outline_rounded,
+    Severity.caution => Icons.warning_amber_rounded,
+    _ => Icons.info_outline_rounded,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -568,11 +551,7 @@ class _ForYouEmpty extends StatelessWidget {
       padding: const EdgeInsets.all(AppTheme.space16),
       child: Row(
         children: [
-          Icon(
-            Icons.person_outline_rounded,
-            size: 22,
-            color: scheme.primary,
-          ),
+          Icon(Icons.person_outline_rounded, size: 22, color: scheme.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

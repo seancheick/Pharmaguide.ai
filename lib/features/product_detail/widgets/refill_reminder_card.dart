@@ -173,11 +173,7 @@ class RefillReminderCard extends StatelessWidget {
                 color: styling.iconBackgroundColor,
                 borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
               ),
-              child: Icon(
-                styling.icon,
-                color: styling.iconColor,
-                size: 22,
-              ),
+              child: Icon(styling.icon, color: styling.iconColor, size: 22),
             ),
             const SizedBox(width: AppTheme.space12),
             Expanded(

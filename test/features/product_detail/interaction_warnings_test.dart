@@ -23,9 +23,7 @@ void main() {
     });
 
     test('handles missing fields gracefully', () {
-      final json = <String, dynamic>{
-        'title': 'Test warning',
-      };
+      final json = <String, dynamic>{'title': 'Test warning'};
       final warning = InteractionWarning.fromJson(json);
       expect(warning.severity, Severity.safe);
       expect(warning.evidenceLevel, EvidenceLevel.theoretical);
@@ -114,10 +112,7 @@ void main() {
     });
 
     test('authored fields are null on legacy blobs (pre-v5.2)', () {
-      final json = {
-        'severity': 'avoid',
-        'title': 'Legacy',
-      };
+      final json = {'severity': 'avoid', 'title': 'Legacy'};
       final w = InteractionWarning.fromJson(json);
       expect(w.alertHeadline, isNull);
       expect(w.alertBody, isNull);
@@ -420,8 +415,7 @@ void main() {
       );
     });
 
-    test('scenario 4: liver disease in profile → liver warning shown',
-        () {
+    test('scenario 4: liver disease in profile → liver warning shown', () {
       expect(
         shouldShow(
           liverWarning,
@@ -432,22 +426,18 @@ void main() {
       );
     });
 
-    test(
-        'scenario 5: empty profile keeps every suppress warning hidden',
-        () {
+    test('scenario 5: empty profile keeps every suppress warning hidden', () {
       final empty = <String>{};
       for (final w in [pregnancyWarning, lactationWarning, liverWarning]) {
         expect(
           shouldShow(w, userConditions: empty, userDrugClasses: empty),
           isFalse,
-          reason:
-              'suppress warnings must never leak through on empty profile',
+          reason: 'suppress warnings must never leak through on empty profile',
         );
       }
     });
 
-    test('critical display mode always renders regardless of profile',
-        () {
+    test('critical display mode always renders regardless of profile', () {
       const w = InteractionWarning(
         severity: Severity.contraindicated,
         evidenceLevel: EvidenceLevel.established,
@@ -457,11 +447,7 @@ void main() {
         displayModeDefault: 'critical',
       );
       expect(
-        shouldShow(
-          w,
-          userConditions: <String>{},
-          userDrugClasses: <String>{},
-        ),
+        shouldShow(w, userConditions: <String>{}, userDrugClasses: <String>{}),
         isTrue,
       );
     });
@@ -490,7 +476,8 @@ void main() {
         'safety_warning':
             'A white-pigment additive EFSA ruled in 2021 could no longer '
             'be considered safe due to genotoxicity concerns.',
-        'safety_warning_one_liner': 'EU-banned white pigment. Avoid when possible.',
+        'safety_warning_one_liner':
+            'EU-banned white pigment. Avoid when possible.',
         'ban_context': 'watchlist',
         'clinical_risk': 'high',
         'regulatory_date': '2022-08-07',
@@ -509,30 +496,33 @@ void main() {
       expect(w.identifiers!['cui'], 'C0040476');
     });
 
-    test('parses harmful_additive fields (mechanism + population_warnings)', () {
-      final json = <String, dynamic>{
-        'type': 'harmful_additive',
-        'severity': 'moderate',
-        'title': 'Contains Titanium Dioxide',
-        'safety_summary':
-            'Nanoparticle concerns in gut epithelium at prolonged exposure.',
-        'safety_summary_one_liner': 'Possibly genotoxic pigment.',
-        'mechanism_of_harm':
-            'Nanoparticle form (<100nm) shows increased intestinal '
-            'absorption and genotoxic concern.',
-        'population_warnings': <String>[
-          'Children — immature gut barrier',
-          'People with IBD — may aggravate inflammation',
-        ],
-        'category': 'colorant',
-      };
-      final w = InteractionWarning.fromJson(json);
-      expect(w.mechanismOfHarm, contains('Nanoparticle form'));
-      expect(w.populationWarnings, hasLength(2));
-      expect(w.populationWarnings.first, startsWith('Children'));
-      expect(w.additiveCategory, 'colorant');
-      expect(w.alertHeadline, 'Possibly genotoxic pigment.');
-    });
+    test(
+      'parses harmful_additive fields (mechanism + population_warnings)',
+      () {
+        final json = <String, dynamic>{
+          'type': 'harmful_additive',
+          'severity': 'moderate',
+          'title': 'Contains Titanium Dioxide',
+          'safety_summary':
+              'Nanoparticle concerns in gut epithelium at prolonged exposure.',
+          'safety_summary_one_liner': 'Possibly genotoxic pigment.',
+          'mechanism_of_harm':
+              'Nanoparticle form (<100nm) shows increased intestinal '
+              'absorption and genotoxic concern.',
+          'population_warnings': <String>[
+            'Children — immature gut barrier',
+            'People with IBD — may aggravate inflammation',
+          ],
+          'category': 'colorant',
+        };
+        final w = InteractionWarning.fromJson(json);
+        expect(w.mechanismOfHarm, contains('Nanoparticle form'));
+        expect(w.populationWarnings, hasLength(2));
+        expect(w.populationWarnings.first, startsWith('Children'));
+        expect(w.additiveCategory, 'colorant');
+        expect(w.alertHeadline, 'Possibly genotoxic pigment.');
+      },
+    );
 
     test('parses interaction fields (dose_threshold_evaluation)', () {
       final json = <String, dynamic>{
@@ -646,8 +636,11 @@ void main() {
       );
       final out = InteractionWarning.dedupe([monitor, caution]);
       expect(out, hasLength(1));
-      expect(out.single.severity, Severity.caution,
-          reason: 'severity-normalize-before-dedup picks highest');
+      expect(
+        out.single.severity,
+        Severity.caution,
+        reason: 'severity-normalize-before-dedup picks highest',
+      );
     });
 
     test('severity order is stable regardless of input order', () {
@@ -660,8 +653,10 @@ void main() {
 
     test('normalizes whitespace and case in headline/body', () {
       final a = warning(title: 'Vitamin A / pregnancy', mechanism: 'DETAIL');
-      final b = warning(title: '  vitamin a / pregnancy  ',
-          mechanism: '  detail  ');
+      final b = warning(
+        title: '  vitamin a / pregnancy  ',
+        mechanism: '  detail  ',
+      );
       expect(InteractionWarning.dedupe([a, b]), hasLength(1));
     });
 
@@ -679,8 +674,7 @@ void main() {
       expect(InteractionWarning.dedupe([pregnancy, lactation]), hasLength(2));
     });
 
-    test('condition_ids order does not affect dedup (sorted internally)',
-        () {
+    test('condition_ids order does not affect dedup (sorted internally)', () {
       final a = warning(
         title: 'Vitamin A',
         conditionIds: ['pregnancy', 'lactation'],
@@ -731,8 +725,7 @@ void main() {
       expect(identical(out.single, a), isTrue);
     });
 
-    test(
-        'drug_class_ids discrimination: same body but different classes '
+    test('drug_class_ids discrimination: same body but different classes '
         'stays as two entries', () {
       final a = warning(
         title: 'Same body',
@@ -771,11 +764,13 @@ void main() {
       );
     }
 
-    Widget wrap(Widget child) =>
-        MaterialApp(home: Scaffold(body: SingleChildScrollView(child: child)));
+    Widget wrap(Widget child) => MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(child: child)),
+    );
 
-    testWidgets('safe-tier items render as a single summary row, no cards',
-        (tester) async {
+    testWidgets('safe-tier items render as a single summary row, no cards', (
+      tester,
+    ) async {
       final safes = [
         warning(severity: Severity.safe, title: 'Flow agent'),
         warning(severity: Severity.safe, title: 'Silicon dioxide'),
@@ -785,42 +780,43 @@ void main() {
       expect(find.text('2 low-concern notes'), findsOneWidget);
     });
 
-    testWidgets('singular label when exactly one safe-tier item',
-        (tester) async {
+    testWidgets('singular label when exactly one safe-tier item', (
+      tester,
+    ) async {
       final only = [warning(severity: Severity.safe, title: 'Flow agent')];
       await tester.pumpWidget(wrap(InteractionWarningsList(warnings: only)));
       expect(find.text('1 low-concern note'), findsOneWidget);
     });
 
     testWidgets(
-        'loud warnings render as cards with count reflecting only loud items',
-        (tester) async {
-      final mix = [
-        warning(severity: Severity.avoid, title: 'Niacin / liver'),
-        warning(severity: Severity.caution, title: 'Niacin / cholesterol'),
-        warning(severity: Severity.safe, title: 'Silicon dioxide'),
-      ];
-      await tester.pumpWidget(wrap(InteractionWarningsList(warnings: mix)));
-      expect(find.byType(PGInteractionCard), findsNWidgets(2));
-      // Count pill reflects loud count (2), not total (3).
-      expect(find.text('2'), findsOneWidget);
-      // Safe-tier summary row appears alongside the cards.
-      expect(find.text('1 low-concern note'), findsOneWidget);
-    });
+      'loud warnings render as cards with count reflecting only loud items',
+      (tester) async {
+        final mix = [
+          warning(severity: Severity.avoid, title: 'Niacin / liver'),
+          warning(severity: Severity.caution, title: 'Niacin / cholesterol'),
+          warning(severity: Severity.safe, title: 'Silicon dioxide'),
+        ];
+        await tester.pumpWidget(wrap(InteractionWarningsList(warnings: mix)));
+        expect(find.byType(PGInteractionCard), findsNWidgets(2));
+        // Count pill reflects loud count (2), not total (3).
+        expect(find.text('2'), findsOneWidget);
+        // Safe-tier summary row appears alongside the cards.
+        expect(find.text('1 low-concern note'), findsOneWidget);
+      },
+    );
 
-    testWidgets(
-        'loud-only input renders normally with no summary row',
-        (tester) async {
-      final mix = [
-        warning(severity: Severity.avoid, title: 'Niacin / liver'),
-      ];
+    testWidgets('loud-only input renders normally with no summary row', (
+      tester,
+    ) async {
+      final mix = [warning(severity: Severity.avoid, title: 'Niacin / liver')];
       await tester.pumpWidget(wrap(InteractionWarningsList(warnings: mix)));
       expect(find.byType(PGInteractionCard), findsOneWidget);
       expect(find.textContaining('low-concern'), findsNothing);
     });
 
-    testWidgets('empty input still shows the GOOD-news empty state card',
-        (tester) async {
+    testWidgets('empty input still shows the GOOD-news empty state card', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         wrap(const InteractionWarningsList(warnings: [])),
       );
@@ -828,8 +824,9 @@ void main() {
       expect(find.textContaining('low-concern'), findsNothing);
     });
 
-    testWidgets('tapping the summary row opens a sheet listing the items',
-        (tester) async {
+    testWidgets('tapping the summary row opens a sheet listing the items', (
+      tester,
+    ) async {
       final safes = [
         warning(
           severity: Severity.safe,
@@ -879,14 +876,15 @@ void main() {
       );
     }
 
-    Widget wrap(Widget child) =>
-        MaterialApp(home: Scaffold(body: SingleChildScrollView(child: child)));
+    Widget wrap(Widget child) => MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(child: child)),
+    );
 
-    testWidgets('empty profile preserves combined section (no split)',
-        (tester) async {
+    testWidgets('empty profile preserves combined section (no split)', (
+      tester,
+    ) async {
       final warnings = [
-        warning(title: 'Profile-match candidate',
-            conditionIds: ['pregnancy']),
+        warning(title: 'Profile-match candidate', conditionIds: ['pregnancy']),
         warning(title: 'Generic'),
       ];
       await tester.pumpWidget(
@@ -899,38 +897,43 @@ void main() {
     });
 
     testWidgets(
-        'profile set + matches present → "Applies to you" shown with matched cards',
-        (tester) async {
-      final warnings = [
-        warning(
-            title: 'Pregnancy warning',
-            conditionIds: ['pregnancy']),
-        warning(title: 'Generic banner'),
-      ];
-      await tester.pumpWidget(wrap(InteractionWarningsList(
-        warnings: warnings,
-        userConditions: const {'pregnancy'},
-      )));
-      expect(find.text('Applies to you'), findsOneWidget);
-      expect(find.text('Other precautions'), findsOneWidget);
-      // Matched card is expanded in the "Applies to you" section.
-      expect(find.byType(PGInteractionCard), findsOneWidget);
-    });
+      'profile set + matches present → "Applies to you" shown with matched cards',
+      (tester) async {
+        final warnings = [
+          warning(title: 'Pregnancy warning', conditionIds: ['pregnancy']),
+          warning(title: 'Generic banner'),
+        ];
+        await tester.pumpWidget(
+          wrap(
+            InteractionWarningsList(
+              warnings: warnings,
+              userConditions: const {'pregnancy'},
+            ),
+          ),
+        );
+        expect(find.text('Applies to you'), findsOneWidget);
+        expect(find.text('Other precautions'), findsOneWidget);
+        // Matched card is expanded in the "Applies to you" section.
+        expect(find.byType(PGInteractionCard), findsOneWidget);
+      },
+    );
 
-    testWidgets(
-        '"Other precautions" starts collapsed; tap reveals its cards',
-        (tester) async {
+    testWidgets('"Other precautions" starts collapsed; tap reveals its cards', (
+      tester,
+    ) async {
       final warnings = [
-        warning(
-            title: 'Profile match',
-            conditionIds: ['pregnancy']),
+        warning(title: 'Profile match', conditionIds: ['pregnancy']),
         warning(title: 'Generic one'),
         warning(title: 'Generic two'),
       ];
-      await tester.pumpWidget(wrap(InteractionWarningsList(
-        warnings: warnings,
-        userConditions: const {'pregnancy'},
-      )));
+      await tester.pumpWidget(
+        wrap(
+          InteractionWarningsList(
+            warnings: warnings,
+            userConditions: const {'pregnancy'},
+          ),
+        ),
+      );
       // Before tap: only the applies card is visible.
       expect(find.byType(PGInteractionCard), findsOneWidget);
       // Count label visible while collapsed.
@@ -941,81 +944,101 @@ void main() {
       expect(find.byType(PGInteractionCard), findsNWidgets(3));
     });
 
-    testWidgets(
-        'singular count label when exactly one generic precaution',
-        (tester) async {
+    testWidgets('singular count label when exactly one generic precaution', (
+      tester,
+    ) async {
       final warnings = [
-        warning(
-            title: 'Match',
-            conditionIds: ['pregnancy']),
+        warning(title: 'Match', conditionIds: ['pregnancy']),
         warning(title: 'Lone generic'),
       ];
-      await tester.pumpWidget(wrap(InteractionWarningsList(
-        warnings: warnings,
-        userConditions: const {'pregnancy'},
-      )));
+      await tester.pumpWidget(
+        wrap(
+          InteractionWarningsList(
+            warnings: warnings,
+            userConditions: const {'pregnancy'},
+          ),
+        ),
+      );
       expect(find.text('1 general precaution'), findsOneWidget);
     });
 
-    testWidgets(
-        'profile set + no matches → only "Other precautions" renders',
-        (tester) async {
+    testWidgets('profile set + no matches → only "Other precautions" renders', (
+      tester,
+    ) async {
       final warnings = [warning(title: 'Generic only')];
-      await tester.pumpWidget(wrap(InteractionWarningsList(
-        warnings: warnings,
-        userConditions: const {'pregnancy'},
-      )));
+      await tester.pumpWidget(
+        wrap(
+          InteractionWarningsList(
+            warnings: warnings,
+            userConditions: const {'pregnancy'},
+          ),
+        ),
+      );
       expect(find.text('Applies to you'), findsNothing);
       expect(find.text('Other precautions'), findsOneWidget);
       // Collapsed by default — no cards visible yet.
       expect(find.byType(PGInteractionCard), findsNothing);
     });
 
-    testWidgets(
-        'profile set + all matches → only "Applies to you" renders',
-        (tester) async {
+    testWidgets('profile set + all matches → only "Applies to you" renders', (
+      tester,
+    ) async {
       final warnings = [
         warning(title: 'Match A', conditionIds: ['pregnancy']),
         warning(title: 'Match B', conditionIds: ['pregnancy']),
       ];
-      await tester.pumpWidget(wrap(InteractionWarningsList(
-        warnings: warnings,
-        userConditions: const {'pregnancy'},
-      )));
+      await tester.pumpWidget(
+        wrap(
+          InteractionWarningsList(
+            warnings: warnings,
+            userConditions: const {'pregnancy'},
+          ),
+        ),
+      );
       expect(find.text('Applies to you'), findsOneWidget);
       expect(find.text('Other precautions'), findsNothing);
       expect(find.byType(PGInteractionCard), findsNWidgets(2));
     });
 
     testWidgets(
-        'drug-class profile match routes warnings into "Applies to you"',
-        (tester) async {
-      final warnings = [
-        warning(
+      'drug-class profile match routes warnings into "Applies to you"',
+      (tester) async {
+        final warnings = [
+          warning(
             title: 'Anticoagulant interaction',
-            drugClassIds: ['anticoagulants']),
-        warning(title: 'Generic'),
-      ];
-      await tester.pumpWidget(wrap(InteractionWarningsList(
-        warnings: warnings,
-        userDrugClasses: const {'anticoagulants'},
-      )));
-      expect(find.text('Applies to you'), findsOneWidget);
-      expect(find.text('Other precautions'), findsOneWidget);
-    });
+            drugClassIds: ['anticoagulants'],
+          ),
+          warning(title: 'Generic'),
+        ];
+        await tester.pumpWidget(
+          wrap(
+            InteractionWarningsList(
+              warnings: warnings,
+              userDrugClasses: const {'anticoagulants'},
+            ),
+          ),
+        );
+        expect(find.text('Applies to you'), findsOneWidget);
+        expect(find.text('Other precautions'), findsOneWidget);
+      },
+    );
 
-    testWidgets(
-        'safe-tier continues to collapse alongside the FLTR-18 split',
-        (tester) async {
+    testWidgets('safe-tier continues to collapse alongside the FLTR-18 split', (
+      tester,
+    ) async {
       final warnings = [
         warning(title: 'Match', conditionIds: ['pregnancy']),
         warning(title: 'Generic'),
         warning(severity: Severity.safe, title: 'Flow agent'),
       ];
-      await tester.pumpWidget(wrap(InteractionWarningsList(
-        warnings: warnings,
-        userConditions: const {'pregnancy'},
-      )));
+      await tester.pumpWidget(
+        wrap(
+          InteractionWarningsList(
+            warnings: warnings,
+            userConditions: const {'pregnancy'},
+          ),
+        ),
+      );
       // Applies section: 1 card visible.
       expect(find.byType(PGInteractionCard), findsOneWidget);
       // Other precautions: collapsed row present.

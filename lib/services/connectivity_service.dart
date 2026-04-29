@@ -24,10 +24,10 @@ class ConnectivityService {
   }
 
   void _onChanged(List<ConnectivityResult> results) {
-    final hasConnection = results.any(
-      (r) => r != ConnectivityResult.none,
-    );
-    _current = hasConnection ? ConnectionStatus.online : ConnectionStatus.offline;
+    final hasConnection = results.any((r) => r != ConnectivityResult.none);
+    _current = hasConnection
+        ? ConnectionStatus.online
+        : ConnectionStatus.offline;
     _controller.add(_current);
   }
 

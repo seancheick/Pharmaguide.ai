@@ -12,11 +12,13 @@ class _HapticCallRecorder {
   void install() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'HapticFeedback.vibrate') {
-        calls.add(call.arguments as String? ?? 'HapticFeedbackType.vibrate');
-      }
-      return null;
-    });
+          if (call.method == 'HapticFeedback.vibrate') {
+            calls.add(
+              call.arguments as String? ?? 'HapticFeedbackType.vibrate',
+            );
+          }
+          return null;
+        });
   }
 
   void uninstall() {
@@ -73,9 +75,9 @@ void main() {
       ]);
     });
 
-    testWidgets(
-        'successPattern is a no-op under reduce-motion',
-        (tester) async {
+    testWidgets('successPattern is a no-op under reduce-motion', (
+      tester,
+    ) async {
       late BuildContext capturedContext;
       await tester.pumpWidget(
         MediaQuery(
@@ -89,16 +91,21 @@ void main() {
         ),
       );
       await PGHaptics.successPattern(capturedContext);
-      expect(recorder.calls, isEmpty,
-          reason: 'reduce-motion suppresses decorative haptic patterns');
+      expect(
+        recorder.calls,
+        isEmpty,
+        reason: 'reduce-motion suppresses decorative haptic patterns',
+      );
     });
 
-    test('errorPattern fires even under reduce-motion (safety-critical)',
-        () async {
-      // errorPattern doesn't accept context — it's always-fires by design.
-      await PGHaptics.errorPattern();
-      expect(recorder.calls.length, 3);
-    });
+    test(
+      'errorPattern fires even under reduce-motion (safety-critical)',
+      () async {
+        // errorPattern doesn't accept context — it's always-fires by design.
+        await PGHaptics.errorPattern();
+        expect(recorder.calls.length, 3);
+      },
+    );
   });
 
   group('PGHaptics.forVerdict mapping', () {

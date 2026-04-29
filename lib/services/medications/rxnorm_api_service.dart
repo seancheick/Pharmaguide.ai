@@ -113,11 +113,11 @@ class RxNormApiService {
     int cacheSize = 50,
     int requestsPerSecond = 20,
     String baseUrl = 'https://rxnav.nlm.nih.gov',
-  })  : _httpGet = httpGet ?? defaultRxNormHttpGet,
-        _offlineDb = offlineDb,
-        _cacheSize = cacheSize,
-        _requestsPerSecond = requestsPerSecond,
-        _baseUrl = baseUrl;
+  }) : _httpGet = httpGet ?? defaultRxNormHttpGet,
+       _offlineDb = offlineDb,
+       _cacheSize = cacheSize,
+       _requestsPerSecond = requestsPerSecond,
+       _baseUrl = baseUrl;
 
   final RxNormHttpGet _httpGet;
   final InteractionDatabase? _offlineDb;
@@ -338,7 +338,9 @@ class RxNormApiService {
             for (final prop in props) {
               if (prop is Map) {
                 final cui = prop['rxcui'];
-                if (cui is String && cui.isNotEmpty && !generics.contains(cui)) {
+                if (cui is String &&
+                    cui.isNotEmpty &&
+                    !generics.contains(cui)) {
                   generics.add(cui);
                 }
               }
@@ -487,7 +489,8 @@ class RxNormApiService {
         _recent.addLast(now);
         return;
       }
-      final sleepFor = const Duration(seconds: 1) -
+      final sleepFor =
+          const Duration(seconds: 1) -
           now.difference(_recent.first) +
           const Duration(milliseconds: 5);
       if (sleepFor > Duration.zero) {

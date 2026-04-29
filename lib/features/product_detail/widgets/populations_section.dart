@@ -133,8 +133,7 @@ PopulationSplit splitPopulations({
 
   // Humanize the covered signals for display. Sort alphabetically so
   // the "(already covered for X, Y)" line is deterministic.
-  final coveredHumanized = coveredSignals.map(_humanize).toList()
-    ..sort();
+  final coveredHumanized = coveredSignals.map(_humanize).toList()..sort();
 
   return (mainList: main, alreadyCovered: coveredHumanized);
 }
@@ -197,8 +196,10 @@ String _ageBracketToSignal(String bracket) {
   if (normalized.startsWith('under') || normalized.contains('child')) {
     return 'under_18';
   }
-  if (normalized.contains('65') || normalized.contains('over') ||
-      normalized.contains('elderly') || normalized.contains('geriatric')) {
+  if (normalized.contains('65') ||
+      normalized.contains('over') ||
+      normalized.contains('elderly') ||
+      normalized.contains('geriatric')) {
     return 'over_65';
   }
   return '';
@@ -261,11 +262,7 @@ class PopulationsSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.groups_outlined,
-                size: 18,
-                color: scheme.primary,
-              ),
+              Icon(Icons.groups_outlined, size: 18, color: scheme.primary),
               const SizedBox(width: 6),
               Text(
                 'At-risk populations',

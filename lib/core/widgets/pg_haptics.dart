@@ -93,8 +93,7 @@ abstract final class PGHaptics {
   ///
   /// Safe severities are decorative (suppressed under reduce-motion);
   /// caution/avoid/contraindicated are safety-critical and always fire.
-  static Future<void> forSeverity(Severity severity,
-      [BuildContext? context]) {
+  static Future<void> forSeverity(Severity severity, [BuildContext? context]) {
     switch (severity) {
       case Severity.contraindicated:
         // Strongest pattern for the strict no-go tier — di-da-DUP error.
@@ -130,8 +129,7 @@ abstract final class PGHaptics {
   /// - NOT_SCORED        → [success] (light tap — outcome is "we
   ///                       found the product but cannot score it")
   /// - unknown / null    → no haptic
-  static Future<void> forVerdict(String? verdict,
-      [BuildContext? context]) {
+  static Future<void> forVerdict(String? verdict, [BuildContext? context]) {
     final v = (verdict ?? '').trim().toUpperCase();
     switch (v) {
       case 'RECOMMENDED':

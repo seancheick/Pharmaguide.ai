@@ -265,8 +265,10 @@ void main() {
       expect(intelligence.tier, StackTier.concerning);
       expect(intelligence.stackSize, 7);
       expect(intelligence.issues, hasLength(1));
-      expect(intelligence.issues.first.headline,
-          'Iron + thyroid med — separate by 4h');
+      expect(
+        intelligence.issues.first.headline,
+        'Iron + thyroid med — separate by 4h',
+      );
       expect(intelligence.issues.first.severity, Severity.avoid);
       expect(intelligence.interactionCount, 1);
       expect(intelligence.qualityScore, 78);

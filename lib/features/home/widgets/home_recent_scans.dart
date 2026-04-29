@@ -353,15 +353,16 @@ class _RecentScanCard extends StatelessWidget {
               Center(
                 child: Hero(
                   tag: 'product-${product.dsldId}',
-                  flightShuttleBuilder: (_, __, ___, ____, _____) => ProductImage(
-                    dsldId: product.dsldId,
-                    upc: product.upcSku,
-                    productName: product.productName,
-                    brandName: product.brandName ?? '',
-                    formFactor: product.formFactor,
-                    score: score,
-                    size: 48,
-                  ),
+                  flightShuttleBuilder: (_, __, ___, ____, _____) =>
+                      ProductImage(
+                        dsldId: product.dsldId,
+                        upc: product.upcSku,
+                        productName: product.productName,
+                        brandName: product.brandName ?? '',
+                        formFactor: product.formFactor,
+                        score: score,
+                        size: 48,
+                      ),
                   child: ProductImage(
                     dsldId: product.dsldId,
                     upc: product.upcSku,
@@ -511,7 +512,8 @@ class _RecentScansSheet extends StatelessWidget {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: scans.length,
-                separatorBuilder: (_, __) => const SizedBox(height: AppTheme.space12),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: AppTheme.space12),
                 itemBuilder: (context, index) {
                   final scan = scans[index];
                   return _RecentScanListTile(

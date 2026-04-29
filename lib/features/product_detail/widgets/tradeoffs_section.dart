@@ -76,7 +76,8 @@ class TradeoffsSection extends StatelessWidget {
           //   * The card is narrower than 380pt (each column would
           //     have ~165pt of usable text width — too cramped for
           //     supplement labels with long branded names).
-          final stack = constraints.maxWidth < 380 ||
+          final stack =
+              constraints.maxWidth < 380 ||
               bonuses.isEmpty ||
               penalties.isEmpty;
 
@@ -159,11 +160,7 @@ class _TradeoffColumn extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.space8),
         for (final item in items)
-          TradeoffRow(
-            label: item.label,
-            detail: item.detail,
-            tone: tone,
-          ),
+          TradeoffRow(label: item.label, detail: item.detail, tone: tone),
       ],
     );
   }
@@ -200,10 +197,7 @@ class TradeoffRow extends StatelessWidget {
             child: Container(
               width: 5,
               height: 5,
-              decoration: BoxDecoration(
-                color: tone,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
             ),
           ),
           const SizedBox(width: 8),

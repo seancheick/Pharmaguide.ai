@@ -26,10 +26,7 @@ import 'package:pharmaguide/core/constants/app_colors.dart';
 class UnmappedActivesDisclosure extends StatelessWidget {
   final Map<String, dynamic>? unmappedActives;
 
-  const UnmappedActivesDisclosure({
-    super.key,
-    required this.unmappedActives,
-  });
+  const UnmappedActivesDisclosure({super.key, required this.unmappedActives});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +45,10 @@ class UnmappedActivesDisclosure extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.space16),

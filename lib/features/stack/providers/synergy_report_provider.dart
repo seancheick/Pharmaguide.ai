@@ -18,8 +18,9 @@ final synergyReportProvider = FutureProvider<SynergyReport>((ref) async {
   final stack = await ref.watch(activeStackProvider.future);
   if (stack.isEmpty) return SynergyReport.empty();
 
-  final supplements =
-      stack.where((e) => e.type == 'supplement').toList(growable: false);
+  final supplements = stack
+      .where((e) => e.type == 'supplement')
+      .toList(growable: false);
   if (supplements.isEmpty) return SynergyReport.empty();
 
   // Hydrate each supplement to get ingredient fingerprints.
@@ -76,8 +77,9 @@ final synergyReportProvider = FutureProvider<SynergyReport>((ref) async {
     final citations = cluster.safeStringList('citations');
 
     // Check if all ingredients in the cluster are in the stack.
-    final allPresent =
-        ingredients.every((ing) => stackCanonicalIds.contains(ing));
+    final allPresent = ingredients.every(
+      (ing) => stackCanonicalIds.contains(ing),
+    );
     if (allPresent) {
       matches.add(
         SynergyMatch(
@@ -94,8 +96,5 @@ final synergyReportProvider = FutureProvider<SynergyReport>((ref) async {
     }
   }
 
-  return SynergyReport(
-    matches: matches,
-    totalBonusPoints: totalBonus,
-  );
+  return SynergyReport(matches: matches, totalBonusPoints: totalBonus);
 });

@@ -56,10 +56,12 @@ void main() {
       expect(formatNetContents(60.0, null), isNull);
     });
 
-    test('blank unit → null (defensive — pipeline shouldn\'t emit empties)',
-        () {
-      expect(formatNetContents(60.0, '   '), isNull);
-    });
+    test(
+      'blank unit → null (defensive — pipeline shouldn\'t emit empties)',
+      () {
+        expect(formatNetContents(60.0, '   '), isNull);
+      },
+    );
 
     test('unit whitespace trimmed', () {
       expect(formatNetContents(60.0, '  capsules  '), '60 capsules');
@@ -196,14 +198,18 @@ void main() {
           'Manufacturer',
           'Country',
         ]) {
-          expect(find.text(label), findsNothing,
-              reason: '"$label" should be hidden when collapsed');
+          expect(
+            find.text(label),
+            findsNothing,
+            reason: '"$label" should be hidden when collapsed',
+          );
         }
       },
     );
 
-    testWidgets('tap header → expands and reveals all six fields',
-        (tester) async {
+    testWidgets('tap header → expands and reveals all six fields', (
+      tester,
+    ) async {
       await _pump(
         tester,
         servingSize: '2 capsules daily',
@@ -251,8 +257,9 @@ void main() {
       expect(find.text('Serving size'), findsNothing);
     });
 
-    testWidgets('partial data → renders only the present fields',
-        (tester) async {
+    testWidgets('partial data → renders only the present fields', (
+      tester,
+    ) async {
       await _pump(tester, servingSize: '1 scoop daily');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Product details'));
@@ -292,8 +299,9 @@ void main() {
       },
     );
 
-    testWidgets('wide screen → values still render after expand',
-        (tester) async {
+    testWidgets('wide screen → values still render after expand', (
+      tester,
+    ) async {
       // Sanity that the side-by-side path still works post-refactor.
       await _pump(
         tester,

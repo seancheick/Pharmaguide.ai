@@ -79,7 +79,9 @@ Future<void> _seedProduct(
   required List<String> keyIngredientTags,
   int hasRecalledFlag = 0,
 }) async {
-  await coreDb.into(coreDb.productsCore).insert(
+  await coreDb
+      .into(coreDb.productsCore)
+      .insert(
         ProductsCoreCompanion.insert(
           dsldId: dsldId,
           productName: 'Test Supplement $dsldId',
@@ -117,90 +119,106 @@ ProviderContainer _container({
     overrides: [
       coreDatabaseProvider.overrideWithValue(coreDb),
       userDatabaseProvider.overrideWithValue(userDb),
-      referenceDataRepositoryProvider
-          .overrideWith((ref) => _FakeReferenceDataRepository(recallPayload)),
+      referenceDataRepositoryProvider.overrideWith(
+        (ref) => _FakeReferenceDataRepository(recallPayload),
+      ),
     ],
   );
 }
 
 void main() {
   group('recalled ingredient scan → flag integration', () {
-    test('flags product when key_ingredient_tags contains a banned canonical_id',
-        () async {
-      final coreDb = CoreDatabase.memory();
-      final userDb = UserDatabase.memory();
+    test(
+      'flags product when key_ingredient_tags contains a banned canonical_id',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
 
-      await _seedProduct(
-        coreDb,
-        dsldId: 'TEST_SIBUTRAMINE_PRODUCT',
-        keyIngredientTags: ['sibutramine'],
-      );
-      await _seedStack(
-        userDb,
-        dsldId: 'TEST_SIBUTRAMINE_PRODUCT',
-        name: 'Spiked Weight-Loss Supp',
-      );
+        await _seedProduct(
+          coreDb,
+          dsldId: 'TEST_SIBUTRAMINE_PRODUCT',
+          keyIngredientTags: ['sibutramine'],
+        );
+        await _seedStack(
+          userDb,
+          dsldId: 'TEST_SIBUTRAMINE_PRODUCT',
+          name: 'Spiked Weight-Loss Supp',
+        );
 
-      final container = _container(
-        coreDb: coreDb,
-        userDb: userDb,
-        recallPayload: _recallPayload(['sibutramine']),
-      );
-      addTearDown(container.dispose);
-      addTearDown(() async {
-        await coreDb.close();
-        await userDb.close();
-      });
+        final container = _container(
+          coreDb: coreDb,
+          userDb: userDb,
+          recallPayload: _recallPayload(['sibutramine']),
+        );
+        addTearDown(container.dispose);
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
 
-      final report =
-          await container.read(recalledIngredientsReportProvider.future);
+        final report = await container.read(
+          recalledIngredientsReportProvider.future,
+        );
 
-      expect(report.isEmpty, isFalse,
-          reason: 'Expected one violation for the seeded sibutramine match');
-      expect(report.violations, hasLength(1));
-      final v = report.violations.single;
-      expect(v.productDsldId, 'TEST_SIBUTRAMINE_PRODUCT');
-      expect(v.recalledIngredients, hasLength(1));
-      expect(v.recalledIngredients.single.canonicalId, 'sibutramine');
-      expect(v.recalledIngredients.single.banContext,
-          'adulterant_in_supplements');
-      expect(
-        v.recalledIngredients.single.safetyWarningOneLiner,
-        'Prescription drug hidden in supplements. Stop.',
-      );
-    });
+        expect(
+          report.isEmpty,
+          isFalse,
+          reason: 'Expected one violation for the seeded sibutramine match',
+        );
+        expect(report.violations, hasLength(1));
+        final v = report.violations.single;
+        expect(v.productDsldId, 'TEST_SIBUTRAMINE_PRODUCT');
+        expect(v.recalledIngredients, hasLength(1));
+        expect(v.recalledIngredients.single.canonicalId, 'sibutramine');
+        expect(
+          v.recalledIngredients.single.banContext,
+          'adulterant_in_supplements',
+        );
+        expect(
+          v.recalledIngredients.single.safetyWarningOneLiner,
+          'Prescription drug hidden in supplements. Stop.',
+        );
+      },
+    );
 
-    test('does NOT flag product when no canonical_id matches the recall list',
-        () async {
-      final coreDb = CoreDatabase.memory();
-      final userDb = UserDatabase.memory();
+    test(
+      'does NOT flag product when no canonical_id matches the recall list',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
 
-      await _seedProduct(
-        coreDb,
-        dsldId: 'TEST_SAFE_PRODUCT',
-        keyIngredientTags: ['vitamin_d'],
-      );
-      await _seedStack(userDb, dsldId: 'TEST_SAFE_PRODUCT');
+        await _seedProduct(
+          coreDb,
+          dsldId: 'TEST_SAFE_PRODUCT',
+          keyIngredientTags: ['vitamin_d'],
+        );
+        await _seedStack(userDb, dsldId: 'TEST_SAFE_PRODUCT');
 
-      final container = _container(
-        coreDb: coreDb,
-        userDb: userDb,
-        // Recall list contains a banned ingredient the product does NOT carry.
-        recallPayload: _recallPayload(['sibutramine']),
-      );
-      addTearDown(container.dispose);
-      addTearDown(() async {
-        await coreDb.close();
-        await userDb.close();
-      });
+        final container = _container(
+          coreDb: coreDb,
+          userDb: userDb,
+          // Recall list contains a banned ingredient the product does NOT carry.
+          recallPayload: _recallPayload(['sibutramine']),
+        );
+        addTearDown(container.dispose);
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
 
-      final report =
-          await container.read(recalledIngredientsReportProvider.future);
+        final report = await container.read(
+          recalledIngredientsReportProvider.future,
+        );
 
-      expect(report.isEmpty, isTrue,
-          reason: 'A product with only vitamin_d must not trigger any '
-              'recall violation when the recall list only bans sibutramine.');
-    });
+        expect(
+          report.isEmpty,
+          isTrue,
+          reason:
+              'A product with only vitamin_d must not trigger any '
+              'recall violation when the recall list only bans sibutramine.',
+        );
+      },
+    );
 
     test('canonical_id match is case-insensitive', () async {
       // Guards the lesson learned 2026-04-14: canonicalIdsForProduct
@@ -229,14 +247,21 @@ void main() {
         await userDb.close();
       });
 
-      final report =
-          await container.read(recalledIngredientsReportProvider.future);
+      final report = await container.read(
+        recalledIngredientsReportProvider.future,
+      );
 
-      expect(report.isEmpty, isFalse,
-          reason: 'Case-insensitive match must still fire when the product '
-              "row uses uppercase tags and the recall asset uses lowercase.");
-      expect(report.violations.single.recalledIngredients.single.canonicalId,
-          'sibutramine');
+      expect(
+        report.isEmpty,
+        isFalse,
+        reason:
+            'Case-insensitive match must still fire when the product '
+            "row uses uppercase tags and the recall asset uses lowercase.",
+      );
+      expect(
+        report.violations.single.recalledIngredients.single.canonicalId,
+        'sibutramine',
+      );
     });
   });
 }

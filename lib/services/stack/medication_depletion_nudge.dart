@@ -68,8 +68,8 @@ class MedicationDepletionNudgeService {
     final meds = drugClassIds.isEmpty
         ? [(name: medicationName, drugClassId: null as String?)]
         : drugClassIds
-            .map((c) => (name: medicationName, drugClassId: c as String?))
-            .toList(growable: false);
+              .map((c) => (name: medicationName, drugClassId: c as String?))
+              .toList(growable: false);
 
     final matches = DepletionChecker().check(
       medications: meds,

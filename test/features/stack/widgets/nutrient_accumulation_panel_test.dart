@@ -69,8 +69,9 @@ void main() {
     expect(find.byKey(const Key('nutrient-accumulation-card')), findsNothing);
   });
 
-  testWidgets('single warning renders header + alert badge + bar',
-      (tester) async {
+  testWidgets('single warning renders header + alert badge + bar', (
+    tester,
+  ) async {
     const status = NutrientStatus(
       total: NutrientTotal(
         canonicalId: 'zinc',
@@ -145,8 +146,9 @@ void main() {
     expect(find.byKey(const Key('warn-iron')), findsOneWidget);
   });
 
-  testWidgets('non-warning rows render under "X tracked" header',
-      (tester) async {
+  testWidgets('non-warning rows render under "X tracked" header', (
+    tester,
+  ) async {
     final statuses = [
       const NutrientStatus(
         total: NutrientTotal(

@@ -104,8 +104,9 @@ class ScoreBreakdownCard extends StatelessWidget {
             label: 'Ingredient quality',
             score: ingredientQuality,
             max: 25,
-            subData: sectionBreakdown?['ingredient_quality']
-                as Map<String, dynamic>?,
+            subData:
+                sectionBreakdown?['ingredient_quality']
+                    as Map<String, dynamic>?,
             explainFn: _explainIngredientQuality,
           ),
           const SizedBox(height: AppTheme.space12),
@@ -113,8 +114,8 @@ class ScoreBreakdownCard extends StatelessWidget {
             label: 'Safety & purity',
             score: safetyPurity,
             max: 30,
-            subData: sectionBreakdown?['safety_purity']
-                as Map<String, dynamic>?,
+            subData:
+                sectionBreakdown?['safety_purity'] as Map<String, dynamic>?,
             badges: [
               if (hasThirdPartyTesting)
                 const _ExplainBadge(
@@ -130,8 +131,8 @@ class ScoreBreakdownCard extends StatelessWidget {
             label: 'Evidence & research',
             score: evidenceResearch,
             max: 20,
-            subData: sectionBreakdown?['evidence_research']
-                as Map<String, dynamic>?,
+            subData:
+                sectionBreakdown?['evidence_research'] as Map<String, dynamic>?,
             explainFn: _explainEvidence,
           ),
           const SizedBox(height: AppTheme.space12),
@@ -139,8 +140,7 @@ class ScoreBreakdownCard extends StatelessWidget {
             label: 'Brand trust',
             score: brandTrust,
             max: 5,
-            subData: sectionBreakdown?['brand_trust']
-                as Map<String, dynamic>?,
+            subData: sectionBreakdown?['brand_trust'] as Map<String, dynamic>?,
             badges: [
               if (isTrustedManufacturer)
                 const _ExplainBadge(
@@ -168,7 +168,8 @@ class ScoreBreakdownCard extends StatelessWidget {
   // ---------------------------------------------------------------------------
 
   static List<_ExplainLine> _explainIngredientQuality(
-      Map<String, dynamic>? sub) {
+    Map<String, dynamic>? sub,
+  ) {
     if (sub == null) return [];
     final lines = <_ExplainLine>[];
     final subs = sub['sub'] as Map<String, dynamic>? ?? {};
@@ -183,14 +184,16 @@ class ScoreBreakdownCard extends StatelessWidget {
       final max = sub['max'];
       if (score is num && max is num && max != 0) {
         final fraction = score / max;
-        lines.add(_ExplainLine(
-          text: fraction >= 0.7
-              ? 'Good ingredient forms and dosing'
-              : fraction >= 0.4
-                  ? 'Some forms could be more bioavailable'
-                  : 'Forms and doses need improvement',
-          isPositive: fraction >= 0.5,
-        ));
+        lines.add(
+          _ExplainLine(
+            text: fraction >= 0.7
+                ? 'Good ingredient forms and dosing'
+                : fraction >= 0.4
+                ? 'Some forms could be more bioavailable'
+                : 'Forms and doses need improvement',
+            isPositive: fraction >= 0.5,
+          ),
+        );
       }
     }
     return lines;
@@ -223,8 +226,12 @@ class ScoreBreakdownCard extends StatelessWidget {
           final ul = e['ul'];
           final isAggregated = e['aggregation'] == 'canonical_sum';
           final contributing = e['contributing_rows'];
-          final pctStr = pctUl != null ? ' (${pctUl.toStringAsFixed(0)}% UL)' : '';
-          final amountStr = (amount != null && ul != null) ? ' — $amount of $ul limit' : '';
+          final pctStr = pctUl != null
+              ? ' (${pctUl.toStringAsFixed(0)}% UL)'
+              : '';
+          final amountStr = (amount != null && ul != null)
+              ? ' — $amount of $ul limit'
+              : '';
           var text = '$nutrient exceeds safe upper limit$pctStr$amountStr';
           if (isAggregated && contributing is List && contributing.isNotEmpty) {
             // Surface that the flag is an aggregate across multiple forms —
@@ -258,19 +265,23 @@ class ScoreBreakdownCard extends StatelessWidget {
     for (final entry in ingredientPoints.entries) {
       final pts = entry.value;
       if (pts is num && pts > 0) {
-        lines.add(_ExplainLine(
-          text:
-              '${prettifyIngredientName(entry.key)} — research-backed bonus',
-          isPositive: true,
-        ));
+        lines.add(
+          _ExplainLine(
+            text:
+                '${prettifyIngredientName(entry.key)} — research-backed bonus',
+            isPositive: true,
+          ),
+        );
       }
     }
 
     if (lines.isEmpty) {
-      lines.add(const _ExplainLine(
-        text: 'Limited clinical evidence in our database',
-        isPositive: false,
-      ));
+      lines.add(
+        const _ExplainLine(
+          text: 'Limited clinical evidence in our database',
+          isPositive: false,
+        ),
+      );
     }
     return lines;
   }
@@ -289,12 +300,14 @@ class ScoreBreakdownCard extends StatelessWidget {
       final max = sub['max'];
       if (score is num && max is num && max != 0) {
         final fraction = score / max;
-        lines.add(_ExplainLine(
-          text: fraction >= 0.6
-              ? 'Established brand with good track record'
-              : 'Limited brand verification data',
-          isPositive: fraction >= 0.5,
-        ));
+        lines.add(
+          _ExplainLine(
+            text: fraction >= 0.6
+                ? 'Established brand with good track record'
+                : 'Limited brand verification data',
+            isPositive: fraction >= 0.5,
+          ),
+        );
       }
     }
     return lines;
@@ -308,10 +321,12 @@ class ScoreBreakdownCard extends StatelessWidget {
   ) {
     final value = subs[key];
     if (value is num) {
-      lines.add(_ExplainLine(
-        text: '$label: ${value.toStringAsFixed(1)} pts',
-        isPositive: value > 0,
-      ));
+      lines.add(
+        _ExplainLine(
+          text: '$label: ${value.toStringAsFixed(1)} pts',
+          isPositive: value > 0,
+        ),
+      );
     }
   }
 }
@@ -426,8 +441,9 @@ class _ExpandableSectionBarState extends State<_ExpandableSectionBar> {
           // Expanded explanation
           AnimatedCrossFade(
             duration: AppMotion.fast,
-            crossFadeState:
-                _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: _expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -445,33 +461,35 @@ class _ExpandableSectionBarState extends State<_ExpandableSectionBar> {
       // Badges first
       ...widget.badges,
       // Then explanation lines
-      ...lines.map((line) => Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  line.isPositive
-                      ? Icons.add_circle_outline
-                      : Icons.remove_circle_outline,
-                  size: 13,
-                  color: line.isPositive
-                      ? AppTheme.severitySafe
-                      : AppTheme.severityCaution,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    line.text,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
+      ...lines.map(
+        (line) => Padding(
+          padding: const EdgeInsets.only(bottom: 3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                line.isPositive
+                    ? Icons.add_circle_outline
+                    : Icons.remove_circle_outline,
+                size: 13,
+                color: line.isPositive
+                    ? AppTheme.severitySafe
+                    : AppTheme.severityCaution,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  line.text,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
                   ),
                 ),
-              ],
-            ),
-          )),
+              ),
+            ],
+          ),
+        ),
+      ),
     ];
 
     if (allItems.isEmpty) {
@@ -609,10 +627,7 @@ class _CoverageLine extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: tier.tone,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: tier.tone, shape: BoxShape.circle),
           ),
           const SizedBox(width: AppTheme.space8),
           // Coverage label — "Coverage" + percent (tabular figures so

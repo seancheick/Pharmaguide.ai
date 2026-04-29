@@ -42,9 +42,7 @@ class NutrientAccumulationPanel extends ConsumerWidget {
       error: (_, __) => const SizedBox.shrink(),
       data: (statuses) {
         if (statuses.isEmpty) return const SizedBox.shrink();
-        return _PanelShell(
-          child: _PanelBody(statuses: statuses),
-        );
+        return _PanelShell(child: _PanelBody(statuses: statuses));
       },
     );
   }
@@ -121,7 +119,10 @@ class _PanelBodyState extends State<_PanelBody> {
             totalNutrients: widget.statuses.length,
             warningCount: warnings.length,
           ),
-          Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           // Warnings always render at the top, sorted by risk score —
           // safety outranks user preference.
           for (final s in warnings)
@@ -130,7 +131,10 @@ class _PanelBodyState extends State<_PanelBody> {
               status: s,
             ),
           if (warnings.isNotEmpty && notable.isNotEmpty)
-            Divider(height: 16, color: Theme.of(context).colorScheme.outlineVariant),
+            Divider(
+              height: 16,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
           // Notable nutrients (no warning) sorted by %UL/%RDA desc.
           for (final s in shown)
             NutrientProgressBar(
@@ -207,10 +211,7 @@ class _ShowMoreRow extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.totalNutrients,
-    required this.warningCount,
-  });
+  const _Header({required this.totalNutrients, required this.warningCount});
 
   final int totalNutrients;
   final int warningCount;
@@ -260,10 +261,7 @@ class _Header extends StatelessWidget {
           else
             Text(
               '$totalNutrients tracked',
-              style: TextStyle(
-                fontSize: 11,
-                color: resolved.textSecondary,
-              ),
+              style: TextStyle(fontSize: 11, color: resolved.textSecondary),
             ),
         ],
       ),

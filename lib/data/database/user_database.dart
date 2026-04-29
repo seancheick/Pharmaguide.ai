@@ -13,17 +13,19 @@ part 'user_database.g.dart';
 
 /// READ-WRITE database for user-owned data: profile, stack, favorites,
 /// scan history, and detail cache. Created locally on first launch.
-@DriftDatabase(tables: [
-  UserProfiles,
-  UserStacksLocal,
-  UserFavorites,
-  ScanHistory,
-  DetailCache,
-  ProductImageCache,
-])
+@DriftDatabase(
+  tables: [
+    UserProfiles,
+    UserStacksLocal,
+    UserFavorites,
+    ScanHistory,
+    DetailCache,
+    ProductImageCache,
+  ],
+)
 class UserDatabase extends _$UserDatabase {
   UserDatabase(File dbFile)
-      : super(NativeDatabase(dbFile, logStatements: false));
+    : super(NativeDatabase(dbFile, logStatements: false));
 
   /// In-memory database for testing.
   UserDatabase.memory() : super(NativeDatabase.memory());
@@ -33,30 +35,28 @@ class UserDatabase extends _$UserDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            // v2: add generic_rxcui + ingredient_rxcuis for brand→generic
-            // interaction matching and combination drug decomposition.
-            await m.addColumn(
-                userStacksLocal, userStacksLocal.genericRxcui);
-            await m.addColumn(
-                userStacksLocal, userStacksLocal.ingredientRxcuisCol);
-          }
-          if (from < 3) {
-            // v3: product image cache for OFF API lookups.
-            await m.createTable(productImageCache);
-          }
-          if (from == 3) {
-            // v4: clear stale image cache — prior UPC sanitization bug
-            // sent malformed barcodes to OFF, caching false negatives.
-            // Scoped to `from == 3` only: users on v1/v2 never had the
-            // buggy cache, and fresh installs created the table at v4
-            // with no rows to clear.
-            await customStatement('DELETE FROM product_image_cache');
-          }
-        },
-      );
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // v2: add generic_rxcui + ingredient_rxcuis for brand→generic
+        // interaction matching and combination drug decomposition.
+        await m.addColumn(userStacksLocal, userStacksLocal.genericRxcui);
+        await m.addColumn(userStacksLocal, userStacksLocal.ingredientRxcuisCol);
+      }
+      if (from < 3) {
+        // v3: product image cache for OFF API lookups.
+        await m.createTable(productImageCache);
+      }
+      if (from == 3) {
+        // v4: clear stale image cache — prior UPC sanitization bug
+        // sent malformed barcodes to OFF, caching false negatives.
+        // Scoped to `from == 3` only: users on v1/v2 never had the
+        // buggy cache, and fresh installs created the table at v4
+        // with no rows to clear.
+        await customStatement('DELETE FROM product_image_cache');
+      }
+    },
+  );
 
   /// Open (or create) the user database at the given path.
   static UserDatabase open(String dbPath) {
@@ -86,10 +86,7 @@ class UserDatabase extends _$UserDatabase {
     return (select(userStacksLocal)
           ..where((t) => t.deletedAt.isNull())
           ..orderBy([
-            (t) => OrderingTerm(
-                  expression: t.addedAt,
-                  mode: OrderingMode.desc,
-                ),
+            (t) => OrderingTerm(expression: t.addedAt, mode: OrderingMode.desc),
           ]))
         .get();
   }
@@ -113,11 +110,12 @@ class UserDatabase extends _$UserDatabase {
 
   /// Soft-delete a stack item by setting [deletedAt].
   Future<void> removeFromStack(String id) {
-    return (update(userStacksLocal)..where((t) => t.id.equals(id)))
-        .write(UserStacksLocalCompanion(
-      deletedAt: Value(DateTime.now()),
-      clientUpdatedAt: Value(DateTime.now()),
-    ));
+    return (update(userStacksLocal)..where((t) => t.id.equals(id))).write(
+      UserStacksLocalCompanion(
+        deletedAt: Value(DateTime.now()),
+        clientUpdatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -126,28 +124,22 @@ class UserDatabase extends _$UserDatabase {
 
   /// Returns all favorites, newest first.
   Future<List<UserFavorite>> getFavorites() {
-    return (select(userFavorites)
-          ..orderBy([
-            (t) => OrderingTerm(
-                  expression: t.addedAt,
-                  mode: OrderingMode.desc,
-                ),
-          ]))
+    return (select(userFavorites)..orderBy([
+          (t) => OrderingTerm(expression: t.addedAt, mode: OrderingMode.desc),
+        ]))
         .get();
   }
 
   /// Bookmark a product by DSLD ID.
   Future<void> addFavorite(String dsldId) {
-    return into(userFavorites).insert(
-      UserFavoritesCompanion(dsldId: Value(dsldId)),
-    );
+    return into(
+      userFavorites,
+    ).insert(UserFavoritesCompanion(dsldId: Value(dsldId)));
   }
 
   /// Remove a product bookmark.
   Future<void> removeFavorite(String dsldId) {
-    return (delete(userFavorites)
-          ..where((t) => t.dsldId.equals(dsldId)))
-        .go();
+    return (delete(userFavorites)..where((t) => t.dsldId.equals(dsldId))).go();
   }
 
   // ---------------------------------------------------------------------------
@@ -162,11 +154,13 @@ class UserDatabase extends _$UserDatabase {
     String? upcSku,
     String? productName,
   }) async {
-    await into(scanHistory).insert(ScanHistoryCompanion(
-      dsldId: Value(dsldId),
-      upcSku: Value(upcSku),
-      productName: Value(productName),
-    ));
+    await into(scanHistory).insert(
+      ScanHistoryCompanion(
+        dsldId: Value(dsldId),
+        upcSku: Value(upcSku),
+        productName: Value(productName),
+      ),
+    );
 
     // Prune old rows beyond the 50-row cap.
     await customStatement(
@@ -199,14 +193,13 @@ class UserDatabase extends _$UserDatabase {
 
   /// Retrieve a cached detail blob by DSLD ID, or null if not cached.
   Future<DetailCacheData?> getCachedDetail(String dsldId) {
-    return (select(detailCache)
-          ..where((t) => t.dsldId.equals(dsldId)))
-        .getSingleOrNull();
+    return (select(
+      detailCache,
+    )..where((t) => t.dsldId.equals(dsldId))).getSingleOrNull();
   }
 
   /// Cache (or refresh) a product detail blob.
-  Future<void> cacheDetail(
-      String dsldId, String json, String? sha256Hash) {
+  Future<void> cacheDetail(String dsldId, String json, String? sha256Hash) {
     return into(detailCache).insertOnConflictUpdate(
       DetailCacheCompanion(
         dsldId: Value(dsldId),
@@ -223,9 +216,9 @@ class UserDatabase extends _$UserDatabase {
 
   /// Returns the cached image entry for a product, or null if not cached.
   Future<ProductImageCacheData?> getCachedImage(String dsldId) {
-    return (select(productImageCache)
-          ..where((t) => t.dsldId.equals(dsldId)))
-        .getSingleOrNull();
+    return (select(
+      productImageCache,
+    )..where((t) => t.dsldId.equals(dsldId))).getSingleOrNull();
   }
 
   /// Cache (or refresh) a product image URL. Use "no_image" as [imageUrl]

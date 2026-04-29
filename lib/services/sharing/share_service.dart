@@ -17,14 +17,12 @@ class ShareService {
   final ShareInvocation? _shareOverride;
 
   ShareService({ShareInvocation? shareOverride})
-      : _shareOverride = shareOverride;
+    : _shareOverride = shareOverride;
 
   Future<void> _share(String text, {String? subject}) {
     final override = _shareOverride;
     if (override != null) return override(text, subject: subject);
-    return SharePlus.instance.share(
-      ShareParams(text: text, subject: subject),
-    );
+    return SharePlus.instance.share(ShareParams(text: text, subject: subject));
   }
 
   /// Share the markdown summary built by `ClinicianReportBuilder`.
@@ -36,10 +34,7 @@ class ShareService {
   /// content; this method only routes it into the system share sheet
   /// with a stable subject line.
   Future<void> shareClinicianReport(String markdown) async {
-    await _share(
-      markdown,
-      subject: 'My Supplement Stack — Clinician Summary',
-    );
+    await _share(markdown, subject: 'My Supplement Stack — Clinician Summary');
   }
 
   /// Share a product using pre-computed fields from products_core.
@@ -79,7 +74,8 @@ class ShareService {
     required int issueCount,
     required int synergyCount,
   }) async {
-    final text = '''
+    final text =
+        '''
 My Supplement Stack — PharmaGuide
 
 Stack Safety Score: $safetyScore/100 ($riskLabel)

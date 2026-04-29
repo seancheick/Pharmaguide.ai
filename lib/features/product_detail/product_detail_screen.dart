@@ -544,8 +544,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       // stays decoupled from the screen-state.
                       isTrustedManufacturer:
                           _product?.isTrustedManufacturer == 1,
-                      hasThirdPartyTesting:
-                          _product?.hasThirdPartyTesting == 1,
+                      hasThirdPartyTesting: _product?.hasThirdPartyTesting == 1,
                       mappedCoverage: _product?.mappedCoverage,
                       scoreEvidenceResearch: _product?.scoreEvidenceResearch,
                       scoreEvidenceResearchMax:
@@ -955,10 +954,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 /// (via `_topGoalLabelFromFit`) and the test suite call this.
 String? topGoalLabelFromFit(FitScoreResult? result) {
   if (result == null) return null;
-  final pattern = RegExp(
-    r'your\s+(.+?)\s+goal\b',
-    caseSensitive: false,
-  );
+  final pattern = RegExp(r'your\s+(.+?)\s+goal\b', caseSensitive: false);
   for (final reason in result.reasons) {
     final m = pattern.firstMatch(reason);
     if (m != null) {
@@ -1659,16 +1655,17 @@ class _HeaderSection extends ConsumerWidget {
                   // bilinear-scaling a 48pt source up).
                   Hero(
                     tag: 'product-$dsldId',
-                    flightShuttleBuilder: (_, __, ___, ____, _____) => ProductImage(
-                      dsldId: dsldId,
-                      upc: upc,
-                      productName: productName,
-                      brandName: brandName,
-                      formFactor: formFactor,
-                      score: score100,
-                      size: 96,
-                      compact: true,
-                    ),
+                    flightShuttleBuilder: (_, __, ___, ____, _____) =>
+                        ProductImage(
+                          dsldId: dsldId,
+                          upc: upc,
+                          productName: productName,
+                          brandName: brandName,
+                          formFactor: formFactor,
+                          score: score100,
+                          size: 96,
+                          compact: true,
+                        ),
                     child: ProductImage(
                       dsldId: dsldId,
                       upc: upc,
@@ -1701,7 +1698,10 @@ class _HeaderSection extends ConsumerWidget {
                         // helper drops orphan dots cleanly when segments
                         // are missing.
                         if (_hasAnyHeroSubtitle(
-                            brandName, formFactor, null)) ...[
+                          brandName,
+                          formFactor,
+                          null,
+                        )) ...[
                           const SizedBox(height: 4),
                           Text.rich(
                             _buildHeroSubtitleSpan(
@@ -2353,7 +2353,8 @@ class _DetailSection extends ConsumerWidget {
             runSpacing: 6,
             children: [
               ...visibleInactives.map((ing) {
-                final name = ing['name']?.toString() ??
+                final name =
+                    ing['name']?.toString() ??
                     ing['raw_source_text']?.toString() ??
                     '';
                 return InactiveIngredientChip(name: name);

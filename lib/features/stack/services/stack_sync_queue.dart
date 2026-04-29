@@ -87,17 +87,16 @@ class StackSyncQueue {
   /// Explicitly **excludes** medication rows (PHI — local-only by design).
   Future<List<UserStacksLocalData>> dirtyRows() {
     final q = _db.select(_db.userStacksLocal)
-      ..where((t) =>
-          // Never sync medications (PHI)
-          t.type.equals('medication').not() &
-          // Either never synced, or edited since last sync
-          (t.syncedAt.isNull() |
-              t.clientUpdatedAt.isBiggerThan(t.syncedAt)))
+      ..where(
+        (t) =>
+            // Never sync medications (PHI)
+            t.type.equals('medication').not() &
+            // Either never synced, or edited since last sync
+            (t.syncedAt.isNull() | t.clientUpdatedAt.isBiggerThan(t.syncedAt)),
+      )
       ..orderBy([
-        (t) => OrderingTerm(
-              expression: t.clientUpdatedAt,
-              mode: OrderingMode.asc,
-            ),
+        (t) =>
+            OrderingTerm(expression: t.clientUpdatedAt, mode: OrderingMode.asc),
       ]);
     return q.get();
   }
@@ -107,21 +106,19 @@ class StackSyncQueue {
   /// but cheaper when only the count is needed.
   Future<List<UserStacksLocalData>> tombstoneRows() {
     final q = _db.select(_db.userStacksLocal)
-      ..where((t) =>
-          t.type.equals('medication').not() &
-          t.deletedAt.isNotNull() &
-          (t.syncedAt.isNull() |
-              t.clientUpdatedAt.isBiggerThan(t.syncedAt)));
+      ..where(
+        (t) =>
+            t.type.equals('medication').not() &
+            t.deletedAt.isNotNull() &
+            (t.syncedAt.isNull() | t.clientUpdatedAt.isBiggerThan(t.syncedAt)),
+      );
     return q.get();
   }
 
   /// Mark a row as successfully synced — sets `synced_at = now`.
   Future<void> markSynced(String entryId) {
-    return (_db.update(_db.userStacksLocal)
-          ..where((t) => t.id.equals(entryId)))
-        .write(UserStacksLocalCompanion(
-      syncedAt: Value(DateTime.now()),
-    ));
+    return (_db.update(_db.userStacksLocal)..where((t) => t.id.equals(entryId)))
+        .write(UserStacksLocalCompanion(syncedAt: Value(DateTime.now())));
   }
 
   /// Total count of dirty rows (active + tombstone) awaiting push.
@@ -132,17 +129,16 @@ class StackSyncQueue {
 
   /// Returns the status of a single row. Cheap — single-row query.
   Future<StackSyncStatus> statusOf(String entryId) async {
-    final row = await (_db.select(_db.userStacksLocal)
-          ..where((t) => t.id.equals(entryId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.userStacksLocal,
+    )..where((t) => t.id.equals(entryId))).getSingleOrNull();
     if (row == null) return StackSyncStatus.failed;
     if (row.type == 'medication') {
       // PHI — we never track sync status for these.
       return StackSyncStatus.synced;
     }
     if (row.deletedAt != null) {
-      if (row.syncedAt == null ||
-          row.clientUpdatedAt.isAfter(row.syncedAt!)) {
+      if (row.syncedAt == null || row.clientUpdatedAt.isAfter(row.syncedAt!)) {
         return StackSyncStatus.tombstone;
       }
       return StackSyncStatus.synced;
@@ -245,10 +241,9 @@ class StackSyncService {
         if (row.type != 'supplement') continue;
 
         try {
-          await supabase.from(SupabaseContract.userStacksTable).upsert(
-                _rowToRemote(row, user.id),
-                onConflict: 'id',
-              );
+          await supabase
+              .from(SupabaseContract.userStacksTable)
+              .upsert(_rowToRemote(row, user.id), onConflict: 'id');
           await _queue.markSynced(row.id);
         } on PostgrestException catch (e) {
           // Leave synced_at alone — row stays dirty, next cycle will retry.
@@ -272,10 +267,7 @@ class StackSyncService {
 
   /// Map a local stack row to the remote Supabase shape. Injects the
   /// authenticated user id and converts Dart DateTimes to ISO-8601.
-  Map<String, dynamic> _rowToRemote(
-    UserStacksLocalData row,
-    String userId,
-  ) {
+  Map<String, dynamic> _rowToRemote(UserStacksLocalData row, String userId) {
     return {
       'id': row.id,
       'user_id': userId,
@@ -318,29 +310,26 @@ final stackSyncListenerProvider = Provider<void>((ref) {
 
   // React to connectivity transitions. Only push when we've just come
   // back online (edge-trigger, not level-trigger).
-  ref.listen<AsyncValue<ConnectionStatus>>(
-    connectionStatusProvider,
-    (prev, next) {
-      final prevStatus = prev?.valueOrNull;
-      final nextStatus = next.valueOrNull;
-      if (nextStatus == ConnectionStatus.online &&
-          prevStatus != ConnectionStatus.online) {
-        tryPush();
-      }
-    },
-  );
+  ref.listen<AsyncValue<ConnectionStatus>>(connectionStatusProvider, (
+    prev,
+    next,
+  ) {
+    final prevStatus = prev?.valueOrNull;
+    final nextStatus = next.valueOrNull;
+    if (nextStatus == ConnectionStatus.online &&
+        prevStatus != ConnectionStatus.online) {
+      tryPush();
+    }
+  });
 
   // React to sign-in (guest → signedIn). Brand-new signed-in users will
   // have everything they did as a guest queued up as dirty rows; this
   // pushes all of them at once.
-  ref.listen<AuthMode>(
-    authStateProvider,
-    (prev, next) {
-      if (prev == AuthMode.guest && next == AuthMode.signedIn) {
-        tryPush();
-      }
-    },
-  );
+  ref.listen<AuthMode>(authStateProvider, (prev, next) {
+    if (prev == AuthMode.guest && next == AuthMode.signedIn) {
+      tryPush();
+    }
+  });
 
   // Initial push on listener setup — catches the "app started, already
   // signed in, online" case.

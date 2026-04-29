@@ -188,8 +188,9 @@ class DepletionChecker {
     for (final d in stackDoses) {
       dosesByCid[d.canonicalId.toLowerCase()] = d;
     }
-    final coveredIdsLower =
-        stackCanonicalIds.map((e) => e.toLowerCase()).toSet();
+    final coveredIdsLower = stackCanonicalIds
+        .map((e) => e.toLowerCase())
+        .toSet();
 
     for (final dep in depletions) {
       if (dep is! Map<String, dynamic>) continue;
@@ -199,18 +200,22 @@ class DepletionChecker {
       final drugDisplayName = drugRef['display_name']?.toString() ?? '';
 
       // Match by drug class ID or drug name substring
-      final matches = userDrugClassIds.any((id) => drugId.contains(id)) ||
-          userDrugNames.any((name) =>
-              drugDisplayName.toLowerCase().contains(name) ||
-              name.contains(drugDisplayName.toLowerCase()));
+      final matches =
+          userDrugClassIds.any((id) => drugId.contains(id)) ||
+          userDrugNames.any(
+            (name) =>
+                drugDisplayName.toLowerCase().contains(name) ||
+                name.contains(drugDisplayName.toLowerCase()),
+          );
 
       if (!matches) continue;
 
       final nutrient = dep['depleted_nutrient'] as Map<String, dynamic>? ?? {};
-      final canonicalId =
-          (nutrient['canonical_id']?.toString() ?? '').toLowerCase();
+      final canonicalId = (nutrient['canonical_id']?.toString() ?? '')
+          .toLowerCase();
 
-      final sourceUrls = (dep['sources'] as List?)
+      final sourceUrls =
+          (dep['sources'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .map((s) => s['url']?.toString() ?? '')
               .where((u) => u.isNotEmpty)
@@ -228,27 +233,29 @@ class DepletionChecker {
         thresholdMg: adequacyMg,
       );
 
-      results.add(DepletionMatch(
-        depletionId: dep['id']?.toString() ?? '',
-        drugDisplayName: drugDisplayName,
-        drugClassId: drugId,
-        nutrientName: nutrient['standard_name']?.toString() ?? '',
-        nutrientCanonicalId: canonicalId,
-        severity: dep['severity']?.toString() ?? 'moderate',
-        mechanism: dep['mechanism']?.toString() ?? '',
-        recommendation: dep['recommendation']?.toString() ?? '',
-        sourceUrls: sourceUrls,
-        onsetTimeline: dep['onset_timeline']?.toString(),
-        clinicalImpact: dep['clinical_impact']?.toString(),
-        alertHeadline: dep['alert_headline']?.toString(),
-        alertBody: dep['alert_body']?.toString(),
-        acknowledgementNote: dep['acknowledgement_note']?.toString(),
-        monitoringTipShort: dep['monitoring_tip_short']?.toString(),
-        foodSourcesShort: dep['food_sources_short']?.toString(),
-        adequacyThresholdMcg: adequacyMcg,
-        adequacyThresholdMg: adequacyMg,
-        coverageLevel: coverage,
-      ));
+      results.add(
+        DepletionMatch(
+          depletionId: dep['id']?.toString() ?? '',
+          drugDisplayName: drugDisplayName,
+          drugClassId: drugId,
+          nutrientName: nutrient['standard_name']?.toString() ?? '',
+          nutrientCanonicalId: canonicalId,
+          severity: dep['severity']?.toString() ?? 'moderate',
+          mechanism: dep['mechanism']?.toString() ?? '',
+          recommendation: dep['recommendation']?.toString() ?? '',
+          sourceUrls: sourceUrls,
+          onsetTimeline: dep['onset_timeline']?.toString(),
+          clinicalImpact: dep['clinical_impact']?.toString(),
+          alertHeadline: dep['alert_headline']?.toString(),
+          alertBody: dep['alert_body']?.toString(),
+          acknowledgementNote: dep['acknowledgement_note']?.toString(),
+          monitoringTipShort: dep['monitoring_tip_short']?.toString(),
+          foodSourcesShort: dep['food_sources_short']?.toString(),
+          adequacyThresholdMcg: adequacyMcg,
+          adequacyThresholdMg: adequacyMg,
+          coverageLevel: coverage,
+        ),
+      );
     }
 
     // Sort: uncovered first, then partial, then covered.

@@ -43,43 +43,47 @@ class StackInteractionChecker {
     if (newContainsStimulants) {
       for (int i = 0; i < stackContainsSedatives.length; i++) {
         if (stackContainsSedatives[i]) {
-          results.add(InteractionResult(
-            id: 'STACK_STIM_SED_$i',
-            type: InteractionType.supplementSupplement,
-            severity: Severity.caution,
-            evidenceLevel: EvidenceLevel.established,
-            agent1Name: newProductName,
-            agent2Name: stackProductNames[i],
-            mechanism:
-                'Stack contains both stimulants and sedatives — opposing effects may reduce effectiveness of both',
-            management:
-                'Consider taking at different times or choosing one over the other',
-            doseDependant: false,
-            doseThreshold: null,
-            sourceUrls: [],
-            source: InteractionSource.stackEngine,
-          ));
+          results.add(
+            InteractionResult(
+              id: 'STACK_STIM_SED_$i',
+              type: InteractionType.supplementSupplement,
+              severity: Severity.caution,
+              evidenceLevel: EvidenceLevel.established,
+              agent1Name: newProductName,
+              agent2Name: stackProductNames[i],
+              mechanism:
+                  'Stack contains both stimulants and sedatives — opposing effects may reduce effectiveness of both',
+              management:
+                  'Consider taking at different times or choosing one over the other',
+              doseDependant: false,
+              doseThreshold: null,
+              sourceUrls: [],
+              source: InteractionSource.stackEngine,
+            ),
+          );
         }
       }
     }
     if (newContainsSedatives) {
       for (int i = 0; i < stackContainsStimulants.length; i++) {
         if (stackContainsStimulants[i]) {
-          results.add(InteractionResult(
-            id: 'STACK_SED_STIM_$i',
-            type: InteractionType.supplementSupplement,
-            severity: Severity.caution,
-            evidenceLevel: EvidenceLevel.established,
-            agent1Name: newProductName,
-            agent2Name: stackProductNames[i],
-            mechanism:
-                'Stack contains both sedatives and stimulants — opposing effects',
-            management: 'Consider separating by time of day',
-            doseDependant: false,
-            doseThreshold: null,
-            sourceUrls: [],
-            source: InteractionSource.stackEngine,
-          ));
+          results.add(
+            InteractionResult(
+              id: 'STACK_SED_STIM_$i',
+              type: InteractionType.supplementSupplement,
+              severity: Severity.caution,
+              evidenceLevel: EvidenceLevel.established,
+              agent1Name: newProductName,
+              agent2Name: stackProductNames[i],
+              mechanism:
+                  'Stack contains both sedatives and stimulants — opposing effects',
+              management: 'Consider separating by time of day',
+              doseDependant: false,
+              doseThreshold: null,
+              sourceUrls: [],
+              source: InteractionSource.stackEngine,
+            ),
+          );
         }
       }
     }
@@ -88,22 +92,24 @@ class StackInteractionChecker {
     if (newContainsBloodThinners) {
       for (int i = 0; i < stackContainsBloodThinners.length; i++) {
         if (stackContainsBloodThinners[i]) {
-          results.add(InteractionResult(
-            id: 'STACK_BT_$i',
-            type: InteractionType.supplementSupplement,
-            severity: Severity.avoid,
-            evidenceLevel: EvidenceLevel.established,
-            agent1Name: newProductName,
-            agent2Name: stackProductNames[i],
-            mechanism:
-                'Multiple blood-thinning supplements increase bleeding risk',
-            management:
-                'Consult healthcare provider before combining blood-thinning supplements',
-            doseDependant: true,
-            doseThreshold: null,
-            sourceUrls: [],
-            source: InteractionSource.stackEngine,
-          ));
+          results.add(
+            InteractionResult(
+              id: 'STACK_BT_$i',
+              type: InteractionType.supplementSupplement,
+              severity: Severity.avoid,
+              evidenceLevel: EvidenceLevel.established,
+              agent1Name: newProductName,
+              agent2Name: stackProductNames[i],
+              mechanism:
+                  'Multiple blood-thinning supplements increase bleeding risk',
+              management:
+                  'Consult healthcare provider before combining blood-thinning supplements',
+              doseDependant: true,
+              doseThreshold: null,
+              sourceUrls: [],
+              source: InteractionSource.stackEngine,
+            ),
+          );
         }
       }
     }
@@ -116,21 +122,23 @@ class StackInteractionChecker {
           (stackFingerprints[i]['nutrients'] as Map?)?.keys.toSet() ?? {};
       final overlap = newNutrients.intersection(stackNutrients);
       if (overlap.length >= 3) {
-        results.add(InteractionResult(
-          id: 'STACK_DUP_$i',
-          type: InteractionType.supplementSupplement,
-          severity: Severity.monitor,
-          evidenceLevel: EvidenceLevel.probable,
-          agent1Name: newProductName,
-          agent2Name: stackProductNames[i],
-          mechanism:
-              '${overlap.length} overlapping nutrients: ${overlap.take(3).join(", ")}${overlap.length > 3 ? "..." : ""}',
-          management: 'Check cumulative doses against daily upper limits',
-          doseDependant: true,
-          doseThreshold: null,
-          sourceUrls: [],
-          source: InteractionSource.stackEngine,
-        ));
+        results.add(
+          InteractionResult(
+            id: 'STACK_DUP_$i',
+            type: InteractionType.supplementSupplement,
+            severity: Severity.monitor,
+            evidenceLevel: EvidenceLevel.probable,
+            agent1Name: newProductName,
+            agent2Name: stackProductNames[i],
+            mechanism:
+                '${overlap.length} overlapping nutrients: ${overlap.take(3).join(", ")}${overlap.length > 3 ? "..." : ""}',
+            management: 'Check cumulative doses against daily upper limits',
+            doseDependant: true,
+            doseThreshold: null,
+            sourceUrls: [],
+            source: InteractionSource.stackEngine,
+          ),
+        );
       }
     }
 
@@ -233,12 +241,14 @@ class StackInteractionChecker {
         if (stackName == null) continue;
 
         seenRowIds.add(row.id);
-        results.add(InteractionResult.fromRow(
-          row,
-          source: InteractionSource.pipeline,
-          agent1NameOverride: newProductName,
-          agent2NameOverride: stackName,
-        ));
+        results.add(
+          InteractionResult.fromRow(
+            row,
+            source: InteractionSource.pipeline,
+            agent1NameOverride: newProductName,
+            agent2NameOverride: stackName,
+          ),
+        );
       }
     }
 
@@ -354,12 +364,14 @@ class StackInteractionChecker {
         if (medName == null) continue;
 
         seenRowIds.add(row.id);
-        results.add(InteractionResult.fromRow(
-          row,
-          source: InteractionSource.pipeline,
-          agent1NameOverride: medName,
-          agent2NameOverride: newProductName,
-        ));
+        results.add(
+          InteractionResult.fromRow(
+            row,
+            source: InteractionSource.pipeline,
+            agent1NameOverride: medName,
+            agent2NameOverride: newProductName,
+          ),
+        );
       }
     }
 
@@ -481,12 +493,14 @@ class StackInteractionChecker {
         if (matchedName == null) continue;
 
         seenRowIds.add(row.id);
-        results.add(InteractionResult.fromRow(
-          row,
-          source: InteractionSource.pipeline,
-          agent1NameOverride: newMed.name,
-          agent2NameOverride: matchedName,
-        ));
+        results.add(
+          InteractionResult.fromRow(
+            row,
+            source: InteractionSource.pipeline,
+            agent1NameOverride: newMed.name,
+            agent2NameOverride: matchedName,
+          ),
+        );
       }
     }
 

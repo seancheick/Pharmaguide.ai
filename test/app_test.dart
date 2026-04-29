@@ -30,9 +30,13 @@ void main() {
   /// would cause pumpAndSettle to time out.
   Future<void> pumpPastSplash(WidgetTester tester) async {
     await tester.pump(); // initial frame
-    await tester.pump(const Duration(milliseconds: 650)); // past 600ms ctrl.forward()
+    await tester.pump(
+      const Duration(milliseconds: 650),
+    ); // past 600ms ctrl.forward()
     await tester.pump(); // process the GoRouter.go() navigation
-    await tester.pump(const Duration(milliseconds: 100)); // settle first shell frame
+    await tester.pump(
+      const Duration(milliseconds: 100),
+    ); // settle first shell frame
   }
 
   testWidgets('App renders with 5 navigation tabs', (tester) async {
@@ -107,8 +111,9 @@ void main() {
     await userDb.close();
   });
 
-  testWidgets('Tapping Profile tab navigates to profile screen',
-      (tester) async {
+  testWidgets('Tapping Profile tab navigates to profile screen', (
+    tester,
+  ) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
 

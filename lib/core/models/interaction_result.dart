@@ -10,11 +10,7 @@ enum InteractionType {
   conditionSupplement,
 }
 
-enum InteractionSource {
-  pipeline,
-  stackEngine,
-  aiChat,
-}
+enum InteractionSource { pipeline, stackEngine, aiChat }
 
 /// Pharmacological effect direction for an interaction.
 ///

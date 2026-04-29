@@ -9,8 +9,7 @@ void main() {
     required String label,
     String detail = '',
     required bool isPositive,
-  }) =>
-      (label: label, detail: detail, isPositive: isPositive);
+  }) => (label: label, detail: detail, isPositive: isPositive);
 
   /// Pump the section inside a fixed-width Scaffold so the
   /// LayoutBuilder branch is deterministic. Default 480pt → two-column
@@ -36,8 +35,9 @@ void main() {
   }
 
   group('TradeoffsSection — split contract', () {
-    testWidgets('bonuses-only → only "What\'s good" column renders',
-        (tester) async {
+    testWidgets('bonuses-only → only "What\'s good" column renders', (
+      tester,
+    ) async {
       await pumpSection(tester, [
         item(label: 'Third-party tested', isPositive: true),
         item(label: 'Bioavailable forms', isPositive: true),
@@ -52,8 +52,9 @@ void main() {
       expect(find.text('⚖️ What to consider'), findsNothing);
     });
 
-    testWidgets('penalties-only → only "What to consider" column renders',
-        (tester) async {
+    testWidgets('penalties-only → only "What to consider" column renders', (
+      tester,
+    ) async {
       await pumpSection(tester, [
         item(label: 'Contains proprietary blend', isPositive: false),
       ]);
@@ -76,14 +77,18 @@ void main() {
 
         // Y-position assertion: at 480pt the two headers sit at the
         // SAME vertical offset (Row layout — side-by-side).
-        final goodY =
-            tester.getTopLeft(find.text('👍 What\'s good')).dy;
-        final considerY =
-            tester.getTopLeft(find.text('⚖️ What to consider')).dy;
-        expect(goodY, considerY,
-            reason: 'two-column branch must render headers at the same '
-                'Y-coordinate; if they\'re stacked the LayoutBuilder '
-                'breakpoint is wrong');
+        final goodY = tester.getTopLeft(find.text('👍 What\'s good')).dy;
+        final considerY = tester
+            .getTopLeft(find.text('⚖️ What to consider'))
+            .dy;
+        expect(
+          goodY,
+          considerY,
+          reason:
+              'two-column branch must render headers at the same '
+              'Y-coordinate; if they\'re stacked the LayoutBuilder '
+              'breakpoint is wrong',
+        );
       },
     );
 
@@ -93,38 +98,36 @@ void main() {
         // SE-class width is below the 380pt breakpoint — the layout
         // must collapse to single-column to keep each text block
         // readable. The pros header sits ABOVE the cons header.
-        await pumpSection(
-          tester,
-          [
-            item(label: 'Third-party tested', isPositive: true),
-            item(label: 'Contains proprietary blend', isPositive: false),
-          ],
-          width: 320,
+        await pumpSection(tester, [
+          item(label: 'Third-party tested', isPositive: true),
+          item(label: 'Contains proprietary blend', isPositive: false),
+        ], width: 320);
+
+        final goodY = tester.getTopLeft(find.text('👍 What\'s good')).dy;
+        final considerY = tester
+            .getTopLeft(find.text('⚖️ What to consider'))
+            .dy;
+        expect(
+          goodY,
+          lessThan(considerY),
+          reason: 'narrow-width branch must stack pros above cons',
         );
-
-        final goodY =
-            tester.getTopLeft(find.text('👍 What\'s good')).dy;
-        final considerY =
-            tester.getTopLeft(find.text('⚖️ What to consider')).dy;
-        expect(goodY, lessThan(considerY),
-            reason: 'narrow-width branch must stack pros above cons');
       },
     );
 
-    testWidgets(
-      'both empty → entire section returns SizedBox.shrink (hides)',
-      (tester) async {
-        await pumpSection(tester, const []);
+    testWidgets('both empty → entire section returns SizedBox.shrink (hides)', (
+      tester,
+    ) async {
+      await pumpSection(tester, const []);
 
-        // Headers absent.
-        expect(find.text('👍 What\'s good'), findsNothing);
-        expect(find.text('⚖️ What to consider'), findsNothing);
-        // The decorated outer Container also doesn't render. We can't
-        // grep for `Container` directly (Material composes lots of
-        // them) but we can assert the section's only public widgets
-        // are absent — that's enough.
-      },
-    );
+      // Headers absent.
+      expect(find.text('👍 What\'s good'), findsNothing);
+      expect(find.text('⚖️ What to consider'), findsNothing);
+      // The decorated outer Container also doesn't render. We can't
+      // grep for `Container` directly (Material composes lots of
+      // them) but we can assert the section's only public widgets
+      // are absent — that's enough.
+    });
 
     testWidgets('blank-label entries are dropped defensively', (tester) async {
       // _extractWhyItems shouldn't emit blank labels but pipeline
@@ -145,8 +148,9 @@ void main() {
   });
 
   group('TradeoffsSection — row rendering', () {
-    testWidgets('bonus row renders label and optional detail subline',
-        (tester) async {
+    testWidgets('bonus row renders label and optional detail subline', (
+      tester,
+    ) async {
       await pumpSection(tester, [
         item(
           label: 'Third-party tested',
@@ -159,8 +163,9 @@ void main() {
       expect(find.text('NSF Sport verified'), findsOneWidget);
     });
 
-    testWidgets('row with empty detail does NOT render an empty subline',
-        (tester) async {
+    testWidgets('row with empty detail does NOT render an empty subline', (
+      tester,
+    ) async {
       // Detail is optional — passing '' should not render a zero-
       // height Text widget under the label (visually it just doesn't
       // appear; harder to assert directly, but we can check that
@@ -174,8 +179,9 @@ void main() {
       expect(find.text(''), findsNothing);
     });
 
-    testWidgets('long detail string wraps — no overflow exception',
-        (tester) async {
+    testWidgets('long detail string wraps — no overflow exception', (
+      tester,
+    ) async {
       const longDetail =
           'Independent third-party laboratory testing verifies the '
           'product\'s identity, potency, and absence of contaminants '
@@ -198,8 +204,9 @@ void main() {
       expect(find.textContaining('heavy metals'), findsOneWidget);
     });
 
-    testWidgets('multiple bonuses + penalties all render in their column',
-        (tester) async {
+    testWidgets('multiple bonuses + penalties all render in their column', (
+      tester,
+    ) async {
       await pumpSection(tester, [
         item(label: 'Bonus one', isPositive: true),
         item(label: 'Bonus two', isPositive: true),

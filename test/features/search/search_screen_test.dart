@@ -49,9 +49,7 @@ class _FakeRecentSearchesService extends RecentSearchesService {
 }
 
 void main() {
-  Widget buildTestWidget({
-    List<Override> overrides = const [],
-  }) {
+  Widget buildTestWidget({List<Override> overrides = const []}) {
     return ProviderScope(
       overrides: overrides,
       child: const MaterialApp(home: SearchScreen()),
@@ -98,8 +96,9 @@ void main() {
       expect(find.byIcon(Icons.close_rounded), findsWidgets);
     });
 
-    testWidgets('clear button clears text and returns to empty state',
-        (tester) async {
+    testWidgets('clear button clears text and returns to empty state', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(() {
@@ -121,8 +120,9 @@ void main() {
       expect(find.text('Search supplements'), findsOneWidget);
     });
 
-    testWidgets('shows base filter chips as soon as typing starts',
-        (tester) async {
+    testWidgets('shows base filter chips as soon as typing starts', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(() {
@@ -139,7 +139,8 @@ void main() {
       expect(find.text('High Quality (80+)'), findsOneWidget);
       expect(find.text('Needs Review'), findsOneWidget);
       final chipScroller = find.byWidgetPredicate(
-        (widget) => widget is ListView && widget.scrollDirection == Axis.horizontal,
+        (widget) =>
+            widget is ListView && widget.scrollDirection == Axis.horizontal,
       );
       await tester.dragUntilVisible(
         find.text('Blocked / Unsafe'),
@@ -151,8 +152,9 @@ void main() {
       expect(find.text('Single Nutrient'), findsNothing);
     });
 
-    testWidgets('shows result count and blocked verdict filter',
-        (tester) async {
+    testWidgets('shows result count and blocked verdict filter', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(() {
@@ -197,8 +199,9 @@ void main() {
         buildTestWidget(
           overrides: [
             coreDatabaseProvider.overrideWithValue(db),
-            recentSearchesServiceProvider
-                .overrideWithValue(_FakeRecentSearchesService()),
+            recentSearchesServiceProvider.overrideWithValue(
+              _FakeRecentSearchesService(),
+            ),
           ],
         ),
       );
@@ -212,7 +215,8 @@ void main() {
       expect(find.text('Showing 3 results'), findsOneWidget);
       expect(find.text('Needs Review'), findsOneWidget);
       final chipScroller = find.byWidgetPredicate(
-        (widget) => widget is ListView && widget.scrollDirection == Axis.horizontal,
+        (widget) =>
+            widget is ListView && widget.scrollDirection == Axis.horizontal,
       );
       await tester.dragUntilVisible(
         find.text('Blocked / Unsafe'),
@@ -232,8 +236,9 @@ void main() {
       expect(find.text('Focus Blend'), findsNothing);
     });
 
-    testWidgets('shows dynamic category chips from search results',
-        (tester) async {
+    testWidgets('shows dynamic category chips from search results', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(() {
@@ -268,8 +273,9 @@ void main() {
         buildTestWidget(
           overrides: [
             coreDatabaseProvider.overrideWithValue(db),
-            recentSearchesServiceProvider
-                .overrideWithValue(_FakeRecentSearchesService()),
+            recentSearchesServiceProvider.overrideWithValue(
+              _FakeRecentSearchesService(),
+            ),
           ],
         ),
       );
@@ -281,7 +287,8 @@ void main() {
       await tester.pump();
 
       final chipScroller = find.byWidgetPredicate(
-        (widget) => widget is ListView && widget.scrollDirection == Axis.horizontal,
+        (widget) =>
+            widget is ListView && widget.scrollDirection == Axis.horizontal,
       );
       await tester.dragUntilVisible(
         find.text('Single Nutrient'),

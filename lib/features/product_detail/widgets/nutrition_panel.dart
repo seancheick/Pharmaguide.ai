@@ -51,7 +51,10 @@ class NutritionPanel extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.space16),
@@ -61,17 +64,14 @@ class NutritionPanel extends StatelessWidget {
             Text(
               'Nutrition Facts',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: resolved.textPrimary,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: resolved.textPrimary,
+              ),
             ),
             const SizedBox(height: AppTheme.space4),
             Text(
               'Per serving',
-              style: TextStyle(
-                fontSize: 12,
-                color: resolved.textSecondary,
-              ),
+              style: TextStyle(fontSize: 12, color: resolved.textSecondary),
             ),
             const SizedBox(height: AppTheme.space12),
             ...rows,
@@ -88,7 +88,8 @@ class NutritionPanel extends StatelessWidget {
 
     // Calories: column is canonical. Falls back to blob value only if
     // the column is null AND the blob value is non-null.
-    final calories = caloriesPerServing ??
+    final calories =
+        caloriesPerServing ??
         _readNumber(nutritionDetail, 'calories_per_serving');
     if (calories != null) {
       rows.add(_NutritionRow(label: 'Calories', value: _formatWhole(calories)));
@@ -103,7 +104,9 @@ class NutritionPanel extends StatelessWidget {
 
     final fat = _readNumber(nutritionDetail, 'total_fat_g');
     if (fat != null) {
-      rows.add(_NutritionRow(label: 'Total Fat', value: '${_formatGrams(fat)} g'));
+      rows.add(
+        _NutritionRow(label: 'Total Fat', value: '${_formatGrams(fat)} g'),
+      );
     }
 
     final carbs = _readNumber(nutritionDetail, 'total_carbohydrates_g');
@@ -116,13 +119,18 @@ class NutritionPanel extends StatelessWidget {
     final fiber = _readNumber(nutritionDetail, 'dietary_fiber_g');
     if (fiber != null) {
       rows.add(
-        _NutritionRow(label: 'Dietary Fiber', value: '${_formatGrams(fiber)} g'),
+        _NutritionRow(
+          label: 'Dietary Fiber',
+          value: '${_formatGrams(fiber)} g',
+        ),
       );
     }
 
     final protein = _readNumber(nutritionDetail, 'protein_g');
     if (protein != null) {
-      rows.add(_NutritionRow(label: 'Protein', value: '${_formatGrams(protein)} g'));
+      rows.add(
+        _NutritionRow(label: 'Protein', value: '${_formatGrams(protein)} g'),
+      );
     }
 
     return rows;
@@ -175,10 +183,7 @@ class _NutritionRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
-              color: resolved.textPrimary,
-            ),
+            style: TextStyle(fontSize: 14, color: resolved.textPrimary),
           ),
           Text(
             value,

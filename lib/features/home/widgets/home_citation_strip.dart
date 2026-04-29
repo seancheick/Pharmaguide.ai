@@ -24,7 +24,8 @@ class HomeCitationStrip extends ConsumerWidget {
     return PGCitationStrip(
       sourceCount: sourceCount,
       updatedAt: buildDate,
-      disclaimer: 'PharmaGuide is not medical advice. Always consult your '
+      disclaimer:
+          'PharmaGuide is not medical advice. Always consult your '
           'healthcare provider before starting or stopping a supplement.',
     );
   }

@@ -97,8 +97,7 @@ class ProductStatusChip extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerLow,
-            borderRadius:
-                BorderRadius.circular(AppTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           ),
           child: Row(
             children: [

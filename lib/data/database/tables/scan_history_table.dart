@@ -5,11 +5,9 @@ class ScanHistory extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get dsldId => text().named('dsld_id')();
   TextColumn get upcSku => text().named('upc_sku').nullable()();
-  TextColumn get productName =>
-      text().named('product_name').nullable()();
-  DateTimeColumn get scannedAt => dateTime()
-      .named('scanned_at')
-      .withDefault(currentDateAndTime)();
+  TextColumn get productName => text().named('product_name').nullable()();
+  DateTimeColumn get scannedAt =>
+      dateTime().named('scanned_at').withDefault(currentDateAndTime)();
 
   @override
   String get tableName => 'user_scan_history';

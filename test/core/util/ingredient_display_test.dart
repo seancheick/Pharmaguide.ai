@@ -42,8 +42,10 @@ void main() {
 
   group('prettifyIngredientName — title-case fallback', () {
     test('magnesium_glycinate → Magnesium Glycinate', () {
-      expect(prettifyIngredientName('magnesium_glycinate'),
-          'Magnesium Glycinate');
+      expect(
+        prettifyIngredientName('magnesium_glycinate'),
+        'Magnesium Glycinate',
+      );
     });
 
     test('ashwagandha → Ashwagandha', () {
@@ -73,25 +75,30 @@ void main() {
     // split on `_` only, so "vitamin c" rendered as "Vitamin c"
     // (single-character title-casing). We now normalize whitespace
     // runs to underscores before lookup AND fallback splitting.
-    test('space-separated key matches branded map (vitamin c → Vitamin C)',
-        () {
+    test('space-separated key matches branded map (vitamin c → Vitamin C)', () {
       expect(prettifyIngredientName('vitamin c'), 'Vitamin C');
     });
 
-    test('space-separated key matches branded map (vitamin b6 → Vitamin B6)',
-        () {
-      expect(prettifyIngredientName('vitamin b6'), 'Vitamin B6');
-    });
+    test(
+      'space-separated key matches branded map (vitamin b6 → Vitamin B6)',
+      () {
+        expect(prettifyIngredientName('vitamin b6'), 'Vitamin B6');
+      },
+    );
 
     test('space-separated alias (ksm 66 → KSM-66)', () {
       expect(prettifyIngredientName('ksm 66'), 'KSM-66');
     });
 
     test('multi-word fallback title-cases per word, not per first char', () {
-      expect(prettifyIngredientName('pantothenic acid vitamin b5'),
-          'Pantothenic Acid Vitamin B5');
       expect(
-          prettifyIngredientName('magnesium glycinate'), 'Magnesium Glycinate');
+        prettifyIngredientName('pantothenic acid vitamin b5'),
+        'Pantothenic Acid Vitamin B5',
+      );
+      expect(
+        prettifyIngredientName('magnesium glycinate'),
+        'Magnesium Glycinate',
+      );
     });
 
     test('mixed underscore + space separators normalize the same way', () {
@@ -120,18 +127,24 @@ void main() {
     });
 
     test('1 → singular phrasing', () {
-      expect(researchMatchSummary(1),
-          'One ingredient backed by clinical research');
+      expect(
+        researchMatchSummary(1),
+        'One ingredient backed by clinical research',
+      );
     });
 
     test('3 → plural with numeric count', () {
-      expect(researchMatchSummary(3),
-          '3 ingredients backed by clinical research');
+      expect(
+        researchMatchSummary(3),
+        '3 ingredients backed by clinical research',
+      );
     });
 
     test('large count uses numeric, not "many"', () {
-      expect(researchMatchSummary(42),
-          '42 ingredients backed by clinical research');
+      expect(
+        researchMatchSummary(42),
+        '42 ingredients backed by clinical research',
+      );
     });
   });
 }

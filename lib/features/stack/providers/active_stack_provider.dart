@@ -23,10 +23,7 @@ import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 class StackAddBlockedException implements Exception {
   final String dsldId;
   final String verdict;
-  const StackAddBlockedException({
-    required this.dsldId,
-    required this.verdict,
-  });
+  const StackAddBlockedException({required this.dsldId, required this.verdict});
 
   @override
   String toString() =>
@@ -48,11 +45,11 @@ final activeStackProvider = FutureProvider<List<UserStacksLocalData>>((ref) {
 /// separately keyed for rebuild isolation.
 final stackEntryForDsldIdProvider = FutureProvider.family
     .autoDispose<UserStacksLocalData?, String>((ref, dsldId) async {
-  // Take a dependency on the active stack so mutations propagate.
-  await ref.watch(activeStackProvider.future);
-  final userDb = ref.watch(userDatabaseProvider);
-  return userDb.findStackEntryByDsldId(dsldId);
-});
+      // Take a dependency on the active stack so mutations propagate.
+      await ref.watch(activeStackProvider.future);
+      final userDb = ref.watch(userDatabaseProvider);
+      return userDb.findStackEntryByDsldId(dsldId);
+    });
 
 /// Imperative stack actions (add / remove / restore). Never call directly
 /// from a build method — invoke from an onTap or an async user event.
@@ -136,10 +133,10 @@ class StackActions {
 
     final userDb = _ref.read(userDatabaseProvider);
     final id = _newId(rxcui != null ? 'rx_$rxcui' : 'med');
-    final classesJson =
-        drugClasses.isEmpty ? null : jsonEncode(drugClasses);
-    final ingredientsJson =
-        ingredientRxcuis.isEmpty ? null : jsonEncode(ingredientRxcuis);
+    final classesJson = drugClasses.isEmpty ? null : jsonEncode(drugClasses);
+    final ingredientsJson = ingredientRxcuis.isEmpty
+        ? null
+        : jsonEncode(ingredientRxcuis);
 
     await userDb.addToStack(
       UserStacksLocalCompanion(
@@ -172,9 +169,9 @@ class StackActions {
   /// Used to implement "Undo" on the remove snackbar.
   Future<void> restore(String entryId) async {
     final userDb = _ref.read(userDatabaseProvider);
-    await (userDb.update(userDb.userStacksLocal)
-          ..where((t) => t.id.equals(entryId)))
-        .write(
+    await (userDb.update(
+      userDb.userStacksLocal,
+    )..where((t) => t.id.equals(entryId))).write(
       UserStacksLocalCompanion(
         deletedAt: const Value(null),
         clientUpdatedAt: Value(DateTime.now()),

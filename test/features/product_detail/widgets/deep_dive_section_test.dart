@@ -21,9 +21,7 @@ Widget _wrap(CoreDatabase coreDb, UserDatabase userDb, Widget child) {
       userDatabaseProvider.overrideWithValue(userDb),
     ],
     child: MaterialApp(
-      home: Scaffold(
-        body: SingleChildScrollView(child: child),
-      ),
+      home: Scaffold(body: SingleChildScrollView(child: child)),
     ),
   );
 }
@@ -56,8 +54,9 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('collapsed by default — toggle label reads "Show details"',
-        (tester) async {
+    testWidgets('collapsed by default — toggle label reads "Show details"', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
 
@@ -73,8 +72,9 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('tap header → toggle label flips to "Hide" (expanded state)',
-        (tester) async {
+    testWidgets('tap header → toggle label flips to "Hide" (expanded state)', (
+      tester,
+    ) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
 

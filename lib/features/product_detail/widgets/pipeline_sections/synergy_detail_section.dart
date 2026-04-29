@@ -54,15 +54,18 @@ class SynergyDetailSection extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           ...clusters.take(4).map((cluster) {
-            final name = cluster['name']?.toString() ??
-                cluster['cluster_name']?.toString() ?? '';
+            final name =
+                cluster['name']?.toString() ??
+                cluster['cluster_name']?.toString() ??
+                '';
             final evidenceTier = cluster['evidence_tier']?.toString() ?? '';
             final singleIngredientMatch =
                 cluster['single_ingredient_match'] == true;
             // Prefer Dr. Pham's authored benefit_short (layperson,
             // positive framing); fall back to bonus_explanation
             // (pipeline-generated), then the dense synergy_mechanism.
-            final explanation = cluster['benefit_short']?.toString().isNotEmpty == true
+            final explanation =
+                cluster['benefit_short']?.toString().isNotEmpty == true
                 ? cluster['benefit_short'].toString()
                 : (cluster['bonus_explanation']?.toString() ?? '');
             final pmids = cluster.safeStringList('pmids');
@@ -73,8 +76,7 @@ class SynergyDetailSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerLowest,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  border: Border.all(
-                      color: scheme.outlineVariant, width: 0.5),
+                  border: Border.all(color: scheme.outlineVariant, width: 0.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +115,9 @@ class SynergyDetailSection extends StatelessWidget {
                         if (evidenceTier.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: scheme.primaryContainer,
                               borderRadius: BorderRadius.circular(4),

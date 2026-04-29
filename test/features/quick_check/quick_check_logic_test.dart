@@ -84,19 +84,23 @@ void main() {
       await db.close();
     });
 
-    test('returns empty when product A has no ingredient fingerprint',
-        () async {
-      final a = _product('A', 'Product A', null);
-      final b = _product('B', 'Product B', '{"iron":{}}');
-      expect(await runPairCheck(a, b, db), isEmpty);
-    });
+    test(
+      'returns empty when product A has no ingredient fingerprint',
+      () async {
+        final a = _product('A', 'Product A', null);
+        final b = _product('B', 'Product B', '{"iron":{}}');
+        expect(await runPairCheck(a, b, db), isEmpty);
+      },
+    );
 
-    test('returns empty when product B has no ingredient fingerprint',
-        () async {
-      final a = _product('A', 'Product A', '{"calcium":{}}');
-      final b = _product('B', 'Product B', null);
-      expect(await runPairCheck(a, b, db), isEmpty);
-    });
+    test(
+      'returns empty when product B has no ingredient fingerprint',
+      () async {
+        final a = _product('A', 'Product A', '{"calcium":{}}');
+        final b = _product('B', 'Product B', null);
+        expect(await runPairCheck(a, b, db), isEmpty);
+      },
+    );
 
     test('returns empty when DB has no matching interactions', () async {
       final a = _product('A', 'Vitamin C', '["vitamin_c"]');
@@ -104,29 +108,31 @@ void main() {
       expect(await runPairCheck(a, b, db), isEmpty);
     });
 
-    test('finds a direction-agnostic match and applies name overrides',
-        () async {
-      await db.batch((batch) {
-        batch.insert(
-          db.interactions,
-          _interactionRow(
-            id: 'CA_FE_1',
-            a1Canonical: 'calcium',
-            a2Canonical: 'iron',
-            severity: 'caution',
-          ),
-        );
-      });
+    test(
+      'finds a direction-agnostic match and applies name overrides',
+      () async {
+        await db.batch((batch) {
+          batch.insert(
+            db.interactions,
+            _interactionRow(
+              id: 'CA_FE_1',
+              a1Canonical: 'calcium',
+              a2Canonical: 'iron',
+              severity: 'caution',
+            ),
+          );
+        });
 
-      final a = _product('A', 'Calcium Citrate', '["calcium"]');
-      final b = _product('B', 'Iron Bisglycinate', '["iron"]');
+        final a = _product('A', 'Calcium Citrate', '["calcium"]');
+        final b = _product('B', 'Iron Bisglycinate', '["iron"]');
 
-      final results = await runPairCheck(a, b, db);
-      expect(results, hasLength(1));
-      expect(results.first.severity, Severity.caution);
-      expect(results.first.agent1Name, 'Calcium Citrate');
-      expect(results.first.agent2Name, 'Iron Bisglycinate');
-    });
+        final results = await runPairCheck(a, b, db);
+        expect(results, hasLength(1));
+        expect(results.first.severity, Severity.caution);
+        expect(results.first.agent1Name, 'Calcium Citrate');
+        expect(results.first.agent2Name, 'Iron Bisglycinate');
+      },
+    );
 
     test('sorts results with highest severity first', () async {
       await db.batch((batch) {
@@ -169,37 +175,35 @@ void main() {
       final results = await runPairCheck(a, b, db);
       expect(
         results.map((r) => r.severity).toList(),
-        equals([
-          Severity.contraindicated,
-          Severity.caution,
-          Severity.monitor,
-        ]),
+        equals([Severity.contraindicated, Severity.caution, Severity.monitor]),
       );
     });
 
-    test('deduplicates same interaction id across multiple A-side lookups',
-        () async {
-      // This row would be returned on both sides of the lookup if we
-      // didn't dedupe — A has both canonical ids, so iterating A's ids
-      // would find the same row twice.
-      await db.batch((batch) {
-        batch.insert(
-          db.interactions,
-          _interactionRow(
-            id: 'SELF_PAIR',
-            a1Canonical: 'xx',
-            a2Canonical: 'yy',
-            severity: 'caution',
-          ),
-        );
-      });
+    test(
+      'deduplicates same interaction id across multiple A-side lookups',
+      () async {
+        // This row would be returned on both sides of the lookup if we
+        // didn't dedupe — A has both canonical ids, so iterating A's ids
+        // would find the same row twice.
+        await db.batch((batch) {
+          batch.insert(
+            db.interactions,
+            _interactionRow(
+              id: 'SELF_PAIR',
+              a1Canonical: 'xx',
+              a2Canonical: 'yy',
+              severity: 'caution',
+            ),
+          );
+        });
 
-      final a = _product('A', 'Product A', '["xx","yy"]');
-      final b = _product('B', 'Product B', '["xx","yy"]');
+        final a = _product('A', 'Product A', '["xx","yy"]');
+        final b = _product('B', 'Product B', '["xx","yy"]');
 
-      final results = await runPairCheck(a, b, db);
-      expect(results, hasLength(1));
-    });
+        final results = await runPairCheck(a, b, db);
+        expect(results, hasLength(1));
+      },
+    );
   });
 }
 

@@ -70,9 +70,13 @@ class RecalledIngredientViolation {
   /// Highest severity from all recalled ingredients in this product
   Severity get worstSeverity {
     if (recalledIngredients.isEmpty) return Severity.safe;
-    final severities = recalledIngredients.map((r) => r.displaySeverity).toList();
+    final severities = recalledIngredients
+        .map((r) => r.displaySeverity)
+        .toList();
     // contraindicated > avoid > caution > monitor > safe
-    if (severities.contains(Severity.contraindicated)) return Severity.contraindicated;
+    if (severities.contains(Severity.contraindicated)) {
+      return Severity.contraindicated;
+    }
     if (severities.contains(Severity.avoid)) return Severity.avoid;
     return Severity.caution;
   }
@@ -83,7 +87,9 @@ class RecalledIngredientViolation {
     final verb = _verbFor(recalledIngredients.first.banContext);
     if (recalledIngredients.length == 1) {
       final ing = recalledIngredients.first;
-      final name = ing.commonNames.isNotEmpty ? ing.commonNames.first : ing.canonicalId;
+      final name = ing.commonNames.isNotEmpty
+          ? ing.commonNames.first
+          : ing.canonicalId;
       final oneLiner = ing.safetyWarningOneLiner.trim();
       final suffix = oneLiner.isEmpty ? '' : ' $oneLiner';
       return '${ing.statusLabel} — $productName $verb $name.$suffix';
@@ -116,14 +122,10 @@ class RecalledIngredientsReport {
 
   bool get isEmpty => violations.isEmpty;
 
-  RecalledIngredientsReport({
-    required this.violations,
-  });
+  RecalledIngredientsReport({required this.violations});
 
   factory RecalledIngredientsReport.empty() {
-    return RecalledIngredientsReport(
-      violations: const [],
-    );
+    return RecalledIngredientsReport(violations: const []);
   }
 
   /// All violations sorted by severity (contraindicated first)
@@ -148,7 +150,9 @@ class RecalledIngredientsReport {
   Severity get overallSeverity {
     if (isEmpty) return Severity.safe;
     final severities = violations.map((v) => v.worstSeverity).toList();
-    if (severities.contains(Severity.contraindicated)) return Severity.contraindicated;
+    if (severities.contains(Severity.contraindicated)) {
+      return Severity.contraindicated;
+    }
     if (severities.contains(Severity.avoid)) return Severity.avoid;
     return Severity.caution;
   }

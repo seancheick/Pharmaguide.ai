@@ -134,7 +134,9 @@ class StackSafetyBanner extends StatelessWidget {
     final extraCount = ordered.length - 1;
     if (extraCount <= 0) return primary;
 
-    final extraLabel = extraCount == 1 ? '1 more signal' : '$extraCount more signals';
+    final extraLabel = extraCount == 1
+        ? '1 more signal'
+        : '$extraCount more signals';
     if (primary == null || primary.isEmpty) return extraLabel;
     return '$primary  ·  $extraLabel';
   }

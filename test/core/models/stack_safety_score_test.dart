@@ -4,19 +4,19 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_safety_score.dart';
 
 InteractionResult _issue(Severity severity) => InteractionResult(
-      id: 'test',
-      type: InteractionType.supplementSupplement,
-      severity: severity,
-      evidenceLevel: EvidenceLevel.established,
-      agent1Name: 'A',
-      agent2Name: 'B',
-      mechanism: '',
-      management: '',
-      doseDependant: false,
-      doseThreshold: null,
-      sourceUrls: const [],
-      source: InteractionSource.stackEngine,
-    );
+  id: 'test',
+  type: InteractionType.supplementSupplement,
+  severity: severity,
+  evidenceLevel: EvidenceLevel.established,
+  agent1Name: 'A',
+  agent2Name: 'B',
+  mechanism: '',
+  management: '',
+  doseDependant: false,
+  doseThreshold: null,
+  sourceUrls: const [],
+  source: InteractionSource.stackEngine,
+);
 
 void main() {
   group('RiskTier', () {
@@ -68,10 +68,7 @@ void main() {
         StackHealthLabel.unsafe,
       );
       expect(
-        buildScore(
-          96,
-          issues: [_issue(Severity.contraindicated)],
-        ).healthLabel,
+        buildScore(96, issues: [_issue(Severity.contraindicated)]).healthLabel,
         StackHealthLabel.unsafe,
       );
     });
@@ -104,8 +101,7 @@ void main() {
     // cap is a no-op there. Score 86 with no monitor issues stays
     // optimized (regression guard against the cap leaking into clean
     // stacks).
-    test('monitor cap fires exactly at the optimized boundary (score 85)',
-        () {
+    test('monitor cap fires exactly at the optimized boundary (score 85)', () {
       expect(
         buildScore(85, issues: [_issue(Severity.monitor)]).healthLabel,
         StackHealthLabel.solid,
@@ -113,8 +109,7 @@ void main() {
       );
     });
 
-    test('monitor cap is a no-op below the optimized boundary (score 84)',
-        () {
+    test('monitor cap is a no-op below the optimized boundary (score 84)', () {
       expect(
         buildScore(84, issues: [_issue(Severity.monitor)]).healthLabel,
         StackHealthLabel.solid,

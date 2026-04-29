@@ -90,88 +90,84 @@ void main() {
       },
     );
 
-    test(
-      'bundled SQLite opens via CoreDatabase, has enough rows, and both '
-      'versions agree with the bundled JSON manifest',
-      () async {
-        // Materialize the asset to a temp file so CoreDatabase can open it
-        // — NativeDatabase cannot read from in-memory ByteData directly.
-        final tmpDir = await Directory.systemTemp.createTemp('rg-bundle');
-        addTearDown(() => tmpDir.delete(recursive: true));
+    test('bundled SQLite opens via CoreDatabase, has enough rows, and both '
+        'versions agree with the bundled JSON manifest', () async {
+      // Materialize the asset to a temp file so CoreDatabase can open it
+      // — NativeDatabase cannot read from in-memory ByteData directly.
+      final tmpDir = await Directory.systemTemp.createTemp('rg-bundle');
+      addTearDown(() => tmpDir.delete(recursive: true));
 
-        final data = await rootBundle.load('assets/db/pharmaguide_core.db');
-        final bytes = data.buffer.asUint8List(
-          data.offsetInBytes,
-          data.lengthInBytes,
+      final data = await rootBundle.load('assets/db/pharmaguide_core.db');
+      final bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+      final dbFile = File(p.join(tmpDir.path, 'pharmaguide_core.db'));
+      await dbFile.writeAsBytes(bytes, flush: true);
+
+      final rawJson = await rootBundle.loadString(
+        'assets/db/export_manifest.json',
+      );
+      final manifest = json.decode(rawJson) as Map<String, dynamic>;
+
+      final db = CoreDatabase.open(dbFile.path);
+      try {
+        final productCount = await db.countProducts();
+        expect(
+          productCount,
+          greaterThanOrEqualTo(_minProductCount),
+          reason:
+              'products_core has $productCount rows, release gate '
+              'requires at least $_minProductCount',
         );
-        final dbFile = File(p.join(tmpDir.path, 'pharmaguide_core.db'));
-        await dbFile.writeAsBytes(bytes, flush: true);
 
-        final rawJson = await rootBundle.loadString(
-          'assets/db/export_manifest.json',
+        final schemaVersion = await db.readExportVersion();
+        expect(
+          schemaVersion,
+          isNotNull,
+          reason: 'no products_core rows have a populated export_version',
         );
-        final manifest = json.decode(rawJson) as Map<String, dynamic>;
+        expect(
+          schemaVersion,
+          equals(manifest['schema_version']),
+          reason:
+              'schema_version disagrees between bundled JSON manifest '
+              '(${manifest['schema_version']}) and SQLite products_core '
+              '($schemaVersion)',
+        );
 
-        final db = CoreDatabase.open(dbFile.path);
-        try {
-          final productCount = await db.countProducts();
-          expect(
-            productCount,
-            greaterThanOrEqualTo(_minProductCount),
-            reason:
-                'products_core has $productCount rows, release gate '
-                'requires at least $_minProductCount',
-          );
+        final dbVersion = await db.readDbVersion();
+        expect(
+          dbVersion,
+          isNotNull,
+          reason:
+              'bundled DB is missing embedded export_manifest.db_version '
+              '— was it produced by build_final_db.py v1.3.2+?',
+        );
+        expect(
+          dbVersion,
+          equals(manifest['db_version']),
+          reason:
+              'db_version disagrees between bundled JSON manifest '
+              '(${manifest['db_version']}) and embedded SQLite '
+              'export_manifest table ($dbVersion)',
+        );
 
-          final schemaVersion = await db.readExportVersion();
-          expect(
-            schemaVersion,
-            isNotNull,
-            reason:
-                'no products_core rows have a populated export_version',
-          );
-          expect(
-            schemaVersion,
-            equals(manifest['schema_version']),
-            reason:
-                'schema_version disagrees between bundled JSON manifest '
-                '(${manifest['schema_version']}) and SQLite products_core '
-                '($schemaVersion)',
-          );
-
-          final dbVersion = await db.readDbVersion();
-          expect(
-            dbVersion,
-            isNotNull,
-            reason:
-                'bundled DB is missing embedded export_manifest.db_version '
-                '— was it produced by build_final_db.py v1.3.2+?',
-          );
-          expect(
-            dbVersion,
-            equals(manifest['db_version']),
-            reason:
-                'db_version disagrees between bundled JSON manifest '
-                '(${manifest['db_version']}) and embedded SQLite '
-                'export_manifest table ($dbVersion)',
-          );
-
-          // The primary contract of validateCatalogSnapshot: it returns the
-          // freshness version callers should compare against remote
-          // manifests. For a v1.3.2+ DB that is db_version, not
-          // export_version.
-          final validated = await db.validateCatalogSnapshot();
-          expect(
-            validated,
-            equals(dbVersion),
-            reason:
-                'validateCatalogSnapshot must return db_version (the build '
-                'freshness version) for v1.3.2+ catalogs',
-          );
-        } finally {
-          await db.close();
-        }
-      },
-    );
+        // The primary contract of validateCatalogSnapshot: it returns the
+        // freshness version callers should compare against remote
+        // manifests. For a v1.3.2+ DB that is db_version, not
+        // export_version.
+        final validated = await db.validateCatalogSnapshot();
+        expect(
+          validated,
+          equals(dbVersion),
+          reason:
+              'validateCatalogSnapshot must return db_version (the build '
+              'freshness version) for v1.3.2+ catalogs',
+        );
+      } finally {
+        await db.close();
+      }
+    });
   });
 }

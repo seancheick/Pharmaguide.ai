@@ -18,9 +18,7 @@ import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 
 void main() {
   group('resolveDoseSafety', () {
-    test(
-        'Niacin 50 mg vs UL 35 mg with skip_ul_check=false → exceedsUl',
-        () {
+    test('Niacin 50 mg vs UL 35 mg with skip_ul_check=false → exceedsUl', () {
       final ingredient = <String, dynamic>{
         'name': 'Vitamin B3 (Niacin)',
         'standard_name': 'Vitamin B3 (Niacin)',
@@ -35,7 +33,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': 35,
           'highest_ul': 35,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -44,34 +42,35 @@ void main() {
     });
 
     test(
-        'skip_ul_check=true always returns skip even when dose exceeds UL',
-        () {
-      // Thorne Vitamin A 25,000 IU — pipeline sets skip_ul_check=true
-      // with skip_ul_reason "unknown_vitamin_form". UI must NOT render
-      // an override, even though 25,000 IU is clearly above 10,000 IU.
-      // The pipeline owns the clinical decision.
-      final ingredient = <String, dynamic>{
-        'name': 'Vitamin A',
-        'standard_name': 'Vitamin A',
-        'quantity': 25000.0,
-        'unit': 'IU',
-      };
-      final ulAnalysis = <Map<String, dynamic>>[
-        {
+      'skip_ul_check=true always returns skip even when dose exceeds UL',
+      () {
+        // Thorne Vitamin A 25,000 IU — pipeline sets skip_ul_check=true
+        // with skip_ul_reason "unknown_vitamin_form". UI must NOT render
+        // an override, even though 25,000 IU is clearly above 10,000 IU.
+        // The pipeline owns the clinical decision.
+        final ingredient = <String, dynamic>{
+          'name': 'Vitamin A',
           'standard_name': 'Vitamin A',
           'quantity': 25000.0,
           'unit': 'IU',
-          'skip_ul_check': true,
-          'skip_ul_reason': 'unknown_vitamin_form',
-          'ul_for_default_profile': null,
-          'highest_ul': 3000,
-        }
-      ];
-      expect(
-        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
-        DoseSafety.skip,
-      );
-    });
+        };
+        final ulAnalysis = <Map<String, dynamic>>[
+          {
+            'standard_name': 'Vitamin A',
+            'quantity': 25000.0,
+            'unit': 'IU',
+            'skip_ul_check': true,
+            'skip_ul_reason': 'unknown_vitamin_form',
+            'ul_for_default_profile': null,
+            'highest_ul': 3000,
+          },
+        ];
+        expect(
+          resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+          DoseSafety.skip,
+        );
+      },
+    );
 
     test('safe dose under UL returns withinLimits', () {
       final ingredient = <String, dynamic>{
@@ -87,7 +86,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': 4000,
           'highest_ul': 4000,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -107,7 +106,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': 40,
           'highest_ul': 40,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -126,7 +125,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': 25,
           'highest_ul': 45,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -134,8 +133,7 @@ void main() {
       );
     });
 
-    test('falls back to highest_ul when ul_for_default_profile is null',
-        () {
+    test('falls back to highest_ul when ul_for_default_profile is null', () {
       final ingredient = <String, dynamic>{'standard_name': 'Vitamin A'};
       final ulAnalysis = <Map<String, dynamic>>[
         {
@@ -144,7 +142,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': null,
           'highest_ul': 10000,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -180,7 +178,7 @@ void main() {
     test('no matching entry in ulAnalysis returns withinLimits', () {
       final ingredient = <String, dynamic>{'standard_name': 'Magnesium'};
       final ulAnalysis = <Map<String, dynamic>>[
-        {'standard_name': 'Vitamin A', 'quantity': 5000, 'highest_ul': 10000}
+        {'standard_name': 'Vitamin A', 'quantity': 5000, 'highest_ul': 10000},
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -196,7 +194,7 @@ void main() {
           'quantity': null,
           'skip_ul_check': false,
           'highest_ul': 4000,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -212,7 +210,7 @@ void main() {
           'quantity': 5000,
           'skip_ul_check': false,
           // No ul_for_default_profile or highest_ul — B12 has no UL.
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -234,7 +232,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': 40,
           'highest_ul': 40,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -254,7 +252,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': 35,
           'highest_ul': 35,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -271,7 +269,7 @@ void main() {
           'skip_ul_check': false,
           'ul_for_default_profile': 45,
           'highest_ul': 45,
-        }
+        },
       ];
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
@@ -288,7 +286,7 @@ void main() {
           'quantity': 50.0,
           'skip_ul_check': false,
           'warnings': ['Exceeds UL by 15.0 mg'],
-        }
+        },
       ];
       final out = extractUlExceedances(ulAnalysis);
       expect(out, hasLength(1));
@@ -305,7 +303,7 @@ void main() {
           'quantity': 25000.0,
           'skip_ul_check': true,
           'warnings': ['This warning should not surface'],
-        }
+        },
       ];
       expect(extractUlExceedances(ulAnalysis), isEmpty);
     });
@@ -316,7 +314,7 @@ void main() {
           'standard_name': 'Vitamin D3',
           'skip_ul_check': false,
           'warnings': <Object>[],
-        }
+        },
       ];
       expect(extractUlExceedances(ulAnalysis), isEmpty);
     });
@@ -330,7 +328,7 @@ void main() {
             'Exceeds UL by 5.0 mg',
             'May mask zinc deficiency at this dose',
           ],
-        }
+        },
       ];
       final out = extractUlExceedances(ulAnalysis);
       expect(out, hasLength(2));
@@ -338,14 +336,13 @@ void main() {
       expect(out[1].warning, contains('zinc deficiency'));
     });
 
-    test('falls back to ingredient field when standard_name is missing',
-        () {
+    test('falls back to ingredient field when standard_name is missing', () {
       final ulAnalysis = <Map<String, dynamic>>[
         {
           'ingredient': 'Zinc',
           'skip_ul_check': false,
           'warnings': ['Exceeds UL'],
-        }
+        },
       ];
       final out = extractUlExceedances(ulAnalysis);
       expect(out.first.standardName, 'Zinc');
@@ -356,9 +353,15 @@ void main() {
       expect(extractUlExceedances(const []), isEmpty);
       expect(
         extractUlExceedances([
-          {'standard_name': '', 'warnings': ['x']},
+          {
+            'standard_name': '',
+            'warnings': ['x'],
+          },
           {'standard_name': 'A', 'warnings': 'not-a-list'},
-          {'standard_name': 'B', 'warnings': ['', ' ', 'valid']},
+          {
+            'standard_name': 'B',
+            'warnings': ['', ' ', 'valid'],
+          },
         ]),
         hasLength(1),
         reason:
@@ -383,7 +386,7 @@ void main() {
     test('returns null when no match', () {
       final ingredient = <String, dynamic>{'standard_name': 'Magnesium'};
       final ulAnalysis = <Map<String, dynamic>>[
-        {'standard_name': 'Vitamin A'}
+        {'standard_name': 'Vitamin A'},
       ];
       expect(matchUlEntry(ingredient, ulAnalysis), isNull);
     });

@@ -15,10 +15,11 @@ void main() {
         <String, dynamic>{'standard_name': 'Disclosed', 'quantity': 10},
         <String, dynamic>{'standard_name': 'NoDose B', 'quantity': 0},
       ]);
-      expect(
-        out.map((i) => i['standard_name']).toList(),
-        ['Disclosed', 'NoDose A', 'NoDose B'],
-      );
+      expect(out.map((i) => i['standard_name']).toList(), [
+        'Disclosed',
+        'NoDose A',
+        'NoDose B',
+      ]);
     });
 
     test('preserves pipeline order within each bucket', () {
@@ -32,10 +33,13 @@ void main() {
       // A, B, D were declared in that order on the label. Bucket
       // stability preserves it — no dose desc sort (units may
       // differ across rows).
-      expect(
-        out.map((i) => i['standard_name']).toList(),
-        ['A', 'B', 'D', 'C', 'E'],
-      );
+      expect(out.map((i) => i['standard_name']).toList(), [
+        'A',
+        'B',
+        'D',
+        'C',
+        'E',
+      ]);
     });
 
     test('treats zero and negative quantity as undisclosed', () {
@@ -44,10 +48,11 @@ void main() {
         <String, dynamic>{'standard_name': 'Zero', 'quantity': 0},
         <String, dynamic>{'standard_name': 'Positive', 'quantity': 1},
       ]);
-      expect(
-        out.map((i) => i['standard_name']).toList(),
-        ['Positive', 'Neg', 'Zero'],
-      );
+      expect(out.map((i) => i['standard_name']).toList(), [
+        'Positive',
+        'Neg',
+        'Zero',
+      ]);
     });
 
     test('treats non-numeric quantity as undisclosed', () {
@@ -58,10 +63,10 @@ void main() {
       // String "10" is not a num — classified undisclosed even
       // though it looks like a number. Prevents accidental
       // coercion-based sorts on malformed blob data.
-      expect(
-        out.map((i) => i['standard_name']).toList(),
-        ['Numeric', 'String'],
-      );
+      expect(out.map((i) => i['standard_name']).toList(), [
+        'Numeric',
+        'String',
+      ]);
     });
 
     test('empty input returns empty list', () {
@@ -70,7 +75,7 @@ void main() {
 
     test('single-element input is returned unchanged', () {
       final only = [
-        <String, dynamic>{'standard_name': 'Only', 'quantity': 10}
+        <String, dynamic>{'standard_name': 'Only', 'quantity': 10},
       ];
       final out = sortActivesForDisplay(only);
       expect(out, hasLength(1));
@@ -99,10 +104,10 @@ void main() {
         {'name': 'cellulose'},
       ]);
       expect(out, hasLength(2));
-      expect(
-        out.map((i) => i['name']).toList(),
-        ['Cellulose', 'Magnesium Stearate'],
-      );
+      expect(out.map((i) => i['name']).toList(), [
+        'Cellulose',
+        'Magnesium Stearate',
+      ]);
     });
 
     test('first occurrence wins (preserves pipeline order)', () {
@@ -139,10 +144,7 @@ void main() {
         {'name': ''},
         {'raw_source_text': '   '},
       ]);
-      expect(
-        out.map((i) => i['name']).toList(),
-        ['Visible'],
-      );
+      expect(out.map((i) => i['name']).toList(), ['Visible']);
     });
 
     test('empty input returns empty list', () {
@@ -155,10 +157,11 @@ void main() {
         {'name': 'B'},
         {'name': 'C'},
       ];
-      expect(
-        dedupeInactivesForDisplay(input).map((i) => i['name']).toList(),
-        ['A', 'B', 'C'],
-      );
+      expect(dedupeInactivesForDisplay(input).map((i) => i['name']).toList(), [
+        'A',
+        'B',
+        'C',
+      ]);
     });
   });
 }

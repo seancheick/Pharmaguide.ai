@@ -25,8 +25,7 @@ class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
 
   @override
-  ConsumerState<ProfileSetupScreen> createState() =>
-      _ProfileSetupScreenState();
+  ConsumerState<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
 }
 
 class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
@@ -204,9 +203,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       _nextStep();
                     }
                   : null,
-              child: Text(
-                isLastStep ? 'Save & continue' : 'Continue',
-              ),
+              child: Text(isLastStep ? 'Save & continue' : 'Continue'),
             ),
           ),
         ],
@@ -325,8 +322,7 @@ class _BasicInfoStep extends ConsumerWidget {
           const SizedBox(height: AppTheme.space32),
           _StepHeader(
             title: 'Sex',
-            subtitle:
-                'Required for accurate dosing. ${_requiredMarker(theme)}',
+            subtitle: 'Required for accurate dosing. ${_requiredMarker(theme)}',
           ),
           const SizedBox(height: AppTheme.space12),
           PGCard(
@@ -347,7 +343,8 @@ class _BasicInfoStep extends ConsumerWidget {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          subtitle: (option == 'Other' ||
+                          subtitle:
+                              (option == 'Other' ||
                                   option == 'Prefer not to say')
                               ? Text(
                                   'Uses the most conservative safety limits',
@@ -402,7 +399,8 @@ class _GoalsStep extends ConsumerWidget {
         children: [
           const _StepHeader(
             title: 'Select up to 2 health goals',
-            subtitle: 'Powers smart interaction warnings and personalized '
+            subtitle:
+                'Powers smart interaction warnings and personalized '
                 'recommendations.',
           ),
           const SizedBox(height: AppTheme.space16),
@@ -487,7 +485,8 @@ class _HealthProfileStep extends ConsumerWidget {
           const SizedBox(height: AppTheme.space32),
           const _StepHeader(
             title: 'Medications you take',
-            subtitle: 'Select types of medication you currently take. '
+            subtitle:
+                'Select types of medication you currently take. '
                 'Kept on this device only.',
           ),
           const SizedBox(height: AppTheme.space12),
@@ -688,18 +687,15 @@ class _ReviewStep extends ConsumerWidget {
                   value: profile.ageBracket ?? 'Not set',
                 ),
                 _RowDivider(color: scheme.outlineVariant),
-                _ReviewRow(
-                  label: 'Sex',
-                  value: profile.sex ?? 'Not set',
-                ),
+                _ReviewRow(label: 'Sex', value: profile.sex ?? 'Not set'),
                 _RowDivider(color: scheme.outlineVariant),
                 _ReviewRow(
                   label: 'Goals',
                   value: profile.goals.isEmpty
                       ? 'None selected'
                       : profile.goals
-                          .map((g) => SchemaIds.goalLabels[g] ?? g)
-                          .join(', '),
+                            .map((g) => SchemaIds.goalLabels[g] ?? g)
+                            .join(', '),
                 ),
                 _RowDivider(color: scheme.outlineVariant),
                 _ReviewRow(
@@ -707,8 +703,8 @@ class _ReviewStep extends ConsumerWidget {
                   value: profile.conditions.isEmpty
                       ? 'None'
                       : profile.conditions
-                          .map((c) => SchemaIds.conditionLabels[c] ?? c)
-                          .join(', '),
+                            .map((c) => SchemaIds.conditionLabels[c] ?? c)
+                            .join(', '),
                 ),
                 _RowDivider(color: scheme.outlineVariant),
                 _ReviewRow(
@@ -716,8 +712,8 @@ class _ReviewStep extends ConsumerWidget {
                   value: profile.drugClasses.isEmpty
                       ? 'None'
                       : profile.drugClasses
-                          .map((d) => SchemaIds.drugClassLabels[d] ?? d)
-                          .join(', '),
+                            .map((d) => SchemaIds.drugClassLabels[d] ?? d)
+                            .join(', '),
                 ),
                 _RowDivider(color: scheme.outlineVariant),
                 _ReviewRow(

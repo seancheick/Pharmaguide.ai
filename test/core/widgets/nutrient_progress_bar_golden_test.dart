@@ -31,22 +31,26 @@ NutrientStatus _status({
 }
 
 Widget _wrap(NutrientStatus status) => MaterialApp(
-      home: Scaffold(
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: NutrientProgressBar(status: status),
-        ),
-      ),
-    );
+  home: Scaffold(
+    body: Padding(
+      padding: const EdgeInsets.all(16),
+      child: NutrientProgressBar(status: status),
+    ),
+  ),
+);
 
 void main() {
   testWidgets('golden: exceedsUl tier', (tester) async {
-    await tester.pumpWidget(_wrap(_status(
-      tier: NutrientTier.exceedsUl,
-      pctOfRda: 450,
-      pctOfUl: 180,
-      warning: 'Exceeds upper limit',
-    )));
+    await tester.pumpWidget(
+      _wrap(
+        _status(
+          tier: NutrientTier.exceedsUl,
+          pctOfRda: 450,
+          pctOfUl: 180,
+          warning: 'Exceeds upper limit',
+        ),
+      ),
+    );
     await tester.pump();
     await expectLater(
       find.byType(NutrientProgressBar),
@@ -55,12 +59,16 @@ void main() {
   });
 
   testWidgets('golden: approachingUl tier', (tester) async {
-    await tester.pumpWidget(_wrap(_status(
-      tier: NutrientTier.approachingUl,
-      pctOfRda: 320,
-      pctOfUl: 90,
-      warning: 'Approaching upper limit',
-    )));
+    await tester.pumpWidget(
+      _wrap(
+        _status(
+          tier: NutrientTier.approachingUl,
+          pctOfRda: 320,
+          pctOfUl: 90,
+          warning: 'Approaching upper limit',
+        ),
+      ),
+    );
     await tester.pump();
     await expectLater(
       find.byType(NutrientProgressBar),
@@ -69,11 +77,11 @@ void main() {
   });
 
   testWidgets('golden: aboveTypical tier', (tester) async {
-    await tester.pumpWidget(_wrap(_status(
-      tier: NutrientTier.aboveTypical,
-      pctOfRda: 280,
-      pctOfUl: 65,
-    )));
+    await tester.pumpWidget(
+      _wrap(
+        _status(tier: NutrientTier.aboveTypical, pctOfRda: 280, pctOfUl: 65),
+      ),
+    );
     await tester.pump();
     await expectLater(
       find.byType(NutrientProgressBar),
@@ -82,10 +90,9 @@ void main() {
   });
 
   testWidgets('golden: abundant tier', (tester) async {
-    await tester.pumpWidget(_wrap(_status(
-      tier: NutrientTier.abundant,
-      pctOfRda: 150,
-    )));
+    await tester.pumpWidget(
+      _wrap(_status(tier: NutrientTier.abundant, pctOfRda: 150)),
+    );
     await tester.pump();
     await expectLater(
       find.byType(NutrientProgressBar),
@@ -94,10 +101,9 @@ void main() {
   });
 
   testWidgets('golden: adequate tier', (tester) async {
-    await tester.pumpWidget(_wrap(_status(
-      tier: NutrientTier.adequate,
-      pctOfRda: 90,
-    )));
+    await tester.pumpWidget(
+      _wrap(_status(tier: NutrientTier.adequate, pctOfRda: 90)),
+    );
     await tester.pump();
     await expectLater(
       find.byType(NutrientProgressBar),
@@ -106,10 +112,9 @@ void main() {
   });
 
   testWidgets('golden: underFifty tier', (tester) async {
-    await tester.pumpWidget(_wrap(_status(
-      tier: NutrientTier.underFifty,
-      pctOfRda: 30,
-    )));
+    await tester.pumpWidget(
+      _wrap(_status(tier: NutrientTier.underFifty, pctOfRda: 30)),
+    );
     await tester.pump();
     await expectLater(
       find.byType(NutrientProgressBar),

@@ -114,10 +114,7 @@ class PGPillarBar extends StatelessWidget {
                   FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: _fraction,
-                    child: Container(
-                      height: barHeight,
-                      color: tone,
-                    ),
+                    child: Container(height: barHeight, color: tone),
                   ),
               ],
             ),

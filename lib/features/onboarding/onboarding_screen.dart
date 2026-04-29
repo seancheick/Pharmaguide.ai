@@ -112,11 +112,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: PageView.builder(
                 controller: _controller,
                 itemCount: _pages.length,
-                onPageChanged: (index) =>
-                    setState(() => _currentPage = index),
-                itemBuilder: (context, index) => _OnboardingPage(
-                  data: _pages[index],
-                ),
+                onPageChanged: (index) => setState(() => _currentPage = index),
+                itemBuilder: (context, index) =>
+                    _OnboardingPage(data: _pages[index]),
               ),
             ),
             // Dots + primary button
@@ -209,11 +207,7 @@ class _OnboardingPage extends StatelessWidget {
                 width: 1.2,
               ),
             ),
-            child: Icon(
-              data.icon,
-              size: 52,
-              color: scheme.primary,
-            ),
+            child: Icon(data.icon, size: 52, color: scheme.primary),
           ),
           const SizedBox(height: AppTheme.space40),
           Text(

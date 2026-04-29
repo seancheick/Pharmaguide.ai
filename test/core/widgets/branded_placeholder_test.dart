@@ -20,7 +20,9 @@ void main() {
       expect(find.text('V'), findsOneWidget);
     });
 
-    testWidgets('full card mode renders product name and brand', (tester) async {
+    testWidgets('full card mode renders product name and brand', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -44,8 +46,9 @@ void main() {
       expect(find.text('Pure Encapsulations'), findsOneWidget);
     });
 
-    testWidgets('same brand produces same color across instances',
-        (tester) async {
+    testWidgets('same brand produces same color across instances', (
+      tester,
+    ) async {
       // Build two separate BrandedPlaceholders with the same brand
       await tester.pumpWidget(
         const MaterialApp(

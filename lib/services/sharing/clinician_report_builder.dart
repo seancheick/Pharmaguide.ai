@@ -55,7 +55,8 @@ class ClinicianReportBuilder {
       final drugClasses = _decodeJsonStringList(profile.drugClasses);
       final allergens = _decodeJsonStringList(profile.allergens);
 
-      final hasAnyProfileField = profile.ageBracket != null ||
+      final hasAnyProfileField =
+          profile.ageBracket != null ||
           profile.sex != null ||
           conditions.isNotEmpty ||
           drugClasses.isNotEmpty ||
@@ -87,10 +88,12 @@ class ClinicianReportBuilder {
     }
 
     // ---- Medications + supplements ----
-    final medications =
-        stack.where((e) => e.type == 'medication').toList(growable: false);
-    final supplements =
-        stack.where((e) => e.type == 'supplement').toList(growable: false);
+    final medications = stack
+        .where((e) => e.type == 'medication')
+        .toList(growable: false);
+    final supplements = stack
+        .where((e) => e.type == 'supplement')
+        .toList(growable: false);
 
     if (medications.isNotEmpty) {
       buf.writeln();
@@ -113,12 +116,8 @@ class ClinicianReportBuilder {
     buf.writeln('## Stack Diagnosis');
     buf.writeln('- Tier: **${_tierLabel(intelligence.tier)}**');
     buf.writeln('- Stack size: ${intelligence.stackSize}');
-    buf.writeln(
-      '- Interactions flagged: ${intelligence.interactionCount}',
-    );
-    buf.writeln(
-      '- Nutrient warnings: ${intelligence.nutrientWarningCount}',
-    );
+    buf.writeln('- Interactions flagged: ${intelligence.interactionCount}');
+    buf.writeln('- Nutrient warnings: ${intelligence.nutrientWarningCount}');
     if (intelligence.hasBannedIngredient) {
       buf.writeln('- ⚠️ Banned ingredient detected');
     }
@@ -166,13 +165,13 @@ class ClinicianReportBuilder {
   }
 
   String _tierLabel(StackTier tier) => switch (tier) {
-        StackTier.optimized => 'Optimized',
-        StackTier.solid => 'Solid',
-        StackTier.decent => 'Decent',
-        StackTier.concerning => 'Concerning',
-        StackTier.unsafe => 'Unsafe',
-        StackTier.incomplete => 'More info needed',
-      };
+    StackTier.optimized => 'Optimized',
+    StackTier.solid => 'Solid',
+    StackTier.decent => 'Decent',
+    StackTier.concerning => 'Concerning',
+    StackTier.unsafe => 'Unsafe',
+    StackTier.incomplete => 'More info needed',
+  };
 
   String _formatDate(DateTime d) {
     final month = d.month.toString().padLeft(2, '0');

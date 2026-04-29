@@ -42,10 +42,9 @@ class _DepletionNudgeSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final drugName =
-        nudge.depletions.first.drugDisplayName.isEmpty
-            ? 'your medication'
-            : nudge.depletions.first.drugDisplayName;
+    final drugName = nudge.depletions.first.drugDisplayName.isEmpty
+        ? 'your medication'
+        : nudge.depletions.first.drugDisplayName;
 
     return SafeArea(
       child: Padding(
@@ -77,7 +76,9 @@ class _DepletionNudgeSheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppTheme.space8),
                   decoration: BoxDecoration(
-                    color: AppTheme.severityInformational.withValues(alpha: 0.12),
+                    color: AppTheme.severityInformational.withValues(
+                      alpha: 0.12,
+                    ),
                     borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                   ),
                   child: const Icon(
@@ -135,7 +136,9 @@ class _DepletionNudgeSheet extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(44),
                 ),
-                child: Text('Browse ${nudge.depletions.first.nutrientName} options'),
+                child: Text(
+                  'Browse ${nudge.depletions.first.nutrientName} options',
+                ),
               ),
               const SizedBox(height: AppTheme.space8),
               Row(
@@ -255,8 +258,7 @@ class _NudgePanel extends StatelessWidget {
           // depletions her honest hint ("food sources may not be enough
           // on their own") surfaces here too, so the user gets the full
           // picture: supplement OR food, context-aware.
-          if (d.foodSourcesShort != null &&
-              d.foodSourcesShort!.isNotEmpty) ...[
+          if (d.foodSourcesShort != null && d.foodSourcesShort!.isNotEmpty) ...[
             const SizedBox(height: AppTheme.space6),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,

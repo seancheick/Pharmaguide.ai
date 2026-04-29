@@ -59,36 +59,42 @@ void main() {
   });
 
   group('PGSeverityPill — compact mode', () {
-    testWidgets('compact pill renders all 5 severities without overflow',
-        (tester) async {
-      await tester.pumpWidget(wrap(
-        const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PGSeverityPill(severity: Severity.contraindicated, compact: true),
-            SizedBox(width: 4),
-            PGSeverityPill(severity: Severity.avoid, compact: true),
-            SizedBox(width: 4),
-            PGSeverityPill(severity: Severity.caution, compact: true),
-            SizedBox(width: 4),
-            PGSeverityPill(severity: Severity.monitor, compact: true),
-            SizedBox(width: 4),
-            PGSeverityPill(severity: Severity.safe, compact: true),
-          ],
+    testWidgets('compact pill renders all 5 severities without overflow', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PGSeverityPill(severity: Severity.contraindicated, compact: true),
+              SizedBox(width: 4),
+              PGSeverityPill(severity: Severity.avoid, compact: true),
+              SizedBox(width: 4),
+              PGSeverityPill(severity: Severity.caution, compact: true),
+              SizedBox(width: 4),
+              PGSeverityPill(severity: Severity.monitor, compact: true),
+              SizedBox(width: 4),
+              PGSeverityPill(severity: Severity.safe, compact: true),
+            ],
+          ),
         ),
-      ));
+      );
       expect(tester.takeException(), isNull);
       expect(find.byType(PGSeverityPill), findsNWidgets(5));
     });
   });
 
   group('PGSeverityPill — dark mode', () {
-    testWidgets('dark mode renders all severities with higher bg alpha',
-        (tester) async {
-      await tester.pumpWidget(wrap(
-        const PGSeverityPill(severity: Severity.contraindicated),
-        brightness: Brightness.dark,
-      ));
+    testWidgets('dark mode renders all severities with higher bg alpha', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          const PGSeverityPill(severity: Severity.contraindicated),
+          brightness: Brightness.dark,
+        ),
+      );
       expect(find.text('DO NOT USE'), findsOneWidget);
       // Verify color is the severity token (exact alpha is internal)
       final iconFinder = find.byIcon(Icons.block_rounded);

@@ -89,10 +89,12 @@ class PGStackActionButtons extends ConsumerWidget {
     // direct them to safer alternatives, not let them re-open the
     // remove flow as the loudest button.
     if (isUnsafe) {
-      return _SeeSaferButton(onTap: () {
-        PGHaptics.press();
-        onSeeAlternatives?.call();
-      });
+      return _SeeSaferButton(
+        onTap: () {
+          PGHaptics.press();
+          onSeeAlternatives?.call();
+        },
+      );
     }
     if (entry != null) {
       return _InStackPanel(
@@ -105,10 +107,12 @@ class PGStackActionButtons extends ConsumerWidget {
 
   Widget _logDoseButton(BuildContext context, {required bool enabled}) {
     return OutlinedButton.icon(
-      onPressed: enabled ? () {
-        PGHaptics.tap();
-        onLogDose?.call();
-      } : null,
+      onPressed: enabled
+          ? () {
+              PGHaptics.tap();
+              onLogDose?.call();
+            }
+          : null,
       icon: const Icon(Icons.history_edu_outlined, size: 18),
       label: const Text('Log dose'),
     );
@@ -132,9 +136,9 @@ class PGStackActionButtons extends ConsumerWidget {
     }
     if (!context.mounted) return;
     if (product == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not load product.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not load product.')));
       return;
     }
 
@@ -146,9 +150,7 @@ class PGStackActionButtons extends ConsumerWidget {
     if (isUnsafeVerdict(product.verdict)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'This product cannot be added due to safety concerns.',
-          ),
+          content: Text('This product cannot be added due to safety concerns.'),
           duration: Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
         ),
@@ -169,9 +171,9 @@ class PGStackActionButtons extends ConsumerWidget {
       await actions.addProduct(product);
     } on Exception {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not add to stack.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not add to stack.')));
       return;
     }
 
@@ -298,10 +300,7 @@ class _InStackPanel extends StatelessWidget {
   final String entryId;
   final VoidCallback onRemove;
 
-  const _InStackPanel({
-    required this.entryId,
-    required this.onRemove,
-  });
+  const _InStackPanel({required this.entryId, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {

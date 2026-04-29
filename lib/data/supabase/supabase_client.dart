@@ -34,7 +34,8 @@ class SupabasePlaceholderConfigException implements Exception {
   const SupabasePlaceholderConfigException();
 
   @override
-  String toString() => 'SupabasePlaceholderConfigException: '
+  String toString() =>
+      'SupabasePlaceholderConfigException: '
       'SUPABASE_URL or SUPABASE_ANON_KEY is still at placeholder. '
       'Run the app via `make run` (or `make run-ios` / `make run-android`) '
       'so the Makefile injects --dart-define flags from your .env file. '

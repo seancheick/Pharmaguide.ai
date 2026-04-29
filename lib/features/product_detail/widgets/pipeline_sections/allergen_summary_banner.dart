@@ -16,17 +16,23 @@ class AllergenSummaryBanner extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.space12, vertical: AppTheme.space8),
+        horizontal: AppTheme.space12,
+        vertical: AppTheme.space8,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.severityCaution.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
         border: Border.all(
-            color: AppTheme.severityCaution.withValues(alpha: 0.2)),
+          color: AppTheme.severityCaution.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              size: 16, color: AppTheme.severityCaution),
+          const Icon(
+            Icons.warning_amber_rounded,
+            size: 16,
+            color: AppTheme.severityCaution,
+          ),
           const SizedBox(width: AppTheme.space8),
           Expanded(
             child: Text(

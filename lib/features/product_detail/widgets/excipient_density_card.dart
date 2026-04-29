@@ -53,8 +53,7 @@ class ExcipientDensityCard extends StatelessWidget {
     // standard manufacturing component AND the count is within the
     // form's allowance, suppress the card entirely.
     final inactiveNames = inactiveIngredients
-        .map((m) =>
-            (m['name'] ?? m['display_name'] ?? '').toString())
+        .map((m) => (m['name'] ?? m['display_name'] ?? '').toString())
         .toList(growable: false);
     final form = parseDosageForm(dosageForm);
     if (!shouldShowPurityCard(form: form, inactiveNames: inactiveNames)) {
@@ -88,8 +87,7 @@ class ExcipientDensityCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
@@ -120,7 +118,9 @@ class ExcipientDensityCard extends StatelessWidget {
                   Expanded(
                     flex: ((1 - activeFill) * 100).round().clamp(1, 99),
                     child: Container(
-                        height: 8, color: scheme.surfaceContainerHighest),
+                      height: 8,
+                      color: scheme.surfaceContainerHighest,
+                    ),
                   ),
               ],
             ),

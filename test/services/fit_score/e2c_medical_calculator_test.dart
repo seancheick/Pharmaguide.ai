@@ -39,9 +39,7 @@ void main() {
         interactionSummary: const <String, dynamic>{
           'condition_summary': <String, dynamic>{},
           'drug_class_summary': <String, dynamic>{
-            'anticoagulants': <String, dynamic>{
-              'highest_severity': 'avoid',
-            },
+            'anticoagulants': <String, dynamic>{'highest_severity': 'avoid'},
           },
         },
         userConditions: const [],
@@ -54,17 +52,11 @@ void main() {
       final score = calc.calculate(
         interactionSummary: const <String, dynamic>{
           'condition_summary': <String, dynamic>{
-            'pregnancy': <String, dynamic>{
-              'highest_severity': 'caution',
-            }, // -3
-            'diabetes': <String, dynamic>{
-              'highest_severity': 'monitor',
-            }, // -1
+            'pregnancy': <String, dynamic>{'highest_severity': 'caution'}, // -3
+            'diabetes': <String, dynamic>{'highest_severity': 'monitor'}, // -1
           },
           'drug_class_summary': <String, dynamic>{
-            'statins': <String, dynamic>{
-              'highest_severity': 'caution',
-            }, // -3
+            'statins': <String, dynamic>{'highest_severity': 'caution'}, // -3
           },
         },
         userConditions: const ['pregnancy', 'diabetes'],
@@ -82,9 +74,7 @@ void main() {
             },
           },
           'drug_class_summary': <String, dynamic>{
-            'anticoagulants': <String, dynamic>{
-              'highest_severity': 'avoid',
-            },
+            'anticoagulants': <String, dynamic>{'highest_severity': 'avoid'},
           },
         },
         userConditions: const ['pregnancy'],

@@ -10,20 +10,19 @@ void main() {
           'evidence_source': 'branded_form',
           'meets_threshold': true,
         },
-        {
-          'name': 'BioPerine',
-          'evidence_source': 'absorption_enhancer',
-        },
+        {'name': 'BioPerine', 'evidence_source': 'absorption_enhancer'},
       ];
-      expect(extractIngredientNames(raw),
-          ['Ashwagandha (KSM-66)', 'BioPerine']);
+      expect(extractIngredientNames(raw), [
+        'Ashwagandha (KSM-66)',
+        'BioPerine',
+      ]);
     });
 
     test('legacy shape: plain list of strings still works', () {
-      expect(
-        extractIngredientNames(['Piperine', 'BioPerine']),
-        ['Piperine', 'BioPerine'],
-      );
+      expect(extractIngredientNames(['Piperine', 'BioPerine']), [
+        'Piperine',
+        'BioPerine',
+      ]);
     });
 
     test('mixed shape: strings and maps coexist', () {
@@ -32,8 +31,11 @@ void main() {
         {'name': 'Ashwagandha (KSM-66)'},
         'Black Pepper Extract',
       ];
-      expect(extractIngredientNames(raw),
-          ['Piperine', 'Ashwagandha (KSM-66)', 'Black Pepper Extract']);
+      expect(extractIngredientNames(raw), [
+        'Piperine',
+        'Ashwagandha (KSM-66)',
+        'Black Pepper Extract',
+      ]);
     });
 
     test('empty list → empty list', () {
@@ -74,13 +76,16 @@ void main() {
     });
 
     test('strings are trimmed', () {
-      expect(extractIngredientNames(['  Piperine  ', '\tBioPerine\n']),
-          ['Piperine', 'BioPerine']);
+      expect(extractIngredientNames(['  Piperine  ', '\tBioPerine\n']), [
+        'Piperine',
+        'BioPerine',
+      ]);
     });
 
     test('empty / whitespace strings are dropped', () {
-      expect(extractIngredientNames(['', '   ', 'Resveratrol']),
-          ['Resveratrol']);
+      expect(extractIngredientNames(['', '   ', 'Resveratrol']), [
+        'Resveratrol',
+      ]);
     });
 
     test('no curly-brace JSON leak escapes the helper', () {

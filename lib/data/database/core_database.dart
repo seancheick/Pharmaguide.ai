@@ -12,7 +12,7 @@ part 'core_database.g.dart';
 @DriftDatabase(tables: [ProductsCore])
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
-      : super(NativeDatabase(dbFile, logStatements: false));
+    : super(NativeDatabase(dbFile, logStatements: false));
 
   CoreDatabase.memory() : super(NativeDatabase.memory());
 
@@ -21,15 +21,15 @@ class CoreDatabase extends _$CoreDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (migrator, from, to) async {
-          // Not used — pre-built DB, no versioned migrations.
-        },
-        beforeOpen: (details) async {
-          // The pre-built DB from the pipeline may lack v1.3.0 columns.
-          // Add any missing columns so Drift queries don't crash.
-          await _ensureV130Columns();
-        },
-      );
+    onUpgrade: (migrator, from, to) async {
+      // Not used — pre-built DB, no versioned migrations.
+    },
+    beforeOpen: (details) async {
+      // The pre-built DB from the pipeline may lack v1.3.0 columns.
+      // Add any missing columns so Drift queries don't crash.
+      await _ensureV130Columns();
+    },
+  );
 
   /// Add v1.3.0 columns if they don't exist in the pre-built DB.
   /// Safe to call multiple times — uses IF NOT EXISTS pattern.
@@ -69,8 +69,7 @@ class CoreDatabase extends _$CoreDatabase {
 
     for (final col in columns) {
       try {
-        await customStatement(
-            'ALTER TABLE products_core ADD COLUMN $col');
+        await customStatement('ALTER TABLE products_core ADD COLUMN $col');
       } on Exception {
         // Column already exists — safe to ignore. Drift wraps the
         // underlying SqliteException in a generic Exception for this path.
@@ -224,9 +223,9 @@ class CoreDatabase extends _$CoreDatabase {
 
   /// Find a single product by its DSLD ID (primary key).
   Future<ProductsCoreData?> findById(String dsldId) {
-    return (select(productsCore)
-          ..where((t) => t.dsldId.equals(dsldId)))
-        .getSingleOrNull();
+    return (select(
+      productsCore,
+    )..where((t) => t.dsldId.equals(dsldId))).getSingleOrNull();
   }
 
   /// Text search using FTS5 full-text index (porter stemming, ranked).
@@ -267,10 +266,7 @@ class CoreDatabase extends _$CoreDatabase {
         'WHERE products_fts MATCH ? '
         'ORDER BY rank, COALESCE(p.score_quality_80, 0) DESC '
         'LIMIT ?',
-        variables: [
-          Variable.withString(ftsQuery),
-          Variable.withInt(limit),
-        ],
+        variables: [Variable.withString(ftsQuery), Variable.withInt(limit)],
         readsFrom: {productsCore},
       ).get();
 
@@ -279,13 +275,14 @@ class CoreDatabase extends _$CoreDatabase {
       // FTS table missing or query syntax error — fall back to LIKE.
       final pattern = '%$trimmed%';
       return (select(productsCore)
-            ..where((t) =>
-                t.productName.like(pattern) | t.brandName.like(pattern))
+            ..where(
+              (t) => t.productName.like(pattern) | t.brandName.like(pattern),
+            )
             ..orderBy([
               (t) => OrderingTerm(
-                    expression: t.scoreQuality80,
-                    mode: OrderingMode.desc,
-                  ),
+                expression: t.scoreQuality80,
+                mode: OrderingMode.desc,
+              ),
             ])
             ..limit(limit))
           .get();
@@ -302,7 +299,8 @@ class CoreDatabase extends _$CoreDatabase {
   }) {
     return (select(productsCore)
           ..where((t) {
-            var expr = t.primaryCategory.equals(category) &
+            var expr =
+                t.primaryCategory.equals(category) &
                 t.scoreQuality80.isBiggerOrEqualValue(minScore);
             if (excludeDsldId != null) {
               expr = expr & t.dsldId.equals(excludeDsldId).not();
@@ -311,9 +309,9 @@ class CoreDatabase extends _$CoreDatabase {
           })
           ..orderBy([
             (t) => OrderingTerm(
-                  expression: t.scoreQuality80,
-                  mode: OrderingMode.desc,
-                ),
+              expression: t.scoreQuality80,
+              mode: OrderingMode.desc,
+            ),
           ])
           ..limit(limit))
         .get();
@@ -367,17 +365,13 @@ class CoreDatabase extends _$CoreDatabase {
 
     if (sortBy == 'score') {
       query.orderBy([
-        (t) => OrderingTerm(
-              expression: t.scoreQuality80,
-              mode: OrderingMode.desc,
-            ),
+        (t) =>
+            OrderingTerm(expression: t.scoreQuality80, mode: OrderingMode.desc),
       ]);
     } else if (sortBy == 'name') {
       query.orderBy([(t) => OrderingTerm(expression: t.productName)]);
     } else if (sortBy == 'percentile') {
-      query.orderBy([
-        (t) => OrderingTerm(expression: t.percentileTopPct),
-      ]);
+      query.orderBy([(t) => OrderingTerm(expression: t.percentileTopPct)]);
     }
 
     return query.get();

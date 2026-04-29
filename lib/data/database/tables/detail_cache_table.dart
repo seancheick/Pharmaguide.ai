@@ -7,9 +7,8 @@ class DetailCache extends Table {
   TextColumn get blobJson =>
       text().named('blob_json')(); // Full detail blob JSON
   TextColumn get sha256 => text().nullable()();
-  DateTimeColumn get cachedAt => dateTime()
-      .named('cached_at')
-      .withDefault(currentDateAndTime)();
+  DateTimeColumn get cachedAt =>
+      dateTime().named('cached_at').withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {dsldId};

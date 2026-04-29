@@ -25,40 +25,45 @@ void main() {
     }
 
     testWidgets(
-        'renders empty when no label can be built (no type, no display)',
-        (tester) async {
-      await tester.pumpWidget(wrap(const {'date': '2017-11-28'}));
-      expect(find.byType(Text), findsNothing);
-    });
+      'renders empty when no label can be built (no type, no display)',
+      (tester) async {
+        await tester.pumpWidget(wrap(const {'date': '2017-11-28'}));
+        expect(find.byType(Text), findsNothing);
+      },
+    );
 
-    testWidgets('renders empty when display is blank and no type', (tester) async {
+    testWidgets('renders empty when display is blank and no type', (
+      tester,
+    ) async {
       await tester.pumpWidget(wrap(const {'display': '   '}));
       expect(find.byType(Text), findsNothing);
     });
 
-    testWidgets('falls back to pipeline display string when date absent',
-        (tester) async {
+    testWidgets('falls back to pipeline display string when date absent', (
+      tester,
+    ) async {
       // A future `type` (e.g., off_market) without a date and a
       // pipeline-provided display — just render the display verbatim.
-      await tester.pumpWidget(wrap(const {
-        'type': 'off_market',
-        'display': 'Off market — currently unavailable',
-      }));
-      expect(
-        find.text('Off market — currently unavailable'),
-        findsOneWidget,
+      await tester.pumpWidget(
+        wrap(const {
+          'type': 'off_market',
+          'display': 'Off market — currently unavailable',
+        }),
       );
+      expect(find.text('Off market — currently unavailable'), findsOneWidget);
     });
 
-    testWidgets(
-        'falls back to pipeline display when type is unrecognized',
-        (tester) async {
+    testWidgets('falls back to pipeline display when type is unrecognized', (
+      tester,
+    ) async {
       // Forward-compat: unknown type + no humanizable date → trust
       // the pipeline's display string.
-      await tester.pumpWidget(wrap(const {
-        'type': 'brand_new_type_we_dont_know_yet',
-        'display': 'Some custom status',
-      }));
+      await tester.pumpWidget(
+        wrap(const {
+          'type': 'brand_new_type_we_dont_know_yet',
+          'display': 'Some custom status',
+        }),
+      );
       expect(find.text('Some custom status'), findsOneWidget);
     });
   });
@@ -70,64 +75,57 @@ void main() {
       );
     }
 
-    testWidgets(
-        'humanizes ISO date for known type (discontinued)',
-        (tester) async {
-      await tester.pumpWidget(wrap(const {
-        'type': 'discontinued',
-        'date': '2017-11-28',
-        'display': 'Discontinued · 2017-11-28', // ignored when humanized
-      }));
-      expect(
-        find.text('Product discontinued · Nov 28, 2017'),
-        findsOneWidget,
+    testWidgets('humanizes ISO date for known type (discontinued)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(const {
+          'type': 'discontinued',
+          'date': '2017-11-28',
+          'display': 'Discontinued · 2017-11-28', // ignored when humanized
+        }),
       );
+      expect(find.text('Product discontinued · Nov 28, 2017'), findsOneWidget);
       // Verbatim ISO text must not leak through when we humanize.
       expect(find.text('Discontinued · 2017-11-28'), findsNothing);
     });
 
-    testWidgets('humanizes ISO date for known type (reformulated)',
-        (tester) async {
-      await tester.pumpWidget(wrap(const {
-        'type': 'reformulated',
-        'date': '2024-06-15',
-      }));
+    testWidgets('humanizes ISO date for known type (reformulated)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(const {'type': 'reformulated', 'date': '2024-06-15'}),
+      );
       expect(find.text('Reformulated · Jun 15, 2024'), findsOneWidget);
     });
 
-    testWidgets(
-        'falls back to display when date is malformed',
-        (tester) async {
-      await tester.pumpWidget(wrap(const {
-        'type': 'discontinued',
-        'date': 'not-a-date',
-        'display': 'Discontinued · unknown',
-      }));
+    testWidgets('falls back to display when date is malformed', (tester) async {
+      await tester.pumpWidget(
+        wrap(const {
+          'type': 'discontinued',
+          'date': 'not-a-date',
+          'display': 'Discontinued · unknown',
+        }),
+      );
       expect(find.text('Discontinued · unknown'), findsOneWidget);
     });
 
-    testWidgets('row is tappable — opens explanation sheet',
-        (tester) async {
-      await tester.pumpWidget(wrap(const {
-        'type': 'discontinued',
-        'date': '2017-11-28',
-      }));
+    testWidgets('row is tappable — opens explanation sheet', (tester) async {
+      await tester.pumpWidget(
+        wrap(const {'type': 'discontinued', 'date': '2017-11-28'}),
+      );
       await tester.tap(find.text('Product discontinued · Nov 28, 2017'));
       await tester.pumpAndSettle();
       expect(find.text('About this product status'), findsOneWidget);
-      expect(
-        find.textContaining('no longer manufactured'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('no longer manufactured'), findsOneWidget);
     });
 
-    testWidgets(
-        'no leading info-icon (FLTR-19 removed hidden affordance)',
-        (tester) async {
-      await tester.pumpWidget(wrap(const {
-        'type': 'discontinued',
-        'date': '2017-11-28',
-      }));
+    testWidgets('no leading info-icon (FLTR-19 removed hidden affordance)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(const {'type': 'discontinued', 'date': '2017-11-28'}),
+      );
       expect(find.byIcon(Icons.info_outline_rounded), findsNothing);
       // A trailing chevron signals the row is tappable.
       expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);

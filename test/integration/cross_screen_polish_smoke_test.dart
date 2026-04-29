@@ -71,9 +71,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            userDatabaseProvider.overrideWithValue(userDb),
-          ],
+          overrides: [userDatabaseProvider.overrideWithValue(userDb)],
           child: const MaterialApp(home: SettingsScreen()),
         ),
       );
@@ -96,9 +94,7 @@ void main() {
       // without null-geometry assertions). Smoke test accepts either
       // PGFrostedAppBar or PGFrostedHeader as proof of migration.
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(home: ProfileSetupScreen()),
-        ),
+        const ProviderScope(child: MaterialApp(home: ProfileSetupScreen())),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));

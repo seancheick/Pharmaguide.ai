@@ -40,20 +40,21 @@ class Interactions extends Table {
 
   // Clinical fields
   TextColumn get severity => text()(); // contraindicated|avoid|caution|monitor
-  TextColumn get effectType =>
-      text().named('effect_type').nullable()(); // inhibitor|enhancer|additive|neutral
+  TextColumn get effectType => text()
+      .named('effect_type')
+      .nullable()(); // inhibitor|enhancer|additive|neutral
   TextColumn get mechanism => text()();
   TextColumn get management => text()();
-  TextColumn get evidenceLevel =>
-      text().named('evidence_level').nullable()(); // established|probable|theoretical
+  TextColumn get evidenceLevel => text()
+      .named('evidence_level')
+      .nullable()(); // established|probable|theoretical
 
   // Provenance arrays — stored as JSON text, parsed at the model layer.
   TextColumn get sourceUrlsJson => text().named('source_urls_json')();
   TextColumn get sourcePmidsJson => text().named('source_pmids_json')();
 
   // Behavior flags
-  IntColumn get bidirectional =>
-      integer().withDefault(const Constant(1))();
+  IntColumn get bidirectional => integer().withDefault(const Constant(1))();
   IntColumn get doseDependent =>
       integer().named('dose_dependent').withDefault(const Constant(0))();
   TextColumn get doseThresholdText =>
@@ -68,11 +69,9 @@ class Interactions extends Table {
   // interactions can stay in the DB for audit while being filtered
   // out of live queries via WHERE retired_at IS NULL.
   TextColumn get versionAdded => text().named('version_added')();
-  TextColumn get versionLastModified =>
-      text().named('version_last_modified')();
+  TextColumn get versionLastModified => text().named('version_last_modified')();
   TextColumn get retiredAt => text().named('retired_at').nullable()();
-  TextColumn get retiredReason =>
-      text().named('retired_reason').nullable()();
+  TextColumn get retiredReason => text().named('retired_reason').nullable()();
   TextColumn get lastUpdated => text().named('last_updated')();
 
   @override

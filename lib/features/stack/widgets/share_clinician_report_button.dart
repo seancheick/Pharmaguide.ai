@@ -51,8 +51,9 @@ class ShareClinicianReportButton extends ConsumerWidget {
       final stack = await ref.read(activeStackProvider.future);
       final safetyReport = await ref.read(stackSafetyReportProvider.future);
       final synergyReport = await ref.read(synergyReportProvider.future);
-      final recalledReport =
-          await ref.read(recalledIngredientsReportProvider.future);
+      final recalledReport = await ref.read(
+        recalledIngredientsReportProvider.future,
+      );
 
       // Quality score: feed the safety scorer with the same shape
       // home_stack_health uses so the diagnosis tier matches what the
@@ -64,20 +65,24 @@ class ShareClinicianReportButton extends ConsumerWidget {
         ...safetyReport.categoryWarnings,
       ];
       final synergies = synergyReport.matches
-          .map((m) => SynergyResult(
-                ingredient1: m.matchedIngredients.isNotEmpty
-                    ? m.matchedIngredients.first
-                    : m.clusterId,
-                ingredient2: m.matchedIngredients.length > 1
-                    ? m.matchedIngredients[1]
-                    : m.clusterName,
-                description: m.mechanism,
-                evidenceLevel: EvidenceLevel.established,
-                bonus: m.bonusPoints,
-              ))
+          .map(
+            (m) => SynergyResult(
+              ingredient1: m.matchedIngredients.isNotEmpty
+                  ? m.matchedIngredients.first
+                  : m.clusterId,
+              ingredient2: m.matchedIngredients.length > 1
+                  ? m.matchedIngredients[1]
+                  : m.clusterName,
+              description: m.mechanism,
+              evidenceLevel: EvidenceLevel.established,
+              bonus: m.bonusPoints,
+            ),
+          )
           .toList(growable: false);
-      final safetyScore = const StackSafetyScorer()
-          .compute(issues: allIssues, synergies: synergies);
+      final safetyScore = const StackSafetyScorer().compute(
+        issues: allIssues,
+        synergies: synergies,
+      );
 
       final intelligence = const StackIntelligenceEngine().diagnose(
         stackSize: stack.length,

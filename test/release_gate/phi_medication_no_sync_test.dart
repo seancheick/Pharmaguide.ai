@@ -33,8 +33,7 @@ const _syncFile = 'lib/features/stack/services/stack_sync_queue.dart';
 // active_stack_provider.dart (re-exported via the stack_providers.dart
 // barrel). This release gate reads the source directly, so it must point
 // at the split file, not the barrel.
-const _actionsFile =
-    'lib/features/stack/providers/active_stack_provider.dart';
+const _actionsFile = 'lib/features/stack/providers/active_stack_provider.dart';
 
 /// Files allowed to reference `supabase.from('user_stacks')` or the
 /// upsert-shaped push. Anything outside this allowlist fails the gate:
@@ -46,31 +45,28 @@ const _userStacksUpsertAllowlist = <String>{
 
 void main() {
   group('release gate: PHI medications never reach stack sync', () {
-    test(
-      'StackSyncQueue.dirtyRows filters out type=medication rows',
-      () async {
-        final source = await File(_syncFile).readAsString();
+    test('StackSyncQueue.dirtyRows filters out type=medication rows', () async {
+      final source = await File(_syncFile).readAsString();
 
-        // The query helper must exclude medications at the query level.
-        // We accept either the drift `.equals('medication').not()` form
-        // currently in use OR a plain `type != 'medication'` predicate,
-        // so the test survives a future refactor that switches styles.
-        final medicationExclusionRegex = RegExp(
-          r"type\.equals\s*\(\s*'medication'\s*\)\s*\.not\s*\(\s*\)"
-          r"|type\s*!=\s*'medication'",
-        );
+      // The query helper must exclude medications at the query level.
+      // We accept either the drift `.equals('medication').not()` form
+      // currently in use OR a plain `type != 'medication'` predicate,
+      // so the test survives a future refactor that switches styles.
+      final medicationExclusionRegex = RegExp(
+        r"type\.equals\s*\(\s*'medication'\s*\)\s*\.not\s*\(\s*\)"
+        r"|type\s*!=\s*'medication'",
+      );
 
-        expect(
-          medicationExclusionRegex.hasMatch(source),
-          isTrue,
-          reason:
-              'StackSyncQueue.dirtyRows() must filter `type == \'medication\'` '
-              'out of the dirty-row query. This is the single choke point '
-              'that feeds StackSyncService.pushAll() — if it stops '
-              'excluding medications, every PHI row becomes sync-eligible.',
-        );
-      },
-    );
+      expect(
+        medicationExclusionRegex.hasMatch(source),
+        isTrue,
+        reason:
+            'StackSyncQueue.dirtyRows() must filter `type == \'medication\'` '
+            'out of the dirty-row query. This is the single choke point '
+            'that feeds StackSyncService.pushAll() — if it stops '
+            'excluding medications, every PHI row becomes sync-eligible.',
+      );
+    });
 
     test(
       'StackSyncQueue.tombstoneRows filters out type=medication rows',
@@ -234,11 +230,12 @@ void main() {
           if (_userStacksUpsertAllowlist.contains(rel)) continue;
 
           final content = await entity.readAsString();
-          final mentionsMedication = content.contains("'medication'") ||
+          final mentionsMedication =
+              content.contains("'medication'") ||
               content.contains('"medication"');
           final mentionsUserStacksTable =
               content.contains("'user_stacks'") ||
-                  content.contains('"user_stacks"');
+              content.contains('"user_stacks"');
           final mentionsUpsert = content.contains('.upsert(');
 
           if (mentionsMedication && mentionsUserStacksTable && mentionsUpsert) {

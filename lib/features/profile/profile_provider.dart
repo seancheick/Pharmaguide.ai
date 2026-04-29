@@ -117,14 +117,14 @@ class ProfileState {
 
   @override
   int get hashCode => Object.hash(
-        nickname,
-        ageBracket,
-        sex,
-        _listEq.hash(goals),
-        _listEq.hash(conditions),
-        _listEq.hash(drugClasses),
-        _listEq.hash(allergens),
-      );
+    nickname,
+    ageBracket,
+    sex,
+    _listEq.hash(goals),
+    _listEq.hash(conditions),
+    _listEq.hash(drugClasses),
+    _listEq.hash(allergens),
+  );
 }
 
 class ProfileNotifier extends StateNotifier<ProfileState> {
@@ -211,22 +211,22 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 }
 
-final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>(
-  (ref) {
-    UserDatabase? db;
-    try {
-      db = ref.watch(userDatabaseProvider);
-    } on Object {
-      // userDatabaseProvider not overridden (e.g. in tests) — no persistence.
-      // Catches Error (UnimplementedError from the default provider stub)
-      // AND Exception — both map to "no DB available" here.
-    }
-    final notifier = ProfileNotifier(db);
-    // Kick off load — consumers can check notifier.isLoaded if needed.
-    notifier.loadFromDb();
-    return notifier;
-  },
-);
+final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((
+  ref,
+) {
+  UserDatabase? db;
+  try {
+    db = ref.watch(userDatabaseProvider);
+  } on Object {
+    // userDatabaseProvider not overridden (e.g. in tests) — no persistence.
+    // Catches Error (UnimplementedError from the default provider stub)
+    // AND Exception — both map to "no DB available" here.
+  }
+  final notifier = ProfileNotifier(db);
+  // Kick off load — consumers can check notifier.isLoaded if needed.
+  notifier.loadFromDb();
+  return notifier;
+});
 
 /// Resolves when the profile has been loaded from DB.
 /// Use `ref.watch(profileLoadedProvider)` to gate UI on profile readiness.

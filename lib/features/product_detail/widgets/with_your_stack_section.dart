@@ -68,22 +68,19 @@ class WithYourStackSection extends StatelessWidget {
     // Drug-class rows first, then condition rows. Within each group,
     // descending severity then alphabetical so the loudest interactions
     // surface at the top.
-    rows.addAll(_buildRows(
-      keys: userDrugClasses,
-      isDrugClass: true,
-      warnings: warnings,
-    ));
-    rows.addAll(_buildRows(
-      keys: userConditions,
-      isDrugClass: false,
-      warnings: warnings,
-    ));
+    rows.addAll(
+      _buildRows(keys: userDrugClasses, isDrugClass: true, warnings: warnings),
+    );
+    rows.addAll(
+      _buildRows(keys: userConditions, isDrugClass: false, warnings: warnings),
+    );
 
     // Sort by severity weight (worst first); within same weight,
     // alphabetical by humanized label.
     rows.sort((a, b) {
-      final cmp = (b.severity?.weight ?? -1)
-          .compareTo(a.severity?.weight ?? -1);
+      final cmp = (b.severity?.weight ?? -1).compareTo(
+        a.severity?.weight ?? -1,
+      );
       if (cmp != 0) return cmp;
       return a.label.toLowerCase().compareTo(b.label.toLowerCase());
     });
@@ -144,11 +141,7 @@ class WithYourStackSection extends StatelessWidget {
           worst = w;
         }
       }
-      rows.add(_StackRowData(
-        key: key,
-        label: _humanize(key),
-        warning: worst,
-      ));
+      rows.add(_StackRowData(key: key, label: _humanize(key), warning: worst));
     }
     return rows;
   }
@@ -208,8 +201,8 @@ class _StackRowState extends State<_StackRow> {
 
     final headline = hasWarning
         ? (w.alertHeadline?.trim().isNotEmpty ?? false)
-            ? w.alertHeadline!.trim()
-            : w.title
+              ? w.alertHeadline!.trim()
+              : w.title
         : 'No known interaction';
 
     return Container(
@@ -301,12 +294,12 @@ class _StackRowState extends State<_StackRow> {
   }
 
   static IconData _iconFor(Severity s) => switch (s) {
-        Severity.contraindicated => Icons.do_not_disturb_on_outlined,
-        Severity.avoid => Icons.error_outline_rounded,
-        Severity.caution => Icons.warning_amber_rounded,
-        Severity.monitor => Icons.visibility_outlined,
-        _ => Icons.info_outline_rounded,
-      };
+    Severity.contraindicated => Icons.do_not_disturb_on_outlined,
+    Severity.avoid => Icons.error_outline_rounded,
+    Severity.caution => Icons.warning_amber_rounded,
+    Severity.monitor => Icons.visibility_outlined,
+    _ => Icons.info_outline_rounded,
+  };
 }
 
 /// Expanded mechanism + recommendation + citations panel.
@@ -373,8 +366,7 @@ class _ExpandedDetail extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHigh,
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusFull),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

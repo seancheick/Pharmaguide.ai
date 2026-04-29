@@ -88,8 +88,8 @@ class BlockedProductView extends ConsumerWidget {
     final bsd = rawBsd is Map<String, dynamic>
         ? rawBsd
         : rawBsd is Map
-            ? Map<String, dynamic>.from(rawBsd)
-            : null;
+        ? Map<String, dynamic>.from(rawBsd)
+        : null;
     final substanceName = bsd?.safeString('substance_name').trim();
     final oneLiner = bsd?.safeString('safety_warning_one_liner').trim();
     final safetyWarning = bsd?.safeString('safety_warning').trim();
@@ -107,11 +107,7 @@ class BlockedProductView extends ConsumerWidget {
       appBar: AppBar(
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text(
-          productName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(productName, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           if (_canShare)
             IconButton(
@@ -171,11 +167,7 @@ class BlockedProductView extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.block_rounded,
-                        size: 26,
-                        color: danger,
-                      ),
+                      const Icon(Icons.block_rounded, size: 26, color: danger),
                       const SizedBox(width: AppTheme.space12),
                       Text(
                         'BLOCKED',
@@ -218,8 +210,10 @@ class BlockedProductView extends ConsumerWidget {
             if (substanceName != null && substanceName.isNotEmpty)
               SelectableText(
                 'Banned ingredient detected: $substanceName',
-                style: theme.textTheme.bodyLarge
-                    ?.copyWith(height: 1.45, fontWeight: FontWeight.w600),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
               )
             else if (blockingReason.isNotEmpty)
               SelectableText(
@@ -255,10 +249,10 @@ class BlockedProductView extends ConsumerWidget {
               (safetyWarning != null && safetyWarning.isNotEmpty)
                   ? safetyWarning
                   : 'Products flagged with banned or undisclosed '
-                      'compounds are not considered safe for use. '
-                      'These substances may disrupt hormones, affect '
-                      'liver function, or be restricted by regulators '
-                      'in some regions.',
+                        'compounds are not considered safe for use. '
+                        'These substances may disrupt hormones, affect '
+                        'liver function, or be restricted by regulators '
+                        'in some regions.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurface,
                 height: 1.45,
@@ -271,8 +265,7 @@ class BlockedProductView extends ConsumerWidget {
               padding: const EdgeInsets.all(AppTheme.space16),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerLow,
-                borderRadius:
-                    BorderRadius.circular(AppTheme.radiusMedium),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

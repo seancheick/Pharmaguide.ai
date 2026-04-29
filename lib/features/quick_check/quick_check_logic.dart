@@ -86,12 +86,14 @@ Future<List<InteractionResult>> runPairCheck(
           : row.agent1CanonicalId;
       if (otherId != null && idsB.contains(otherId.toLowerCase())) {
         seenIds.add(row.id);
-        results.add(InteractionResult.fromRow(
-          row,
-          source: InteractionSource.pipeline,
-          agent1NameOverride: a.productName,
-          agent2NameOverride: b.productName,
-        ));
+        results.add(
+          InteractionResult.fromRow(
+            row,
+            source: InteractionSource.pipeline,
+            agent1NameOverride: a.productName,
+            agent2NameOverride: b.productName,
+          ),
+        );
       }
     }
   }

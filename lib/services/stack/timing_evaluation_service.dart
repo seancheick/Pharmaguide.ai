@@ -33,9 +33,9 @@ class TimingEvaluationService {
     required List<_ParsedTimingRule> rules,
     required Map<String, List<_IndexedRule>> ingredientIndex,
     required Map<String, List<_IndexedRule>> medicationIndex,
-  })  : _rules = rules,
-        _ingredientIndex = ingredientIndex,
-        _medicationIndex = medicationIndex;
+  }) : _rules = rules,
+       _ingredientIndex = ingredientIndex,
+       _medicationIndex = medicationIndex;
 
   /// Number of timing rules loaded.
   int get ruleCount => _rules.length;
@@ -60,11 +60,7 @@ class TimingEvaluationService {
       'euthyrox',
       'l-thyroxine',
     ],
-    'warfarin': [
-      'warfarin',
-      'coumadin',
-      'jantoven',
-    ],
+    'warfarin': ['warfarin', 'coumadin', 'jantoven'],
   };
 
   /// Supplement ingredient keys that map to timing rule ingredient names.
@@ -82,7 +78,14 @@ class TimingEvaluationService {
     'vitamin e': ['vitamin_e'],
     'vitamin k': ['vitamin_k'],
     'vitamin b12': ['vitamin_b12'],
-    'vitamin b complex': ['vitamin_b1', 'vitamin_b2', 'vitamin_b3', 'vitamin_b5', 'vitamin_b6', 'vitamin_b12'],
+    'vitamin b complex': [
+      'vitamin_b1',
+      'vitamin_b2',
+      'vitamin_b3',
+      'vitamin_b5',
+      'vitamin_b6',
+      'vitamin_b12',
+    ],
     'folate': ['folate', 'vitamin_b9'],
     'omega-3': ['omega_3', 'fish_oil', 'epa', 'dha'],
     'coq10': ['coq10'],
@@ -136,8 +139,12 @@ class TimingEvaluationService {
       if (i1IsMed) {
         _addToMedIndex(medicationIndex, i1Norm, rule, isIngredient1: true);
       } else {
-        _addToIngredientIndex(ingredientIndex, i1Norm, rule,
-            isIngredient1: true);
+        _addToIngredientIndex(
+          ingredientIndex,
+          i1Norm,
+          rule,
+          isIngredient1: true,
+        );
       }
 
       // Index ingredient2 side (skip non-matchable context like "food",
@@ -146,8 +153,12 @@ class TimingEvaluationService {
         if (i2IsMed) {
           _addToMedIndex(medicationIndex, i2Norm, rule, isIngredient1: false);
         } else {
-          _addToIngredientIndex(ingredientIndex, i2Norm, rule,
-              isIngredient1: false);
+          _addToIngredientIndex(
+            ingredientIndex,
+            i2Norm,
+            rule,
+            isIngredient1: false,
+          );
         }
       }
     }
@@ -225,8 +236,9 @@ class TimingEvaluationService {
             final product2Names = tagToProducts[alias]!;
             // Only fire if they're in DIFFERENT products (same product
             // already has them together — that's the formulator's intent).
-            final differentProducts = product1Names
-                .any((p1) => product2Names.any((p2) => p1 != p2));
+            final differentProducts = product1Names.any(
+              (p1) => product2Names.any((p2) => p1 != p2),
+            );
             // For single-product stacks with both ingredients, still fire
             // — the advice about timing within the day is still relevant.
             if (differentProducts || product1Names.length == 1) {
@@ -366,7 +378,8 @@ class TimingEvaluationService {
     required bool isIngredient1,
   }) {
     final aliases = _ingredientAliases[ingredientName];
-    final keys = aliases ?? [ingredientName.replaceAll(' ', '_').replaceAll('-', '_')];
+    final keys =
+        aliases ?? [ingredientName.replaceAll(' ', '_').replaceAll('-', '_')];
     for (final key in keys) {
       index
           .putIfAbsent(key, () => [])
@@ -428,8 +441,9 @@ class _ParsedTimingRule {
 
     final evidenceStr = json.safeString('evidence_level', 'possible');
     // Map "possible" → "theoretical" since EvidenceLevel enum doesn't have "possible"
-    final mappedEvidence =
-        evidenceStr == 'possible' ? 'theoretical' : evidenceStr;
+    final mappedEvidence = evidenceStr == 'possible'
+        ? 'theoretical'
+        : evidenceStr;
 
     final ingredient1 = json.safeString('ingredient1');
     final ingredient2 = json.safeString('ingredient2');
@@ -442,7 +456,8 @@ class _ParsedTimingRule {
       ingredient1Normalized: ingredient1.toLowerCase().trim(),
       ingredient2Normalized: ingredient2.toLowerCase().trim(),
       ruleType: TimingRuleType.fromString(
-          json.safeString('rule_type', 'separate')),
+        json.safeString('rule_type', 'separate'),
+      ),
       advice: json.safeString('advice'),
       mechanism: json['mechanism'] is String
           ? json['mechanism'] as String

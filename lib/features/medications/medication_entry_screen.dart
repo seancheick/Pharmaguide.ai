@@ -60,8 +60,7 @@ class MedicationEntryScreen extends ConsumerStatefulWidget {
       _MedicationEntryScreenState();
 }
 
-class _MedicationEntryScreenState
-    extends ConsumerState<MedicationEntryScreen> {
+class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
   // Autocomplete state ------------------------------------------------------
   final _searchController = TextEditingController();
   final _doseController = TextEditingController();
@@ -320,8 +319,8 @@ class _MedicationEntryScreenState
   ) async {
     final nudgeSvc = ref.read(medicationDepletionNudgeServiceProvider);
     final repo = ref.read(referenceDataRepositoryProvider);
-    final Map<String, dynamic> depletionsData =
-        await repo.loadMedicationDepletions();
+    final Map<String, dynamic> depletionsData = await repo
+        .loadMedicationDepletions();
 
     // Build coveredIds from existing supplements in the stack, same
     // logic as depletionReportProvider. We skip dose data here —

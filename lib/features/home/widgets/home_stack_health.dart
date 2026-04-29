@@ -57,11 +57,7 @@ class HomeStackHealthWidget extends ConsumerWidget {
               color: scheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             ),
-            child: Icon(
-              Icons.layers_outlined,
-              size: 24,
-              color: scheme.primary,
-            ),
+            child: Icon(Icons.layers_outlined, size: 24, color: scheme.primary),
           ),
           const SizedBox(width: AppTheme.space16),
           Expanded(
@@ -120,19 +116,22 @@ class _StackHealthCard extends ConsumerWidget {
           ...report.stackInteractions,
           ...report.categoryWarnings,
         ];
-        final synergies = synergyAsync.whenOrNull(
+        final synergies =
+            synergyAsync.whenOrNull(
               data: (synergyReport) => synergyReport.matches
-                  .map((m) => SynergyResult(
-                        ingredient1: m.matchedIngredients.isNotEmpty
-                            ? m.matchedIngredients.first
-                            : m.clusterId,
-                        ingredient2: m.matchedIngredients.length > 1
-                            ? m.matchedIngredients[1]
-                            : m.clusterName,
-                        description: m.mechanism,
-                        evidenceLevel: EvidenceLevel.established,
-                        bonus: m.bonusPoints,
-                      ))
+                  .map(
+                    (m) => SynergyResult(
+                      ingredient1: m.matchedIngredients.isNotEmpty
+                          ? m.matchedIngredients.first
+                          : m.clusterId,
+                      ingredient2: m.matchedIngredients.length > 1
+                          ? m.matchedIngredients[1]
+                          : m.clusterName,
+                      description: m.mechanism,
+                      evidenceLevel: EvidenceLevel.established,
+                      bonus: m.bonusPoints,
+                    ),
+                  )
                   .toList(),
             ) ??
             const <SynergyResult>[];
@@ -145,10 +144,8 @@ class _StackHealthCard extends ConsumerWidget {
 
     final serious = safetyScore?.seriousCount ?? 0;
     final moderate = safetyScore?.moderateCount ?? 0;
-    final supplementCount =
-        stack.where((e) => e.type == 'supplement').length;
-    final medicationCount =
-        stack.where((e) => e.type == 'medication').length;
+    final supplementCount = stack.where((e) => e.type == 'supplement').length;
+    final medicationCount = stack.where((e) => e.type == 'medication').length;
     final interactionCount = serious + moderate;
 
     // Diagnostic verdict: lets recalled/banned ingredients dominate the
@@ -157,14 +154,14 @@ class _StackHealthCard extends ConsumerWidget {
     // does not flicker.
     final StackIntelligence? intelligence =
         (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
-            ? const StackIntelligenceEngine().diagnose(
-                stackSize: stack.length,
-                safetyReport: reportAsync.value!,
-                recalledReport: recallAsync.value!,
-                synergyReport: synergyAsync.value!,
-                qualityScore: safetyScore?.score,
-              )
-            : null;
+        ? const StackIntelligenceEngine().diagnose(
+            stackSize: stack.length,
+            safetyReport: reportAsync.value!,
+            recalledReport: recallAsync.value!,
+            synergyReport: synergyAsync.value!,
+            qualityScore: safetyScore?.score,
+          )
+        : null;
     final status = intelligence?.tier.healthLabel ?? safetyScore?.healthLabel;
 
     // Top issue — recall first (when present), else most severe interaction.
@@ -231,8 +228,9 @@ class _StackHealthCard extends ConsumerWidget {
                       ),
                       decoration: BoxDecoration(
                         color: tone.withValues(alpha: 0.1),
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusFull),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusFull,
+                        ),
                         border: Border.all(
                           color: tone.withValues(alpha: 0.2),
                           width: 0.8,
@@ -259,8 +257,7 @@ class _StackHealthCard extends ConsumerWidget {
                   ),
                   decoration: BoxDecoration(
                     color: tone.withValues(alpha: 0.08),
-                    borderRadius:
-                        BorderRadius.circular(AppTheme.radiusSmall),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                   ),
                   child: Row(
                     children: [
@@ -298,10 +295,7 @@ class _StackHealthCard extends ConsumerWidget {
             decoration: BoxDecoration(
               color: scheme.surfaceContainerLow,
               border: Border(
-                top: BorderSide(
-                  color: scheme.outlineVariant,
-                  width: 0.5,
-                ),
+                top: BorderSide(color: scheme.outlineVariant, width: 0.5),
               ),
             ),
             child: Row(
@@ -344,15 +338,13 @@ class _StackHealthCard extends ConsumerWidget {
                 AppTheme.space12,
               ),
               decoration: BoxDecoration(
-                color: (serious > 0
-                        ? AppTheme.severityContraindicated
-                        : AppTheme.severityCaution)
-                    .withValues(alpha: 0.06),
+                color:
+                    (serious > 0
+                            ? AppTheme.severityContraindicated
+                            : AppTheme.severityCaution)
+                        .withValues(alpha: 0.06),
                 border: Border(
-                  top: BorderSide(
-                    color: scheme.outlineVariant,
-                    width: 0.5,
-                  ),
+                  top: BorderSide(color: scheme.outlineVariant, width: 0.5),
                 ),
               ),
               child: Row(
@@ -420,11 +412,7 @@ class _StackHealthCard extends ConsumerWidget {
     return '$count ${count == 1 ? noun : '${noun}s'}';
   }
 
-  String _insight(
-    StackHealthLabel? status,
-    int serious,
-    int moderate,
-  ) {
+  String _insight(StackHealthLabel? status, int serious, int moderate) {
     if (status == null) {
       return 'Checking your current stack for interactions and overlap';
     }
@@ -477,10 +465,10 @@ class _MicroMetric extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 10.5,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+                fontSize: 10.5,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

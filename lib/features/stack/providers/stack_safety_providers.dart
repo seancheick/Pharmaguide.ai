@@ -28,55 +28,59 @@ import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
 /// to await inside a "Verifying safety…" confirmation step.
 final safetyCheckForAddProvider = FutureProvider.family
     .autoDispose<List<InteractionResult>, String>((ref, dsldId) async {
-  final coreDb = ref.watch(coreDatabaseProvider);
-  final userDb = ref.watch(userDatabaseProvider);
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final userDb = ref.watch(userDatabaseProvider);
 
-  final candidate = await coreDb.findById(dsldId);
-  if (candidate == null) return const [];
+      final candidate = await coreDb.findById(dsldId);
+      if (candidate == null) return const [];
 
-  final stack = await userDb.getActiveStack();
-  if (stack.isEmpty) return const [];
+      final stack = await userDb.getActiveStack();
+      if (stack.isEmpty) return const [];
 
-  // Pair each stack entry with its core product row (skip items missing a
-  // dsldId — those are hand-entered medications that don't have a fingerprint).
-  final stackProducts = <ProductsCoreData>[];
-  for (final entry in stack) {
-    final id = entry.dsldId;
-    if (id == null || id.isEmpty) continue;
-    try {
-      final product = await coreDb.findById(id);
-      if (product != null) stackProducts.add(product);
-    } on Exception {
-      // Skip broken entries — we're best-effort here.
-    }
-  }
+      // Pair each stack entry with its core product row (skip items missing a
+      // dsldId — those are hand-entered medications that don't have a fingerprint).
+      final stackProducts = <ProductsCoreData>[];
+      for (final entry in stack) {
+        final id = entry.dsldId;
+        if (id == null || id.isEmpty) continue;
+        try {
+          final product = await coreDb.findById(id);
+          if (product != null) stackProducts.add(product);
+        } on Exception {
+          // Skip broken entries — we're best-effort here.
+        }
+      }
 
-  if (stackProducts.isEmpty) return const [];
+      if (stackProducts.isEmpty) return const [];
 
-  final newFp = parseFingerprint(candidate.ingredientFingerprint);
-  final stackFps = stackProducts
-      .map((p) => parseFingerprint(p.ingredientFingerprint))
-      .toList(growable: false);
+      final newFp = parseFingerprint(candidate.ingredientFingerprint);
+      final stackFps = stackProducts
+          .map((p) => parseFingerprint(p.ingredientFingerprint))
+          .toList(growable: false);
 
-  bool flag(int? v) => v == 1;
+      bool flag(int? v) => v == 1;
 
-  return StackInteractionChecker().checkSafety(
-    newProductFingerprint: newFp,
-    stackFingerprints: stackFps,
-    newContainsStimulants: flag(candidate.containsStimulants),
-    newContainsSedatives: flag(candidate.containsSedatives),
-    newContainsBloodThinners: flag(candidate.containsBloodThinners),
-    stackContainsStimulants:
-        stackProducts.map((p) => flag(p.containsStimulants)).toList(),
-    stackContainsSedatives:
-        stackProducts.map((p) => flag(p.containsSedatives)).toList(),
-    stackContainsBloodThinners:
-        stackProducts.map((p) => flag(p.containsBloodThinners)).toList(),
-    stackProductNames:
-        stackProducts.map((p) => p.productName).toList(growable: false),
-    newProductName: candidate.productName,
-  );
-});
+      return StackInteractionChecker().checkSafety(
+        newProductFingerprint: newFp,
+        stackFingerprints: stackFps,
+        newContainsStimulants: flag(candidate.containsStimulants),
+        newContainsSedatives: flag(candidate.containsSedatives),
+        newContainsBloodThinners: flag(candidate.containsBloodThinners),
+        stackContainsStimulants: stackProducts
+            .map((p) => flag(p.containsStimulants))
+            .toList(),
+        stackContainsSedatives: stackProducts
+            .map((p) => flag(p.containsSedatives))
+            .toList(),
+        stackContainsBloodThinners: stackProducts
+            .map((p) => flag(p.containsBloodThinners))
+            .toList(),
+        stackProductNames: stackProducts
+            .map((p) => p.productName)
+            .toList(growable: false),
+        newProductName: candidate.productName,
+      );
+    });
 
 /// Aggregated safety report for the current stack — drives the stack
 /// screen's [StackSafetyBanner] (M4 §8.3).
@@ -101,8 +105,9 @@ final safetyCheckForAddProvider = FutureProvider.family
 /// Empty stack → an empty report that the banner renders as
 /// `SizedBox.shrink`. Errors in sub-checks are swallowed per-entry so a
 /// single broken stack row can't tear down the whole banner.
-final stackSafetyReportProvider =
-    FutureProvider<StackSafetyReport>((ref) async {
+final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
+  ref,
+) async {
   final coreDb = ref.watch(coreDatabaseProvider);
   final interactionDb = ref.watch(interactionDatabaseProvider);
 
@@ -116,16 +121,17 @@ final stackSafetyReportProvider =
   // of the report to render, so we fall back to an empty list.
   List<NutrientStatus> nutrientStatuses;
   try {
-    nutrientStatuses =
-        await ref.watch(stackNutrientStatusesProvider.future);
+    nutrientStatuses = await ref.watch(stackNutrientStatusesProvider.future);
   } on Object {
     nutrientStatuses = const <NutrientStatus>[];
   }
 
-  final supplements =
-      stack.where((e) => e.type == 'supplement').toList(growable: false);
-  final medications =
-      stack.where((e) => e.type == 'medication').toList(growable: false);
+  final supplements = stack
+      .where((e) => e.type == 'supplement')
+      .toList(growable: false);
+  final medications = stack
+      .where((e) => e.type == 'medication')
+      .toList(growable: false);
 
   // Hydrate each supplement once — we need the core row for fingerprints
   // (category heuristics) and the ingredient_keys JSON for canonical ids.
@@ -317,8 +323,9 @@ final stackSafetyReportProvider =
     }
 
     // Collect medication display names.
-    final medicationNames =
-        medications.map((m) => m.name).toList(growable: false);
+    final medicationNames = medications
+        .map((m) => m.name)
+        .toList(growable: false);
 
     timingOptimizations = timingService.evaluateStack(
       supplementTags: supplementTags,
@@ -342,8 +349,9 @@ final stackSafetyReportProvider =
 /// Recall detection: finds products in the user's stack that contain banned
 /// or recalled ingredients, returning a [RecalledIngredientsReport] with
 /// violations sorted by severity.
-final recalledIngredientsReportProvider =
-    FutureProvider<RecalledIngredientsReport>((ref) async {
+final recalledIngredientsReportProvider = FutureProvider<RecalledIngredientsReport>((
+  ref,
+) async {
   final coreDb = ref.watch(coreDatabaseProvider);
   // Read the repo via the provider so tests can override the asset source.
   // Sprint 27.6 added this indirection to enable integration tests of
@@ -354,8 +362,9 @@ final recalledIngredientsReportProvider =
   final stack = await ref.watch(activeStackProvider.future);
   if (stack.isEmpty) return RecalledIngredientsReport.empty();
 
-  final supplements =
-      stack.where((e) => e.type == 'supplement').toList(growable: false);
+  final supplements = stack
+      .where((e) => e.type == 'supplement')
+      .toList(growable: false);
   if (supplements.isEmpty) return RecalledIngredientsReport.empty();
 
   // Load banned/recalled ingredients data.
@@ -378,7 +387,8 @@ final recalledIngredientsReportProvider =
     final canonicalId = recall['canonical_id'] as String?;
     if (canonicalId == null) continue;
 
-    final commonNames = (recall['common_names'] as List<dynamic>?)
+    final commonNames =
+        (recall['common_names'] as List<dynamic>?)
             ?.map((c) => c.toString())
             .toList() ??
         const <String>[];
@@ -444,9 +454,7 @@ final recalledIngredientsReportProvider =
     }
   }
 
-  return RecalledIngredientsReport(
-    violations: violations,
-  );
+  return RecalledIngredientsReport(violations: violations);
 });
 
 /// Shared instance of [MedicationDepletionNudgeService] — reads/writes
@@ -455,35 +463,37 @@ final recalledIngredientsReportProvider =
 /// the app.
 final medicationDepletionNudgeServiceProvider =
     Provider<MedicationDepletionNudgeService>((ref) {
-  return MedicationDepletionNudgeService();
-});
+      return MedicationDepletionNudgeService();
+    });
 
 /// Depletion checker — matches medications against known nutrient
 /// depletions and highlights which ones the user's supplement stack
 /// already covers.
-final depletionReportProvider =
-    FutureProvider<List<DepletionMatch>>((ref) async {
+final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
+  ref,
+) async {
   final stack = await ref.watch(activeStackProvider.future);
   final medications = stack
       .where((e) => e.type == 'medication')
       .expand((e) {
-    // Each medication may have multiple drug classes (JSON array).
-    final classIds = <String>[];
-    if (e.drugClassesCol != null && e.drugClassesCol!.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(e.drugClassesCol!);
-        if (decoded is List) {
-          classIds.addAll(decoded.map((c) => c.toString()));
+        // Each medication may have multiple drug classes (JSON array).
+        final classIds = <String>[];
+        if (e.drugClassesCol != null && e.drugClassesCol!.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(e.drugClassesCol!);
+            if (decoded is List) {
+              classIds.addAll(decoded.map((c) => c.toString()));
+            }
+          } on FormatException {
+            // skip
+          }
         }
-      } on FormatException {
-        // skip
-      }
-    }
-    if (classIds.isEmpty) {
-      return [(name: e.name, drugClassId: null as String?)];
-    }
-    return classIds.map((c) => (name: e.name, drugClassId: c as String?));
-  }).toList(growable: false);
+        if (classIds.isEmpty) {
+          return [(name: e.name, drugClassId: null as String?)];
+        }
+        return classIds.map((c) => (name: e.name, drugClassId: c as String?));
+      })
+      .toList(growable: false);
 
   if (medications.isEmpty) return const [];
 

@@ -86,67 +86,79 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('uses intelligence verdict and unsafe subcopy for recalled stack',
-        (tester) async {
-      final coreDb = CoreDatabase.memory();
-      final userDb = UserDatabase.memory();
-      final stack = [
-        stackEntry(id: 'supp-1', name: 'Flagged Supplement', type: 'supplement'),
-      ];
+    testWidgets(
+      'uses intelligence verdict and unsafe subcopy for recalled stack',
+      (tester) async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        final stack = [
+          stackEntry(
+            id: 'supp-1',
+            name: 'Flagged Supplement',
+            type: 'supplement',
+          ),
+        ];
 
-      final recallReport = RecalledIngredientsReport(
-        violations: [
-          RecalledIngredientViolation(
-            productDsldId: 'flagged-1',
-            productName: 'Flagged Supplement',
-            brandName: 'Brand',
-            recalledIngredients: [
-              RecalledIngredientAlert(
-                canonicalId: 'dmaa',
-                commonNames: const ['DMAA'],
-                recallStatus: 'warning',
-                regulatoryBasis: 'FDA',
-                reason: 'recall',
-                effectiveDate: '2026-01-01',
-                severity: 'major',
-                safetyWarning: 'warning',
-                safetyWarningOneLiner: 'Recall notice',
-                banContext: 'contamination_recall',
+        final recallReport = RecalledIngredientsReport(
+          violations: [
+            RecalledIngredientViolation(
+              productDsldId: 'flagged-1',
+              productName: 'Flagged Supplement',
+              brandName: 'Brand',
+              recalledIngredients: [
+                RecalledIngredientAlert(
+                  canonicalId: 'dmaa',
+                  commonNames: const ['DMAA'],
+                  recallStatus: 'warning',
+                  regulatoryBasis: 'FDA',
+                  reason: 'recall',
+                  effectiveDate: '2026-01-01',
+                  severity: 'major',
+                  safetyWarning: 'warning',
+                  safetyWarningOneLiner: 'Recall notice',
+                  banContext: 'contamination_recall',
+                ),
+              ],
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              userDatabaseProvider.overrideWithValue(userDb),
+              coreDatabaseProvider.overrideWithValue(coreDb),
+              activeStackProvider.overrideWith((ref) async => stack),
+              stackSafetyReportProvider.overrideWith(
+                (ref) async => const StackSafetyReport(),
+              ),
+              synergyReportProvider.overrideWith(
+                (ref) async => SynergyReport.empty(),
+              ),
+              recalledIngredientsReportProvider.overrideWith(
+                (ref) async => recallReport,
               ),
             ],
+            child: const MaterialApp(home: StackScreen()),
           ),
-        ],
-      );
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            userDatabaseProvider.overrideWithValue(userDb),
-            coreDatabaseProvider.overrideWithValue(coreDb),
-            activeStackProvider.overrideWith((ref) async => stack),
-            stackSafetyReportProvider
-                .overrideWith((ref) async => const StackSafetyReport()),
-            synergyReportProvider
-                .overrideWith((ref) async => SynergyReport.empty()),
-            recalledIngredientsReportProvider
-                .overrideWith((ref) async => recallReport),
-          ],
-          child: const MaterialApp(home: StackScreen()),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text('Unsafe'), findsOneWidget);
+        expect(
+          find.text('Recalled ingredient found — review immediately.'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('well within recommended ranges'),
+          findsNothing,
+        );
 
-      expect(find.text('Unsafe'), findsOneWidget);
-      expect(
-        find.text('Recalled ingredient found — review immediately.'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('well within recommended ranges'), findsNothing);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await coreDb.close();
-      await userDb.close();
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+      },
+    );
   });
 }

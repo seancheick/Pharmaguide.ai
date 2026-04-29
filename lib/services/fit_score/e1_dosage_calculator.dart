@@ -86,15 +86,16 @@ class E1DosageCalculator {
   /// per-product RDA tier scoring was always falling through to the
   /// highest_ul baseline.
   Map<String, dynamic>? _findNutrientEntry(
-      List<dynamic> recommendations, String name) {
+    List<dynamic> recommendations,
+    String name,
+  ) {
     for (final entry in recommendations) {
       if (entry is! Map<String, dynamic>) continue;
       // Prefer `standard_name` (current schema), fall back to legacy
       // `nutrient` so older test fixtures still work.
-      final entryName =
-          (entry['standard_name'] ?? entry['nutrient'] ?? '')
-              .toString()
-              .toLowerCase();
+      final entryName = (entry['standard_name'] ?? entry['nutrient'] ?? '')
+          .toString()
+          .toLowerCase();
       if (entryName.isEmpty) continue;
       if (entryName == name ||
           entryName.contains(name) ||
@@ -109,8 +110,7 @@ class E1DosageCalculator {
   /// RDA/AI value is stored under a single `rda_ai` key instead of
   /// `rda`/`ai`. The sex field IS still called `group` in the JSON (not
   /// `sex`) which is why we read `group['group']`.
-  double? _getUl(
-      Map<String, dynamic> entry, String? ageBracket, String? sex) {
+  double? _getUl(Map<String, dynamic> entry, String? ageBracket, String? sex) {
     final data = entry['data'] as List? ?? <dynamic>[];
     for (final group in data) {
       if (group is! Map<String, dynamic>) continue;
@@ -128,8 +128,7 @@ class E1DosageCalculator {
     return null;
   }
 
-  double? _getRda(
-      Map<String, dynamic> entry, String? ageBracket, String? sex) {
+  double? _getRda(Map<String, dynamic> entry, String? ageBracket, String? sex) {
     final data = entry['data'] as List? ?? <dynamic>[];
     for (final group in data) {
       if (group is! Map<String, dynamic>) continue;

@@ -273,40 +273,40 @@ abstract final class AppTheme {
   // ===========================================================================
 
   static ThemeData get light => _build(
-        scheme: _lightScheme,
-        background: lightBackground,
-        textPrimary: lightTextPrimary,
-        textSecondary: lightTextSecondary,
-        textTertiary: lightTextTertiary,
-        outlineSoft: lightOutlineSoft,
-        outline: lightOutline,
-        surface: lightSurface,
-        surfaceLow: lightSurfaceLow,
-        surfaceHigh: lightSurfaceHigh,
-        filledButtonBg: brandTeal,
-        filledButtonFg: Colors.white,
-        navIndicator: _withAlpha(brandTeal, 0.12),
-        navIconActive: brandTeal,
-        overlayStyle: SystemUiOverlayStyle.dark,
-      );
+    scheme: _lightScheme,
+    background: lightBackground,
+    textPrimary: lightTextPrimary,
+    textSecondary: lightTextSecondary,
+    textTertiary: lightTextTertiary,
+    outlineSoft: lightOutlineSoft,
+    outline: lightOutline,
+    surface: lightSurface,
+    surfaceLow: lightSurfaceLow,
+    surfaceHigh: lightSurfaceHigh,
+    filledButtonBg: brandTeal,
+    filledButtonFg: Colors.white,
+    navIndicator: _withAlpha(brandTeal, 0.12),
+    navIconActive: brandTeal,
+    overlayStyle: SystemUiOverlayStyle.dark,
+  );
 
   static ThemeData get dark => _build(
-        scheme: _darkScheme,
-        background: darkBackground,
-        textPrimary: darkTextPrimary,
-        textSecondary: darkTextSecondary,
-        textTertiary: darkTextTertiary,
-        outlineSoft: darkOutlineSoft,
-        outline: darkOutline,
-        surface: darkSurface,
-        surfaceLow: darkSurfaceLow,
-        surfaceHigh: darkSurfaceHigh,
-        filledButtonBg: brandTealDark,
-        filledButtonFg: const Color(0xFF052F2B),
-        navIndicator: _withAlpha(brandTealDark, 0.18),
-        navIconActive: const Color(0xFF9EE5DB),
-        overlayStyle: SystemUiOverlayStyle.light,
-      );
+    scheme: _darkScheme,
+    background: darkBackground,
+    textPrimary: darkTextPrimary,
+    textSecondary: darkTextSecondary,
+    textTertiary: darkTextTertiary,
+    outlineSoft: darkOutlineSoft,
+    outline: darkOutline,
+    surface: darkSurface,
+    surfaceLow: darkSurfaceLow,
+    surfaceHigh: darkSurfaceHigh,
+    filledButtonBg: brandTealDark,
+    filledButtonFg: const Color(0xFF052F2B),
+    navIndicator: _withAlpha(brandTealDark, 0.18),
+    navIconActive: const Color(0xFF9EE5DB),
+    overlayStyle: SystemUiOverlayStyle.light,
+  );
 
   static ThemeData _build({
     required ColorScheme scheme,
@@ -746,15 +746,30 @@ abstract final class AppTheme {
       // Body — long-form reading
       bodyLarge: base(16, FontWeight.w400, letter: -0.1, height: 1.5),
       bodyMedium: base(15, FontWeight.w400, letter: -0.05, height: 1.47),
-      bodySmall: base(13, FontWeight.w400, letter: 0.0, height: 1.4,
-          color: secondary),
+      bodySmall: base(
+        13,
+        FontWeight.w400,
+        letter: 0.0,
+        height: 1.4,
+        color: secondary,
+      ),
 
       // Label — buttons, badges, metadata
       labelLarge: base(15, FontWeight.w600, letter: -0.1, height: 1.2),
-      labelMedium: base(13, FontWeight.w500, letter: 0.0, height: 1.2,
-          color: secondary),
-      labelSmall: base(12, FontWeight.w500, letter: 0.1, height: 1.25,
-          color: tertiary),
+      labelMedium: base(
+        13,
+        FontWeight.w500,
+        letter: 0.0,
+        height: 1.2,
+        color: secondary,
+      ),
+      labelSmall: base(
+        12,
+        FontWeight.w500,
+        letter: 0.1,
+        height: 1.25,
+        color: tertiary,
+      ),
     );
   }
 
@@ -772,9 +787,7 @@ abstract final class AppTheme {
   ///     style: AppTheme.numeric(theme.textTheme.titleLarge!))
   /// ```
   static TextStyle numeric(TextStyle base) {
-    return base.copyWith(
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
+    return base.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
   }
 
   /// Lightweight wrapper for `Color.withValues(alpha: ...)`.

@@ -63,8 +63,9 @@ class StackIntelligenceEngine {
     final interactionCount =
         contraindicatedCount + avoidCount + cautionCount + monitorCount;
 
-    final nutrientWarningCount =
-        safetyReport.nutrientStatuses.where((n) => n.shouldWarn).length;
+    final nutrientWarningCount = safetyReport.nutrientStatuses
+        .where((n) => n.shouldWarn)
+        .length;
 
     final tier = StackIntelligence.deriveTier(
       stackSize: stackSize,
@@ -103,27 +104,25 @@ class StackIntelligenceEngine {
     final out = <StackIssue>[];
 
     for (final v in recalledReport.orderedViolations) {
-      out.add(StackIssue(
-        severity: v.worstSeverity,
-        headline: v.bannerMessage,
-      ));
+      out.add(StackIssue(severity: v.worstSeverity, headline: v.bannerMessage));
     }
 
     for (final entry in safetyReport.orderedWarnings) {
       if (entry is InteractionResult) {
-        out.add(StackIssue(
-          severity: entry.severity,
-          headline: entry.mechanism,
-        ));
+        out.add(
+          StackIssue(severity: entry.severity, headline: entry.mechanism),
+        );
       } else if (entry is NutrientStatus) {
         final warning = entry.warning;
         if (warning == null) continue;
-        out.add(StackIssue(
-          severity: entry.tier == NutrientTier.exceedsUl
-              ? Severity.avoid
-              : Severity.caution,
-          headline: warning,
-        ));
+        out.add(
+          StackIssue(
+            severity: entry.tier == NutrientTier.exceedsUl
+                ? Severity.avoid
+                : Severity.caution,
+            headline: warning,
+          ),
+        );
       }
     }
 

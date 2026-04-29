@@ -9,17 +9,10 @@ Map<String, dynamic> _match({
   String evidence = 'moderate',
   List<String> pmids = const [],
 }) {
-  return {
-    'ingredient': ingredient,
-    'evidence_level': evidence,
-    'pmids': pmids,
-  };
+  return {'ingredient': ingredient, 'evidence_level': evidence, 'pmids': pmids};
 }
 
-Future<void> _pump(
-  WidgetTester tester, {
-  Map<String, dynamic>? evidenceData,
-}) {
+Future<void> _pump(WidgetTester tester, {Map<String, dynamic>? evidenceData}) {
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -76,17 +69,11 @@ void main() {
     });
 
     test('"established" matches the canonical pipeline label', () {
-      expect(
-        evidenceHasMetaQuality([_match(evidence: 'established')]),
-        isTrue,
-      );
+      expect(evidenceHasMetaQuality([_match(evidence: 'established')]), isTrue);
     });
 
     test('"high" forward-compat with scoring-pipeline pillar levels', () {
-      expect(
-        evidenceHasMetaQuality([_match(evidence: 'High')]),
-        isTrue,
-      );
+      expect(evidenceHasMetaQuality([_match(evidence: 'High')]), isTrue);
     });
 
     test('only "moderate"/"limited" → false', () {
@@ -141,10 +128,7 @@ void main() {
       // one meta-quality match before STRONG fires.
       expect(
         evidenceTier([
-          _match(
-            evidence: 'moderate',
-            pmids: const ['1', '2', '3', '4', '5'],
-          ),
+          _match(evidence: 'moderate', pmids: const ['1', '2', '3', '4', '5']),
         ]),
         EvidenceTier.moderate,
       );
@@ -194,45 +178,43 @@ void main() {
       expect(find.text('Evidence & Research'), findsNothing);
     });
 
-    testWidgets(
-      'matchCount=0 + no matches → section hides entirely',
-      (tester) async {
-        await _pump(
-          tester,
-          evidenceData: const {
-            'match_count': 0,
-            'clinical_matches': <Map<String, dynamic>>[],
-          },
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('Evidence & Research'), findsNothing);
-      },
-    );
+    testWidgets('matchCount=0 + no matches → section hides entirely', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: const {
+          'match_count': 0,
+          'clinical_matches': <Map<String, dynamic>>[],
+        },
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Evidence & Research'), findsNothing);
+    });
 
-    testWidgets(
-      'STRONG tier renders label + study count + meta line',
-      (tester) async {
-        await _pump(
-          tester,
-          evidenceData: {
-            'match_count': 1,
-            'clinical_matches': [
-              _match(
-                evidence: 'strong',
-                pmids: const ['111', '222', '333', '444', '555'],
-              ),
-            ],
-          },
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('Evidence & Research'), findsOneWidget);
-        expect(find.text('STRONG'), findsOneWidget);
-        expect(
-          find.text('5 studies reviewed · meta-analysis available'),
-          findsOneWidget,
-        );
-      },
-    );
+    testWidgets('STRONG tier renders label + study count + meta line', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(
+              evidence: 'strong',
+              pmids: const ['111', '222', '333', '444', '555'],
+            ),
+          ],
+        },
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Evidence & Research'), findsOneWidget);
+      expect(find.text('STRONG'), findsOneWidget);
+      expect(
+        find.text('5 studies reviewed · meta-analysis available'),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('LIMITED tier renders without meta line', (tester) async {
       await _pump(

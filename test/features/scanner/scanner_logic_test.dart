@@ -23,17 +23,11 @@ void main() {
     });
 
     test('BLOCKED → severityContraindicated', () {
-      expect(
-        verdictFlashColor('BLOCKED'),
-        AppTheme.severityContraindicated,
-      );
+      expect(verdictFlashColor('BLOCKED'), AppTheme.severityContraindicated);
     });
 
     test('UNSAFE → severityContraindicated', () {
-      expect(
-        verdictFlashColor('UNSAFE'),
-        AppTheme.severityContraindicated,
-      );
+      expect(verdictFlashColor('UNSAFE'), AppTheme.severityContraindicated);
     });
 
     test('lowercase verdict normalizes to uppercase', () {

@@ -102,9 +102,7 @@ class StackSafetyReport {
   /// are still present so callers can iterate the enum without
   /// branching.
   Map<Severity, int> get severityCounts {
-    final counts = <Severity, int>{
-      for (final s in Severity.values) s: 0,
-    };
+    final counts = <Severity, int>{for (final s in Severity.values) s: 0};
     for (final r in _allInteractions) {
       counts[r.severity] = (counts[r.severity] ?? 0) + 1;
     }
@@ -133,12 +131,14 @@ class StackSafetyReport {
 
     void addInteractions(List<InteractionResult> rs, int bucket) {
       for (var i = 0; i < rs.length; i++) {
-        entries.add(_RankedEntry(
-          severity: rs[i].severity,
-          bucket: bucket,
-          ordinal: i,
-          payload: rs[i],
-        ));
+        entries.add(
+          _RankedEntry(
+            severity: rs[i].severity,
+            bucket: bucket,
+            ordinal: i,
+            payload: rs[i],
+          ),
+        );
       }
     }
 
@@ -148,12 +148,14 @@ class StackSafetyReport {
 
     final flagged = _flaggedNutrients;
     for (var i = 0; i < flagged.length; i++) {
-      entries.add(_RankedEntry(
-        severity: _severityForNutrient(flagged[i]),
-        bucket: 3,
-        ordinal: i,
-        payload: flagged[i],
-      ));
+      entries.add(
+        _RankedEntry(
+          severity: _severityForNutrient(flagged[i]),
+          bucket: 3,
+          ordinal: i,
+          payload: flagged[i],
+        ),
+      );
     }
 
     entries.sort((a, b) {

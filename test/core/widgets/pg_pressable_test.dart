@@ -25,8 +25,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 80));
       await tester.pump(const Duration(milliseconds: 80));
 
-      final scaleWidget = tester
-          .widget<AnimatedScale>(find.byType(AnimatedScale).first);
+      final scaleWidget = tester.widget<AnimatedScale>(
+        find.byType(AnimatedScale).first,
+      );
       expect(scaleWidget.scale, lessThan(1.0));
       expect(scaleWidget.scale, greaterThanOrEqualTo(0.96));
 
@@ -51,8 +52,9 @@ void main() {
       await tester.tap(find.byType(PGPressable));
       await tester.pumpAndSettle();
 
-      final scaleWidget = tester
-          .widget<AnimatedScale>(find.byType(AnimatedScale).first);
+      final scaleWidget = tester.widget<AnimatedScale>(
+        find.byType(AnimatedScale).first,
+      );
       expect(scaleWidget.scale, 1.0);
     });
 
@@ -80,15 +82,14 @@ void main() {
       expect(taps, 2);
     });
 
-    testWidgets('does not animate scale when onTap is null (non-interactive)',
-        (tester) async {
+    testWidgets('does not animate scale when onTap is null (non-interactive)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
             body: Center(
-              child: PGPressable(
-                child: SizedBox(width: 100, height: 100),
-              ),
+              child: PGPressable(child: SizedBox(width: 100, height: 100)),
             ),
           ),
         ),
@@ -100,10 +101,10 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 100));
 
-      final scaleWidget = tester
-          .widget<AnimatedScale>(find.byType(AnimatedScale).first);
-      expect(scaleWidget.scale, 1.0,
-          reason: 'no onTap → no press feedback');
+      final scaleWidget = tester.widget<AnimatedScale>(
+        find.byType(AnimatedScale).first,
+      );
+      expect(scaleWidget.scale, 1.0, reason: 'no onTap → no press feedback');
 
       await gesture.up();
       await tester.pumpAndSettle();
@@ -113,9 +114,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: MediaQuery(
-            data: const MediaQueryData(
-              disableAnimations: true,
-            ),
+            data: const MediaQueryData(disableAnimations: true),
             child: Scaffold(
               body: Center(
                 child: PGPressable(
@@ -133,17 +132,18 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 80));
 
-      final scaleWidget = tester
-          .widget<AnimatedScale>(find.byType(AnimatedScale).first);
-      expect(scaleWidget.scale, 1.0,
-          reason: 'reduce-motion → no scale');
+      final scaleWidget = tester.widget<AnimatedScale>(
+        find.byType(AnimatedScale).first,
+      );
+      expect(scaleWidget.scale, 1.0, reason: 'reduce-motion → no scale');
 
       await gesture.up();
       await tester.pumpAndSettle();
     });
 
-    testWidgets('long-press fires onLongPress without firing onTap',
-        (tester) async {
+    testWidgets('long-press fires onLongPress without firing onTap', (
+      tester,
+    ) async {
       int taps = 0;
       int longPresses = 0;
       await tester.pumpWidget(

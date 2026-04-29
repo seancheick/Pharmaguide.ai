@@ -38,10 +38,7 @@ void main() {
     });
 
     test('BLOCKED + bannedSubstanceDetail propagates to result', () {
-      final detail = {
-        'substance_name': 'DMAA',
-        'safety_warning': 'FDA banned',
-      };
+      final detail = {'substance_name': 'DMAA', 'safety_warning': 'FDA banned'};
       final out = computeHeroVerdict(
         productVerdict: 'BLOCKED',
         blockingReason: 'FDA action',
@@ -52,8 +49,7 @@ void main() {
       expect((out as HeroVerdictBlocked).bannedSubstanceDetail, detail);
     });
 
-    test('BLOCKED wins even when topWarnings has non-blocking severities',
-        () {
+    test('BLOCKED wins even when topWarnings has non-blocking severities', () {
       // Sanity: a Caution warning shouldn't downgrade a BLOCKED
       // product. Product-side blocking is the most serious tier.
       final out = computeHeroVerdict(
@@ -110,9 +106,13 @@ void main() {
       expect(out, isA<HeroVerdictAvoid>());
       final avoid = out as HeroVerdictAvoid;
       expect(avoid.severity, Severity.contraindicated);
-      expect(avoid.offendingAgent, 'warfarin',
-          reason: 'agent should come from the warning that produced '
-              'the worst severity, not the first warning in the list');
+      expect(
+        avoid.offendingAgent,
+        'warfarin',
+        reason:
+            'agent should come from the warning that produced '
+            'the worst severity, not the first warning in the list',
+      );
     });
 
     test('stack Avoid overrides product-side RECOMMENDED', () {
@@ -160,8 +160,11 @@ void main() {
             {'severity': 'avoid', entry.key: entry.value},
           ],
         );
-        expect((out as HeroVerdictAvoid).offendingAgent, entry.value,
-            reason: 'agent extraction failed for key "${entry.key}"');
+        expect(
+          (out as HeroVerdictAvoid).offendingAgent,
+          entry.value,
+          reason: 'agent extraction failed for key "${entry.key}"',
+        );
       }
     });
 
@@ -172,11 +175,7 @@ void main() {
         productVerdict: 'GOOD',
         blockingReason: '',
         topWarnings: const [
-          {
-            'severity': 'avoid',
-            'with': 'metformin',
-            'name': 'should-not-win',
-          },
+          {'severity': 'avoid', 'with': 'metformin', 'name': 'should-not-win'},
         ],
       );
       expect((out as HeroVerdictAvoid).offendingAgent, 'metformin');

@@ -20,7 +20,9 @@ Future<void> _seedProduct(
   required double score100,
   required String category,
 }) async {
-  await coreDb.into(coreDb.productsCore).insert(
+  await coreDb
+      .into(coreDb.productsCore)
+      .insert(
         ProductsCoreCompanion.insert(
           dsldId: dsldId,
           productName: productName,
@@ -38,7 +40,10 @@ GoRouter _stubRouter(Widget child) {
   return GoRouter(
     initialLocation: '/',
     routes: [
-      GoRoute(path: '/', builder: (_, _) => Scaffold(body: child)),
+      GoRoute(
+        path: '/',
+        builder: (_, _) => Scaffold(body: child),
+      ),
       GoRoute(
         path: '/product/:id',
         builder: (_, _) => const Scaffold(body: Text('routed')),
@@ -49,9 +54,7 @@ GoRouter _stubRouter(Widget child) {
 
 Widget _wrap(CoreDatabase coreDb, Widget child) {
   return ProviderScope(
-    overrides: [
-      coreDatabaseProvider.overrideWithValue(coreDb),
-    ],
+    overrides: [coreDatabaseProvider.overrideWithValue(coreDb)],
     child: MaterialApp.router(routerConfig: _stubRouter(child)),
   );
 }
@@ -242,8 +245,7 @@ void main() {
       },
     );
 
-    testWidgets('renders alternatives with score + brand name',
-        (tester) async {
+    testWidgets('renders alternatives with score + brand name', (tester) async {
       final coreDb = CoreDatabase.memory();
       await _seedProduct(
         coreDb,
@@ -326,49 +328,48 @@ void main() {
       await coreDb.close();
     });
 
-    testWidgets(
-      'no per-row "+N fit" delta visible — deferred per V1 spec',
-      (tester) async {
-        // Defensive: the section currently shows score badge + name +
-        // brand. No "+N fit" pill. If a future change adds one without
-        // updating the spec, this test catches it.
-        final coreDb = CoreDatabase.memory();
-        await _seedProduct(
+    testWidgets('no per-row "+N fit" delta visible — deferred per V1 spec', (
+      tester,
+    ) async {
+      // Defensive: the section currently shows score badge + name +
+      // brand. No "+N fit" pill. If a future change adds one without
+      // updating the spec, this test catches it.
+      final coreDb = CoreDatabase.memory();
+      await _seedProduct(
+        coreDb,
+        dsldId: 'alt-1',
+        productName: 'Premium Multi',
+        brandName: 'BrandA',
+        scoreQuality80: 70,
+        score100: 87,
+        category: 'multivitamin',
+      );
+
+      await tester.pumpWidget(
+        _wrap(
           coreDb,
-          dsldId: 'alt-1',
-          productName: 'Premium Multi',
-          brandName: 'BrandA',
-          scoreQuality80: 70,
-          score100: 87,
-          category: 'multivitamin',
-        );
-
-        await tester.pumpWidget(
-          _wrap(
-            coreDb,
-            const BetterAlternativesSection(
-              currentDsldId: 'cur',
-              currentScore: 50,
-              category: 'multivitamin',
-            ),
+          const BetterAlternativesSection(
+            currentDsldId: 'cur',
+            currentScore: 50,
+            category: 'multivitamin',
           ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      for (final phrase in const ['+1 fit', '+5 fit', 'fit delta']) {
+        expect(
+          find.textContaining(phrase),
+          findsNothing,
+          reason: 'V1 should not show fit-delta phrase "$phrase"',
         );
-        await tester.pumpAndSettle();
+      }
+      // The word "fit" itself shouldn't appear in the rendered rows
+      // — only the score, name, brand.
+      expect(find.textContaining(' fit '), findsNothing);
 
-        for (final phrase in const ['+1 fit', '+5 fit', 'fit delta']) {
-          expect(
-            find.textContaining(phrase),
-            findsNothing,
-            reason: 'V1 should not show fit-delta phrase "$phrase"',
-          );
-        }
-        // The word "fit" itself shouldn't appear in the rendered rows
-        // — only the score, name, brand.
-        expect(find.textContaining(' fit '), findsNothing);
-
-        await coreDb.close();
-      },
-    );
+      await coreDb.close();
+    });
 
     testWidgets('no alternatives in DB → hides empty state', (tester) async {
       // findAlternatives returns empty → section returns SizedBox.shrink.

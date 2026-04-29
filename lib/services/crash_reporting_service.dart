@@ -65,7 +65,9 @@ class CrashReportingService {
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
-    if (kDebugMode) debugPrint('CrashReportingService initialized (buffer-only)');
+    if (kDebugMode) {
+      debugPrint('CrashReportingService initialized (buffer-only)');
+    }
   }
 
   /// Bootstrap Sentry and run [appRunner] inside the Sentry zone so uncaught
@@ -82,27 +84,26 @@ class CrashReportingService {
       return;
     }
 
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = dsn;
-        options.environment = environment.isEmpty ? 'production' : environment;
-        if (release.isNotEmpty) options.release = release;
-        options.sendDefaultPii = false;
-        options.attachStacktrace = true;
-        options.attachThreads = true;
-        options.enableAutoSessionTracking = true;
-        options.debug = kDebugMode;
-        options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
-        options.beforeSend = _scrubEvent;
-        options.beforeBreadcrumb = _scrubBreadcrumb;
-      },
-      appRunner: appRunner,
-    );
+    await SentryFlutter.init((options) {
+      options.dsn = dsn;
+      options.environment = environment.isEmpty ? 'production' : environment;
+      if (release.isNotEmpty) options.release = release;
+      options.sendDefaultPii = false;
+      options.attachStacktrace = true;
+      options.attachThreads = true;
+      options.enableAutoSessionTracking = true;
+      options.debug = kDebugMode;
+      options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
+      options.beforeSend = _scrubEvent;
+      options.beforeBreadcrumb = _scrubBreadcrumb;
+    }, appRunner: appRunner);
 
     _sentryEnabled = true;
     _initialized = true;
     if (kDebugMode) {
-      debugPrint('CrashReportingService initialized (Sentry enabled, env=$environment)');
+      debugPrint(
+        'CrashReportingService initialized (Sentry enabled, env=$environment)',
+      );
     }
   }
 
@@ -149,7 +150,9 @@ class CrashReportingService {
     _trimBreadcrumbs();
     if (kDebugMode) debugPrint('CrashReport: $message');
     if (_sentryEnabled) {
-      Sentry.addBreadcrumb(Breadcrumb(message: message, level: SentryLevel.info));
+      Sentry.addBreadcrumb(
+        Breadcrumb(message: message, level: SentryLevel.info),
+      );
     }
   }
 
@@ -238,7 +241,7 @@ class RecordedCrashError {
   final bool fatal;
   final DateTime at;
   RecordedCrashError(this.summary, this.stackTrace, this.fatal)
-      : at = DateTime.now();
+    : at = DateTime.now();
 
   @override
   String toString() =>

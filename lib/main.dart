@@ -106,12 +106,14 @@ Future<void> _runApp() async {
 
   final hasSeenOnboarding = await OnboardingPrefs.hasSeen();
 
-  runApp(PharmaGuideBootstrap(
-    userDb: userDb,
-    interactionDb: interactionDb,
-    supabaseReady: supabaseReady,
-    hasSeenOnboarding: hasSeenOnboarding,
-  ));
+  runApp(
+    PharmaGuideBootstrap(
+      userDb: userDb,
+      interactionDb: interactionDb,
+      supabaseReady: supabaseReady,
+      hasSeenOnboarding: hasSeenOnboarding,
+    ),
+  );
 }
 
 class PharmaGuideBootstrap extends StatefulWidget {
@@ -134,10 +136,12 @@ class PharmaGuideBootstrap extends StatefulWidget {
 
 class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   final SyncService _syncService = SyncService();
-  late final CatalogSwapper _swapper =
-      CatalogSwapper.production(syncService: _syncService);
-  late final CatalogUpdaterService _updater =
-      CatalogUpdaterService.production(syncService: _syncService);
+  late final CatalogSwapper _swapper = CatalogSwapper.production(
+    syncService: _syncService,
+  );
+  late final CatalogUpdaterService _updater = CatalogUpdaterService.production(
+    syncService: _syncService,
+  );
 
   CoreDatabase? _coreDb;
   String? _activeCatalogVersion;
@@ -201,7 +205,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     }
 
     if (initialDb == null && initialReason == null) {
-      initialReason = _unavailableReason(includeRetryHint: widget.supabaseReady);
+      initialReason = _unavailableReason(
+        includeRetryHint: widget.supabaseReady,
+      );
     }
 
     if (!mounted) {
@@ -240,7 +246,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     if (!widget.supabaseReady) return;
 
     final delay =
-        initialDelay ?? (_catalogAvailable ? const Duration(hours: 1) : const Duration(minutes: 5));
+        initialDelay ??
+        (_catalogAvailable
+            ? const Duration(hours: 1)
+            : const Duration(minutes: 5));
 
     _catalogRefreshTimer = Timer(delay, () {
       unawaited(_refreshCatalogIfNeeded());
@@ -284,8 +293,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
             if (mounted && _coreDb == null) {
               setState(() {
                 _catalogAvailable = false;
-                _catalogUnavailableReason =
-                    _unavailableReason(includeRetryHint: true);
+                _catalogUnavailableReason = _unavailableReason(
+                  includeRetryHint: true,
+                );
               });
             }
           }
@@ -297,8 +307,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           if (mounted && _coreDb == null) {
             setState(() {
               _catalogAvailable = false;
-              _catalogUnavailableReason =
-                  _unavailableReason(includeRetryHint: true);
+              _catalogUnavailableReason = _unavailableReason(
+                includeRetryHint: true,
+              );
             });
           }
           return;
@@ -346,8 +357,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         debugPrint('Catalog swap rolled back: $reason');
       case SwapNoStaging():
         debugPrint(
-            'Catalog swap: no staging file present after download '
-            'returned $downloadedVersion');
+          'Catalog swap: no staging file present after download '
+          'returned $downloadedVersion',
+        );
     }
   }
 
@@ -402,9 +414,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
-        home: const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
 

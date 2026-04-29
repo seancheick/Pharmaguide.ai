@@ -87,80 +87,69 @@ void main() {
       },
     );
 
-    test(
-      'assets/db/interaction_db_manifest.json is declared, loadable, '
-      'and well-formed',
-      () async {
-        final raw = await rootBundle.loadString(
-          'assets/db/interaction_db_manifest.json',
-        );
-        final manifest = json.decode(raw) as Map<String, dynamic>;
+    test('assets/db/interaction_db_manifest.json is declared, loadable, '
+        'and well-formed', () async {
+      final raw = await rootBundle.loadString(
+        'assets/db/interaction_db_manifest.json',
+      );
+      final manifest = json.decode(raw) as Map<String, dynamic>;
 
-        for (final key in _requiredManifestKeys) {
-          expect(
-            manifest.containsKey(key),
-            isTrue,
-            reason:
-                'bundled interaction manifest is missing required key: $key',
-          );
-        }
-
-        // Sanity: checksum is "sha256:" prefix + 64 hex chars.
-        final checksum = manifest['checksum'] as String;
+      for (final key in _requiredManifestKeys) {
         expect(
-          RegExp(r'^sha256:[0-9a-f]{64}$').hasMatch(checksum),
+          manifest.containsKey(key),
           isTrue,
+          reason: 'bundled interaction manifest is missing required key: $key',
+        );
+      }
+
+      // Sanity: checksum is "sha256:" prefix + 64 hex chars.
+      final checksum = manifest['checksum'] as String;
+      expect(
+        RegExp(r'^sha256:[0-9a-f]{64}$').hasMatch(checksum),
+        isTrue,
+        reason:
+            'checksum in bundled interaction manifest is not a valid '
+            'sha256 hash string: "$checksum"',
+      );
+    });
+
+    test('openInteractionDatabase materializes the bundle and opens it in '
+        'under ${_maxBootMaterializeMs}ms — boot budget guard', () async {
+      // Use a fresh temp dir so the test always exercises the cold
+      // path (writeAsBytes), not the cached path. This is the worst
+      // case the boot budget needs to cover.
+      final tmpDir = await Directory.systemTemp.createTemp('rg-idb-boot');
+      addTearDown(() => tmpDir.delete(recursive: true));
+
+      final stopwatch = Stopwatch()..start();
+      final db = await openInteractionDatabase(documentsDirectory: tmpDir);
+      stopwatch.stop();
+
+      try {
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(_maxBootMaterializeMs),
           reason:
-              'checksum in bundled interaction manifest is not a valid '
-              'sha256 hash string: "$checksum"',
+              'Bundle materialize + open took '
+              '${stopwatch.elapsedMilliseconds}ms, budget is '
+              '${_maxBootMaterializeMs}ms. The asset got bigger or the '
+              'native open path regressed — investigate before bumping '
+              'the budget.',
         );
-      },
-    );
 
-    test(
-      'openInteractionDatabase materializes the bundle and opens it in '
-      'under ${_maxBootMaterializeMs}ms — boot budget guard',
-      () async {
-        // Use a fresh temp dir so the test always exercises the cold
-        // path (writeAsBytes), not the cached path. This is the worst
-        // case the boot budget needs to cover.
-        final tmpDir = await Directory.systemTemp.createTemp('rg-idb-boot');
-        addTearDown(() => tmpDir.delete(recursive: true));
-
-        final stopwatch = Stopwatch()..start();
-        final db = await openInteractionDatabase(
-          documentsDirectory: tmpDir,
+        // Confirm the materialized file is on disk where the helper
+        // promised it would be — guards against a future refactor that
+        // accidentally leaks an in-memory DB.
+        final materialized = File(p.join(tmpDir.path, 'interaction_db.sqlite'));
+        expect(await materialized.exists(), isTrue);
+        expect(
+          await materialized.length(),
+          greaterThan(_minBundledInteractionDbBytes),
         );
-        stopwatch.stop();
-
-        try {
-          expect(
-            stopwatch.elapsedMilliseconds,
-            lessThan(_maxBootMaterializeMs),
-            reason:
-                'Bundle materialize + open took '
-                '${stopwatch.elapsedMilliseconds}ms, budget is '
-                '${_maxBootMaterializeMs}ms. The asset got bigger or the '
-                'native open path regressed — investigate before bumping '
-                'the budget.',
-          );
-
-          // Confirm the materialized file is on disk where the helper
-          // promised it would be — guards against a future refactor that
-          // accidentally leaks an in-memory DB.
-          final materialized = File(
-            p.join(tmpDir.path, 'interaction_db.sqlite'),
-          );
-          expect(await materialized.exists(), isTrue);
-          expect(
-            await materialized.length(),
-            greaterThan(_minBundledInteractionDbBytes),
-          );
-        } finally {
-          await db.close();
-        }
-      },
-    );
+      } finally {
+        await db.close();
+      }
+    });
 
     test(
       'embedded interaction_db_metadata agrees with the bundled JSON manifest',
@@ -168,9 +157,7 @@ void main() {
         final tmpDir = await Directory.systemTemp.createTemp('rg-idb-meta');
         addTearDown(() => tmpDir.delete(recursive: true));
 
-        final db = await openInteractionDatabase(
-          documentsDirectory: tmpDir,
-        );
+        final db = await openInteractionDatabase(documentsDirectory: tmpDir);
 
         try {
           final rawJson = await rootBundle.loadString(

@@ -87,9 +87,6 @@ class PGShimmerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PGShimmerBox(
-      height: height,
-      radius: AppTheme.radiusLarge,
-    );
+    return PGShimmerBox(height: height, radius: AppTheme.radiusLarge);
   }
 }

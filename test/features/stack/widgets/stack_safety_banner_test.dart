@@ -81,13 +81,13 @@ void main() {
     tester,
   ) async {
     final report = StackSafetyReport(
-      medicationInteractions: [
-        makeInteraction(severity: Severity.avoid),
-      ],
+      medicationInteractions: [makeInteraction(severity: Severity.avoid)],
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.tone, PGBannerTone.danger);
     expect(banner.title, contains('AVOID'));
     expect(banner.title, contains('Warfarin'));
@@ -110,7 +110,9 @@ void main() {
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.tone, PGBannerTone.danger);
     expect(banner.title, contains('BLOCK'));
     expect(banner.body, contains('serotonin syndrome'));
@@ -129,7 +131,9 @@ void main() {
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.tone, PGBannerTone.caution);
     expect(banner.title, contains('CAUTION'));
     expect(banner.body, contains('Space doses'));
@@ -146,30 +150,35 @@ void main() {
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.tone, PGBannerTone.caution);
     expect(banner.title, contains('MONITOR'));
   });
 
-  testWidgets('nutrient exceeds UL → title uses display name, body hints overage', (
-    tester,
-  ) async {
-    final report = StackSafetyReport(
-      nutrientStatuses: [
-        makeNutrientStatus(
-          tier: NutrientTier.exceedsUl,
-          displayName: 'Vitamin D',
-        ),
-      ],
-    );
-    await pumpBanner(tester, report: report);
+  testWidgets(
+    'nutrient exceeds UL → title uses display name, body hints overage',
+    (tester) async {
+      final report = StackSafetyReport(
+        nutrientStatuses: [
+          makeNutrientStatus(
+            tier: NutrientTier.exceedsUl,
+            displayName: 'Vitamin D',
+          ),
+        ],
+      );
+      await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
-    // exceedsUl maps to Severity.avoid → danger tone
-    expect(banner.tone, PGBannerTone.danger);
-    expect(banner.title, contains('Vitamin D'));
-    expect(banner.body, contains('exceeds upper limit'));
-  });
+      final banner = tester.widget<PGSeverityBanner>(
+        find.byType(PGSeverityBanner),
+      );
+      // exceedsUl maps to Severity.avoid → danger tone
+      expect(banner.tone, PGBannerTone.danger);
+      expect(banner.title, contains('Vitamin D'));
+      expect(banner.body, contains('exceeds upper limit'));
+    },
+  );
 
   testWidgets('nutrient approaching UL → caution tone with "near" hint', (
     tester,
@@ -184,7 +193,9 @@ void main() {
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     // approachingUl maps to Severity.caution → caution tone
     expect(banner.tone, PGBannerTone.caution);
     expect(banner.title, contains('Zinc'));
@@ -195,9 +206,7 @@ void main() {
     tester,
   ) async {
     final report = StackSafetyReport(
-      medicationInteractions: [
-        makeInteraction(severity: Severity.avoid),
-      ],
+      medicationInteractions: [makeInteraction(severity: Severity.avoid)],
       stackInteractions: [
         makeInteraction(
           id: 'i2',
@@ -215,7 +224,9 @@ void main() {
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.tone, PGBannerTone.danger);
     // Top-severity is the medication interaction (avoid > caution > monitor)
     expect(banner.title, contains('AVOID'));
@@ -238,20 +249,22 @@ void main() {
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.body, contains('1 more signal'));
     expect(banner.body, isNot(contains('1 more signals')));
   });
 
   testWidgets('onTap null → no action label rendered', (tester) async {
     final report = StackSafetyReport(
-      medicationInteractions: [
-        makeInteraction(severity: Severity.avoid),
-      ],
+      medicationInteractions: [makeInteraction(severity: Severity.avoid)],
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.actionLabel, isNull);
     expect(banner.onAction, isNull);
     expect(find.text('View details'), findsNothing);
@@ -262,15 +275,9 @@ void main() {
   ) async {
     var tapCount = 0;
     final report = StackSafetyReport(
-      medicationInteractions: [
-        makeInteraction(severity: Severity.avoid),
-      ],
+      medicationInteractions: [makeInteraction(severity: Severity.avoid)],
     );
-    await pumpBanner(
-      tester,
-      report: report,
-      onTap: () => tapCount++,
-    );
+    await pumpBanner(tester, report: report, onTap: () => tapCount++);
 
     expect(find.text('View details'), findsOneWidget);
     await tester.tap(find.text('View details'));
@@ -292,41 +299,46 @@ void main() {
     );
     await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
     expect(banner.body, contains('CYP3A4'));
   });
 
-  testWidgets('medication interactions outrank stack interactions at same severity', (
-    tester,
-  ) async {
-    final report = StackSafetyReport(
-      stackInteractions: [
-        makeInteraction(
-          id: 'stack-1',
-          severity: Severity.avoid,
-          agent1: 'Supp A',
-          agent2: 'Supp B',
-          management: 'supp-level management',
-        ),
-      ],
-      medicationInteractions: [
-        makeInteraction(
-          id: 'med-1',
-          severity: Severity.avoid,
-          agent1: 'Drug X',
-          agent2: 'Supp Y',
-          management: 'med-level management',
-        ),
-      ],
-    );
-    await pumpBanner(tester, report: report);
+  testWidgets(
+    'medication interactions outrank stack interactions at same severity',
+    (tester) async {
+      final report = StackSafetyReport(
+        stackInteractions: [
+          makeInteraction(
+            id: 'stack-1',
+            severity: Severity.avoid,
+            agent1: 'Supp A',
+            agent2: 'Supp B',
+            management: 'supp-level management',
+          ),
+        ],
+        medicationInteractions: [
+          makeInteraction(
+            id: 'med-1',
+            severity: Severity.avoid,
+            agent1: 'Drug X',
+            agent2: 'Supp Y',
+            management: 'med-level management',
+          ),
+        ],
+      );
+      await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(find.byType(PGSeverityBanner));
-    // Medication bucket comes first at the same severity.
-    expect(banner.title, contains('Drug X'));
-    expect(banner.title, contains('Supp Y'));
-    expect(banner.body, contains('med-level'));
-  });
+      final banner = tester.widget<PGSeverityBanner>(
+        find.byType(PGSeverityBanner),
+      );
+      // Medication bucket comes first at the same severity.
+      expect(banner.title, contains('Drug X'));
+      expect(banner.title, contains('Supp Y'));
+      expect(banner.body, contains('med-level'));
+    },
+  );
 
   testWidgets('sub-warn nutrient statuses are ignored by the banner', (
     tester,

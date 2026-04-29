@@ -34,10 +34,7 @@ enum StackHealthLabel {
   final String label;
   final Color color;
 
-  const StackHealthLabel({
-    required this.label,
-    required this.color,
-  });
+  const StackHealthLabel({required this.label, required this.color});
 }
 
 class StackSafetyScore {
@@ -73,8 +70,7 @@ class StackSafetyScore {
   }
 
   bool get hasUnsafeIssue =>
-      maxSeverity == Severity.contraindicated ||
-      maxSeverity == Severity.avoid;
+      maxSeverity == Severity.contraindicated || maxSeverity == Severity.avoid;
 
   StackHealthLabel get healthLabel {
     if (hasUnsafeIssue) return StackHealthLabel.unsafe;

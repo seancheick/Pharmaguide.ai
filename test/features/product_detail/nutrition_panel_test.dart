@@ -10,11 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 
 Future<void> _pump(WidgetTester tester, Widget child) {
-  return tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(body: child),
-    ),
-  );
+  return tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
 }
 
 void main() {
@@ -30,31 +26,33 @@ void main() {
       expect(find.byKey(const Key('nutrition-panel-card')), findsNothing);
     });
 
-    testWidgets('renders nothing when nutrition_detail is empty and calories null', (tester) async {
+    testWidgets(
+      'renders nothing when nutrition_detail is empty and calories null',
+      (tester) async {
+        await _pump(
+          tester,
+          const NutritionPanel(
+            caloriesPerServing: null,
+            nutritionDetail: <String, dynamic>{
+              'calories_per_serving': null,
+              'total_carbohydrates_g': null,
+              'total_fat_g': null,
+              'protein_g': null,
+              'dietary_fiber_g': null,
+            },
+          ),
+        );
+
+        expect(find.byKey(const Key('nutrition-panel-card')), findsNothing);
+      },
+    );
+
+    testWidgets('renders calories from the column when blob is missing', (
+      tester,
+    ) async {
       await _pump(
         tester,
-        const NutritionPanel(
-          caloriesPerServing: null,
-          nutritionDetail: <String, dynamic>{
-            'calories_per_serving': null,
-            'total_carbohydrates_g': null,
-            'total_fat_g': null,
-            'protein_g': null,
-            'dietary_fiber_g': null,
-          },
-        ),
-      );
-
-      expect(find.byKey(const Key('nutrition-panel-card')), findsNothing);
-    });
-
-    testWidgets('renders calories from the column when blob is missing', (tester) async {
-      await _pump(
-        tester,
-        const NutritionPanel(
-          caloriesPerServing: 120.0,
-          nutritionDetail: null,
-        ),
+        const NutritionPanel(caloriesPerServing: 120.0, nutritionDetail: null),
       );
 
       expect(find.byKey(const Key('nutrition-panel-card')), findsOneWidget);
@@ -95,7 +93,9 @@ void main() {
       expect(find.text('1.5 g'), findsOneWidget);
     });
 
-    testWidgets('skips individual macro rows when their value is null', (tester) async {
+    testWidgets('skips individual macro rows when their value is null', (
+      tester,
+    ) async {
       await _pump(
         tester,
         const NutritionPanel(
@@ -143,28 +143,33 @@ void main() {
       expect(find.text('2.5 g'), findsOneWidget);
     });
 
-    testWidgets('column calories takes precedence over blob calories on conflict', (tester) async {
-      // Edge case: if the column and blob disagree, the column wins
-      // (column is the canonical filter source; blob is for display).
-      await _pump(
-        tester,
-        const NutritionPanel(
-          caloriesPerServing: 50.0,
-          nutritionDetail: <String, dynamic>{
-            'calories_per_serving': 99.0, // intentionally different
-            'total_carbohydrates_g': null,
-            'total_fat_g': null,
-            'protein_g': null,
-            'dietary_fiber_g': null,
-          },
-        ),
-      );
+    testWidgets(
+      'column calories takes precedence over blob calories on conflict',
+      (tester) async {
+        // Edge case: if the column and blob disagree, the column wins
+        // (column is the canonical filter source; blob is for display).
+        await _pump(
+          tester,
+          const NutritionPanel(
+            caloriesPerServing: 50.0,
+            nutritionDetail: <String, dynamic>{
+              'calories_per_serving': 99.0, // intentionally different
+              'total_carbohydrates_g': null,
+              'total_fat_g': null,
+              'protein_g': null,
+              'dietary_fiber_g': null,
+            },
+          ),
+        );
 
-      expect(find.text('50'), findsOneWidget);
-      expect(find.text('99'), findsNothing);
-    });
+        expect(find.text('50'), findsOneWidget);
+        expect(find.text('99'), findsNothing);
+      },
+    );
 
-    testWidgets('handles int and double values from JSON decode', (tester) async {
+    testWidgets('handles int and double values from JSON decode', (
+      tester,
+    ) async {
       // jsonDecode can produce int OR double depending on the source.
       // The widget must accept both without crashing.
       await _pump(

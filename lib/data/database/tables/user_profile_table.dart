@@ -4,8 +4,7 @@ import 'package:drift/drift.dart';
 class UserProfiles extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get nickname => text().nullable()();
-  TextColumn get ageBracket =>
-      text().named('age_bracket').nullable()();
+  TextColumn get ageBracket => text().named('age_bracket').nullable()();
   TextColumn get sex => text().nullable()();
   TextColumn get goals =>
       text().withDefault(const Constant('[]'))(); // JSON array
@@ -16,12 +15,10 @@ class UserProfiles extends Table {
       .withDefault(const Constant('[]'))(); // JSON array
   TextColumn get allergens =>
       text().withDefault(const Constant('[]'))(); // JSON array
-  DateTimeColumn get createdAt => dateTime()
-      .named('created_at')
-      .withDefault(currentDateAndTime)();
-  DateTimeColumn get lastUpdated => dateTime()
-      .named('last_updated')
-      .withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt =>
+      dateTime().named('created_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get lastUpdated =>
+      dateTime().named('last_updated').withDefault(currentDateAndTime)();
 
   @override
   String get tableName => 'user_profile';

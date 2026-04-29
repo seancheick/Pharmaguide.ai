@@ -24,10 +24,8 @@ class ProductsCore extends Table {
   TextColumn get brandName => text().named('brand_name').nullable()();
   TextColumn get upcSku => text().named('upc_sku').nullable()();
   TextColumn get imageUrl => text().named('image_url').nullable()();
-  IntColumn get imageIsPdf =>
-      integer().named('image_is_pdf').nullable()();
-  TextColumn get thumbnailKey =>
-      text().named('thumbnail_key').nullable()();
+  IntColumn get imageIsPdf => integer().named('image_is_pdf').nullable()();
+  TextColumn get thumbnailKey => text().named('thumbnail_key').nullable()();
   TextColumn get imageThumbnailUrl =>
       text().named('image_thumbnail_url').nullable()();
   TextColumn get detailBlobSha256 =>
@@ -38,14 +36,11 @@ class ProductsCore extends Table {
       text().named('decision_highlights').nullable()();
 
   // Product status
-  TextColumn get productStatus =>
-      text().named('product_status').nullable()();
+  TextColumn get productStatus => text().named('product_status').nullable()();
   TextColumn get discontinuedDate =>
       text().named('discontinued_date').nullable()();
-  TextColumn get formFactor =>
-      text().named('form_factor').nullable()();
-  TextColumn get supplementType =>
-      text().named('supplement_type').nullable()();
+  TextColumn get formFactor => text().named('form_factor').nullable()();
+  TextColumn get supplementType => text().named('supplement_type').nullable()();
 
   // Scores
   RealColumn get scoreQuality80 =>
@@ -58,10 +53,8 @@ class ProductsCore extends Table {
       real().named('score_100_equivalent').nullable()();
   TextColumn get grade => text().named('grade').nullable()();
   TextColumn get verdict => text().named('verdict').nullable()();
-  TextColumn get safetyVerdict =>
-      text().named('safety_verdict').nullable()();
-  RealColumn get mappedCoverage =>
-      real().named('mapped_coverage').nullable()();
+  TextColumn get safetyVerdict => text().named('safety_verdict').nullable()();
+  RealColumn get mappedCoverage => real().named('mapped_coverage').nullable()();
 
   // Section scores
   RealColumn get scoreIngredientQuality =>
@@ -82,8 +75,7 @@ class ProductsCore extends Table {
       real().named('score_brand_trust_max').nullable()();
 
   // Percentile
-  RealColumn get percentileRank =>
-      real().named('percentile_rank').nullable()();
+  RealColumn get percentileRank => real().named('percentile_rank').nullable()();
   RealColumn get percentileTopPct =>
       real().named('percentile_top_pct').nullable()();
   TextColumn get percentileCategory =>
@@ -94,68 +86,47 @@ class ProductsCore extends Table {
       integer().named('percentile_cohort').nullable()();
 
   // Dietary flags
-  IntColumn get isGlutenFree =>
-      integer().named('is_gluten_free').nullable()();
-  IntColumn get isDairyFree =>
-      integer().named('is_dairy_free').nullable()();
-  IntColumn get isSoyFree =>
-      integer().named('is_soy_free').nullable()();
-  IntColumn get isVegan =>
-      integer().named('is_vegan').nullable()();
-  IntColumn get isVegetarian =>
-      integer().named('is_vegetarian').nullable()();
-  IntColumn get isOrganic =>
-      integer().named('is_organic').nullable()();
-  IntColumn get isNonGmo =>
-      integer().named('is_non_gmo').nullable()();
+  IntColumn get isGlutenFree => integer().named('is_gluten_free').nullable()();
+  IntColumn get isDairyFree => integer().named('is_dairy_free').nullable()();
+  IntColumn get isSoyFree => integer().named('is_soy_free').nullable()();
+  IntColumn get isVegan => integer().named('is_vegan').nullable()();
+  IntColumn get isVegetarian => integer().named('is_vegetarian').nullable()();
+  IntColumn get isOrganic => integer().named('is_organic').nullable()();
+  IntColumn get isNonGmo => integer().named('is_non_gmo').nullable()();
 
   // Safety flags
-  IntColumn get hasBannedSubstance => integer()
-      .named('has_banned_substance')
-      .nullable()();
-  IntColumn get hasRecalledIngredient => integer()
-      .named('has_recalled_ingredient')
-      .nullable()();
-  IntColumn get hasHarmfulAdditives => integer()
-      .named('has_harmful_additives')
-      .nullable()();
-  IntColumn get hasAllergenRisks => integer()
-      .named('has_allergen_risks')
-      .nullable()();
-  TextColumn get blockingReason =>
-      text().named('blocking_reason').nullable()();
+  IntColumn get hasBannedSubstance =>
+      integer().named('has_banned_substance').nullable()();
+  IntColumn get hasRecalledIngredient =>
+      integer().named('has_recalled_ingredient').nullable()();
+  IntColumn get hasHarmfulAdditives =>
+      integer().named('has_harmful_additives').nullable()();
+  IntColumn get hasAllergenRisks =>
+      integer().named('has_allergen_risks').nullable()();
+  TextColumn get blockingReason => text().named('blocking_reason').nullable()();
 
   // Health-specific
-  IntColumn get isProbiotic =>
-      integer().named('is_probiotic').nullable()();
-  IntColumn get containsSugar =>
-      integer().named('contains_sugar').nullable()();
+  IntColumn get isProbiotic => integer().named('is_probiotic').nullable()();
+  IntColumn get containsSugar => integer().named('contains_sugar').nullable()();
   IntColumn get containsSodium =>
       integer().named('contains_sodium').nullable()();
-  IntColumn get diabetesFriendly => integer()
-      .named('diabetes_friendly')
-      .nullable()();
-  IntColumn get hypertensionFriendly => integer()
-      .named('hypertension_friendly')
-      .nullable()();
+  IntColumn get diabetesFriendly =>
+      integer().named('diabetes_friendly').nullable()();
+  IntColumn get hypertensionFriendly =>
+      integer().named('hypertension_friendly').nullable()();
 
   // Manufacturer
-  IntColumn get isTrustedManufacturer => integer()
-      .named('is_trusted_manufacturer')
-      .nullable()();
-  IntColumn get hasThirdPartyTesting => integer()
-      .named('has_third_party_testing')
-      .nullable()();
-  IntColumn get hasFullDisclosure => integer()
-      .named('has_full_disclosure')
-      .nullable()();
+  IntColumn get isTrustedManufacturer =>
+      integer().named('is_trusted_manufacturer').nullable()();
+  IntColumn get hasThirdPartyTesting =>
+      integer().named('has_third_party_testing').nullable()();
+  IntColumn get hasFullDisclosure =>
+      integer().named('has_full_disclosure').nullable()();
 
   // JSON arrays (stored as TEXT, parsed in Dart)
-  TextColumn get certPrograms =>
-      text().named('cert_programs').nullable()();
+  TextColumn get certPrograms => text().named('cert_programs').nullable()();
   TextColumn get badges => text().named('badges').nullable()();
-  TextColumn get topWarnings =>
-      text().named('top_warnings').nullable()();
+  TextColumn get topWarnings => text().named('top_warnings').nullable()();
   TextColumn get flags => text().named('flags').nullable()();
 
   // v1.3.0: Stack Interaction
@@ -163,19 +134,15 @@ class ProductsCore extends Table {
       text().named('ingredient_fingerprint').nullable()();
   TextColumn get keyNutrientsSummary =>
       text().named('key_nutrients_summary').nullable()();
-  IntColumn get containsStimulants => integer()
-      .named('contains_stimulants')
-      .nullable()();
-  IntColumn get containsSedatives => integer()
-      .named('contains_sedatives')
-      .nullable()();
-  IntColumn get containsBloodThinners => integer()
-      .named('contains_blood_thinners')
-      .nullable()();
+  IntColumn get containsStimulants =>
+      integer().named('contains_stimulants').nullable()();
+  IntColumn get containsSedatives =>
+      integer().named('contains_sedatives').nullable()();
+  IntColumn get containsBloodThinners =>
+      integer().named('contains_blood_thinners').nullable()();
 
   // v1.3.0: Social Sharing
-  TextColumn get shareTitle =>
-      text().named('share_title').nullable()();
+  TextColumn get shareTitle => text().named('share_title').nullable()();
   TextColumn get shareDescription =>
       text().named('share_description').nullable()();
   TextColumn get shareHighlights =>
@@ -188,33 +155,26 @@ class ProductsCore extends Table {
       text().named('primary_category').nullable()();
   TextColumn get secondaryCategories =>
       text().named('secondary_categories').nullable()();
-  IntColumn get containsOmega3 => integer()
-      .named('contains_omega3')
-      .nullable()();
-  IntColumn get containsProbiotics => integer()
-      .named('contains_probiotics')
-      .nullable()();
-  IntColumn get containsCollagen => integer()
-      .named('contains_collagen')
-      .nullable()();
-  IntColumn get containsAdaptogens => integer()
-      .named('contains_adaptogens')
-      .nullable()();
-  IntColumn get containsNootropics => integer()
-      .named('contains_nootropics')
-      .nullable()();
+  IntColumn get containsOmega3 =>
+      integer().named('contains_omega3').nullable()();
+  IntColumn get containsProbiotics =>
+      integer().named('contains_probiotics').nullable()();
+  IntColumn get containsCollagen =>
+      integer().named('contains_collagen').nullable()();
+  IntColumn get containsAdaptogens =>
+      integer().named('contains_adaptogens').nullable()();
+  IntColumn get containsNootropics =>
+      integer().named('contains_nootropics').nullable()();
   TextColumn get keyIngredientTags =>
       text().named('key_ingredient_tags').nullable()();
 
   // v1.3.0: Goal Matching
-  TextColumn get goalMatches =>
-      text().named('goal_matches').nullable()();
+  TextColumn get goalMatches => text().named('goal_matches').nullable()();
   RealColumn get goalMatchConfidence =>
       real().named('goal_match_confidence').nullable()();
 
   // v1.3.0: Dosing
-  TextColumn get dosingSummary =>
-      text().named('dosing_summary').nullable()();
+  TextColumn get dosingSummary => text().named('dosing_summary').nullable()();
   IntColumn get servingsPerContainer =>
       integer().named('servings_per_container').nullable()();
 
@@ -234,14 +194,12 @@ class ProductsCore extends Table {
       real().named('calories_per_serving').nullable()();
 
   // Metadata
-  TextColumn get scoringVersion =>
-      text().named('scoring_version').nullable()();
+  TextColumn get scoringVersion => text().named('scoring_version').nullable()();
   TextColumn get outputSchemaVersion =>
       text().named('output_schema_version').nullable()();
   TextColumn get enrichmentVersion =>
       text().named('enrichment_version').nullable()();
-  TextColumn get scoredDate =>
-      text().named('scored_date').nullable()();
+  TextColumn get scoredDate => text().named('scored_date').nullable()();
   TextColumn get exportVersion => text().named('export_version')();
   TextColumn get exportedAt => text().named('exported_at')();
 

@@ -93,12 +93,10 @@ class _StubProfileNotifier extends ProfileNotifier {
 
 void main() {
   group('ForYouSection — empty profile', () {
-    testWidgets('renders the affordance + tap routes to profile setup',
-        (tester) async {
-      await _pumpSection(
-        tester,
-        profile: const ProfileState(),
-      );
+    testWidgets('renders the affordance + tap routes to profile setup', (
+      tester,
+    ) async {
+      await _pumpSection(tester, profile: const ProfileState());
       expect(find.text('For You'), findsOneWidget);
       expect(find.text('Add your profile to personalize'), findsOneWidget);
       // The verdict row + chips do NOT render in empty state.
@@ -110,10 +108,7 @@ void main() {
       // A profile that has a nickname but no goals/conditions/drug
       // classes/allergens still has nothing to personalize on. Render
       // the affordance.
-      await _pumpSection(
-        tester,
-        profile: const ProfileState(nickname: 'Sean'),
-      );
+      await _pumpSection(tester, profile: const ProfileState(nickname: 'Sean'));
       expect(find.text('Add your profile to personalize'), findsOneWidget);
     });
 
@@ -140,39 +135,39 @@ void main() {
   });
 
   group('ForYouSection — verdict copy + risk-gating', () {
-    testWidgets(
-      'Safe + good fit + topGoalLabel "sleep" → '
-      '"Strong match for your sleep goal"',
-      (tester) async {
-        await _pumpSection(
-          tester,
-          profile: const ProfileState(goals: ['sleep_quality']),
-          fitResult: _fit(scoreFit20: 18.4),
-          maxSeverity: Severity.safe,
-          topGoalLabel: 'sleep',
-        );
-        expect(find.text('Strong match for your sleep goal'), findsOneWidget);
-      },
-    );
-
-    testWidgets('Avoid → "Not recommended for your profile" AND no fit number',
-        (tester) async {
-      // Risk-gate test: even with a high underlying score, Avoid
-      // hides the fit pill entirely. T1.3's core invariant.
+    testWidgets('Safe + good fit + topGoalLabel "sleep" → '
+        '"Strong match for your sleep goal"', (tester) async {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreFit20: 17.6),
-        maxSeverity: Severity.avoid,
+        fitResult: _fit(scoreFit20: 18.4),
+        maxSeverity: Severity.safe,
         topGoalLabel: 'sleep',
       );
-      expect(find.text('Not recommended for your profile'), findsOneWidget);
-      // The headline must not name the goal — degrades to "your profile".
-      expect(find.textContaining('sleep goal'), findsNothing);
+      expect(find.text('Strong match for your sleep goal'), findsOneWidget);
     });
 
-    testWidgets('Contraindicated → "Not recommended" + no fit number',
-        (tester) async {
+    testWidgets(
+      'Avoid → "Not recommended for your profile" AND no fit number',
+      (tester) async {
+        // Risk-gate test: even with a high underlying score, Avoid
+        // hides the fit pill entirely. T1.3's core invariant.
+        await _pumpSection(
+          tester,
+          profile: const ProfileState(goals: ['sleep_quality']),
+          fitResult: _fit(scoreFit20: 17.6),
+          maxSeverity: Severity.avoid,
+          topGoalLabel: 'sleep',
+        );
+        expect(find.text('Not recommended for your profile'), findsOneWidget);
+        // The headline must not name the goal — degrades to "your profile".
+        expect(find.textContaining('sleep goal'), findsNothing);
+      },
+    );
+
+    testWidgets('Contraindicated → "Not recommended" + no fit number', (
+      tester,
+    ) async {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
@@ -183,23 +178,26 @@ void main() {
       expect(find.text('Not recommended for your profile'), findsOneWidget);
     });
 
-    testWidgets('Caution + fit 80 → "Good match for your profile" — fit shown',
-        (tester) async {
-      // Caution doesn't gate the fit pill; the alert renders below.
-      await _pumpSection(
-        tester,
-        profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreFit20: 16),
-        warnings: [_warning(severity: Severity.caution)],
-        maxSeverity: Severity.caution,
-      );
-      expect(find.text('Good match for your profile'), findsOneWidget);
-      // Caution alert IS rendered.
-      expect(find.text('CAUTION'), findsOneWidget);
-    });
+    testWidgets(
+      'Caution + fit 80 → "Good match for your profile" — fit shown',
+      (tester) async {
+        // Caution doesn't gate the fit pill; the alert renders below.
+        await _pumpSection(
+          tester,
+          profile: const ProfileState(goals: ['sleep_quality']),
+          fitResult: _fit(scoreFit20: 16),
+          warnings: [_warning(severity: Severity.caution)],
+          maxSeverity: Severity.caution,
+        );
+        expect(find.text('Good match for your profile'), findsOneWidget);
+        // Caution alert IS rendered.
+        expect(find.text('CAUTION'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Safe + fit 35 → "Limited fit for your profile" + 🟡 emoji',
-        (tester) async {
+    testWidgets('Safe + fit 35 → "Limited fit for your profile" + 🟡 emoji', (
+      tester,
+    ) async {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
@@ -210,22 +208,20 @@ void main() {
       expect(find.text('🟡'), findsOneWidget);
     });
 
-    testWidgets(
-      'Safe + fit 25 → "Not recommended for your profile" '
-      '(low fit even when safe)',
-      (tester) async {
-        await _pumpSection(
-          tester,
-          profile: const ProfileState(goals: ['sleep_quality']),
-          fitResult: _fit(scoreFit20: 5),
-          maxSeverity: Severity.safe,
-        );
-        expect(find.text('Not recommended for your profile'), findsOneWidget);
-      },
-    );
+    testWidgets('Safe + fit 25 → "Not recommended for your profile" '
+        '(low fit even when safe)', (tester) async {
+      await _pumpSection(
+        tester,
+        profile: const ProfileState(goals: ['sleep_quality']),
+        fitResult: _fit(scoreFit20: 5),
+        maxSeverity: Severity.safe,
+      );
+      expect(find.text('Not recommended for your profile'), findsOneWidget);
+    });
 
-    testWidgets('null fitResult → "Add more details to personalize"',
-        (tester) async {
+    testWidgets('null fitResult → "Add more details to personalize"', (
+      tester,
+    ) async {
       // Profile populated, but FitScore math hasn't produced a result
       // yet (e.g., still loading or upstream error). Render the
       // incomplete-fit incomplete state, NOT the empty-profile one.
@@ -247,38 +243,27 @@ void main() {
         profile: const ProfileState(drugClasses: ['anticoagulants']),
         fitResult: _fit(scoreFit20: 14),
         warnings: [
-          _warning(
-            severity: Severity.caution,
-            alertHeadline: 'Caution alert',
-          ),
+          _warning(severity: Severity.caution, alertHeadline: 'Caution alert'),
           _warning(
             severity: Severity.contraindicated,
             alertHeadline: 'Contra alert',
           ),
-          _warning(
-            severity: Severity.avoid,
-            alertHeadline: 'Avoid alert',
-          ),
+          _warning(severity: Severity.avoid, alertHeadline: 'Avoid alert'),
         ],
         maxSeverity: Severity.contraindicated,
       );
       // Pull the rendered text in document order.
-      final contraPos = tester
-          .getTopLeft(find.text('Contra alert'))
-          .dy;
-      final avoidPos = tester
-          .getTopLeft(find.text('Avoid alert'))
-          .dy;
-      final cautionPos = tester
-          .getTopLeft(find.text('Caution alert'))
-          .dy;
+      final contraPos = tester.getTopLeft(find.text('Contra alert')).dy;
+      final avoidPos = tester.getTopLeft(find.text('Avoid alert')).dy;
+      final cautionPos = tester.getTopLeft(find.text('Caution alert')).dy;
       // Higher severity renders first → smaller y-coordinate.
       expect(contraPos, lessThan(avoidPos));
       expect(avoidPos, lessThan(cautionPos));
     });
 
-    testWidgets('monitor + safe + informational warnings are filtered out',
-        (tester) async {
+    testWidgets('monitor + safe + informational warnings are filtered out', (
+      tester,
+    ) async {
       // Per spec: Section 2 only shows contra/avoid/caution. Lower
       // severities live elsewhere (Section 7 Interactions, etc.).
       await _pumpSection(
@@ -340,35 +325,32 @@ void main() {
       },
     );
 
-    testWidgets(
-      'tapping the expander reveals up to 4 deterministic bullets '
-      '(takes the first 4 reasons)',
-      (tester) async {
-        await _pumpSection(
-          tester,
-          profile: const ProfileState(goals: ['sleep_quality']),
-          fitResult: _fit(
-            scoreFit20: 17.6,
-            reasons: const [
-              'Reason one',
-              'Reason two',
-              'Reason three',
-              'Reason four',
-              'Reason five — should NOT render (cap at 4)',
-            ],
-          ),
-          maxSeverity: Severity.safe,
-        );
-        await tester.tap(find.text('Why this fits you'));
-        await tester.pumpAndSettle();
-        expect(find.text('Reason one'), findsOneWidget);
-        expect(find.text('Reason four'), findsOneWidget);
-        expect(
-          find.text('Reason five — should NOT render (cap at 4)'),
-          findsNothing,
-        );
-      },
-    );
+    testWidgets('tapping the expander reveals up to 4 deterministic bullets '
+        '(takes the first 4 reasons)', (tester) async {
+      await _pumpSection(
+        tester,
+        profile: const ProfileState(goals: ['sleep_quality']),
+        fitResult: _fit(
+          scoreFit20: 17.6,
+          reasons: const [
+            'Reason one',
+            'Reason two',
+            'Reason three',
+            'Reason four',
+            'Reason five — should NOT render (cap at 4)',
+          ],
+        ),
+        maxSeverity: Severity.safe,
+      );
+      await tester.tap(find.text('Why this fits you'));
+      await tester.pumpAndSettle();
+      expect(find.text('Reason one'), findsOneWidget);
+      expect(find.text('Reason four'), findsOneWidget);
+      expect(
+        find.text('Reason five — should NOT render (cap at 4)'),
+        findsNothing,
+      );
+    });
 
     testWidgets('expander hidden when reasons list is empty', (tester) async {
       await _pumpSection(
@@ -382,26 +364,25 @@ void main() {
   });
 
   group('ForYouSection — context chips', () {
-    testWidgets(
-      'profile signals render as up-to-4 outline chips (humanized)',
-      (tester) async {
-        await _pumpSection(
-          tester,
-          profile: const ProfileState(
-            goals: ['sleep_quality', 'energy_focus'],
-            conditions: ['hypertension'],
-            drugClasses: ['anticoagulants'],
-          ),
-          fitResult: _fit(scoreFit20: 16),
-          maxSeverity: Severity.safe,
-        );
-        // snake_case → "Snake Case" humanizer.
-        expect(find.text('Sleep Quality'), findsOneWidget);
-        expect(find.text('Energy Focus'), findsOneWidget);
-        expect(find.text('Hypertension'), findsOneWidget);
-        expect(find.text('Anticoagulants'), findsOneWidget);
-      },
-    );
+    testWidgets('profile signals render as up-to-4 outline chips (humanized)', (
+      tester,
+    ) async {
+      await _pumpSection(
+        tester,
+        profile: const ProfileState(
+          goals: ['sleep_quality', 'energy_focus'],
+          conditions: ['hypertension'],
+          drugClasses: ['anticoagulants'],
+        ),
+        fitResult: _fit(scoreFit20: 16),
+        maxSeverity: Severity.safe,
+      );
+      // snake_case → "Snake Case" humanizer.
+      expect(find.text('Sleep Quality'), findsOneWidget);
+      expect(find.text('Energy Focus'), findsOneWidget);
+      expect(find.text('Hypertension'), findsOneWidget);
+      expect(find.text('Anticoagulants'), findsOneWidget);
+    });
 
     testWidgets(
       'profile with 5+ signals caps the chip render at 4 to keep the row '

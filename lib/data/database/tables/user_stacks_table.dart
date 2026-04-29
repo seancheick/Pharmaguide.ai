@@ -4,8 +4,9 @@ import 'package:drift/drift.dart';
 /// Supports soft-delete via [deletedAt] and Supabase sync via [syncedAt].
 class UserStacksLocal extends Table {
   TextColumn get id => text()(); // UUID
-  TextColumn get type => text()
-      .withDefault(const Constant('supplement'))(); // supplement | medication
+  TextColumn get type => text().withDefault(
+    const Constant('supplement'),
+  )(); // supplement | medication
   TextColumn get name => text()();
   TextColumn get dsldId => text().named('dsld_id').nullable()();
   TextColumn get rxcui => text().nullable()();
@@ -16,8 +17,8 @@ class UserStacksLocal extends Table {
   /// Generic ingredient RXCUI for brand→generic interaction matching.
   /// When user adds "Synthroid" (rxcui=224920), this stores "10582"
   /// (levothyroxine IN) so curated interactions keyed on the generic fire.
-  TextColumn get genericRxcui =>
-      text().named('generic_rxcui').nullable()();
+  TextColumn get genericRxcui => text().named('generic_rxcui').nullable()();
+
   /// JSON array of individual ingredient RXCUIs for combination drugs.
   /// E.g., Lisinopril/HCTZ → ["29046", "5487"]. Each ingredient is
   /// matched independently against the curated interaction DB.
@@ -27,13 +28,10 @@ class UserStacksLocal extends Table {
   TextColumn get frequency => text().nullable()();
   DateTimeColumn get addedAt =>
       dateTime().named('added_at').withDefault(currentDateAndTime)();
-  DateTimeColumn get clientUpdatedAt => dateTime()
-      .named('client_updated_at')
-      .withDefault(currentDateAndTime)();
-  DateTimeColumn get deletedAt =>
-      dateTime().named('deleted_at').nullable()();
-  DateTimeColumn get syncedAt =>
-      dateTime().named('synced_at').nullable()();
+  DateTimeColumn get clientUpdatedAt =>
+      dateTime().named('client_updated_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get deletedAt => dateTime().named('deleted_at').nullable()();
+  DateTimeColumn get syncedAt => dateTime().named('synced_at').nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

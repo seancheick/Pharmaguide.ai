@@ -71,7 +71,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       if (product != null) {
         // Persist the scan before we navigate so any mounted Home shell can
         // leave first-launch mode and refresh Recents immediately.
-        await ref.read(userDatabaseProvider).recordScanEvent(
+        await ref
+            .read(userDatabaseProvider)
+            .recordScanEvent(
               dsldId: product.dsldId,
               upcSku: product.upcSku,
               productName: product.productName,
@@ -88,7 +90,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       // leaves `_hasScanned = true`, permanently locking the scanner
       // until app restart — a hard failure mode for a medical-grade
       // lookup screen. Safer to swallow and show "not found".
-    } catch (_) { // ignore: avoid_catches_without_on_clauses
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
       if (!mounted) return;
       setState(() => _isLookingUp = false);
       _showProductNotFound(upc);
@@ -154,10 +157,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       body: Stack(
         children: [
           // Camera
-          MobileScanner(
-            controller: _scannerController,
-            onDetect: _onDetect,
-          ),
+          MobileScanner(controller: _scannerController, onDetect: _onDetect),
           // Overlay
           SafeArea(
             child: Column(
@@ -168,11 +168,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Scan Product',
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
+                      const Text(
+                        'Scan Product',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.flash_on, color: Colors.white),
                         onPressed: () => _scannerController.toggleTorch(),
@@ -209,8 +212,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.keyboard, color: Colors.white),
-                      label: const Text('Enter code manually',
-                          style: TextStyle(color: Colors.white)),
+                      label: const Text(
+                        'Enter code manually',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.white54),
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -223,8 +228,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ),
           ),
           // Loading indicator
-          if (_isLookingUp)
-            const ScannerLookupOverlay(),
+          if (_isLookingUp) const ScannerLookupOverlay(),
           // Verdict flash overlay — always in tree so AnimatedOpacity can animate
           IgnorePointer(
             ignoring: !_showFlash,

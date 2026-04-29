@@ -45,8 +45,9 @@ void main() {
   });
 
   group('NutrientProgressBar widget rendering', () {
-    testWidgets('renders display name, amount, and RDA/UL subtitle',
-        (tester) async {
+    testWidgets('renders display name, amount, and RDA/UL subtitle', (
+      tester,
+    ) async {
       const status = NutrientStatus(
         total: NutrientTotal(
           canonicalId: 'zinc',
@@ -65,9 +66,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: NutrientProgressBar(status: status),
-          ),
+          home: Scaffold(body: NutrientProgressBar(status: status)),
         ),
       );
 
@@ -80,8 +79,9 @@ void main() {
       expect(find.textContaining('copper depletion'), findsOneWidget);
     });
 
-    testWidgets('omits warning chip when status has no warning',
-        (tester) async {
+    testWidgets('omits warning chip when status has no warning', (
+      tester,
+    ) async {
       const status = NutrientStatus(
         total: NutrientTotal(
           canonicalId: 'magnesium',
@@ -99,17 +99,14 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: NutrientProgressBar(status: status),
-          ),
+          home: Scaffold(body: NutrientProgressBar(status: status)),
         ),
       );
 
       expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
     });
 
-    testWidgets('shows em-dash when both rda and ul are null',
-        (tester) async {
+    testWidgets('shows em-dash when both rda and ul are null', (tester) async {
       const status = NutrientStatus(
         total: NutrientTotal(
           canonicalId: 'unknown',
@@ -132,8 +129,9 @@ void main() {
       expect(find.text('—'), findsOneWidget);
     });
 
-    testWidgets('renders unit conflict note when total has hasUnitConflict',
-        (tester) async {
+    testWidgets('renders unit conflict note when total has hasUnitConflict', (
+      tester,
+    ) async {
       const status = NutrientStatus(
         total: NutrientTotal(
           canonicalId: 'folate',

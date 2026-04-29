@@ -105,8 +105,7 @@ class _FitScoreSheet extends StatelessWidget {
               const SizedBox(height: AppTheme.space8),
               _ScoreRow(
                 label: 'Medical compatibility',
-                description:
-                    'Conditions + medications you have on file',
+                description: 'Conditions + medications you have on file',
                 score: result.e2c,
                 maxScore: 8,
                 icon: Icons.medical_information_outlined,
@@ -246,16 +245,20 @@ class _CombinedScoreCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppTheme.space8),
-          ...result.reasons.take(3).map((reason) => Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '• $reason',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.4,
+          ...result.reasons
+              .take(3)
+              .map(
+                (reason) => Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '• $reason',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
                   ),
                 ),
-              )),
+              ),
           if (result.maxRelevantSeverity != null) ...[
             const SizedBox(height: AppTheme.space8),
             Text(

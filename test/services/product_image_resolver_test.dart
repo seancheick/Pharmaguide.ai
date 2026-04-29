@@ -32,37 +32,31 @@ void main() {
 
   // Helper: successful OFF response with an image.
   Map<String, dynamic> successBody(String imageUrl) => {
-        'status': 1,
-        'product': {
-          'code': '123456789',
-          'product_name': 'Test Product',
-          'image_front_url': imageUrl,
-          'image_front_small_url': '${imageUrl}_small',
-        },
-      };
+    'status': 1,
+    'product': {
+      'code': '123456789',
+      'product_name': 'Test Product',
+      'image_front_url': imageUrl,
+      'image_front_small_url': '${imageUrl}_small',
+    },
+  };
 
   // Helper: OFF response with status 0 (product not found).
   Map<String, dynamic> notFoundBody() => {
-        'status': 0,
-        'status_verbose': 'product not found',
-      };
+    'status': 0,
+    'status_verbose': 'product not found',
+  };
 
   // Helper: OFF response with status 1 but no image.
   Map<String, dynamic> noImageBody() => {
-        'status': 1,
-        'product': {
-          'code': '123456789',
-          'product_name': 'Test Product',
-        },
-      };
+    'status': 1,
+    'product': {'code': '123456789', 'product_name': 'Test Product'},
+  };
 
   group('ProductImageResolver', () {
     test('OFF API returns image → URL returned and cached', () async {
       const expectedUrl = 'https://images.off.org/test.jpg';
-      final client = mockOff(
-        httpStatus: 200,
-        body: successBody(expectedUrl),
-      );
+      final client = mockOff(httpStatus: 200, body: successBody(expectedUrl));
       final resolver = ProductImageResolver(db, httpClient: client);
 
       final result = await resolver.resolve('dsld-1', '123456789');
@@ -76,10 +70,7 @@ void main() {
     });
 
     test('OFF API returns 404 → null returned, "no_image" cached', () async {
-      final client = mockOff(
-        httpStatus: 404,
-        body: {'status': 0},
-      );
+      final client = mockOff(httpStatus: 404, body: {'status': 0});
       final resolver = ProductImageResolver(db, httpClient: client);
 
       final result = await resolver.resolve('dsld-2', '999999999');
@@ -91,60 +82,63 @@ void main() {
       expect(cached!.imageUrl, equals('no_image'));
     });
 
-    test('OFF API returns status 0 → null returned, "no_image" cached',
-        () async {
-      final client = mockOff(
-        httpStatus: 200,
-        body: notFoundBody(),
-      );
-      final resolver = ProductImageResolver(db, httpClient: client);
+    test(
+      'OFF API returns status 0 → null returned, "no_image" cached',
+      () async {
+        final client = mockOff(httpStatus: 200, body: notFoundBody());
+        final resolver = ProductImageResolver(db, httpClient: client);
 
-      final result = await resolver.resolve('dsld-3', '888888888');
+        final result = await resolver.resolve('dsld-3', '888888888');
 
-      expect(result, isNull);
+        expect(result, isNull);
 
-      final cached = await db.getCachedImage('dsld-3');
-      expect(cached, isNotNull);
-      expect(cached!.imageUrl, equals('no_image'));
-    });
+        final cached = await db.getCachedImage('dsld-3');
+        expect(cached, isNotNull);
+        expect(cached!.imageUrl, equals('no_image'));
+      },
+    );
 
-    test('OFF API timeout → null returned, NOT cached (retry next time)',
-        () async {
-      final client = MockClient((request) async {
-        // Simulate a timeout by delaying longer than the resolver's timeout.
-        // We throw TimeoutException directly since MockClient doesn't support
-        // actual delays past the resolver's .timeout() call.
-        throw TimeoutException('Request timed out');
-      });
-      final resolver = ProductImageResolver(db, httpClient: client);
+    test(
+      'OFF API timeout → null returned, NOT cached (retry next time)',
+      () async {
+        final client = MockClient((request) async {
+          // Simulate a timeout by delaying longer than the resolver's timeout.
+          // We throw TimeoutException directly since MockClient doesn't support
+          // actual delays past the resolver's .timeout() call.
+          throw TimeoutException('Request timed out');
+        });
+        final resolver = ProductImageResolver(db, httpClient: client);
 
-      final result = await resolver.resolve('dsld-4', '777777777');
+        final result = await resolver.resolve('dsld-4', '777777777');
 
-      expect(result, isNull);
+        expect(result, isNull);
 
-      // Crucially: nothing should be cached after a timeout
-      final cached = await db.getCachedImage('dsld-4');
-      expect(cached, isNull);
-    });
+        // Crucially: nothing should be cached after a timeout
+        final cached = await db.getCachedImage('dsld-4');
+        expect(cached, isNull);
+      },
+    );
 
-    test('Product with no UPC → null immediately, "no_image" cached, no API call',
-        () async {
-      var apiCalled = false;
-      final client = MockClient((request) async {
-        apiCalled = true;
-        return http.Response('{}', 200);
-      });
-      final resolver = ProductImageResolver(db, httpClient: client);
+    test(
+      'Product with no UPC → null immediately, "no_image" cached, no API call',
+      () async {
+        var apiCalled = false;
+        final client = MockClient((request) async {
+          apiCalled = true;
+          return http.Response('{}', 200);
+        });
+        final resolver = ProductImageResolver(db, httpClient: client);
 
-      final result = await resolver.resolve('dsld-5', null);
+        final result = await resolver.resolve('dsld-5', null);
 
-      expect(result, isNull);
-      expect(apiCalled, isFalse);
+        expect(result, isNull);
+        expect(apiCalled, isFalse);
 
-      final cached = await db.getCachedImage('dsld-5');
-      expect(cached, isNotNull);
-      expect(cached!.imageUrl, equals('no_image'));
-    });
+        final cached = await db.getCachedImage('dsld-5');
+        expect(cached, isNotNull);
+        expect(cached!.imageUrl, equals('no_image'));
+      },
+    );
 
     test('Product with empty UPC → null immediately, no API call', () async {
       var apiCalled = false;
@@ -196,7 +190,9 @@ void main() {
 
     test('Cache expired → re-queries OFF API', () async {
       // Insert a cache entry with a date older than 30 days
-      await db.into(db.productImageCache).insert(
+      await db
+          .into(db.productImageCache)
+          .insert(
             ProductImageCacheCompanion.insert(
               dsldId: 'dsld-9',
               imageUrl: 'https://old.example.com/stale.jpg',
@@ -207,10 +203,7 @@ void main() {
           );
 
       const freshUrl = 'https://new.example.com/fresh.jpg';
-      final client = mockOff(
-        httpStatus: 200,
-        body: successBody(freshUrl),
-      );
+      final client = mockOff(httpStatus: 200, body: successBody(freshUrl));
       final resolver = ProductImageResolver(db, httpClient: client);
 
       final result = await resolver.resolve('dsld-9', '444444444');
@@ -243,21 +236,20 @@ void main() {
       expect(result, isNull);
     });
 
-    test('OFF response with status 1 but missing image_front_url → no_image cached',
-        () async {
-      final client = mockOff(
-        httpStatus: 200,
-        body: noImageBody(),
-      );
-      final resolver = ProductImageResolver(db, httpClient: client);
+    test(
+      'OFF response with status 1 but missing image_front_url → no_image cached',
+      () async {
+        final client = mockOff(httpStatus: 200, body: noImageBody());
+        final resolver = ProductImageResolver(db, httpClient: client);
 
-      final result = await resolver.resolve('dsld-12', '111111111');
+        final result = await resolver.resolve('dsld-12', '111111111');
 
-      expect(result, isNull);
+        expect(result, isNull);
 
-      final cached = await db.getCachedImage('dsld-12');
-      expect(cached!.imageUrl, equals('no_image'));
-    });
+        final cached = await db.getCachedImage('dsld-12');
+        expect(cached!.imageUrl, equals('no_image'));
+      },
+    );
 
     test('UPC with spaces is cleaned before querying OFF', () async {
       String? requestedPath;

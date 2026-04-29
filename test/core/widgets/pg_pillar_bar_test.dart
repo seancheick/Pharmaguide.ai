@@ -9,11 +9,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: PGPillarBar(
-              label: 'Ingredient Quality',
-              value: 22,
-              max: 25,
-            ),
+            body: PGPillarBar(label: 'Ingredient Quality', value: 22, max: 25),
           ),
         ),
       );
@@ -26,11 +22,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: PGPillarBar(
-              label: 'Brand Trust',
-              value: null,
-              max: 5,
-            ),
+            body: PGPillarBar(label: 'Brand Trust', value: null, max: 5),
           ),
         ),
       );
@@ -40,8 +32,9 @@ void main() {
       expect(find.textContaining('%'), findsNothing);
     });
 
-    testWidgets('tone color derives from tier ladder (exceptional ≥ 85%)',
-        (tester) async {
+    testWidgets('tone color derives from tier ladder (exceptional ≥ 85%)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -74,8 +67,9 @@ void main() {
       expect(percentText.style?.color, AppTheme.scoreLow);
     });
 
-    testWidgets('value above max clamps to 100% (no overflow paint)',
-        (tester) async {
+    testWidgets('value above max clamps to 100% (no overflow paint)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -97,12 +91,7 @@ void main() {
           home: Scaffold(
             body: SizedBox(
               width: 300,
-              child: PGPillarBar(
-                label: 'X',
-                value: 20,
-                max: 25,
-                compact: true,
-              ),
+              child: PGPillarBar(label: 'X', value: 20, max: 25, compact: true),
             ),
           ),
         ),

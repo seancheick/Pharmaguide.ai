@@ -70,53 +70,47 @@ void main() {
       },
     );
 
-    testWidgets(
-      'profile has drug classes but warnings list is empty → '
-      '✓ rows render for each',
-      (tester) async {
-        await _pump(
-          tester,
-          warnings: const [],
-          userDrugClasses: {'statins', 'anticoagulants'},
-        );
-        await tester.pumpAndSettle();
+    testWidgets('profile has drug classes but warnings list is empty → '
+        '✓ rows render for each', (tester) async {
+      await _pump(
+        tester,
+        warnings: const [],
+        userDrugClasses: {'statins', 'anticoagulants'},
+      );
+      await tester.pumpAndSettle();
 
-        expect(find.text('With your stack'), findsOneWidget);
-        expect(find.text('Statins'), findsOneWidget);
-        expect(find.text('Anticoagulants'), findsOneWidget);
-        // Both render the positive trust line.
-        expect(find.text('No known interaction'), findsNWidgets(2));
-      },
-    );
+      expect(find.text('With your stack'), findsOneWidget);
+      expect(find.text('Statins'), findsOneWidget);
+      expect(find.text('Anticoagulants'), findsOneWidget);
+      // Both render the positive trust line.
+      expect(find.text('No known interaction'), findsNWidgets(2));
+    });
   });
 
   group('WithYourStackSection — ⚠ row for matched warning', () {
-    testWidgets(
-      'drug class with matching avoid warning → severity label + '
-      'tappable row',
-      (tester) async {
-        await _pump(
-          tester,
-          warnings: [
-            _warning(
-              severity: Severity.avoid,
-              alertHeadline: 'Reduces statin absorption',
-              drugClassIds: const ['statins'],
-            ),
-          ],
-          userDrugClasses: {'statins'},
-        );
-        await tester.pumpAndSettle();
+    testWidgets('drug class with matching avoid warning → severity label + '
+        'tappable row', (tester) async {
+      await _pump(
+        tester,
+        warnings: [
+          _warning(
+            severity: Severity.avoid,
+            alertHeadline: 'Reduces statin absorption',
+            drugClassIds: const ['statins'],
+          ),
+        ],
+        userDrugClasses: {'statins'},
+      );
+      await tester.pumpAndSettle();
 
-        expect(find.text('Statins'), findsOneWidget);
-        expect(
-          find.textContaining('AVOID'),
-          findsOneWidget,
-          reason: 'severity label prefix should render in the row sub-line',
-        );
-        expect(find.textContaining('Reduces statin absorption'), findsOneWidget);
-      },
-    );
+      expect(find.text('Statins'), findsOneWidget);
+      expect(
+        find.textContaining('AVOID'),
+        findsOneWidget,
+        reason: 'severity label prefix should render in the row sub-line',
+      );
+      expect(find.textContaining('Reduces statin absorption'), findsOneWidget);
+    });
 
     testWidgets(
       'matched row with no underlying mechanism falls back to title',
@@ -140,8 +134,9 @@ void main() {
       },
     );
 
-    testWidgets('worst severity wins when multiple warnings match a class',
-        (tester) async {
+    testWidgets('worst severity wins when multiple warnings match a class', (
+      tester,
+    ) async {
       // Two warnings tagged for "anticoagulants" — caution + contraindicated.
       // The row must surface the worst (contraindicated) plus its
       // headline.
@@ -177,10 +172,7 @@ void main() {
         await _pump(
           tester,
           warnings: [
-            _warning(
-              severity: Severity.avoid,
-              drugClassIds: const ['statins'],
-            ),
+            _warning(severity: Severity.avoid, drugClassIds: const ['statins']),
           ],
           // User has DIFFERENT drug class — should NOT match the
           // statins-only warning.
@@ -193,13 +185,10 @@ void main() {
       },
     );
 
-    testWidgets('✓ row is NOT tappable (no expand chevron rendered)',
-        (tester) async {
-      await _pump(
-        tester,
-        warnings: const [],
-        userDrugClasses: {'statins'},
-      );
+    testWidgets('✓ row is NOT tappable (no expand chevron rendered)', (
+      tester,
+    ) async {
+      await _pump(tester, warnings: const [], userDrugClasses: {'statins'});
       await tester.pumpAndSettle();
 
       // The ✓ row uses Icons.check_circle_outline_rounded; the
@@ -207,7 +196,8 @@ void main() {
       expect(
         find.byIcon(Icons.keyboard_arrow_down_rounded),
         findsNothing,
-        reason: '✓ rows must not show an expand chevron — there\'s '
+        reason:
+            '✓ rows must not show an expand chevron — there\'s '
             'nothing to expand',
       );
     });
@@ -223,7 +213,8 @@ void main() {
             _warning(
               severity: Severity.avoid,
               alertHeadline: 'Reduces absorption',
-              alertBody: 'Calcium binds to the active ingredient and '
+              alertBody:
+                  'Calcium binds to the active ingredient and '
                   'reduces gut absorption by ~40%.',
               management: 'Take 4 hours apart from your statin dose.',
               evidenceLevel: EvidenceLevel.established,
@@ -279,55 +270,53 @@ void main() {
       },
     );
 
-    testWidgets(
-      'pluralizes "citations" correctly (2 → "2 citations")',
-      (tester) async {
-        await _pump(
-          tester,
-          warnings: [
-            _warning(
-              severity: Severity.avoid,
-              drugClassIds: const ['statins'],
-              sourceUrls: const [
-                'https://example.com/study1',
-                'https://example.com/study2',
-              ],
-            ),
-          ],
-          userDrugClasses: {'statins'},
-        );
-        await tester.pumpAndSettle();
+    testWidgets('pluralizes "citations" correctly (2 → "2 citations")', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        warnings: [
+          _warning(
+            severity: Severity.avoid,
+            drugClassIds: const ['statins'],
+            sourceUrls: const [
+              'https://example.com/study1',
+              'https://example.com/study2',
+            ],
+          ),
+        ],
+        userDrugClasses: {'statins'},
+      );
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Statins'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Statins'));
+      await tester.pumpAndSettle();
 
-        expect(find.text('2 citations'), findsOneWidget);
-      },
-    );
+      expect(find.text('2 citations'), findsOneWidget);
+    });
 
-    testWidgets(
-      'no citations on the warning → no citation chip rendered',
-      (tester) async {
-        await _pump(
-          tester,
-          warnings: [
-            _warning(
-              severity: Severity.caution,
-              alertHeadline: 'Caution headline',
-              drugClassIds: const ['statins'],
-              sourceUrls: const [],
-            ),
-          ],
-          userDrugClasses: {'statins'},
-        );
-        await tester.pumpAndSettle();
+    testWidgets('no citations on the warning → no citation chip rendered', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        warnings: [
+          _warning(
+            severity: Severity.caution,
+            alertHeadline: 'Caution headline',
+            drugClassIds: const ['statins'],
+            sourceUrls: const [],
+          ),
+        ],
+        userDrugClasses: {'statins'},
+      );
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Statins'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Statins'));
+      await tester.pumpAndSettle();
 
-        expect(find.textContaining('citation'), findsNothing);
-      },
-    );
+      expect(find.textContaining('citation'), findsNothing);
+    });
   });
 
   group('WithYourStackSection — sort + condition support', () {
@@ -358,8 +347,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Worst-first ordering: contraindicated > avoid > caution.
-        final contraY =
-            tester.getTopLeft(find.text('Anticoagulants')).dy;
+        final contraY = tester.getTopLeft(find.text('Anticoagulants')).dy;
         final avoidY = tester.getTopLeft(find.text('Nsaids')).dy;
         final cautionY = tester.getTopLeft(find.text('Statins')).dy;
         expect(contraY, lessThan(avoidY));
@@ -384,8 +372,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Pregnancy'), findsOneWidget);
-        expect(find.textContaining('Contraindicated in pregnancy'),
-            findsOneWidget);
+        expect(
+          find.textContaining('Contraindicated in pregnancy'),
+          findsOneWidget,
+        );
       },
     );
   });

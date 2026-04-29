@@ -8,12 +8,27 @@ class HomeHeroSection extends StatelessWidget {
   const HomeHeroSection({super.key, required this.nickname});
 
   static const _days = [
-    'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY',
-    'FRIDAY', 'SATURDAY', 'SUNDAY',
+    'MONDAY',
+    'TUESDAY',
+    'WEDNESDAY',
+    'THURSDAY',
+    'FRIDAY',
+    'SATURDAY',
+    'SUNDAY',
   ];
   static const _months = [
-    'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
-    'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+    'JANUARY',
+    'FEBRUARY',
+    'MARCH',
+    'APRIL',
+    'MAY',
+    'JUNE',
+    'JULY',
+    'AUGUST',
+    'SEPTEMBER',
+    'OCTOBER',
+    'NOVEMBER',
+    'DECEMBER',
   ];
 
   /// Time-of-day greeting copy, exposed as a static pure function so the
@@ -40,10 +55,12 @@ class HomeHeroSection extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final now = DateTime.now();
-    final dateLabel = '${_days[now.weekday - 1]}  ·  '
+    final dateLabel =
+        '${_days[now.weekday - 1]}  ·  '
         '${_months[now.month - 1]} ${now.day}';
-    final name =
-        (nickname != null && nickname!.isNotEmpty) ? ', $nickname' : '';
+    final name = (nickname != null && nickname!.isNotEmpty)
+        ? ', $nickname'
+        : '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

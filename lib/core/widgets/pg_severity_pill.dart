@@ -24,7 +24,8 @@ class PGSeverityPill extends StatelessWidget {
       case Severity.contraindicated:
         return (
           bg: AppTheme.severityContraindicated.withValues(
-              alpha: isDark ? 0.22 : 0.10),
+            alpha: isDark ? 0.22 : 0.10,
+          ),
           fg: AppTheme.severityContraindicated,
           icon: Icons.block_rounded,
           label: 'Do not use',
@@ -56,7 +57,8 @@ class PGSeverityPill extends StatelessWidget {
         // condition/drug class.
         return (
           bg: AppTheme.severityInformational.withValues(
-              alpha: isDark ? 0.22 : 0.12),
+            alpha: isDark ? 0.22 : 0.12,
+          ),
           fg: AppTheme.severityInformational,
           icon: Icons.info_outline_rounded,
           label: 'Info',

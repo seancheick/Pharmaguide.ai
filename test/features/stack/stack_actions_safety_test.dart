@@ -13,10 +13,7 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 /// Minimal product fixture for guard assertions. We never reach the
 /// Drift code path because the guard throws first, so the other
 /// columns are unused.
-ProductsCoreData _product({
-  required String dsldId,
-  required String verdict,
-}) {
+ProductsCoreData _product({required String dsldId, required String verdict}) {
   return ProductsCoreData(
     dsldId: dsldId,
     productName: 'Test Product',
@@ -38,8 +35,7 @@ void main() {
 
     tearDown(() => container.dispose());
 
-    test('rejects BLOCKED verdict with StackAddBlockedException',
-        () async {
+    test('rejects BLOCKED verdict with StackAddBlockedException', () async {
       final actions = container.read(stackActionsProvider);
       final product = _product(dsldId: 'DS_BLOCKED', verdict: 'BLOCKED');
 
@@ -53,8 +49,7 @@ void main() {
       );
     });
 
-    test('rejects UNSAFE verdict with StackAddBlockedException',
-        () async {
+    test('rejects UNSAFE verdict with StackAddBlockedException', () async {
       final actions = container.read(stackActionsProvider);
       final product = _product(dsldId: 'DS_UNSAFE', verdict: 'UNSAFE');
 
@@ -74,8 +69,7 @@ void main() {
       );
     });
 
-    test('non-blocked verdicts pass the guard (reach Drift layer)',
-        () async {
+    test('non-blocked verdicts pass the guard (reach Drift layer)', () async {
       final actions = container.read(stackActionsProvider);
       final product = _product(dsldId: 'DS_OK', verdict: 'RECOMMENDED');
 
@@ -94,10 +88,7 @@ void main() {
     });
 
     test('StackAddBlockedException toString includes both fields', () {
-      const e = StackAddBlockedException(
-        dsldId: 'DS_X',
-        verdict: 'BLOCKED',
-      );
+      const e = StackAddBlockedException(dsldId: 'DS_X', verdict: 'BLOCKED');
       expect(e.toString(), contains('DS_X'));
       expect(e.toString(), contains('BLOCKED'));
     });

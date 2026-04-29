@@ -60,7 +60,10 @@ class ProbioticDetailSection extends StatelessWidget {
               if (strains.isNotEmpty)
                 _InfoChip(label: 'Strains', value: '${strains.length}'),
               if (clinicalStrains > 0)
-                _InfoChip(label: 'Clinically studied', value: '$clinicalStrains'),
+                _InfoChip(
+                  label: 'Clinically studied',
+                  value: '$clinicalStrains',
+                ),
               if (prebioticPresent)
                 const _InfoChip(label: 'Prebiotic', value: 'Yes'),
               if (survivability.isNotEmpty)
@@ -89,7 +92,9 @@ class ProbioticDetailSection extends StatelessWidget {
                       child: Text(
                         name,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: isClinical ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: isClinical
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                           fontStyle: FontStyle.italic,
                         ),
                       ),

@@ -14,9 +14,7 @@ DecoratedBox _findHeaderDecoratedBox(WidgetTester tester) {
       )
       .toList();
 
-  return boxes.firstWhere(
-    (b) => b.decoration is BoxDecoration,
-  );
+  return boxes.firstWhere((b) => b.decoration is BoxDecoration);
 }
 
 void main() {
@@ -38,32 +36,34 @@ void main() {
     });
 
     testWidgets(
-        'at scrollProgress 0 the BackdropFilter blur is effectively zero',
-        (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData(platform: TargetPlatform.iOS),
-          home: const Scaffold(
-            body: PGFrostedHeader(
-              scrollProgress: 0.0,
-              child: SizedBox(width: 200, height: 56),
+      'at scrollProgress 0 the BackdropFilter blur is effectively zero',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.iOS),
+            home: const Scaffold(
+              body: PGFrostedHeader(
+                scrollProgress: 0.0,
+                child: SizedBox(width: 200, height: 56),
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      final filter = tester
-          .widget<BackdropFilter>(find.byType(BackdropFilter))
-          .filter as ImageFilter;
-      // We can't introspect ImageFilter sigma values, but the widget
-      // should still mount without throwing — the contract here is
-      // existence + no crash.
-      expect(filter, isNotNull);
-    });
+        final filter =
+            tester.widget<BackdropFilter>(find.byType(BackdropFilter)).filter
+                as ImageFilter;
+        // We can't introspect ImageFilter sigma values, but the widget
+        // should still mount without throwing — the contract here is
+        // existence + no crash.
+        expect(filter, isNotNull);
+      },
+    );
 
-    testWidgets('at scrollProgress 1 the surface fill is at full opacity',
-        (tester) async {
+    testWidgets('at scrollProgress 1 the surface fill is at full opacity', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(platform: TargetPlatform.iOS),
@@ -122,7 +122,9 @@ void main() {
       expect(find.byType(PGFrostedHeader), findsOneWidget);
     });
 
-    testWidgets('dark mode renders a faint white top-edge glint', (tester) async {
+    testWidgets('dark mode renders a faint white top-edge glint', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(
@@ -141,18 +143,24 @@ void main() {
 
       final ourBox = _findHeaderDecoratedBox(tester);
       final border = (ourBox.decoration as BoxDecoration).border as Border;
-      expect(border.top.color.r, 1.0,
-          reason: 'glint should be white-channel');
+      expect(border.top.color.r, 1.0, reason: 'glint should be white-channel');
       expect(border.top.color.g, 1.0);
       expect(border.top.color.b, 1.0);
-      expect(border.top.color.a, greaterThan(0.0),
-          reason: 'glint alpha should be > 0 at scrollProgress 1');
-      expect(border.top.color.a, lessThan(0.10),
-          reason: 'glint should be subtle (< 10% white)');
+      expect(
+        border.top.color.a,
+        greaterThan(0.0),
+        reason: 'glint alpha should be > 0 at scrollProgress 1',
+      );
+      expect(
+        border.top.color.a,
+        lessThan(0.10),
+        reason: 'glint should be subtle (< 10% white)',
+      );
     });
 
-    testWidgets('light mode does NOT render the glint (no top border)',
-        (tester) async {
+    testWidgets('light mode does NOT render the glint (no top border)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(
@@ -171,12 +179,16 @@ void main() {
 
       final ourBox = _findHeaderDecoratedBox(tester);
       final border = (ourBox.decoration as BoxDecoration).border as Border;
-      expect(border.top, BorderSide.none,
-          reason: 'glint is dark-mode-only; light mode keeps top edge clean');
+      expect(
+        border.top,
+        BorderSide.none,
+        reason: 'glint is dark-mode-only; light mode keeps top edge clean',
+      );
     });
 
-    testWidgets('android uses tonal surface without backdrop blur',
-        (tester) async {
+    testWidgets('android uses tonal surface without backdrop blur', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(platform: TargetPlatform.android),

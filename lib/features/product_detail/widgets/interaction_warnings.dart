@@ -76,12 +76,10 @@ class InteractionWarning {
   /// that only need a single representative tag (search indices, logs,
   /// etc.). Prefer [conditionIds] for membership checks — a warning
   /// can carry multiple tags and [matchesProfile] correctly checks all.
-  String? get conditionId =>
-      conditionIds.isEmpty ? null : conditionIds.first;
+  String? get conditionId => conditionIds.isEmpty ? null : conditionIds.first;
 
   /// First drug-class id — convenience accessor, see [conditionId].
-  String? get drugClassId =>
-      drugClassIds.isEmpty ? null : drugClassIds.first;
+  String? get drugClassId => drugClassIds.isEmpty ? null : drugClassIds.first;
 
   /// Pipeline `ban_context` for banned_recalled warnings — one of
   /// `substance`, `adulterant_in_supplements`, `watchlist`,
@@ -203,8 +201,8 @@ class InteractionWarning {
     final sevContextualRaw = json['severity_contextual']?.toString();
     final sevContextual =
         (sevContextualRaw != null && sevContextualRaw.isNotEmpty)
-            ? Severity.fromString(sevContextualRaw)
-            : null;
+        ? Severity.fromString(sevContextualRaw)
+        : null;
 
     // Authored-copy field normalization — different warning types carry
     // the Path C fields under different names. We collapse them into the
@@ -214,15 +212,15 @@ class InteractionWarning {
     //   banned_recalled warnings  → safety_warning_one_liner / safety_warning
     //   harmful_additive warnings → safety_summary_one_liner / safety_summary
     //   manufacturer violations   → brand_trust_summary / (no long body)
-    final String? alertHeadline = (json['alert_headline'] ??
-            json['safety_warning_one_liner'] ??
-            json['safety_summary_one_liner'] ??
-            json['brand_trust_summary'])
-        ?.toString();
-    final String? alertBody = (json['alert_body'] ??
-            json['safety_warning'] ??
-            json['safety_summary'])
-        ?.toString();
+    final String? alertHeadline =
+        (json['alert_headline'] ??
+                json['safety_warning_one_liner'] ??
+                json['safety_summary_one_liner'] ??
+                json['brand_trust_summary'])
+            ?.toString();
+    final String? alertBody =
+        (json['alert_body'] ?? json['safety_warning'] ?? json['safety_summary'])
+            ?.toString();
 
     // Dr Pham's user-facing safety fields — propagated by the enricher
     // from banned_recalled / harmful_additives / ingredient_interaction_rules /
@@ -249,7 +247,8 @@ class InteractionWarning {
       severityContextual: sevContextual,
       displayModeDefault: json['display_mode_default']?.toString(),
       evidenceLevel: EvidenceLevel.fromString(
-          json['evidence_level']?.toString() ?? 'theoretical'),
+        json['evidence_level']?.toString() ?? 'theoretical',
+      ),
       title: json['title']?.toString() ?? '',
       mechanism: (json['detail'] ?? json['mechanism'])?.toString() ?? '',
       management: (json['action'] ?? json['management'])?.toString() ?? '',
@@ -258,16 +257,20 @@ class InteractionWarning {
       alertBody: alertBody,
       informationalNote: json['informational_note']?.toString(),
       conditionIds: _coerceStringList(
-        json['condition_ids'], json['condition_id']),
+        json['condition_ids'],
+        json['condition_id'],
+      ),
       drugClassIds: _coerceStringList(
-        json['drug_class_ids'], json['drug_class_id']),
+        json['drug_class_ids'],
+        json['drug_class_id'],
+      ),
       banContext: json['ban_context']?.toString(),
       clinicalRisk: json['clinical_risk']?.toString(),
       mechanismOfHarm: json['mechanism_of_harm']?.toString(),
       populationWarnings: popWarnings,
       doseThresholdEvaluation: doseEval,
-      regulatoryDate: json['regulatory_date']?.toString() ??
-          json['date']?.toString(),
+      regulatoryDate:
+          json['regulatory_date']?.toString() ?? json['date']?.toString(),
       regulatoryDateLabel: json['regulatory_date_label']?.toString(),
       additiveCategory: json['category']?.toString(),
       allergenPrevalence: json['prevalence']?.toString(),
@@ -354,8 +357,7 @@ class InteractionWarning {
       final k = w._dedupeKey;
       firstIndex.putIfAbsent(k, () => i);
       final existing = best[k];
-      if (existing == null ||
-          w.severity.weight > existing.severity.weight) {
+      if (existing == null || w.severity.weight > existing.severity.weight) {
         best[k] = w;
       }
       i++;
@@ -401,9 +403,7 @@ class InteractionWarning {
     return trimmed
         .split('_')
         .where((part) => part.isNotEmpty)
-        .map(
-          (part) => part[0].toUpperCase() + part.substring(1).toLowerCase(),
-        )
+        .map((part) => part[0].toUpperCase() + part.substring(1).toLowerCase())
         .join(' ');
   }
 }
@@ -439,7 +439,8 @@ class InteractionWarningsList extends StatefulWidget {
   });
 
   static List<InteractionWarning> sortBySeverity(
-      List<InteractionWarning> input) {
+    List<InteractionWarning> input,
+  ) {
     final sorted = List<InteractionWarning>.from(input);
     sorted.sort((a, b) => b.severity.weight.compareTo(a.severity.weight));
     return sorted;
@@ -451,7 +452,7 @@ class InteractionWarningsList extends StatefulWidget {
   /// context worth reading); only `safe` items (flow-agent notes,
   /// low-overall-concern notes) get collapsed.
   static (List<InteractionWarning> loud, List<InteractionWarning> safeTier)
-      _partitionSafeTier(List<InteractionWarning> sorted) {
+  _partitionSafeTier(List<InteractionWarning> sorted) {
     final loud = <InteractionWarning>[];
     final safeTier = <InteractionWarning>[];
     for (final w in sorted) {
@@ -471,7 +472,7 @@ class InteractionWarningsList extends StatefulWidget {
   /// (pipeline told us to show regardless — critical / informational
   /// / legacy generic).
   static (List<InteractionWarning> applies, List<InteractionWarning> other)
-      _partitionByProfile(
+  _partitionByProfile(
     List<InteractionWarning> loud, {
     required Set<String> userConditions,
     required Set<String> userDrugClasses,
@@ -582,8 +583,7 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
     // agents, low-concern excipient notes, etc. render as a single
     // collapsed summary row below the real warnings instead of
     // taking equal visual weight to clinical alerts.
-    final (loud, safeTier) =
-        InteractionWarningsList._partitionSafeTier(sorted);
+    final (loud, safeTier) = InteractionWarningsList._partitionSafeTier(sorted);
 
     // No loud warnings — render only the low-concern summary if any
     // safe-tier items exist; else fall through to the empty-state
@@ -599,8 +599,8 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
     // Without profile we have nothing to match against; keep the
     // single combined list so unprofiled surfaces (tests, preview
     // pages) don't collapse everything into "Other" and hide it.
-    final hasProfile = widget.userConditions.isNotEmpty ||
-        widget.userDrugClasses.isNotEmpty;
+    final hasProfile =
+        widget.userConditions.isNotEmpty || widget.userDrugClasses.isNotEmpty;
 
     if (!hasProfile) {
       // Existing pre-FLTR-18 rendering: one section, all loud cards,
@@ -645,10 +645,8 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
           _OtherPrecautionsSection(
             count: other.length,
             expanded: _otherExpanded,
-            onToggle: () =>
-                setState(() => _otherExpanded = !_otherExpanded),
-            previewLabels:
-                InteractionWarning.previewLabelsForWarnings(other),
+            onToggle: () => setState(() => _otherExpanded = !_otherExpanded),
+            previewLabels: InteractionWarning.previewLabelsForWarnings(other),
             cards: _loudCards(other),
           ),
         ],
@@ -691,18 +689,11 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
               ),
               const SizedBox(width: AppTheme.space8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHigh,
-                  borderRadius:
-                      BorderRadius.circular(AppTheme.radiusFull),
-                  border: Border.all(
-                    color: scheme.outlineVariant,
-                    width: 0.8,
-                  ),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  border: Border.all(color: scheme.outlineVariant, width: 0.8),
                 ),
                 child: Text(
                   '$count',
@@ -825,8 +816,7 @@ class _OtherPrecautionsSection extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerHigh,
-                    borderRadius:
-                        BorderRadius.circular(AppTheme.radiusFull),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                     border: Border.all(
                       color: scheme.outlineVariant,
                       width: 0.8,
@@ -1037,30 +1027,32 @@ class _LowConcernNotesSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppTheme.space16),
-            ...items.map((w) => Padding(
-                  padding: const EdgeInsets.only(bottom: AppTheme.space12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+            ...items.map(
+              (w) => Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.space12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      w.displayHeadline,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (w.displayBody.isNotEmpty) ...[
+                      const SizedBox(height: AppTheme.space2),
                       Text(
-                        w.displayHeadline,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                        w.displayBody,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.45,
                         ),
                       ),
-                      if (w.displayBody.isNotEmpty) ...[
-                        const SizedBox(height: AppTheme.space2),
-                        Text(
-                          w.displayBody,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.45,
-                          ),
-                        ),
-                      ],
                     ],
-                  ),
-                )),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1141,8 +1133,9 @@ class _CitationsSheet extends StatelessWidget {
                           height: 32,
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerHigh,
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusFull),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusFull,
+                            ),
                           ),
                           alignment: Alignment.center,
                           child: Text(

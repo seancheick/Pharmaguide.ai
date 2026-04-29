@@ -33,9 +33,9 @@ import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 /// to resolve brand name + score from dsldId.
 final _stackProductProvider = FutureProvider.family
     .autoDispose<ProductsCoreData?, String>((ref, dsldId) async {
-  final coreDb = ref.read(coreDatabaseProvider);
-  return coreDb.findById(dsldId);
-});
+      final coreDb = ref.read(coreDatabaseProvider);
+      return coreDb.findById(dsldId);
+    });
 
 /// My Stack screen — shows all products in the user's supplement stack
 /// with Stack Safety Score, M1 nutrient totals, and interaction alerts.
@@ -90,12 +90,7 @@ class StackScreen extends ConsumerWidget {
               ),
             ),
           ],
-          body: const TabBarView(
-            children: [
-              _StackTab(),
-              _WishlistTab(),
-            ],
-          ),
+          body: const TabBarView(children: [_StackTab(), _WishlistTab()]),
         ),
       ),
     );
@@ -110,10 +105,7 @@ class _StackTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
   final Color background;
 
-  const _StackTabBarDelegate({
-    required this.tabBar,
-    required this.background,
-  });
+  const _StackTabBarDelegate({required this.tabBar, required this.background});
 
   @override
   double get minExtent => tabBar.preferredSize.height;
@@ -126,11 +118,7 @@ class _StackTabBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Material(
-      color: background,
-      elevation: 0,
-      child: tabBar,
-    );
+    return Material(color: background, elevation: 0, child: tabBar);
   }
 
   @override
@@ -168,9 +156,8 @@ class _StackTab extends ConsumerWidget {
             PGShimmerCard(height: 72),
           ],
         ),
-        error: (error, _) => _StackErrorView(
-          onRetry: () => ref.invalidate(activeStackProvider),
-        ),
+        error: (error, _) =>
+            _StackErrorView(onRetry: () => ref.invalidate(activeStackProvider)),
         data: (stack) {
           if (stack.isEmpty) {
             return const _StackEmptyView();
@@ -220,15 +207,17 @@ class _StackTab extends ConsumerWidget {
               ),
 
               // Product list
-              ...stack.map((entry) => Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppTheme.space20,
-                      0,
-                      AppTheme.space20,
-                      AppTheme.space12,
-                    ),
-                    child: _StackItemCard(entry: entry),
-                  )),
+              ...stack.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.space20,
+                    0,
+                    AppTheme.space20,
+                    AppTheme.space12,
+                  ),
+                  child: _StackItemCard(entry: entry),
+                ),
+              ),
 
               // Timing optimization advice
               const _TimingAdviceSlot(),
@@ -266,10 +255,8 @@ class _StackSummaryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final supplementCount =
-        stack.where((e) => e.type == 'supplement').length;
-    final medicationCount =
-        stack.where((e) => e.type == 'medication').length;
+    final supplementCount = stack.where((e) => e.type == 'supplement').length;
+    final medicationCount = stack.where((e) => e.type == 'medication').length;
 
     // Shared stack-health computation — same source of truth used by the home
     // card so both screens stay aligned on the user's current stack status.
@@ -284,19 +271,25 @@ class _StackSummaryCard extends ConsumerWidget {
           ...report.stackInteractions,
           ...report.categoryWarnings,
         ];
-        final synergies = synergyAsync.whenOrNull(
-          data: (synergyReport) => synergyReport.matches
-              .map((m) => SynergyResult(
-                    ingredient1: m.matchedIngredients.isNotEmpty
-                        ? m.matchedIngredients.first : m.clusterId,
-                    ingredient2: m.matchedIngredients.length > 1
-                        ? m.matchedIngredients[1] : m.clusterName,
-                    description: m.mechanism,
-                    evidenceLevel: EvidenceLevel.established,
-                    bonus: m.bonusPoints,
-                  ))
-              .toList(),
-        ) ?? const <SynergyResult>[];
+        final synergies =
+            synergyAsync.whenOrNull(
+              data: (synergyReport) => synergyReport.matches
+                  .map(
+                    (m) => SynergyResult(
+                      ingredient1: m.matchedIngredients.isNotEmpty
+                          ? m.matchedIngredients.first
+                          : m.clusterId,
+                      ingredient2: m.matchedIngredients.length > 1
+                          ? m.matchedIngredients[1]
+                          : m.clusterName,
+                      description: m.mechanism,
+                      evidenceLevel: EvidenceLevel.established,
+                      bonus: m.bonusPoints,
+                    ),
+                  )
+                  .toList(),
+            ) ??
+            const <SynergyResult>[];
         return const StackSafetyScorer().compute(
           issues: allIssues,
           synergies: synergies,
@@ -310,17 +303,19 @@ class _StackSummaryCard extends ConsumerWidget {
     final score = safetyScore?.score.toDouble();
     final intelligence =
         (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
-            ? const StackIntelligenceEngine().diagnose(
-                stackSize: stack.length,
-                safetyReport: reportAsync.value!,
-                recalledReport: recallAsync.value!,
-                synergyReport: synergyAsync.value!,
-                qualityScore: safetyScore?.score,
-              )
-            : null;
+        ? const StackIntelligenceEngine().diagnose(
+            stackSize: stack.length,
+            safetyReport: reportAsync.value!,
+            recalledReport: recallAsync.value!,
+            synergyReport: synergyAsync.value!,
+            qualityScore: safetyScore?.score,
+          )
+        : null;
     final status = intelligence?.tier.healthLabel;
     final isAnalyzing =
-        reportAsync.isLoading || synergyAsync.isLoading || recallAsync.isLoading;
+        reportAsync.isLoading ||
+        synergyAsync.isLoading ||
+        recallAsync.isLoading;
 
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -330,11 +325,7 @@ class _StackSummaryCard extends ConsumerWidget {
           Row(
             children: [
               // Stack health score (safety score) — mirrors homepage.
-              PGScoreRing(
-                score: score,
-                size: 56,
-                strokeWidth: 4,
-              ),
+              PGScoreRing(score: score, size: 56, strokeWidth: 4),
               const SizedBox(width: AppTheme.space12),
               Expanded(
                 child: Column(
@@ -344,8 +335,8 @@ class _StackSummaryCard extends ConsumerWidget {
                       isAnalyzing
                           ? 'Analyzing stack\u2026'
                           : status != null
-                              ? status.label
-                              : 'No data yet',
+                          ? status.label
+                          : 'No data yet',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -547,9 +538,9 @@ class _StackItemCard extends ConsumerWidget {
           await actions.remove(entry.id);
         } on Exception {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not remove.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Could not remove.')));
           return;
         }
         if (!context.mounted) return;
@@ -573,10 +564,7 @@ class _StackItemCard extends ConsumerWidget {
           ),
         );
       },
-      child: _StackItemCardContent(
-        entry: entry,
-        isMedication: isMedication,
-      ),
+      child: _StackItemCardContent(entry: entry, isMedication: isMedication),
     );
   }
 }
@@ -603,9 +591,7 @@ class _StackItemCardContent extends ConsumerWidget {
     double? score;
 
     if (entry.dsldId != null) {
-      final productAsync = ref.watch(
-        _stackProductProvider(entry.dsldId!),
-      );
+      final productAsync = ref.watch(_stackProductProvider(entry.dsldId!));
       final product = productAsync.asData?.value;
       if (product != null) {
         displayName = product.productName;
@@ -615,86 +601,82 @@ class _StackItemCardContent extends ConsumerWidget {
     }
 
     return PGCard(
-        onTap: entry.dsldId == null
-            ? null
-            : () => GoRouter.of(context).push('/product/${entry.dsldId}'),
-        padding: const EdgeInsets.all(AppTheme.space12),
-        child: Row(
-          children: [
-            // Score ring for supplements, icon for medications
-            if (!isMedication && score != null)
-              PGScoreRing(
-                score: score,
-                size: 44,
-                strokeWidth: 3.5,
-              )
-            else
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: isMedication
-                      ? AppTheme.info.withValues(alpha: 0.12)
-                      : scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-                child: Icon(
-                  isMedication
-                      ? Icons.local_pharmacy_outlined
-                      : Icons.medication_outlined,
-                  size: 20,
-                  color: isMedication ? AppTheme.info : scheme.primary,
-                ),
+      onTap: entry.dsldId == null
+          ? null
+          : () => GoRouter.of(context).push('/product/${entry.dsldId}'),
+      padding: const EdgeInsets.all(AppTheme.space12),
+      child: Row(
+        children: [
+          // Score ring for supplements, icon for medications
+          if (!isMedication && score != null)
+            PGScoreRing(score: score, size: 44, strokeWidth: 3.5)
+          else
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isMedication
+                    ? AppTheme.info.withValues(alpha: 0.12)
+                    : scheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
-            const SizedBox(width: AppTheme.space12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    displayName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (brandName != null && brandName.isNotEmpty) ...[
-                    const SizedBox(height: AppTheme.space2),
-                    Text(
-                      brandName,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if (entry.dosage != null || entry.frequency != null) ...[
-                    const SizedBox(height: AppTheme.space2),
-                    Text(
-                      [entry.dosage, entry.frequency]
-                          .whereType<String>()
-                          .where((s) => s.isNotEmpty)
-                          .join(' · '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ],
+              child: Icon(
+                isMedication
+                    ? Icons.local_pharmacy_outlined
+                    : Icons.medication_outlined,
+                size: 20,
+                color: isMedication ? AppTheme.info : scheme.primary,
               ),
             ),
-            if (entry.dsldId != null)
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: scheme.onSurfaceVariant,
-              ),
-          ],
-        ),
+          const SizedBox(width: AppTheme.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (brandName != null && brandName.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space2),
+                  Text(
+                    brandName,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (entry.dosage != null || entry.frequency != null) ...[
+                  const SizedBox(height: AppTheme.space2),
+                  Text(
+                    [entry.dosage, entry.frequency]
+                        .whereType<String>()
+                        .where((s) => s.isNotEmpty)
+                        .join(' · '),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (entry.dsldId != null)
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.onSurfaceVariant,
+            ),
+        ],
+      ),
     );
   }
 }
@@ -798,7 +780,7 @@ class _RecallAlertSlot extends ConsumerWidget {
         final body = ordered.length == 1
             ? primary.bannerMessage
             : '${ordered.length} products need review. ${primary.bannerMessage} '
-                'Plus ${ordered.length - 1} more: ${names.skip(1).join(", ")}.';
+                  'Plus ${ordered.length - 1} more: ${names.skip(1).join(", ")}.';
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             AppTheme.space20,
@@ -874,7 +856,8 @@ class _ProfileNudgeSlot extends ConsumerWidget {
       child: PGSeverityBanner(
         tone: PGBannerTone.neutral,
         title: 'Personalize your stack',
-        body: 'Add your health conditions and medications to see '
+        body:
+            'Add your health conditions and medications to see '
             'warnings that actually apply to you.',
         actionLabel: 'Complete profile',
         onAction: () => GoRouter.of(context).push(Routes.profileSetup),

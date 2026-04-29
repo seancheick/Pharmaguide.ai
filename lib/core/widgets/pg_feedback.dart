@@ -88,10 +88,7 @@ class PGFeedback {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(
-            message,
-            style: TextStyle(color: foreground),
-          ),
+          content: Text(message, style: TextStyle(color: foreground)),
           backgroundColor: background,
           behavior: SnackBarBehavior.floating,
           duration: effectiveDuration,

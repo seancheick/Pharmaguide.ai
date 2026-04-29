@@ -39,8 +39,7 @@ String formatRelativeUpdate(DateTime? buildDate, DateTime now) {
   if (buildDate == null) return 'Updated recently';
 
   final today = DateTime(now.year, now.month, now.day);
-  final buildDay =
-      DateTime(buildDate.year, buildDate.month, buildDate.day);
+  final buildDay = DateTime(buildDate.year, buildDate.month, buildDate.day);
   final daysAgo = today.difference(buildDay).inDays;
 
   if (daysAgo <= 0) return 'Updated today';
@@ -49,8 +48,18 @@ String formatRelativeUpdate(DateTime? buildDate, DateTime now) {
 
   // ≥ 7 days — flip to absolute "Apr 28" form for readability.
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return 'Updated ${months[buildDate.month - 1]} ${buildDate.day}';
 }
@@ -103,8 +112,7 @@ class TransparencyFooter extends ConsumerWidget {
 
     final catalogInfo = ref.watch(catalogInfoProvider).asData?.value;
     final now = nowOverride ?? DateTime.now();
-    final updatedLine =
-        formatRelativeUpdate(catalogInfo?.buildDate, now);
+    final updatedLine = formatRelativeUpdate(catalogInfo?.buildDate, now);
     final coverageLine = formatCoverage(mappedCoverage, totalIngredientCount);
     final sourcesLine = 'Sources: ${kTransparencySources.join(' · ')}';
 
@@ -138,9 +146,7 @@ class TransparencyFooter extends ConsumerWidget {
           const SizedBox(height: AppTheme.space4),
           Text(
             kTransparencyDisclaimer,
-            style: smallStyle?.copyWith(
-              fontStyle: FontStyle.italic,
-            ),
+            style: smallStyle?.copyWith(fontStyle: FontStyle.italic),
           ),
         ],
       ),

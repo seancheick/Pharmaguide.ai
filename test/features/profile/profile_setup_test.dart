@@ -5,9 +5,7 @@ import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 
 void main() {
   Widget buildTestWidget() {
-    return const ProviderScope(
-      child: MaterialApp(home: ProfileSetupScreen()),
-    );
+    return const ProviderScope(child: MaterialApp(home: ProfileSetupScreen()));
   }
 
   group('ProfileSetupScreen', () {

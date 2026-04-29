@@ -86,15 +86,17 @@ class InteractionDbMetadata {
 /// `PRAGMA user_version=1`) so Drift never attempts to alter the schema at
 /// open time. The pipeline's manifest carries the human-readable
 /// `schema_version` ("1.0.0") for compatibility checks.
-@DriftDatabase(tables: [
-  Interactions,
-  DrugClassMap,
-  ResearchPairs,
-  InteractionDbMetadataTable,
-])
+@DriftDatabase(
+  tables: [
+    Interactions,
+    DrugClassMap,
+    ResearchPairs,
+    InteractionDbMetadataTable,
+  ],
+)
 class InteractionDatabase extends _$InteractionDatabase {
   InteractionDatabase(File dbFile)
-      : super(NativeDatabase(dbFile, logStatements: false));
+    : super(NativeDatabase(dbFile, logStatements: false));
 
   /// In-memory variant for tests that build a fixture DB on the fly.
   InteractionDatabase.memory() : super(NativeDatabase.memory());
@@ -104,17 +106,17 @@ class InteractionDatabase extends _$InteractionDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          // The bundle ships fully built; we never create from scratch in
-          // production. Tests using [InteractionDatabase.memory] do hit
-          // this path, so let Drift create the schema from the table
-          // definitions for them.
-          await m.createAll();
-        },
-        onUpgrade: (migrator, from, to) async {
-          // Pre-built DB — no versioned migrations.
-        },
-      );
+    onCreate: (m) async {
+      // The bundle ships fully built; we never create from scratch in
+      // production. Tests using [InteractionDatabase.memory] do hit
+      // this path, so let Drift create the schema from the table
+      // definitions for them.
+      await m.createAll();
+    },
+    onUpgrade: (migrator, from, to) async {
+      // Pre-built DB — no versioned migrations.
+    },
+  );
 
   /// Open a pre-built database file (the bundled asset, copied to the
   /// app documents directory by [ensureInteractionDatabaseAvailable]).
@@ -137,11 +139,12 @@ class InteractionDatabase extends _$InteractionDatabase {
   /// Direction-agnostic: matches whether the supplement appears as
   /// `agent1` or `agent2`. Tombstoned rows are excluded.
   Future<List<InteractionRow>> lookupByCanonicalId(String canonicalId) {
-    return (select(interactions)
-          ..where((t) =>
+    return (select(interactions)..where(
+          (t) =>
               (t.agent1CanonicalId.equals(canonicalId) |
                   t.agent2CanonicalId.equals(canonicalId)) &
-              t.retiredAt.isNull()))
+              t.retiredAt.isNull(),
+        ))
         .get();
   }
 
@@ -152,11 +155,12 @@ class InteractionDatabase extends _$InteractionDatabase {
   /// to share a numeric id (theoretically possible if a non-drug agent
   /// were stored with a numeric id) cannot collide.
   Future<List<InteractionRow>> lookupByRxcui(String rxcui) {
-    return (select(interactions)
-          ..where((t) =>
+    return (select(interactions)..where(
+          (t) =>
               ((t.agent1Type.equals('drug') & t.agent1Id.equals(rxcui)) |
                   (t.agent2Type.equals('drug') & t.agent2Id.equals(rxcui))) &
-              t.retiredAt.isNull()))
+              t.retiredAt.isNull(),
+        ))
         .get();
   }
 
@@ -176,15 +180,15 @@ class InteractionDatabase extends _$InteractionDatabase {
   /// the pipeline emitted. To enumerate the member RXCUIs of a class so
   /// callers can branch into per-drug lookups, use [rxcuisForDrugClass].
   Future<List<InteractionRow>> lookupByDrugClass(String classId) {
-    return (select(interactions)
-          ..where((t) {
-            final agentMatch =
-                (t.agent1Type.equals('drug_class') & t.agent1Id.equals(classId)) |
-                    (t.agent2Type.equals('drug_class') & t.agent2Id.equals(classId));
-            final tagMatch = t.agent1DrugClass.equals(classId) |
-                t.agent2DrugClass.equals(classId);
-            return (agentMatch | tagMatch) & t.retiredAt.isNull();
-          }))
+    return (select(interactions)..where((t) {
+          final agentMatch =
+              (t.agent1Type.equals('drug_class') & t.agent1Id.equals(classId)) |
+              (t.agent2Type.equals('drug_class') & t.agent2Id.equals(classId));
+          final tagMatch =
+              t.agent1DrugClass.equals(classId) |
+              t.agent2DrugClass.equals(classId);
+          return (agentMatch | tagMatch) & t.retiredAt.isNull();
+        }))
         .get();
   }
 
@@ -201,18 +205,19 @@ class InteractionDatabase extends _$InteractionDatabase {
     String a2Id,
     String a2Type,
   ) {
-    return (select(interactions)
-          ..where((t) {
-            final forward = t.agent1Id.equals(a1Id) &
-                t.agent1Type.equals(a1Type) &
-                t.agent2Id.equals(a2Id) &
-                t.agent2Type.equals(a2Type);
-            final reverse = t.agent1Id.equals(a2Id) &
-                t.agent1Type.equals(a2Type) &
-                t.agent2Id.equals(a1Id) &
-                t.agent2Type.equals(a1Type);
-            return (forward | reverse) & t.retiredAt.isNull();
-          }))
+    return (select(interactions)..where((t) {
+          final forward =
+              t.agent1Id.equals(a1Id) &
+              t.agent1Type.equals(a1Type) &
+              t.agent2Id.equals(a2Id) &
+              t.agent2Type.equals(a2Type);
+          final reverse =
+              t.agent1Id.equals(a2Id) &
+              t.agent1Type.equals(a2Type) &
+              t.agent2Id.equals(a1Id) &
+              t.agent2Type.equals(a1Type);
+          return (forward | reverse) & t.retiredAt.isNull();
+        }))
         .get();
   }
 
@@ -229,9 +234,9 @@ class InteractionDatabase extends _$InteractionDatabase {
   /// or the JSON cannot be parsed (rather than throwing — a missing
   /// class should degrade gracefully into "no sibling drugs found").
   Future<List<String>> rxcuisForDrugClass(String classId) async {
-    final row = await (select(drugClassMap)
-          ..where((t) => t.classId.equals(classId)))
-        .getSingleOrNull();
+    final row = await (select(
+      drugClassMap,
+    )..where((t) => t.classId.equals(classId))).getSingleOrNull();
     if (row == null) return const <String>[];
 
     try {
@@ -259,9 +264,7 @@ class InteractionDatabase extends _$InteractionDatabase {
   /// the user ever opens the app.
   Future<InteractionDbMetadata> getMetadata() async {
     final rows = await select(interactionDbMetadataTable).get();
-    final kv = <String, String>{
-      for (final r in rows) r.key: r.value,
-    };
+    final kv = <String, String>{for (final r in rows) r.key: r.value};
 
     String require(String key) {
       final v = kv[key];

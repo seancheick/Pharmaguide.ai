@@ -29,8 +29,9 @@ void main() {
       expect(scaffold.backgroundColor, const Color(0xFF0A7D6F));
     });
 
-    testWidgets('navigates to nextRoute after animation completes',
-        (tester) async {
+    testWidgets('navigates to nextRoute after animation completes', (
+      tester,
+    ) async {
       final router = GoRouter(
         initialLocation: '/',
         routes: [
@@ -50,8 +51,9 @@ void main() {
       expect(find.text('done-marker'), findsOneWidget);
     });
 
-    testWidgets('reduce-motion skips animation and routes after ~200ms',
-        (tester) async {
+    testWidgets('reduce-motion skips animation and routes after ~200ms', (
+      tester,
+    ) async {
       final router = GoRouter(
         initialLocation: '/',
         routes: [
@@ -77,15 +79,13 @@ void main() {
       expect(find.text('done-marker'), findsOneWidget);
     });
 
-    testWidgets('default nextRoute is home (/) when not provided',
-        (tester) async {
+    testWidgets('default nextRoute is home (/) when not provided', (
+      tester,
+    ) async {
       final router = GoRouter(
         initialLocation: '/',
         routes: [
-          GoRoute(
-            path: '/',
-            builder: (_, __) => const AnimatedSplashScreen(),
-          ),
+          GoRoute(path: '/', builder: (_, __) => const AnimatedSplashScreen()),
         ],
       );
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));

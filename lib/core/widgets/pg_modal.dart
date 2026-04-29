@@ -40,8 +40,7 @@ abstract final class PGModal {
       useSafeArea: useSafeArea,
       showDragHandle: showDragHandle,
       isScrollControlled: true,
-      backgroundColor:
-          backgroundColor ?? Theme.of(context).colorScheme.surface,
+      backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.surface,
     );
   }
 }

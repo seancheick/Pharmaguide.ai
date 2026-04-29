@@ -5,9 +5,7 @@ import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 
 void main() {
   Widget wrap(Widget child) {
-    return MaterialApp(
-      home: Scaffold(body: child),
-    );
+    return MaterialApp(home: Scaffold(body: child));
   }
 
   group('ScannerLookupOverlay', () {
@@ -15,10 +13,7 @@ void main() {
       await tester.pumpWidget(wrap(const ScannerLookupOverlay()));
 
       expect(find.text('Checking this barcode'), findsOneWidget);
-      expect(
-        find.textContaining('on-device product database'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('on-device product database'), findsOneWidget);
       expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
     });
   });

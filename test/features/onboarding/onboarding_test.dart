@@ -5,11 +5,7 @@ import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 
 void main() {
   Widget buildTestWidget() {
-    return const ProviderScope(
-      child: MaterialApp(
-        home: OnboardingScreen(),
-      ),
-    );
+    return const ProviderScope(child: MaterialApp(home: OnboardingScreen()));
   }
 
   group('OnboardingScreen', () {
@@ -41,8 +37,9 @@ void main() {
       expect(find.text('Personalized safety'), findsOneWidget);
     });
 
-    testWidgets('tapping Next twice shows third page with Get Started',
-        (tester) async {
+    testWidgets('tapping Next twice shows third page with Get Started', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 

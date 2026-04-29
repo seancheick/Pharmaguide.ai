@@ -7,10 +7,20 @@ abstract final class SchemaIds {
   static const sexOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
   static const conditions = [
-    'pregnancy', 'lactation', 'ttc', 'surgery_scheduled',
-    'hypertension', 'heart_disease', 'diabetes', 'bleeding_disorders',
-    'kidney_disease', 'liver_disease', 'thyroid_disorder', 'autoimmune',
-    'seizure_disorder', 'high_cholesterol',
+    'pregnancy',
+    'lactation',
+    'ttc',
+    'surgery_scheduled',
+    'hypertension',
+    'heart_disease',
+    'diabetes',
+    'bleeding_disorders',
+    'kidney_disease',
+    'liver_disease',
+    'thyroid_disorder',
+    'autoimmune',
+    'seizure_disorder',
+    'high_cholesterol',
   ];
 
   static const conditionLabels = {
@@ -31,10 +41,18 @@ abstract final class SchemaIds {
   };
 
   static const drugClasses = [
-    'anticoagulants', 'antiplatelets', 'nsaids', 'antihypertensives',
-    'hypoglycemics', 'thyroid_medications', 'sedatives',
-    'immunosuppressants', 'statins',
-    'antidepressants_ssri_snri', 'maois', 'cardiac_glycosides',
+    'anticoagulants',
+    'antiplatelets',
+    'nsaids',
+    'antihypertensives',
+    'hypoglycemics',
+    'thyroid_medications',
+    'sedatives',
+    'immunosuppressants',
+    'statins',
+    'antidepressants_ssri_snri',
+    'maois',
+    'cardiac_glycosides',
     'anticholinergics',
   ];
 
@@ -55,15 +73,24 @@ abstract final class SchemaIds {
   };
 
   static const goals = [
-    'GOAL_SLEEP_QUALITY', 'GOAL_REDUCE_STRESS_ANXIETY',
-    'GOAL_INCREASE_ENERGY', 'GOAL_DIGESTIVE_HEALTH',
-    'GOAL_WEIGHT_MANAGEMENT', 'GOAL_CARDIOVASCULAR_HEART_HEALTH',
-    'GOAL_HEALTHY_AGING_LONGEVITY', 'GOAL_BLOOD_SUGAR_SUPPORT',
-    'GOAL_IMMUNE_SUPPORT', 'GOAL_FOCUS_MENTAL_CLARITY',
-    'GOAL_MOOD_EMOTIONAL_WELLNESS', 'GOAL_MUSCLE_GROWTH_RECOVERY',
-    'GOAL_JOINT_BONE_MOBILITY', 'GOAL_SKIN_HAIR_NAILS',
-    'GOAL_LIVER_DETOX', 'GOAL_PRENATAL_PREGNANCY',
-    'GOAL_HORMONAL_BALANCE', 'GOAL_EYE_VISION_HEALTH',
+    'GOAL_SLEEP_QUALITY',
+    'GOAL_REDUCE_STRESS_ANXIETY',
+    'GOAL_INCREASE_ENERGY',
+    'GOAL_DIGESTIVE_HEALTH',
+    'GOAL_WEIGHT_MANAGEMENT',
+    'GOAL_CARDIOVASCULAR_HEART_HEALTH',
+    'GOAL_HEALTHY_AGING_LONGEVITY',
+    'GOAL_BLOOD_SUGAR_SUPPORT',
+    'GOAL_IMMUNE_SUPPORT',
+    'GOAL_FOCUS_MENTAL_CLARITY',
+    'GOAL_MOOD_EMOTIONAL_WELLNESS',
+    'GOAL_MUSCLE_GROWTH_RECOVERY',
+    'GOAL_JOINT_BONE_MOBILITY',
+    'GOAL_SKIN_HAIR_NAILS',
+    'GOAL_LIVER_DETOX',
+    'GOAL_PRENATAL_PREGNANCY',
+    'GOAL_HORMONAL_BALANCE',
+    'GOAL_EYE_VISION_HEALTH',
   ];
 
   static const goalLabels = {

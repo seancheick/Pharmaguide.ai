@@ -12,9 +12,7 @@ void main() {
 
   Widget buildTestWidget(UserDatabase userDb) {
     return ProviderScope(
-      overrides: [
-        userDatabaseProvider.overrideWithValue(userDb),
-      ],
+      overrides: [userDatabaseProvider.overrideWithValue(userDb)],
       child: const MaterialApp(home: SettingsScreen()),
     );
   }
@@ -108,37 +106,40 @@ void main() {
     });
 
     testWidgets(
-        'privacy dashboard does not claim health data syncs to the cloud',
-        (tester) async {
-      final userDb = UserDatabase.memory();
+      'privacy dashboard does not claim health data syncs to the cloud',
+      (tester) async {
+        final userDb = UserDatabase.memory();
 
-      await tester.pumpWidget(buildTestWidget(userDb));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpWidget(buildTestWidget(userDb));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.text('Privacy dashboard'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.tap(find.text('Privacy dashboard'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Backup of encrypted stack data', skipOffstage: false),
-          findsNothing);
-      expect(
-        find.textContaining(
-          'App settings and account preferences',
-          skipOffstage: false,
-        ),
-        findsWidgets,
-      );
-      expect(
-        find.textContaining(
-          'Personal health information',
-          skipOffstage: false,
-        ),
-        findsWidgets,
-      );
+        expect(
+          find.text('Backup of encrypted stack data', skipOffstage: false),
+          findsNothing,
+        );
+        expect(
+          find.textContaining(
+            'App settings and account preferences',
+            skipOffstage: false,
+          ),
+          findsWidgets,
+        );
+        expect(
+          find.textContaining(
+            'Personal health information',
+            skipOffstage: false,
+          ),
+          findsWidgets,
+        );
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await userDb.close();
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        await userDb.close();
+      },
+    );
   });
 }

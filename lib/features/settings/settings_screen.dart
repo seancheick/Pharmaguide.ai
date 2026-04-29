@@ -57,150 +57,161 @@ class SettingsScreen extends ConsumerWidget {
 
                 // -------- Account & Security --------
                 const PGSectionHeader(title: 'Account & security'),
-                _SettingsGroup(children: [
-                  _SettingsTile(
-                    icon: Icons.email_outlined,
-                    title: 'Email',
-                    subtitle: 'Not signed in',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.login_rounded,
-                    title: 'Sign in / create account',
-                    onTap: () {},
-                  ),
-                ]),
+                _SettingsGroup(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.email_outlined,
+                      title: 'Email',
+                      subtitle: 'Not signed in',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.login_rounded,
+                      title: 'Sign in / create account',
+                      onTap: () {},
+                    ),
+                  ],
+                ),
 
                 // -------- Health Profile --------
                 const PGSectionHeader(title: 'Health profile'),
-                _SettingsGroup(children: [
-                  _SettingsTile(
-                    icon: Icons.person_outline_rounded,
-                    title: 'Edit profile',
-                    subtitle: '${profile.completeness}% complete',
-                    onTap: () => context.push(Routes.profileSetup),
-                  ),
-                ]),
+                _SettingsGroup(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.person_outline_rounded,
+                      title: 'Edit profile',
+                      subtitle: '${profile.completeness}% complete',
+                      onTap: () => context.push(Routes.profileSetup),
+                    ),
+                  ],
+                ),
 
                 // -------- Privacy & Data --------
                 const PGSectionHeader(title: 'Privacy & data'),
-                _SettingsGroup(children: [
-                  _SettingsTile(
-                    icon: Icons.shield_outlined,
-                    title: 'Privacy dashboard',
-                    subtitle: 'See where your data lives',
-                    onTap: () => _showPrivacyDashboard(context),
-                  ),
-                  const _SettingsTile(
-                    icon: Icons.analytics_outlined,
-                    title: 'Help improve the app',
-                    subtitle: 'Share anonymized usage data (no health info)',
-                    trailing: Switch.adaptive(
-                      value: false,
-                      onChanged: null,
+                _SettingsGroup(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.shield_outlined,
+                      title: 'Privacy dashboard',
+                      subtitle: 'See where your data lives',
+                      onTap: () => _showPrivacyDashboard(context),
                     ),
-                  ),
-                ]),
+                    const _SettingsTile(
+                      icon: Icons.analytics_outlined,
+                      title: 'Help improve the app',
+                      subtitle: 'Share anonymized usage data (no health info)',
+                      trailing: Switch.adaptive(value: false, onChanged: null),
+                    ),
+                  ],
+                ),
 
                 // -------- Analysis History --------
                 const PGSectionHeader(title: 'Analysis history'),
-                _SettingsGroup(children: [
-                  _SettingsTile(
-                    icon: Icons.history_rounded,
-                    title: 'Saved reports',
-                    subtitle: 'No saved analyses yet',
-                    onTap: () {},
-                  ),
-                ]),
+                _SettingsGroup(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.history_rounded,
+                      title: 'Saved reports',
+                      subtitle: 'No saved analyses yet',
+                      onTap: () {},
+                    ),
+                  ],
+                ),
 
                 // -------- Settings --------
                 const PGSectionHeader(title: 'Settings'),
-                _SettingsGroup(children: [
-                  _SettingsTile(
-                    icon: Icons.palette_outlined,
-                    title: 'Theme',
-                    subtitle: 'System default',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.notifications_outlined,
-                    title: 'Notifications',
-                    subtitle: 'Manage alerts and reminders',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.accessibility_new_rounded,
-                    title: 'Accessibility',
-                    subtitle: 'Dynamic type, high contrast, reduce motion',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.cloud_download_outlined,
-                    title: 'Offline mode',
-                    subtitle: 'Auto-download for offline use',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.download_outlined,
-                    title: 'Export my data',
-                    subtitle: 'Download profile, stack, and favorites (JSON)',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.delete_outline_rounded,
-                    title: 'Delete account',
-                    subtitle: 'Permanently remove all data',
-                    destructive: true,
-                    onTap: () {},
-                  ),
-                ]),
+                _SettingsGroup(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.palette_outlined,
+                      title: 'Theme',
+                      subtitle: 'System default',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.notifications_outlined,
+                      title: 'Notifications',
+                      subtitle: 'Manage alerts and reminders',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.accessibility_new_rounded,
+                      title: 'Accessibility',
+                      subtitle: 'Dynamic type, high contrast, reduce motion',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.cloud_download_outlined,
+                      title: 'Offline mode',
+                      subtitle: 'Auto-download for offline use',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.download_outlined,
+                      title: 'Export my data',
+                      subtitle: 'Download profile, stack, and favorites (JSON)',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.delete_outline_rounded,
+                      title: 'Delete account',
+                      subtitle: 'Permanently remove all data',
+                      destructive: true,
+                      onTap: () {},
+                    ),
+                  ],
+                ),
 
                 // -------- About --------
                 const PGSectionHeader(title: 'About'),
-                _SettingsGroup(children: [
-                  const _SettingsTile(
-                    icon: Icons.info_outline_rounded,
-                    title: 'Version',
-                    subtitle: '1.0.0 (build 1)',
-                  ),
-                  _SettingsTile(
-                    icon: Icons.description_outlined,
-                    title: 'Terms of service',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.privacy_tip_outlined,
-                    title: 'Privacy policy',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.support_outlined,
-                    title: 'Contact support',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.star_outline_rounded,
-                    title: 'Rate PharmaGuide',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.ios_share_rounded,
-                    title: 'Share PharmaGuide',
-                    onTap: () {},
-                  ),
-                ]),
+                _SettingsGroup(
+                  children: [
+                    const _SettingsTile(
+                      icon: Icons.info_outline_rounded,
+                      title: 'Version',
+                      subtitle: '1.0.0 (build 1)',
+                    ),
+                    _SettingsTile(
+                      icon: Icons.description_outlined,
+                      title: 'Terms of service',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Privacy policy',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.support_outlined,
+                      title: 'Contact support',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.star_outline_rounded,
+                      title: 'Rate PharmaGuide',
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.ios_share_rounded,
+                      title: 'Share PharmaGuide',
+                      onTap: () {},
+                    ),
+                  ],
+                ),
 
                 // -------- Debug (kDebugMode only) --------
                 if (kDebugMode) ...[
                   const PGSectionHeader(title: 'Debug'),
-                  _SettingsGroup(children: [
-                    _SettingsTile(
-                      icon: Icons.replay_rounded,
-                      title: 'Reset onboarding',
-                      subtitle: 'Show the 3-slide intro on next launch',
-                      onTap: () => _resetOnboarding(context),
-                    ),
-                  ]),
+                  _SettingsGroup(
+                    children: [
+                      _SettingsTile(
+                        icon: Icons.replay_rounded,
+                        title: 'Reset onboarding',
+                        subtitle: 'Show the 3-slide intro on next launch',
+                        onTap: () => _resetOnboarding(context),
+                      ),
+                    ],
+                  ),
                 ],
               ]),
             ),
@@ -242,10 +253,12 @@ class _ProfileSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final name =
-        profile.nickname?.isNotEmpty == true ? profile.nickname! : 'Guest';
-    final initial =
-        profile.nickname?.isNotEmpty == true ? profile.nickname![0].toUpperCase() : '?';
+    final name = profile.nickname?.isNotEmpty == true
+        ? profile.nickname!
+        : 'Guest';
+    final initial = profile.nickname?.isNotEmpty == true
+        ? profile.nickname![0].toUpperCase()
+        : '?';
 
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -359,10 +372,8 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final accent =
-        destructive ? scheme.error : scheme.onSurfaceVariant;
-    final titleColor =
-        destructive ? scheme.error : scheme.onSurface;
+    final accent = destructive ? scheme.error : scheme.onSurfaceVariant;
+    final titleColor = destructive ? scheme.error : scheme.onSurface;
 
     final tile = Padding(
       padding: const EdgeInsets.symmetric(

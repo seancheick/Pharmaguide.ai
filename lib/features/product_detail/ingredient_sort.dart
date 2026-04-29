@@ -53,9 +53,7 @@ List<Map<String, dynamic>> dedupeInactivesForDisplay(
   final out = <Map<String, dynamic>>[];
   final seen = <String>{};
   for (final ing in inactives) {
-    final raw = (ing['name'] ??
-            ing['standard_name'] ??
-            ing['raw_source_text'])
+    final raw = (ing['name'] ?? ing['standard_name'] ?? ing['raw_source_text'])
         ?.toString();
     final key = raw?.trim().toLowerCase() ?? '';
     if (key.isEmpty) continue;

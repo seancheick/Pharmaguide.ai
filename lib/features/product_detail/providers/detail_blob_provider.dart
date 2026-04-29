@@ -35,40 +35,40 @@ final detailBlobServiceProvider = Provider<DetailBlobService>((ref) {
 /// cached AsyncValue and triggers a fresh cache check on the next visit.
 final detailBlobProvider = FutureProvider.family
     .autoDispose<Map<String, dynamic>?, String>((ref, dsldId) async {
-  final coreDb = ref.watch(coreDatabaseProvider);
-  final userDb = ref.watch(userDatabaseProvider);
-  final service = ref.watch(detailBlobServiceProvider);
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final userDb = ref.watch(userDatabaseProvider);
+      final service = ref.watch(detailBlobServiceProvider);
 
-  // --- 1. Local cache (fast path) ---
-  final cached = await userDb.getCachedDetail(dsldId);
-  if (cached != null) {
-    final age = DateTime.now().difference(cached.cachedAt);
-    if (age < kDetailBlobCacheTtl) {
-      // The cache row was written by us in jsonEncode form, but defend
-      // against a corrupt entry by checking the decoded shape — a non-map
-      // value would crash the entire detail screen if we cast blindly.
-      try {
-        final decoded = jsonDecode(cached.blobJson);
-        if (decoded is Map<String, dynamic>) return decoded;
-        if (decoded is Map) return Map<String, dynamic>.from(decoded);
-      } on FormatException {
-        // Fall through to network fetch below.
+      // --- 1. Local cache (fast path) ---
+      final cached = await userDb.getCachedDetail(dsldId);
+      if (cached != null) {
+        final age = DateTime.now().difference(cached.cachedAt);
+        if (age < kDetailBlobCacheTtl) {
+          // The cache row was written by us in jsonEncode form, but defend
+          // against a corrupt entry by checking the decoded shape — a non-map
+          // value would crash the entire detail screen if we cast blindly.
+          try {
+            final decoded = jsonDecode(cached.blobJson);
+            if (decoded is Map<String, dynamic>) return decoded;
+            if (decoded is Map) return Map<String, dynamic>.from(decoded);
+          } on FormatException {
+            // Fall through to network fetch below.
+          }
+        }
       }
-    }
-  }
 
-  // --- 2. Resolve SHA-256 from the product row ---
-  final product = await coreDb.findById(dsldId);
-  final sha256 = product?.detailBlobSha256;
-  if (sha256 == null || sha256.isEmpty) return null;
+      // --- 2. Resolve SHA-256 from the product row ---
+      final product = await coreDb.findById(dsldId);
+      final sha256 = product?.detailBlobSha256;
+      if (sha256 == null || sha256.isEmpty) return null;
 
-  // --- 3. Network fetch by content hash ---
-  final blob = await service.fetchDetailBlobByHash(sha256);
+      // --- 3. Network fetch by content hash ---
+      final blob = await service.fetchDetailBlobByHash(sha256);
 
-  // --- 4. Persist to cache (best effort — failure here is rare and
-  //      should surface as an error so the UI can retry).
-  if (blob != null) {
-    await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
-  }
-  return blob;
-});
+      // --- 4. Persist to cache (best effort — failure here is rare and
+      //      should surface as an error so the UI can retry).
+      if (blob != null) {
+        await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
+      }
+      return blob;
+    });

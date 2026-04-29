@@ -13,20 +13,25 @@ Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
   group('ProbioticDetailSection clinical_strains parsing', () {
-    testWidgets('renders without throwing when clinical_strains is a List',
-        (tester) async {
-      await tester.pumpWidget(_wrap(const ProbioticDetailSection(
-        probioticDetail: {
-          'strains': [
-            {'name': 'L. acidophilus', 'cfu': '5B', 'is_clinical': true},
-          ],
-          'total_cfu': '10B',
-          'clinical_strains': [
-            {'strain_name': 'L. acidophilus NCFM', 'cfu': 5e9},
-            {'strain_name': 'B. lactis Bi-07', 'cfu': 5e9},
-          ],
-        },
-      )));
+    testWidgets('renders without throwing when clinical_strains is a List', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const ProbioticDetailSection(
+            probioticDetail: {
+              'strains': [
+                {'name': 'L. acidophilus', 'cfu': '5B', 'is_clinical': true},
+              ],
+              'total_cfu': '10B',
+              'clinical_strains': [
+                {'strain_name': 'L. acidophilus NCFM', 'cfu': 5e9},
+                {'strain_name': 'B. lactis Bi-07', 'cfu': 5e9},
+              ],
+            },
+          ),
+        ),
+      );
 
       expect(tester.takeException(), isNull);
       // List has 2 entries → chip should show "Clinically studied: 2".
@@ -37,30 +42,39 @@ void main() {
     });
 
     testWidgets('still accepts the legacy int shape', (tester) async {
-      await tester.pumpWidget(_wrap(const ProbioticDetailSection(
-        probioticDetail: {
-          'strains': [
-            {'name': 'L. acidophilus', 'cfu': '5B'},
-          ],
-          'total_cfu': '10B',
-          'clinical_strains': 3,
-        },
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          const ProbioticDetailSection(
+            probioticDetail: {
+              'strains': [
+                {'name': 'L. acidophilus', 'cfu': '5B'},
+              ],
+              'total_cfu': '10B',
+              'clinical_strains': 3,
+            },
+          ),
+        ),
+      );
 
       expect(tester.takeException(), isNull);
       expect(find.text('3'), findsOneWidget);
     });
 
-    testWidgets('omits the clinically-studied chip when the field is absent',
-        (tester) async {
-      await tester.pumpWidget(_wrap(const ProbioticDetailSection(
-        probioticDetail: {
-          'strains': [
-            {'name': 'L. acidophilus', 'cfu': '5B'},
-          ],
-          'total_cfu': '10B',
-        },
-      )));
+    testWidgets('omits the clinically-studied chip when the field is absent', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const ProbioticDetailSection(
+            probioticDetail: {
+              'strains': [
+                {'name': 'L. acidophilus', 'cfu': '5B'},
+              ],
+              'total_cfu': '10B',
+            },
+          ),
+        ),
+      );
 
       expect(tester.takeException(), isNull);
       expect(find.text('Clinically studied: '), findsNothing);

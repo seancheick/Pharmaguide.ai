@@ -7,31 +7,43 @@ void main() {
 
   testWidgets('renders nothing when heavyMetalDetail is null', (tester) async {
     await tester.pumpWidget(
-        wrap(const HeavyMetalWarningCard(heavyMetalDetail: null)));
+      wrap(const HeavyMetalWarningCard(heavyMetalDetail: null)),
+    );
     await tester.pump();
     expect(find.text('Heavy Metal Risk'), findsNothing);
   });
 
   testWidgets('renders nothing when signals list is empty', (tester) async {
-    await tester.pumpWidget(wrap(const HeavyMetalWarningCard(
-        heavyMetalDetail: {'signals': <Map<String, dynamic>>[]})));
+    await tester.pumpWidget(
+      wrap(
+        const HeavyMetalWarningCard(
+          heavyMetalDetail: {'signals': <Map<String, dynamic>>[]},
+        ),
+      ),
+    );
     await tester.pump();
     expect(find.text('Heavy Metal Risk'), findsNothing);
   });
 
-  testWidgets('renders card title and ingredient when signals present',
-      (tester) async {
-    await tester.pumpWidget(wrap(const HeavyMetalWarningCard(
-        heavyMetalDetail: {
-          'signals': [
-            {
-              'ingredient': 'Kelp',
-              'limit_source': 'Prop 65',
-              'risk_level': 'high',
-              'notes': 'Iodine accumulates heavy metals from seawater.',
-            }
-          ]
-        })));
+  testWidgets('renders card title and ingredient when signals present', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        const HeavyMetalWarningCard(
+          heavyMetalDetail: {
+            'signals': [
+              {
+                'ingredient': 'Kelp',
+                'limit_source': 'Prop 65',
+                'risk_level': 'high',
+                'notes': 'Iodine accumulates heavy metals from seawater.',
+              },
+            ],
+          },
+        ),
+      ),
+    );
     await tester.pump();
     expect(find.text('Heavy Metal Risk'), findsOneWidget);
     expect(find.text('Kelp'), findsOneWidget);

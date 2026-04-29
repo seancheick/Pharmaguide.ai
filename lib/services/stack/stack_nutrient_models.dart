@@ -54,8 +54,7 @@ class NutrientContribution {
           unit == other.unit;
 
   @override
-  int get hashCode =>
-      Object.hash(stackEntryId, productName, amount, unit);
+  int get hashCode => Object.hash(stackEntryId, productName, amount, unit);
 }
 
 /// Aggregated total for one nutrient across every stack item.

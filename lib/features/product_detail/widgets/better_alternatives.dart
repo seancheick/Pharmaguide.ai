@@ -106,10 +106,10 @@ class BetterAlternativesSection extends ConsumerWidget {
             Text(
               'Higher quality alternatives',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.15,
-                    color: resolved.textPrimary,
-                  ),
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.15,
+                color: resolved.textPrimary,
+              ),
             ),
             const SizedBox(height: AppTheme.space12),
             ...alternatives.map(

@@ -37,12 +37,14 @@ void main() {
     });
 
     testWidgets('shows score values when provided', (tester) async {
-      await tester.pumpWidget(buildTestWidget(
-        ingredientQuality: 20.5,
-        safetyPurity: 28.0,
-        evidenceResearch: 15.0,
-        brandTrust: 4.0,
-      ));
+      await tester.pumpWidget(
+        buildTestWidget(
+          ingredientQuality: 20.5,
+          safetyPurity: 28.0,
+          evidenceResearch: 15.0,
+          brandTrust: 4.0,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('20.5/25'), findsOneWidget);
@@ -62,12 +64,14 @@ void main() {
     });
 
     testWidgets('renders 4 progress bars', (tester) async {
-      await tester.pumpWidget(buildTestWidget(
-        ingredientQuality: 20.0,
-        safetyPurity: 25.0,
-        evidenceResearch: 10.0,
-        brandTrust: 3.0,
-      ));
+      await tester.pumpWidget(
+        buildTestWidget(
+          ingredientQuality: 20.0,
+          safetyPurity: 25.0,
+          evidenceResearch: 10.0,
+          brandTrust: 3.0,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byType(LinearProgressIndicator), findsNWidgets(4));
@@ -77,22 +81,26 @@ void main() {
   // T1.4 — hero continuity label + coverage line.
 
   group('ScoreBreakdownCard — T1.4 hero continuity label', () {
-    testWidgets('renders "Your <X> breaks down as:" when heroScore provided',
-        (tester) async {
-      await tester.pumpWidget(buildTestWidget(
-        ingredientQuality: 20.0,
-        safetyPurity: 25.0,
-        evidenceResearch: 10.0,
-        brandTrust: 3.0,
-        heroScore: 82,
-      ));
+    testWidgets('renders "Your <X> breaks down as:" when heroScore provided', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          ingredientQuality: 20.0,
+          safetyPurity: 25.0,
+          evidenceResearch: 10.0,
+          brandTrust: 3.0,
+          heroScore: 82,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Your 82 breaks down as:'), findsOneWidget);
     });
 
-    testWidgets('rounds heroScore to nearest int (87.6 → "Your 88")',
-        (tester) async {
+    testWidgets('rounds heroScore to nearest int (87.6 → "Your 88")', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget(heroScore: 87.6));
       await tester.pumpAndSettle();
 
@@ -100,12 +108,12 @@ void main() {
       expect(find.text('Your 87 breaks down as:'), findsNothing);
     });
 
-    testWidgets('continuity label hidden when heroScore is null',
-        (tester) async {
-      await tester.pumpWidget(buildTestWidget(
-        ingredientQuality: 20.0,
-        safetyPurity: 25.0,
-      ));
+    testWidgets('continuity label hidden when heroScore is null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(ingredientQuality: 20.0, safetyPurity: 25.0),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('breaks down as:'), findsNothing);
@@ -113,17 +121,15 @@ void main() {
   });
 
   group('ScoreBreakdownCard — T1.4 coverage line', () {
-    testWidgets('coverage 0.92 → green tier + "high-confidence" descriptor',
-        (tester) async {
+    testWidgets('coverage 0.92 → green tier + "high-confidence" descriptor', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.92));
       await tester.pumpAndSettle();
 
       expect(find.text('92%'), findsOneWidget);
       expect(find.text('Coverage'), findsOneWidget);
-      expect(
-        find.textContaining('high-confidence'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('high-confidence'), findsOneWidget);
     });
 
     testWidgets('coverage 0.7 (boundary) → green tier', (tester) async {
@@ -136,16 +142,15 @@ void main() {
       expect(find.textContaining('high-confidence'), findsOneWidget);
     });
 
-    testWidgets(
-      'coverage 0.5 → yellow tier + "partial coverage" descriptor',
-      (tester) async {
-        await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.5));
-        await tester.pumpAndSettle();
+    testWidgets('coverage 0.5 → yellow tier + "partial coverage" descriptor', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.5));
+      await tester.pumpAndSettle();
 
-        expect(find.text('50%'), findsOneWidget);
-        expect(find.textContaining('partial coverage'), findsOneWidget);
-      },
-    );
+      expect(find.text('50%'), findsOneWidget);
+      expect(find.textContaining('partial coverage'), findsOneWidget);
+    });
 
     testWidgets('coverage 0.3 (boundary) → yellow tier', (tester) async {
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.3));
@@ -166,8 +171,9 @@ void main() {
       },
     );
 
-    testWidgets('coverage 0.0 → renders 0% in the limited tier',
-        (tester) async {
+    testWidgets('coverage 0.0 → renders 0% in the limited tier', (
+      tester,
+    ) async {
       // Defensive: a no-mapping product still renders the coverage
       // row so the user knows we tried (and got nothing). The hero's
       // verdict / "Not Scored" copy carries the actual messaging.
@@ -178,25 +184,24 @@ void main() {
       expect(find.textContaining('Limited data'), findsOneWidget);
     });
 
-    testWidgets(
-      'coverage 1.5 (out of range) clamps to 100% — defensive',
-      (tester) async {
-        // Pipeline drift could ship a >1 ratio if mapped > total.
-        // Don't render "150%" — clamp.
-        await tester.pumpWidget(buildTestWidget(mappedCoverage: 1.5));
-        await tester.pumpAndSettle();
+    testWidgets('coverage 1.5 (out of range) clamps to 100% — defensive', (
+      tester,
+    ) async {
+      // Pipeline drift could ship a >1 ratio if mapped > total.
+      // Don't render "150%" — clamp.
+      await tester.pumpWidget(buildTestWidget(mappedCoverage: 1.5));
+      await tester.pumpAndSettle();
 
-        expect(find.text('100%'), findsOneWidget);
-        expect(find.text('150%'), findsNothing);
-      },
-    );
+      expect(find.text('100%'), findsOneWidget);
+      expect(find.text('150%'), findsNothing);
+    });
 
-    testWidgets('coverage line hidden when mappedCoverage is null',
-        (tester) async {
-      await tester.pumpWidget(buildTestWidget(
-        ingredientQuality: 20.0,
-        safetyPurity: 25.0,
-      ));
+    testWidgets('coverage line hidden when mappedCoverage is null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(ingredientQuality: 20.0, safetyPurity: 25.0),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Coverage'), findsNothing);
@@ -210,14 +215,16 @@ void main() {
       (tester) async {
         // Same product, both signals present — verify both render and
         // the continuity label sits ABOVE the coverage line.
-        await tester.pumpWidget(buildTestWidget(
-          ingredientQuality: 22.0,
-          safetyPurity: 28.0,
-          evidenceResearch: 16.0,
-          brandTrust: 4.0,
-          heroScore: 82,
-          mappedCoverage: 0.85,
-        ));
+        await tester.pumpWidget(
+          buildTestWidget(
+            ingredientQuality: 22.0,
+            safetyPurity: 28.0,
+            evidenceResearch: 16.0,
+            brandTrust: 4.0,
+            heroScore: 82,
+            mappedCoverage: 0.85,
+          ),
+        );
         await tester.pumpAndSettle();
 
         expect(find.text('Your 82 breaks down as:'), findsOneWidget);
