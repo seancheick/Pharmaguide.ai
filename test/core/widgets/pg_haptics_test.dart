@@ -109,6 +109,14 @@ void main() {
   });
 
   group('PGHaptics.forVerdict mapping', () {
+    test('SAFE → successPattern (di-DUP)', () async {
+      await PGHaptics.forVerdict('SAFE');
+      expect(recorder.calls, [
+        'HapticFeedbackType.lightImpact',
+        'HapticFeedbackType.mediumImpact',
+      ]);
+    });
+
     test('RECOMMENDED → successPattern (di-DUP)', () async {
       await PGHaptics.forVerdict('RECOMMENDED');
       expect(recorder.calls, [
@@ -130,9 +138,19 @@ void main() {
       expect(recorder.calls, ['HapticFeedbackType.mediumImpact']);
     });
 
+    test('CAUTION → warning', () async {
+      await PGHaptics.forVerdict('CAUTION');
+      expect(recorder.calls, ['HapticFeedbackType.mediumImpact']);
+    });
+
     test('REVIEW → warning', () async {
       await PGHaptics.forVerdict('REVIEW');
       expect(recorder.calls, ['HapticFeedbackType.mediumImpact']);
+    });
+
+    test('POOR → danger', () async {
+      await PGHaptics.forVerdict('POOR');
+      expect(recorder.calls, ['HapticFeedbackType.heavyImpact']);
     });
 
     test('UNSAFE → danger', () async {
@@ -154,6 +172,11 @@ void main() {
       expect(recorder.calls, ['HapticFeedbackType.lightImpact']);
     });
 
+    test('NUTRITION_ONLY → success (single light)', () async {
+      await PGHaptics.forVerdict('NUTRITION_ONLY');
+      expect(recorder.calls, ['HapticFeedbackType.lightImpact']);
+    });
+
     test('null verdict → no haptic', () async {
       await PGHaptics.forVerdict(null);
       expect(recorder.calls, isEmpty);
@@ -165,7 +188,7 @@ void main() {
     });
 
     test('whitespace and case insensitive', () async {
-      await PGHaptics.forVerdict('  good  ');
+      await PGHaptics.forVerdict('  safe  ');
       expect(recorder.calls, [
         'HapticFeedbackType.lightImpact',
         'HapticFeedbackType.mediumImpact',

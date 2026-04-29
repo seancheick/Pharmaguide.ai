@@ -167,7 +167,7 @@ void main() {
           dsldId: 'S1',
           productName: 'Magnesium Glycinate',
           brandName: 'Brand A',
-          verdict: 'RECOMMENDED',
+          verdict: 'SAFE',
           score100Equivalent: 91.0,
           primaryCategory: 'single_nutrient',
           exportVersion: 'test',
@@ -177,7 +177,7 @@ void main() {
           dsldId: 'S2',
           productName: 'Focus Blend',
           brandName: 'Brand B',
-          verdict: 'REVIEW',
+          verdict: 'CAUTION',
           score100Equivalent: 64.0,
           primaryCategory: 'blend',
           exportVersion: 'test',
@@ -185,8 +185,18 @@ void main() {
         ),
         const ProductsCoreData(
           dsldId: 'S3',
-          productName: 'Extreme Pre',
+          productName: 'Low Quality Blend',
           brandName: 'Brand C',
+          verdict: 'POOR',
+          score100Equivalent: 35.0,
+          primaryCategory: 'blend',
+          exportVersion: 'test',
+          exportedAt: '2026-04-26T00:00:00Z',
+        ),
+        const ProductsCoreData(
+          dsldId: 'S4',
+          productName: 'Extreme Pre',
+          brandName: 'Brand D',
           verdict: 'BLOCKED',
           score100Equivalent: 22.0,
           primaryCategory: 'pre_workout',
@@ -194,6 +204,7 @@ void main() {
           exportedAt: '2026-04-26T00:00:00Z',
         ),
       ]);
+      addTearDown(db.close);
 
       await tester.pumpWidget(
         buildTestWidget(
@@ -212,12 +223,25 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump();
 
-      expect(find.text('Showing 3 results'), findsOneWidget);
+      expect(find.text('Showing 4 results'), findsOneWidget);
       expect(find.text('Needs Review'), findsOneWidget);
       final chipScroller = find.byWidgetPredicate(
         (widget) =>
             widget is ListView && widget.scrollDirection == Axis.horizontal,
       );
+
+      await tester.drag(chipScroller, const Offset(-160, 0));
+      await tester.pump();
+
+      await tester.tap(find.text('Needs Review'));
+      await tester.pump();
+
+      expect(find.text('Showing 2 of 4 results'), findsOneWidget);
+      expect(find.text('Focus Blend'), findsOneWidget);
+      expect(find.text('Low Quality Blend'), findsOneWidget);
+      expect(find.text('Magnesium Glycinate'), findsNothing);
+      expect(find.text('Extreme Pre'), findsNothing);
+
       await tester.dragUntilVisible(
         find.text('Blocked / Unsafe'),
         chipScroller,
@@ -230,10 +254,11 @@ void main() {
       await tester.tap(find.text('Blocked / Unsafe'));
       await tester.pump();
 
-      expect(find.text('Showing 1 of 3 results'), findsOneWidget);
+      expect(find.text('Showing 1 of 4 results'), findsOneWidget);
       expect(find.text('Extreme Pre'), findsOneWidget);
       expect(find.text('Magnesium Glycinate'), findsNothing);
       expect(find.text('Focus Blend'), findsNothing);
+      expect(find.text('Low Quality Blend'), findsNothing);
     });
 
     testWidgets('shows dynamic category chips from search results', (
@@ -251,7 +276,7 @@ void main() {
           dsldId: 'S1',
           productName: 'Magnesium Glycinate',
           brandName: 'Brand A',
-          verdict: 'RECOMMENDED',
+          verdict: 'SAFE',
           score100Equivalent: 91.0,
           primaryCategory: 'single_nutrient',
           exportVersion: 'test',
@@ -261,13 +286,14 @@ void main() {
           dsldId: 'S2',
           productName: 'Focus Blend',
           brandName: 'Brand B',
-          verdict: 'REVIEW',
+          verdict: 'CAUTION',
           score100Equivalent: 64.0,
           primaryCategory: 'blend',
           exportVersion: 'test',
           exportedAt: '2026-04-26T00:00:00Z',
         ),
       ]);
+      addTearDown(db.close);
 
       await tester.pumpWidget(
         buildTestWidget(

@@ -10,7 +10,8 @@ import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 /// Test fixture builder — keeps every test's setup short.
-/// [scoreFit20] drives the tier banding (0..20); state defaults to goodFit.
+/// The assessment state drives the visible tier; scoreFit20 stays
+/// internal/debug-only.
 FitScoreResult _fit({
   required double scoreFit20,
   FitAssessmentState state = FitAssessmentState.goodFit,
@@ -135,12 +136,15 @@ void main() {
   });
 
   group('ForYouSection — verdict copy + risk-gating', () {
-    testWidgets('Safe + good fit + topGoalLabel "sleep" → '
+    testWidgets('Safe + strong fit + topGoalLabel "sleep" → '
         '"Strong match for your sleep goal"', (tester) async {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreFit20: 18.4),
+        fitResult: _fit(
+          scoreFit20: 18.4,
+          state: FitAssessmentState.strongMatch,
+        ),
         maxSeverity: Severity.safe,
         topGoalLabel: 'sleep',
       );
@@ -201,7 +205,7 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreFit20: 7.0),
+        fitResult: _fit(scoreFit20: 7.0, state: FitAssessmentState.limitedFit),
         maxSeverity: Severity.safe,
       );
       expect(find.text('Limited fit for your profile'), findsOneWidget);
@@ -213,7 +217,10 @@ void main() {
       await _pumpSection(
         tester,
         profile: const ProfileState(goals: ['sleep_quality']),
-        fitResult: _fit(scoreFit20: 5),
+        fitResult: _fit(
+          scoreFit20: 5,
+          state: FitAssessmentState.notRecommended,
+        ),
         maxSeverity: Severity.safe,
       );
       expect(find.text('Not recommended for your profile'), findsOneWidget);

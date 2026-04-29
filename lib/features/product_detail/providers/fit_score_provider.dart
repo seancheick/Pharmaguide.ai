@@ -135,7 +135,7 @@ final fitScoreForProductProvider = FutureProvider.family
 
       final nutrients = _extractNutrients(blob);
       final interactionSummary = _extractInteractionSummary(blob);
-      final productClusters = _extractClusters(blob);
+      final productClusters = extractFitProductClusters(blob);
       final productGoalMatches = _extractGoalMatches(product);
 
       return service.calculate(
@@ -182,12 +182,42 @@ Map<String, dynamic> _extractInteractionSummary(Map<String, dynamic> blob) {
   return const {};
 }
 
-List<String> _extractClusters(Map<String, dynamic> blob) {
+List<String> extractFitProductClusters(Map<String, dynamic> blob) {
   // Prefer explicit clusters in the blob if present
   final raw = blob['product_clusters'];
   if (raw is List) {
     return raw.map((e) => e.toString()).toList(growable: false);
   }
+
+  // Current final-DB blobs expose formulation cluster matches under
+  // synergy_detail.clusters[*].cluster_id. This keeps the goal fallback
+  // alive when products_core.goal_matches is empty or malformed.
+  final synergyDetail = blob['synergy_detail'];
+  if (synergyDetail is Map) {
+    final clusters = synergyDetail['clusters'];
+    if (clusters is List) {
+      return clusters
+          .whereType<Map<Object?, Object?>>()
+          .map((cluster) => cluster['cluster_id']?.toString().trim() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+    }
+  }
+
+  final formulationData = blob['formulation_data'];
+  if (formulationData is Map) {
+    final clusters = formulationData['synergy_clusters'];
+    if (clusters is List) {
+      return clusters
+          .whereType<Map<Object?, Object?>>()
+          .map((cluster) => cluster['cluster_id']?.toString().trim() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+    }
+  }
+
   return const [];
 }
 

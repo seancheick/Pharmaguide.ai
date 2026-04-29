@@ -106,15 +106,13 @@ abstract final class FitDisplayThresholds {
 ///   2. Profile incomplete → [FitIncomplete]. The math couldn't
 ///      produce a meaningful result, so render the "complete your
 ///      profile" affordance instead.
-///   3. Otherwise band the fit fraction (scoreFit20 / 20) into
-///      Strong / Good / Limited / NotRecommended using the
-///      thresholds above. The number itself is never shown to
-///      the user — only the tier label is displayed.
+///   3. Otherwise render the assessment state produced by
+///      `FitScoreService`, preserving its safety/coverage caps.
 ///
-/// Caution / Monitor / Informational severities pass through the
-/// risk-gate untouched: they don't hide the fit tier label — the
-/// alert is shown alongside it. (E.g. "Good match — ⚠ Caution: take
-/// 4h apart from levothyroxine".)
+/// Caution / Monitor severities may still show a fit tier, but never
+/// above Good Fit. This duplicates the service-level cap defensively
+/// so stale / hand-built results cannot render "Strong match" next to
+/// a caution alert.
 ///
 /// Pure function — no I/O, no widget refs, no providers. Test by
 /// constructing inputs directly and asserting on the returned state.
@@ -137,21 +135,18 @@ FitDisplay computeFitDisplay({
     return const FitIncomplete();
   }
 
-  // Step 3: band by fit fraction (scoreFit20 / 20). The number is
-  // internal-only — never shown to the user — but its banding drives
-  // the Strong/Good/Limited/NotRecommended tier label that IS shown.
-  // Banding on raw fit (not quality+fit combined) keeps Quality and
-  // Fit as separate axes: PG Score = product, Fit = profile-match.
-  final fitFraction = fitResult.scoreFit20 / 20.0;
+  final display = switch (fitResult.state) {
+    FitAssessmentState.strongMatch => const FitStrongMatch(),
+    FitAssessmentState.goodFit => const FitGoodMatch(),
+    FitAssessmentState.limitedFit => const FitLimitedFit(),
+    FitAssessmentState.notRecommended => const FitNotRecommended(),
+    FitAssessmentState.incompleteProfile => const FitIncomplete(),
+  };
 
-  if (fitFraction >= FitDisplayThresholds.strongMatch) {
-    return const FitStrongMatch();
-  }
-  if (fitFraction >= FitDisplayThresholds.goodMatch) {
+  if ((verdict == Severity.caution || verdict == Severity.monitor) &&
+      display is FitStrongMatch) {
     return const FitGoodMatch();
   }
-  if (fitFraction >= FitDisplayThresholds.limitedFit) {
-    return const FitLimitedFit();
-  }
-  return const FitNotRecommended();
+
+  return display;
 }

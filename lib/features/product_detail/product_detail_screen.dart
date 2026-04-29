@@ -344,6 +344,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         (w) => !seenKeys.contains('${w.severity.name}:${w.mechanism}'),
       ),
     ];
+    final profile = ref.watch(profileProvider);
+    final guardedWarnings = filterProductDetailWarningsForProfile(
+      detailBlob: detailBlob,
+      warnings: warnings,
+      userConditions: profile.conditions.toSet(),
+      userDrugClasses: profile.drugClasses.toSet(),
+    );
     // Pipeline nests this under proprietary_blend_detail
     final blendDetail =
         detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
@@ -425,8 +432,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     );
                     return ForYouSection(
                       fitResult: fitAsync.asData?.value,
-                      warnings: warnings,
-                      maxSeverity: _maxSeverityOf(warnings),
+                      warnings: guardedWarnings,
+                      maxSeverity: _maxSeverityOf(guardedWarnings),
                       topGoalLabel: _topGoalLabelFromFit(
                         fitAsync.asData?.value,
                       ),
@@ -670,7 +677,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   fitScoreForProductProvider(widget.dsldId),
                 );
                 final fitResult = fitAsync.asData?.value;
-                final maxSeverity = _maxSeverityOf(warnings);
+                final maxSeverity = _maxSeverityOf(guardedWarnings);
                 final fitDisplay = fitResult == null
                     ? null
                     : computeFitDisplay(
@@ -965,6 +972,68 @@ String? topGoalLabelFromFit(FitScoreResult? result) {
   return null;
 }
 
+/// Product-detail warning gate shared by the top "For You" card and the
+/// deeper warning stack. Profile-tagged rules only render when the
+/// active profile matches; global critical/informational warnings still
+/// render without a profile match. Product-level UL exceedance warnings
+/// are synthesized here because they live under `rda_ul_data`, not the
+/// top-level warning lists.
+List<InteractionWarning> filterProductDetailWarningsForProfile({
+  required Map<String, dynamic>? detailBlob,
+  required List<InteractionWarning> warnings,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+}) {
+  final combinedWarnings = [..._synthesizeUlWarnings(detailBlob), ...warnings];
+  return combinedWarnings
+      .where((w) {
+        if (w.matchesProfile(
+          userConditions: userConditions,
+          userDrugClasses: userDrugClasses,
+        )) {
+          return true;
+        }
+
+        // Profile-tagged rules are never promoted to global alerts when the
+        // current user does not match them. This prevents pregnancy, kidney,
+        // and medication warnings from reading as personal guidance for the
+        // wrong profile even if an older blob marked them critical.
+        if (w.conditionIds.isNotEmpty || w.drugClassIds.isNotEmpty) {
+          return false;
+        }
+
+        final mode = w.displayModeDefault;
+        if (mode == 'critical' || mode == 'informational') return true;
+        if (mode == 'suppress') return false;
+
+        // Legacy blobs predating display_mode_default had no explicit gate.
+        // Untagged legacy warnings remain visible for backward compatibility.
+        return true;
+      })
+      .toList(growable: false);
+}
+
+List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
+  final ulAnalysis =
+      ((blob?['rda_ul_data'] as Map<String, dynamic>?)?['analyzed_ingredients']
+              as List?)
+          ?.whereType<Map<String, dynamic>>()
+          .toList();
+  final ulExceedances = extractUlExceedances(ulAnalysis);
+  return ulExceedances
+      .map(
+        (e) => InteractionWarning(
+          severity: Severity.avoid,
+          evidenceLevel: EvidenceLevel.established,
+          title: 'Exceeds upper limit: ${e.standardName}',
+          mechanism: e.warning,
+          management: 'Reduce dose or consult a healthcare provider.',
+          displayModeDefault: 'critical',
+        ),
+      )
+      .toList(growable: false);
+}
+
 // ---------------------------------------------------------------------------
 // Score education overlay
 // ---------------------------------------------------------------------------
@@ -1020,7 +1089,7 @@ class _ScoreEducationSheet extends StatelessWidget {
               Text(
                 'Each product is scored 0–100 from our reference catalog. '
                 'This explains the core product score, not your personalized '
-                'FitScore.',
+                'Personal Fit state.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                   height: 1.5,
@@ -1069,9 +1138,9 @@ class _ScoreEducationSheet extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Verdict Meanings
+              // Catalog Verdicts
               Text(
-                'Verdict Meanings',
+                'Catalog Verdicts',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -1080,31 +1149,44 @@ class _ScoreEducationSheet extends StatelessWidget {
               _verdictRow(
                 theme,
                 scheme,
-                'RECOMMENDED',
-                '85-100',
-                AppTheme.scoreExceptional,
-              ),
-              _verdictRow(
-                theme,
-                scheme,
-                'GOOD',
-                '70-84',
+                'SAFE',
+                'No block-level flag',
                 AppTheme.scoreExcellent,
               ),
               _verdictRow(
                 theme,
                 scheme,
-                'MODERATE',
-                '55-69',
-                AppTheme.scoreGood,
+                'CAUTION',
+                'Review before use',
+                AppTheme.scoreFair,
               ),
-              _verdictRow(theme, scheme, 'REVIEW', '40-54', AppTheme.scoreFair),
               _verdictRow(
                 theme,
                 scheme,
-                'BLOCKED / UNSAFE',
-                'N/A',
+                'POOR',
+                'Low-quality signal',
+                AppTheme.scoreLow,
+              ),
+              _verdictRow(
+                theme,
+                scheme,
+                'BLOCKED',
+                'Do not use',
                 AppTheme.severityContraindicated,
+              ),
+              _verdictRow(
+                theme,
+                scheme,
+                'NOT SCORED',
+                'Not enough data',
+                AppTheme.insufficientData,
+              ),
+              _verdictRow(
+                theme,
+                scheme,
+                'NUTRITION ONLY',
+                'Nutrition facts only',
+                AppTheme.insufficientData,
               ),
             ],
           ),
@@ -2203,26 +2285,6 @@ class DetailSection extends ConsumerWidget {
             ?.whereType<Map<String, dynamic>>()
             .toList();
 
-    // FLTR-5 — product-level UL-exceedance alerts. The pipeline surfaces
-    // per-ingredient breaches under rda_ul_data.analyzed_ingredients[i]
-    // .warnings[] (strings like "Exceeds UL by 15.0 mg"). These aren't
-    // in the top-level warnings[] list, so we synthesize InteractionWarning
-    // rows from them and prepend to the warning list. displayModeDefault
-    // = 'critical' makes them render regardless of user profile — UL
-    // exceedance is dose-based, not condition-based.
-    final ulExceedances = extractUlExceedances(ulAnalysis);
-    final synthesizedUlWarnings = ulExceedances
-        .map(
-          (e) => InteractionWarning(
-            severity: Severity.avoid,
-            evidenceLevel: EvidenceLevel.established,
-            title: 'Exceeds upper limit: ${e.standardName}',
-            mechanism: e.warning,
-            management: 'Reduce dose or consult a healthcare provider.',
-            displayModeDefault: 'critical',
-          ),
-        )
-        .toList();
     final ingredientsSummary = blob['ingredients_summary']?.toString() ?? '';
     final whyItems = _extractWhyItems(blob);
 
@@ -2230,63 +2292,15 @@ class DetailSection extends ConsumerWidget {
     final interactionSummary =
         blob['interaction_summary'] as Map<String, dynamic>?;
 
-    // Profile-gated warning filter (schema v5.2+ contract).
-    //
-    // Every pipeline warning carries a `display_mode_default` derived
-    // from its severity and ban_context:
-    //   - "critical"      → always show (substance hazard, contraindicated rule)
-    //   - "informational" → show as neutral note regardless of profile
-    //   - "suppress"      → hide unless user profile matches the rule's
-    //                        trigger tags (condition_id / drug_class_id)
-    //
-    // Prior behavior: generic warnings (both tags null) always rendered
-    // via `return true`, which surfaced scary-looking rules to users
-    // who had no matching profile. The fix reads the pipeline's
-    // `display_mode_default` and only falls through to "show it" when
-    // the rule is intrinsically worth showing (critical / informational)
-    // OR the user's declared profile matches.
-    // Merge the synthesized UL-exceedance warnings before the filter.
-    // They carry displayModeDefault='critical' so they pass through
-    // untouched, and appear in the sorted card list alongside other
-    // avoid-tier alerts.
-    final combinedWarnings = [...synthesizedUlWarnings, ...warnings];
-    final filteredWarnings = combinedWarnings.where((w) {
-      // Rule 1 — profile match always shows (promotes to "alert" in UI).
-      if (w.matchesProfile(
-        userConditions: userConditions,
-        userDrugClasses: userDrugClasses,
-      )) {
-        return true;
-      }
-      // Profile-tagged rules are never promoted to global alerts when the
-      // current user does not match them. This prevents pregnancy, kidney,
-      // and medication warnings from reading as personal guidance for the
-      // wrong profile even if an older blob marked them critical.
-      if (w.conditionIds.isNotEmpty || w.drugClassIds.isNotEmpty) {
-        return false;
-      }
-      // Rule 2 — pipeline told us how to handle the no-match case.
-      final mode = w.displayModeDefault;
-      if (mode == 'critical' || mode == 'informational') {
-        return true;
-      }
-      if (mode == 'suppress') {
-        return false;
-      }
-      // Rule 3 — legacy blobs predating v5.2 have no display_mode.
-      // Fall back to the old logic ONLY for warnings that carry any
-      // condition/drug-class tag — those are profile-gated by
-      // construction. Generic no-tag legacy warnings default to
-      // "informational" (render) — backward-compatible but will no
-      // longer trigger the scary fallback once the pipeline reprocesses
-      // products under v5.2.
-      return true;
-    }).toList();
-
     // FLTR-11a RETIRED (2026-04-24) — pipeline E1.11 now emits
     // dose-aware severity at source, so no Flutter-side downgrade
-    // pass is needed. Pass `filteredWarnings` through directly.
-    final guardedWarnings = filteredWarnings;
+    // pass is needed. Pass profile-filtered warnings through directly.
+    final guardedWarnings = filterProductDetailWarningsForProfile(
+      detailBlob: blob,
+      warnings: warnings,
+      userConditions: userConditions,
+      userDrugClasses: userDrugClasses,
+    );
     final visibleInactives = inactiveIngredients.take(8).toList();
     final hiddenInactivesCount =
         inactiveIngredients.length - visibleInactives.length;

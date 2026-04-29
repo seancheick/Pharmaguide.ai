@@ -5,28 +5,34 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 
 /// Return the flash color associated with a scanned product's verdict
-/// string. Case-insensitive; null and unrecognized values fall through
-/// to the default green.
+/// string. Case-insensitive; null and unrecognized values stay neutral.
 ///
 /// Policy:
-///   RECOMMENDED          → scoreExceptional (bright green)
-///   GOOD                 → scoreExcellent   (green)
-///   REVIEW / MODERATE    → severityCaution  (amber)
-///   BLOCKED / UNSAFE     → severityContraindicated (red)
-///   null / anything else → scoreExcellent   (green, safe default)
+///   SAFE / legacy GOOD / RECOMMENDED → scoreExcellent / exceptional
+///   CAUTION / legacy REVIEW          → severityCaution (amber)
+///   POOR / legacy MODERATE           → scoreLow / below average
+///   BLOCKED / legacy UNSAFE          → severityContraindicated (red)
+///   NOT_SCORED / NUTRITION_ONLY      → insufficientData
+///   null / unknown                   → insufficientData (not green)
 Color verdictFlashColor(String? verdict) {
-  switch (verdict?.toUpperCase()) {
+  switch (verdict?.trim().toUpperCase()) {
     case 'RECOMMENDED':
       return AppTheme.scoreExceptional;
+    case 'SAFE':
     case 'GOOD':
       return AppTheme.scoreExcellent;
-    case 'REVIEW':
+    case 'CAUTION':
     case 'MODERATE':
+    case 'REVIEW':
       return AppTheme.severityCaution;
+    case 'POOR':
+      return AppTheme.scoreLow;
     case 'BLOCKED':
     case 'UNSAFE':
       return AppTheme.severityContraindicated;
+    case 'NOT_SCORED':
+    case 'NUTRITION_ONLY':
     default:
-      return AppTheme.scoreExcellent;
+      return AppTheme.insufficientData;
   }
 }

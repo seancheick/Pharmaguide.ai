@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' show MigrationStrategy, driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -11,6 +12,7 @@ import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
+import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 
 class _FakeCoreDatabase extends CoreDatabase {
   final ProductsCoreData product;
@@ -52,7 +54,7 @@ void main() {
         scoreQuality80: 72.5,
         score100Equivalent: 91.0,
         grade: 'A-',
-        verdict: 'RECOMMENDED',
+        verdict: 'SAFE',
         mappedCoverage: 0.95,
         scoreIngredientQuality: 22.0,
         scoreSafetyPurity: 27.0,
@@ -123,6 +125,16 @@ void main() {
       expect(find.text('30 pts'), findsOneWidget);
       expect(find.text('20 pts'), findsOneWidget);
       expect(find.text('5 pts'), findsOneWidget);
+      expect(find.text('Catalog Verdicts'), findsOneWidget);
+      expect(find.text('SAFE'), findsOneWidget);
+      expect(find.text('CAUTION'), findsOneWidget);
+      expect(find.text('POOR'), findsOneWidget);
+      expect(find.text('BLOCKED'), findsOneWidget);
+      expect(find.text('NOT SCORED'), findsOneWidget);
+      expect(find.text('NUTRITION ONLY'), findsOneWidget);
+      expect(find.text('RECOMMENDED'), findsNothing);
+      expect(find.text('MODERATE'), findsNothing);
+      expect(find.text('REVIEW'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
@@ -207,6 +219,102 @@ void main() {
       await tester.pump();
     },
   );
+
+  group('product-detail warning filtering', () {
+    test('suppresses non-matching profile-tagged critical warnings', () {
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: null,
+        warnings: const [
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Avoid during pregnancy',
+            mechanism: 'Pregnancy-specific rule.',
+            management: 'Avoid if pregnant.',
+            displayModeDefault: 'critical',
+            conditionIds: ['pregnancy'],
+          ),
+        ],
+        userConditions: const {'hypertension'},
+        userDrugClasses: const {},
+      );
+
+      expect(out, isEmpty);
+    });
+
+    test('keeps matching profile-tagged warnings', () {
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: null,
+        warnings: const [
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Avoid during pregnancy',
+            mechanism: 'Pregnancy-specific rule.',
+            management: 'Avoid if pregnant.',
+            displayModeDefault: 'suppress',
+            conditionIds: ['pregnancy'],
+          ),
+        ],
+        userConditions: const {'pregnancy'},
+        userDrugClasses: const {},
+      );
+
+      expect(out.single.title, 'Avoid during pregnancy');
+    });
+
+    test('synthesizes UL exceedance warnings as global critical alerts', () {
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: const {
+          'rda_ul_data': {
+            'analyzed_ingredients': [
+              {
+                'standard_name': 'Vitamin B3 (Niacin)',
+                'skip_ul_check': false,
+                'warnings': ['Exceeds UL by 15 mg'],
+              },
+            ],
+          },
+        },
+        warnings: const [],
+        userConditions: const {},
+        userDrugClasses: const {},
+      );
+
+      expect(out.single.title, 'Exceeds upper limit: Vitamin B3 (Niacin)');
+      expect(out.single.displayModeDefault, 'critical');
+    });
+  });
+
+  group('fit-score cluster extraction', () {
+    test('reads current final-DB synergy_detail cluster ids', () {
+      final out = extractFitProductClusters({
+        'synergy_detail': {
+          'clusters': [
+            {'cluster_id': 'sleep_stack'},
+            {'cluster_id': 'sleep_stack'},
+            {'cluster_id': 'blood_sugar_support'},
+            {'cluster_name': 'No ID should be ignored'},
+          ],
+        },
+      });
+
+      expect(out, ['sleep_stack', 'blood_sugar_support']);
+    });
+
+    test('prefers explicit product_clusters when present', () {
+      final out = extractFitProductClusters({
+        'product_clusters': ['explicit_cluster'],
+        'synergy_detail': {
+          'clusters': [
+            {'cluster_id': 'sleep_stack'},
+          ],
+        },
+      });
+
+      expect(out, ['explicit_cluster']);
+    });
+  });
 
   // ------------------------------------------------------------------
   // BLOCKED / UNSAFE mode

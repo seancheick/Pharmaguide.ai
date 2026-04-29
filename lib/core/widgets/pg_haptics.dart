@@ -113,8 +113,8 @@ abstract final class PGHaptics {
     }
   }
 
-  /// Map a product **verdict string** (RECOMMENDED / GOOD / MODERATE /
-  /// REVIEW / UNSAFE / BLOCKED / NOT_SCORED) to the appropriate haptic
+  /// Map a product **verdict string** (SAFE / CAUTION / POOR / BLOCKED /
+  /// NOT_SCORED / NUTRITION_ONLY, plus retired aliases) to the appropriate haptic
   /// pattern for a scan-result verdict-flash event. Distinct from
   /// [forSeverity] because verdicts are *outcome* signals (the user
   /// completed an action and is about to see the result) where
@@ -122,27 +122,31 @@ abstract final class PGHaptics {
   /// a single light tap.
   ///
   /// Mapping:
-  /// - RECOMMENDED, GOOD → [successPattern] (Apple Pay-style di-DUP)
-  /// - MODERATE, REVIEW  → [warning] (medium)
-  /// - UNSAFE            → [danger] (heavy)
-  /// - BLOCKED           → [errorPattern] (di-da-DUP error)
-  /// - NOT_SCORED        → [success] (light tap — outcome is "we
-  ///                       found the product but cannot score it")
+  /// - SAFE / GOOD / RECOMMENDED   → [successPattern] (Apple Pay-style di-DUP)
+  /// - CAUTION / REVIEW / MODERATE → [warning] (medium)
+  /// - POOR / UNSAFE               → [danger] (heavy)
+  /// - BLOCKED                     → [errorPattern] (di-da-DUP error)
+  /// - NOT_SCORED / NUTRITION_ONLY → [success] (light tap — outcome is
+  ///                                 "found, but not fully scored")
   /// - unknown / null    → no haptic
   static Future<void> forVerdict(String? verdict, [BuildContext? context]) {
     final v = (verdict ?? '').trim().toUpperCase();
     switch (v) {
       case 'RECOMMENDED':
+      case 'SAFE':
       case 'GOOD':
         return successPattern(context);
+      case 'CAUTION':
       case 'MODERATE':
       case 'REVIEW':
         return warning();
+      case 'POOR':
       case 'UNSAFE':
         return danger();
       case 'BLOCKED':
         return errorPattern();
       case 'NOT_SCORED':
+      case 'NUTRITION_ONLY':
         return success(context);
       default:
         return Future<void>.value();

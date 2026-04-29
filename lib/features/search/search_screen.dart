@@ -596,7 +596,10 @@ enum _SearchFilter {
         return (p.score100Equivalent ?? 0) >= 80;
       case _SearchFilter.needsReview:
         final v = (p.verdict ?? '').toUpperCase();
-        return v == 'MODERATE' || v == 'REVIEW';
+        return v == 'CAUTION' ||
+            v == 'POOR' ||
+            v == 'MODERATE' ||
+            v == 'REVIEW';
       case _SearchFilter.blockedUnsafe:
         final v = (p.verdict ?? '').toUpperCase();
         return v == 'BLOCKED' || v == 'UNSAFE';

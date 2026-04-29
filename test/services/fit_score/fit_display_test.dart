@@ -6,8 +6,8 @@ import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
 /// Build a minimal [FitScoreResult] suitable for `computeFitDisplay`
-/// — only the fields the helper actually reads (`scoreFit20`,
-/// `state`) need realistic values.
+/// — the assessment `state` is authoritative for display; score stays
+/// internal/debug-only.
 FitScoreResult _result({
   required double scoreFit20,
   FitAssessmentState state = FitAssessmentState.goodFit,
@@ -63,28 +63,31 @@ void main() {
       // the UI renders alongside the verdict headline.
       final out = computeFitDisplay(
         verdict: Severity.caution,
-        fitResult: _result(scoreFit20: 16),
+        fitResult: _result(scoreFit20: 16, state: FitAssessmentState.goodFit),
       );
       expect(out, isA<FitGoodMatch>());
     });
 
-    test('Caution + fit 18/20 → StrongMatch (caution does not cap)', () {
-      // Caution doesn't cap the band — a strong-band fraction under
-      // caution is still a StrongMatch (with the caution alert
-      // rendered separately by the UI).
+    test('Caution + strong assessment → GoodMatch cap', () {
       final out = computeFitDisplay(
         verdict: Severity.caution,
-        fitResult: _result(scoreFit20: 18),
+        fitResult: _result(
+          scoreFit20: 18,
+          state: FitAssessmentState.strongMatch,
+        ),
       );
-      expect(out, isA<FitStrongMatch>());
+      expect(out, isA<FitGoodMatch>());
     });
 
-    test('Monitor + fit 17.5/20 → StrongMatch', () {
+    test('Monitor + strong assessment → GoodMatch cap', () {
       final out = computeFitDisplay(
         verdict: Severity.monitor,
-        fitResult: _result(scoreFit20: 17.5),
+        fitResult: _result(
+          scoreFit20: 17.5,
+          state: FitAssessmentState.strongMatch,
+        ),
       );
-      expect(out, isA<FitStrongMatch>());
+      expect(out, isA<FitGoodMatch>());
     });
 
     test('Informational + fit 6/20 → NotRecommended', () {
@@ -92,92 +95,56 @@ void main() {
       // and doesn't change the tier band. A low fraction is still low.
       final out = computeFitDisplay(
         verdict: Severity.informational,
-        fitResult: _result(scoreFit20: 6),
+        fitResult: _result(
+          scoreFit20: 6,
+          state: FitAssessmentState.notRecommended,
+        ),
       );
       expect(out, isA<FitNotRecommended>());
     });
   });
 
-  group('computeFitDisplay — Safe banding by fit fraction', () {
-    test('Safe + fit 19/20 (0.95) → StrongMatch', () {
+  group('computeFitDisplay — safe display from assessment state', () {
+    test('Safe + strongMatch state → StrongMatch', () {
       final out = computeFitDisplay(
         verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 19),
+        fitResult: _result(
+          scoreFit20: 19,
+          state: FitAssessmentState.strongMatch,
+        ),
       );
       expect(out, isA<FitStrongMatch>());
     });
 
-    test('Safe + fit 17.0/20 (0.85, boundary) → StrongMatch', () {
+    test('Safe + goodFit state → GoodMatch', () {
       final out = computeFitDisplay(
         verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 17.0),
-      );
-      expect(out, isA<FitStrongMatch>());
-    });
-
-    test('Safe + fit 16.999/20 → GoodMatch (just below strong threshold)', () {
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 16.999),
+        fitResult: _result(scoreFit20: 17, state: FitAssessmentState.goodFit),
       );
       expect(out, isA<FitGoodMatch>());
     });
 
-    test('Safe + fit 14/20 (0.70) → GoodMatch', () {
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 14),
-      );
-      expect(out, isA<FitGoodMatch>());
-    });
+    test(
+      'Safe + limitedFit state → LimitedFit even with high internal score',
+      () {
+        final out = computeFitDisplay(
+          verdict: Severity.safe,
+          fitResult: _result(
+            scoreFit20: 19,
+            state: FitAssessmentState.limitedFit,
+          ),
+        );
+        expect(out, isA<FitLimitedFit>());
+      },
+    );
 
-    test('Safe + fit 12.0/20 (0.60, boundary) → GoodMatch', () {
+    test('Safe + notRecommended state → NotRecommended', () {
       final out = computeFitDisplay(
         verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 12.0),
-      );
-      expect(out, isA<FitGoodMatch>());
-    });
-
-    test('Safe + fit 11.999/20 → LimitedFit (just below good threshold)', () {
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 11.999),
-      );
-      expect(out, isA<FitLimitedFit>());
-    });
-
-    test('Safe + fit 10/20 (0.50) → LimitedFit', () {
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 10),
-      );
-      expect(out, isA<FitLimitedFit>());
-    });
-
-    test('Safe + fit 7.0/20 (0.35, boundary) → LimitedFit', () {
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 7.0),
-      );
-      expect(out, isA<FitLimitedFit>());
-    });
-
-    test('Safe + fit 6.999/20 → NotRecommended (low fit even when safe)', () {
-      // Per spec: fit fraction <0.35 → NotRecommended — the product
-      // is safe to take but the personalized math doesn't support a
-      // recommendation.
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 6.999),
-      );
-      expect(out, isA<FitNotRecommended>());
-    });
-
-    test('Safe + fit 0 → NotRecommended', () {
-      final out = computeFitDisplay(
-        verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 0),
+        fitResult: _result(
+          scoreFit20: 18,
+          state: FitAssessmentState.notRecommended,
+        ),
       );
       expect(out, isA<FitNotRecommended>());
     });
