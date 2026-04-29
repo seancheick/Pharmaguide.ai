@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 
 /// Variants for [PGEmptyState].
 enum PGEmptyStateVariant {
@@ -152,31 +153,29 @@ class _PillButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.space16,
-            vertical: AppTheme.space8,
-          ),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-            border: Border.all(color: scheme.outlineVariant, width: 0.8),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: color,
-              letterSpacing: -0.05,
-            ),
+    // PGPressable replaces the prior Material+InkWell wrapper so the
+    // empty-state CTA gets the same Apple-grade compression + spring +
+    // light haptic as every other tappable across the app.
+    return PGPressable(
+      onTap: onTap,
+      pressedScale: 0.97,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space16,
+          vertical: AppTheme.space8,
+        ),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          border: Border.all(color: scheme.outlineVariant, width: 0.8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: color,
+            letterSpacing: -0.05,
           ),
         ),
       ),
