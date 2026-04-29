@@ -7,6 +7,7 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
+import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
@@ -645,28 +646,51 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
-          // Better Alternatives — generous bottom spacing
+          // T1.12 Section 11 — Better Alternatives, V1 non-personalized.
+          // Render gate fires on isBlocked OR score100 < 60 OR fit is
+          // FitLimitedFit/FitNotRecommended. The gate lives inside a
+          // Consumer so it has access to the same fit-score provider
+          // ForYouSection uses — keeping the two sections in sync as the
+          // fit math evolves.
           // ----------------------------------------------------------------
-          if (_shouldShowAlternatives(
-            isBlocked: isBlocked,
-            isNotScored: isNotScored,
-            score100: score100,
-          ))
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  0,
-                  AppTheme.space20,
-                  AppTheme.space24,
-                ),
-                child: BetterAlternativesSection(
-                  currentDsldId: widget.dsldId,
-                  category: _product?.primaryCategory,
-                  currentScore: score100 ?? 0,
-                ),
-              ),
+          SliverToBoxAdapter(
+            child: Consumer(
+              builder: (context, innerRef, _) {
+                final fitAsync = innerRef.watch(
+                  fitScoreForProductProvider(widget.dsldId),
+                );
+                final fitResult = fitAsync.asData?.value;
+                final maxSeverity = _maxSeverityOf(warnings);
+                final fitDisplay = fitResult == null
+                    ? null
+                    : computeFitDisplay(
+                        verdict: maxSeverity,
+                        fitResult: fitResult,
+                      );
+                if (!shouldShowBetterAlternatives(
+                  isBlocked: isBlocked,
+                  isNotScored: isNotScored,
+                  score100: score100,
+                  fitDisplay: fitDisplay,
+                )) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.space20,
+                    0,
+                    AppTheme.space20,
+                    AppTheme.space24,
+                  ),
+                  child: BetterAlternativesSection(
+                    currentDsldId: widget.dsldId,
+                    category: _product?.primaryCategory,
+                    currentScore: score100 ?? 0,
+                  ),
+                );
+              },
             ),
+          ),
 
           // Bottom padding for sticky action bar clearance
           SliverToBoxAdapter(
@@ -698,15 +722,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
-  bool _shouldShowAlternatives({
-    required bool isBlocked,
-    required bool isNotScored,
-    required double? score100,
-  }) {
-    if (isBlocked) return true;
-    if (isNotScored || score100 == null) return false;
-    return score100 < 55;
-  }
+  // T1.12 — `_shouldShowAlternatives` was removed in favor of the
+  // public `shouldShowBetterAlternatives(...)` pure helper exported
+  // from `better_alternatives.dart`. The new helper is fit-aware
+  // (FitLimitedFit / FitNotRecommended also fire the section) and
+  // the threshold tightened from 55 → 60 per T1.12 spec.
 
   /// Worst-applicable severity across the personalized + blob warnings —
   /// drives T1.3's risk-gate inside the For You section. Empty list →

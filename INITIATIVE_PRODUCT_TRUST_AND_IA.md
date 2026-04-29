@@ -956,7 +956,7 @@ Always rendered, always collapsed initially.
 
 ---
 
-### [ ] T1.12 — Better Alternatives (Section 11) — V1: non-personalized
+### [x] T1.12 — Better Alternatives (Section 11) — V1: non-personalized
 
 **What**
 Conditional render: only when current product is `LimitedFit | NotRecommended | low quality`. Show 2-3 higher-PG-score alternatives in same category. **V1 = "Higher quality alternatives"**, no personalized fit delta.
@@ -973,6 +973,13 @@ Conditional render: only when current product is `LimitedFit | NotRecommended | 
 
 **Acceptance**
 Conditional logic correct. V1 copy exact: "Higher quality alternatives".
+
+**Verified — 2026-04-29.**
+- **REFACTOR** `lib/features/product_detail/widgets/better_alternatives.dart` — added public `shouldShowBetterAlternatives({isBlocked, isNotScored, score100, fitDisplay})` pure helper exported for unit testing + reused at the screen call site. Trigger conditions per spec: blocked → show; unscored + not blocked → hide; `score100 < 60` → show; `fitDisplay is FitLimitedFit | FitNotRecommended` → show; otherwise hide. Threshold tightened from V0 `<55` to spec-exact `<60`. `FitIncomplete` and null fit are explicit no-show cases (defer until profile fills in). New constants `_lowQualityThreshold = 60.0` + `_maxAlternatives = 3` (was 5 per spec "2-3").
+- Title copy is now exactly **"Higher quality alternatives"** per spec — was "Better Alternatives". V0 subtitle "Higher-scored products in this category" dropped (V1 keeps the title self-explanatory; subtitle would push toward editorialised claims). V1 deliberately renders NO per-row "+N fit" delta — score badge + name + brand only. Defensive widget test asserts no fit-delta phrase ("+1 fit", "fit delta", " fit ") leaks into the rendered tree.
+- **MODIFY** `lib/features/product_detail/product_detail_screen.dart` — replaced the screen-private `_shouldShowAlternatives` (deleted, tombstoned with comment) with a `Consumer`-wrapped `SliverToBoxAdapter` that watches `fitScoreForProductProvider` + computes `FitDisplay` via the existing `computeFitDisplay(verdict, fitResult)` (same code path as Section 2 ForYou — keeps the two sections in sync as the fit math evolves). Gate falls through to the new pure helper. Section returns `SizedBox.shrink` when the gate is false, so the sliver list stays valid. Added `import '...services/fit_score/fit_display.dart'` for `computeFitDisplay` access.
+- **NEW** `test/features/product_detail/widgets/better_alternatives_test.dart` — 16 tests across 2 groups: pure `shouldShowBetterAlternatives` (10 tests covering strong+high-quality hidden, good-fit+adequate hidden, limited-fit show, not-recommended show, low-quality (<60) show, exact 60 boundary hidden, isBlocked always show, unscored hidden, null-fit + adequate hidden, FitIncomplete hidden) + render (6 tests covering null-category hidden, V1 copy "Higher quality alternatives" exact + V0 strings absent, score+brand+name rendering, 3-cap (5 seeded → top 3 by scoreQuality80 desc), no-fit-delta defense, empty-DB hidden). Render tests use `CoreDatabase.memory()` + `coreDatabaseProvider.overrideWithValue` + `_seedProduct` helper for isolation.
+- Test count 1011 → 1027 (+16). flutter analyze clean.
 
 ---
 

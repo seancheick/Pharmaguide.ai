@@ -1,0 +1,392 @@
+// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.12.
+
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
+import 'package:pharmaguide/services/fit_score/fit_display.dart';
+
+Future<void> _seedProduct(
+  CoreDatabase coreDb, {
+  required String dsldId,
+  required String productName,
+  required String? brandName,
+  required double scoreQuality80,
+  required double score100,
+  required String category,
+}) async {
+  await coreDb.into(coreDb.productsCore).insert(
+        ProductsCoreCompanion.insert(
+          dsldId: dsldId,
+          productName: productName,
+          exportVersion: 'test',
+          exportedAt: '2026-04-29T00:00:00Z',
+          brandName: Value(brandName),
+          scoreQuality80: Value(scoreQuality80),
+          score100Equivalent: Value(score100),
+          primaryCategory: Value(category),
+        ),
+      );
+}
+
+GoRouter _stubRouter(Widget child) {
+  return GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(path: '/', builder: (_, _) => Scaffold(body: child)),
+      GoRoute(
+        path: '/product/:id',
+        builder: (_, _) => const Scaffold(body: Text('routed')),
+      ),
+    ],
+  );
+}
+
+Widget _wrap(CoreDatabase coreDb, Widget child) {
+  return ProviderScope(
+    overrides: [
+      coreDatabaseProvider.overrideWithValue(coreDb),
+    ],
+    child: MaterialApp.router(routerConfig: _stubRouter(child)),
+  );
+}
+
+void main() {
+  group('shouldShowBetterAlternatives — pure logic', () {
+    test('strong fit + high quality → hidden', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 85,
+          fitDisplay: const FitStrongMatch(),
+        ),
+        isFalse,
+      );
+    });
+
+    test('good fit + adequate quality (60..84) → hidden', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 70,
+          fitDisplay: const FitGoodMatch(),
+        ),
+        isFalse,
+      );
+    });
+
+    test('limited fit → visible (regardless of score)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 90,
+          fitDisplay: const FitLimitedFit(),
+        ),
+        isTrue,
+      );
+    });
+
+    test('not-recommended fit → visible (regardless of score)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 90,
+          fitDisplay: const FitNotRecommended(),
+        ),
+        isTrue,
+      );
+    });
+
+    test('low quality (<60) → visible (regardless of fit)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 59,
+          fitDisplay: const FitStrongMatch(),
+        ),
+        isTrue,
+      );
+    });
+
+    test('quality boundary — exactly 60 → hidden', () {
+      // <60 strict per spec; 60 itself is not "low quality".
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 60,
+          fitDisplay: const FitStrongMatch(),
+        ),
+        isFalse,
+      );
+    });
+
+    test('isBlocked → visible (always, even with fit hidden)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: true,
+          isNotScored: false,
+          score100: null,
+          fitDisplay: const FitHidden(verdict: Severity.avoid),
+        ),
+        isTrue,
+      );
+    });
+
+    test('isNotScored + not blocked → hidden (no signal to act on)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: true,
+          score100: null,
+          fitDisplay: null,
+        ),
+        isFalse,
+      );
+    });
+
+    test('null fitDisplay + adequate quality → hidden', () {
+      // Fit math hasn't run yet (e.g. profile incomplete and we
+      // haven't computed FitIncomplete yet). Don't surface
+      // alternatives based on missing signal alone.
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 75,
+          fitDisplay: null,
+        ),
+        isFalse,
+      );
+    });
+
+    test('FitIncomplete + adequate quality → hidden', () {
+      // Profile incomplete — we lack data to call the fit limited.
+      // Defer the alternative push until the profile fills in.
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 75,
+          fitDisplay: const FitIncomplete(),
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('BetterAlternativesSection — render', () {
+    testWidgets('null category → renders nothing', (tester) async {
+      final coreDb = CoreDatabase.memory();
+      await tester.pumpWidget(
+        _wrap(
+          coreDb,
+          const BetterAlternativesSection(
+            currentDsldId: 'cur',
+            currentScore: 50,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Higher quality alternatives'), findsNothing);
+      await coreDb.close();
+    });
+
+    testWidgets(
+      'V1 copy is exactly "Higher quality alternatives" — no editorial',
+      (tester) async {
+        final coreDb = CoreDatabase.memory();
+        await _seedProduct(
+          coreDb,
+          dsldId: 'alt-1',
+          productName: 'Premium Multi',
+          brandName: 'BrandA',
+          scoreQuality80: 70,
+          score100: 87,
+          category: 'multivitamin',
+        );
+
+        await tester.pumpWidget(
+          _wrap(
+            coreDb,
+            const BetterAlternativesSection(
+              currentDsldId: 'cur',
+              currentScore: 50,
+              category: 'multivitamin',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Higher quality alternatives'), findsOneWidget);
+        // The old V0 copy was "Better Alternatives" — defensive check
+        // it's not still floating around.
+        expect(find.text('Better Alternatives'), findsNothing);
+        // Old subtitle removed in V1.
+        expect(
+          find.text('Higher-scored products in this category'),
+          findsNothing,
+        );
+
+        await coreDb.close();
+      },
+    );
+
+    testWidgets('renders alternatives with score + brand name',
+        (tester) async {
+      final coreDb = CoreDatabase.memory();
+      await _seedProduct(
+        coreDb,
+        dsldId: 'alt-1',
+        productName: 'Premium Multi',
+        brandName: 'BrandA',
+        scoreQuality80: 70,
+        score100: 87,
+        category: 'multivitamin',
+      );
+      await _seedProduct(
+        coreDb,
+        dsldId: 'alt-2',
+        productName: 'Daily Wellness',
+        brandName: 'BrandB',
+        scoreQuality80: 65,
+        score100: 81,
+        category: 'multivitamin',
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          coreDb,
+          const BetterAlternativesSection(
+            currentDsldId: 'cur',
+            currentScore: 50,
+            category: 'multivitamin',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Score badges (rounded to 0 decimals).
+      expect(find.text('87'), findsOneWidget);
+      expect(find.text('81'), findsOneWidget);
+      // Names + brands.
+      expect(find.text('Premium Multi'), findsOneWidget);
+      expect(find.text('BrandA'), findsOneWidget);
+      expect(find.text('Daily Wellness'), findsOneWidget);
+      expect(find.text('BrandB'), findsOneWidget);
+
+      await coreDb.close();
+    });
+
+    testWidgets('caps the list at 3 alternatives (V1 spec)', (tester) async {
+      final coreDb = CoreDatabase.memory();
+      // Seed 5 alternatives — section should only render the top 3.
+      for (var i = 0; i < 5; i++) {
+        await _seedProduct(
+          coreDb,
+          dsldId: 'alt-$i',
+          productName: 'Alt $i',
+          brandName: 'Brand$i',
+          scoreQuality80: 70 - i.toDouble(),
+          score100: 87 - i.toDouble(),
+          category: 'multivitamin',
+        );
+      }
+
+      await tester.pumpWidget(
+        _wrap(
+          coreDb,
+          const BetterAlternativesSection(
+            currentDsldId: 'cur',
+            currentScore: 50,
+            category: 'multivitamin',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Top 3 (sorted desc by scoreQuality80) are alt-0, alt-1, alt-2.
+      expect(find.text('Alt 0'), findsOneWidget);
+      expect(find.text('Alt 1'), findsOneWidget);
+      expect(find.text('Alt 2'), findsOneWidget);
+      // 4th + 5th are dropped.
+      expect(find.text('Alt 3'), findsNothing);
+      expect(find.text('Alt 4'), findsNothing);
+
+      await coreDb.close();
+    });
+
+    testWidgets(
+      'no per-row "+N fit" delta visible — deferred per V1 spec',
+      (tester) async {
+        // Defensive: the section currently shows score badge + name +
+        // brand. No "+N fit" pill. If a future change adds one without
+        // updating the spec, this test catches it.
+        final coreDb = CoreDatabase.memory();
+        await _seedProduct(
+          coreDb,
+          dsldId: 'alt-1',
+          productName: 'Premium Multi',
+          brandName: 'BrandA',
+          scoreQuality80: 70,
+          score100: 87,
+          category: 'multivitamin',
+        );
+
+        await tester.pumpWidget(
+          _wrap(
+            coreDb,
+            const BetterAlternativesSection(
+              currentDsldId: 'cur',
+              currentScore: 50,
+              category: 'multivitamin',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final phrase in const ['+1 fit', '+5 fit', 'fit delta']) {
+          expect(
+            find.textContaining(phrase),
+            findsNothing,
+            reason: 'V1 should not show fit-delta phrase "$phrase"',
+          );
+        }
+        // The word "fit" itself shouldn't appear in the rendered rows
+        // — only the score, name, brand.
+        expect(find.textContaining(' fit '), findsNothing);
+
+        await coreDb.close();
+      },
+    );
+
+    testWidgets('no alternatives in DB → hides empty state', (tester) async {
+      // findAlternatives returns empty → section returns SizedBox.shrink.
+      final coreDb = CoreDatabase.memory();
+      await tester.pumpWidget(
+        _wrap(
+          coreDb,
+          const BetterAlternativesSection(
+            currentDsldId: 'cur',
+            currentScore: 50,
+            category: 'multivitamin',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Higher quality alternatives'), findsNothing);
+      await coreDb.close();
+    });
+  });
+}

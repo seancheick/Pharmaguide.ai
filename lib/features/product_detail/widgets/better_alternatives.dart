@@ -1,14 +1,65 @@
+// Better Alternatives section (Section 11) — V1 non-personalized.
+//
+// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.12.
+//
+// Conditional render: surface 2-3 higher-quality alternatives in the
+// same category when the current product is blocked, low quality, or
+// the user's fit math came back limited / not recommended. V1 copy
+// is exactly **"Higher quality alternatives"** and the section
+// intentionally does NOT show a per-row "+N fit" delta — personalized
+// fit deltas are deferred until the math is more battle-tested.
+
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
-/// Shows up to 5 higher-scored products in the same category.
-/// Hidden if no alternatives found or product is already top-scored.
+/// Maximum number of alternatives surfaced — spec calls for 2-3.
+/// More than that turns the section into a category browser; the
+/// goal here is "show the user a clearly-better swap", not exhaustive
+/// shopping.
+const int _maxAlternatives = 3;
+
+/// Quality threshold (100-scale) below which the section fires
+/// regardless of fit state. Spec: "low quality (<60)".
+const double _lowQualityThreshold = 60.0;
+
+/// Pure helper — should the Better Alternatives section render for
+/// this product + user state?
+///
+/// V1 trigger conditions per spec:
+///   - Product is blocked (avoid / contraindicated severity)
+///   - score100 < 60 (low product quality)
+///   - FitDisplay is FitLimitedFit or FitNotRecommended
+///
+/// Hidden when:
+///   - Product is unscored (no signal to act on)
+///   - score100 ≥ 60 AND fit is FitStrongMatch / FitGoodMatch /
+///     FitHidden / FitIncomplete (FitHidden is already covered by
+///     isBlocked, FitIncomplete means we lack profile to judge fit)
+bool shouldShowBetterAlternatives({
+  required bool isBlocked,
+  required bool isNotScored,
+  required double? score100,
+  required FitDisplay? fitDisplay,
+}) {
+  if (isBlocked) return true;
+  if (isNotScored || score100 == null) return false;
+  if (score100 < _lowQualityThreshold) return true;
+  if (fitDisplay is FitLimitedFit || fitDisplay is FitNotRecommended) {
+    return true;
+  }
+  return false;
+}
+
+/// Section 11 widget. Caller is responsible for the trigger gate via
+/// [shouldShowBetterAlternatives]; this widget then handles the
+/// async data load + empty-state gate inside its FutureBuilder.
 class BetterAlternativesSection extends ConsumerWidget {
   final String currentDsldId;
   final String? category;
@@ -28,7 +79,6 @@ class BetterAlternativesSection extends ConsumerWidget {
     }
 
     final coreDb = ref.watch(coreDatabaseProvider);
-
     final minQuality80 = (currentScore! * 0.8).clamp(0.0, 80.0);
 
     return FutureBuilder<List<ProductsCoreData>>(
@@ -36,7 +86,7 @@ class BetterAlternativesSection extends ConsumerWidget {
         category!,
         minQuality80,
         excludeDsldId: currentDsldId,
-        limit: 5,
+        limit: _maxAlternatives,
       ),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -49,17 +99,17 @@ class BetterAlternativesSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Spec: V1 copy is exactly "Higher quality alternatives".
+            // No subtitle in V1 — the title is self-explanatory and
+            // adding a subtitle would push us toward editorialised
+            // claims we don't yet have evidence for.
             Text(
-              'Better Alternatives',
+              'Higher quality alternatives',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: resolved.textPrimary,
-              ),
-            ),
-            const SizedBox(height: AppTheme.space4),
-            Text(
-              'Higher-scored products in this category',
-              style: TextStyle(fontSize: 12, color: resolved.textSecondary),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.15,
+                    color: resolved.textPrimary,
+                  ),
             ),
             const SizedBox(height: AppTheme.space12),
             ...alternatives.map(
@@ -100,7 +150,9 @@ class _AlternativeCard extends StatelessWidget {
         onTap: () => context.push('/product/${product.dsldId}'),
         child: Row(
           children: [
-            // Score badge
+            // Score badge — the only badge per row in V1; no per-row
+            // "+N fit" delta. Personalized deltas are deferred until
+            // the fit math has proven itself across more profiles.
             Container(
               width: 44,
               height: 44,
