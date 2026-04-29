@@ -40,6 +40,7 @@ import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/product_details_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/transparency_footer.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
@@ -692,6 +693,25 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ),
                 );
               },
+            ),
+          ),
+
+          // T1.14 Section 13 — Transparency footer. Always rendered.
+          // No personalization (it's site-wide trust language). Sits
+          // above the bottom action-bar clearance padding.
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space20,
+                AppTheme.space8,
+                AppTheme.space20,
+                AppTheme.space8,
+              ),
+              child: TransparencyFooter(
+                mappedCoverage: _product?.mappedCoverage,
+                totalIngredientCount:
+                    (detailBlob?['ingredients'] as List?)?.length,
+              ),
             ),
           ),
 

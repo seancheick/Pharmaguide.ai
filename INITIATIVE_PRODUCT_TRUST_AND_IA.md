@@ -1013,7 +1013,7 @@ No behavior change other than initial collapsed state.
 
 ---
 
-### [ ] T1.14 — Transparency footer (Section 13)
+### [x] T1.14 — Transparency footer (Section 13)
 
 **What**
 Always-visible footer: "Last updated: {catalog generated_at} · Coverage: {n}/{total} · Sources: NIH · FDA · PubMed · PharmaGuide does not sell supplements. Educational only."
@@ -1028,6 +1028,16 @@ Always-visible footer: "Last updated: {catalog generated_at} · Coverage: {n}/{t
 
 **Acceptance**
 Footer renders on every product page. No personalization (it's site-wide trust language).
+
+**Verified — 2026-04-29.**
+- **NEW** `lib/features/product_detail/widgets/transparency_footer.dart` (~140 lines) — public `TransparencyFooter` ConsumerWidget watches `catalogInfoProvider` for catalog freshness; consumes `mappedCoverage` (0..1 fraction, same value driving T1.4's coverage line) + `totalIngredientCount` for the per-product coverage segment. Optional `nowOverride` param for deterministic widget tests. Constants `kTransparencySources = ['NIH', 'FDA', 'PubMed']` + `kTransparencyDisclaimer = 'PharmaGuide does not sell supplements. Educational only.'` exported for test reference.
+- Two pure helpers exposed for direct unit testing:
+  - `formatRelativeUpdate(buildDate, now)` — calendar-day-relative for ≤6 days ("Updated today", "Updated yesterday", "Updated N days ago"); flips to absolute "Updated Mon DD" for ≥7 days. Time-of-day ignored (same calendar day → "today" regardless of hour). Null input → "Updated recently" defensive fallback so the row never goes blank when the manifest read fails.
+  - `formatCoverage(mappedCoverage, totalIngredientCount)` — multiplies fraction × total, rounds to nearest whole → "Coverage: n/total". Defensive: clamps fraction to [0..1] so a stale catalog can't inflate the count, returns null on missing inputs OR zero total (no divide-by-zero placeholder). Caller drops the segment from the summary line when null.
+- Layout: single quiet container — `surfaceContainerLow` background, `outlineVariant` border, 12pt padding. Two text rows: summary (`Updated … · Coverage: n/total · Sources: NIH · FDA · PubMed`, dot-separated, segments dropped when null) + italic disclaimer below. `bodySmall` typography throughout, `onSurfaceVariant` color so the footer reads as quiet trust-language not alert.
+- **MODIFY** `lib/features/product_detail/product_detail_screen.dart` — added the import; inserted `TransparencyFooter` as a `SliverToBoxAdapter` directly above the bottom-padding sliver (last visible content, sits cleanly above the sticky action bar). Reads `_product?.mappedCoverage` + `(detailBlob?['ingredients'] as List?)?.length`.
+- **NEW** `test/features/product_detail/widgets/transparency_footer_test.dart` — 22 tests across 3 groups: pure `formatRelativeUpdate` (8 tests covering null-defensive, today, yesterday, N days ago in [2..6], boundary at 7 days flipping to absolute, far past, time-of-day insensitivity) + pure `formatCoverage` (8 tests covering basic, rounding, full coverage, zero, null branches, zero-total defensive, out-of-band clamp on both ends) + render (6 tests covering disclaimer always present, disclaimer-with-null-coverage, sources line render, coverage segment render with full data, coverage-segment-omitted-with-null-but-other-segments-still-render, manifest-read-failure graceful fallback).
+- Test count 1043 → 1065 (+22). flutter analyze clean.
 
 ---
 
