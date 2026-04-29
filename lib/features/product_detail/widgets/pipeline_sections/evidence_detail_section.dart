@@ -490,11 +490,26 @@ class _CitationGroup extends StatelessWidget {
     );
   }
 
+  /// Numeric-PMID validator. PubMed IDs are integer-only; anything
+  /// else (DOI, garbled string, accidental URL paste) lands at a 404
+  /// which would surface as a new Sentry error class on launchUrl
+  /// failure paths. Defensive — pipeline shouldn't ship non-numeric
+  /// PMIDs but a stale catalog might.
+  static final RegExp _pmidPattern = RegExp(r'^\d+$');
+
   Future<void> _launchPubmed(String pmid) async {
     final trimmed = pmid.trim();
     if (trimmed.isEmpty) return;
+    if (!_pmidPattern.hasMatch(trimmed)) return;
     final uri = Uri.tryParse('https://pubmed.ncbi.nlm.nih.gov/$trimmed/');
     if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on Exception {
+      // Platform channel can throw if the OS has no browser registered
+      // (very rare on iOS/Android but happens on stripped device images
+      // and in tests). Swallow — user gets no nav, but no crash either.
+      // Keeps Sentry quiet.
+    }
   }
 }

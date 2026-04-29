@@ -27,6 +27,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Drift schema + JSON serialization generated code (*.g.dart) is
+      # gitignored locally — `flutter analyze` finds 455 errors without
+      # it ("Undefined class 'UserStacksLocalData'", "ProductsCoreCompanion",
+      # etc.). Run build_runner before analyze so CI matches the local
+      # `make gen && make check` flow.
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Analyze
         run: flutter analyze --fatal-infos
 

@@ -1120,6 +1120,15 @@ All sections render. No new error classes in Sentry. Ready for Sprint 2.
 
 **Outcome:** Sprint 1 ships. Trust + IA refactor complete on the code-level contract. Real-device verification is the only remaining gate before Sprint 2 entry.
 
+**Post-T1.16 Sentry-watch hardening pass — 2026-04-29.**
+Addressed during a deep-dive audit run for the Sentry 24h DoD:
+- **CI fix** (`.github/workflows/ci.yml`) — added `dart run build_runner build --delete-conflicting-outputs` step BEFORE `flutter analyze`. Every `git push` to main was failing CI because Drift/JSON-generated `.g.dart` files were missing from the runner's checkout (455 errors per run: `UserStacksLocalData`, `ProductsCoreCompanion`, `InteractionsCompanion`, etc. all undefined). Local `make gen && make check` had been hiding it because codegen runs locally before analyze. CI now matches the local flow.
+- **T1.15 — typed `UserStacksLocalData?` param** replaced `Object? entry` + `(entry as dynamic).id` cast in `_primary`. The dynamic dispatch was a runtime-crash time bomb; the fix turns any future field rename into a compile error.
+- **T1.15 — `Scrollable.ensureVisible` wrapped in try/catch.** Edge-case scrollable-not-yet-laid-out throws now no-op instead of bubbling to the Sentry zone handler.
+- **T1.10 — `_launchPubmed` numeric-PMID validation + `launchUrl` try/catch.** Non-numeric PMIDs (DOI, garbled string, accidental URL paste) and platform-channel failures (no browser registered) stop bubbling to Sentry; user gets no nav, no crash.
+
+These were not strict spec requirements — they're DoD-driven prophylactics against new error classes appearing in the 24h post-deploy Sentry watch. Three of the four fixes were already on the T2.6 backlog; pulled forward to keep Sprint 1 shippable.
+
 ---
 
 # Sprint 2 — Refinement Polish
@@ -1189,10 +1198,12 @@ Section expand/collapse uses `AnimatedSize` with 200ms easeInOut. Tap feedback u
 
 Captured during the deep-dive audit that ran after T1.12 shipped (commits `f770b62` → `c9194c8`). Each item is non-blocking — code is green and spec-compliant — but the lot together is worth a polish pass before Sprint 2 closes.
 
+A second audit ran after T1.16 closed; items shipped under that pass are marked ✅ inline. Items 12-13 are new from the second audit.
+
 **Bugs / inconsistencies**
 
 1. **T1.10 — empty-PMID matches in all-citations sheet emit ghost gaps.** `_showAllCitations` iterates every match and adds a `SizedBox(height: 12)` after each `_CitationGroup`, even when the group has no PMIDs and short-circuits to `SizedBox.shrink`. Fix: filter `matches.where((m) => m.safeStringList('pmids').isNotEmpty)` before the loop.
-2. **T1.10 — `_launchPubmed` has no PMID validation.** Any string is concatenated into the URL; non-numeric PMIDs land at PubMed and 404 silently. Fix: defensive `RegExp(r'^\d+$').hasMatch(trimmed)` guard, falling back to a no-op (or to the search URL) on miss.
+2. ✅ **T1.10 — `_launchPubmed` PMID validation + try/catch (shipped post-T1.16 audit).** Added `RegExp(r'^\d+$')` check + `try { launchUrl } on Exception { ... }` so non-numeric PMIDs and platform-channel failures stop emitting Sentry error classes. The original "no validation" + "no try/catch" pair was the highest-risk Sentry surface on the page.
 3. **T1.10 — bottom sheet doesn't auto-dismiss when a PMID is tapped.** OS browser opens; sheet stays behind. Fix: `Navigator.of(sheetContext).pop()` before `launchUrl`.
 4. **T1.11 — chevron uses two-icon swap (`keyboard_arrow_up_rounded` / `_down_rounded`).** Less premium than a smooth `RotationTransition` like T1.8 ships. Fix: animate a single chevron with a `Tween` driven by `_expanded`.
 5. **T1.11 — no `Semantics(button: true, expanded: _expanded)` on the header.** Screen readers don't announce expand state. Fix: wrap the `PGPressable` header in a `Semantics` widget.
@@ -1205,6 +1216,12 @@ Captured during the deep-dive audit that ran after T1.12 shipped (commits `f770b
 
 10. **No analytics on T1 sections.** Engagement is invisible: which sections do users tap into? Where's drop-off? Add per-section interaction events (header tap, expand, citation tap, alternative tap) wired through whatever analytics hook is canonical.
 11. **Hardcoded English strings throughout.** Localization is an app-wide concern but every Sprint-1 section adds debt. Out of scope for T2.6 — capture as a separate localization sprint when timing's right.
+
+**Bugs (post-T1.16 audit pass)**
+
+12. ✅ **T1.15 — `_primary` used dynamic dispatch on `entry.id` via `Object?` param (shipped post-T1.16 audit).** Caller did `(entry as dynamic).id` — runtime crash if the entry shape ever drifts. Replaced `Object? entry` → `UserStacksLocalData? entry` (typed import added) so renames become compile errors not runtime crashes.
+13. ✅ **T1.15 — `Scrollable.ensureVisible` not wrapped in try/catch (shipped post-T1.16 audit).** If the alternatives sliver is laid out before its Scrollable ancestor finishes (rare, but happens during tear-down) the call throws and surfaces as a new Sentry error class. Added `try { ensureVisible } on Exception { ... }` — worst case the user gets no scroll, no crash.
+14. **T1.14 — absolute date format `"Updated Apr 28"` lacks year.** When buildDate is exactly 1 year old, daysAgo = 365 → falls into absolute branch → renders without year. Visually indistinguishable from a 1-day-ago build. Edge case but worth tightening for the >180 days bracket: `"Updated Apr 28, 2025"`. Fix in `formatRelativeUpdate` once Sprint-2 starts.
 
 **Acceptance**
 - All Bug items above either fixed or explicitly tombstoned (with rationale) in source comments

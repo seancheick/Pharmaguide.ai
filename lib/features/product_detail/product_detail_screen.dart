@@ -769,15 +769,24 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   /// Scrolls the screen to the Better Alternatives sliver. No-op
   /// when the sliver hasn't been laid out yet (off-screen or
   /// shouldShowBetterAlternatives returned false).
+  ///
+  /// Wrapped in try/catch so platform-edge failures (no Scrollable
+  /// ancestor in some tree configurations, render object not yet
+  /// laid out, etc.) don't surface as new Sentry error classes —
+  /// the worst case is the user gets no scroll, not a crash.
   void _handleSeeAlternatives() {
     final ctx = _alternativesKey.currentContext;
     if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      alignment: 0.1,
-    );
+    try {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        alignment: 0.1,
+      );
+    } on Exception {
+      // No-op — the user is no worse off than the deferred-key case.
+    }
   }
 
   /// T1.15 — placeholder secondary tap for "Log dose". Sprint 2

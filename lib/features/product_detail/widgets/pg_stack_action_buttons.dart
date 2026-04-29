@@ -4,6 +4,7 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
@@ -60,9 +61,8 @@ class PGStackActionButtons extends ConsumerWidget {
       children: [
         entryAsync.when(
           loading: () => const _LoadingPrimary(),
-          error: (_, __) => _primary(context, ref, inStack: false),
-          data: (entry) =>
-              _primary(context, ref, inStack: entry != null, entry: entry),
+          error: (_, __) => _primary(context, ref, entry: null),
+          data: (entry) => _primary(context, ref, entry: entry),
         ),
         const SizedBox(height: AppTheme.space12),
         // Secondary — always visible Log Dose (Sprint 2 wires real flow).
@@ -82,8 +82,7 @@ class PGStackActionButtons extends ConsumerWidget {
   Widget _primary(
     BuildContext context,
     WidgetRef ref, {
-    required bool inStack,
-    Object? entry,
+    required UserStacksLocalData? entry,
   }) {
     // Unsafe always wins over in-stack — even if the user already has
     // the product in their stack, the right primary action is to
@@ -95,15 +94,10 @@ class PGStackActionButtons extends ConsumerWidget {
         onSeeAlternatives?.call();
       });
     }
-    if (inStack && entry != null) {
-      // entry is dynamic-typed (`UserStacksLocalData`) — look up the
-      // id via reflection-free path: callers always pass the entry
-      // directly so we cast inline here.
-      // ignore: avoid_dynamic_calls
-      final id = (entry as dynamic).id as String;
+    if (entry != null) {
       return _InStackPanel(
-        entryId: id,
-        onRemove: () => _handleRemove(context, ref, id),
+        entryId: entry.id,
+        onRemove: () => _handleRemove(context, ref, entry.id),
       );
     }
     return _AddButton(onTap: () => _handleAdd(context, ref));
