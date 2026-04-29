@@ -118,7 +118,17 @@ class CatalogSwapper {
       final version = await newDb.validateCatalogSnapshot();
       return SwapSuccess(newDb: newDb, version: version);
     } on Object catch (e) {
-      await newDb.close();
+      // Best-effort close. Drift's `close()` can throw when the
+      // underlying connection is already broken, but if we let that
+      // secondary error propagate we'd lose the original validation
+      // failure — which is the cause the caller actually needs to
+      // attach to Sentry. Swallow the close error and surface the
+      // original `e` in the rollback result.
+      try {
+        await newDb.close();
+      } on Object {
+        // Best-effort cleanup; nothing actionable for the caller.
+      }
       return SwapRolledBack(error: e, reason: 'Validation failed: $e');
     }
   }
