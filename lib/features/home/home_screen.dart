@@ -41,6 +41,16 @@ final isFirstLaunchHomeProvider = FutureProvider.autoDispose<bool>((ref) async {
   return scans.isEmpty;
 });
 
+/// Invalidate the home-specific providers that depend on user activity.
+///
+/// Used when a new scan lands or when the user explicitly pulls to refresh.
+/// This keeps first-launch mode and Recents in sync without waiting for a
+/// full route rebuild.
+void refreshHomeSurface(WidgetRef ref) {
+  ref.invalidate(isFirstLaunchHomeProvider);
+  refreshHomeRecents(ref);
+}
+
 /// The home screen.
 ///
 /// Editorial-premium composition: hero greeting → scan CTA → search →
@@ -249,9 +259,8 @@ class HomeScreen extends ConsumerWidget {
 /// control and the Android Material refresh indicator.
 Future<void> _onHomeRefresh(WidgetRef ref) async {
   unawaited(PGHaptics.tap());
-  ref.invalidate(isFirstLaunchHomeProvider);
   ref.invalidate(activeStackProvider);
-  refreshHomeRecents(ref);
+  refreshHomeSurface(ref);
   await Future<void>.delayed(const Duration(milliseconds: 350));
 }
 

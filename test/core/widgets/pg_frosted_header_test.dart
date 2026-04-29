@@ -4,12 +4,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
 
+DecoratedBox _findHeaderDecoratedBox(WidgetTester tester) {
+  final boxes = tester
+      .widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byType(PGFrostedHeader),
+          matching: find.byType(DecoratedBox),
+        ),
+      )
+      .toList();
+
+  return boxes.firstWhere(
+    (b) => b.decoration is BoxDecoration,
+  );
+}
+
 void main() {
   group('PGFrostedHeader', () {
     testWidgets('renders the child widget', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: const Scaffold(
             body: PGFrostedHeader(
               scrollProgress: 0.0,
               child: Text('child-marker'),
@@ -25,8 +41,9 @@ void main() {
         'at scrollProgress 0 the BackdropFilter blur is effectively zero',
         (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: const Scaffold(
             body: PGFrostedHeader(
               scrollProgress: 0.0,
               child: SizedBox(width: 200, height: 56),
@@ -48,8 +65,9 @@ void main() {
     testWidgets('at scrollProgress 1 the surface fill is at full opacity',
         (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: const Scaffold(
             body: PGFrostedHeader(
               scrollProgress: 1.0,
               child: SizedBox(width: 200, height: 56),
@@ -64,16 +82,7 @@ void main() {
 
       // Find the DecoratedBox that PGFrostedHeader renders inside its
       // BackdropFilter. Its color alpha should track the scrollProgress.
-      final boxes = tester
-          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
-          .toList();
-      expect(boxes, isNotEmpty);
-      final ourBox = boxes.firstWhere(
-        (b) {
-          final dec = b.decoration as BoxDecoration;
-          return dec.color != null && dec.color!.a > 0;
-        },
-      );
+      final ourBox = _findHeaderDecoratedBox(tester);
       final color = (ourBox.decoration as BoxDecoration).color!;
       // Light scheme target alpha-fraction at progress 1.0 is ~0.78.
       expect(color.a, greaterThanOrEqualTo(0.70));
@@ -82,8 +91,9 @@ void main() {
 
     testWidgets('clamps scrollProgress above 1.0 to 1.0', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: const Scaffold(
             body: PGFrostedHeader(
               scrollProgress: 5.0, // out of range
               child: SizedBox(width: 200, height: 56),
@@ -98,8 +108,9 @@ void main() {
 
     testWidgets('clamps scrollProgress below 0.0 to 0.0', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: const Scaffold(
             body: PGFrostedHeader(
               scrollProgress: -1.0, // out of range
               child: SizedBox(width: 200, height: 56),
@@ -114,7 +125,10 @@ void main() {
     testWidgets('dark mode renders a faint white top-edge glint', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData(brightness: Brightness.dark),
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            platform: TargetPlatform.iOS,
+          ),
           home: const Scaffold(
             body: PGFrostedHeader(
               scrollProgress: 1.0,
@@ -125,14 +139,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final boxes = tester
-          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
-          .toList();
-      // Find the box rendered by PGFrostedHeader — it has both a non-zero
-      // bottom border (hairline) and the glint we want to assert.
-      final ourBox = boxes.firstWhere(
-        (b) => (b.decoration as BoxDecoration).border != null,
-      );
+      final ourBox = _findHeaderDecoratedBox(tester);
       final border = (ourBox.decoration as BoxDecoration).border as Border;
       expect(border.top.color.r, 1.0,
           reason: 'glint should be white-channel');
@@ -148,7 +155,10 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData(brightness: Brightness.light),
+          theme: ThemeData(
+            brightness: Brightness.light,
+            platform: TargetPlatform.iOS,
+          ),
           home: const Scaffold(
             body: PGFrostedHeader(
               scrollProgress: 1.0,
@@ -159,15 +169,32 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final boxes = tester
-          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
-          .toList();
-      final ourBox = boxes.firstWhere(
-        (b) => (b.decoration as BoxDecoration).border != null,
-      );
+      final ourBox = _findHeaderDecoratedBox(tester);
       final border = (ourBox.decoration as BoxDecoration).border as Border;
       expect(border.top, BorderSide.none,
           reason: 'glint is dark-mode-only; light mode keeps top edge clean');
+    });
+
+    testWidgets('android uses tonal surface without backdrop blur',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          home: const Scaffold(
+            body: PGFrostedHeader(
+              scrollProgress: 1.0,
+              child: SizedBox(width: 200, height: 56),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BackdropFilter), findsNothing);
+
+      final ourBox = _findHeaderDecoratedBox(tester);
+      final color = (ourBox.decoration as BoxDecoration).color!;
+      expect(color.a, greaterThanOrEqualTo(0.85));
     });
   });
 }

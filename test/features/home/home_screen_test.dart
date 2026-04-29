@@ -215,6 +215,46 @@ void main() {
       await userDb.close();
     });
 
+    testWidgets('exits first-launch mode when first scan is recorded',
+        (tester) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      final container = ProviderContainer(overrides: [
+        coreDatabaseProvider.overrideWithValue(coreDb),
+        userDatabaseProvider.overrideWithValue(userDb),
+      ]);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Stack Health'), findsNothing);
+
+      await userDb.recordScanEvent(
+        dsldId: 'dsld-first-scan',
+        productName: 'First Scan Product',
+      );
+      container.invalidate(isFirstLaunchHomeProvider);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+
+      expect(
+        find.text('Check supplement quality, safety, and fit in seconds.'),
+        findsNothing,
+      );
+      expect(find.text('Recent scans'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+      container.dispose();
+    });
+
     testWidgets(
       'pinned search remains hit-testable after scrolling past hero',
       (tester) async {

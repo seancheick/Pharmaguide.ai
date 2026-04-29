@@ -50,6 +50,9 @@ class PGFrostedHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+    final platform = theme.platform;
+    final useGlass =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
 
     final target = scrollProgress.clamp(0.0, 1.0);
 
@@ -63,9 +66,11 @@ class PGFrostedHeader extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       builder: (context, p, _) {
-        // Surface fill alpha — peak 0.78 (light) / 0.72 (dark), matching
-        // the PGFrostedNavBar curve.
-        final fillAlpha = (isDark ? 0.72 : 0.78) * p;
+        // iOS/macOS use true glass. Android gets a tonal elevated surface
+        // with the same rhythm but no transplanted iPhone blur treatment.
+        final fillAlpha = useGlass
+            ? (isDark ? 0.72 : 0.78) * p
+            : (isDark ? 0.88 : 0.92) * p;
         // Hairline alpha — fades in alongside the fill.
         final hairlineAlpha = 0.6 * p;
         // Dark-mode-only top glint — a faint white inner-edge that
@@ -75,7 +80,31 @@ class PGFrostedHeader extends StatelessWidget {
         // refractive without crossing into "decorative". Fades with
         // scrollProgress so the edge only appears once the surface is
         // actually frosted.
-        final glintAlpha = isDark ? 0.04 * p : 0.0;
+        final glintAlpha = useGlass && isDark ? 0.04 * p : 0.0;
+
+        final decorated = DecoratedBox(
+          decoration: BoxDecoration(
+            color: (useGlass ? scheme.surface : scheme.surfaceContainerHigh)
+                .withValues(alpha: fillAlpha),
+            border: Border(
+              top: glintAlpha > 0
+                  ? BorderSide(
+                      color: Colors.white.withValues(alpha: glintAlpha),
+                      width: 0.5,
+                    )
+                  : BorderSide.none,
+              bottom: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: hairlineAlpha),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: child,
+        );
+
+        if (!useGlass) {
+          return decorated;
+        }
 
         return ClipRect(
           child: BackdropFilter(
@@ -83,25 +112,7 @@ class PGFrostedHeader extends StatelessWidget {
               sigmaX: blurSigma * p,
               sigmaY: blurSigma * p,
             ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: scheme.surface.withValues(alpha: fillAlpha),
-                border: Border(
-                  top: glintAlpha > 0
-                      ? BorderSide(
-                          color: Colors.white.withValues(alpha: glintAlpha),
-                          width: 0.5,
-                        )
-                      : BorderSide.none,
-                  bottom: BorderSide(
-                    color:
-                        scheme.outlineVariant.withValues(alpha: hairlineAlpha),
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: child,
-            ),
+            child: decorated,
           ),
         );
       },
