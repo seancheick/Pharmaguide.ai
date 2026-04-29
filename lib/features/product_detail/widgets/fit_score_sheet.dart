@@ -10,7 +10,9 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 /// Bottom sheet that explains the personal-fit assessment — shows the
 /// state, top reasons, and the internal sub-signals used to derive it.
 ///
-/// Called from [PGFitScoreBadge]'s onTap on the product detail screen.
+/// Reachable from the For You section's tier-label row. (The previous
+/// `PGFitScoreBadge` widget that used to mount this sheet was retired
+/// when the Fit display switched to tier-only — Sprint 27.21 / G follow-up.)
 void showFitScoreSheet(BuildContext context, FitScoreResult result) {
   PGModal.bottomSheet<void>(
     context: context,
