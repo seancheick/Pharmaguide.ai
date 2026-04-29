@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/medication_depletion_nudge.dart';
 
@@ -27,14 +28,8 @@ Future<bool?> showDepletionNudgeSheet(
   BuildContext context, {
   required PendingDepletionNudge nudge,
 }) {
-  return showModalBottomSheet<bool>(
+  return PGModal.bottomSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
     builder: (ctx) => _DepletionNudgeSheet(nudge: nudge),
   );
 }

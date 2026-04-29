@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_fitscore_badge.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -753,9 +754,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   void _showScoreEducation(BuildContext context) {
-    showModalBottomSheet<void>(
+    PGModal.bottomSheet<void>(
       context: context,
-      isScrollControlled: true,
+      useSafeArea: false,
+      showDragHandle: false,
       builder: (_) => const _ScoreEducationSheet(),
     );
   }

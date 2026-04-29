@@ -7,6 +7,7 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -221,11 +222,9 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showPrivacyDashboard(BuildContext context) {
-    showModalBottomSheet<void>(
+    PGModal.bottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      showDragHandle: false,
       builder: (_) => const _PrivacyDashboardSheet(),
     );
   }

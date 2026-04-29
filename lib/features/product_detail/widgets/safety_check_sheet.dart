@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_pill.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
@@ -41,11 +42,8 @@ Future<bool> showSafetyCheckSheet(
   required String dsldId,
   required String productName,
 }) async {
-  final result = await showModalBottomSheet<bool>(
+  final result = await PGModal.bottomSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (ctx) => _SafetyCheckSheet(
       dsldId: dsldId,
       productName: productName,

@@ -4,6 +4,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
@@ -191,24 +193,33 @@ class HomeRecentScansSection extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (sheetContext) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final allScansAsync = ref.watch(_recentScansProvider(25));
-            return allScansAsync.when(
-              loading: () => const _RecentScansSheetSkeleton(),
-              error: (_, __) => const _RecentScansSheetEmpty(),
-              data: (scans) => _RecentScansSheet(scans: scans),
-            );
-          },
+    final platform = Theme.of(context).platform;
+    final sheetBody = Consumer(
+      builder: (context, ref, _) {
+        final allScansAsync = ref.watch(_recentScansProvider(25));
+        return allScansAsync.when(
+          loading: () => const _RecentScansSheetSkeleton(),
+          error: (_, __) => const _RecentScansSheetEmpty(),
+          data: (scans) => _RecentScansSheet(scans: scans),
         );
       },
+    );
+
+    if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+      await showCupertinoSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (_) => Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: sheetBody,
+        ),
+      );
+      return;
+    }
+
+    await PGModal.bottomSheet<void>(
+      context: context,
+      builder: (_) => sheetBody,
     );
   }
 }

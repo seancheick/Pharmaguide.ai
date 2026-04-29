@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 
 /// FLTR-4 / FLTR-19 — `product_status` soft signal row.
 ///
@@ -64,10 +65,9 @@ class ProductStatusChip extends StatelessWidget {
 
   void _openExplanation(BuildContext context) {
     final type = productStatus['type']?.toString().trim().toLowerCase();
-    showModalBottomSheet<void>(
+    PGModal.bottomSheet<void>(
       context: context,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      showDragHandle: false,
       builder: (ctx) => _ProductStatusExplanationSheet(type: type),
     );
   }

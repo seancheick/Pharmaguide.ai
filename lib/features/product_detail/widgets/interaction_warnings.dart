@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_interaction_card.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// A single interaction warning entry parsed from the detail blob.
@@ -501,11 +502,9 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
   bool _otherExpanded = false;
 
   void _showCitations(BuildContext context, InteractionWarning warning) {
-    showModalBottomSheet<void>(
+    PGModal.bottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      showDragHandle: false,
       builder: (ctx) => _CitationsSheet(warning: warning),
     );
   }
@@ -514,11 +513,9 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
     BuildContext context,
     List<InteractionWarning> items,
   ) {
-    showModalBottomSheet<void>(
+    PGModal.bottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      showDragHandle: false,
       builder: (ctx) => _LowConcernNotesSheet(items: items),
     );
   }

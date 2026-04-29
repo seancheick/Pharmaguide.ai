@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 
 class FormAbsorptionSection extends StatelessWidget {
   final List<Map<String, dynamic>> ingredients;
@@ -154,12 +155,10 @@ class FormAbsorptionSection extends StatelessWidget {
   }
 
   void _showExplainer(BuildContext context) {
-    showModalBottomSheet<void>(
+    PGModal.bottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXLarge)),
-      ),
+      useSafeArea: false,
+      showDragHandle: false,
       builder: (_) => Padding(
         padding: const EdgeInsets.all(AppTheme.space24),
         child: Column(

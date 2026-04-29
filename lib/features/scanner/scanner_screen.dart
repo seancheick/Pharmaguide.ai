@@ -8,8 +8,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
@@ -66,12 +68,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       setState(() => _isLookingUp = false);
 
       if (product != null) {
-        // Record scan in history (fire-and-forget, non-blocking).
-        unawaited(ref.read(userDatabaseProvider).recordScanEvent(
+        // Persist the scan before we navigate so any mounted Home shell can
+        // leave first-launch mode and refresh Recents immediately.
+        await ref.read(userDatabaseProvider).recordScanEvent(
               dsldId: product.dsldId,
               upcSku: product.upcSku,
               productName: product.productName,
-            ));
+            );
+        if (mounted) {
+          refreshHomeSurface(ref);
+        }
         await _showVerdictFlashAndNavigate(product);
       } else {
         _showProductNotFound(upc);
@@ -120,12 +126,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   void _showProductNotFound(String upc) {
-    showModalBottomSheet<void>(
+    PGModal.bottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (ctx) => ScannerNotFoundSheet(
         upc: upc,
         onTryAgain: () {

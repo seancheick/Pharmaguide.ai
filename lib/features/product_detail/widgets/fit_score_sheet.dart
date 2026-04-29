@@ -5,17 +5,15 @@ import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 
 /// Bottom sheet that explains the personal-fit assessment — shows the
 /// state, top reasons, and the internal sub-signals used to derive it.
 ///
 /// Called from [PGFitScoreBadge]'s onTap on the product detail screen.
 void showFitScoreSheet(BuildContext context, FitScoreResult result) {
-  showModalBottomSheet<void>(
+  PGModal.bottomSheet<void>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (ctx) => _FitScoreSheet(result: result),
   );
 }
