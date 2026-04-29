@@ -500,7 +500,7 @@ class _HealthProfileStep extends ConsumerWidget {
                 return PGPressable(
                   onTap: () => notifier.toggleDrugClass(dcId),
                   pressedScale: 0.98,
-                  child: CheckboxListTile(
+                  child: CheckboxListTile.adaptive(
                     title: Text(
                       label,
                       style: theme.textTheme.bodyLarge?.copyWith(
