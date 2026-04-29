@@ -118,7 +118,6 @@ class PGFitScoreBadge extends StatelessWidget {
             label,
             style: AppTheme.numeric(
               TextStyle(
-                fontFamily: 'Inter',
                 fontSize: textSize,
                 fontWeight: FontWeight.w700,
                 color: accent,

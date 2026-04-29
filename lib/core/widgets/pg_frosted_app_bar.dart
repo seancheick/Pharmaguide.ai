@@ -1,7 +1,8 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
-import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
 import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
 
 /// Apple-grade frosted app bar — sliver variant.
 ///
@@ -168,7 +169,11 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
     return oldDelegate.title != title ||
         oldDelegate.leading != leading ||
         oldDelegate.automaticallyImplyLeading != automaticallyImplyLeading ||
-        oldDelegate.actions.length != actions.length ||
+        // Deep equality on the actions list — a length-only comparison
+        // would miss the case where the parent rebuilds with a same-
+        // length list of different widget identities (e.g. the share
+        // button's onTap captures a fresh closure when _product loads).
+        !listEquals(oldDelegate.actions, actions) ||
         oldDelegate.blurSigma != blurSigma ||
         oldDelegate.topPadding != topPadding;
   }

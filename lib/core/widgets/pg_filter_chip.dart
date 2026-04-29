@@ -63,7 +63,6 @@ class PGFilterChip extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontFamily: 'Inter',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.05,

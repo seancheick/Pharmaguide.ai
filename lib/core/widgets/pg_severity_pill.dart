@@ -95,7 +95,6 @@ class PGSeverityPill extends StatelessWidget {
           Text(
             s.label.toUpperCase(),
             style: TextStyle(
-              fontFamily: 'Inter',
               fontSize: textSize,
               fontWeight: FontWeight.w700,
               color: s.fg,

@@ -67,7 +67,6 @@ class PGEvidenceBadge extends StatelessWidget {
           Text(
             s.label,
             style: TextStyle(
-              fontFamily: 'Inter',
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: scheme.onSurface,

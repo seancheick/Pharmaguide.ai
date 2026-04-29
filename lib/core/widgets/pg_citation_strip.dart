@@ -64,7 +64,6 @@ class PGCitationStrip extends StatelessWidget {
               Text(
                 'Reviewed sources',
                 style: TextStyle(
-                  fontFamily: 'Inter',
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: scheme.onSurface,
@@ -85,7 +84,6 @@ class PGCitationStrip extends StatelessWidget {
                   '$sourceCount',
                   style: AppTheme.numeric(
                     const TextStyle(
-                      fontFamily: 'Inter',
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.evidenceStrong,
@@ -99,7 +97,6 @@ class PGCitationStrip extends StatelessWidget {
                 Text(
                   'Updated ${_formatDate(updatedAt!)}',
                   style: TextStyle(
-                    fontFamily: 'Inter',
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: scheme.onSurfaceVariant,
@@ -120,7 +117,6 @@ class PGCitationStrip extends StatelessWidget {
             Text(
               disclaimer!,
               style: TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 11,
                 fontWeight: FontWeight.w400,
                 color: scheme.onSurfaceVariant,

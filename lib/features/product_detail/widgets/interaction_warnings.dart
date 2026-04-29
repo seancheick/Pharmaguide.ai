@@ -708,7 +708,6 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
                   '$count',
                   style: AppTheme.numeric(
                     TextStyle(
-                      fontFamily: 'Inter',
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: scheme.onSurface,
@@ -837,7 +836,6 @@ class _OtherPrecautionsSection extends StatelessWidget {
                     '$count',
                     style: AppTheme.numeric(
                       TextStyle(
-                        fontFamily: 'Inter',
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: scheme.onSurface,

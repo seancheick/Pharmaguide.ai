@@ -90,7 +90,6 @@ class VerdictBadge extends StatelessWidget {
       child: Text(
         label.toUpperCase(),
         style: TextStyle(
-          fontFamily: 'Inter',
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: color,
