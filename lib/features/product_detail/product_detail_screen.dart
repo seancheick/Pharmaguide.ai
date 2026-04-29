@@ -37,6 +37,7 @@ import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
@@ -524,7 +525,22 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       onRetry: () =>
                           ref.invalidate(detailBlobProvider(widget.dsldId)),
                     )
-                  : _DetailSection(detailBlob: detailBlob, warnings: warnings),
+                  : _DetailSection(
+                      detailBlob: detailBlob,
+                      warnings: warnings,
+                      // T1.7 inputs — trust signals for the
+                      // "What we don't know" section. Read off the
+                      // product directly here so _DetailSection
+                      // stays decoupled from the screen-state.
+                      isTrustedManufacturer:
+                          _product?.isTrustedManufacturer == 1,
+                      hasThirdPartyTesting:
+                          _product?.hasThirdPartyTesting == 1,
+                      mappedCoverage: _product?.mappedCoverage,
+                      scoreEvidenceResearch: _product?.scoreEvidenceResearch,
+                      scoreEvidenceResearchMax:
+                          _product?.scoreEvidenceResearchMax,
+                    ),
             ),
           ),
 
@@ -1997,7 +2013,24 @@ class _DetailSection extends ConsumerWidget {
   final Map<String, dynamic>? detailBlob;
   final List<InteractionWarning> warnings;
 
-  const _DetailSection({required this.detailBlob, required this.warnings});
+  // T1.7 — trust signals consumed by `UnknownsSection`. Passed in
+  // from the parent screen so this widget stays decoupled from the
+  // screen state's `_product` reference.
+  final bool isTrustedManufacturer;
+  final bool hasThirdPartyTesting;
+  final double? mappedCoverage;
+  final double? scoreEvidenceResearch;
+  final double? scoreEvidenceResearchMax;
+
+  const _DetailSection({
+    required this.detailBlob,
+    required this.warnings,
+    this.isTrustedManufacturer = false,
+    this.hasThirdPartyTesting = false,
+    this.mappedCoverage,
+    this.scoreEvidenceResearch,
+    this.scoreEvidenceResearchMax,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2242,7 +2275,22 @@ class _DetailSection extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        // T1.7 Section 7.1 — "With your stack" per-profile-entry
+        // T1.7 Section 6 — "What we don't know". Surfaces gaps in the
+        // data PharmaGuide has on this product (no third-party heavy
+        // metal test, manufacturer hasn't published recent COAs, low
+        // mapped coverage, limited evidence). Soft visual treatment —
+        // context, not warning. Hides entirely when all four trust
+        // signals are positive.
+        UnknownsSection(
+          isTrustedManufacturer: isTrustedManufacturer,
+          hasThirdPartyTesting: hasThirdPartyTesting,
+          mappedCoverage: mappedCoverage,
+          scoreEvidenceResearch: scoreEvidenceResearch,
+          scoreEvidenceResearchMax: scoreEvidenceResearchMax,
+        ),
+        const SizedBox(height: AppTheme.space12),
+
+        // T1.8 Section 7.1 — "With your stack" per-profile-entry
         // interaction summary. One row per drug class / condition the
         // user has on file: ⚠ when a warning matches, ✓ when none
         // does (positive trust signal). Tap-expandable for the ⚠
