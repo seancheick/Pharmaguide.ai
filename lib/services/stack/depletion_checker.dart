@@ -309,7 +309,7 @@ class DepletionChecker {
     // mcg / μg / ug synonyms.
     if (u == 'mcg' || u == 'μg' || u == 'ug') return a;
     if (u == 'mg') return a * 1000.0;
-    if (u == 'g') return a * 1_000_000.0;
+    if (u == 'g') return a * 1000000.0;
     // IU conversion is nutrient-specific (vitamin A/D/E each have
     // different factors). We intentionally don't convert here — the
     // pipeline normalizes to mass units before emission for most
