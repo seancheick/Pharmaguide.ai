@@ -1940,9 +1940,33 @@ Walk the product schema + score services. Document one of:
 
 The IQM dataset has evidence levels per ingredient. Confirm whether the product blob exposes the per-ingredient evidence level on the in-product ingredient list (not just the IQM tier dataset). Same three-way result as Step 1.
 
-- [ ] **Step 3: Document findings**
+- [x] **Step 3: Document findings** — see "F.0 Findings" block below.
 
-Append to this plan as `Task F.0: Data Availability Audit Findings` with one of: GREEN / YELLOW (derive needed) / RED (pipeline blocker). The decision shapes how F.1–F.6 break down.
+#### Task F.0: Data Availability Audit Findings — **VERDICT: 🟢 GREEN** (2026-04-29)
+
+**Step 1 — Four-pillar score availability: ✅ GREEN.** All four pillars are first-class fields on the `products_core` Drift table:
+
+| Pillar | Field (Drift getter) | Column | Max field |
+|---|---|---|---|
+| Ingredient Quality | `scoreIngredientQuality` | `score_ingredient_quality` (real, nullable) | `score_ingredient_quality_max` (max 25) |
+| Safety & Purity | `scoreSafetyPurity` | `score_safety_purity` | `score_safety_purity_max` (max 30) |
+| Evidence & Research | `scoreEvidenceResearch` | `score_evidence_research` | `score_evidence_research_max` (max 20) |
+| Brand Trust | `scoreBrandTrust` | `score_brand_trust` | `score_brand_trust_max` (max 5) |
+
+Source: `lib/data/database/tables/products_core_table.dart:67–82`. Pillars sum to 80 pts; the remaining 20 pts come from bonuses minus penalties → 0–100 final score.
+
+**Coverage** is also a first-class field: `mappedCoverage` (`mapped_coverage`, real, nullable) at `products_core_table.dart:64`. Already consumed by the hero "Limited data" banner (`product_detail_screen.dart:1322`).
+
+**Detail-blob context** (cached + fetched via `detail_blob_provider.dart`): `section_breakdown` Map keyed by `ingredient_quality / safety_purity / evidence_research / brand_trust` provides sub-scores, bonuses, penalties, and certifications per pillar. Plus `score_bonuses[]` / `score_penalties[]` for "Why this score" reasoning rows.
+
+**Existing UI consumer** — `lib/features/product_detail/widgets/score_breakdown_card.dart` (505 lines) already renders the four pillars in expandable bars with sub-explanation builders (`_explainIngredientQuality`, `_explainSafetyPurity`, `_explainEvidence`, `_explainBrandTrust`). The wiring is at `product_detail_screen.dart:459–469`. PGPillarBar (F.2) is a quieter horizontal-bar variant of `_ExpandableSectionBar` for use in the rescoped F.4 / T1.4 quality-score card; the existing card stays for the deep-dive section-breakdown sheet.
+
+**Step 2 — Per-ingredient evidence-level data: skipped.** F.3 + F.6 (atom rendering) were DROPPED in the 2026-04-29 cross-team merge, so the per-ingredient evidence-level audit is no longer load-bearing. Trust & IA T1.5's verbose ingredient rows + chip pattern is the agreed shape; data wiring lives in T1.5's brief.
+
+**Implications for downstream tasks:**
+- **F.2 PGPillarBar**: pure UI build. No aggregation, no pipeline ticket. Consume `_product.scoreXxx` + `_product.scoreXxxMax` directly.
+- **F.4 (rescoped) Quality Score card**: composes 4× `PGPillarBar` + coverage strip (from `mappedCoverage`) + "Why this score" reasoning row (from `detailBlob['score_bonuses']` / `score_penalties`). T1.4 owns final mount.
+- **T1.4 (Sean's)**: unblocked. The pillar data path is already live in `ScoreBreakdownCard`; T1.4 can either reuse that card directly for the deep-dive sheet OR consume the same fields for a tighter pillar-bar card.
 
 ### Task F.1: Build `PGDonutChart` primitive
 
@@ -1954,10 +1978,48 @@ Append to this plan as `Task F.0: Data Availability Audit Findings` with one of:
 
 A scale-able donut chart with center number. Reuses `PGScoreRing`'s rendering DNA but with bigger center text and a configurable label below.
 
-- [ ] **Step 1: Write failing tests** (renders center number; respects `value` 0–100; centers in available space; honors `size` parameter)
-- [ ] **Step 2: Build using `CustomPainter` for the arc; the center text is a regular `Stack` child**
+- [x] **Step 1 (audit): PGScoreRing reuse decision — see "F.1 Findings" block below.**
 
-Sketch:
+#### Task F.1 Findings — **DECISION: 🟢 REUSE PGScoreRing** (2026-04-29)
+
+`lib/core/widgets/pg_score_ring.dart` (275 lines) already covers the full T1.1 score-led-hero contract. Mapping the proposed `PGDonutChart` API → existing `PGScoreRing`:
+
+| PGDonutChart spec field | PGScoreRing equivalent | Status |
+|---|---|---|
+| `value` (0..100) | `score` (0..100, **nullable** — also handles insufficient-data state) | ✅ Covered + better |
+| `size` (default 140) | `size` (default 72; accepts any) | ✅ Covered |
+| `strokeWidth` (default 12) | `strokeWidth` (default 5; accepts any) | ✅ Covered |
+| `progressColor` (tier-derived) | `_colorFor(score)` — 6-tier ladder (`scoreExceptional / Excellent / Good / Fair / BelowAvg / Low`) auto-derived | ✅ Covered |
+| `trackColor` (low-alpha outline) | hardcoded `surfaceContainerHigh` — theme-driven | ⚠️ Not parameterized |
+| `label` (optional below-center) | `label` (optional below-center) | ✅ Covered |
+
+**Plus PGScoreRing already ships these the spec didn't ask for:**
+- Sweep-gradient progress arc (premium look)
+- Dashed track + "–" rendering for null/insufficient-data state
+- Animated mount + value-change transitions (900ms easeOutCubic)
+- Reduce-motion respect via `MediaQuery.maybeDisableAnimationsOf`
+- Semantic accessibility — VoiceOver label with tier description ("87 out of 100, exceptional score")
+
+**The only gap** is that `trackColor` and `progressColor` aren't override-able — both are derived. If T1.1 needs tier-tinted track or a verdict-override-color (e.g. force red on a Blocked product instead of the score-tier color), the cleanest path is **two additive optional params on PGScoreRing**, not a parallel primitive:
+
+```dart
+// Additive — defaults preserve current behavior; non-null overrides take precedence.
+final Color? trackColorOverride;  // null → surfaceContainerHigh
+final Color? progressColorOverride; // null → _colorFor(score)
+```
+
+If T1.1 doesn't need overrides, even cleaner: **just call `PGScoreRing(score: ..., size: 96, label: 'PG SCORE')` directly with no widget changes at all.**
+
+**Decision: do not build PGDonutChart.** Two parallel primitives doing 95% the same thing creates maintainer confusion (existing call sites in product detail, search, scan results all use PGScoreRing) and test duplication. T1.1 reuses; if it needs the override hooks, those are a tiny additive change in a follow-up commit.
+
+**Implication for the plan:** Steps 1–3 of this task (write failing tests, build CustomPainter, commit) are **superseded by the reuse decision above**. Skip building `pg_donut_chart.dart` / its test. Notify Sean in the F-chunk ping.
+
+#### ~~Original Step 1: Write failing tests~~ (superseded — see F.1 Findings)
+- ~~renders center number; respects `value` 0–100; centers in available space; honors `size` parameter~~
+
+#### ~~Original Step 2: Build using `CustomPainter` for the arc~~ (superseded)
+
+Sketch (kept for historical context — do not implement):
 
 ```dart
 class PGDonutChart extends StatelessWidget {
@@ -1981,7 +2043,7 @@ class PGDonutChart extends StatelessWidget {
 }
 ```
 
-- [ ] **Step 3: Run tests + commit**
+#### ~~Original Step 3: Run tests + commit~~ (superseded — no commit; the audit decision is the deliverable)
 
 ```
 git commit -m "feat(core): PGDonutChart — donut chart primitive for score visualization"
