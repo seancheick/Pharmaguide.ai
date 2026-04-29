@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -266,7 +267,7 @@ class ScannerLookupOverlay extends StatelessWidget {
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: Colors.white),
+              CupertinoActivityIndicator(color: Colors.white, radius: 14),
               SizedBox(height: AppTheme.space16),
               Text(
                 'Checking this barcode',

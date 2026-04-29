@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
@@ -18,7 +19,7 @@ void main() {
         find.textContaining('on-device product database'),
         findsOneWidget,
       );
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
     });
   });
 
