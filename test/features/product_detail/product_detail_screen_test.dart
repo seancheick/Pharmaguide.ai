@@ -130,8 +130,16 @@ void main() {
   );
 
   testWidgets(
-    'hero score teaser prefers penalty reason for review verdicts',
+    'T1.1 hero does NOT render the inline "Why this score" reasoning row '
+    '(reasoning lives in T1.6 Tradeoffs section now)',
     (tester) async {
+      // Replaces the pre-T1.1 "hero score teaser prefers penalty reason
+      // for review verdicts" test. The score-led hero (T1.1) intentionally
+      // strips the inline `_HeroScoreReason` widget — bonus/penalty detail
+      // strings now flow to T1.6 Tradeoffs (Section 5) where they get the
+      // pros/cons split they deserve, instead of competing with the
+      // Quality Score altar in the hero. See INITIATIVE_PRODUCT_TRUST_
+      // AND_IA.md change log entry 2026-04-29.
       final reviewDb = _FakeCoreDatabase(
         const ProductsCoreData(
           dsldId: 'TEST_DETAIL_REVIEW_001',
@@ -186,9 +194,18 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Why this score'), findsOneWidget);
-      expect(find.text('Contains proprietary blend'), findsOneWidget);
-      expect(find.text('Third-party tested'), findsNothing);
+      // T1.1 invariant: no inline "Why this score" reasoning in the hero.
+      // The text might still appear elsewhere in the screen later (e.g.
+      // T1.4 ScoreBreakdownCard or T1.6 Tradeoffs section), so we lock
+      // the invariant via the now-removed `_HeroScoreReason` widget being
+      // gone — there should be exactly zero "Why this score" labels
+      // since neither T1.4 nor T1.6 has shipped yet. When T1.6 lands and
+      // re-introduces the phrase under the Tradeoffs section, this test
+      // can be relaxed to "find within Tradeoffs section only".
+      expect(find.text('Why this score'), findsNothing);
+
+      // The PG SCORE altar IS in the hero (verifies the score-led layout).
+      expect(find.text('PG SCORE'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

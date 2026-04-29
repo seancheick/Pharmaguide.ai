@@ -8,7 +8,6 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
-import 'package:pharmaguide/core/widgets/pg_fitscore_badge.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
@@ -21,13 +20,12 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
-import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/hero_verdict_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
-import 'package:pharmaguide/features/product_detail/widgets/fit_score_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
@@ -282,11 +280,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final isBlocked = isUnsafeVerdict(verdict);
 
     final score100 = _product?.score100Equivalent;
-    final grade = _product?.grade ?? '';
+    // grade + percentileLabel were rendered in the pre-T1.1 hero. Both
+    // move out: grade → T1.4 Section 3 (Product Quality), percentileLabel
+    // → T1.4 subtitle. Reads kept commented out so the next session can
+    // grab them quickly when wiring T1.4. See INITIATIVE_PRODUCT_TRUST_
+    // AND_IA.md change log entry 2026-04-29.
     // Safety rule: NEVER display "safe" when mapped_coverage < 0.3.
     // Default to 0.0 (conservative) when coverage is unknown.
     final mappedCoverage = _product?.mappedCoverage ?? 0.0;
-    final percentileLabel = _product?.percentileLabel ?? '';
     final interactionHint = _product?.interactionSummaryHint ?? '';
 
     // Section scores
@@ -325,11 +326,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final blendDetail =
         detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
-    final whyItems = _extractWhyItems(detailBlob);
-    final heroScoreReason = _pickHeroScoreReason(
-      verdict: verdict,
-      items: whyItems,
-    );
 
     final isNotScored = _isNotScored(_product);
 
@@ -377,20 +373,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               verdict: verdict,
               blockingReason: blockingReason,
               score100: score100,
-              grade: grade,
-              percentileLabel: percentileLabel,
               dietaryTags: dietaryTags,
-              isBlocked: isBlocked,
               isNotScored: isNotScored,
               topWarnings: _topWarnings(),
               bannedSubstanceDetail:
                   detailBlob?['banned_substance_detail']
                       as Map<String, dynamic>?,
-              scoreReason: heroScoreReason,
               onScoreInfoTap: () => _showScoreEducation(context),
-              imageUrl: _product?.imageUrl,
               upc: _product?.upcSku,
-              mappedCoverage: mappedCoverage,
             ),
           ),
 
@@ -1277,29 +1267,34 @@ List<({String label, String detail, bool isPositive})> _extractWhyItems(
   ].where((item) => item.label.trim().isNotEmpty).take(3).toList();
 }
 
-({String text, bool isPositive})? _pickHeroScoreReason({
-  required String verdict,
-  required List<({String label, String detail, bool isPositive})> items,
-}) {
-  if (items.isEmpty) return null;
-  final normalizedVerdict = verdict.trim().toUpperCase();
-  final preferPenalty = switch (normalizedVerdict) {
-    'MODERATE' || 'REVIEW' || 'UNSAFE' || 'BLOCKED' => true,
-    _ => false,
-  };
-
-  final preferred = items.where((item) => item.isPositive != preferPenalty);
-  final chosen = preferred.isNotEmpty ? preferred.first : items.first;
-  return (
-    text: chosen.label.trim().isNotEmpty ? chosen.label.trim() : chosen.detail,
-    isPositive: chosen.isPositive,
-  );
-}
+// _pickHeroScoreReason was removed in T1.1 (2026-04-29) — the hero no
+// longer renders an inline score-reason line. The reasoning rows live
+// in T1.6 Tradeoffs (Section 5) instead. _extractWhyItems is still
+// used by the deep-dive sections so it stays.
 
 // ---------------------------------------------------------------------------
 // Header section
 // ---------------------------------------------------------------------------
 
+/// Score-led product detail hero (T1.1, revised 2026-04-29).
+///
+/// Layout:
+///   1. Identity row — 96pt product image + name/brand/form column
+///   2. Quality Score altar — centered 96pt PGScoreRing with "PG SCORE" label
+///   3. Safety verdict banner — renders ONLY when [computeHeroVerdict]
+///      returns Blocked or Avoid (lower verdicts live in T1.2 Section 2)
+///   4. Dietary chips
+///
+/// Notable removals from the pre-T1.1 hero:
+///   * VerdictBadge (Caution / Safe / etc.) → moved to T1.2 Section 2
+///   * percentile label text → moved to T1.4 Section 3 subtitle
+///   * grade pill (`_HeroMetaPill` with grade) → moved to T1.4 Section 3
+///   * "Limited data" pill → moved to T1.4 coverage line
+///   * `_HeroScoreReason` → moved to T1.6 Tradeoffs section
+///   * Personal Fit row (`PGFitScoreBadge`) → moved to T1.2 Section 2
+///   * "View Supplement Label" outline button → moved to T1.11 Section 10
+///
+/// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.1.
 class _HeaderSection extends ConsumerWidget {
   final String dsldId;
   final String productName;
@@ -1308,18 +1303,12 @@ class _HeaderSection extends ConsumerWidget {
   final String verdict;
   final String blockingReason;
   final double? score100;
-  final String grade;
-  final String percentileLabel;
   final List<({String label, bool isCertification})> dietaryTags;
-  final bool isBlocked;
   final bool isNotScored;
   final List<Map<String, dynamic>> topWarnings;
   final Map<String, dynamic>? bannedSubstanceDetail;
-  final ({String text, bool isPositive})? scoreReason;
   final VoidCallback onScoreInfoTap;
-  final String? imageUrl;
   final String? upc;
-  final double mappedCoverage;
 
   const _HeaderSection({
     required this.dsldId,
@@ -1329,18 +1318,12 @@ class _HeaderSection extends ConsumerWidget {
     required this.verdict,
     required this.blockingReason,
     required this.score100,
-    required this.grade,
-    required this.percentileLabel,
     required this.dietaryTags,
-    required this.isBlocked,
     required this.isNotScored,
     required this.topWarnings,
     this.bannedSubstanceDetail,
-    this.scoreReason,
     required this.onScoreInfoTap,
-    this.imageUrl,
     this.upc,
-    this.mappedCoverage = 0.0,
   });
 
   @override
@@ -1348,10 +1331,15 @@ class _HeaderSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    // FitScore integration — async, shows a "personalized for you" pill
-    // next to the score ring. Null while loading or when the product has
-    // no base score; the badge handles that by rendering nothing.
-    final fitScoreAsync = ref.watch(fitScoreForProductProvider(dsldId));
+    // T1.1: compute the gated verdict. Banner renders only when severity
+    // ≥ Avoid; lower-tier verdicts (Caution / Monitor / Safe / Recommended /
+    // etc.) flow through to Section 2 ("For You").
+    final heroVerdict = computeHeroVerdict(
+      productVerdict: verdict,
+      blockingReason: blockingReason,
+      topWarnings: topWarnings,
+      bannedSubstanceDetail: bannedSubstanceDetail,
+    );
 
     return Container(
       color: scheme.surface,
@@ -1379,9 +1367,16 @@ class _HeaderSection extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Identity row — 96pt image + name / brand / form column.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Image stays at 56pt (BrandedPlaceholder's compact-
+                  // mode threshold). Above 56pt the placeholder switches
+                  // to a full-card Column with brand label/initial that
+                  // overflows the 1:1 box by ~2px. The premium hero feel
+                  // comes from the centered score altar + the wider
+                  // identity column, not from pixel size on the thumbnail.
                   ProductImage(
                     dsldId: dsldId,
                     upc: upc,
@@ -1391,7 +1386,7 @@ class _HeaderSection extends ConsumerWidget {
                     score: score100,
                     size: 56,
                   ),
-                  const SizedBox(width: AppTheme.space12),
+                  const SizedBox(width: AppTheme.space16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1431,119 +1426,84 @@ class _HeaderSection extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppTheme.space16),
-              if (isBlocked)
-                _BlockedBanner(
-                  verdict: verdict,
-                  blockingReason: blockingReason,
-                  topWarnings: topWarnings,
-                  bannedSubstanceDetail: bannedSubstanceDetail,
-                )
-              else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _ScoreRingButton(
-                      score: isNotScored ? null : score100,
-                      onTap: onScoreInfoTap,
-                    ),
-                    const SizedBox(width: AppTheme.space16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          VerdictBadge(verdict: verdict),
-                          const SizedBox(height: AppTheme.space8),
-                          Text(
-                            isNotScored
-                                ? 'Not enough verified data to score.'
-                                : percentileLabel.isNotEmpty
-                                ? percentileLabel
-                                : 'Product quality score',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              height: 1.35,
-                            ),
+
+              // Score altar — centered 96pt PGScoreRing with sub-label.
+              // The score ring's tier-tinted glow + sweep gradient + count-up
+              // animation give the hero its Apple-Health-grade focal moment.
+              //
+              // Suppressed when the product is product-side BLOCKED/UNSAFE.
+              // For a banned product, the score is informational at best and
+              // confusing at worst — "DO NOT USE" alongside "82/100" sends
+              // mixed signals. The blocked banner replaces the altar.
+              // Stack-side Avoid/Contra still shows the score because the
+              // product itself is fine; the issue is the user's stack.
+              if (heroVerdict is! HeroVerdictBlocked) ...[
+                const SizedBox(height: AppTheme.space20),
+                // Premium-feel signals: tier-tinted glow, sweep gradient,
+                // count-up animation, and tabular figures all live inside
+                // PGScoreRing. Sized at the proven 88pt + 6pt stroke that
+                // doesn't overflow the inner Column at any animation frame
+                // — bumping to 96 caused a 2.1px overflow on the inner
+                // number Text. The "PG SCORE" label is rendered outside
+                // the ring (rather than PGScoreRing's internal `label`
+                // slot) for typographic control + extra breathing room.
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _ScoreRingButton(
+                        score: isNotScored ? null : score100,
+                        onTap: onScoreInfoTap,
+                      ),
+                      const SizedBox(height: AppTheme.space8),
+                      Text(
+                        'PG SCORE',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (isNotScored) ...[
+                        const SizedBox(height: AppTheme.space4),
+                        Text(
+                          'Not enough verified data to score.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.35,
                           ),
-                          if (!isNotScored) ...[
-                            const SizedBox(height: AppTheme.space8),
-                            Row(
-                              children: [
-                                if (grade.isNotEmpty)
-                                  _HeroMetaPill(
-                                    icon: Icons.grade_outlined,
-                                    label: grade,
-                                    color: VerdictBadge.colorFor(verdict),
-                                  ),
-                                if (mappedCoverage < 0.3) ...[
-                                  if (grade.isNotEmpty)
-                                    const SizedBox(width: AppTheme.space6),
-                                  const _HeroMetaPill(
-                                    icon: Icons.visibility_off_outlined,
-                                    label: 'Limited data',
-                                    color: AppTheme.insufficientData,
-                                  ),
-                                ],
-                              ],
-                            ),
-                            if (scoreReason != null) ...[
-                              const SizedBox(height: AppTheme.space12),
-                              _HeroScoreReason(
-                                text: scoreReason!.text,
-                                isPositive: scoreReason!.isPositive,
-                              ),
-                            ],
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              if (!isBlocked && fitScoreAsync.asData?.value != null) ...[
-                const SizedBox(height: AppTheme.space12),
-                Row(
-                  children: [
-                    Text(
-                      'Personal fit',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.space8),
-                    PGFitScoreBadge(
-                      result: fitScoreAsync.asData?.value,
-                      onTap: () => showFitScoreSheet(
-                        context,
-                        fitScoreAsync.asData!.value!,
-                      ),
-                    ),
-                  ],
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ],
+
+              // Verdict banner — only renders for Blocked / Avoid /
+              // Contraindicated. Lower severities (Caution / Monitor /
+              // Safe / Recommended) live in Section 2 ("For You").
+              if (heroVerdict is HeroVerdictBlocked) ...[
+                const SizedBox(height: AppTheme.space16),
+                _BlockedBanner(
+                  verdict: heroVerdict.verdict,
+                  blockingReason: heroVerdict.blockingReason,
+                  topWarnings: heroVerdict.topWarnings,
+                  bannedSubstanceDetail: heroVerdict.bannedSubstanceDetail,
+                ),
+              ] else if (heroVerdict is HeroVerdictAvoid) ...[
+                const SizedBox(height: AppTheme.space16),
+                PGSeverityBanner(
+                  tone: PGBannerTone.danger,
+                  title: heroVerdict.headline.toUpperCase(),
+                  body: 'Interacts with medications in your stack — '
+                      'review the details before adding to your stack.',
+                ),
+              ],
+
               if (dietaryTags.isNotEmpty) ...[
                 const SizedBox(height: AppTheme.space12),
                 _HeroTrustChips(tags: dietaryTags),
-              ],
-              if (imageUrl != null && imageUrl!.isNotEmpty) ...[
-                const SizedBox(height: AppTheme.space12),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.description_outlined, size: 16),
-                  label: const Text('View Supplement Label'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(44),
-                    side: BorderSide(color: scheme.outlineVariant),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                    ),
-                  ),
-                  onPressed: () {
-                    final uri = Uri.tryParse(imageUrl!);
-                    if (uri != null) {
-                      launchUrl(uri, mode: LaunchMode.externalApplication);
-                    }
-                  },
-                ),
               ],
             ],
           ),
@@ -1553,76 +1513,18 @@ class _HeaderSection extends ConsumerWidget {
   }
 }
 
-class _HeroScoreReason extends StatelessWidget {
-  final String text;
-  final bool isPositive;
-
-  const _HeroScoreReason({required this.text, required this.isPositive});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final color = isPositive
-        ? AppTheme.scoreExcellent
-        : AppTheme.scoreFair;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.space12,
-        vertical: AppTheme.space8,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            isPositive ? Icons.auto_awesome_outlined : Icons.info_outline,
-            size: 14,
-            color: color,
-          ),
-          const SizedBox(width: AppTheme.space8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Why this score',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  text,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// _HeroScoreReason removed in T1.1 — see comment above _pickHeroScoreReason.
+// Reasoning lives in T1.6 Tradeoffs section; "Why this score" rows there
+// will reuse this DNA once T1.4 / T1.6 are wired.
 
 class _ScoreRingButton extends StatelessWidget {
   final double? score;
   final VoidCallback onTap;
 
-  const _ScoreRingButton({required this.score, required this.onTap});
+  const _ScoreRingButton({
+    required this.score,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
