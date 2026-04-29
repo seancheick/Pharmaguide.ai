@@ -585,7 +585,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   AppTheme.space20,
                   AppTheme.space8,
                 ),
-                child: _DeepDiveSection(
+                child: DeepDiveSection(
                   dsldId: widget.dsldId,
                   activeIngredients:
                       (detailBlob?['ingredients'] as List?)
@@ -3194,7 +3194,7 @@ Color _glowColor(double score) {
 // accessible on demand. Initially collapsed; user taps to expand.
 // ---------------------------------------------------------------------------
 
-class _DeepDiveSection extends StatefulWidget {
+class DeepDiveSection extends StatefulWidget {
   final String dsldId;
   final Map<String, dynamic>? certificationDetail;
   final Map<String, dynamic>? evidenceData;
@@ -3210,7 +3210,8 @@ class _DeepDiveSection extends StatefulWidget {
   final List<Map<String, dynamic>> inactiveIngredients;
   final Map<String, dynamic>? heavyMetalDetail;
 
-  const _DeepDiveSection({
+  const DeepDiveSection({
+    super.key,
     required this.dsldId,
     required this.activeIngredients,
     required this.inactiveIngredients,
@@ -3228,10 +3229,10 @@ class _DeepDiveSection extends StatefulWidget {
   });
 
   @override
-  State<_DeepDiveSection> createState() => _DeepDiveSectionState();
+  State<DeepDiveSection> createState() => _DeepDiveSectionState();
 }
 
-class _DeepDiveSectionState extends State<_DeepDiveSection>
+class _DeepDiveSectionState extends State<DeepDiveSection>
     with SingleTickerProviderStateMixin {
   bool _expanded = false;
   late final AnimationController _ctrl;

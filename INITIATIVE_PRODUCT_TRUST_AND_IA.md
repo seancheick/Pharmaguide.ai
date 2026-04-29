@@ -989,7 +989,7 @@ Conditional logic correct. V1 copy exact: "Higher quality alternatives".
 
 ---
 
-### [ ] T1.13 — Deep Dive collapsed (Section 12)
+### [x] T1.13 — Deep Dive collapsed (Section 12)
 
 **What**
 Wrap existing deep-dive sections (Full mechanism, Manufacturing, Heavy metals) in a collapsed expander.
@@ -1004,6 +1004,12 @@ Wrap existing deep-dive sections (Full mechanism, Manufacturing, Heavy metals) i
 
 **Acceptance**
 No behavior change other than initial collapsed state.
+
+**Verified — 2026-04-29.**
+- Implementation already shipped in an earlier sprint — `_DeepDiveSection` (now `DeepDiveSection`) at `lib/features/product_detail/product_detail_screen.dart:3197` already meets every spec acceptance: `bool _expanded = false` initial state (collapsed), `_toggle()` flips it on header tap, `RotationTransition`-driven 180° chevron flip + `AnimatedBuilder` heightFactor reveal, all 11 inner detail widgets composed inside (`CertificationDetailSection`, `EvidenceDetailSection`, `HeavyMetalWarningCard`, `ExcipientDensityCard`, `FormulationDetailSection`, `ProbioticDetailSection`, `PairsWellSection`, `SynergyDetailSection`, `ManufacturerViolationsSection`, `NutritionPanel`, `UnmappedActivesDisclosure`).
+- **MODIFY** `lib/features/product_detail/product_detail_screen.dart` — promoted private `_DeepDiveSection` → public `DeepDiveSection` (5 references replaced) so the section is testable from outside the file. State class kept private (`_DeepDiveSectionState`) per Flutter convention. Added `super.key` to the now-public constructor (analyzer: `use_key_in_widget_constructors`).
+- **NEW** `test/features/product_detail/widgets/deep_dive_section_test.dart` — 5 widget tests against the spec's three acceptance bullets: header always renders, "Show details" label by default (collapsed) → no "Hide" label, tap flips to "Hide" + suppresses "Show details", second tap collapses back, all 11 inner widget types present in the tree (`find.byType` works on the always-built children that the `Align(heightFactor: ...)` mechanism just clips when collapsed). Tests use `CoreDatabase.memory()` + `UserDatabase.memory()` overrides so the inner `PairsWellSection`'s `pairsWellWithStackProvider` short-circuits cleanly on the empty stack.
+- Test count 1038 → 1043 (+5). flutter analyze clean.
 
 ---
 
