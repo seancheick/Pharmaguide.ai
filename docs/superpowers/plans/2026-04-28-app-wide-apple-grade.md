@@ -42,7 +42,7 @@
 | **C.2** Final adaptive control sweep | ✅ shipped | `e12a780` | 1 remaining `CheckboxListTile` migrated; app-wide .adaptive complete |
 | **C.3** Motion-token sweep | ✅ shipped | `29c6164` | 12 sites across 7 files → AppMotion tokens (Trust/IA WIP files excluded) |
 | **D.1** PGAdaptiveBackButton extraction | 🚫 folded into 0.2 | — | PGCircularIconButton already covers the contract |
-| **D.2** Empty-state audit | ⏳ pending | — | Next-up parallel sweep (no T1.x conflict) |
+| **D.2** Empty-state audit | ✅ shipped | `5247bae` | Vocabulary already cohesive (1 reference + 5 PGEmptyState consumers); only fix was migrating PGEmptyState's `_PillButton` from Material+InkWell to PGPressable — single change uplifts every CTA |
 | **F.0** Data availability audit | ✅ 🟢 GREEN | `76285f3` (findings) | All 4 pillars + coverage are first-class fields on `products_core` |
 | **F.1** PGScoreRing reuse vs PGDonutChart | ✅ 🟢 REUSE | `76285f3` (findings) | Existing PGScoreRing covers the T1.1 contract; no new primitive |
 | **F.2** PGPillarBar primitive | ✅ shipped | `add240b` | 6 widget tests; T1.4 unblocked |
@@ -53,9 +53,9 @@
 | **E.1** Cross-screen smoke tests | ⏳ pending | — | Final phase |
 | **E.2** Final analyze + suite + tracker close | ⏳ pending | — | Sprint close |
 
-**Verification (live):** `flutter analyze` clean · `flutter test` 850/850 pass · 19 apple-grade commits + 3 cross-team merges with Trust/IA on `origin/main`.
+**Verification (live):** `flutter analyze` clean · `flutter test` 850+/850+ pass · 21 apple-grade commits + 3 cross-team merges with Trust/IA on `origin/main`.
 
-**Active queue:** D.2 → E.1 → E.2 (sprint close). F.4 holds until Trust/IA T1.4 lands.
+**Active queue:** E.1 → E.2 (sprint close). F.4 holds until Trust/IA T1.4 lands.
 
 ---
 
@@ -1914,11 +1914,11 @@ Commit:
 git commit -m "refactor(core): extract PGAdaptiveBackButton from PGFrostedAppBar"
 ```
 
-### Task D.2: Audit and update Empty States
+### Task D.2: Audit and update Empty States — ✅ DONE 2026-04-29 (`5247bae`)
 
 The home `Recents` empty state uses `_OutlineScanButton` (a tappable pill). Other screens may have less-polished empty states.
 
-- [ ] **Step 1: Audit empty states across features**
+- [x] **Step 1: Audit empty states across features**
 
 ```bash
 grep -rn "EmptyState\|Empty\|isEmpty" lib/features/ \
@@ -1927,7 +1927,7 @@ grep -rn "EmptyState\|Empty\|isEmpty" lib/features/ \
   | head -30
 ```
 
-- [ ] **Step 2: For each screen with a bespoke empty-state widget, ensure it uses:**
+- [x] **Step 2: For each screen with a bespoke empty-state widget, ensure it uses:**
   - `PGCard(variant: PGCardVariant.recessed)` outer
   - A 56-pt circular icon well (`Container` with surface tint)
   - Title (titleSmall, w700)
@@ -1936,11 +1936,22 @@ grep -rn "EmptyState\|Empty\|isEmpty" lib/features/ \
 
 The home Recents empty state at `home_recent_scans.dart:127–189` is the reference. Cross-check against Stack empty state, Wishlist empty state, search empty results, and Quick Check insufficient-data state.
 
-- [ ] **Step 3: Commit per fix**
+- [x] **Step 3: Commit per fix**
 
-```
-git commit -m "feat(<screen>): align empty state with home Recents pattern"
-```
+#### Task D.2 Findings — empty-state vocabulary already cohesive
+
+**Audit walked all empty-state usages across `lib/features/`:**
+
+- `home_recent_scans._buildEmptyState` (lines 128–189) — already the canonical pattern (PGCard.recessed + 56pt circular icon well + titleSmall w700 + bodySmall onSurfaceVariant + outline scan-button CTA). **This IS the reference.** Leave as-is.
+- `home_stack_health._buildEmptyState` — intentionally a CTA card on `PGCard.elevated` (the whole card is tappable, navigates to `/scan`), not a "nothing here" placeholder. Different pattern by design. Leave as-is.
+- All other empty states (search × 2, product detail × 1, stack × 3, medications × 1) already route through `PGEmptyState`. Cohesive vocabulary — zero migrations required.
+
+**The only smell** was inside `PGEmptyState._PillButton` itself: the CTA pill was still wrapped in `Material + InkWell` instead of `PGPressable`, so every empty-state CTA across the app was missing the Apple-grade compression + spring + light haptic that Sprint 27.19 C1 standardized. Single migration uplifts every consumer:
+
+- `Material + InkWell + Container` → `PGPressable + Container` with `pressedScale: 0.97` (between the 0.96 default and the 0.98 dense-row scale).
+- Dropped the hardcoded `fontFamily: 'Inter'` from the label `TextStyle` — the theme's `_platformFontFamily` (Sprint 27.19 G1) handles Inter on Android / system SF Pro on iOS.
+
+Commit: `5247bae`. Verification: `flutter analyze` clean; 56/56 tests across stack + search + medications green.
 
 ---
 
