@@ -533,20 +533,32 @@ When steps 3–6 close, flip T0.7 `[-]` → `[x]` and the Sprint 0 roadmap row �
 
 # Sprint 1 — Product Screen IA Refactor
 
+> **Cross-team merge note — 2026-04-29.** Sprint 1 runs in parallel with the Apple-grade visual polish initiative (`docs/superpowers/plans/2026-04-28-app-wide-apple-grade.md`). After a critique pass we landed a hybrid spec: **Trust/IA owns *what goes where*; Apple-grade owns *how it looks*.** Key changes from the original Sprint 1 plan:
+>
+> - **Hero is score-led, not identity-only** (Yuka/SuppCo user-habit evidence). T1.1 now keeps the Quality Score ring in the hero alongside identity. Personal Fit number still moves out (it lives in T1.2's "For You"). See revised T1.1 below.
+> - **Apple-grade B.3a folded into T1.1** — that team is skipping their hero refactor; we own it here.
+> - **Apple-grade F.5 folded into T1.2** — that team is skipping their "For You" card; we own it here using their PGCard.plain + PGPressable + LayoutBuilder visual approach.
+> - **Apple-grade F.4 rescoped + folded into T1.4** — pillar bars + coverage line only (score lives in hero). Apple-grade ships PGPillarBar primitive; we consume it.
+> - **Apple-grade F.3 + F.6 dropped** — atom-style ingredients are decorative for medical-grade context; T1.5 verbose rows + existing chip pattern are the right call.
+> - **Apple-grade F.0 data audit + F.1 ring/donut decision are blocking dependencies** for T1.4. Other team owes us those before T1.4 starts.
+> - **B.3b frosted SliverAppBar runs after T1.1** — same file (product_detail_screen.dart), serialized to avoid merge churn.
+
 ## Phase goal
-Ship the **structure** of the new 14-section product screen IA. Risk-gated Fit. Merged "For You" block. PG Score relocated. Each section rendering, even with v1 placeholder content where data isn't ready.
+Ship the **structure** of the new 14-section product screen IA. Risk-gated Fit. Merged "For You" block. PG Score in hero (revised). Each section rendering, even with v1 placeholder content where data isn't ready.
 
 ## Why
-The current screen is organic complexity from 27 sprints. Users are confused by scattered signals (Personal Fit pill + FitScore + alerts + Quality grade + percentile + score reason — all in the hero). The new IA answers, in order: *(1) Can I take this? → (2) Does it fit me? → (3) Is it a good product? → (4) Why? → (5) Details.*
+The current screen is organic complexity from 27 sprints. Users are confused by scattered signals (Personal Fit pill + FitScore + alerts + Quality grade + percentile + score reason — all in the hero). The new IA answers, in order: *(1) What is this & how good is it? → (2) Does it fit me? → (3) Why this score? → (4) Ingredients → (5) Trade-offs → (6) Details.*
+
+The score-in-hero decision is grounded in user habit (Yuka, SuppCo) — users scan to get a single decisive number, then drill into the *why*. Removing it from the hero broke the mental model. Risk-gating still works because **Personal Fit** (the safety-relevant number) stays in Section 2 and is hidden when verdict = Avoid/Contraindicated.
 
 ## Estimate
 **10–12 working days** (one sprint).
 
 ## Definition of Done (sprint-level)
 - All 14 sections render, even where content is V1 placeholder
-- Risk-gated Fit logic live: Avoid/Contraindicated → Fit pill hidden entirely
-- "For You" merged block replaces Personal Fit pill in hero
-- PG Score moved out of hero into Section 3 (Product Quality)
+- Risk-gated Fit logic live: Avoid/Contraindicated → Personal Fit pill hidden in Section 2
+- Hero contents revised: identity + Quality Score ring + safety-aware verdict banner (gated to Avoid/Contraindicated/Blocked only)
+- "For You" merged block in Section 2 with chips + verdict + alerts + why-this-fits
 - Coverage policy enforced (always show, color by ratio)
 - Old hero scaffolding removed (no dead code)
 - All existing widget tests pass + new tests for risk-gating logic
@@ -554,26 +566,43 @@ The current screen is organic complexity from 27 sprints. Users are confused by 
 
 ## Tasks
 
-### [ ] T1.1 — Identity section refactor (Section 1)
+### [ ] T1.1 — Score-led hero refactor (Section 1) — REVISED 2026-04-29
+
+> **Revision rationale.** The original spec called for "no verdicts, no scores, no fit pills" in the hero. After /critique pass + Yuka/SuppCo user-habit evidence, we revised to a **score-led hero** that keeps the Quality Score ring as a focal element. The Personal Fit number still moves to Section 2 (risk-gating preserved). This task now subsumes Apple-grade B.3a — that team's hero refactor was deferred and is folded in here.
 
 **What**
-Hero becomes pure identity: 96px product image · product name (1 line) · "Brand · count · dose" · dietary chips · staleness pill (top-right). No verdicts, no scores, no fit pills.
+Hero contents:
+- 96pt product image (left)
+- Identity column: product name (1 line) · "Brand · count · dose" · dietary chips · staleness pill (top-right)
+- Quality Score ring (centered or right-aligned, clearly labeled "Quality Score" so users don't confuse it with Personal Fit)
+- Safety-aware verdict banner — **only renders for Avoid / Contraindicated / Blocked**. Lower-severity verdicts (Caution / Monitor / Safe / Good Match / etc.) live in Section 2.
+
+NO Personal Fit number in hero. NO low-severity verdicts in hero. NO grade pill / percentile text / multiple competing badges (those were the original noise problem).
 
 **Why**
-The hero currently does too much. Identity-only hero gives users a moment to ground before the decision content arrives.
+- Score-in-hero matches user habit (Yuka, SuppCo). Removing it broke the mental model.
+- Single product-quality number + safety verdict (when blocking) gives the user the answer to "what is this & how concerning is it?" in one glance.
+- Personal Fit moves down because Fit is a personalization signal, not a product signal — different question, different section.
 
 **Files**
 - `lib/features/product_detail/product_detail_screen.dart` — `_HeaderSection` heavy edit
+- `lib/features/product_detail/providers/hero_verdict_provider.dart` (new) — safety-aware verdict logic (subsumes Apple-grade B.3a's HeroVerdict provider, gated to product-blocking severity only)
 - `lib/core/widgets/pg_dietary_chips.dart` (extract if not already)
+- `lib/core/widgets/pg_score_ring.dart` — reuse (subject to Apple-grade F.1 audit; only swap for PGDonutChart if F.1 surfaces a concrete gap)
 
 **Tests**
 - Hero renders product image, name, brand line, dietary chips
-- Hero does NOT render Personal Fit pill (moved to Section 2)
-- Hero does NOT render Score Ring (moved to Section 3)
+- Hero renders Quality Score ring with correct color tier + "Quality Score" label
+- Hero does NOT render Personal Fit pill (lives in Section 2)
+- Verdict banner renders ONLY for Avoid / Contraindicated / Blocked
+- Verdict banner does NOT render for Caution / Monitor / Safe / Good Match
 - Long product name → truncates with ellipsis (no overflow)
+- Stack interaction (e.g. "Avoid with metformin") overrides product-side verdict in the banner copy
 
 **Acceptance**
-Hero matches spec exactly: image left, identity right, chips below, staleness top-right. Nothing else.
+Hero contains exactly: identity layout + Quality Score ring + safety-only verdict banner. Personal Fit completely absent. Visual treatment follows Apple-grade aesthetic (centered focal element, generous padding, faint card elevation) but without the "Apple Altar" naming.
+
+**Cross-team:** Apple-grade B.3a is folded into this task. The other team is skipping their hero refactor; we own it here. B.3b (frosted SliverAppBar) runs **after** T1.1 lands to avoid concurrent edits to product_detail_screen.dart.
 
 ---
 
@@ -601,9 +630,11 @@ Currently scattered across hero, alerts widget, and FitScore sheet. Consolidatio
 - Risk-gating works: Avoid hides Fit, shows "Not recommended"
 - Alerts limited to contraindicated/avoid/caution (monitor/safe filtered out)
 
+**Cross-team:** Apple-grade F.5 ("Why this score · Your alerts" dual-column card) is folded into this task. Their "Why this score" half was structurally misplaced — it belongs in T1.4/T1.6 (Section 3 / Tradeoffs), not Section 2. Their "Your alerts" half + visual approach (PGCard.plain, PGPressable per row, LayoutBuilder for SE-class small screens) is reused here. Other team is skipping F.5; we own it here with the corrected content model.
+
 ---
 
-### [ ] T1.3 — Risk-gated Fit core logic
+### [x] T1.3 — Risk-gated Fit core logic
 
 **What**
 Helper function: `FitDisplay computeFitDisplay({verdict, fitResult})` that returns a state-based display (`StrongMatch | GoodMatch | LimitedFit | NotRecommended | Hidden`). When verdict is Avoid/Contraindicated, returns `Hidden` regardless of underlying fit number.
@@ -627,31 +658,53 @@ The most important UX decision in this initiative. Prevents "Avoid + 88/100" com
 **Acceptance**
 Pure-function helper. No widget dependency. 100% test coverage.
 
+**Verified — 2026-04-29.**
+- **NEW** `lib/services/fit_score/fit_display.dart` — pure-function helper. Sealed `FitDisplay` hierarchy (`FitStrongMatch` / `FitGoodMatch` / `FitLimitedFit` / `FitNotRecommended` / `FitHidden` / `FitIncomplete`). Bands on `FitScoreResult.scoreCombined100` (PG quality × personal fit) so the user sees a 0–100 number consistent with the hero Quality Score. Public `FitDisplayThresholds` (85 / 60 / 35) so UI copy can describe them without re-hardcoding. Decision order: risk-gate (Avoid/Contraindicated → Hidden) → profile-completeness (incompleteProfile → FitIncomplete) → score banding. Caution/Monitor/Informational pass through the gate untouched (alert is rendered alongside the fit pill, not in place of it).
+- **NEW** `test/services/fit_score/fit_display_test.dart` — 21 tests across 5 groups: risk-gate (Contra/Avoid hidden regardless of score), caution/monitor pass-through (caution at 90 still StrongMatch — no cap), Safe banding with explicit boundary tests at 85/60/35 (boundary values land in the upper tier), incomplete profile (`incompleteProfile` → FitIncomplete; risk-gate still trumps incompleteness), threshold stability pin.
+- **Consumer wiring**: T1.2 will consume this via `for_you_section.dart` once the score-led-hero work clears T1.1.
+
 ---
 
-### [ ] T1.4 — Product Quality section (Section 3)
+### [ ] T1.4 — Product Quality section (Section 3) — REVISED 2026-04-29
+
+> **Revision rationale.** Score ring stays in the hero (T1.1) per the score-led-hero revision. Section 3 is now **pillar bars + coverage line + "Why this score" reasoning**. Apple-grade F.4 (donut + 4 pillar bars in a card) is folded in here, rescoped to drop the donut.
 
 **What**
-Score ring (relocated from hero) · grade label · pillars decomposition (Ingredient Quality / Safety & Purity / Evidence & Research / Brand Trust with progress bars) · Coverage line.
+- 4 pillar bars (Ingredient Quality / Safety & Purity / Evidence & Research / Brand Trust) — horizontal progress bars, value labels, tap-to-expand inspector
+- Coverage line — colored badge (green/yellow/red by ratio) + "X of Y ingredients mapped" subtitle
+- "Why this score" reasoning row — short prose pulled from `score_bonuses[]` / `score_penalties[]` (the detail strings explaining each bonus/penalty)
+- The hero's Quality Score number can appear as a small inline label here for continuity ("Your 82 breaks down as:")
 
 **Why**
-PG Score is your differentiator. Give it room. Decompose into pillars to support trust.
+PG Score is the differentiator. The score itself lives in hero where users expect it; this section explains *why* the score is what it is. Decomposition into pillars + transparent bonus/penalty reasoning supports trust.
 
 **Files**
 - `lib/features/product_detail/widgets/score_breakdown_card.dart` — already exists, repurpose as the section body
-- `lib/core/widgets/pg_score_ring.dart` — already exists, used here
+- `lib/core/widgets/pg_pillar_bar.dart` — new (Apple-grade F.2 deliverable; we consume it)
+- Coverage strip — inline composition; reuse existing coverage logic from `score_breakdown_card.dart`
+
+**Blocking dependencies (Apple-grade team)**
+- **F.0 data audit** — must complete before this task starts. Verifies whether 4-pillar scores exist as discrete fields, are derivable from `score_bonuses[]`/`score_penalties[]`, or need a pipeline ticket. Three-way verdict shapes implementation:
+  - GREEN → straight UI build
+  - YELLOW → small aggregation step inside `score_breakdown_card.dart`
+  - RED → split into pipeline ticket + Flutter follow-up
+- **F.1 ring/donut decision** — only relevant for T1.1 hero (audit `pg_score_ring.dart`; reuse if it covers, else fill the gap). Doesn't directly block T1.4 because the score visual is in the hero now.
+- **F.2 PGPillarBar primitive** — directly consumed by this task
 
 **Tests**
-- Score ring renders with correct color tier
-- 4 pillars render with progress bars
+- 4 pillars render with progress bars + value labels
 - Coverage line renders with correct color (green/yellow/red)
-- Tap on pillar → expands inspector
+- Tap on pillar → expands inspector with sub-scores in words (no "X.X pts" raw)
 - Low-coverage product (<30%) → "This analysis may be incomplete" subtitle visible
+- "Why this score" row renders bonus + penalty detail strings (not summarized)
 
 **Acceptance**
-- Score number is the only large numeric display in this section
+- Pillars + coverage + reasoning all render
 - Coverage policy enforced
 - Pillar tap opens inspector with sub-scores in words (no "X.X pts")
+- Implementation matches the F.0 audit verdict (no fake numbers from invented derivations)
+
+**Cross-team:** Apple-grade F.4 is folded into this task (rescoped — no donut). PGPillarBar primitive (F.2) comes from the other team.
 
 ---
 
@@ -672,6 +725,8 @@ Active ingredients with: name + dose + form + bio-availability + dose-vs-effecti
 
 **Acceptance**
 Section reads as actionable, not raw. User understands what each ingredient does, why it's there, and whether the dose is effective.
+
+**Cross-team:** Apple-grade F.3 (PGIngredientAtom primitive) and F.6 (atom-style ingredients row) are dropped — atom pills are decorative for medical-grade context where dose-vs-effective-range is the key trust signal. Verbose rows for active ingredients + existing chip pattern for inactive are the right call. Other team is dropping F.3 + F.6 entirely.
 
 ---
 
@@ -1080,6 +1135,8 @@ Same as previous patterns. Add: clinical writer signs off on copy.
 | 2026-04-29 | SeanB + Claude | T0.6 promoted to canonical OTA activation strategy across both initiatives. `INITIATIVE_STACK_INTELLIGENCE.md`'s "no mid-session catalog swap" rule retired; Track D D3 now points here as source of truth. A6 in Stack Intelligence marked `[x]` (bundle-replacement bug genuinely fixed); T0.6 still `[ ]` — in-session refactor + validation gate + snackbar are owed. |
 | 2026-04-29 | Claude | Sprint 0 code-complete. T0.1–T0.6 all `[x]` (rewording + prettifier; Highlights rename + numeric `detail` strip; formulation JSON-leak fix; Pairs Well count parity + clearer subtitle; Formulation Purity Phase 1 whitelist + dosage-form + hide-when-clean; OTA in-session swap with validation gate + atomic rename + SharedPreferences persistence + snackbar). T0.7 `[-]` — `flutter analyze` clean and 707/707 tests green; manual smoke + TestFlight + 24h Sentry watch owed by Sean. Sprint 0 roadmap row flipped from 🟢 Active to 🟡 Code-complete. |
 | 2026-04-29 | Claude (live test) | Ran the shipped Sprint 0 build on iPhone 17 Pro simulator. Two real production bugs caught and fixed in commit `2a35eb8` (3 files, surgical): (1) T0.1 prettifier fell back to single-character title-case for whitespace-separated `ingredient_points` keys ("vitamin c" → "Vitamin c" instead of "Vitamin C"); fix normalizes whitespace runs to underscores before lookup + split. (2) Same JSON-leak class as T0.3 in `certification_detail_section.dart` — "Third-Party Verified" pill rendered `{name: Informed Choice, verified: true}` verbatim; fixed with localized dual-shape extractor. Both verified live via Flutter SIGUSR1 hot-reload. Test count 707 → 741. |
+| 2026-04-29 | Claude (cross-team merge) | Sprint 1 spec revised after `/critique` pass + Yuka/SuppCo user-habit evidence. Trust/IA owns *what goes where*; Apple-grade owns *how it looks*. Six concrete changes: **(1)** T1.1 hero is **score-led, not identity-only** — Quality Score ring stays in hero, Personal Fit number still moves to Section 2. **(2)** T1.1 absorbs Apple-grade B.3a (other team is skipping their hero refactor). **(3)** T1.2 absorbs F.5 visual approach but rejects F.5's content model (their "Why this score · Your alerts" dual-column was conflating Section 2 + Section 3). **(4)** T1.4 absorbs F.4, rescoped — pillars + coverage + reasoning only (donut dropped because score lives in hero). **(5)** T1.4 has new blocking dependencies on Apple-grade F.0 data audit + F.2 PGPillarBar primitive (other team's deliverables). **(6)** T1.5 keeps verbose rows; F.3 + F.6 atom primitives dropped (decorative for medical-grade context). T1.1 now subsumes the deferred B.3a; B.3b SliverAppBar serializes after T1.1 lands to avoid concurrent edits to product_detail_screen.dart. |
+| 2026-04-29 | Claude | T1.3 (Risk-gated Fit core logic) shipped. New `lib/services/fit_score/fit_display.dart` — pure-function helper with sealed `FitDisplay` hierarchy (`FitStrongMatch` / `FitGoodMatch` / `FitLimitedFit` / `FitNotRecommended` / `FitHidden` / `FitIncomplete`). Risk-gate runs first (Avoid/Contraindicated → Hidden regardless of score), then incomplete-profile check, then score banding via public `FitDisplayThresholds` (85/60/35). Caution/Monitor/Informational pass through the gate untouched. 21 unit tests across 5 groups including explicit boundary tests. Started T1.3 first because it's a pure-function helper with no upstream dependency on Apple-grade F.0/F.1/F.2. Test count 781 → 802 (the +1 over the Sprint 27.21 baseline 780 came from this session's earlier `a06bd22` PGFrostedHeader platform-glass commit). |
 
 ---
 

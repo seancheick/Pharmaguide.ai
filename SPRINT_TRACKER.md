@@ -98,16 +98,26 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
 | **2 — Refinement Polish** | 6 tasks | ⏸ Pending Sprint 1 |
 | **3 — Backend Foundation** (excipient ontology, prose `score_bonuses[].detail`, percentile ranking, editorial summaries — most pipeline-side) | 7 tasks | ⏸ Pending data work |
 
-### Cross-references between the two initiatives
+### Cross-references between the two initiatives + Apple-grade visual polish track
 
-- **OTA activation strategy:** Stack Intelligence's original "no mid-session catalog swap" locked rule was retired on 2026-04-29 in favor of Trust & IA T0.6's validation-gated in-session swap. Stack Intelligence Track D D3 now points at T0.6 as source of truth. See either initiative's update log for the full retirement rationale.
-- **Stack Intelligence A6 ↔ Trust & IA T0.6:** A6 was scoped to the "bundle no longer copies after first install" defect (fixed regardless of activation strategy). T0.6 is the activation-model resolution. A6 is `[x]` because the bundle bug is fixed; the activation snackbar belongs to T0.6.
+- **OTA activation strategy:** Stack Intelligence's original "no mid-session catalog swap" locked rule was retired on 2026-04-29 in favor of Trust & IA T0.6's validation-gated in-session swap. Stack Intelligence Track D D3 now points at T0.6 as source of truth.
+- **Stack Intelligence A6 ↔ Trust & IA T0.6:** A6 was scoped to the "bundle no longer copies after first install" defect (fixed regardless of activation strategy). A6 is `[x]`; activation snackbar belongs to T0.6.
+- **Apple-grade × Trust & IA Sprint 1 — merged plan (2026-04-29).** Trust/IA owns *what goes where*; Apple-grade owns *how it looks*. The other team is running Apple-grade visual polish in parallel sprints (Sprint 27.21 just shipped Phase 0 + A + B.1 + B.2 + C.1, 9 commits, +44 tests landing the suite at 780 green). Decisions:
+  - 🔁 **Folded into Sprint 1**: Apple-grade B.3a hero refactor → T1.1 (revised score-led hero); F.4 Quality Score card → T1.4 (rescoped, donut dropped); F.5 "For You" card → T1.2 (visual approach reused, content model corrected). Their team is skipping these tasks; we own them with the merged spec.
+  - 🚫 **Dropped from Apple-grade**: F.3 PGIngredientAtom + F.6 atom row — decorative for medical-grade context (T1.5 verbose rows + chip pattern is correct).
+  - 🔼 **Promoted to other team's top-of-queue (blocking us)**: F.0 data audit (gates T1.4); F.1 audit decision (`pg_score_ring` reuse vs new PGDonutChart); F.2 PGPillarBar primitive (T1.4 consumes).
+  - ⏸ **Serialized after T1.1**: Apple-grade B.3b frosted SliverAppBar + share — same file as T1.1 hero refactor, runs after to avoid concurrent edits.
+  - ✅ **Independent**: Apple-grade C.2/C.3/D.1/D.2/E.1/E.2 — interleave on the other team's schedule; no overlap with Sprint 1.
+  - **PGFrostedHeader vs PGFrostedAppBar**: investigated — NOT duplicates. PGFrostedHeader = visual surface primitive (glass/tonal/hairline); PGFrostedAppBar = AppBar composition that wraps PGFrostedHeader. Both kept. Platform-aware glass treatment landed on `main` 2026-04-29 commit `a06bd22` — every consumer (PGFrostedAppBar + home search header + B.1 Profile Setup) inherits iOS-true-glass / Android-tonal-surface automatically.
 
-### Coding sequence locked with Sean (2026-04-29)
+### Coding sequence locked with Sean (2026-04-29, revised)
 
 1. ~~Track D leftovers (D1 + D2 + D4)~~ ✅ Done 2026-04-29 — see Track D row above.
-2. **Now:** Trust & IA Sprint 1 — Product Screen IA Refactor (10–12 dev days, T1.1 → T1.16).
-3. **Later:** Enhance Track C (Clinician Share Report) — already shipped baseline; future work fleshes out clinician-share UX based on real-device feedback.
+2. **Now:** Trust & IA Sprint 1 — Product Screen IA Refactor (10–12 dev days, T1.1 → T1.16). Starting with **T1.3 (Risk-gated Fit core logic)** because it's a pure-function helper with no upstream dependency — does not need to wait on Apple-grade F.0/F.1/F.2.
+3. **Then T1.1 + T1.2** once Apple-grade F.0 audit verdict + F.1 ring/donut decision land (other team's next chunk).
+4. **Then T1.4** once Apple-grade F.2 PGPillarBar primitive lands.
+5. **Then T1.5–T1.16** in spec order.
+6. **Later:** Enhance Track C (Clinician Share Report) — already shipped baseline; future work fleshes out clinician-share UX based on real-device feedback.
 
 ### Owed back to Sean (parallel to coding)
 
