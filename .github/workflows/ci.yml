@@ -17,7 +17,14 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # The catalog DBs (assets/db/*.db, *.sqlite) ship via Git LFS —
+      # actions/checkout@v4 fetches LFS pointer files by default, which
+      # causes downstream sqlite3 calls to fail with
+      # "file is not a database". 26 of the data-layer tests depend on
+      # the real bundle. Set lfs: true to materialize the actual files.
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - uses: subosito/flutter-action@v2
         with:
