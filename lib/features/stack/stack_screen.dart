@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
@@ -26,6 +27,7 @@ import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
 import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 
 /// Look up a single product from the core DB — used by stack item cards
 /// to resolve brand name + score from dsldId.
@@ -273,6 +275,7 @@ class _StackSummaryCard extends ConsumerWidget {
     // card so both screens stay aligned on the user's current stack status.
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
+    final recallAsync = ref.watch(recalledIngredientsReportProvider);
     final safetyScore = reportAsync.whenOrNull(
       data: (report) {
         final allIssues = <InteractionResult>[
@@ -305,7 +308,19 @@ class _StackSummaryCard extends ConsumerWidget {
     // more prominently. If still loading, show a shimmering ring with
     // "Analyzing stack…".
     final score = safetyScore?.score.toDouble();
-    final isAnalyzing = reportAsync.isLoading || synergyAsync.isLoading;
+    final intelligence =
+        (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
+            ? const StackIntelligenceEngine().diagnose(
+                stackSize: stack.length,
+                safetyReport: reportAsync.value!,
+                recalledReport: recallAsync.value!,
+                synergyReport: synergyAsync.value!,
+                qualityScore: safetyScore?.score,
+              )
+            : null;
+    final status = intelligence?.tier.healthLabel;
+    final isAnalyzing =
+        reportAsync.isLoading || synergyAsync.isLoading || recallAsync.isLoading;
 
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -328,8 +343,8 @@ class _StackSummaryCard extends ConsumerWidget {
                     Text(
                       isAnalyzing
                           ? 'Analyzing stack\u2026'
-                          : safetyScore != null
-                              ? safetyScore.healthLabel.label
+                          : status != null
+                              ? status.label
                               : 'No data yet',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
@@ -337,7 +352,7 @@ class _StackSummaryCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _describeLoad(stack.length),
+                      _describeSummary(intelligence),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -386,11 +401,56 @@ class _StackSummaryCard extends ConsumerWidget {
     );
   }
 
-  String _describeLoad(int total) {
-    if (total <= 3) return 'Light — well within recommended ranges';
-    if (total <= 6) return 'Moderate — watch for nutrient overlap';
-    if (total <= 10) return 'Heavy — review interactions carefully';
-    return 'Very heavy — consult a healthcare provider';
+  String _describeSummary(StackIntelligence? intelligence) {
+    if (intelligence == null) {
+      return 'Reviewing interactions, recall alerts, and nutrient overlap.';
+    }
+
+    switch (intelligence.tier) {
+      case StackTier.unsafe:
+        if (intelligence.hasBannedIngredient) {
+          return 'Banned ingredient found — review immediately.';
+        }
+        if (intelligence.hasRecalledIngredient) {
+          return 'Recalled ingredient found — review immediately.';
+        }
+        if (intelligence.hasContraindicatedInteraction) {
+          return 'Contraindicated interaction found — review immediately.';
+        }
+        return 'High-risk issue found — review immediately.';
+      case StackTier.concerning:
+        if (intelligence.interactionCount > 0 &&
+            intelligence.nutrientWarningCount > 0) {
+          return '${intelligence.interactionCount} interaction'
+              '${intelligence.interactionCount == 1 ? '' : 's'} and '
+              '${intelligence.nutrientWarningCount} nutrient warning'
+              '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
+        }
+        if (intelligence.interactionCount > 0) {
+          return '${intelligence.interactionCount} interaction'
+              '${intelligence.interactionCount == 1 ? '' : 's'} need review.';
+        }
+        if (intelligence.nutrientWarningCount > 0) {
+          return '${intelligence.nutrientWarningCount} nutrient warning'
+              '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
+        }
+        return 'Important issues found — review this stack.';
+      case StackTier.decent:
+        if (intelligence.interactionCount > 0) {
+          return '${intelligence.interactionCount} interaction'
+              '${intelligence.interactionCount == 1 ? '' : 's'} worth reviewing.';
+        }
+        if (intelligence.nutrientWarningCount > 0) {
+          return '${intelligence.nutrientWarningCount} nutrient warning'
+              '${intelligence.nutrientWarningCount == 1 ? '' : 's'} worth reviewing.';
+        }
+        return 'Some concerns are worth reviewing.';
+      case StackTier.solid:
+      case StackTier.optimized:
+        return 'No major safety issues detected right now.';
+      case StackTier.incomplete:
+        return 'Add more information to diagnose this stack.';
+    }
   }
 }
 
