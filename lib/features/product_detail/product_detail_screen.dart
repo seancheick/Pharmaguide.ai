@@ -34,6 +34,7 @@ import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
@@ -2122,31 +2123,22 @@ class _DetailSection extends ConsumerWidget {
         if (inactiveIngredients.isNotEmpty) ...[
           _sectionTitle(theme, 'Other Ingredients', inactiveIngredients.length),
           const SizedBox(height: 8),
+          // T1.5 — inactive chips are now tappable. Tapping a chip
+          // opens a bottom sheet explaining the ingredient's role
+          // (capsule shell, anti-caking agent, sweetener, etc.).
+          // Lookup table lives in `ingredients_section.dart` next to
+          // the chip widget. Unknown names fall back to a generic
+          // "added during manufacturing" copy so no chip is a
+          // dead-end.
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
               ...visibleInactives.map((ing) {
-                final name =
-                    ing['name']?.toString() ??
+                final name = ing['name']?.toString() ??
                     ing['raw_source_text']?.toString() ??
                     '';
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                  ),
-                  child: Text(
-                    name,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                );
+                return InactiveIngredientChip(name: name);
               }),
               if (hiddenInactivesCount > 0)
                 Container(
