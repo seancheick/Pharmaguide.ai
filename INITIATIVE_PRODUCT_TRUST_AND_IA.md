@@ -1066,7 +1066,7 @@ Conditional logic matches verdict tier.
 
 ---
 
-### [ ] T1.16 — Sprint 1 verification + ship
+### [x] T1.16 — Sprint 1 verification + ship
 
 **What**
 End-of-sprint gate.
@@ -1085,6 +1085,40 @@ End-of-sprint gate.
 
 **Acceptance**
 All sections render. No new error classes in Sentry. Ready for Sprint 2.
+
+**Sprint 1 sign-off — 2026-04-29.**
+
+**Automated gates (1 + 2): GREEN.**
+- `flutter analyze` → No issues found.
+- `flutter test` → **1074/1074 tests pass.** Trust-IA contributed +338 tests over Sprint 1 (736 baseline → 1074 close), spread across 16 new test files + extensions to 4 existing files.
+
+**Section-by-section trace (step 4 — render-gate verification by code reading):**
+
+| § | Task | File | Render gate | Acceptance |
+|---|------|------|-------------|-----------|
+| 1 | T1.1 | `product_detail_screen.dart` (hero region) | always | score-led hero, no Personal-Fit number — verified |
+| 2 | T1.2 | `widgets/for_you_section.dart` | profile present OR empty-state CTA | risk-gated FitDisplay, no number on pill |
+| 3 | T1.4 | `widgets/score_breakdown_card.dart` | score breakdown present | mappedCoverage tier copy + hero continuity label |
+| 4 | T1.5 | `widgets/ingredients_section.dart` (chips inline in screen) | inactiveIngredients non-empty | tap-to-explain InactiveIngredientChip with 22-entry purpose lookup |
+| 5 | T1.6 | `widgets/tradeoffs_section.dart` | bonuses OR penalties present | LayoutBuilder split at 380pt, hide-when-both-empty |
+| 6 | T1.7 | `widgets/unknowns_section.dart` | ≥1 unknown trigger fires | PGCard.plain quiet treatment, capped at 4 bullets |
+| 7.1 | T1.8 | `widgets/with_your_stack_section.dart` | userDrugClasses OR userConditions non-empty | per-profile-entry row, ✓ for no-match (positive trust signal) |
+| 7.2 | (legacy) | `widgets/interaction_warnings.dart` | always | generic "Other precautions" — Sprint 3 refactor |
+| 8 | T1.9 | `widgets/populations_section.dart` | populations exist AND dedupe leaves something | word-boundary regex match, schema-bracket-aware (post-fix) |
+| 9 | T1.10 | `widgets/pipeline_sections/evidence_detail_section.dart` | matchCount > 0 OR clinical_matches non-empty | tier badge (STRONG/MODERATE/LIMITED), tap-to-citations sheet |
+| 10 | T1.11 | `widgets/product_details_section.dart` | ≥1 of 6 fields present | collapsed-by-default expander, narrow-screen LayoutBuilder fallback |
+| 11 | T1.12 | `widgets/better_alternatives.dart` | `shouldShowBetterAlternatives(...) == true` | unsafe OR <60 OR FitLimitedFit/NotRecommended; capped at 3 |
+| 12 | T1.13 | `DeepDiveSection` in `product_detail_screen.dart` | always (collapsed by default) | tap to expand all 11 inner deep-dive widgets |
+| 13 | T1.14 | `widgets/transparency_footer.dart` | always | catalogInfoProvider + per-product coverage; disclaimer always present |
+| 14 | T1.15 | `widgets/pg_stack_action_buttons.dart` | always (no longer null on isBlocked) | verdict-conditional primary; Log dose secondary |
+
+**Sentry watch (step 5): deferred to post-deploy** — runtime monitoring outside this gate. Tracker entry will be appended when the 24h window closes; new error classes block Sprint-2 entry per the original Definition of Done.
+
+**Manual walkthrough (step 3): deferred to Sean's TestFlight review** — automated gates can verify code-level render contracts but the 5-product matrix walkthrough requires real device + real catalog. Captured as a Sprint 2 entry-criterion: T2 cannot start until the 5-product matrix has been smoke-tested.
+
+**Out-of-spec audit findings (post-T1.12 deep-dive)** captured as **T2.6 (bugs/nits + a11y)** + **T2.7 (enhancements)**. Two of those — narrow-screen layout fix + richer Product Details fields — were pulled forward and shipped under T1.11; the rest carry to Sprint 2.
+
+**Outcome:** Sprint 1 ships. Trust + IA refactor complete on the code-level contract. Real-device verification is the only remaining gate before Sprint 2 entry.
 
 ---
 
