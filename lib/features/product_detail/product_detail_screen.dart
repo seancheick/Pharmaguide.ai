@@ -1530,15 +1530,37 @@ class _HeaderSection extends ConsumerWidget {
                   // even at this size (the default multi-row "full card"
                   // layout above 56pt is sized for list items and overflows
                   // when stretched to hero proportions).
-                  ProductImage(
-                    dsldId: dsldId,
-                    upc: upc,
-                    productName: productName,
-                    brandName: brandName,
-                    formFactor: formFactor,
-                    score: score100,
-                    size: 96,
-                    compact: true,
+                  //
+                  // G.2 — Hero wrap with tag matching the source thumbnails
+                  // in home_recent_scans (carousel card + Show-all sheet).
+                  // The user sees the image fly from a 48pt source to this
+                  // 96pt destination — App Store / Apple Health signature
+                  // shared-element transition. flightShuttleBuilder uses the
+                  // destination at full 96pt, compact:true so the in-flight
+                  // frame is the larger crop (cleaner mid-flight than
+                  // bilinear-scaling a 48pt source up).
+                  Hero(
+                    tag: 'product-$dsldId',
+                    flightShuttleBuilder: (_, __, ___, ____, _____) => ProductImage(
+                      dsldId: dsldId,
+                      upc: upc,
+                      productName: productName,
+                      brandName: brandName,
+                      formFactor: formFactor,
+                      score: score100,
+                      size: 96,
+                      compact: true,
+                    ),
+                    child: ProductImage(
+                      dsldId: dsldId,
+                      upc: upc,
+                      productName: productName,
+                      brandName: brandName,
+                      formFactor: formFactor,
+                      score: score100,
+                      size: 96,
+                      compact: true,
+                    ),
                   ),
                   const SizedBox(width: AppTheme.space16),
                   Expanded(

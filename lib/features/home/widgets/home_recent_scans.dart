@@ -342,16 +342,35 @@ class _RecentScanCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Product image (OFF photo or branded placeholder)
+              // Product image (OFF photo or branded placeholder).
+              // G.2 — Hero wrap gives the image a shared-element flight
+              // when the user taps through to the product detail screen
+              // (which has the matching Hero on its identity-row image).
+              // flightShuttleBuilder uses the source widget verbatim so
+              // the default Material elevation overlay doesn't add a
+              // tinted halo during transit (heavy-feeling on a small
+              // 48pt thumbnail flying to a 96pt destination).
               Center(
-                child: ProductImage(
-                  dsldId: product.dsldId,
-                  upc: product.upcSku,
-                  productName: product.productName,
-                  brandName: product.brandName ?? '',
-                  formFactor: product.formFactor,
-                  score: score,
-                  size: 48,
+                child: Hero(
+                  tag: 'product-${product.dsldId}',
+                  flightShuttleBuilder: (_, __, ___, ____, _____) => ProductImage(
+                    dsldId: product.dsldId,
+                    upc: product.upcSku,
+                    productName: product.productName,
+                    brandName: product.brandName ?? '',
+                    formFactor: product.formFactor,
+                    score: score,
+                    size: 48,
+                  ),
+                  child: ProductImage(
+                    dsldId: product.dsldId,
+                    upc: product.upcSku,
+                    productName: product.productName,
+                    brandName: product.brandName ?? '',
+                    formFactor: product.formFactor,
+                    score: score,
+                    size: 48,
+                  ),
                 ),
               ),
               const SizedBox(height: AppTheme.space6),
@@ -583,14 +602,29 @@ class _RecentScanListTile extends StatelessWidget {
         padding: const EdgeInsets.all(AppTheme.space12),
         child: Row(
           children: [
-            ProductImage(
-              dsldId: product.dsldId,
-              upc: product.upcSku,
-              productName: product.productName,
-              brandName: product.brandName ?? '',
-              formFactor: product.formFactor,
-              score: product.score100Equivalent,
-              size: 48,
+            // G.2 — Hero wrap (same tag as the carousel card and the
+            // product-detail hero). Source surface is the Show-all
+            // sheet; destination is the product detail.
+            Hero(
+              tag: 'product-${product.dsldId}',
+              flightShuttleBuilder: (_, __, ___, ____, _____) => ProductImage(
+                dsldId: product.dsldId,
+                upc: product.upcSku,
+                productName: product.productName,
+                brandName: product.brandName ?? '',
+                formFactor: product.formFactor,
+                score: product.score100Equivalent,
+                size: 48,
+              ),
+              child: ProductImage(
+                dsldId: product.dsldId,
+                upc: product.upcSku,
+                productName: product.productName,
+                brandName: product.brandName ?? '',
+                formFactor: product.formFactor,
+                score: product.score100Equivalent,
+                size: 48,
+              ),
             ),
             const SizedBox(width: AppTheme.space12),
             Expanded(
