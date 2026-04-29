@@ -36,6 +36,7 @@ import 'package:pharmaguide/features/product_detail/providers/fit_score_provider
 import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
@@ -2303,6 +2304,24 @@ class _DetailSection extends ConsumerWidget {
         ),
         if (userConditions.isNotEmpty || userDrugClasses.isNotEmpty)
           const SizedBox(height: AppTheme.space12),
+
+        // T1.9 Section 8 — at-risk populations dedupe. Aggregates
+        // populationWarnings across all warnings, dedupes by string,
+        // filters out entries that match the user's profile (those
+        // are already surfaced in Section 7's WithYourStackSection),
+        // and renders the remainder as "Extra caution for: A, B, C"
+        // with an optional "(already covered for X, Y)" line naming
+        // the user signals that DID match — so the user knows we
+        // considered them, didn't ignore them. Hides entirely when
+        // no populations to show OR when dedupe leaves the list
+        // empty.
+        PopulationsSection(
+          warnings: guardedWarnings,
+          userConditions: userConditions,
+          userDrugClasses: userDrugClasses,
+          ageBracket: ref.watch(profileProvider).ageBracket,
+        ),
+        const SizedBox(height: AppTheme.space12),
 
         // Generic precautions list (FLTR-18 split kept for now —
         // T1.7's per-profile rows above don't replace the generic
