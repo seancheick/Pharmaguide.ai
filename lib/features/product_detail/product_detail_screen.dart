@@ -37,6 +37,7 @@ import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/product_details_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
@@ -541,6 +542,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       scoreEvidenceResearch: _product?.scoreEvidenceResearch,
                       scoreEvidenceResearchMax:
                           _product?.scoreEvidenceResearchMax,
+                      // T1.11 inputs — collapsed Product Details panel.
+                      dosingSummary: _product?.dosingSummary,
+                      servingsPerContainer: _product?.servingsPerContainer,
                     ),
             ),
           ),
@@ -2023,6 +2027,13 @@ class _DetailSection extends ConsumerWidget {
   final double? scoreEvidenceResearch;
   final double? scoreEvidenceResearchMax;
 
+  // T1.11 — Product Details (Section 10). Same decoupling pattern as
+  // the T1.7 trust signals: parent reads off `_product`, we just
+  // render. Manufacturer name still comes from `detailBlob.manufacturer_info`
+  // already in scope here.
+  final String? dosingSummary;
+  final int? servingsPerContainer;
+
   const _DetailSection({
     required this.detailBlob,
     required this.warnings,
@@ -2031,6 +2042,8 @@ class _DetailSection extends ConsumerWidget {
     this.mappedCoverage,
     this.scoreEvidenceResearch,
     this.scoreEvidenceResearchMax,
+    this.dosingSummary,
+    this.servingsPerContainer,
   });
 
   @override
@@ -2331,6 +2344,21 @@ class _DetailSection extends ConsumerWidget {
           warnings: guardedWarnings,
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
+        ),
+
+        // T1.11 Section 10 — Product Details, collapsed by default.
+        // Reference facts (serving size, servings per container,
+        // manufacturer) — low priority. Hides entirely when none of
+        // the three fields have data. Manufacturer name read from
+        // detailBlob.manufacturer_info inline (the parent screen
+        // doesn't carry it as a typed param yet).
+        const SizedBox(height: AppTheme.space12),
+        ProductDetailsSection(
+          servingSize: dosingSummary,
+          servingsPerContainer: servingsPerContainer,
+          manufacturer: (detailBlob?['manufacturer_info']
+                  as Map<String, dynamic>?)?['name']
+              ?.toString(),
         ),
       ],
     );

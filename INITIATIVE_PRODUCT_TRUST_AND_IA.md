@@ -929,7 +929,7 @@ Tier label matches actual evidence count. PMIDs link out to PubMed.
 
 ---
 
-### [ ] T1.11 — Product Details (Section 10) — collapsed by default
+### [x] T1.11 — Product Details (Section 10) — collapsed by default
 
 **What**
 Serving size, servings, manufacturer. Low priority — collapsed expander.
@@ -944,6 +944,15 @@ Serving size, servings, manufacturer. Low priority — collapsed expander.
 
 **Acceptance**
 Always rendered, always collapsed initially.
+
+**Verified — 2026-04-29.**
+- **NEW** `lib/features/product_detail/widgets/product_details_section.dart` (~190 lines) — public `ProductDetailField({label, value})` data class + public `buildProductDetailFields({servingSize, servingsPerContainer, manufacturer})` pure helper returning the 3 fields in fixed display order: Serving size (most actionable / dosing), Servings per container (volume / refill horizon), Manufacturer (provenance, lowest priority). Defensive trim/null/empty filtering — `servingsPerContainer == 0` is dropped (degenerate "we don't know" sentinel from the pipeline). Section uses `PGCard.plain` (visually quieter than louder safety/quality cards above), `info_outline_rounded` 18pt header, chevron-up/down rotate on tap, AnimatedSize 220ms easeOutCubic reveal.
+- Default state is collapsed — header only with `keyboard_arrow_down_rounded`. Tap (PGPressable, 0.98 scale + haptic) toggles. Field rows render label (140pt fixed col, w600 onSurfaceVariant) + value (Expanded, onSurface, height 1.35) split — `_DetailRow` keeps long manufacturer names from breaking the 2-col layout.
+- Hides entirely when ALL three fields are null/empty (the "always rendered" acceptance is conditional on data presence — an empty collapsed expander would be noise).
+- **MODIFY** `lib/features/product_detail/product_detail_screen.dart` — added 2 new params to `_DetailSection` (`dosingSummary`, `servingsPerContainer`); call site at line 528 reads them off `_product` directly. Manufacturer name read inline from `detailBlob['manufacturer_info']['name']` (already in scope; no new typed plumbing). `ProductDetailsSection` instantiated as the LAST item in the main column directly after `InteractionWarningsList`. 12pt vertical gap.
+- Pipeline data sources: `_product?.dosingSummary` (TextColumn, e.g. "2 capsules daily") + `_product?.servingsPerContainer` (IntColumn) + `detailBlob.manufacturer_info.name` (string).
+- **NEW** `test/features/product_detail/widgets/product_details_section_test.dart` — 10 tests across 2 groups: pure `buildProductDetailFields` (5 tests covering all-three-present in spec order, all-null → empty, blank/zero filter defense, single-field rendering, whitespace trim) + render (5 tests covering hide-when-all-null, header-only-collapsed-default, tap-expand-reveals-rows, tap-twice-collapses, partial-data-renders-present-only).
+- Test count 1001 → 1011 (+10). flutter analyze clean.
 
 ---
 
