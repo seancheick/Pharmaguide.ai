@@ -50,12 +50,12 @@
 | **F.4** Pillar card composition *(rescoped)* | ⏳ blocked | — | Runs after Trust/IA T1.4 — `PGCard.plain` + 4× PGPillarBar + coverage strip + reasoning row |
 | **F.5** "For You" card | 🚫 dropped → T1.2 | — | Trust/IA owns; reuses apple-grade visual approach |
 | **F.6** Atom-style ingredients row | 🚫 dropped | — | Same rationale as F.3 |
-| **E.1** Cross-screen smoke tests | ⏳ pending | — | Final phase |
-| **E.2** Final analyze + suite + tracker close | ⏳ pending | — | Sprint close |
+| **E.1** Cross-screen smoke tests | ✅ shipped | `39f34db` | `test/integration/cross_screen_polish_smoke_test.dart` — Stack / Settings / Profile Setup / Quick Check assert frosted top chrome (PGFrostedAppBar OR PGFrostedHeader-in-PreferredSize); 4/4 pass |
+| **E.2** Final analyze + suite + tracker close | ✅ shipped | this commit | `flutter analyze` clean · `flutter test` 890/890 · sprint sealed |
 
-**Verification (live):** `flutter analyze` clean · `flutter test` 850+/850+ pass · 21 apple-grade commits + 3 cross-team merges with Trust/IA on `origin/main`.
+**Verification (sprint close, 2026-04-29):** `flutter analyze` → No issues found · `flutter test` → **890/890 tests pass** (up from 736 in Sprint 27.20 — **+154 net** across all parallel work) · **24 apple-grade commits + 3 cross-team merges** with Trust/IA on `origin/main`.
 
-**Active queue:** E.1 → E.2 (sprint close). F.4 holds until Trust/IA T1.4 lands.
+**Sprint 27.21 status: ✅ CLOSED on apple-grade side.** Remaining holds (F.4 visual integration) are tracked but blocked on Trust/IA T1.4 — not part of this sprint's sign-off.
 
 ---
 
