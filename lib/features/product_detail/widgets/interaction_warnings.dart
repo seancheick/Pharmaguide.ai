@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
@@ -848,7 +849,7 @@ class _OtherPrecautionsSection extends StatelessWidget {
                 const Spacer(),
                 AnimatedRotation(
                   turns: expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 180),
+                  duration: AppMotion.fast,
                   child: Icon(
                     Icons.expand_more_rounded,
                     size: 22,
@@ -921,8 +922,8 @@ class _OtherPrecautionsSection extends StatelessWidget {
             ),
           ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
+          duration: AppMotion.fast,
+          curve: AppMotion.standard,
           child: expanded
               ? Padding(
                   padding: const EdgeInsets.only(top: AppTheme.space8),

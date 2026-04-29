@@ -4,6 +4,7 @@
 // Now expandable: tap to see which supplements contribute and how much.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -84,7 +85,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                         const SizedBox(width: 2),
                         AnimatedRotation(
                           turns: _expanded ? 0.5 : 0.0,
-                          duration: const Duration(milliseconds: 200),
+                          duration: AppMotion.fast,
                           child: Icon(
                             Icons.expand_more,
                             size: 14,
@@ -141,7 +142,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
 
             // Expandable per-supplement breakdown
             AnimatedCrossFade(
-              duration: const Duration(milliseconds: 200),
+              duration: AppMotion.fast,
               crossFadeState: _expanded
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,

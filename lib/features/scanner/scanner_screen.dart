@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
@@ -229,7 +230,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ignoring: !_showFlash,
             child: AnimatedOpacity(
               opacity: _showFlash ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
+              duration: AppMotion.fast,
               child: Container(
                 color: (_flashColor ?? Colors.transparent).withAlpha(180),
                 child: Center(

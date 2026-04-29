@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/util/ingredient_display.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
@@ -349,7 +350,7 @@ class _ExpandableSectionBarState extends State<_ExpandableSectionBar> {
                     const SizedBox(width: 4),
                     AnimatedRotation(
                       turns: _expanded ? 0.5 : 0.0,
-                      duration: const Duration(milliseconds: 200),
+                      duration: AppMotion.fast,
                       child: Icon(
                         Icons.expand_more,
                         size: 16,
@@ -386,7 +387,7 @@ class _ExpandableSectionBarState extends State<_ExpandableSectionBar> {
 
           // Expanded explanation
           AnimatedCrossFade(
-            duration: const Duration(milliseconds: 200),
+            duration: AppMotion.fast,
             crossFadeState:
                 _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),

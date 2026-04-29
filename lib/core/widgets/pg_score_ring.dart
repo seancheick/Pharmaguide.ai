@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 
 /// Animated circular score ring — replaces the flat `Container + Text` score
@@ -46,7 +47,7 @@ class _PGScoreRingState extends State<PGScoreRing>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _anim = CurvedAnimation(parent: _ctrl, curve: AppMotion.standard);
     // initState can't read MediaQuery; didChangeDependencies handles that.
   }
 

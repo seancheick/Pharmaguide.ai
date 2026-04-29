@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_progress_bar.dart';
@@ -191,7 +192,7 @@ class _ShowMoreRow extends StatelessWidget {
             const SizedBox(width: 4),
             AnimatedRotation(
               turns: expanded ? 0.5 : 0,
-              duration: const Duration(milliseconds: 180),
+              duration: AppMotion.fast,
               child: Icon(
                 Icons.expand_more_rounded,
                 size: 18,

@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
 
 /// Frosted-glass header surface that sits above scrollable content.
 ///
@@ -63,8 +64,8 @@ class PGFrostedHeader extends StatelessWidget {
     // crossfade for free.
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: target),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: AppMotion.medium,
+      curve: AppMotion.standard,
       builder: (context, p, _) {
         // iOS/macOS use true glass. Android gets a tonal elevated surface
         // with the same rhythm but no transplanted iPhone blur treatment.
