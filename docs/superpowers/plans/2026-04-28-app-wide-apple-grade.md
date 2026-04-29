@@ -47,15 +47,22 @@
 | **F.1** PGScoreRing reuse vs PGDonutChart | ✅ 🟢 REUSE | `76285f3` (findings) | Existing PGScoreRing covers the T1.1 contract; no new primitive |
 | **F.2** PGPillarBar primitive | ✅ shipped | `add240b` | 6 widget tests; T1.4 unblocked |
 | **F.3** PGIngredientAtom | 🚫 dropped | — | Atom pills decorative for medical-grade context |
-| **F.4** Pillar card composition *(rescoped)* | ⏳ blocked | — | Runs after Trust/IA T1.4 — `PGCard.plain` + 4× PGPillarBar + coverage strip + reasoning row |
+| **F.4** Pillar card composition *(rescoped → absorbed)* | ✅ absorbed by T1.4 | (Trust/IA `e3959e6`) | T1.4 extended the existing `ScoreBreakdownCard` (already had 4-pillar `_ExpandableSectionBar` UI) with the coverage strip + hero continuity label. PGPillarBar primitive shipped at `add240b` is currently orphaned (no production consumer); kept for future use. |
 | **F.5** "For You" card | 🚫 dropped → T1.2 | — | Trust/IA owns; reuses apple-grade visual approach |
 | **F.6** Atom-style ingredients row | 🚫 dropped | — | Same rationale as F.3 |
 | **E.1** Cross-screen smoke tests | ✅ shipped | `39f34db` | `test/integration/cross_screen_polish_smoke_test.dart` — Stack / Settings / Profile Setup / Quick Check assert frosted top chrome (PGFrostedAppBar OR PGFrostedHeader-in-PreferredSize); 4/4 pass |
-| **E.2** Final analyze + suite + tracker close | ✅ shipped | this commit | `flutter analyze` clean · `flutter test` 890/890 · sprint sealed |
+| **E.2** Final analyze + suite + tracker close | ✅ shipped | `057b894` | `flutter analyze` clean · `flutter test` 890/890 · sprint sealed |
+| **G.1** Animated logo splash intro | ⏳ next-up | — | Native splash already configured (brand teal `#0A7D6F` + `splash_logo.png` 512×512); jumps straight to home with no brand reveal. ~1–2 hrs |
+| **G.2** Hero transitions (scan-card → product detail) | ⏳ next-up | — | Zero `Hero(...)` in `lib/features/`; shared-element flight on the product image. ~1–2 hrs |
+| **G.3** Inline subtitle helper for product hero | ⏳ next-up | — | `Brand · Form · Dose` as one `Text.rich` with dot separators (drops orphan dots). Was held back during B.3c due to T1.x WIP. ~30 min |
+| **G.4** Tighter hero spacing for iPhone SE | ⏳ design call | — | LayoutBuilder fallback to compact hero (smaller image + ring) at `<360pt`. Needs simulator validation. ~1 hr |
+| **G.5** Sprint 28 prep (Tier 2 Research Evidence) | 🚫 backlog (gated) | — | `SPRINT_TRACKER.md` says DO NOT START until pipeline-side Phase 1 ships. Pipeline-gated, not on apple-grade plate. |
 
-**Verification (sprint close, 2026-04-29):** `flutter analyze` → No issues found · `flutter test` → **890/890 tests pass** (up from 736 in Sprint 27.20 — **+154 net** across all parallel work) · **24 apple-grade commits + 3 cross-team merges** with Trust/IA on `origin/main`.
+**Verification (Sprint 27.21 close, 2026-04-29):** `flutter analyze` → No issues found · `flutter test` → **903/903 tests pass** (up from 736 in Sprint 27.20 — **+167 net** across all parallel work) · **27 apple-grade commits + 3 cross-team merges** with Trust/IA on `origin/main`.
 
-**Sprint 27.21 status: ✅ CLOSED on apple-grade side.** Remaining holds (F.4 visual integration) are tracked but blocked on Trust/IA T1.4 — not part of this sprint's sign-off.
+**Sprint 27.21 status: ✅ CLOSED on apple-grade side.** Remaining holds (F.4 visual integration) are blocked on Trust/IA T1.4 — not part of this sprint's sign-off.
+
+**Phase G (post-27.21 follow-ups):** Three "premium-feel" tasks that surfaced during the Sprint 27.21 close audit. Each is independent, low-risk, and additive on top of the shipped apple-grade work. Specs below in **Phase G** section.
 
 ---
 
@@ -2337,3 +2344,370 @@ Total tasks: 2 (Phase 0 — PGFrostedAppBar + PGCircularIconButton) + 3 (A) + 4 
   Ships visible app-wide polish + the new hero in one cohesive release. **F is intentionally deferred**.
 - **Sprint 2 (6–10 hrs)**: F.0 → F.1/F.2/F.3 (parallel) → F.4 → F.5 → F.6
   Only proceeds if F.0's data audit comes back GREEN; otherwise spins out a pipeline ticket and revises scope.
+
+---
+
+## Phase G — Premium-feel follow-ups (added 2026-04-29)
+
+Three "premium-feel" tasks that surfaced during the Sprint 27.21 close audit against the dev-team critique. Each is independent, low-risk, and additive on top of the shipped apple-grade work. G.4 is held for design call; G.5 is pipeline-gated.
+
+### Task G.1: Animated logo splash intro
+
+**Why:** Native splash is already configured (`pubspec.yaml:73`, brand teal `#0A7D6F` + `assets/images/splash_logo.png` 512×512). Today the app jumps from the native splash straight to home with no brand reveal moment. The dev critique called this out as the **#1 premium-feel gap**. A 600ms logo scale-up + fade-in between the native splash and the home screen creates a continuous, polished hand-off — the hallmark of first-party iOS apps.
+
+**Files:**
+- Create: `lib/features/splash/animated_splash_screen.dart`
+- Modify: `lib/main.dart` — initial route swap (home → animated splash → home)
+- Modify: `lib/core/constants/routes.dart` — add `splashIntro` route name
+- Create: `test/features/splash/animated_splash_test.dart`
+
+**Asset prerequisites:**
+- `assets/images/splash_logo.png` already exists at 512×512. **Replace with a higher-resolution version** (recommend 1024×1024 PNG with transparent background, logo centered with ≥10% padding margin so it doesn't crop on circular icon masks).
+- Same logo file used by both native splash AND animated splash for visual continuity (pixel-perfect hand-off).
+
+**Steps:**
+
+- [ ] **Step 1: Confirm logo asset is the upgraded version** (1024×1024 PNG, transparent bg, ≥10% padding).
+
+- [ ] **Step 2: Build `AnimatedSplashScreen` widget**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/app_motion.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+
+/// Animated splash intro — the bridge between the native splash
+/// (handled by `flutter_native_splash`) and the home screen.
+///
+/// Native splash → animated splash (600ms scale-up + fade-in) → home.
+/// Native and animated splashes share the same brand-teal background
+/// (`#0A7D6F`) and the same logo image (`assets/images/splash_logo.png`)
+/// so the hand-off is pixel-perfect — the user sees a single continuous
+/// brand moment.
+///
+/// Reduce-motion (Accessibility → Reduce Motion) suppresses the
+/// scale + fade and jumps straight to home after a 200ms delay
+/// (just enough to register a brand impression, no animation).
+///
+/// Spec: docs/superpowers/plans/2026-04-28-app-wide-apple-grade.md (G.1)
+class AnimatedSplashScreen extends StatefulWidget {
+  const AnimatedSplashScreen({super.key});
+
+  @override
+  State<AnimatedSplashScreen> createState() => _AnimatedSplashScreenState();
+}
+
+class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+  late final Animation<double> _fade;
+  bool _reduceMotionChecked = false;
+
+  // Brand teal — must match flutter_native_splash:color in pubspec.yaml.
+  static const Color _splashBackground = Color(0xFF0A7D6F);
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _scale = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: AppMotion.standard),
+    );
+    _fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeIn),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_reduceMotionChecked) return;
+    _reduceMotionChecked = true;
+    final reduceMotion =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduceMotion) {
+      // Skip the animation; brief brand-impression delay before navigating.
+      Future.delayed(const Duration(milliseconds: 200), _goHome);
+    } else {
+      _ctrl.forward().then((_) {
+        // Tiny haptic tick at the end of the animation — Apple's
+        // signature "we noticed you arrived" detail.
+        PGHaptics.tap(context);
+        _goHome();
+      });
+    }
+  }
+
+  void _goHome() {
+    if (!mounted) return;
+    GoRouter.of(context).go(Routes.home);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: _splashBackground,
+        body: Center(
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, _) {
+              return Opacity(
+                opacity: _fade.value,
+                child: Transform.scale(
+                  scale: _scale.value,
+                  child: Image.asset(
+                    'assets/images/splash_logo.png',
+                    width: 180,
+                    height: 180,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Wire into the router**
+
+In `lib/core/constants/routes.dart`, add:
+```dart
+static const splashIntro = '/splash';
+```
+
+In whichever file owns the `GoRouter` configuration, add an entry:
+```dart
+GoRoute(
+  path: Routes.splashIntro,
+  builder: (context, state) => const AnimatedSplashScreen(),
+),
+```
+
+In the router's `redirect` or initial-route logic, route `/` → `splashIntro` ON FIRST APP LAUNCH ONLY. Use `SharedPreferences` (or the existing onboarding-prefs service) to ensure subsequent app launches go directly to home without the splash. The brand reveal is a "first impression" moment, not a recurring delay.
+
+- [ ] **Step 4: Write widget tests**
+
+```dart
+testWidgets('AnimatedSplashScreen navigates to home after animation',
+    (tester) async {
+  await tester.pumpWidget(
+    const MaterialApp(home: AnimatedSplashScreen()),
+  );
+  // Logo + brand background visible at frame 0.
+  expect(find.byType(Image), findsOneWidget);
+  // Pump past the 600ms animation.
+  await tester.pumpAndSettle(const Duration(milliseconds: 700));
+  // Navigation triggered — screen unmounted (or replaced).
+});
+
+testWidgets('reduce-motion skips the scale/fade and routes after 200ms',
+    (tester) async {
+  await tester.pumpWidget(
+    MediaQuery(
+      data: const MediaQueryData(disableAnimations: true),
+      child: const MaterialApp(home: AnimatedSplashScreen()),
+    ),
+  );
+  // No animation; should hit the 200ms delay then navigate.
+});
+```
+
+- [ ] **Step 5: Run analyze + tests + commit**
+
+```
+flutter analyze
+flutter test test/features/splash/
+git add lib/features/splash/ lib/main.dart lib/core/constants/routes.dart \
+        test/features/splash/
+git commit -m "feat(splash): animated logo intro between native splash and home"
+```
+
+### Task G.2: Hero transitions for scan-card → product detail
+
+**Why:** Tapping a recent-scan card on home today pushes the product-detail screen with the product image just appearing — no continuity. Adding a `Hero(tag: 'product-${dsldId}')` on both ends gives shared-element flight: the image visibly travels from the card to the detail-screen identity row. App Store / Apple Health signature move.
+
+**Files:**
+- Modify: `lib/features/home/widgets/home_recent_scans.dart` — wrap the `ProductImage` in each card in `Hero(tag: ...)`
+- Modify: `lib/features/search/search_screen.dart` — same wrap on result-tile product images
+- Modify: `lib/features/stack/stack_screen.dart` — same wrap on stack-item product images
+- Modify: `lib/features/product_detail/product_detail_screen.dart` — wrap the hero `ProductImage` in `Hero(tag: 'product-${dsldId}')` on the receiving end
+
+**Steps:**
+
+- [ ] **Step 1: Pick a tag scheme** — `'product-${dsldId}'` is the natural unique identifier. Document it as a constant somewhere reusable (e.g. `static const String heroTagPrefix = 'product-';` on `ProductImage` itself) so call sites can't drift.
+
+- [ ] **Step 2: Wrap each call site**
+
+Pattern:
+```dart
+Hero(
+  tag: 'product-$dsldId',
+  flightShuttleBuilder: (_, animation, __, ___, ____) {
+    // Suppress the default Material elevation flight shuttle which
+    // adds a tinted overlay during transit — looks heavy. Use the
+    // child verbatim instead.
+    return ProductImage(
+      dsldId: dsldId,
+      upc: upc,
+      productName: productName,
+      brandName: brandName,
+      formFactor: formFactor,
+      score: score,
+      size: size,
+    );
+  },
+  child: ProductImage(...),
+)
+```
+
+- [ ] **Step 3: Verify with simulator** — tap a recent scan, confirm the image visibly flies from the card to the detail hero. Tap back, confirm reverse flight works.
+
+- [ ] **Step 4: Add a smoke test**
+
+```dart
+testWidgets('product image has matching Hero tags between recents and detail',
+    (tester) async {
+  // Mount home, capture the Hero tag on a recent scan card.
+  // Tap it, mount the detail screen, confirm a Hero with the same tag
+  // exists on the receiving end.
+});
+```
+
+- [ ] **Step 5: Run analyze + tests + commit**
+
+### Task G.3: Inline subtitle helper for product hero
+
+**Why:** The original B.3a Apple Altar plan called for an inline `Brand · Form · Dose` subtitle as one `Text.rich` with dot separators (e.g. `"Thorne · 60 Capsules · 135 mg per serving"`). The current hero stacks brand + form as two separate `Text` widgets. Inline form is more compact (saves vertical space) and matches the App Store / Apple Health pattern. Held back during B.3c because of T1.x WIP; can ship now that T1.x area is calm.
+
+**Files:**
+- Modify: `lib/features/product_detail/product_detail_screen.dart` — `_HeaderSection` identity column
+
+**Steps:**
+
+- [ ] **Step 1: Add `servingDose` derivation** — if the detail blob's `ingredients[0].dose` is available, surface it as the third subtitle segment. If not, the helper drops the segment cleanly (no orphan dot).
+
+- [ ] **Step 2: Add `_buildSubtitleSpan` + `_hasAnySubtitle` helpers**
+
+```dart
+/// True when at least one subtitle segment has content. Skip rendering
+/// the subtitle row entirely when all three are empty.
+bool _hasAnySubtitle(String brand, String form, String? dose) =>
+    brand.isNotEmpty || form.isNotEmpty || (dose != null && dose.isNotEmpty);
+
+/// Builds the dot-separated subtitle: `Brand  ·  Form  ·  Dose`.
+/// Drops orphan dots — if `brand` is empty but `form` is present,
+/// the result starts with `form`, not ` · form`.
+TextSpan _buildSubtitleSpan({
+  required BuildContext context,
+  required String brand,
+  required String form,
+  String? dose,
+}) {
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final segments = <String>[
+    if (brand.isNotEmpty) brand,
+    if (form.isNotEmpty) form,
+    if (dose != null && dose.isNotEmpty) dose,
+  ];
+  return TextSpan(
+    text: segments.join('  ·  '),
+    style: theme.textTheme.bodyMedium?.copyWith(
+      fontSize: 14,
+      color: scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.05,
+    ),
+  );
+}
+```
+
+- [ ] **Step 3: Replace the stacked brand/form Text widgets**
+
+Replace the existing `if (brandName.isNotEmpty) ... + if (formFactor.isNotEmpty) ...` blocks in `_HeaderSection.build`'s identity column with:
+
+```dart
+if (_hasAnySubtitle(brandName, formFactor, /* dose */ null)) ...[
+  const SizedBox(height: 4),
+  Text.rich(
+    _buildSubtitleSpan(
+      context: context,
+      brand: brandName,
+      form: formFactor,
+      dose: null, // wire up from blob later if dose data is reliable
+    ),
+    maxLines: 2,
+    overflow: TextOverflow.ellipsis,
+  ),
+],
+```
+
+- [ ] **Step 4: Run analyze + tests + commit**
+
+### Task G.4: Tighter hero spacing for iPhone SE
+
+**Why:** At iPhone SE (320pt), the 96pt image + 96pt ring + AppTheme.space20 gaps may feel cramped. Defensive `LayoutBuilder` fallback to a compact mode (e.g. 80pt image + 80pt ring + tighter gaps) at `<360pt` width.
+
+**Files:**
+- Modify: `lib/features/product_detail/product_detail_screen.dart` — `_HeaderSection`
+
+**Steps:**
+
+- [ ] **Step 1: Validate on simulator first** — iPhone SE (3rd gen, 320pt) at default + 1.4× Dynamic Type. Decide whether the cramping is real or cosmetic.
+
+- [ ] **Step 2: If real, wrap the hero in `LayoutBuilder`**
+
+```dart
+return LayoutBuilder(
+  builder: (context, constraints) {
+    final isCompact = constraints.maxWidth < 360;
+    final imageSize = isCompact ? 80.0 : 96.0;
+    final ringSize = isCompact ? 80.0 : 96.0;
+    final altarTopGap = isCompact ? AppTheme.space12 : AppTheme.space20;
+    // ... use these instead of hardcoded sizes ...
+  },
+);
+```
+
+- [ ] **Step 3: Add a golden test for both widths** if your codebase has goldens; otherwise widget tests asserting size at narrow vs wide.
+
+- [ ] **Step 4: Run analyze + tests + commit**
+
+### Task G.5: Sprint 28 prep (Tier 2 Research Evidence)
+
+**Why:** Listed in `SPRINT_TRACKER.md` as `BACKLOG: DO NOT START until pipeline-side Phase 1 ships`. Pipeline-gated, not on apple-grade plate. Logged here for completeness; the apple-grade team will revisit when the pipeline RXCUI bridge lands.
+
+**Status:** ⏸ Backlog — gated on pipeline Phase 1 (PubMed verification + duplicate cleanup + RXCUI bridge in `scripts/ingest_suppai.py`). See `SPRINT_TRACKER.md` Sprint 28 entry for full scope.
+
+---
+
+## Phase G execution order
+
+| Priority | Task | Est | Notes |
+|---|---|---|---|
+| 1 | **G.3** Inline subtitle helper | 30 min | Smallest, lowest-risk win; finishes the Apple Altar story |
+| 2 | **G.1** Animated logo splash | 1–2 hrs | Highest "premium feel" payoff per hour. **Blocks on Sean uploading the upgraded `splash_logo.png`** to `assets/images/`. |
+| 3 | **G.2** Hero transitions | 1–2 hrs | Signature shared-element flight on tap-through |
+| 4 | **G.4** Tighter SE spacing | 1 hr | Defensive — needs simulator validation first |
+| 5 | ~~**G.5** Tier 2 Research~~ | — | Pipeline-gated; not on this plan |
