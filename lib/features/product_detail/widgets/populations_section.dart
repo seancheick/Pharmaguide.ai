@@ -172,13 +172,33 @@ String? _matchSignal(String population, Set<String> userSignals) {
 }
 
 /// Map an age-bracket profile string to the canonical population
-/// signal ID. E.g. "under_18" → "under_18", "65_plus" → "over_65".
+/// signal ID.
+///
+/// Production input comes from `profileProvider.ageBracket`, which
+/// stores one of `SchemaIds.ageBrackets` verbatim:
+///   ['14-18', '19-30', '31-50', '51-70', '71+']
+///
+/// Only `'14-18'` and `'71+'` map cleanly to the "Under 18" / "Over 65"
+/// population signals. `'51-70'` deliberately stays unmapped — its
+/// 51-64 majority would be miscategorised as "elderly" and silently
+/// suppress legitimate warnings.
+///
+/// Also accepts canonical-looking inputs (`'under_18'`, `'over_65'`,
+/// `'children'`, `'elderly'`, ...) for tests and any future caller
+/// that already passes a normalised signal token.
 String _ageBracketToSignal(String bracket) {
   final normalized = bracket.toLowerCase().trim();
+
+  // Schema bracket strings (the real production input).
+  if (normalized == '14-18') return 'under_18';
+  if (normalized == '71+') return 'over_65';
+
+  // Canonical / fuzzy fallback.
   if (normalized.startsWith('under') || normalized.contains('child')) {
     return 'under_18';
   }
-  if (normalized.contains('65') || normalized.contains('over')) {
+  if (normalized.contains('65') || normalized.contains('over') ||
+      normalized.contains('elderly') || normalized.contains('geriatric')) {
     return 'over_65';
   }
   return '';

@@ -178,6 +178,66 @@ void main() {
       expect(s.alreadyCovered, ['Under 18']);
     });
 
+    test('age bracket — schema "14-18" maps to under_18 signal', () {
+      // Regression: SchemaIds.ageBrackets stores '14-18' verbatim and
+      // it flows directly into this helper. Earlier mapping only
+      // checked startsWith('under')/contains('child'/'65'/'over'), so
+      // every real production user fell through to '' and dedupe never
+      // fired.
+      final s = splitPopulations(
+        populations: const ['Children should avoid', 'Pregnant women'],
+        userConditions: const {},
+        userDrugClasses: const {},
+        ageBracket: '14-18',
+      );
+      expect(s.mainList, ['Pregnant women']);
+      expect(s.alreadyCovered, ['Under 18']);
+    });
+
+    test('age bracket — schema "71+" maps to over_65 signal', () {
+      final s = splitPopulations(
+        populations: const ['Older adults should monitor closely', 'Children'],
+        userConditions: const {},
+        userDrugClasses: const {},
+        ageBracket: '71+',
+      );
+      expect(s.mainList, ['Children']);
+      expect(s.alreadyCovered, ['Over 65']);
+    });
+
+    test('age bracket — "51-70" deliberately stays unmapped', () {
+      // 51-70 spans 51-64 (not elderly) and 65-70 (elderly). Mapping
+      // it would silently suppress legitimate warnings for the
+      // majority of the bracket. Conservative call: leave it
+      // unmapped so warnings still surface.
+      final s = splitPopulations(
+        populations: const ['Older adults should monitor closely'],
+        userConditions: const {},
+        userDrugClasses: const {},
+        ageBracket: '51-70',
+      );
+      expect(s.mainList, ['Older adults should monitor closely']);
+      expect(s.alreadyCovered, isEmpty);
+    });
+
+    test('age bracket — middle-age brackets do not match either signal',
+        () {
+      for (final b in ['19-30', '31-50']) {
+        final s = splitPopulations(
+          populations: const ['Children should avoid'],
+          userConditions: const {},
+          userDrugClasses: const {},
+          ageBracket: b,
+        );
+        expect(
+          s.mainList,
+          ['Children should avoid'],
+          reason: 'bracket "$b" should not map',
+        );
+        expect(s.alreadyCovered, isEmpty);
+      }
+    });
+
     test('dedup — duplicate strings appear once in main list', () {
       final s = splitPopulations(
         populations: const [
