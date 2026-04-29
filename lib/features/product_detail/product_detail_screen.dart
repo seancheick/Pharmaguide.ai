@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
@@ -31,6 +32,8 @@ import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
+import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
+import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
@@ -387,6 +390,39 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
+          // Section 2 ("For You") — T1.2. Consolidates context chips +
+          // verdict + alerts + Why-this-fits expander. Suppressed when
+          // the hero already shows the BLOCKED banner — at that point
+          // the personalization story is moot.
+          // ----------------------------------------------------------------
+          if (!isBlocked)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20,
+                  0,
+                  AppTheme.space20,
+                  AppTheme.space12,
+                ),
+                child: Consumer(
+                  builder: (context, innerRef, _) {
+                    final fitAsync = innerRef.watch(
+                      fitScoreForProductProvider(widget.dsldId),
+                    );
+                    return ForYouSection(
+                      fitResult: fitAsync.asData?.value,
+                      warnings: warnings,
+                      maxSeverity: _maxSeverityOf(warnings),
+                      topGoalLabel: _topGoalLabelFromFit(
+                        fitAsync.asData?.value,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
           // Condition alert banner (interaction summary hint)
           // ----------------------------------------------------------------
           if (interactionHint.isNotEmpty)
@@ -640,6 +676,38 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     if (isBlocked) return true;
     if (isNotScored || score100 == null) return false;
     return score100 < 55;
+  }
+
+  /// Worst-applicable severity across the personalized + blob warnings —
+  /// drives T1.3's risk-gate inside the For You section. Empty list →
+  /// `Severity.safe` (the no-issues baseline).
+  static Severity _maxSeverityOf(List<InteractionWarning> warnings) {
+    Severity worst = Severity.safe;
+    for (final w in warnings) {
+      if (w.severity.weight > worst.weight) worst = w.severity;
+    }
+    return worst;
+  }
+
+  /// Best-effort top goal label (e.g. `"sleep"`) for the verdict
+  /// headline copy. Pulled from the FitScore result's reasons list,
+  /// which the engine already ordered by relevance. Returns null when
+  /// no goal-shaped reason surfaces — the For You section then falls
+  /// back to the generic "your profile" headline.
+  static String? _topGoalLabelFromFit(FitScoreResult? result) {
+    if (result == null) return null;
+    for (final reason in result.reasons) {
+      // FitScoreService stamps goal-match reasons with the canonical
+      // form "Matches your <goal> goal". Anything else (dosage,
+      // medical compatibility, etc.) doesn't fit Section 2's headline
+      // copy and we let it pass through.
+      final m = RegExp(
+        r'your\s+([a-z][a-z\s]*?)\s+goal',
+        caseSensitive: false,
+      ).firstMatch(reason);
+      if (m != null) return m.group(1)?.trim();
+    }
+    return null;
   }
 
   List<Map<String, dynamic>> _topWarnings() {
@@ -1225,7 +1293,10 @@ class _InteractionHint {
 /// Returns an empty string when the input is null, blank, a bare
 /// integer, or "Tier N" (case-insensitive). Otherwise returns the
 /// trimmed input unchanged.
-final RegExp _whyDetailNoise = RegExp(r'^(?:\d+|tier\s+\d+)$', caseSensitive: false);
+final RegExp _whyDetailNoise = RegExp(
+  r'^(?:\d+|tier\s+\d+)$',
+  caseSensitive: false,
+);
 String sanitizeWhyDetail(String? raw) {
   if (raw == null) return '';
   final trimmed = raw.trim();
@@ -1254,7 +1325,8 @@ List<({String label, String detail, bool isPositive})> _extractWhyItems(
       (b) => (
         label: b['label']?.toString() ?? b['reason']?.toString() ?? '',
         detail: sanitizeWhyDetail(
-            b['detail']?.toString() ?? b['description']?.toString()),
+          b['detail']?.toString() ?? b['description']?.toString(),
+        ),
         isPositive: true,
       ),
     ),
@@ -1262,7 +1334,8 @@ List<({String label, String detail, bool isPositive})> _extractWhyItems(
       (p) => (
         label: p['label']?.toString() ?? p['reason']?.toString() ?? '',
         detail: sanitizeWhyDetail(
-            p['detail']?.toString() ?? p['description']?.toString()),
+          p['detail']?.toString() ?? p['description']?.toString(),
+        ),
         isPositive: false,
       ),
     ),
@@ -1379,28 +1452,28 @@ class _HeaderSection extends ConsumerWidget {
           variant: PGCardVariant.elevated,
           padding: const EdgeInsets.all(AppTheme.space16),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Identity row — 96pt image + name / brand / form column.
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 96pt thumbnail — the hero's identity anchor. compact:true
-                // forces BrandedPlaceholder's clean colored-square layout
-                // even at this size (the default multi-row "full card"
-                // layout above 56pt is sized for list items and overflows
-                // when stretched to hero proportions).
-                ProductImage(
-                  dsldId: dsldId,
-                  upc: upc,
-                  productName: productName,
-                  brandName: brandName,
-                  formFactor: formFactor,
-                  score: score100,
-                  size: 96,
-                  compact: true,
-                ),
-                const SizedBox(width: AppTheme.space16),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Identity row — 96pt image + name / brand / form column.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 96pt thumbnail — the hero's identity anchor. compact:true
+                  // forces BrandedPlaceholder's clean colored-square layout
+                  // even at this size (the default multi-row "full card"
+                  // layout above 56pt is sized for list items and overflows
+                  // when stretched to hero proportions).
+                  ProductImage(
+                    dsldId: dsldId,
+                    upc: upc,
+                    productName: productName,
+                    brandName: brandName,
+                    formFactor: formFactor,
+                    score: score100,
+                    size: 96,
+                    compact: true,
+                  ),
+                  const SizedBox(width: AppTheme.space16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1455,10 +1528,10 @@ class _HeaderSection extends ConsumerWidget {
                 const SizedBox(height: AppTheme.space20),
                 // Premium-feel signals: tier-tinted glow, sweep gradient,
                 // count-up animation, and tabular figures all live inside
-                // PGScoreRing. Sized at the proven 88pt + 6pt stroke that
-                // doesn't overflow the inner Column at any animation frame
-                // — bumping to 96 caused a 2.1px overflow on the inner
-                // number Text. The "PG SCORE" label is rendered outside
+                // PGScoreRing. Sized at 96pt × 7pt stroke (the apple-grade
+                // hero altar size; the +1pt thinner stroke vs the natural
+                // 8pt-at-96 scaling avoids 2.1px overflow in PGScoreRing's
+                // inner Column). The "PG SCORE" label is rendered outside
                 // the ring (rather than PGScoreRing's internal `label`
                 // slot) for typographic control + extra breathing room.
                 Center(
@@ -1510,7 +1583,8 @@ class _HeaderSection extends ConsumerWidget {
                 PGSeverityBanner(
                   tone: PGBannerTone.danger,
                   title: heroVerdict.headline.toUpperCase(),
-                  body: 'Interacts with medications in your stack — '
+                  body:
+                      'Interacts with medications in your stack — '
                       'review the details before adding to your stack.',
                 ),
               ],
@@ -1527,7 +1601,6 @@ class _HeaderSection extends ConsumerWidget {
   }
 }
 
-
 // _HeroScoreReason removed in T1.1 — see comment above _pickHeroScoreReason.
 // Reasoning lives in T1.6 Tradeoffs section; "Why this score" rows there
 // will reuse this DNA once T1.4 / T1.6 are wired.
@@ -1536,10 +1609,7 @@ class _ScoreRingButton extends StatelessWidget {
   final double? score;
   final VoidCallback onTap;
 
-  const _ScoreRingButton({
-    required this.score,
-    required this.onTap,
-  });
+  const _ScoreRingButton({required this.score, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1645,10 +1715,7 @@ class _HeroTrustChipOutline extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        border: Border.all(
-          color: tone.withValues(alpha: 0.55),
-          width: 1.0,
-        ),
+        border: Border.all(color: tone.withValues(alpha: 0.55), width: 1.0),
         borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       ),
       child: Text(
@@ -3146,8 +3213,8 @@ class _DeepDiveSectionState extends State<_DeepDiveSection>
                 ExcipientDensityCard(
                   activeIngredients: widget.activeIngredients,
                   inactiveIngredients: widget.inactiveIngredients,
-                  dosageForm:
-                      widget.formulationDetail?['delivery_form']?.toString(),
+                  dosageForm: widget.formulationDetail?['delivery_form']
+                      ?.toString(),
                 ),
                 const SizedBox(height: AppTheme.space8),
                 FormulationDetailSection(
