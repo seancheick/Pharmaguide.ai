@@ -1375,6 +1375,45 @@ List<({String label, String detail, bool isPositive})> _extractWhyItems(
 // used by the deep-dive sections so it stays.
 
 // ---------------------------------------------------------------------------
+// Hero subtitle helpers (G.3, 2026-04-29)
+// ---------------------------------------------------------------------------
+
+/// True when at least one subtitle segment has content. Skip rendering
+/// the subtitle row entirely when all three are empty (avoids an empty
+/// `Text.rich` painting a zero-height layout artifact).
+bool _hasAnyHeroSubtitle(String brand, String form, String? dose) =>
+    brand.isNotEmpty || form.isNotEmpty || (dose != null && dose.isNotEmpty);
+
+/// Builds the dot-separated hero subtitle: `Brand  ·  Form  ·  Dose`.
+/// Drops orphan dots — if `brand` is empty but `form` is present, the
+/// result starts with `form`, not ` · form`. App Store / Apple Health
+/// inline-subtitle pattern: more compact than the prior stacked
+/// `[brand]\n[form]` Text widgets and matches the premium-feel reference.
+TextSpan _buildHeroSubtitleSpan({
+  required BuildContext context,
+  required String brand,
+  required String form,
+  String? dose,
+}) {
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final segments = <String>[
+    if (brand.isNotEmpty) brand,
+    if (form.isNotEmpty) form,
+    if (dose != null && dose.isNotEmpty) dose,
+  ];
+  return TextSpan(
+    text: segments.join('  ·  '),
+    style: theme.textTheme.bodyMedium?.copyWith(
+      fontSize: 14,
+      color: scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.05,
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Header section
 // ---------------------------------------------------------------------------
 
@@ -1514,25 +1553,24 @@ class _HeaderSection extends ConsumerWidget {
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (brandName.isNotEmpty) ...[
-                          const SizedBox(height: 5),
-                          Text(
-                            brandName,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
+                        // G.3 — inline dot-separated subtitle replaces the
+                        // prior stacked `[brand]\n[form]` Text widgets.
+                        // Dose segment is null until the detail blob's
+                        // ingredients[0].dose is reliably available; the
+                        // helper drops orphan dots cleanly when segments
+                        // are missing.
+                        if (_hasAnyHeroSubtitle(
+                            brandName, formFactor, null)) ...[
+                          const SizedBox(height: 4),
+                          Text.rich(
+                            _buildHeroSubtitleSpan(
+                              context: context,
+                              brand: brandName,
+                              form: formFactor,
+                              dose: null,
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        if (formFactor.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            formFactor,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
                           ),
                         ],
                       ],
