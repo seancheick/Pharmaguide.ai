@@ -689,26 +689,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return worst;
   }
 
-  /// Best-effort top goal label (e.g. `"sleep"`) for the verdict
-  /// headline copy. Pulled from the FitScore result's reasons list,
-  /// which the engine already ordered by relevance. Returns null when
-  /// no goal-shaped reason surfaces — the For You section then falls
-  /// back to the generic "your profile" headline.
-  static String? _topGoalLabelFromFit(FitScoreResult? result) {
-    if (result == null) return null;
-    for (final reason in result.reasons) {
-      // FitScoreService stamps goal-match reasons with the canonical
-      // form "Matches your <goal> goal". Anything else (dosage,
-      // medical compatibility, etc.) doesn't fit Section 2's headline
-      // copy and we let it pass through.
-      final m = RegExp(
-        r'your\s+([a-z][a-z\s]*?)\s+goal',
-        caseSensitive: false,
-      ).firstMatch(reason);
-      if (m != null) return m.group(1)?.trim();
-    }
-    return null;
-  }
+  /// Inside-state proxy for [topGoalLabelFromFit] so the screen's
+  /// build flow can call it as a member. The actual implementation
+  /// is the top-level function (testable without pumping the whole
+  /// screen widget).
+  static String? _topGoalLabelFromFit(FitScoreResult? result) =>
+      topGoalLabelFromFit(result);
 
   List<Map<String, dynamic>> _topWarnings() {
     final raw = _product?.topWarnings;
@@ -821,6 +807,40 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       builder: (_) => const _ScoreEducationSheet(),
     );
   }
+}
+
+/// Best-effort top goal label for the For You section's verdict
+/// headline copy (e.g. `"Sleep Quality"`,
+/// `"Cardiovascular/Heart Health"`). Pulled from the FitScore result's
+/// `reasons` list, which the engine orders by relevance (see
+/// `FitScoreService._goalReasons` → "Supports your <label> goal.").
+///
+/// Returns null when no goal-shaped reason surfaces — the For You
+/// section then falls back to the generic "your profile" headline.
+///
+/// Pattern note: `(.+?)` is non-greedy and matches ANY character
+/// (including `/`, `&`, `,`) so labels like "Reduce Stress/Anxiety",
+/// "Focus & Mental Clarity", and "Skin, Hair, & Nails" all extract
+/// cleanly. Anchoring on `\s+goal\b` ensures the boundary is the
+/// literal word "goal", not a substring of e.g. "goalkeeper".
+///
+/// Top-level so it can be unit-tested directly without pumping the
+/// whole product detail screen widget. Both `_ProductDetailScreenState`
+/// (via `_topGoalLabelFromFit`) and the test suite call this.
+String? topGoalLabelFromFit(FitScoreResult? result) {
+  if (result == null) return null;
+  final pattern = RegExp(
+    r'your\s+(.+?)\s+goal\b',
+    caseSensitive: false,
+  );
+  for (final reason in result.reasons) {
+    final m = pattern.firstMatch(reason);
+    if (m != null) {
+      final label = m.group(1)?.trim();
+      if (label != null && label.isNotEmpty) return label;
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

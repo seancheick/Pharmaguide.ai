@@ -108,14 +108,35 @@ void main() {
 
     testWidgets('treats profile with only a nickname as empty', (tester) async {
       // A profile that has a nickname but no goals/conditions/drug
-      // classes still has nothing to personalize on. Render the
-      // affordance.
+      // classes/allergens still has nothing to personalize on. Render
+      // the affordance.
       await _pumpSection(
         tester,
         profile: const ProfileState(nickname: 'Sean'),
       );
       expect(find.text('Add your profile to personalize'), findsOneWidget);
     });
+
+    testWidgets(
+      'allergens-only profile DOES render the section (no longer empty-state)',
+      (tester) async {
+        // Audit fix 2026-04-29: an allergens-only profile is enough
+        // signal to render the alerts list — without this branch a
+        // peanut-allergic user looking at a peanut-containing
+        // supplement would miss the warning entirely.
+        await _pumpSection(
+          tester,
+          profile: const ProfileState(allergens: ['peanut']),
+          fitResult: _fit(scoreCombined100: 80),
+          maxSeverity: Severity.safe,
+        );
+        // Empty-state CTA must NOT render.
+        expect(find.text('Add your profile to personalize'), findsNothing);
+        // Section header IS visible (proves we entered the populated
+        // path, not the empty-state path).
+        expect(find.text('For You'), findsOneWidget);
+      },
+    );
   });
 
   group('ForYouSection — verdict copy + risk-gating', () {

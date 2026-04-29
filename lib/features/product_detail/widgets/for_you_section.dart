@@ -79,9 +79,15 @@ class ForYouSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
+    // Allergens count as a personalization signal — a peanut-allergic
+    // user looking at a peanut-containing supplement gets a real
+    // warning, even if no goals/conditions/meds are set. Without this,
+    // an allergens-only profile would render the empty-state affordance
+    // and miss the alerts list entirely.
     final hasProfile = profile.goals.isNotEmpty ||
         profile.conditions.isNotEmpty ||
-        profile.drugClasses.isNotEmpty;
+        profile.drugClasses.isNotEmpty ||
+        profile.allergens.isNotEmpty;
 
     // Empty-profile state — render the affordance, no other content.
     if (!hasProfile) {
