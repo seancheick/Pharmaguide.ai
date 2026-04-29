@@ -7,7 +7,9 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
@@ -335,29 +337,26 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // ----------------------------------------------------------------
           // App bar with back button
           // ----------------------------------------------------------------
-          SliverAppBar(
-            pinned: true,
-            elevation: 0,
-            surfaceTintColor: Colors.transparent,
-            title: Text(
-              productName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+          PGFrostedAppBar(
+            // Title intentionally empty — the T1.1 hero below carries the
+            // product name. Duplicating it here would compete (same trick
+            // used by iOS App Store on product pages).
+            title: '',
             actions: [
-              IconButton(
-                icon: const Icon(Icons.share_outlined),
-                tooltip: 'Share',
-                onPressed: _product == null
-                    ? null
-                    : () {
-                        ShareService().shareProduct(
-                          shareTitle: _product!.shareTitle,
-                          shareDescription: _product!.shareDescription,
-                          shareHighlights: _product!.shareHighlights,
-                        );
-                      },
-              ),
+              if (_product != null)
+                PGCircularIconButton(
+                  icon: Icons.ios_share_rounded,
+                  // No haptic — iOS share sheet fires its own present
+                  // haptic; firing one here would double-tap the user.
+                  haptic: false,
+                  onTap: () {
+                    ShareService().shareProduct(
+                      shareTitle: _product!.shareTitle,
+                      shareDescription: _product!.shareDescription,
+                      shareHighlights: _product!.shareHighlights,
+                    );
+                  },
+                ),
             ],
           ),
 

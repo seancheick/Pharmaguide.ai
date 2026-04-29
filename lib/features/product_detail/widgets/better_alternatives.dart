@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
+import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
@@ -91,18 +92,11 @@ class _AlternativeCard extends StatelessWidget {
     final score = product.score100Equivalent;
     final color = _scoreColor(score, context);
 
-    return GestureDetector(
-      onTap: () => context.push('/product/${product.dsldId}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: PGCard(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-        ),
+        onTap: () => context.push('/product/${product.dsldId}'),
         child: Row(
           children: [
             // Score badge
