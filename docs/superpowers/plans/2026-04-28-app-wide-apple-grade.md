@@ -1,5 +1,7 @@
 # App-Wide Apple-Grade Polish Implementation Plan
 
+> **2026-04-29 cross-team merge:** After a `/critique` pass on this plan vs Trust & IA Sprint 1, several product-detail phases were re-merged into `INITIATIVE_PRODUCT_TRUST_AND_IA.md` Sprint 1 (T1.1 score-led hero, T1.2 "For You", T1.4 pillar breakdown). Treat that initiative doc as the source of truth for product-detail content/IA decisions. The phases marked `SUPERSEDED`, `DROPPED`, or `RESCOPED` below should not be executed against this plan; the live versions live in Sprint 1. Affected phases: B.3a (folded into T1.1), F.3 + F.5 + F.6 (dropped or folded into T1.2), F.4 (rescoped), B.3b (serialized after T1.1 sign-off). F.0 / F.1 / F.2 are promoted to next-up because they unblock T1.1 / T1.4. Apple-grade phases with no Trust/IA overlap (C.2, C.3, D.2, E.1, E.2) continue per spec.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Extend the home-screen Apple-grade treatment (Sprints 27.19 + 27.20) to every other surface in the PharmaGuide Flutter app, so the entire product feels like a coherent first-party iOS experience instead of a polished home + a less-polished tail.
@@ -934,7 +936,9 @@ git commit -m "feat(quick-check): frosted bar + tactile suggestions + verdict ha
   banner first mounts — user feels the verdict before reading it"
 ```
 
-### Task B.3a: Product Detail — "Apple Altar" hero refactor
+### ~~Task B.3a: Product Detail — "Apple Altar" hero refactor~~
+
+> **[SUPERSEDED 2026-04-29 — folded into INITIATIVE_PRODUCT_TRUST_AND_IA.md Sprint 1 T1.1 (revised score-led hero spec). Trust/IA team owns this. The Yuka/SuppCo user-habit evidence shifted the spec to score-led hero with HeroVerdict gated to Avoid/Contraindicated/Blocked only — lower verdicts live in Section 2. Do not execute the steps below; use T1.1 as source of truth.]**
 
 **Why:** The current `_HeaderSection` (`product_detail_screen.dart:1301–1551`) is a two-row card with a 56-pt thumbnail + cramped score-row that visibly squeezes on a 320-pt iPhone SE. The score ring competes with verdict-text-and-pills for the same horizontal space; the trust chips, FitScore badge, and "View Supplement Label" button all stack as afterthoughts. Rebuild it as a single elevated PGCard with a horizontal identity row at the top and a centered vertical "altar" below — the Apple Health / Oura clinical-detail pattern. Score becomes a 96-pt focal point. Verdict becomes a full-width safety-aware banner (so a stack interaction overrides "Good match for sleep" with "Avoid with metformin" — medical-grade priority).
 
@@ -1551,6 +1555,8 @@ the sequence."
 
 ### Task B.3b: Product Detail — frosted app bar (with share action) + pipeline-section surface audit
 
+> **[RUN AFTER T1.1 sign-off — 2026-04-29]** Same file as Trust & IA Sprint 1 T1.1 (`product_detail_screen.dart`). Concurrent edits would cause merge churn. Hold this task until the Trust/IA team signs off T1.1, then execute as the mechanical follow-up.
+
 **Files:**
 - Modify: `lib/features/product_detail/product_detail_screen.dart` — replace SliverAppBar (around line 341)
 - Audit: `lib/features/product_detail/widgets/pipeline_sections/*.dart`
@@ -1826,7 +1832,9 @@ git commit -m "refactor(motion): align <area> motion to AppMotion tokens"
 
 ## Phase D — Polished cross-screen primitives
 
-### Task D.1: Build `PGAdaptiveBackButton`
+### ~~Task D.1: Build `PGAdaptiveBackButton`~~
+
+> **[FOLDED INTO 0.2 — 2026-04-29]** `PGCircularIconButton` (Phase 0.2, commit `6e30f62`) already encapsulates the adaptive back-chevron behavior — `PGFrostedAppBar`'s default leading slot uses it. A standalone `PGAdaptiveBackButton` wrapper would be a parallel primitive solving a problem that no longer exists. Skip this task entirely.
 
 **Why:** every sub-page back button should look identical and use the same haptic + press behavior. Currently each screen ships its own.
 
@@ -1913,6 +1921,8 @@ The Apple Altar spec calls for three data-viz primitives in the product detail b
 
 ### Task F.0: Data availability audit
 
+> **[PROMOTED 2026-04-29 — BLOCKING T1.4]** This audit unblocks Trust & IA Sprint 1 T1.4 (pillar breakdown). Run next; ping Sean with the GREEN / YELLOW / RED verdict the moment it lands.
+
 **Files (read-only audit):**
 - `lib/data/database/tables/products_core_table.dart` (or wherever the product schema lives)
 - `lib/services/score/` (any pillar-aggregation logic)
@@ -1936,9 +1946,11 @@ Append to this plan as `Task F.0: Data Availability Audit Findings` with one of:
 
 ### Task F.1: Build `PGDonutChart` primitive
 
+> **[PROMOTED + REPLAN 2026-04-29 — BLOCKING T1.1]** Step 1 of this task is now an **audit decision**, not a build: read `lib/core/widgets/pg_score_ring.dart` against the apple-grade reference + T1.1 score-led hero requirements (96pt center number with sub-label, verdict-tinted progress arc, tier-aware track color). If `PGScoreRing` already covers the contract → **reuse it**, ping Sean with that decision, and skip the rest of this task. Only build the new `PGDonutChart` primitive if there is a concrete gap that can't be added to `PGScoreRing` without breaking existing call sites. Don't ship a parallel primitive.
+
 **Files:**
-- Create: `lib/core/widgets/pg_donut_chart.dart`
-- Create: `test/core/widgets/pg_donut_chart_test.dart`
+- Create: `lib/core/widgets/pg_donut_chart.dart` *(only if reuse audit returns "build new")*
+- Create: `test/core/widgets/pg_donut_chart_test.dart` *(same condition)*
 
 A scale-able donut chart with center number. Reuses `PGScoreRing`'s rendering DNA but with bigger center text and a configurable label below.
 
@@ -1977,6 +1989,8 @@ git commit -m "feat(core): PGDonutChart — donut chart primitive for score visu
 
 ### Task F.2: Build `PGPillarBar` primitive
 
+> **[PROMOTED 2026-04-29 — BLOCKING T1.4]** Build per spec. Trust & IA Sprint 1 T1.4 will consume `PGPillarBar` for the pillar breakdown. Ping Sean with the commit SHA the moment it lands on `main`.
+
 **Files:**
 - Create: `lib/core/widgets/pg_pillar_bar.dart`
 - Create: `test/core/widgets/pg_pillar_bar_test.dart`
@@ -1987,7 +2001,9 @@ Single horizontal bar with label + value. Used four times for the pillar breakdo
 - [ ] **Step 2: Build with `LinearProgressIndicator` wrapped in custom decoration matching home's tier system**
 - [ ] **Step 3: Run tests + commit**
 
-### Task F.3: Build `PGIngredientAtom` primitive
+### ~~Task F.3: Build `PGIngredientAtom` primitive~~
+
+> **[DROPPED 2026-04-29 — see cross-team merge note]** Atom pills are decorative for medical-grade context. The dose-vs-effective-range note (Trust & IA T1.5 verbose rows + existing chip pattern for inactive ingredients) is the trust signal that differentiates PharmaGuide from food-additive scanners. Skip this primitive entirely.
 
 **Files:**
 - Create: `lib/core/widgets/pg_ingredient_atom.dart`
@@ -2000,21 +2016,26 @@ Circular ingredient pill (e.g. "Mg") with optional evidence badge in the corner.
 - [ ] **Step 3: Wrap with PGPressable when `onTap` is provided**
 - [ ] **Step 4: Run tests + commit**
 
-### Task F.4: Quality Score card (donut + 4 pillar bars)
+### Task F.4: Quality Score card (donut + 4 pillar bars) → ~~donut~~ pillars + coverage + reasoning
+
+> **[RESCOPED 2026-04-29 — score lives in hero (T1.1)]** This phase delivers the pillar-card *visual treatment*; **Trust & IA Sprint 1 T1.4 owns final composition** and integration. The donut step is dropped because the score now lives in the score-led hero (T1.1). What this phase contributes: a `PGCard.plain` containing four `PGPillarBar` instances + a coverage strip + a "Why this score" reasoning row. T1.4 will mount it and wire the data.
 
 **Files:**
 - Create: `lib/features/product_detail/widgets/quality_score_card.dart`
 - Modify: `lib/features/product_detail/product_detail_screen.dart` to compose this card after the hero altar
 
-- [ ] **Step 1: Build a `PGCard(variant: PGCardVariant.plain)` with:**
-  - PGDonutChart on the left at 120pt
-  - Right column with four PGPillarBar instances stacked
-  - Wrapped in PGPressable on tap → opens the existing score-breakdown sheet (`onScoreInfoTap` callback)
+- [ ] ~~**Step 1: Build a `PGCard(variant: PGCardVariant.plain)` with:**~~
+  - ~~PGDonutChart on the left at 120pt~~
+  - ~~Right column with four PGPillarBar instances stacked~~
+  - ~~Wrapped in PGPressable on tap → opens the existing score-breakdown sheet (`onScoreInfoTap` callback)~~
+- [ ] **Step 1 (rescoped): Build a `PGCard(variant: PGCardVariant.plain)` containing four `PGPillarBar` instances + a coverage strip + a "Why this score" reasoning row.** No donut, no center ring — those live in the hero (T1.1). PGPressable wrap → opens the existing score-breakdown sheet on tap.
 - [ ] **Step 2: Compose into product detail screen** under the hero altar, before the deep-dive section
 - [ ] **Step 3: On 320-pt iPhone SE, the card stacks vertically (donut on top, pillars below)** — use `LayoutBuilder` for the breakpoint at `constraints.maxWidth < 360`
 - [ ] **Step 4: Run analyze + tests + commit**
 
-### Task F.5: "For You" card (Why this score · Your alerts)
+### ~~Task F.5: "For You" card (Why this score · Your alerts)~~
+
+> **[DROPPED 2026-04-29 — see cross-team merge note]** Folded into Trust & IA Sprint 1 T1.2. The dual-column "Why this score · Your alerts" was conflating Section 2 + Section 3 content; T1.2 separates them with the corrected content model. Sean will reuse this phase's visual approach (PGCard.plain, PGPressable per row, LayoutBuilder for SE breakpoint) inside T1.2 — don't ship a parallel `for_you_card.dart` here.
 
 **Files:**
 - Create: `lib/features/product_detail/widgets/for_you_card.dart`
@@ -2029,7 +2050,9 @@ The Apple Altar spec called for a dual-column layout. Per my earlier pushback, o
 - [ ] **Step 3: PGPressable wrapping each row item** (taps on alert rows scroll to the deep-dive interactions section via a `Scrollable.ensureVisible`)
 - [ ] **Step 4: Run analyze + tests + commit**
 
-### Task F.6: Atom-style ingredients row
+### ~~Task F.6: Atom-style ingredients row~~
+
+> **[DROPPED 2026-04-29 — see cross-team merge note]** Atom pills are decorative for medical-grade context (same rationale as F.3). T1.5 verbose ingredient rows + the existing chip pattern for inactives is the right call. Skip this phase entirely — do not ship `ingredients_atom_row.dart`.
 
 **Files:**
 - Create: `lib/features/product_detail/widgets/ingredients_atom_row.dart`
@@ -2118,6 +2141,31 @@ Add `Sprint 27.21: App-wide Apple-grade polish` entry above 27.20 with the full 
 
 ## Implementation order (priority — execute top-down)
 
+> **2026-04-29 cross-team merge revision** — see top-of-doc note. The original 23-task linear order is preserved below for historical context but **superseded by the queue immediately below it**.
+
+### Active queue (post cross-team merge)
+
+| # | Task | Status | Notes |
+|---|---|---|---|
+| ✅ shipped | **0.1, 0.2, A.1, A.2, A.3, B.1, B.2, C.1** | DONE in Sprint 27.21 | 9 commits between `7c90b19` and `af0cd78`, +44 tests, analyze clean |
+| 1 | **F.0** Data availability audit | **NEXT** | BLOCKING T1.4. Read-only inspection (1–2 hrs). Ping Sean with GREEN/YELLOW/RED verdict. |
+| 2 | **F.1** PGDonutChart vs PGScoreRing reuse audit | **NEXT** | BLOCKING T1.1. Decision-first: reuse `pg_score_ring.dart` if it covers the score-led-hero contract; only build `PGDonutChart` if a concrete gap forces it. |
+| 3 | **F.2** PGPillarBar primitive | **NEXT** | BLOCKING T1.4. Build per spec; ping Sean with the commit SHA on `main`. |
+| 4 | **C.2** Adaptive controls sweep | parallel | No T1.x conflict; can run alongside F.0/F.1/F.2 dispatches. |
+| 5 | **C.3** Motion-token sweep | parallel | Stylistic; same lane as C.2. |
+| 6 | **D.2** Empty-state audit | parallel | Polish on polish; safe to run in parallel. |
+| 7 | **B.3b** Product Detail frosted SliverAppBar + circular share | **WAIT for T1.1 sign-off** | Same file as T1.1 (`product_detail_screen.dart`). Concurrent edits would cause merge churn. Hold until Trust/IA team signs off T1.1, then go mechanical. |
+| 8 | **F.4** Pillar card composition | after T1.1 + F.2 | Rescoped — pillars + coverage + reasoning row only. T1.4 owns final mount. |
+| 9 | **E.1** Cross-screen smoke tests | sprint-close | Augment to assert PGFrostedAppBar OR PGFrostedHeader-inside-PreferredSize per screen (B.1's variant is intentional). |
+| 10 | **E.2** Final analyze + suite + tracker close | sprint-close | After everything else lands. |
+| ❌ skipped | **B.3a** Apple Altar hero | SUPERSEDED → T1.1 | Trust/IA owns. |
+| ❌ skipped | **D.1** PGAdaptiveBackButton | FOLDED INTO 0.2 | Already covered by `PGCircularIconButton` in `PGFrostedAppBar`. |
+| ❌ skipped | **F.3** PGIngredientAtom | DROPPED | Decorative for medical-grade context. |
+| ❌ skipped | **F.5** "For You" card | DROPPED → T1.2 | Sean reuses the visual approach inside T1.2 with corrected content model. |
+| ❌ skipped | **F.6** Atom-style ingredients row | DROPPED | Same rationale as F.3. T1.5 verbose rows are the right call. |
+
+### ~~Legacy linear order (pre-merge — historical only)~~
+
 | Priority | Task | Why this rank |
 |---|---|---|
 | 1  | **Phase 0.1** — Build PGFrostedAppBar | Every Phase A/B task depends on it |
@@ -2127,27 +2175,29 @@ Add `Sprint 27.21: App-wide Apple-grade polish` entry above 27.20 with the full 
 | 5  | **A.3** — Scanner overlay | Quick win; user sees it on every scan |
 | 6  | **B.1** — Profile Setup | First-launch users see this; high impression weight |
 | 7  | **B.2** — Quick Check | Cross-app consistency |
-| 8  | **B.3a** — Product Detail Apple Altar hero | Highest-impact single visual change in the app — restructured hero, safety-override verdict, 96-pt centered ring, inline subtitle, outline trust chips |
-| 9  | **B.3b** — Product Detail frosted app bar + circular share + sections audit | Mechanical follow-up after the altar lands |
+| 8  | ~~**B.3a** — Product Detail Apple Altar hero~~ — superseded → T1.1 |
+| 9  | ~~**B.3b** — Product Detail frosted app bar + circular share + sections audit~~ — runs after T1.1 sign-off |
 | 10 | **C.1** — PGModal sweep | Touches many files; do as a batch |
 | 11 | **C.2** — Adaptive controls | Low-risk grep-and-replace |
 | 12 | **C.3** — Motion-token sweep | Stylistic; do after structural moves are stable |
-| 13 | **D.1** — Extract PGAdaptiveBackButton | Refactor only (now redundant if Phase 0.2 ships first — fold into 0.2 if so) |
+| 13 | ~~**D.1** — Extract PGAdaptiveBackButton~~ — folded into 0.2 |
 | 14 | **D.2** — Empty-state audit | Polish on polish |
-| 15 | **F.0** — Data availability audit | **Gates F.1–F.6** — must run before any data-viz primitive is built |
-| 16 | **F.1** — PGDonutChart primitive | Standalone widget; can build in parallel with F.2/F.3 once F.0 greenlit |
-| 17 | **F.2** — PGPillarBar primitive | Same — parallelizable |
-| 18 | **F.3** — PGIngredientAtom primitive | Same — parallelizable |
-| 19 | **F.4** — Quality Score card | Composes F.1 + F.2; product-detail integration |
-| 20 | **F.5** — "For You" card | Independent of F.1–F.3 — could ship earlier |
-| 21 | **F.6** — Atom-style ingredients row | Composes F.3; product-detail integration |
+| 15 | **F.0** — Data availability audit | **Promoted — BLOCKING T1.4** |
+| 16 | **F.1** — PGDonutChart primitive | **Promoted — BLOCKING T1.1; reuse-or-build audit first** |
+| 17 | **F.2** — PGPillarBar primitive | **Promoted — BLOCKING T1.4** |
+| 18 | ~~**F.3** — PGIngredientAtom primitive~~ — dropped |
+| 19 | **F.4** — Quality Score card | Rescoped — pillars only; T1.4 owns final composition |
+| 20 | ~~**F.5** — "For You" card~~ — dropped → T1.2 |
+| 21 | ~~**F.6** — Atom-style ingredients row~~ — dropped |
 | 22 | **E.1** — Cross-screen smoke tests | Run continuously; finalize at the end |
 | 23 | **E.2** — Final verify + tracker | Sprint-close |
 
-**Estimated effort:**
-- **Phase 0 + A + B + C + D + E** (without data viz): 8–12 hours
-- **Phase F** (data viz, full scope): +6–10 hours, but only if the F.0 audit returns GREEN
-- **Total**: 14–22 hours; the +24-task plan ships across 1–2 sprints depending on parallelization
+**Estimated effort (post-merge):**
+- F.0 / F.1 / F.2 unblocker chunk (next-up): ~3–5 hours
+- C.2 + C.3 + D.2 parallel sweeps: ~3–4 hours
+- B.3b (after T1.1 sign-off): ~1–2 hours
+- E.1 + E.2 close: ~2 hours
+- **Total remaining**: ~9–13 hours, depending on Trust & IA Sprint 1 cadence
 
 ---
 
