@@ -546,6 +546,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       // T1.11 inputs — collapsed Product Details panel.
                       dosingSummary: _product?.dosingSummary,
                       servingsPerContainer: _product?.servingsPerContainer,
+                      netContentsQuantity: _product?.netContentsQuantity,
+                      netContentsUnit: _product?.netContentsUnit,
+                      formFactor: _product?.formFactor,
                     ),
             ),
           ),
@@ -2049,10 +2052,13 @@ class _DetailSection extends ConsumerWidget {
 
   // T1.11 — Product Details (Section 10). Same decoupling pattern as
   // the T1.7 trust signals: parent reads off `_product`, we just
-  // render. Manufacturer name still comes from `detailBlob.manufacturer_info`
-  // already in scope here.
+  // render. Manufacturer name + country still come from
+  // `detailBlob.manufacturer_info` already in scope here.
   final String? dosingSummary;
   final int? servingsPerContainer;
+  final double? netContentsQuantity;
+  final String? netContentsUnit;
+  final String? formFactor;
 
   const _DetailSection({
     required this.detailBlob,
@@ -2064,6 +2070,9 @@ class _DetailSection extends ConsumerWidget {
     this.scoreEvidenceResearchMax,
     this.dosingSummary,
     this.servingsPerContainer,
+    this.netContentsQuantity,
+    this.netContentsUnit,
+    this.formFactor,
   });
 
   @override
@@ -2367,18 +2376,25 @@ class _DetailSection extends ConsumerWidget {
         ),
 
         // T1.11 Section 10 — Product Details, collapsed by default.
-        // Reference facts (serving size, servings per container,
-        // manufacturer) — low priority. Hides entirely when none of
-        // the three fields have data. Manufacturer name read from
-        // detailBlob.manufacturer_info inline (the parent screen
-        // doesn't carry it as a typed param yet).
+        // Reference panel: serving size, servings, net contents, form,
+        // manufacturer, country. Hides entirely when no field has data.
+        // Manufacturer name + country read from detailBlob.manufacturer_info
+        // inline (parent screen doesn't carry them as typed params yet).
         const SizedBox(height: AppTheme.space12),
-        ProductDetailsSection(
-          servingSize: dosingSummary,
-          servingsPerContainer: servingsPerContainer,
-          manufacturer: (detailBlob?['manufacturer_info']
-                  as Map<String, dynamic>?)?['name']
-              ?.toString(),
+        Builder(
+          builder: (context) {
+            final manufacturerInfo =
+                detailBlob?['manufacturer_info'] as Map<String, dynamic>?;
+            return ProductDetailsSection(
+              servingSize: dosingSummary,
+              servingsPerContainer: servingsPerContainer,
+              manufacturer: manufacturerInfo?['name']?.toString(),
+              netContentsQuantity: netContentsQuantity,
+              netContentsUnit: netContentsUnit,
+              formFactor: formFactor,
+              country: manufacturerInfo?['country']?.toString(),
+            );
+          },
         ),
       ],
     );

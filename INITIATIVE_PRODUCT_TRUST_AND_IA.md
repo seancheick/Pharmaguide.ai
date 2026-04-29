@@ -954,6 +954,12 @@ Always rendered, always collapsed initially.
 - **NEW** `test/features/product_detail/widgets/product_details_section_test.dart` — 10 tests across 2 groups: pure `buildProductDetailFields` (5 tests covering all-three-present in spec order, all-null → empty, blank/zero filter defense, single-field rendering, whitespace trim) + render (5 tests covering hide-when-all-null, header-only-collapsed-default, tap-expand-reveals-rows, tap-twice-collapses, partial-data-renders-present-only).
 - Test count 1001 → 1011 (+10). flutter analyze clean.
 
+**Audit follow-up — 2026-04-29 (post-T1.12 audit pass):**
+- **Richer fields added** beyond spec's 3: `Net contents` (e.g. "60 capsules" via new public `formatNetContents(qty, unit)` helper that drops trailing `.0` on whole-number quantities), `Form` (capsule / tablet / softgel / gummy / powder / liquid — humanized via shared `_humanize`), `Country` (from `detail_blob.manufacturer_info.country`). All optional — section drops any row whose data is missing. New display order: Serving size → Servings per container → Net contents → Form → Manufacturer → Country.
+- **iPhone SE narrow-screen layout fix.** `_DetailRow` now wrapped in a `LayoutBuilder` — below 380pt (matches T1.6 breakpoint) the row stacks label-above-value full-width instead of 140pt-fixed-col side-by-side. Long manufacturer names like "Nature's Best Incorporated" no longer squeeze on 320pt screens. Constants `_narrowBreakpoint = 380.0` + `_labelColumnWidth = 140.0` exposed.
+- **`_DetailSection`** picks up 3 additional params: `netContentsQuantity`, `netContentsUnit`, `formFactor`. Call site reads them off `_product`; country pulled inline from `detailBlob.manufacturer_info` already in scope (no new typed plumbing). Wrapped in a `Builder` to capture `manufacturerInfo` once for both name + country reads.
+- Test count 1011 → 1038 (+11 new tests covering: 6 `formatNetContents` boundary tests, 4 new `buildProductDetailFields` cases — all-six-present in display order, form-factor humanization, net-contents partial-input skip, country trim — plus 2 widget render tests for the narrow + wide screen paths). flutter analyze clean.
+
 ---
 
 ### [x] T1.12 — Better Alternatives (Section 11) — V1: non-personalized
@@ -1123,7 +1129,62 @@ Section expand/collapse uses `AnimatedSize` with 200ms easeInOut. Tap feedback u
 
 ---
 
-### [ ] T2.6 — Sprint 2 verification
+### [ ] T2.6 — Sprint 1 audit follow-ups (bugs + nits + a11y)
+
+Captured during the deep-dive audit that ran after T1.12 shipped (commits `f770b62` → `c9194c8`). Each item is non-blocking — code is green and spec-compliant — but the lot together is worth a polish pass before Sprint 2 closes.
+
+**Bugs / inconsistencies**
+
+1. **T1.10 — empty-PMID matches in all-citations sheet emit ghost gaps.** `_showAllCitations` iterates every match and adds a `SizedBox(height: 12)` after each `_CitationGroup`, even when the group has no PMIDs and short-circuits to `SizedBox.shrink`. Fix: filter `matches.where((m) => m.safeStringList('pmids').isNotEmpty)` before the loop.
+2. **T1.10 — `_launchPubmed` has no PMID validation.** Any string is concatenated into the URL; non-numeric PMIDs land at PubMed and 404 silently. Fix: defensive `RegExp(r'^\d+$').hasMatch(trimmed)` guard, falling back to a no-op (or to the search URL) on miss.
+3. **T1.10 — bottom sheet doesn't auto-dismiss when a PMID is tapped.** OS browser opens; sheet stays behind. Fix: `Navigator.of(sheetContext).pop()` before `launchUrl`.
+4. **T1.11 — chevron uses two-icon swap (`keyboard_arrow_up_rounded` / `_down_rounded`).** Less premium than a smooth `RotationTransition` like T1.8 ships. Fix: animate a single chevron with a `Tween` driven by `_expanded`.
+5. **T1.11 — no `Semantics(button: true, expanded: _expanded)` on the header.** Screen readers don't announce expand state. Fix: wrap the `PGPressable` header in a `Semantics` widget.
+6. **T1.12 — `currentScore == null` short-circuit in `BetterAlternativesSection.build` is dead code.** Screen always passes `score100 ?? 0`, so null never reaches the section. Fix: drop the condition (the empty-list short-circuit downstream covers it) OR change the screen to pass `score100` (real null) and let the section short-circuit cleanly.
+7. **T1.12 — quality filter is `>=` not `>`.** Surfaces alternatives at roughly-equal quality. Fix: `findAlternatives` already takes a min — bump to `currentScore * 0.8 + 4` (≈ +5 on 100-scale) so "higher quality" actually means meaningfully higher.
+8. **T1.12 — `_AlternativeCard` uses legacy `Color.withAlpha(20)`.** Rest of trust-IA uses `withValues(alpha: 0.08)`. Fix: convert to the new API for consistency.
+9. **T1.12 — `_AlternativeCard` wraps in `PGCard(onTap:)` instead of `PGPressable`.** No 0.96 scale + haptic feedback parity with the rest of the trust-IA sections. Fix: wrap the PGCard contents in a `PGPressable` and drop the bare `onTap`.
+
+**Cross-cutting (app-wide, not just trust-IA)**
+
+10. **No analytics on T1 sections.** Engagement is invisible: which sections do users tap into? Where's drop-off? Add per-section interaction events (header tap, expand, citation tap, alternative tap) wired through whatever analytics hook is canonical.
+11. **Hardcoded English strings throughout.** Localization is an app-wide concern but every Sprint-1 section adds debt. Out of scope for T2.6 — capture as a separate localization sprint when timing's right.
+
+**Acceptance**
+- All Bug items above either fixed or explicitly tombstoned (with rationale) in source comments
+- Cross-cutting items captured as separate sprint cards rather than left dangling
+
+---
+
+### [ ] T2.7 — Sprint 1 enhancement opportunities (out-of-spec but high-leverage)
+
+Found during the post-T1.12 audit. None of these were on the V1 spec but each is a low-effort / high-value addition. Decide before Sprint 2 close which (if any) to pull in.
+
+**T1.10 Evidence**
+- **Dose-range surfacing.** Pipeline likely emits `dose_min` / `dose_max` per study. Showing "studied at 200-600mg" lets users sanity-check the product's actual dose against the evidence base. High-value, no editorial risk.
+- **Study-type distinction.** If pipeline tags systematic review vs individual RCT vs observational, surface as a per-PMID badge in the citations sheet.
+- **Telemetry on PMID tap.** Measure which citations users actually open — informs future ingredient-summary curation.
+
+**T1.11 Product Details** *(✅ partially shipped: country + form factor + net contents added in commit __NEXT__)*
+- ~~Country of origin~~ ✅ shipped
+- ~~Form factor (capsule / tablet / softgel / powder / liquid)~~ ✅ shipped
+- ~~Net contents (e.g. "60 capsules")~~ ✅ shipped
+- ~~iPhone SE narrow-screen LayoutBuilder fallback~~ ✅ shipped
+- **Remaining:** GMP-certified flag (`detail_blob.manufacturer_info.gmp_certified`) — could appear as a chip rather than a row. Skipped in the polish pass to keep the section reference-only (the GMP flag is a trust signal that overlaps T1.7).
+
+**T1.12 Better Alternatives**
+- **Product image thumbnails.** Alternative cards show only score badge + name + brand. Wiring `BrandedPlaceholder.compact: true` at 48pt would 2× scannability.
+- **Brand deduplication.** Top 3 alternatives could all be Nature Made's catalog. Add a per-brand cap (e.g. max 2 per brand).
+- **Loading shimmer** during `FutureBuilder` pending — currently shows nothing.
+- **Affirmative empty-state.** When no higher-quality alternatives exist in category, show "We couldn't find better alternatives — this might already be your best option" instead of just hiding.
+- **Fit-aware ranking** when fit-state triggered the section. V1 explicitly defers per spec ("V1 = no personalized fit delta") but the math for ranking is cheap on top of the existing helper.
+
+**Acceptance**
+For each item: either pulled into the next sprint's task list with a sized estimate, OR explicitly punted to V1.1 / Sprint 3+ with rationale captured here.
+
+---
+
+### [ ] T2.8 — Sprint 2 verification
 
 Same as T0.7 / T1.16 pattern.
 
