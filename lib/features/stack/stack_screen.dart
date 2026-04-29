@@ -350,7 +350,7 @@ class _StackSummaryCard extends ConsumerWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTheme.space2),
                     Text(
                       _describeSummary(intelligence),
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -484,7 +484,7 @@ class _CountChip extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTheme.space8),
             Expanded(
               child: Text(
                 label,
@@ -661,7 +661,7 @@ class _StackItemCardContent extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (brandName != null && brandName.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTheme.space2),
                     Text(
                       brandName,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -672,7 +672,7 @@ class _StackItemCardContent extends ConsumerWidget {
                     ),
                   ],
                   if (entry.dosage != null || entry.frequency != null) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTheme.space2),
                     Text(
                       [entry.dosage, entry.frequency]
                           .whereType<String>()

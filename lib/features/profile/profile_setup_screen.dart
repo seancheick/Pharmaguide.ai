@@ -241,7 +241,7 @@ class _StepHeader extends StatelessWidget {
           ),
         ),
         if (subtitle != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.space4),
           Text(
             subtitle!,
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -429,7 +429,7 @@ class _GoalsStep extends ConsumerWidget {
                   size: 16,
                   color: scheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppTheme.space6),
                 Text(
                   'Maximum 2 goals selected',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -657,7 +657,7 @@ class _ReviewStep extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.space4),
                   Text(
                     'Profile ${profile.completenessLabel}',
                     style: theme.textTheme.titleMedium?.copyWith(

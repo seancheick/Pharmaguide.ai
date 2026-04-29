@@ -76,7 +76,7 @@ class FormulationDetailSection extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.science_outlined, size: 18),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Formulation',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -94,14 +94,14 @@ class FormulationDetailSection extends StatelessWidget {
               badge: deliveryTier.isNotEmpty ? deliveryTier : null,
             ),
           if (enhancers.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
             Text(
               'Absorption enhancers',
               style: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             Wrap(
               spacing: 6,
               runSpacing: 4,
@@ -130,7 +130,7 @@ class FormulationDetailSection extends StatelessWidget {
             ),
           ],
           if (demotedEnhancers.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
             Container(
               padding: const EdgeInsets.all(AppTheme.space12),
               decoration: BoxDecoration(
@@ -152,14 +152,14 @@ class FormulationDetailSection extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.space4),
                   Text(
                     'Used to support absorption and not scored as a primary active.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.space8),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
@@ -195,21 +195,21 @@ class FormulationDetailSection extends StatelessWidget {
             ),
           ],
           if (botanicals.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
             Text(
               'Standardized botanicals',
               style: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             ...botanicals.map((b) => Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Row(
                     children: [
                       Icon(Icons.eco_outlined,
                           size: 13, color: scheme.primary),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: AppTheme.space6),
                       Text(b,
                           style: theme.textTheme.bodySmall
                               ?.copyWith(fontWeight: FontWeight.w500)),
@@ -261,7 +261,7 @@ class _DetailRow extends StatelessWidget {
             color: scheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppTheme.space8),
         Text(
           value,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -269,7 +269,7 @@ class _DetailRow extends StatelessWidget {
           ),
         ),
         if (badge != null) ...[
-          const SizedBox(width: 6),
+          const SizedBox(width: AppTheme.space6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(

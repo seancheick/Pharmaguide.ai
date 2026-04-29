@@ -74,7 +74,7 @@ class HomeStackHealthWidget extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.space2),
                 Text(
                   'Add supplements to review interactions, overlap, and coverage.',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -214,7 +214,7 @@ class _StackHealthCard extends ConsumerWidget {
                               letterSpacing: -0.2,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: AppTheme.space2),
                           Text(
                             _contextLine(supplementCount, medicationCount),
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -269,7 +269,7 @@ class _StackHealthCard extends ConsumerWidget {
                         size: 14,
                         color: tone,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: AppTheme.space6),
                       Expanded(
                         child: Text(
                           insight,
@@ -364,7 +364,7 @@ class _StackHealthCard extends ConsumerWidget {
                         ? AppTheme.severityContraindicated
                         : AppTheme.severityCaution,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppTheme.space8),
                   Expanded(
                     child: Text(
                       topIssue,
@@ -397,7 +397,7 @@ class _StackHealthCard extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppTheme.space4),
                 Icon(
                   Icons.arrow_forward_rounded,
                   size: 16,
@@ -472,7 +472,7 @@ class _MicroMetric extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppTheme.space4),
           Flexible(
             child: Text(
               label,

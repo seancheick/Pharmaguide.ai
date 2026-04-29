@@ -27,7 +27,7 @@ class AllergenSummaryBanner extends StatelessWidget {
         children: [
           const Icon(Icons.warning_amber_rounded,
               size: 16, color: AppTheme.severityCaution),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppTheme.space8),
           Expanded(
             child: Text(
               allergenSummary!,

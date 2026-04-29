@@ -39,6 +39,7 @@
 // guidance, and the dosing assumption is shown so users can interpret it.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 
 enum RefillTier { out, refillSoon, almostOut, plenty }
@@ -156,11 +157,11 @@ class RefillReminderCard extends StatelessWidget {
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         side: BorderSide(color: styling.borderColor, width: 1.5),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.space16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -170,7 +171,7 @@ class RefillReminderCard extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 color: styling.iconBackgroundColor,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
               ),
               child: Icon(
                 styling.icon,
@@ -178,7 +179,7 @@ class RefillReminderCard extends StatelessWidget {
                 size: 22,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.space12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +193,7 @@ class RefillReminderCard extends StatelessWidget {
                     ),
                   ),
                   if (_subtitleText() != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.space4),
                     Text(
                       _subtitleText()!,
                       style: TextStyle(
@@ -202,7 +203,7 @@ class RefillReminderCard extends StatelessWidget {
                     ),
                   ],
                   if (dosingSummary != null && dosingSummary!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTheme.space2),
                     Text(
                       'Estimate based on "$dosingSummary"',
                       style: TextStyle(

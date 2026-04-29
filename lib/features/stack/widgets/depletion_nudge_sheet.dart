@@ -75,7 +75,7 @@ class _DepletionNudgeSheet extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(AppTheme.space8),
                   decoration: BoxDecoration(
                     color: AppTheme.severityInformational.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppTheme.radiusFull),
@@ -220,7 +220,7 @@ class _NudgePanel extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.space4),
           Text(
             d.alertBody ?? _fallbackBody(),
             style: theme.textTheme.bodySmall?.copyWith(
@@ -229,7 +229,7 @@ class _NudgePanel extends StatelessWidget {
           ),
           if (d.monitoringTipShort != null &&
               d.monitoringTipShort!.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -238,7 +238,7 @@ class _NudgePanel extends StatelessWidget {
                   size: 14,
                   color: AppTheme.severitySafe,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppTheme.space4),
                 Expanded(
                   child: Text(
                     d.monitoringTipShort!,
@@ -257,7 +257,7 @@ class _NudgePanel extends StatelessWidget {
           // picture: supplement OR food, context-aware.
           if (d.foodSourcesShort != null &&
               d.foodSourcesShort!.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: AppTheme.space6),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -266,7 +266,7 @@ class _NudgePanel extends StatelessWidget {
                   size: 14,
                   color: scheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppTheme.space4),
                 Expanded(
                   child: Text(
                     d.foodSourcesShort!,

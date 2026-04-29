@@ -24,6 +24,7 @@
 // panel just don't show this section.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 
 class NutritionPanel extends StatelessWidget {
@@ -49,11 +50,11 @@ class NutritionPanel extends StatelessWidget {
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.space16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -64,7 +65,7 @@ class NutritionPanel extends StatelessWidget {
                     color: resolved.textPrimary,
                   ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             Text(
               'Per serving',
               style: TextStyle(
@@ -72,7 +73,7 @@ class NutritionPanel extends StatelessWidget {
                 color: resolved.textSecondary,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTheme.space12),
             ...rows,
           ],
         ),

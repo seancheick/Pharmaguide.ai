@@ -55,7 +55,7 @@ class _FitScoreSheet extends StatelessWidget {
                   letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.space4),
               Text(
                 'How this product lines up with your profile.',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -151,7 +151,7 @@ class _FitScoreSheet extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: AppTheme.space2),
                             Text(
                               'Complete your profile for a fully personalized score.',
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -231,7 +231,7 @@ class _CombinedScoreCard extends StatelessWidget {
           Row(
             children: [
               Icon(signalIcon, color: signalColor, size: 20),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppTheme.space8),
               Expanded(
                 child: Text(
                   result.fitLabel,
@@ -340,7 +340,7 @@ class _ScoreRow extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.space4),
                 // Mini progress bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
@@ -351,7 +351,7 @@ class _ScoreRow extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation(color),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.space4),
                 Text(
                   description,
                   style: theme.textTheme.bodySmall?.copyWith(

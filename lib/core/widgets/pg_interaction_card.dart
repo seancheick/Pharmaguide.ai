@@ -147,7 +147,7 @@ class _PGInteractionCardState extends State<PGInteractionCard> {
                   ),
                 ],
                 if (widget.mechanism.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppTheme.space6),
                   AnimatedCrossFade(
                     duration: AppMotion.medium,
                     sizeCurve: AppMotion.standard,
@@ -202,7 +202,7 @@ class _PGInteractionCardState extends State<PGInteractionCard> {
                               color: scheme.primary,
                             ),
                           ),
-                          const SizedBox(width: 2),
+                          const SizedBox(width: AppTheme.space2),
                           AnimatedRotation(
                             turns: _expanded ? 0.5 : 0,
                             duration: AppMotion.medium,
@@ -228,7 +228,7 @@ class _PGInteractionCardState extends State<PGInteractionCard> {
                               size: 14,
                               color: scheme.onSurfaceVariant,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: AppTheme.space4),
                             Text(
                               '${widget.sources.length} source'
                               '${widget.sources.length == 1 ? '' : 's'}',
@@ -273,7 +273,7 @@ class _ManagementBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.lightbulb_outline_rounded, size: 16, color: accent),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppTheme.space8),
           Expanded(
             child: RichText(
               text: TextSpan(

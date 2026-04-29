@@ -60,7 +60,7 @@ class PGCitationStrip extends StatelessWidget {
                 size: 15,
                 color: AppTheme.evidenceStrong,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Reviewed sources',
                 style: TextStyle(
@@ -70,7 +70,7 @@ class PGCitationStrip extends StatelessWidget {
                   letterSpacing: 0.3,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 7,
@@ -103,7 +103,7 @@ class PGCitationStrip extends StatelessWidget {
                   ),
                 ),
               if (onTap != null) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: AppTheme.space4),
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 16,
@@ -113,7 +113,7 @@ class PGCitationStrip extends StatelessWidget {
             ],
           ),
           if (disclaimer != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: AppTheme.space6),
             Text(
               disclaimer!,
               style: TextStyle(

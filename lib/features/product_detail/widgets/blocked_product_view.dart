@@ -144,7 +144,7 @@ class BlockedProductView extends ConsumerWidget {
               ),
             ),
             if (brandName.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.space4),
               Text(
                 brandName,
                 style: theme.textTheme.bodyMedium?.copyWith(

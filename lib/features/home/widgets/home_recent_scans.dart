@@ -170,7 +170,7 @@ class HomeRecentScansSection extends ConsumerWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.space4),
               Text(
                 'Your last 10 scanned supplements will appear here.',
                 textAlign: TextAlign.center,
@@ -306,7 +306,7 @@ class _RecentScansShimmerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 3,
-      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      separatorBuilder: (_, __) => const SizedBox(width: AppTheme.space12),
       itemBuilder: (_, __) =>
           const SizedBox(width: 156, child: PGShimmerCard(height: 210)),
     );
@@ -372,7 +372,7 @@ class _RecentScanCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppTheme.space2),
               // Brand
               if (product.brandName != null && product.brandName!.isNotEmpty)
                 Text(
@@ -432,7 +432,7 @@ class _OutlineScanButton extends StatelessWidget {
                 size: 16,
                 color: scheme.primary,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Scan your first supplement',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -480,7 +480,7 @@ class _RecentScansSheet extends StatelessWidget {
                 letterSpacing: -0.4,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             Text(
               'Your last ${scans.length} scanned products',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -492,7 +492,7 @@ class _RecentScansSheet extends StatelessWidget {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: scans.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => const SizedBox(height: AppTheme.space12),
                 itemBuilder: (context, index) {
                   final scan = scans[index];
                   return _RecentScanListTile(
@@ -528,13 +528,13 @@ class _RecentScansSheetSkeleton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PGShimmerBox(height: 28, width: 160, radius: 10),
-            SizedBox(height: 8),
+            SizedBox(height: AppTheme.space8),
             PGShimmerBox(height: 16, width: 220, radius: 8),
             SizedBox(height: AppTheme.space16),
             PGShimmerCard(height: 84),
-            SizedBox(height: 12),
+            SizedBox(height: AppTheme.space12),
             PGShimmerCard(height: 84),
-            SizedBox(height: 12),
+            SizedBox(height: AppTheme.space12),
             PGShimmerCard(height: 84),
           ],
         ),
@@ -608,7 +608,7 @@ class _RecentScanListTile extends StatelessWidget {
                   ),
                   if (product.brandName != null &&
                       product.brandName!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTheme.space2),
                     Text(
                       product.brandName!,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -618,7 +618,7 @@ class _RecentScanListTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppTheme.space6),
                   Text(
                     relativeTime(scannedAt),
                     style: theme.textTheme.labelSmall?.copyWith(

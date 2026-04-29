@@ -164,7 +164,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               children: [
                 // Top bar
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppTheme.space16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -187,15 +187,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   height: 250,
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.white70, width: 2),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.space16),
                 const Text(
                   'Center the barcode in the frame',
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppTheme.space6),
                 const Text(
                   'We will match it against your on-device product catalog.',
                   style: TextStyle(color: Colors.white70, fontSize: 13),
@@ -204,7 +204,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 const Spacer(),
                 // Manual entry
                 Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppTheme.space24),
                   child: SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(

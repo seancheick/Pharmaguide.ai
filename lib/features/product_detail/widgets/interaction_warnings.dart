@@ -562,7 +562,7 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppTheme.space2),
                   Text(
                     'Based on your current health profile and this product.',
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -1029,7 +1029,7 @@ class _LowConcernNotesSheet extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             Text(
               'Flagged by the pipeline as low overall concern.',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -1049,7 +1049,7 @@ class _LowConcernNotesSheet extends StatelessWidget {
                         ),
                       ),
                       if (w.displayBody.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: AppTheme.space2),
                         Text(
                           w.displayBody,
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -1107,7 +1107,7 @@ class _CitationsSheet extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.space4),
               Text(
                 'Clinical references backing this interaction warning.',
                 style: theme.textTheme.bodyMedium?.copyWith(

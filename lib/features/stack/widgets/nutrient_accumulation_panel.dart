@@ -113,7 +113,7 @@ class _PanelBodyState extends State<_PanelBody> {
     final shown = _expanded ? notable : notable.take(_collapsedLimit).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppTheme.space8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -189,7 +189,7 @@ class _ShowMoreRow extends StatelessWidget {
                 color: scheme.primary,
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppTheme.space4),
             AnimatedRotation(
               turns: expanded ? 0.5 : 0,
               duration: AppMotion.fast,
@@ -227,7 +227,7 @@ class _Header extends StatelessWidget {
             size: 20,
             color: resolved.textSecondary,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppTheme.space8),
           Expanded(
             child: Text(
               'Stack Nutrient Totals',

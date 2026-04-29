@@ -59,7 +59,7 @@ class FormAbsorptionSection extends StatelessWidget {
             children: [
               const Icon(Icons.biotech_outlined,
                   size: 18, color: AppTheme.evidenceStrong),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Form & Absorption',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -107,7 +107,7 @@ class FormAbsorptionSection extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppTheme.space8),
                       Text(
                         label,
                         style: TextStyle(
@@ -126,7 +126,7 @@ class FormAbsorptionSection extends StatelessWidget {
                         fontSize: 10,
                       ),
                     ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppTheme.space4),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                     child: LinearProgressIndicator(
@@ -242,12 +242,12 @@ class _ExplainerRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppTheme.space8),
           Text(
             label,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppTheme.space4),
           Text(
             '— $description',
             style: TextStyle(

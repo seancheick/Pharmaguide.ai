@@ -144,7 +144,7 @@ class PGSeverityBanner extends StatelessWidget {
                         ),
                       ),
                       if (body != null && body!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppTheme.space4),
                         Text(
                           body!,
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -175,7 +175,7 @@ class PGSeverityBanner extends StatelessWidget {
                                     color: style.accent,
                                   ),
                                 ),
-                                const SizedBox(width: 2),
+                                const SizedBox(width: AppTheme.space2),
                                 Icon(
                                   Icons.chevron_right_rounded,
                                   size: 16,

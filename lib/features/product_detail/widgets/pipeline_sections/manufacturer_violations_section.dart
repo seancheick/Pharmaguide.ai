@@ -72,7 +72,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.factory_outlined, size: 18, color: scheme.primary),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Manufacturer History',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -80,7 +80,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
                   letterSpacing: -0.15,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppTheme.space8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -100,7 +100,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTheme.space4),
           Text(
             'Past FDA enforcement actions tied to this brand.',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -165,7 +165,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppTheme.space8),
                         Expanded(
                           child: Text(
                             violationType.isNotEmpty
@@ -186,7 +186,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
                       ],
                     ),
                     if (primaryCopy.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppTheme.space6),
                       Text(
                         primaryCopy,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -196,7 +196,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
                       ),
                     ],
                     if (violationId.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppTheme.space4),
                       Text(
                         'Ref: $violationId',
                         style: theme.textTheme.labelSmall?.copyWith(
@@ -213,7 +213,7 @@ class ManufacturerViolationsSection extends StatelessWidget {
             );
           }),
           if (sorted.length > 5) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             Text(
               '+ ${sorted.length - 5} more historical violation(s)',
               style: theme.textTheme.labelSmall?.copyWith(

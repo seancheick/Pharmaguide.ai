@@ -78,7 +78,7 @@ class ExcipientDensityCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.science_outlined, size: 18, color: color),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Formulation Purity',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -129,11 +129,11 @@ class ExcipientDensityCard extends StatelessWidget {
           Row(
             children: [
               const _LegendDot(color: AppTheme.brandTeal),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppTheme.space4),
               Text('$active active', style: theme.textTheme.labelSmall),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppTheme.space12),
               _LegendDot(color: scheme.surfaceContainerHighest),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppTheme.space4),
               Text(
                 '$inactive ${inactive == 1 ? "filler" : "fillers"}',
                 style: theme.textTheme.labelSmall?.copyWith(

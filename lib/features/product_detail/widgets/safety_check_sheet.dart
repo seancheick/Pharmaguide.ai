@@ -107,7 +107,7 @@ class _SafetyCheckSheet extends ConsumerWidget {
                     letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppTheme.space4),
                 Text(
                   productName,
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -319,7 +319,7 @@ class _SafetyResults extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.space4),
                     Text(
                       w.mechanism,
                       style: theme.textTheme.bodySmall?.copyWith(

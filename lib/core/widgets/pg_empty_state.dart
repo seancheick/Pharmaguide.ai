@@ -112,7 +112,7 @@ class PGEmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             Text(
               description,
               textAlign: TextAlign.center,

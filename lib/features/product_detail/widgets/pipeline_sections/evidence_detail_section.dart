@@ -29,7 +29,7 @@ class EvidenceDetailSection extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.science_outlined, size: 18, color: AppTheme.evidenceStrong),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Evidence & Research',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -73,7 +73,7 @@ class EvidenceDetailSection extends StatelessWidget {
                           ? AppTheme.severitySafe
                           : AppTheme.severityCaution,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppTheme.space6),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,7 +125,7 @@ class EvidenceDetailSection extends StatelessWidget {
             }),
           ],
           if (unsubstantiated.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
             Text(
               'Unsubstantiated claims',
               style: theme.textTheme.labelMedium?.copyWith(
@@ -133,7 +133,7 @@ class EvidenceDetailSection extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             ...unsubstantiated.map((claim) => Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Row(
@@ -141,7 +141,7 @@ class EvidenceDetailSection extends StatelessWidget {
                     children: [
                       const Icon(Icons.warning_amber_rounded,
                           size: 12, color: AppTheme.severityCaution),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: AppTheme.space4),
                       Expanded(
                         child: Text(
                           claim,

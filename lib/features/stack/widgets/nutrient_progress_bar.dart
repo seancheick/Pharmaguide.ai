@@ -82,7 +82,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                         ),
                       ),
                       if (hasContributions) ...[
-                        const SizedBox(width: 2),
+                        const SizedBox(width: AppTheme.space2),
                         AnimatedRotation(
                           turns: _expanded ? 0.5 : 0.0,
                           duration: AppMotion.fast,
@@ -105,13 +105,13 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppTheme.space8),
                 // Inline compact subtitle (% RDA / UL) — moved from
                 // its own row so each nutrient is a tight single line.
                 _buildSubtitleText(theme, scheme),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             ClipRRect(
               borderRadius: BorderRadius.circular(AppTheme.radiusFull),
               child: LinearProgressIndicator(
@@ -122,14 +122,14 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
               ),
             ),
             if (widget.status.warning != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: AppTheme.space6),
               _WarningChip(
                 text: widget.status.warning!,
                 color: tierColor,
               ),
             ],
             if (total.hasUnitConflict) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.space4),
               Text(
                 'Note: excludes products reported in a different unit.',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -216,7 +216,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                 letterSpacing: 0.3,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             ...contributions.map((c) {
               final pctOfTotal = widget.status.total.totalAmount > 0
                   ? (c.amount / widget.status.total.totalAmount * 100).round()
@@ -233,7 +233,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.space8),
                     Expanded(
                       child: Text(
                         c.productName,
@@ -253,7 +253,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppTheme.space6),
                     SizedBox(
                       width: 36,
                       child: Text(
@@ -308,7 +308,7 @@ class _WarningChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.warning_amber_rounded, size: 14, color: color),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppTheme.space6),
           Flexible(
             child: Text(
               text,

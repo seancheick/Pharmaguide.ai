@@ -279,7 +279,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                     letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTheme.space2),
                 Text(
                   'Profile ${profile.completenessLabel} '
                   '(${profile.completeness}%)',
@@ -386,7 +386,7 @@ class _SettingsTile extends StatelessWidget {
                   ),
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppTheme.space2),
                   Text(
                     subtitle!,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -524,7 +524,7 @@ class _PrivacyItem extends StatelessWidget {
           Row(
             children: [
               Icon(icon, size: 18, color: accent),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppTheme.space8),
               Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(

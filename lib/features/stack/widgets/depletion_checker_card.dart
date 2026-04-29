@@ -125,7 +125,7 @@ class DepletionCheckerCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.space4),
               Text(
                 chrome.subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -220,14 +220,14 @@ class _DepletionItemState extends State<_DepletionItem> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppTheme.space2),
                       Text(
                         _subtitleForCoverage(d),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppTheme.space6),
                       Text(
                         primaryCopy,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -238,7 +238,7 @@ class _DepletionItemState extends State<_DepletionItem> {
                       ),
                       if (d.monitoringTipShort != null &&
                           d.monitoringTipShort!.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: AppTheme.space6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -247,7 +247,7 @@ class _DepletionItemState extends State<_DepletionItem> {
                               size: 14,
                               color: scheme.onSurfaceVariant,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: AppTheme.space4),
                             Expanded(
                               child: Text(
                                 d.monitoringTipShort!,
@@ -265,7 +265,7 @@ class _DepletionItemState extends State<_DepletionItem> {
               ],
             ),
             if (_hasExpandableDetail()) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.space4),
               InkWell(
                 onTap: () => setState(() => _expanded = !_expanded),
                 child: Padding(
@@ -372,20 +372,20 @@ class _DetailSection extends StatelessWidget {
         children: [
           if (d.clinicalImpact != null && d.clinicalImpact!.isNotEmpty) ...[
             _labelled(theme, 'What can happen', d.clinicalImpact!),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
           ],
           if (d.foodSourcesShort != null &&
               d.foodSourcesShort!.isNotEmpty) ...[
             _labelled(theme, 'From food', d.foodSourcesShort!),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
           ],
           if (d.mechanism.isNotEmpty) ...[
             _labelled(theme, 'Why', d.mechanism),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
           ],
           if (d.recommendation.isNotEmpty) ...[
             _labelled(theme, 'Clinical guidance', d.recommendation),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.space8),
           ],
           if (d.sourceUrls.isNotEmpty) _SourcesRow(urls: d.sourceUrls),
         ],
@@ -405,7 +405,7 @@ class _DetailSection extends StatelessWidget {
             letterSpacing: 0.3,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppTheme.space2),
         Text(
           body,
           style: theme.textTheme.bodySmall?.copyWith(
@@ -456,7 +456,7 @@ class _SourcesRow extends StatelessWidget {
                   size: 11,
                   color: scheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppTheme.space4),
                 Text(
                   'Source',
                   style: theme.textTheme.labelSmall?.copyWith(

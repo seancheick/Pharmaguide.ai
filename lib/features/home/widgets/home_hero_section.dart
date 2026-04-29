@@ -68,7 +68,7 @@ class HomeHeroSection extends StatelessWidget {
             height: 1.12,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppTheme.space4),
         Text(
           'Know what you take.',
           style: theme.textTheme.titleMedium?.copyWith(

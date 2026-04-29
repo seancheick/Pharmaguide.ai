@@ -36,7 +36,7 @@ class CertificationDetailSection extends StatelessWidget {
             children: [
               const Icon(Icons.workspace_premium_outlined, size: 18,
                   color: AppTheme.severitySafe),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Certifications',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -60,7 +60,7 @@ class CertificationDetailSection extends StatelessWidget {
                           ? AppTheme.severitySafe
                           : theme.colorScheme.outlineVariant,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppTheme.space8),
                     Text(
                       check.$1,
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -131,7 +131,7 @@ class CertificationDetailSection extends StatelessWidget {
                                   size: 12,
                                   color: AppTheme.severitySafe,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: AppTheme.space4),
                                 Text(
                                   prog,
                                   style: const TextStyle(

@@ -26,7 +26,7 @@ class SynergyDetailSection extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.hub_outlined, size: 18, color: scheme.primary),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppTheme.space6),
               Text(
                 'Synergy Clusters',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -34,7 +34,7 @@ class SynergyDetailSection extends StatelessWidget {
                   letterSpacing: -0.15,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppTheme.space8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
@@ -130,7 +130,7 @@ class SynergyDetailSection extends StatelessWidget {
                       ],
                     ),
                     if (explanation.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppTheme.space4),
                       Text(
                         explanation,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -141,7 +141,7 @@ class SynergyDetailSection extends StatelessWidget {
                       ),
                     ],
                     if (pmids.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppTheme.space4),
                       Text(
                         '${pmids.length} published ${pmids.length == 1 ? "study" : "studies"}',
                         style: theme.textTheme.labelSmall?.copyWith(

@@ -134,7 +134,7 @@ class BrandedPlaceholder extends StatelessWidget {
             ),
           ),
           if (brand.isNotEmpty) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: AppTheme.space2),
             Text(
               brand,
               textAlign: TextAlign.center,
@@ -154,7 +154,7 @@ class BrandedPlaceholder extends StatelessWidget {
             children: [
               Icon(_formIcon(), size: 12, color: color.withValues(alpha: 0.6)),
               if (score != null) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: AppTheme.space4),
                 SizedBox(
                   width: 24,
                   height: 4,

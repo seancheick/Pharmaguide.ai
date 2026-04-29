@@ -20,6 +20,7 @@
 // The widget auto-hides when total is 0 or missing.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 
 class UnmappedActivesDisclosure extends StatelessWidget {
@@ -46,11 +47,11 @@ class UnmappedActivesDisclosure extends StatelessWidget {
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.space16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -61,7 +62,7 @@ class UnmappedActivesDisclosure extends StatelessWidget {
                   size: 18,
                   color: resolved.textSecondary,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppTheme.space8),
                 Expanded(
                   child: Text(
                     '$total ${_pluralize(total, 'ingredient', 'ingredients')} '
@@ -75,7 +76,7 @@ class UnmappedActivesDisclosure extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppTheme.space6),
             Text(
               'These ingredients appear on the label but were not '
               'recognized by our quality database, so they did NOT '
@@ -88,7 +89,7 @@ class UnmappedActivesDisclosure extends StatelessWidget {
               ),
             ),
             if (names.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppTheme.space12),
               ...names.map(
                 (name) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),

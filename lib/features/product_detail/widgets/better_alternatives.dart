@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
@@ -55,12 +56,12 @@ class BetterAlternativesSection extends ConsumerWidget {
                 color: resolved.textPrimary,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppTheme.space4),
             Text(
               'Higher-scored products in this category',
               style: TextStyle(fontSize: 12, color: resolved.textSecondary),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppTheme.space12),
             ...alternatives.map(
               (product) => _AlternativeCard(product: product),
             ),
@@ -95,7 +96,7 @@ class _AlternativeCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: PGCard(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppTheme.space12),
         onTap: () => context.push('/product/${product.dsldId}'),
         child: Row(
           children: [
@@ -118,7 +119,7 @@ class _AlternativeCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppTheme.space12),
             // Product info
             Expanded(
               child: Column(
@@ -136,7 +137,7 @@ class _AlternativeCard extends StatelessWidget {
                   ),
                   if (product.brandName != null &&
                       product.brandName!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTheme.space2),
                     Text(
                       product.brandName!,
                       style: TextStyle(
