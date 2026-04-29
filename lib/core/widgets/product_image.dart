@@ -19,6 +19,13 @@ class ProductImage extends ConsumerWidget {
   final double? score;
   final double size;
 
+  /// When true, force the placeholder's compact (single colored square
+  /// with initial) layout regardless of [size]. Pass-through to
+  /// [BrandedPlaceholder.compact] — see that widget for the rationale.
+  /// Use this in hero contexts at 96pt+ where the default multi-row
+  /// "full card" placeholder layout overflows the 1:1 box.
+  final bool compact;
+
   const ProductImage({
     super.key,
     required this.dsldId,
@@ -28,6 +35,7 @@ class ProductImage extends ConsumerWidget {
     this.formFactor,
     this.score,
     this.size = 52,
+    this.compact = false,
   });
 
   @override
@@ -45,6 +53,7 @@ class ProductImage extends ConsumerWidget {
       formFactor: formFactor,
       score: score,
       size: size,
+      compact: compact,
     );
 
     return imageAsync.when(
