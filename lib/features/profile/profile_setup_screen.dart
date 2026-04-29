@@ -6,7 +6,11 @@ import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
 import 'package:pharmaguide/core/widgets/pg_filter_chip.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 /// 5-step profile setup flow — fully migrated to the PG design system.
@@ -81,36 +85,80 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     final isLastStep = _currentStep == _totalSteps - 1;
     final canContinue = _currentStep != 0 || profile.ageBracket != null;
 
+    // PGFrostedAppBar is a sliver widget that lives inside a CustomScrollView.
+    // This screen has a non-scrollable PageView as its body, so a full
+    // CustomScrollView + SliverFillRemaining layout creates a nested-viewport
+    // chain (CustomScrollView > SliverFillRemaining > PageView > Viewport)
+    // that fails with null geometry in Flutter's semantics pass — both in
+    // tests and on some devices. Instead we mount PGFrostedAppBar's visual
+    // equivalent using Scaffold.appBar (PreferredSize + PGFrostedHeader
+    // directly) so the Scaffold owns the layout measurement and the body
+    // Column gets clean, bounded constraints with no nested viewports above it.
+    final mq = MediaQuery.of(context);
+    // Match PGFrostedAppBar's computed height: topPadding + 2×6px padding + 44px bar.
+    final appBarHeight = mq.padding.top + 12 + 44;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Step ${_currentStep + 1} of $_totalSteps: '
-          '${_stepLabels[_currentStep]}',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.15,
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(appBarHeight),
+        child: PGFrostedHeader(
+          // Profile setup is a fixed-chrome screen: content doesn't scroll
+          // behind the bar (PageView is the body), so the bar is always
+          // fully frosted (scrollProgress: 1.0).
+          scrollProgress: 1.0,
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: mq.padding.top + 6,
+              left: AppTheme.space12,
+              right: AppTheme.space12,
+              bottom: 6,
+            ),
+            child: SizedBox(
+              height: 44,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Center(
+                    child: Text(
+                      'Step ${_currentStep + 1} of $_totalSteps: '
+                      '${_stepLabels[_currentStep]}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_currentStep > 0)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: PGCircularIconButton(
+                        icon: Icons.arrow_back_ios_new_rounded,
+                        onTap: _prevStep,
+                      ),
+                    ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _skip,
+                      child: const Text('Skip'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        leading: _currentStep > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: _prevStep,
-              )
-            : null,
-        actions: [
-          TextButton(
-            onPressed: _skip,
-            child: const Text('Skip'),
-          ),
-        ],
       ),
       body: Column(
         children: [
           // Progress bar — thicker, rounded, theme-aware
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               AppTheme.space20,
-              AppTheme.space8,
+              appBarHeight + AppTheme.space8,
               AppTheme.space20,
               0,
             ),
@@ -141,13 +189,24 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             ),
           ),
 
-          // Bottom continue button
+          // Bottom continue button — fires haptic before transitioning
           SafeArea(
             top: false,
             minimum: const EdgeInsets.all(AppTheme.space20),
             child: FilledButton(
-              onPressed: canContinue ? _nextStep : null,
-              child: Text(isLastStep ? 'Save & continue' : 'Continue'),
+              onPressed: canContinue
+                  ? () {
+                      if (isLastStep) {
+                        PGHaptics.successPattern(context);
+                      } else {
+                        PGHaptics.press(context);
+                      }
+                      _nextStep();
+                    }
+                  : null,
+              child: Text(
+                isLastStep ? 'Save & continue' : 'Continue',
+              ),
             ),
           ),
         ],
@@ -243,15 +302,19 @@ class _BasicInfoStep extends ConsumerWidget {
               child: Column(
                 children: SchemaIds.ageBrackets
                     .map(
-                      (bracket) => RadioListTile<String>(
-                        title: Text(
-                          bracket,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w500,
+                      (bracket) => PGPressable(
+                        onTap: () => notifier.setAgeBracket(bracket),
+                        pressedScale: 0.98,
+                        child: RadioListTile<String>(
+                          title: Text(
+                            bracket,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
+                          value: bracket,
+                          dense: true,
                         ),
-                        value: bracket,
-                        dense: true,
                       ),
                     )
                     .toList(),
@@ -274,23 +337,27 @@ class _BasicInfoStep extends ConsumerWidget {
               child: Column(
                 children: SchemaIds.sexOptions
                     .map(
-                      (option) => RadioListTile<String>(
-                        title: Text(
-                          option,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w500,
+                      (option) => PGPressable(
+                        onTap: () => notifier.setSex(option),
+                        pressedScale: 0.98,
+                        child: RadioListTile<String>(
+                          title: Text(
+                            option,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
+                          subtitle: (option == 'Other' ||
+                                  option == 'Prefer not to say')
+                              ? Text(
+                                  'Uses the most conservative safety limits',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                )
+                              : null,
+                          value: option,
                         ),
-                        subtitle: (option == 'Other' ||
-                                option == 'Prefer not to say')
-                            ? Text(
-                                'Uses the most conservative safety limits',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              )
-                            : null,
-                        value: option,
                       ),
                     )
                     .toList(),
@@ -430,17 +497,21 @@ class _HealthProfileStep extends ConsumerWidget {
               children: SchemaIds.drugClasses.map((dcId) {
                 final selected = profile.drugClasses.contains(dcId);
                 final label = SchemaIds.drugClassLabels[dcId] ?? dcId;
-                return CheckboxListTile(
-                  title: Text(
-                    label,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
+                return PGPressable(
+                  onTap: () => notifier.toggleDrugClass(dcId),
+                  pressedScale: 0.98,
+                  child: CheckboxListTile(
+                    title: Text(
+                      label,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
+                    value: selected,
+                    onChanged: (_) => notifier.toggleDrugClass(dcId),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    dense: true,
                   ),
-                  value: selected,
-                  onChanged: (_) => notifier.toggleDrugClass(dcId),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  dense: true,
                 );
               }).toList(),
             ),
