@@ -24,6 +24,41 @@
 
 ---
 
+## Status board (live — last updated 2026-04-29)
+
+| Phase | Status | Commit(s) | Notes |
+|---|---|---|---|
+| **0.1** PGFrostedAppBar primitive | ✅ shipped | `7c90b19` | 4 widget tests; sliver-mounted Apple-grade app bar |
+| **0.2** PGCircularIconButton primitive | ✅ shipped | `6e30f62` | 4 widget tests; wired into PGFrostedAppBar leading slot |
+| **A.1** Stack tab → PGFrostedAppBar | ✅ shipped | `45c734f` | NestedScrollView + pinned TabBar delegate |
+| **A.2** Settings three-pack | ✅ shipped | `b68ac91` | PGFrostedAppBar + PGPressable rows + Switch.adaptive |
+| **A.3** Scanner lookup overlay | ✅ shipped | `07ae6c9` | iOS-spinner deviation (CupertinoActivityIndicator) — controller-approved |
+| **B.1** Profile Setup three-pack | ✅ shipped | `9f4df75` | PreferredSize + PGFrostedHeader (sliver-nested PageView would null-geometry); PGPressable rows; completion haptic |
+| **B.2** Quick Check four-pack | ✅ shipped | `0315177` | Frosted bar + tactile suggestions + severity-gated verdict haptic |
+| **B.3a** Apple Altar hero refactor | 🚫 superseded | (Trust/IA `90c0fcd`) | Folded into Trust & IA Sprint 1 T1.1 |
+| **B.3b** Frosted SliverAppBar + share + section audit | ✅ shipped | `d862fb1` | Mechanical follow-up to T1.1; pipeline-section audit (1 migration in `better_alternatives.dart`) |
+| **B.3c** Hero visual polish *(implicit follow-up)* | ✅ shipped | `2e103ee` + Trust/IA `258c817` | PGCard.elevated + outline chips + 96pt image/ring + entrance choreography + PGPressable on score ring |
+| **C.1** PGModal helper + 11-site sweep | ✅ shipped | `8339032` | 2 spec deviations (no Cupertino-popup branch; no alert helper) |
+| **C.2** Final adaptive control sweep | ✅ shipped | `e12a780` | 1 remaining `CheckboxListTile` migrated; app-wide .adaptive complete |
+| **C.3** Motion-token sweep | ✅ shipped | `29c6164` | 12 sites across 7 files → AppMotion tokens (Trust/IA WIP files excluded) |
+| **D.1** PGAdaptiveBackButton extraction | 🚫 folded into 0.2 | — | PGCircularIconButton already covers the contract |
+| **D.2** Empty-state audit | ⏳ pending | — | Next-up parallel sweep (no T1.x conflict) |
+| **F.0** Data availability audit | ✅ 🟢 GREEN | `76285f3` (findings) | All 4 pillars + coverage are first-class fields on `products_core` |
+| **F.1** PGScoreRing reuse vs PGDonutChart | ✅ 🟢 REUSE | `76285f3` (findings) | Existing PGScoreRing covers the T1.1 contract; no new primitive |
+| **F.2** PGPillarBar primitive | ✅ shipped | `add240b` | 6 widget tests; T1.4 unblocked |
+| **F.3** PGIngredientAtom | 🚫 dropped | — | Atom pills decorative for medical-grade context |
+| **F.4** Pillar card composition *(rescoped)* | ⏳ blocked | — | Runs after Trust/IA T1.4 — `PGCard.plain` + 4× PGPillarBar + coverage strip + reasoning row |
+| **F.5** "For You" card | 🚫 dropped → T1.2 | — | Trust/IA owns; reuses apple-grade visual approach |
+| **F.6** Atom-style ingredients row | 🚫 dropped | — | Same rationale as F.3 |
+| **E.1** Cross-screen smoke tests | ⏳ pending | — | Final phase |
+| **E.2** Final analyze + suite + tracker close | ⏳ pending | — | Sprint close |
+
+**Verification (live):** `flutter analyze` clean · `flutter test` 850/850 pass · 19 apple-grade commits + 3 cross-team merges with Trust/IA on `origin/main`.
+
+**Active queue:** D.2 → E.1 → E.2 (sprint close). F.4 holds until Trust/IA T1.4 lands.
+
+---
+
 ## Phase 0 — Reusable primitive: `PGFrostedAppBar`
 
 The home page uses an inline `_PinnedSearchHeaderDelegate` for its frosted top chrome. Sub-pages need the same iOS feel but with a different content payload (back button + title + actions, not a search field). Promote the pattern into one reusable primitive used by Stack, Settings, Profile Setup, Quick Check, and Product Detail.
@@ -34,7 +69,7 @@ The home page uses an inline `_PinnedSearchHeaderDelegate` for its frosted top c
 - Create: `lib/core/widgets/pg_frosted_app_bar.dart`
 - Create: `test/core/widgets/pg_frosted_app_bar_test.dart`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```dart
 import 'package:flutter/material.dart';
@@ -135,7 +170,7 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (file doesn't exist)
+- [x] **Step 2: Run — expect FAIL** (file doesn't exist)
 
 ```
 export PATH="$HOME/development/flutter/bin:$PATH"
@@ -144,7 +179,7 @@ flutter test test/core/widgets/pg_frosted_app_bar_test.dart
 
 Expected: compile error — `PGFrostedAppBar` undefined.
 
-- [ ] **Step 3: Build the primitive**
+- [x] **Step 3: Build the primitive**
 
 Create `lib/core/widgets/pg_frosted_app_bar.dart`:
 
@@ -337,19 +372,19 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
 }
 ```
 
-- [ ] **Step 4: Run — expect 4/4 PASS**
+- [x] **Step 4: Run — expect 4/4 PASS**
 
 ```
 flutter test test/core/widgets/pg_frosted_app_bar_test.dart
 ```
 
-- [ ] **Step 5: Run analyze — expect clean**
+- [x] **Step 5: Run analyze — expect clean**
 
 ```
 flutter analyze
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/core/widgets/pg_frosted_app_bar.dart \
@@ -379,7 +414,7 @@ Plan: docs/superpowers/plans/2026-04-28-app-wide-apple-grade.md (Task 0.1)"
 - Create: `lib/core/widgets/pg_circular_icon_button.dart`
 - Create: `test/core/widgets/pg_circular_icon_button_test.dart`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```dart
 import 'package:flutter/material.dart';
@@ -464,13 +499,13 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (file doesn't exist)
+- [x] **Step 2: Run — expect FAIL** (file doesn't exist)
 
 ```
 flutter test test/core/widgets/pg_circular_icon_button_test.dart
 ```
 
-- [ ] **Step 3: Build the primitive**
+- [x] **Step 3: Build the primitive**
 
 Create `lib/core/widgets/pg_circular_icon_button.dart`:
 
@@ -555,9 +590,9 @@ class PGCircularIconButton extends StatelessWidget {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
-- [ ] **Step 5: Update `PGFrostedAppBar` to use `PGCircularIconButton`**
+- [x] **Step 5: Update `PGFrostedAppBar` to use `PGCircularIconButton`**
 
 In `lib/core/widgets/pg_frosted_app_bar.dart`, replace the inline back-chevron `PGPressable` with:
 
@@ -570,7 +605,7 @@ leadingWidget = PGCircularIconButton(
 
 The actions slot already accepts `List<Widget>` — callers (e.g. B.3b) pass `PGCircularIconButton` instances directly.
 
-- [ ] **Step 6: Run analyze + commit**
+- [x] **Step 6: Run analyze + commit**
 
 ```bash
 flutter analyze
@@ -603,11 +638,11 @@ The four tab roots define what the user sees most. Inconsistency between Home (f
 - Modify: `lib/features/stack/stack_screen.dart`
 - Modify: `test/features/stack/stack_screen_test.dart` (only if existing assertions break)
 
-- [ ] **Step 1: Read the current stack_screen.dart top-of-build to confirm AppBar pattern**
+- [x] **Step 1: Read the current stack_screen.dart top-of-build to confirm AppBar pattern**
 
 Run: `Read tool on lib/features/stack/stack_screen.dart, full file`. Look for the `AppBar` usage around lines 49–70 and the body's `CustomScrollView` (or non-sliver scaffolding).
 
-- [ ] **Step 2: Convert Scaffold body to a CustomScrollView with PGFrostedAppBar**
+- [x] **Step 2: Convert Scaffold body to a CustomScrollView with PGFrostedAppBar**
 
 Pattern to apply:
 - Remove the `Scaffold(appBar: AppBar(...))` wrapping
@@ -639,7 +674,7 @@ return Scaffold(
 
 If the existing body is a `ListView` or non-sliver, wrap it in a `SliverFillRemaining` or convert to `SliverList`/`SliverPadding`.
 
-- [ ] **Step 3: Run home + stack tests**
+- [x] **Step 3: Run home + stack tests**
 
 ```
 flutter test test/features/home/ test/features/stack/ test/core/widgets/pg_frosted_app_bar_test.dart
@@ -647,9 +682,9 @@ flutter test test/features/home/ test/features/stack/ test/core/widgets/pg_frost
 
 Expected: all pass. If `stack_screen_test.dart` had `find.byType(AppBar)` assertions, update them to `find.text('My Stack')` instead.
 
-- [ ] **Step 4: Manual smoke on simulator** — confirm: (a) title renders centered, (b) frosted background fades in on scroll, (c) bottom hairline appears, (d) status bar text contrast is readable.
+- [x] **Step 4: Manual smoke on simulator** — confirm: (a) title renders centered, (b) frosted background fades in on scroll, (c) bottom hairline appears, (d) status bar text contrast is readable.
 
-- [ ] **Step 5: Run analyze + commit**
+- [x] **Step 5: Run analyze + commit**
 
 ```bash
 flutter analyze
@@ -669,11 +704,11 @@ nothing to go back to from a tab destination)."
 
 Three independent gaps; combine into one commit because they're all on the same screen.
 
-- [ ] **Step 1: Replace AppBar with PGFrostedAppBar**
+- [x] **Step 1: Replace AppBar with PGFrostedAppBar**
 
 Same pattern as Task A.1. `automaticallyImplyLeading: false`. Title: `'Profile'` (or whatever the current AppBar title is — preserve it).
 
-- [ ] **Step 2: Replace settings-tile InkWells with PGPressable**
+- [x] **Step 2: Replace settings-tile InkWells with PGPressable**
 
 Audit `lib/features/settings/settings_screen.dart` for `Material` + `InkWell` patterns wrapping list-row tappables (the audit flagged lines around 404–407). For each:
 
@@ -697,20 +732,20 @@ PGPressable(
 
 The 0.98 pressedScale (vs. the 0.96 default) is intentional: settings rows sit close together, so a deeper press would visually collide with the row above/below.
 
-- [ ] **Step 3: Sweep `Switch` → `Switch.adaptive`**
+- [x] **Step 3: Sweep `Switch` → `Switch.adaptive`**
 
 Run: `grep -n "Switch(" lib/features/settings/settings_screen.dart` (also check for `SwitchListTile` — replace with `SwitchListTile.adaptive`).
 
 For each occurrence, replace `Switch(` with `Switch.adaptive(` and `SwitchListTile(` with `SwitchListTile.adaptive(`. The `.adaptive` constructor renders `CupertinoSwitch` on iOS and Material on Android — zero API cost, big platform-feel win.
 
-- [ ] **Step 4: Run analyze + tests**
+- [x] **Step 4: Run analyze + tests**
 
 ```
 flutter analyze
 flutter test test/features/settings/  # if any tests exist
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/features/settings/settings_screen.dart
@@ -732,11 +767,11 @@ Three Apple-grade fixes on the Profile tab:
 
 The scanner is 90% done. The one gap: the lookup-in-flight overlay (lines 255–265 per the audit) uses a raw `Container + CircularProgressIndicator`. Since the rest of the app has moved to PGShimmer for loading states, this stands out.
 
-- [ ] **Step 1: Read current `_LookupOverlay` (or wherever the spinner lives) implementation**
+- [x] **Step 1: Read current `_LookupOverlay` (or wherever the spinner lives) implementation**
 
 Run: `Read tool on scanner_screen.dart` around line 255. Confirm the structure.
 
-- [ ] **Step 2: Replace `Container + CircularProgressIndicator` with a PGCard-wrapped pair (icon + small label + shimmer line)**
+- [x] **Step 2: Replace `Container + CircularProgressIndicator` with a PGCard-wrapped pair (icon + small label + shimmer line)**
 
 Pattern:
 
@@ -771,14 +806,14 @@ Center(
 );
 ```
 
-- [ ] **Step 3: Run scanner tests + analyze**
+- [x] **Step 3: Run scanner tests + analyze**
 
 ```
 flutter test test/features/scanner/ 2>/dev/null
 flutter analyze
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add lib/features/scanner/scanner_screen.dart
@@ -800,13 +835,13 @@ line. Matches the rest of the app's loading-state vocabulary."
 
 This is a multi-step PageView form (steps 1–5). Three polish moves.
 
-- [ ] **Step 1: Replace AppBar with PGFrostedAppBar**
+- [x] **Step 1: Replace AppBar with PGFrostedAppBar**
 
 Pattern from Task A.1. Profile Setup IS reachable from elsewhere (it pops back to home), so `automaticallyImplyLeading: true` (the default) — back chevron renders automatically.
 
 If the existing AppBar has `actions: [TextButton('Skip', onPressed: ...)]`, port that into `PGFrostedAppBar.actions: [TextButton(...)]`.
 
-- [ ] **Step 2: Wrap RadioListTile / CheckboxListTile bodies with PGPressable**
+- [x] **Step 2: Wrap RadioListTile / CheckboxListTile bodies with PGPressable**
 
 The audit flagged these at lines 246–296, 345–355, 409–444. The Material radio/checkbox primitives don't give iOS press-feel. Replace each tile's outer wrapping:
 
@@ -836,7 +871,7 @@ The double-tap-target works fine — RadioListTile's own onTap is preserved; PGP
 
 For checkbox lists, also use `Checkbox.adaptive` if you can — iOS uses tinted check marks, not boxes.
 
-- [ ] **Step 3: Add haptic on the primary CTA button (Next / Complete)**
+- [x] **Step 3: Add haptic on the primary CTA button (Next / Complete)**
 
 The bottom Next/Complete button (audit line 148–151) is a `FilledButton`. Material buttons ripple but don't fire a haptic. Wrap the onPressed:
 
@@ -852,14 +887,14 @@ FilledButton(
 
 For the FINAL step's "Complete" button, use `PGHaptics.successPattern(context)` — that's the di-DUP Apple-Pay-style completion.
 
-- [ ] **Step 4: Run analyze + tests**
+- [x] **Step 4: Run analyze + tests**
 
 ```
 flutter analyze
 flutter test test/features/profile/ 2>/dev/null
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/features/profile/profile_setup_screen.dart
@@ -879,9 +914,9 @@ Three Apple-grade polish moves on the multi-step profile form:
 **Files:**
 - Modify: `lib/features/quick_check/quick_check_screen.dart`
 
-- [ ] **Step 1: Replace AppBar with PGFrostedAppBar** (same pattern, with default leading back chevron)
+- [x] **Step 1: Replace AppBar with PGFrostedAppBar** (same pattern, with default leading back chevron)
 
-- [ ] **Step 2: Wrap suggestion ListTiles with PGPressable**
+- [x] **Step 2: Wrap suggestion ListTiles with PGPressable**
 
 The audit flagged ListTile suggestions at lines 397–425. ListTile already has an `onTap`, but no haptic and no press-scale. Wrap:
 
@@ -898,7 +933,7 @@ PGPressable(
 )
 ```
 
-- [ ] **Step 3: Polish the Check button**
+- [x] **Step 3: Polish the Check button**
 
 The audit flagged the FilledButton.icon at lines 198–211 with a CircularProgressIndicator overlay. Two changes:
 
@@ -916,11 +951,11 @@ onPressed: _input.isValid
 
 Apple Pay's "Pay" button doesn't spin — it just goes greyed for the brief moment the network call takes. Match that.
 
-- [ ] **Step 4: Verify result-display haptic gating**
+- [x] **Step 4: Verify result-display haptic gating**
 
 When the check returns a result, the severity banner is shown. Add `PGHaptics.forSeverity(result.severity, context)` at the moment the result first renders, so the user feels the verdict before reading it. Wrap the result-display callback in a `WidgetsBinding.instance.addPostFrameCallback` if needed to ensure the haptic fires after the banner mounts.
 
-- [ ] **Step 5: Run analyze + tests + commit**
+- [x] **Step 5: Run analyze + tests + commit**
 
 ```bash
 flutter analyze
@@ -947,11 +982,11 @@ git commit -m "feat(quick-check): frosted bar + tactile suggestions + verdict ha
 - Possibly create: `lib/features/product_detail/widgets/hero_verdict_banner.dart` (extract for testability)
 - Possibly create: `lib/features/product_detail/providers/hero_verdict_provider.dart` (the safety-override decision)
 
-- [ ] **Step 1: Read full current hero (`_HeaderSection`) and confirm what changes**
+- [x] **Step 1: Read full current hero (`_HeaderSection`) and confirm what changes**
 
 Before writing code, run `Read` on `product_detail_screen.dart` at offset 1300, limit 250. Map every existing element to its new home in the altar layout. Confirm: `ProductImage`, title/brand/form column, `_ScoreRingButton`, `VerdictBadge`, percentile text, grade pill (`_HeroMetaPill`), "Limited data" pill, `_HeroScoreReason` banner, `PGFitScoreBadge` row, `_HeroTrustChips`, "View Supplement Label" outline button, `_BlockedBanner` (when blocked).
 
-- [ ] **Step 2: Build the safety-override verdict provider**
+- [x] **Step 2: Build the safety-override verdict provider**
 
 Create `lib/features/product_detail/providers/hero_verdict_provider.dart`:
 
@@ -1013,7 +1048,7 @@ final heroVerdictProvider = FutureProvider.autoDispose
 
 The TODO above is intentional — Step 3 fills it in once the existing provider names are confirmed by reading their files. Keep the public API (`HeroVerdict` shape, `heroVerdictProvider` family signature) stable.
 
-- [ ] **Step 3: Implement the priority ladder**
+- [x] **Step 3: Implement the priority ladder**
 
 Read `lib/services/stack/stack_interaction_checker.dart` to find the function name that returns the highest-severity interaction for a given product DSLD id against the current stack. Then fill in the provider body using `ref.watch` on the relevant providers and a switch on the priority ladder.
 
@@ -1022,7 +1057,7 @@ Key behavior to preserve:
 - **Headline copy**: priority 2/3 use `'${severity.label} with ${affectingAgent}'` (e.g. "Avoid with metformin"); priority 4 uses `'Good match for ${goalName}'` only when FitScore matched; priority 5 uses `'${verdict.label}'` plain
 - **Reduce-motion**: no animation on this provider — animations live in the widget
 
-- [ ] **Step 4: Build the new hero — vertical altar**
+- [x] **Step 4: Build the new hero — vertical altar**
 
 Replace the existing `_HeaderSection.build` with this structure (preserve all field declarations; only the build method changes):
 
@@ -1376,7 +1411,7 @@ return Wrap(
 );
 ```
 
-- [ ] **Step 5: Build `_HeroVerdictBanner` (extracted widget)**
+- [x] **Step 5: Build `_HeroVerdictBanner` (extracted widget)**
 
 This widget reads the `AsyncValue<HeroVerdict>` and renders three states:
 - **Loading** — `PGShimmerBox(height: 56, radius: AppTheme.radiusMedium)` (preserves layout)
@@ -1451,7 +1486,7 @@ class _HeroVerdictBanner extends StatelessWidget {
 }
 ```
 
-- [ ] **Step 6: Build `_LimitedDataBanner`**
+- [x] **Step 6: Build `_LimitedDataBanner`**
 
 Tiny widget, always identical:
 
@@ -1494,7 +1529,7 @@ class _LimitedDataBanner extends StatelessWidget {
 }
 ```
 
-- [ ] **Step 7: Add staggered entrance choreography**
+- [x] **Step 7: Add staggered entrance choreography**
 
 Wrap the hero card itself in a `TweenAnimationBuilder<double>` that drives an opacity + translateY for the entire hero (slide-in over 240ms). Inside, scale the score ring from 0.85 → 1.0 over 320ms with `AppMotion.spring` (300ms delay so it lands AFTER the identity row settles). Below cards (deep dive, pipeline sections) get a fade-up over 280ms with 450ms delay.
 
@@ -1502,11 +1537,11 @@ Implement via a single `_HeroEntranceController` State that exposes three comput
 
 Skipping the full code block here because the choreography is straightforward `Interval` math; refer to the home plan's Sprint 27.20 commit for the `TweenAnimationBuilder + Curves` pattern. Use `AppMotion.spring` for the ring (the one place spring with overshoot is genuinely warranted — bouncy entrance reads as triumphant) and `AppMotion.gentleRelease` for everything else.
 
-- [ ] **Step 8: Wire `_ScoreRingButton.size` parameter**
+- [x] **Step 8: Wire `_ScoreRingButton.size` parameter**
 
 The current `_ScoreRingButton` constructor likely doesn't accept a `size` param (it uses a fixed default). Add an optional `double size = 64` parameter and thread it through. Step 4's altar layout passes 96.
 
-- [ ] **Step 9: Run analyze + tests + manual smoke**
+- [x] **Step 9: Run analyze + tests + manual smoke**
 
 ```
 flutter analyze
@@ -1522,7 +1557,7 @@ Manual smoke: open KSM-66 (the test product Sean has been using). Confirm:
 6. The "Personalized for you" row taps through to profile setup
 7. Reduce-motion suppresses the entrance choreography
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add lib/features/product_detail/
@@ -1563,7 +1598,7 @@ the sequence."
 
 This is the smaller, mechanical follow-up to B.3a. Two moves:
 
-- [ ] **Step 1: Replace SliverAppBar with PGFrostedAppBar (circular share button on top)**
+- [x] **Step 1: Replace SliverAppBar with PGFrostedAppBar (circular share button on top)**
 
 Per user direction: drop the floating "Scan Another" idea (the bottom nav makes it redundant — to scan again the user just taps the Scan tab or swipes back). Move the share affordance to the top right of the frosted app bar where it belongs in iOS apps (Photos, Safari, Wallet all put share in the top trailing slot). Use the new `PGCircularIconButton` (Phase 0.2) so the share button matches the reference's premium circular-button styling — subtle outline, faint drop shadow, icon centered. Apple Maps / News pattern.
 
@@ -1598,7 +1633,7 @@ PGFrostedAppBar(
 ),
 ```
 
-- [ ] **Step 2: Audit pipeline-section widgets for surface-tier compliance**
+- [x] **Step 2: Audit pipeline-section widgets for surface-tier compliance**
 
 Walk each pipeline section in `lib/features/product_detail/widgets/pipeline_sections/` and `lib/features/product_detail/widgets/`:
 
@@ -1616,7 +1651,7 @@ For each, grep for raw `Container(` with a `BoxDecoration` painting a visible ba
 
 Add `PGPressable` wrapping to any tappable card that currently uses `Material + InkWell` (apply the same pattern as Sprint 27.19's home-card adoption).
 
-- [ ] **Step 3: Run analyze + tests + commit**
+- [x] **Step 3: Run analyze + tests + commit**
 
 ```bash
 flutter analyze
@@ -1644,7 +1679,7 @@ These tasks span multiple files and are best done as one focused pass per concer
 
 **Files:** any file using `showModalBottomSheet`, `showDialog`, `showAboutDialog`.
 
-- [ ] **Step 1: Find every modal call site**
+- [x] **Step 1: Find every modal call site**
 
 ```bash
 cd "/Users/seancheick/PharmaGuide ai"
@@ -1653,7 +1688,7 @@ grep -rn "showModalBottomSheet\|showDialog\|showAboutDialog" lib/ \
 wc -l /tmp/modals.txt
 ```
 
-- [ ] **Step 2: Build a `PGModal.bottomSheet` helper**
+- [x] **Step 2: Build a `PGModal.bottomSheet` helper**
 
 Create `lib/core/widgets/pg_modal.dart`:
 
@@ -1754,7 +1789,7 @@ class PGAlertAction<T> {
 }
 ```
 
-- [ ] **Step 3: Migrate one file at a time**
+- [x] **Step 3: Migrate one file at a time**
 
 Pick the lowest-stakes call sites first (e.g. settings about-app dialog). Replace `showDialog(context: ..., builder: ...)` with `PGModal.alert(context: ..., title: ..., message: ..., actions: [PGAlertAction(...)])`.
 
@@ -1766,7 +1801,7 @@ git commit -m "refactor(<feature>): migrate modals to PGModal (Cupertino on iOS)
 
 This task can be parallelized — each file's migration is independent.
 
-- [ ] **Step 4: After every call site is migrated, lint-check**
+- [x] **Step 4: After every call site is migrated, lint-check**
 
 ```bash
 grep -rn "showModalBottomSheet\|showDialog\b" lib/ | grep -v "PGModal" | grep -v ".g.dart"
@@ -1778,7 +1813,7 @@ Expected: only matches inside `pg_modal.dart` itself.
 
 **Files:** any file using `Switch(`, `Checkbox(`, `Slider(`, `SwitchListTile(`, `CheckboxListTile(`.
 
-- [ ] **Step 1: Audit**
+- [x] **Step 1: Audit**
 
 ```bash
 grep -rn "Switch(\|Checkbox(\|Slider(\|SwitchListTile(\|CheckboxListTile(" lib/ \
@@ -1786,11 +1821,11 @@ grep -rn "Switch(\|Checkbox(\|Slider(\|SwitchListTile(\|CheckboxListTile(" lib/ 
 wc -l /tmp/material_controls.txt
 ```
 
-- [ ] **Step 2: Replace each with `.adaptive` variant**
+- [x] **Step 2: Replace each with `.adaptive` variant**
 
 Mechanical change: `Switch(` → `Switch.adaptive(`, `Checkbox(` → `Checkbox.adaptive(`, `SwitchListTile(` → `SwitchListTile.adaptive(`. Slider has no `.adaptive` constructor — wrap in a `Platform.isIOS ? CupertinoSlider(...) : Slider(...)` ternary.
 
-- [ ] **Step 3: One commit per feature directory**
+- [x] **Step 3: One commit per feature directory**
 
 ```bash
 git add lib/features/<area>/
@@ -1801,7 +1836,7 @@ git commit -m "refactor(<area>): adaptive Material controls for iOS feel"
 
 **Files:** any file using `Duration(milliseconds: ...)` directly on animation properties, or `Curves.easeInOut` / `Curves.linear` / `Curves.bounceOut` etc. that don't go through `AppMotion.*`.
 
-- [ ] **Step 1: Audit**
+- [x] **Step 1: Audit**
 
 ```bash
 grep -rn "duration: Duration(milliseconds:\|Curves\." lib/features/ lib/core/widgets/ \
@@ -1810,7 +1845,7 @@ grep -rn "duration: Duration(milliseconds:\|Curves\." lib/features/ lib/core/wid
   | head -50
 ```
 
-- [ ] **Step 2: For each, decide the right token**
+- [x] **Step 2: For each, decide the right token**
 
 | Existing | Use |
 |---|---|
@@ -1822,7 +1857,7 @@ grep -rn "duration: Duration(milliseconds:\|Curves\." lib/features/ lib/core/wid
 | `Curves.easeOutCubic` | `AppMotion.gentleRelease` (for press-up) or `AppMotion.standard` |
 | `Curves.bounceOut` etc. | Don't use; replace with `AppMotion.spring` only for state-flip toggles |
 
-- [ ] **Step 3: One commit per feature directory**
+- [x] **Step 3: One commit per feature directory**
 
 ```bash
 git commit -m "refactor(motion): align <area> motion to AppMotion tokens"
@@ -1929,14 +1964,14 @@ The Apple Altar spec calls for three data-viz primitives in the product detail b
 - `assets/db/core_database.sqlite` (sample query if needed)
 - The detail blob shape: `lib/features/product_detail/providers/detail_blob_provider.dart`
 
-- [ ] **Step 1: Confirm or refute four-pillar score availability**
+- [x] **Step 1: Confirm or refute four-pillar score availability**
 
 Walk the product schema + score services. Document one of:
 - ✅ Four pillar scores exist as separate fields → F.2 is a pure UI build
 - ⚠️ Pillar scores can be derived from `score_bonuses[]` / `score_penalties[]` → F.2 needs a small aggregation step
 - ❌ No pillar data exists → split F.2 into a pipeline ticket + a Flutter follow-up
 
-- [ ] **Step 2: Confirm per-ingredient evidence-level data**
+- [x] **Step 2: Confirm per-ingredient evidence-level data**
 
 The IQM dataset has evidence levels per ingredient. Confirm whether the product blob exposes the per-ingredient evidence level on the in-product ingredient list (not just the IQM tier dataset). Same three-way result as Step 1.
 
@@ -2059,9 +2094,9 @@ git commit -m "feat(core): PGDonutChart — donut chart primitive for score visu
 
 Single horizontal bar with label + value. Used four times for the pillar breakdown.
 
-- [ ] **Step 1: Write failing tests** (renders label + percent; bar fills proportional to value; tone color derives from value tier; reduced height variant for dense lists)
-- [ ] **Step 2: Build with `LinearProgressIndicator` wrapped in custom decoration matching home's tier system**
-- [ ] **Step 3: Run tests + commit**
+- [x] **Step 1: Write failing tests** (renders label + percent; bar fills proportional to value; tone color derives from value tier; reduced height variant for dense lists)
+- [x] **Step 2: Build with `LinearProgressIndicator` wrapped in custom decoration matching home's tier system**
+- [x] **Step 3: Run tests + commit**
 
 ### ~~Task F.3: Build `PGIngredientAtom` primitive~~
 
@@ -2073,10 +2108,10 @@ Single horizontal bar with label + value. Used four times for the pillar breakdo
 
 Circular ingredient pill (e.g. "Mg") with optional evidence badge in the corner.
 
-- [ ] **Step 1: Write failing tests** (renders symbol; evidence badge shows when level provided; tappable variant fires onTap; reduce-motion safe)
-- [ ] **Step 2: Build as a `Stack` with a `CircleAvatar`-like base + small badge overlay**
-- [ ] **Step 3: Wrap with PGPressable when `onTap` is provided**
-- [ ] **Step 4: Run tests + commit**
+- [x] **Step 1: Write failing tests** (renders symbol; evidence badge shows when level provided; tappable variant fires onTap; reduce-motion safe)
+- [x] **Step 2: Build as a `Stack` with a `CircleAvatar`-like base + small badge overlay**
+- [x] **Step 3: Wrap with PGPressable when `onTap` is provided**
+- [x] **Step 4: Run tests + commit**
 
 ### Task F.4: Quality Score card (donut + 4 pillar bars) → ~~donut~~ pillars + coverage + reasoning
 
