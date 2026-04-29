@@ -900,7 +900,7 @@ No duplicate warnings between Section 7 (Interactions) and Section 8 (Population
 
 ---
 
-### [ ] T1.10 — Evidence section (Section 9)
+### [x] T1.10 — Evidence section (Section 9)
 
 **What**
 "Clinical support: STRONG / MODERATE / LIMITED" + study count + meta-analysis flag. **No editorial quote in V1** (deferred). Tap → full citations.
@@ -916,6 +916,16 @@ No duplicate warnings between Section 7 (Interactions) and Section 8 (Population
 
 **Acceptance**
 Tier label matches actual evidence count. PMIDs link out to PubMed.
+
+**Verified — 2026-04-29.**
+- **REFACTOR** `lib/features/product_detail/widgets/pipeline_sections/evidence_detail_section.dart` — added public `EvidenceTier` enum (`strong` / `moderate` / `limited` with `label` + `color`) and three pure helpers: `evidenceTotalStudies(matches)` (sums PMIDs across matches, deduped by trimmed string so the same study under two ingredients counts once + ignores blanks), `evidenceHasMetaQuality(matches)` (true if any match's `evidence_level` ∈ `{strong, established, high}` — `'high'` included for forward-compat with the scoring-pipeline pillar levels), and `evidenceTier(matches)` (Flutter-side derivation until the pipeline ships a proper `meta_analysis` boolean: <3 studies → LIMITED; 3-4 studies OR 5+ without meta → MODERATE; ≥5 studies AND meta-quality → STRONG).
+- New `_TierBlock` chip rendered above the existing per-match list — "Clinical support: \<TIER\>" with severity-tinted border (`evidenceStrong` / `evidenceGood` / `evidenceTheoretical` token reuse) + sub-line "N studies reviewed" + " · meta-analysis available" appended only when `evidenceHasMetaQuality` fires. Block is `PGPressable`-wrapped → tappable to open the all-citations bottom sheet (chevron-right affordance only when there are matches to drill into).
+- Per-match rows preserved; the row-level `PubMed` pill is now `PGPressable` and opens a per-ingredient citations sheet with **every** PMID for that match (replacing the old behavior that only launched the first PMID directly). Aggregate sheet groups citations by ingredient with the ingredient name as a `titleSmall` heading + per-PMID rows that launch PubMed externally on tap. Both sheet variants use `PGModal.bottomSheet`.
+- Tier label rendered as two side-by-side `Text` widgets in a Row (not `Text.rich` with `TextSpan` children) so `find.text('STRONG')` works in widget tests — caught + fixed during the first test run, recorded in the inline comment.
+- **NO editorial quote in V1** — defensive test asserts that none of the static section text contains common editorial phrases ("has been shown", "clinically proven", "studies suggest", "research shows"). The pipeline doesn't curate research summaries yet, so any text we wrote here would be unverifiable.
+- Constructor signature unchanged (`{Map<String, dynamic>? evidenceData}`) — the single consumer in `product_detail_screen.dart:3281` works without modification.
+- **NEW** `test/features/product_detail/widgets/pipeline_sections/evidence_detail_section_test.dart` — 26 tests across 4 groups: pure `evidenceTotalStudies` (4 tests covering empty/sum/dedupe-cross-matches/blank-drop), `evidenceHasMetaQuality` (5 tests covering canonical `strong`/`established`/`high` + downgrade path + empty), `evidenceTier` boundary thresholds (8 tests including spec-exact STRONG ≥5+meta and LIMITED <3), and render (9 tests covering hide-when-null, hide-when-zero, all three tiers' label+sub-line, no-editorial-quote defense, tap-banner→all-citations, tap-pill→per-ingredient-citations, unsubstantiated-claims rendering).
+- Test count 975 → 1001 (+26). flutter analyze clean.
 
 ---
 
