@@ -751,11 +751,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 AppTheme.space20,
                 AppTheme.space8,
               ),
-              child: TransparencyFooter(
-                mappedCoverage: _product?.mappedCoverage,
-                totalIngredientCount:
-                    (detailBlob?['ingredients'] as List?)?.length,
-              ),
+              child: const TransparencyFooter(),
             ),
           ),
 

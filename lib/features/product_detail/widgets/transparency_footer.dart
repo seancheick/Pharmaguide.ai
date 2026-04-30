@@ -1,17 +1,25 @@
 // Transparency footer (Section 13).
 //
-// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.14.
+// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.14 +
+// INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T21.
 //
-// Always-visible footer that surfaces the catalog freshness, this
-// product's mapping coverage, the source institutions backing the
-// data, and the educational-only disclaimer.
+// Always-visible footer that surfaces the catalog freshness, the
+// source institutions backing the data, and the educational-only
+// disclaimer.
 //
-// Format (one block, multiple lines for readability):
-//   Updated 2 days ago · Coverage: 15/20 · Sources: NIH · FDA · PubMed
-//   PharmaGuide does not sell supplements. Educational only.
+// Format (post-T21):
+//   Updated 2 days ago
+//   Sources: NIH · FDA · PubMed
+//   Educational use only — not medical advice.
 //
-// The footer renders on every product page regardless of personal
-// state — it's site-wide trust language, not personalized signal.
+// **T21 (2026-04-30) — cleanup:**
+//   - Removed `Coverage: n/total` segment (was redundant with
+//     §6 "What we don't know" coverage callout above the fold).
+//   - Disclaimer rephrased to "Educational use only — not medical
+//     advice." (was "PharmaGuide does not sell supplements.
+//     Educational only." — the new copy is shorter and direct).
+//   - Removed italic styling everywhere — the footer reads as plain
+//     trust language, not a legal aside.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,7 +33,7 @@ const List<String> kTransparencySources = ['NIH', 'FDA', 'PubMed'];
 /// Educational-only disclaimer. Static — must always render so the
 /// user is never left guessing about scope.
 const String kTransparencyDisclaimer =
-    'PharmaGuide does not sell supplements. Educational only.';
+    'Educational use only — not medical advice.';
 
 /// Format the catalog `generated_at` timestamp as a human-readable
 /// "last updated" line.
@@ -64,46 +72,17 @@ String formatRelativeUpdate(DateTime? buildDate, DateTime now) {
   return 'Updated ${months[buildDate.month - 1]} ${buildDate.day}';
 }
 
-/// Format the coverage fraction as "n/total".
-///
-/// `mappedCoverage` is 0..1 (matches the field on `products_core`).
-/// `totalIngredientCount` is the count of active ingredients on this
-/// product — caller passes `activeIngredients.length`.
-///
-/// Returns `null` when either input is missing OR when total is 0
-/// (no ingredients to cover, footer hides the coverage segment
-/// rather than showing a divide-by-zero placeholder).
-String? formatCoverage(double? mappedCoverage, int? totalIngredientCount) {
-  if (mappedCoverage == null) return null;
-  if (totalIngredientCount == null || totalIngredientCount <= 0) return null;
-  // Clamp to [0..1] defensively — pipeline shouldn't ship outside this
-  // band but a stale catalog might.
-  final clamped = mappedCoverage.clamp(0.0, 1.0);
-  final mapped = (clamped * totalIngredientCount).round();
-  return 'Coverage: $mapped/$totalIngredientCount';
-}
-
 /// Always-visible footer for the product detail screen. Watches
-/// [catalogInfoProvider] for the catalog freshness; consumes
-/// `mappedCoverage` + `totalIngredientCount` for the per-product
-/// coverage segment.
+/// [catalogInfoProvider] for the catalog freshness.
+///
+/// **T21 (2026-04-30):** dropped `mappedCoverage` /
+/// `totalIngredientCount` ctor params (were used for the deleted
+/// "Coverage: n/total" segment).
 class TransparencyFooter extends ConsumerWidget {
-  /// 0..1 fraction. Same value driving T1.4's coverage line.
-  final double? mappedCoverage;
-
-  /// Active-ingredient count for this product. Used together with
-  /// [mappedCoverage] to render "Coverage: n/total".
-  final int? totalIngredientCount;
-
   /// Override "now" for deterministic widget tests.
   final DateTime? nowOverride;
 
-  const TransparencyFooter({
-    super.key,
-    required this.mappedCoverage,
-    required this.totalIngredientCount,
-    this.nowOverride,
-  });
+  const TransparencyFooter({super.key, this.nowOverride});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,16 +92,10 @@ class TransparencyFooter extends ConsumerWidget {
     final catalogInfo = ref.watch(catalogInfoProvider).asData?.value;
     final now = nowOverride ?? DateTime.now();
     final updatedLine = formatRelativeUpdate(catalogInfo?.buildDate, now);
-    final coverageLine = formatCoverage(mappedCoverage, totalIngredientCount);
     final sourcesLine = 'Sources: ${kTransparencySources.join(' · ')}';
 
-    final segments = <String>[
-      updatedLine,
-      if (coverageLine != null) coverageLine,
-      sourcesLine,
-    ];
-    final summary = segments.join(' · ');
-
+    // T21 — single style across all three lines. No italic, no
+    // coverage segment, three discrete rows for scan-readability.
     final smallStyle = theme.textTheme.bodySmall?.copyWith(
       color: scheme.onSurfaceVariant,
       height: 1.4,
@@ -142,12 +115,11 @@ class TransparencyFooter extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(summary, style: smallStyle),
+          Text(updatedLine, style: smallStyle),
+          const SizedBox(height: 2),
+          Text(sourcesLine, style: smallStyle),
           const SizedBox(height: AppTheme.space4),
-          Text(
-            kTransparencyDisclaimer,
-            style: smallStyle?.copyWith(fontStyle: FontStyle.italic),
-          ),
+          Text(kTransparencyDisclaimer, style: smallStyle),
         ],
       ),
     );

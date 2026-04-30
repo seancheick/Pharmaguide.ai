@@ -1,4 +1,5 @@
-// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.14.
+// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.14 +
+// INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T21.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,21 +10,12 @@ import 'package:pharmaguide/features/product_detail/widgets/transparency_footer.
 
 DateTime _now() => DateTime(2026, 4, 29);
 
-Widget _wrap(
-  CoreDatabase coreDb, {
-  double? mappedCoverage = 0.75,
-  int? totalIngredientCount = 20,
-  DateTime? nowOverride,
-}) {
+Widget _wrap(CoreDatabase coreDb, {DateTime? nowOverride}) {
   return ProviderScope(
     overrides: [coreDatabaseProvider.overrideWithValue(coreDb)],
     child: MaterialApp(
       home: Scaffold(
-        body: TransparencyFooter(
-          mappedCoverage: mappedCoverage,
-          totalIngredientCount: totalIngredientCount,
-          nowOverride: nowOverride ?? _now(),
-        ),
+        body: TransparencyFooter(nowOverride: nowOverride ?? _now()),
       ),
     ),
   );
@@ -64,8 +56,6 @@ void main() {
     });
 
     test('7 days ago → flips to absolute "Updated Apr 22"', () {
-      // ≥ 7 days, relative form would read as "1 week" — switch to
-      // absolute "Apr DD" for cleaner copy.
       expect(
         formatRelativeUpdate(DateTime(2026, 4, 22), _now()),
         'Updated Apr 22',
@@ -80,8 +70,6 @@ void main() {
     });
 
     test('time-of-day ignored — same calendar day reads "today"', () {
-      // 23:59 on the build day vs 00:01 on "now" should still be
-      // "today" — relative phrasing is calendar-day, not 24-hour.
       expect(
         formatRelativeUpdate(
           DateTime(2026, 4, 29, 23, 59),
@@ -92,116 +80,91 @@ void main() {
     });
   });
 
-  group('formatCoverage — pure logic', () {
-    test('mapped + total present → "Coverage: n/total"', () {
-      expect(formatCoverage(0.75, 20), 'Coverage: 15/20');
-    });
+  group('TransparencyFooter — render (T21 cleanup)', () {
+    testWidgets(
+      'rendered footer has 3 lines: Updated, Sources, rephrased disclaimer',
+      (tester) async {
+        final coreDb = CoreDatabase.memory();
+        await tester.pumpWidget(_wrap(coreDb));
+        await tester.pumpAndSettle();
 
-    test('rounds n to nearest whole', () {
-      // 0.74 * 20 = 14.8 → rounds to 15. 0.71 * 20 = 14.2 → 14.
-      expect(formatCoverage(0.74, 20), 'Coverage: 15/20');
-      expect(formatCoverage(0.71, 20), 'Coverage: 14/20');
-    });
+        // Lines render as separate Text widgets (not joined with '·').
+        expect(find.textContaining('Updated'), findsOneWidget);
+        expect(find.text('Sources: NIH · FDA · PubMed'), findsOneWidget);
+        expect(
+          find.text('Educational use only — not medical advice.'),
+          findsOneWidget,
+        );
 
-    test('full coverage → n equals total', () {
-      expect(formatCoverage(1.0, 12), 'Coverage: 12/12');
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+      },
+    );
 
-    test('zero coverage → "Coverage: 0/N"', () {
-      expect(formatCoverage(0.0, 8), 'Coverage: 0/8');
-    });
-
-    test('null coverage → null (segment dropped from footer)', () {
-      expect(formatCoverage(null, 20), isNull);
-    });
-
-    test('null total → null', () {
-      expect(formatCoverage(0.5, null), isNull);
-    });
-
-    test('zero total → null (avoid divide-by-zero placeholder)', () {
-      // Defensive — a product with no ingredients shouldn't render
-      // "Coverage: 0/0" since the segment would be meaningless.
-      expect(formatCoverage(0.5, 0), isNull);
-    });
-
-    test('out-of-band coverage clamped to [0..1]', () {
-      // Stale catalog might emit > 1.0; clamp prevents inflated counts.
-      expect(formatCoverage(1.5, 10), 'Coverage: 10/10');
-      expect(formatCoverage(-0.1, 10), 'Coverage: 0/10');
-    });
-  });
-
-  group('TransparencyFooter — render', () {
-    testWidgets('disclaimer always present (acceptance — site-wide trust)', (
-      tester,
-    ) async {
+    testWidgets('T21 — no Coverage segment anywhere in footer', (tester) async {
       final coreDb = CoreDatabase.memory();
-
-      // Render with full data.
       await tester.pumpWidget(_wrap(coreDb));
       await tester.pumpAndSettle();
-      expect(find.text(kTransparencyDisclaimer), findsOneWidget);
+
+      // Coverage was a per-product segment that pre-T21 lived in the
+      // summary line. Post-T21 it's gone — the §6 "What we don't know"
+      // section above the footer covers this signal.
+      expect(find.textContaining('Coverage:'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
     });
 
-    testWidgets('disclaimer renders even when coverage data is null', (
+    testWidgets('T21 — no italic styling anywhere in footer subtree', (
       tester,
     ) async {
       final coreDb = CoreDatabase.memory();
+      await tester.pumpWidget(_wrap(coreDb));
+      await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        _wrap(coreDb, mappedCoverage: null, totalIngredientCount: null),
+      // Walk every Text descendant of TransparencyFooter and assert
+      // each effective TextStyle has fontStyle != italic.
+      final textWidgets = tester.widgetList<Text>(
+        find.descendant(
+          of: find.byType(TransparencyFooter),
+          matching: find.byType(Text),
+        ),
       );
-      await tester.pumpAndSettle();
-      expect(find.text(kTransparencyDisclaimer), findsOneWidget);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await coreDb.close();
-    });
-
-    testWidgets('renders sources list', (tester) async {
-      final coreDb = CoreDatabase.memory();
-      await tester.pumpWidget(_wrap(coreDb));
-      await tester.pumpAndSettle();
-
-      // The sources line is concatenated into the summary row, not
-      // each as separate widgets — so use textContaining.
-      expect(
-        find.textContaining('Sources: NIH · FDA · PubMed'),
-        findsOneWidget,
-      );
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await coreDb.close();
-    });
-
-    testWidgets('renders coverage segment when both inputs present', (
-      tester,
-    ) async {
-      final coreDb = CoreDatabase.memory();
-      await tester.pumpWidget(_wrap(coreDb));
-      await tester.pumpAndSettle();
-
-      // 0.75 * 20 = 15 → "Coverage: 15/20"
-      expect(find.textContaining('Coverage: 15/20'), findsOneWidget);
+      expect(textWidgets, isNotEmpty, reason: 'footer should render text');
+      for (final t in textWidgets) {
+        final style = t.style;
+        expect(
+          style?.fontStyle,
+          isNot(equals(FontStyle.italic)),
+          reason: 'No italic anywhere — T21 contract',
+        );
+      }
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
     });
 
     testWidgets(
-      'omits coverage segment when data missing — disclaimer + sources still render',
+      'T21 — disclaimer copy exact match (rephrased from PharmaGuide-branded)',
       (tester) async {
         final coreDb = CoreDatabase.memory();
-        await tester.pumpWidget(_wrap(coreDb, mappedCoverage: null));
+        await tester.pumpWidget(_wrap(coreDb));
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('Coverage:'), findsNothing);
-        expect(find.textContaining('Sources: NIH'), findsOneWidget);
-        expect(find.text(kTransparencyDisclaimer), findsOneWidget);
+        // Pre-T21: "PharmaGuide does not sell supplements. Educational only."
+        // Post-T21: "Educational use only — not medical advice."
+        expect(
+          find.text('PharmaGuide does not sell supplements. Educational only.'),
+          findsNothing,
+        );
+        expect(
+          find.text(kTransparencyDisclaimer),
+          findsOneWidget,
+        );
+        expect(
+          kTransparencyDisclaimer,
+          'Educational use only — not medical advice.',
+        );
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();
@@ -211,17 +174,12 @@ void main() {
     testWidgets(
       'manifest read-failure → "Updated recently" fallback (no missing-text)',
       (tester) async {
-        // Empty in-memory DB has no manifest — readManifestValue
-        // returns null. The footer should still render gracefully.
         final coreDb = CoreDatabase.memory();
         await tester.pumpWidget(_wrap(coreDb));
         await tester.pumpAndSettle();
 
-        // catalogInfoProvider may resolve to a CatalogInfo with
-        // null buildDate, OR be still loading. Either way we must
-        // not crash and the disclaimer must still render.
         expect(find.text(kTransparencyDisclaimer), findsOneWidget);
-        expect(find.textContaining('Sources: NIH'), findsOneWidget);
+        expect(find.text('Sources: NIH · FDA · PubMed'), findsOneWidget);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();
