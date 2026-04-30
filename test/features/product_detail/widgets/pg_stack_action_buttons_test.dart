@@ -132,6 +132,43 @@ void main() {
     );
 
     testWidgets(
+      '2026-04-30 — in-stack pill auto-dismisses after 3s window',
+      (tester) async {
+        // Sean's call: persistent green pill felt like "the banner stays
+        // forever". Now it cross-fades to height-zero after 3s.
+        // AnimatedCrossFade keeps both children in the tree, so we
+        // assert the dismissed state by inspecting the widget itself
+        // (opacity / crossFadeState) rather than `findsNothing`.
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        await _seedProduct(coreDb);
+        await _addToStack(userDb);
+
+        await tester.pumpWidget(_wrap(coreDb, userDb));
+        await tester.pumpAndSettle();
+
+        // Within the 3s window — pill visible.
+        var crossFade = tester.widget<AnimatedCrossFade>(
+          find.byType(AnimatedCrossFade),
+        );
+        expect(crossFade.crossFadeState, CrossFadeState.showFirst);
+
+        // Advance past the 3s timer + the cross-fade animation.
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        crossFade = tester.widget<AnimatedCrossFade>(
+          find.byType(AnimatedCrossFade),
+        );
+        expect(crossFade.crossFadeState, CrossFadeState.showSecond);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+      },
+    );
+
+    testWidgets(
       'unsafe wins over in-stack — "See safer alternatives" beats Remove panel',
       (tester) async {
         // Edge case: the user already has the product in their stack

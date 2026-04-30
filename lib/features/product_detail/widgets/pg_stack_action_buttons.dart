@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
@@ -27,7 +29,16 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 /// "should I add this?" decisions, not "I just took my dose"
 /// telemetry. Trying to do both burned the bottom action bar with
 /// two buttons users were equally likely to mis-tap.
-class PGStackActionButtons extends ConsumerWidget {
+///
+/// **2026-04-30 — auto-collapsing in-stack bar.** Sean's feedback: the
+/// green "In your stack | Remove" pill was persistent (rendered for as
+/// long as the user stayed on the page). *"It should be present for
+/// maybe 2 seconds, 3 seconds max, and then disappear."* The widget
+/// now owns the bar's chrome (padding, surface bg, top border) so the
+/// whole bar — pill AND chrome — cross-fades to height 0 after a 3s
+/// confirmation window. To remove a product after the window expires
+/// the user navigates to the Stack tab.
+class PGStackActionButtons extends ConsumerStatefulWidget {
   final String dsldId;
 
   /// True when the product carries a BLOCKED or UNSAFE verdict —
@@ -48,47 +59,145 @@ class PGStackActionButtons extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final entryAsync = ref.watch(stackEntryForDsldIdProvider(dsldId));
+  ConsumerState<PGStackActionButtons> createState() =>
+      _PGStackActionButtonsState();
+}
 
-    return entryAsync.when(
-      loading: () => const _LoadingPrimary(),
-      error: (_, __) => _primary(context, ref, entry: null),
-      data: (entry) => _primary(context, ref, entry: entry),
+class _PGStackActionButtonsState extends ConsumerState<PGStackActionButtons> {
+  static const Duration _inStackVisibleWindow = Duration(seconds: 3);
+
+  /// True once the in-stack confirmation window has elapsed and the
+  /// whole bar should collapse. Reset back to false when the entry
+  /// transitions away (user removed) or the watched entry id changes.
+  bool _inStackDismissed = false;
+
+  /// Last seen entry id, used to detect transitions and re-arm the
+  /// dismiss timer for newly-added products.
+  String? _lastEntryId;
+
+  Timer? _dismissTimer;
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Reconcile internal state with the latest [entryId]. Called from
+  /// build via a post-frame callback so we don't setState during build.
+  void _syncWithEntry(String? entryId) {
+    if (entryId == _lastEntryId) return;
+    _lastEntryId = entryId;
+    _dismissTimer?.cancel();
+    if (entryId == null) {
+      // Removed (or never was in stack) — wipe dismissed flag so the
+      // next add starts a fresh window.
+      if (_inStackDismissed) {
+        setState(() => _inStackDismissed = false);
+      }
+    } else {
+      // New / different entry — show the pill again and re-arm.
+      if (_inStackDismissed) {
+        setState(() => _inStackDismissed = false);
+      }
+      _dismissTimer = Timer(_inStackVisibleWindow, () {
+        if (mounted) setState(() => _inStackDismissed = true);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entryAsync = ref.watch(stackEntryForDsldIdProvider(widget.dsldId));
+
+    // Schedule reconciliation post-frame so setState fires on the next
+    // frame rather than during build.
+    entryAsync.whenData((entry) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncWithEntry(entry?.id);
+      });
+    });
+
+    final entry = entryAsync.valueOrNull;
+    // The in-stack-and-dismissed state is the only one where the bar
+    // collapses entirely. Unsafe overrides everything (always show the
+    // "See safer alternatives" CTA).
+    final shouldCollapse =
+        !widget.isUnsafe && entry != null && _inStackDismissed;
+
+    return AnimatedCrossFade(
+      duration: const Duration(milliseconds: 250),
+      sizeCurve: Curves.easeOutCubic,
+      crossFadeState: shouldCollapse
+          ? CrossFadeState.showSecond
+          : CrossFadeState.showFirst,
+      firstChild: _buildBar(context, entryAsync),
+      // Width=infinity keeps the cross-fade size stable so the
+      // animation only transitions vertically.
+      secondChild: const SizedBox(width: double.infinity, height: 0),
+    );
+  }
+
+  /// The bar with full chrome (padding, surface bg, top border) wrapped
+  /// around whichever primary widget the current state demands.
+  Widget _buildBar(
+    BuildContext context,
+    AsyncValue<UserStacksLocalData?> entryAsync,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        AppTheme.space20,
+        AppTheme.space12,
+        AppTheme.space20,
+        MediaQuery.of(context).padding.bottom + AppTheme.space12,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(
+          top: BorderSide(color: scheme.outlineVariant, width: 0.5),
+        ),
+      ),
+      child: _primary(context, entryAsync),
     );
   }
 
   Widget _primary(
     BuildContext context,
-    WidgetRef ref, {
-    required UserStacksLocalData? entry,
-  }) {
+    AsyncValue<UserStacksLocalData?> entryAsync,
+  ) {
     // Unsafe always wins over in-stack — even if the user already has
     // the product in their stack, the right primary action is to
     // direct them to safer alternatives, not let them re-open the
     // remove flow as the loudest button.
-    if (isUnsafe) {
+    if (widget.isUnsafe) {
       return _SeeSaferButton(
         onTap: () {
           PGHaptics.press();
-          onSeeAlternatives?.call();
+          widget.onSeeAlternatives?.call();
         },
       );
     }
-    if (entry != null) {
-      return _InStackPanel(
-        entryId: entry.id,
-        onRemove: () => _handleRemove(context, ref, entry.id),
-      );
-    }
-    return _AddButton(onTap: () => _handleAdd(context, ref));
+    return entryAsync.when(
+      loading: () => const _LoadingPrimary(),
+      error: (_, __) => _AddButton(onTap: () => _handleAdd(context)),
+      data: (entry) {
+        if (entry != null) {
+          return _InStackPanel(
+            entryId: entry.id,
+            onRemove: () => _handleRemove(context, entry.id),
+          );
+        }
+        return _AddButton(onTap: () => _handleAdd(context));
+      },
+    );
   }
 
   // ---------------------------------------------------------------------
   // Add flow — unchanged from V0 per T1.15 acceptance:
   // "Tap [Add to Stack] → existing flow (no behavior change)".
   // ---------------------------------------------------------------------
-  Future<void> _handleAdd(BuildContext context, WidgetRef ref) async {
+  Future<void> _handleAdd(BuildContext context) async {
     await PGHaptics.press();
 
     // Fetch the product up front so we can pass its name into the sheet
@@ -96,7 +205,7 @@ class PGStackActionButtons extends ConsumerWidget {
     final coreDb = ref.read(coreDatabaseProvider);
     ProductsCoreData? product;
     try {
-      product = await coreDb.findById(dsldId);
+      product = await coreDb.findById(widget.dsldId);
     } on Exception {
       product = null;
     }
@@ -127,7 +236,7 @@ class PGStackActionButtons extends ConsumerWidget {
     final confirmed = await showSafetyCheckSheet(
       context,
       ref,
-      dsldId: dsldId,
+      dsldId: widget.dsldId,
       productName: product.productName,
     );
     if (!confirmed || !context.mounted) return;
@@ -158,11 +267,7 @@ class PGStackActionButtons extends ConsumerWidget {
   // ---------------------------------------------------------------------
   // Remove flow (with undo) — unchanged from V0.
   // ---------------------------------------------------------------------
-  Future<void> _handleRemove(
-    BuildContext context,
-    WidgetRef ref,
-    String entryId,
-  ) async {
+  Future<void> _handleRemove(BuildContext context, String entryId) async {
     final actions = ref.read(stackActionsProvider);
     await PGHaptics.press();
     try {
@@ -181,7 +286,10 @@ class PGStackActionButtons extends ConsumerWidget {
     messenger.showSnackBar(
       SnackBar(
         content: const Text('Removed from stack'),
-        duration: const Duration(seconds: 5),
+        // Sean 2026-04-30 — was 5s, felt persistent. Floating snackbars
+        // are swipe-to-dismiss by default, so 3s + swipe gives the
+        // user enough time to hit Undo without the bar lingering.
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'Undo',
@@ -262,6 +370,10 @@ class _SeeSaferButton extends StatelessWidget {
   }
 }
 
+/// Green pill confirming the product is in the user's stack, with an
+/// inline Remove affordance. Auto-dismiss timing lives one level up
+/// in [PGStackActionButtons] so the entire bar (chrome included) can
+/// collapse cleanly after the 3s window — see the doc on that class.
 class _InStackPanel extends StatelessWidget {
   final String entryId;
   final VoidCallback onRemove;

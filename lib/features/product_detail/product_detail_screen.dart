@@ -765,27 +765,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       // bottom affordance). Now blocked/unsafe products get a "See safer
       // alternatives" primary that scrolls to the Better Alternatives
       // section via [_alternativesKey].
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(
-          AppTheme.space20,
-          AppTheme.space12,
-          AppTheme.space20,
-          MediaQuery.of(context).padding.bottom + AppTheme.space12,
-        ),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: PGStackActionButtons(
-          dsldId: widget.dsldId,
-          isUnsafe: isBlocked,
-          onSeeAlternatives: _handleSeeAlternatives,
-        ),
+      //
+      // 2026-04-30 — chrome (padding, surface bg, top border, safe area)
+      // moved INSIDE [PGStackActionButtons] so the whole bar can
+      // cross-fade to height 0 once the in-stack confirmation window
+      // expires. Pre-fix the Container wrapper here would persist as a
+      // padded styled strip even after the inner pill collapsed.
+      bottomNavigationBar: PGStackActionButtons(
+        dsldId: widget.dsldId,
+        isUnsafe: isBlocked,
+        onSeeAlternatives: _handleSeeAlternatives,
       ),
     );
   }
