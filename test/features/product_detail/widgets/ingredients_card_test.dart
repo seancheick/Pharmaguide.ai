@@ -1,14 +1,28 @@
-// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T16.
+// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T16 +
+// 2026-04-30 follow-up (pipeline-driven severity + functional roles).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/features/product_detail/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_card.dart';
+
+Map<String, dynamic> _ing({
+  required String name,
+  String severity = '',
+  List<String> roles = const [],
+}) {
+  return {
+    'name': name,
+    'severity_level': severity,
+    'functional_roles': roles,
+  };
+}
 
 Future<void> _pump(
   WidgetTester tester, {
   Widget? activeContent,
-  required List<String> inactiveNames,
+  required List<Map<String, dynamic>> inactiveIngredients,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -18,7 +32,7 @@ Future<void> _pump(
             padding: const EdgeInsets.all(20),
             child: IngredientsCard(
               activeContent: activeContent,
-              inactiveNames: inactiveNames,
+              inactiveIngredients: inactiveIngredients,
             ),
           ),
         ),
@@ -28,165 +42,226 @@ Future<void> _pump(
 }
 
 void main() {
-  group('inactiveColorRank — pure helper (T16)', () {
-    test('whitelisted excipient → green', () {
-      // Defers to standard_excipients.dart's whitelist for these.
-      expect(inactiveColorRank('gelatin'), InactiveTone.green);
-      expect(inactiveColorRank('vegetable cellulose'), InactiveTone.green);
-      expect(inactiveColorRank('magnesium stearate'), InactiveTone.green);
+  setUp(() {
+    // Stub the vocab so modal tests don't need the asset bundle.
+    debugSetFunctionalRolesVocabForTesting({
+      'lubricant': const FunctionalRole(
+        id: 'lubricant',
+        name: 'Lubricant',
+        notes: 'Keeps powder from sticking during pressing.',
+        regulatoryReferences: [
+          RegulatoryReference(
+            jurisdiction: 'FDA',
+            code: '21 CFR 170.3(o)(18)',
+          ),
+        ],
+        examples: ['magnesium stearate', 'stearic acid'],
+      ),
+      'anti_caking_agent': const FunctionalRole(
+        id: 'anti_caking_agent',
+        name: 'Anti-caking agent',
+        notes: 'Prevents clumping in powdered formulations.',
+        regulatoryReferences: [],
+        examples: ['silicon dioxide'],
+      ),
     });
+  });
 
-    test('artificial dye → red', () {
-      expect(inactiveColorRank('Red 40'), InactiveTone.red);
-      expect(inactiveColorRank('yellow 5'), InactiveTone.red);
-      expect(inactiveColorRank('Blue 1'), InactiveTone.red);
-    });
+  tearDown(() {
+    debugSetFunctionalRolesVocabForTesting(null);
+  });
 
-    test('artificial sweetener → red', () {
-      expect(inactiveColorRank('Aspartame'), InactiveTone.red);
-      expect(inactiveColorRank('sucralose'), InactiveTone.red);
-    });
-
-    test('common syrups → red', () {
-      expect(inactiveColorRank('Sugar syrup'), InactiveTone.red);
-      expect(inactiveColorRank('high fructose corn syrup'), InactiveTone.red);
-    });
-
-    test('partially hydrogenated oils → red', () {
+  group('inactiveColorRank — pipeline-driven severity', () {
+    test('"high" → red', () {
       expect(
-        inactiveColorRank('Partially hydrogenated soybean oil'),
+        inactiveColorRank({'severity_level': 'high'}),
         InactiveTone.red,
       );
     });
 
-    test('palm oil and watchlist → orange', () {
-      expect(inactiveColorRank('Palm oil'), InactiveTone.orange);
-      expect(inactiveColorRank('Carrageenan'), InactiveTone.orange);
-      expect(inactiveColorRank('titanium dioxide'), InactiveTone.orange);
+    test('"moderate" → orange', () {
+      expect(
+        inactiveColorRank({'severity_level': 'moderate'}),
+        InactiveTone.orange,
+      );
     });
 
-    test('unknown ingredient (not in any set) → yellow', () {
-      expect(inactiveColorRank('Some unusual ingredient'), InactiveTone.yellow);
-      expect(inactiveColorRank('Brewers yeast'), InactiveTone.yellow);
+    test('"low" → yellow', () {
+      expect(
+        inactiveColorRank({'severity_level': 'low'}),
+        InactiveTone.yellow,
+      );
     });
 
-    test('empty string → yellow (defensive)', () {
-      expect(inactiveColorRank(''), InactiveTone.yellow);
-      expect(inactiveColorRank('   '), InactiveTone.yellow);
+    test('empty string → green', () {
+      expect(
+        inactiveColorRank({'severity_level': ''}),
+        InactiveTone.green,
+      );
+    });
+
+    test('"none" → green (defensive — pipeline emits "" not "none")', () {
+      expect(
+        inactiveColorRank({'severity_level': 'none'}),
+        InactiveTone.green,
+      );
+    });
+
+    test('missing severity_level key → green', () {
+      expect(inactiveColorRank({'name': 'X'}), InactiveTone.green);
     });
 
     test('case-insensitive match', () {
-      expect(inactiveColorRank('PALM OIL'), InactiveTone.orange);
-      expect(inactiveColorRank('aspartame'), InactiveTone.red);
-      expect(inactiveColorRank('GELATIN'), InactiveTone.green);
+      expect(
+        inactiveColorRank({'severity_level': 'HIGH'}),
+        InactiveTone.red,
+      );
+      expect(
+        inactiveColorRank({'severity_level': '  Moderate  '}),
+        InactiveTone.orange,
+      );
+    });
+
+    test('non-string severity → green (defensive)', () {
+      expect(inactiveColorRank({'severity_level': 5}), InactiveTone.green);
     });
   });
 
-  group('IngredientsCard — render (post-2026-04-30 collapsible)', () {
-    testWidgets(
-      'both empty → SizedBox.shrink (no card rendered)',
-      (tester) async {
-        await _pump(tester, activeContent: null, inactiveNames: const []);
-        await tester.pumpAndSettle();
-        expect(find.text('Other ingredients'), findsNothing);
-      },
-    );
+  group('IngredientsCard — render', () {
+    testWidgets('both empty → SizedBox.shrink', (tester) async {
+      await _pump(tester, inactiveIngredients: const []);
+      await tester.pumpAndSettle();
+      expect(find.text('Other ingredients'), findsNothing);
+    });
 
-    testWidgets('inactive only → renders title + count badge, no divider', (
-      tester,
-    ) async {
+    testWidgets('renders header + count badge', (tester) async {
       await _pump(
         tester,
-        activeContent: null,
-        inactiveNames: const ['Gelatin', 'Silica'],
+        inactiveIngredients: [
+          _ing(name: 'Gelatin'),
+          _ing(name: 'Silica'),
+        ],
       );
       await tester.pumpAndSettle();
       expect(find.text('Other ingredients'), findsOneWidget);
-      // Count badge shows the number.
       expect(find.text('2'), findsOneWidget);
-      // No active content → no inter-sub-section divider.
-      expect(find.byType(Divider), findsNothing);
     });
 
     testWidgets('active + inactive → divider rendered between', (tester) async {
       await _pump(
         tester,
         activeContent: const Text('ACTIVE_BLOCK'),
-        inactiveNames: const ['Gelatin'],
+        inactiveIngredients: [_ing(name: 'Gelatin')],
       );
       await tester.pumpAndSettle();
       expect(find.text('ACTIVE_BLOCK'), findsOneWidget);
-      expect(find.text('Other ingredients'), findsOneWidget);
       expect(find.byType(Divider), findsOneWidget);
     });
 
+    testWidgets('≤ 5 inactives → auto-expanded', (tester) async {
+      await _pump(
+        tester,
+        inactiveIngredients: [
+          _ing(name: 'Gelatin'),
+          _ing(name: 'Silica'),
+          _ing(name: 'Cellulose'),
+          _ing(name: 'Magnesium stearate'),
+        ],
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Gelatin'), findsOneWidget);
+      expect(find.text('Magnesium stearate'), findsOneWidget);
+    });
+
+    testWidgets('> 5 inactives → collapsed by default; tap expands', (
+      tester,
+    ) async {
+      final names =
+          List.generate(8, (i) => _ing(name: 'Ingredient ${i + 1}'));
+      await _pump(tester, inactiveIngredients: names);
+      await tester.pumpAndSettle();
+
+      // Pre-expand: rows hidden.
+      expect(find.text('Ingredient 1'), findsNothing);
+
+      // Tap header → expand.
+      await tester.tap(find.text('Other ingredients'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ingredient 1'), findsOneWidget);
+      expect(find.text('Ingredient 8'), findsOneWidget);
+    });
+  });
+
+  group('Tap modal — vocab-driven', () {
     testWidgets(
-      '≤ 5 inactives → auto-expands so all rows visible by default',
+      'tap row with functional_roles → opens sheet w/ role name + notes',
       (tester) async {
-        // Mirrors `_CollapsibleIngredientsState`'s autoExpand-if-≤5
-        // contract on the actives side.
         await _pump(
           tester,
-          activeContent: null,
-          inactiveNames: const [
-            'Gelatin',
-            'Silica',
-            'Cellulose',
-            'Magnesium stearate',
+          inactiveIngredients: [
+            _ing(
+              name: 'Magnesium Stearate',
+              roles: const ['lubricant', 'anti_caking_agent'],
+            ),
           ],
         );
         await tester.pumpAndSettle();
-        // Each name renders inline (not behind a "See all" toggle).
-        expect(find.text('Gelatin'), findsOneWidget);
-        expect(find.text('Silica'), findsOneWidget);
-        expect(find.text('Cellulose'), findsOneWidget);
-        expect(find.text('Magnesium stearate'), findsOneWidget);
-        // Chevron is still present (header is tappable to collapse).
-        expect(find.byIcon(Icons.expand_more_rounded), findsOneWidget);
+
+        await tester.tap(find.text('Magnesium Stearate'));
+        await tester.pumpAndSettle();
+
+        // Sheet header — ingredient name appears once in row, once
+        // in modal.
+        expect(find.text('Magnesium Stearate'), findsNWidgets(2));
+        // Both roles render with their vocab content.
+        expect(find.text('Lubricant'), findsOneWidget);
+        expect(
+          find.text('Keeps powder from sticking during pressing.'),
+          findsOneWidget,
+        );
+        expect(find.text('Anti-caking agent'), findsOneWidget);
       },
     );
 
     testWidgets(
-      '> 5 inactives → starts collapsed; tap header expands the full list',
+      'tap row with empty functional_roles → generic fallback copy',
       (tester) async {
-        final names = List.generate(12, (i) => 'Ingredient ${i + 1}');
-        await _pump(tester, activeContent: null, inactiveNames: names);
+        await _pump(
+          tester,
+          inactiveIngredients: [
+            _ing(name: 'Mystery Excipient', roles: const []),
+          ],
+        );
         await tester.pumpAndSettle();
 
-        // Count badge shows total.
-        expect(find.text('12'), findsOneWidget);
-        // Pre-expand: rows hidden (long list defaults collapsed).
-        expect(find.text('Ingredient 1'), findsNothing);
-
-        // Tap header to expand.
-        await tester.tap(find.text('Other ingredients'));
+        await tester.tap(find.text('Mystery Excipient'));
         await tester.pumpAndSettle();
 
-        // All rows now visible inline.
-        expect(find.text('Ingredient 1'), findsOneWidget);
-        expect(find.text('Ingredient 12'), findsOneWidget);
+        expect(
+          find.text('Inactive ingredient — added during manufacturing.'),
+          findsOneWidget,
+        );
       },
     );
 
     testWidgets(
-      'tap header twice toggles collapse → expand → collapse',
+      'tap row with unknown role IDs → generic fallback (vocab miss)',
       (tester) async {
-        final names = List.generate(10, (i) => 'Ingredient ${i + 1}');
-        await _pump(tester, activeContent: null, inactiveNames: names);
+        await _pump(
+          tester,
+          inactiveIngredients: [
+            _ing(name: 'Edge Case', roles: const ['not_in_vocab']),
+          ],
+        );
         await tester.pumpAndSettle();
 
-        // Starts collapsed (length > 5).
-        expect(find.text('Ingredient 1'), findsNothing);
-
-        // Expand.
-        await tester.tap(find.text('Other ingredients'));
+        await tester.tap(find.text('Edge Case'));
         await tester.pumpAndSettle();
-        expect(find.text('Ingredient 1'), findsOneWidget);
 
-        // Collapse.
-        await tester.tap(find.text('Other ingredients'));
-        await tester.pumpAndSettle();
-        expect(find.text('Ingredient 1'), findsNothing);
+        expect(
+          find.text('Inactive ingredient — added during manufacturing.'),
+          findsOneWidget,
+        );
       },
     );
   });

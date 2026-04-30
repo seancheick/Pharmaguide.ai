@@ -102,6 +102,12 @@ flutter:
     # opened directly without copying to app documents.
     - assets/db/interaction_db.sqlite
     - assets/db/interaction_db_manifest.json
+    # Functional-roles vocab — clinician-locked v1.0.0 controlled
+    # vocabulary for inactive-ingredient tap-to-explain modals. 32
+    # roles, ~13 KB. Bundled (not per-blob) so vocab updates ship via
+    # app release. Source of truth: pipeline repo
+    # `scripts/data/functional_roles_vocab.json`.
+    - assets/data/functional_roles_vocab.json
 
 sentry:
   upload_debug_symbols: true

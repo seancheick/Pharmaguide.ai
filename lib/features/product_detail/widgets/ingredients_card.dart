@@ -36,9 +36,10 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
+import 'package:pharmaguide/features/product_detail/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
-import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
 
 /// Merged Ingredients card — Section 6 of the product detail page.
 ///
@@ -54,10 +55,13 @@ class IngredientsCard extends StatefulWidget {
   /// hidden.
   final Widget? activeContent;
 
-  /// Inactive ingredient names in label order. Renders inline with
-  /// color-dot tone per [inactiveColorRank], matching the Active
-  /// Ingredients collapsible pattern.
-  final List<String> inactiveNames;
+  /// Inactive ingredient rows from the pipeline blob (label order).
+  /// Each entry carries `name`, `severity_level` (drives color dot —
+  /// see [inactiveColorRank]) and `functional_roles[]` (drives the
+  /// tap modal — looked up against the bundled
+  /// `functional_roles_vocab.json`). Other pipeline fields ride
+  /// along untouched so future enrichment doesn't break the API.
+  final List<Map<String, dynamic>> inactiveIngredients;
 
   /// Auto-expand threshold. Lists at-or-below this size start expanded;
   /// longer lists start collapsed and reveal on tap. Mirrors
@@ -68,7 +72,7 @@ class IngredientsCard extends StatefulWidget {
   const IngredientsCard({
     super.key,
     required this.activeContent,
-    required this.inactiveNames,
+    required this.inactiveIngredients,
     this.autoExpandThreshold = 5,
   });
 
@@ -82,13 +86,14 @@ class _IngredientsCardState extends State<IngredientsCard> {
   @override
   void initState() {
     super.initState();
-    _expanded = widget.inactiveNames.length <= widget.autoExpandThreshold;
+    _expanded =
+        widget.inactiveIngredients.length <= widget.autoExpandThreshold;
   }
 
   @override
   Widget build(BuildContext context) {
     final hasActive = widget.activeContent != null;
-    final hasInactive = widget.inactiveNames.isNotEmpty;
+    final hasInactive = widget.inactiveIngredients.isNotEmpty;
     if (!hasActive && !hasInactive) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
@@ -117,7 +122,7 @@ class _IngredientsCardState extends State<IngredientsCard> {
   }
 
   Widget _buildInactiveSection(ThemeData theme, ColorScheme scheme) {
-    final names = widget.inactiveNames;
+    final ingredients = widget.inactiveIngredients;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +155,7 @@ class _IngredientsCardState extends State<IngredientsCard> {
                     borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                   ),
                   child: Text(
-                    '${names.length}',
+                    '${ingredients.length}',
                     style: AppTheme.numeric(
                       theme.textTheme.labelSmall!.copyWith(
                         fontWeight: FontWeight.w700,
@@ -174,9 +179,9 @@ class _IngredientsCardState extends State<IngredientsCard> {
           ),
         ),
         // Animated expand/collapse of the inactive rows. Color-dot
-        // (per `inactiveColorRank`) + name + bottom divider. Tap a row
-        // to open the existing bottom-sheet explanation (the prior
-        // chip's UX).
+        // (per `inactiveColorRank`, driven by pipeline severity_level)
+        // + name + bottom divider. Tap a row to open the vocab-driven
+        // functional-roles explanation modal.
         AnimatedSize(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
@@ -186,10 +191,10 @@ class _IngredientsCardState extends State<IngredientsCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (var i = 0; i < names.length; i++)
+                      for (var i = 0; i < ingredients.length; i++)
                         _InactiveRow(
-                          name: names[i],
-                          isLast: i == names.length - 1,
+                          ingredient: ingredients[i],
+                          isLast: i == ingredients.length - 1,
                         ),
                     ],
                   ),
@@ -202,22 +207,25 @@ class _IngredientsCardState extends State<IngredientsCard> {
 }
 
 /// Single inactive ingredient row: color dot (per [inactiveColorRank])
-/// + name + bottom divider. Tappable to open the existing bottom-sheet
-/// explanation (preserves the prior `InactiveIngredientChip` UX).
+/// + name + bottom divider. Tap → vocab-driven functional-roles modal
+/// (see [_showFunctionalRolesSheet]).
 class _InactiveRow extends StatelessWidget {
-  final String name;
+  final Map<String, dynamic> ingredient;
   final bool isLast;
 
-  const _InactiveRow({required this.name, required this.isLast});
+  const _InactiveRow({required this.ingredient, required this.isLast});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final tone = inactiveColorRank(name);
+    final tone = inactiveColorRank(ingredient);
+    final name = ingredient['name']?.toString() ??
+        ingredient['raw_source_text']?.toString() ??
+        '';
 
     return PGPressable(
-      onTap: () => _showExplanationSheet(context, name),
+      onTap: () => _showFunctionalRolesSheet(context, ingredient),
       pressedScale: 0.98,
       child: Container(
         decoration: BoxDecoration(
@@ -260,7 +268,218 @@ class _InactiveRow extends StatelessWidget {
     );
   }
 
-  void _showExplanationSheet(BuildContext context, String ingredientName) {
-    showInactiveExplanationSheet(context, ingredientName);
+  /// Open the tap-modal for this ingredient. Looks up each entry of
+  /// `ingredient['functional_roles']: string[]` against the bundled
+  /// vocab and renders one section per matched role (name + verbatim
+  /// notes + examples + regulatory deep-links).
+  ///
+  /// Empty / null `functional_roles` → generic fallback. The sheet
+  /// itself handles vocab loading / lookup misses.
+  void _showFunctionalRolesSheet(
+    BuildContext context,
+    Map<String, dynamic> ingredient,
+  ) {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) => _FunctionalRolesSheet(ingredient: ingredient),
+    );
+  }
+}
+
+/// Bottom-sheet body explaining an inactive ingredient via the
+/// functional-roles vocab. One stacked section per role on the
+/// ingredient row. Reads vocab via the cached
+/// `loadFunctionalRolesVocab()` so the first open does the asset
+/// fetch; subsequent opens are sync-fast.
+class _FunctionalRolesSheet extends StatelessWidget {
+  final Map<String, dynamic> ingredient;
+  const _FunctionalRolesSheet({required this.ingredient});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final name = ingredient['name']?.toString() ??
+        ingredient['raw_source_text']?.toString() ??
+        '';
+    final roles = (ingredient['functional_roles'] as List?)
+            ?.map((e) => e.toString())
+            .where((id) => id.isNotEmpty)
+            .toList(growable: false) ??
+        const <String>[];
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          AppTheme.space12,
+          AppTheme.space20,
+          AppTheme.space20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Ingredient name (the row the user tapped) — in the
+              // sheet header so they have anchor context.
+              Text(
+                name.isEmpty ? 'Inactive ingredient' : name,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: AppTheme.space12),
+              if (roles.isEmpty)
+                _GenericFallback(scheme: scheme, theme: theme)
+              else
+                FutureBuilder<Map<String, FunctionalRole>>(
+                  future: loadFunctionalRolesVocab(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const SizedBox(
+                        height: 80,
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    }
+                    final vocab = snapshot.data!;
+                    final matched = roles
+                        .map((id) => vocab[id])
+                        .whereType<FunctionalRole>()
+                        .toList(growable: false);
+                    if (matched.isEmpty) {
+                      // All ids unknown — fall back so the user gets
+                      // something. Could happen during a vocab/data
+                      // version skew.
+                      return _GenericFallback(scheme: scheme, theme: theme);
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < matched.length; i++) ...[
+                          if (i > 0) const SizedBox(height: AppTheme.space20),
+                          _RoleSection(role: matched[i]),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One vocab role rendered as a stacked section in the modal:
+/// title, body (verbatim — clinician-locked), examples chip row,
+/// regulatory deep-link row.
+class _RoleSection extends StatelessWidget {
+  final FunctionalRole role;
+  const _RoleSection({required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          role.name,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space6),
+        // Notes — verbatim, no paraphrase. Clinician-locked copy.
+        Text(
+          role.notes,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: scheme.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
+        if (role.examples.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space12),
+          Text(
+            'Common examples',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final ex in role.examples)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  ),
+                  child: Text(
+                    ex,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+        if (role.regulatoryReferences.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space12),
+          Text(
+            'Learn more',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          for (final ref in role.regulatoryReferences)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '${ref.jurisdiction} · ${ref.code}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _GenericFallback extends StatelessWidget {
+  final ColorScheme scheme;
+  final ThemeData theme;
+  const _GenericFallback({required this.scheme, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Inactive ingredient — added during manufacturing.',
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: scheme.onSurfaceVariant,
+        height: 1.4,
+      ),
+    );
   }
 }

@@ -2276,14 +2276,15 @@ class DetailSection extends ConsumerWidget {
                     blends: propBlends,
                   )
                 : null,
-            inactiveNames: inactiveIngredients
-                .map(
+            // Pass full pipeline rows — `severity_level` drives the
+            // color dot, `functional_roles[]` drives the tap modal.
+            // Filter out rows without a usable name (defensive).
+            inactiveIngredients: inactiveIngredients
+                .where(
                   (ing) =>
-                      ing['name']?.toString() ??
-                      ing['raw_source_text']?.toString() ??
-                      '',
+                      ((ing['name']?.toString() ?? '').isNotEmpty) ||
+                      ((ing['raw_source_text']?.toString() ?? '').isNotEmpty),
                 )
-                .where((n) => n.isNotEmpty)
                 .toList(growable: false),
           ),
           const SizedBox(height: 20),

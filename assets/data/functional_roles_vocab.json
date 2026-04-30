@@ -1,0 +1,337 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary of 32 excipient/inactive-ingredient functional roles (binder, lubricant, emulsifier, etc.) used as the source of truth for functional_roles[] arrays across harmful_additives.json, other_ingredients.json, and botanical_ingredients.json. Display-only — no scoring impact in V1; ships as a bundled asset to the Flutter app for tap-to-learn UI. Aligned with FDA 21 CFR 170.3(o), EU E-numbers, and FAO/JECFA INS classes. Clinician-locked at v1.0.0; adding/removing roles requires a fresh review cycle.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-04-30",
+    "total_entries": 32,
+    "status": "LOCKED — clinician sign-off complete",
+    "clinician_signoff": "Dr Pham, 2026-04-30",
+    "purpose": "Controlled vocabulary of excipient/inactive-ingredient functional roles for the Flutter app's tap-to-learn UI. Each role's `name` and `notes` are user-facing copy. `regulatory_references` lets users tap through to the actual FDA CFR / EU E-number text. Single source of truth for `functional_roles[]` IDs across harmful_additives.json, other_ingredients.json, and botanical_ingredients.json.",
+    "alignment": "FDA 21 CFR 170.3(o)(1-32) functional purpose categories + EU E-number functional classes (Annex II of Regulation 1333/2008) + FAO/JECFA INS functional classes",
+    "field_contract": {
+      "id": "snake_case stable identifier — used as the value in `functional_roles[]` arrays. Never rename without a migration.",
+      "name": "User-facing chip label (Title Case). Shown directly in the Flutter UI.",
+      "notes": "≤200 char user-facing description. Plain English, no jargon. Shown in tap modal.",
+      "regulatory_references": "Tappable references — array of {jurisdiction, code}. Flutter renders as 'Learn more' links.",
+      "examples": "Up to 5 common ingredient names users might recognize on labels."
+    },
+    "char_limit_notes": 200,
+    "v1_1_followups": [
+      "Add `attributes` object per ingredient (is_branded_complex, is_synthetic_form, source_origin, caramel_class, e171_eu_concern, is_animal_derived) — separate from functional_roles. See Section 6 of CLINICIAN_REVIEW.md.",
+      "Pair each chip's neutral definition with a per-chip deeper-dive screen carrying safety context (FODMAP/IBS for sugar alcohols, EU vs FDA divergence for E171/TiO2, Class III/IV 4-MEI for caramel color, magnesium stearate consumer-advocacy debate)."
+    ],
+    "v1_excluded_roles": "chelating_agent (folded into preservative/antioxidant); enzyme (folded into processing_aid; active enzymes go to ingredient pipeline); firming_agent (effectively absent in supplements); sequestrant (overlaps preservative/antioxidant); texturizer (synonymous with gelling_agent)."
+  },
+  "functional_roles": [
+    {
+      "id": "binder",
+      "name": "Binder",
+      "notes": "Holds tablet ingredients together so the pill stays intact during handling and shipping.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(14)"},
+        {"jurisdiction": "EU",  "code": "E1400-E1499"}
+      ],
+      "examples": ["microcrystalline cellulose", "hydroxypropyl cellulose", "povidone", "starch"]
+    },
+    {
+      "id": "disintegrant",
+      "name": "Disintegrant",
+      "notes": "Helps the tablet break apart in the stomach so the active ingredients can be absorbed.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(14)"}
+      ],
+      "examples": ["croscarmellose sodium", "sodium starch glycolate", "crospovidone"]
+    },
+    {
+      "id": "lubricant",
+      "name": "Lubricant",
+      "notes": "Keeps powder from sticking to the tablet press during manufacturing. Used in trace amounts.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(18)"},
+        {"jurisdiction": "EU",  "code": "E470a-E472"}
+      ],
+      "examples": ["magnesium stearate", "stearic acid", "calcium stearate"]
+    },
+    {
+      "id": "glidant",
+      "name": "Glidant",
+      "notes": "Improves powder flow during manufacturing so each tablet gets a consistent dose.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(1)"},
+        {"jurisdiction": "EU",  "code": "E551"}
+      ],
+      "examples": ["silicon dioxide", "talc", "colloidal silica"]
+    },
+    {
+      "id": "coating",
+      "name": "Coating",
+      "notes": "Outer film that makes capsules and tablets easier to swallow or protects them from stomach acid.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(30)"}
+      ],
+      "examples": ["hypromellose", "shellac", "ethylcellulose", "gelatin"]
+    },
+    {
+      "id": "filler",
+      "name": "Filler",
+      "notes": "Adds bulk so a small dose can fit into a normal-sized tablet or capsule.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(14)"}
+      ],
+      "examples": ["microcrystalline cellulose", "lactose", "dicalcium phosphate", "mannitol"]
+    },
+    {
+      "id": "emulsifier",
+      "name": "Emulsifier",
+      "notes": "Lets oil and water mix so the formula stays uniform — common in liquid and gel supplements.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(8)"},
+        {"jurisdiction": "EU",  "code": "E322 / E433 / E471-E479"}
+      ],
+      "examples": ["sunflower lecithin", "soy lecithin", "polysorbate 80", "mono- and diglycerides"]
+    },
+    {
+      "id": "surfactant",
+      "name": "Surfactant",
+      "notes": "Lowers surface tension to help ingredients dissolve and disperse evenly in liquid.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(29)"}
+      ],
+      "examples": ["polysorbate 20", "polysorbate 80", "sodium lauryl sulfate"]
+    },
+    {
+      "id": "thickener",
+      "name": "Thickener",
+      "notes": "Increases viscosity — used in syrups, gummies, and gel caps for the right texture.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(28)"},
+        {"jurisdiction": "EU",  "code": "E400-E499"}
+      ],
+      "examples": ["xanthan gum", "guar gum", "carrageenan", "pectin"]
+    },
+    {
+      "id": "stabilizer",
+      "name": "Stabilizer",
+      "notes": "Keeps the formula from separating, settling, or losing potency over the product's shelf life.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(28)"},
+        {"jurisdiction": "EU",  "code": "E400-E499"}
+      ],
+      "examples": ["xanthan gum", "carboxymethyl cellulose", "acacia gum"]
+    },
+    {
+      "id": "gelling_agent",
+      "name": "Gelling Agent",
+      "notes": "Forms gels — used in soft-gel capsule shells, gummies, and gel-textured supplements.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(28)"},
+        {"jurisdiction": "EU",  "code": "E400-E499"}
+      ],
+      "examples": ["gelatin", "pectin", "agar", "carrageenan"]
+    },
+    {
+      "id": "humectant",
+      "name": "Humectant",
+      "notes": "Holds moisture in — keeps soft-gel capsules and gummies from drying out and cracking.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(16)"},
+        {"jurisdiction": "EU",  "code": "E422 / E1518"}
+      ],
+      "examples": ["glycerin", "propylene glycol", "sorbitol"]
+    },
+    {
+      "id": "preservative",
+      "name": "Preservative",
+      "notes": "Helps reduce the growth of bacteria, yeast, and mold so the product stays usable through its shelf life.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(2)"},
+        {"jurisdiction": "EU",  "code": "E200-E299"}
+      ],
+      "examples": ["potassium sorbate", "sodium benzoate", "phenoxyethanol"]
+    },
+    {
+      "id": "antioxidant",
+      "name": "Antioxidant",
+      "notes": "Prevents fats and oils in the product from going rancid, preserving freshness and potency.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(3)"},
+        {"jurisdiction": "EU",  "code": "E300-E399"}
+      ],
+      "examples": ["tocopherols (vitamin E)", "ascorbic acid", "rosemary extract", "BHT"]
+    },
+    {
+      "id": "colorant_natural",
+      "name": "Natural Colorant",
+      "notes": "Color from a plant, mineral, or animal source. Meets FDA standards without batch-by-batch testing.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 73"},
+        {"jurisdiction": "EU",  "code": "E100-E163"}
+      ],
+      "examples": ["beet juice", "turmeric", "annatto", "iron oxide", "carmine"]
+    },
+    {
+      "id": "colorant_artificial",
+      "name": "Artificial Colorant",
+      "notes": "Synthetic dye that must be FDA-approved. Some users prefer to avoid these.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 74"},
+        {"jurisdiction": "EU",  "code": "E102-E155"}
+      ],
+      "examples": ["FD&C Red No. 40", "FD&C Yellow No. 5", "FD&C Blue No. 1"]
+    },
+    {
+      "id": "flavor_natural",
+      "name": "Natural Flavor",
+      "notes": "Flavor derived from a plant or animal source through standard food-processing methods.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(12)"},
+        {"jurisdiction": "EU",  "code": "Reg 1334/2008"}
+      ],
+      "examples": ["natural lemon flavor", "vanilla extract", "natural strawberry flavor"]
+    },
+    {
+      "id": "flavor_artificial",
+      "name": "Artificial Flavor",
+      "notes": "Flavor synthesized in a lab. Some users prefer to avoid these.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(12)"},
+        {"jurisdiction": "EU",  "code": "Reg 1334/2008"}
+      ],
+      "examples": ["artificial vanilla flavor", "artificial cherry flavor", "ethyl maltol"]
+    },
+    {
+      "id": "flavor_enhancer",
+      "name": "Flavor Enhancer",
+      "notes": "Strengthens or balances existing flavors — adds little taste of its own.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(11)"},
+        {"jurisdiction": "EU",  "code": "E620-E640"}
+      ],
+      "examples": ["monosodium glutamate (MSG)", "disodium inosinate", "yeast extract"]
+    },
+    {
+      "id": "sweetener_natural",
+      "name": "Natural Sweetener",
+      "notes": "Caloric sweetener from a natural source — provides sweetness and energy.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(21)"}
+      ],
+      "examples": ["cane sugar", "honey", "maple syrup", "stevia leaf extract", "monk fruit"]
+    },
+    {
+      "id": "sweetener_artificial",
+      "name": "Artificial Sweetener",
+      "notes": "Zero- or low-calorie synthetic sweetener. Hundreds of times sweeter than sugar by weight.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(19)"},
+        {"jurisdiction": "EU",  "code": "E950-E969"}
+      ],
+      "examples": ["sucralose", "aspartame", "acesulfame potassium", "saccharin"]
+    },
+    {
+      "id": "sweetener_sugar_alcohol",
+      "name": "Sugar Alcohol",
+      "notes": "Lower-calorie sweetener (xylitol, erythritol, sorbitol). Can cause bloating or laxative effects, especially at higher intakes.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 184"},
+        {"jurisdiction": "EU",  "code": "E420-E421 / E953-E968"}
+      ],
+      "examples": ["xylitol", "erythritol", "sorbitol", "maltitol", "mannitol"]
+    },
+    {
+      "id": "anti_caking_agent",
+      "name": "Anti-Caking Agent",
+      "notes": "Prevents powders from clumping — keeps capsule contents free-flowing and easy to dose.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(1)"},
+        {"jurisdiction": "EU",  "code": "E535-E572"}
+      ],
+      "examples": ["silicon dioxide", "calcium silicate", "magnesium stearate"]
+    },
+    {
+      "id": "anti_foaming_agent",
+      "name": "Anti-Foaming Agent",
+      "notes": "Reduces foam during manufacturing — used in liquid and powder processing.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(14)"},
+        {"jurisdiction": "EU",  "code": "E900"}
+      ],
+      "examples": ["dimethylpolysiloxane", "silicone emulsion"]
+    },
+    {
+      "id": "processing_aid",
+      "name": "Processing Aid",
+      "notes": "Used during manufacturing only — present in the final product at trace levels with no functional effect.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(24)"}
+      ],
+      "examples": ["enzymes (manufacturing)", "filtration aids", "release agents"]
+    },
+    {
+      "id": "solvent",
+      "name": "Solvent",
+      "notes": "Liquid used to dissolve or extract other ingredients during manufacturing.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(27)"}
+      ],
+      "examples": ["water", "ethanol", "glycerin", "propylene glycol"]
+    },
+    {
+      "id": "carrier_oil",
+      "name": "Carrier Oil",
+      "notes": "Edible oil that delivers fat-soluble actives (vitamins A/D/E/K, CoQ10, omega-3s) for absorption.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(27)"}
+      ],
+      "examples": ["sunflower oil", "olive oil", "MCT oil", "rice bran oil"]
+    },
+    {
+      "id": "acidulant",
+      "name": "Acidulant",
+      "notes": "Adds tartness or lowers pH for taste, preservation, or absorption.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(23)"},
+        {"jurisdiction": "EU",  "code": "E296 / E330 / E338"}
+      ],
+      "examples": ["citric acid", "malic acid", "lactic acid", "phosphoric acid"]
+    },
+    {
+      "id": "ph_regulator",
+      "name": "pH Regulator",
+      "notes": "Buffers the formula at a target pH — keeps actives stable and palatable.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(23)"},
+        {"jurisdiction": "EU",  "code": "E325-E341"}
+      ],
+      "examples": ["sodium citrate", "potassium phosphate", "sodium bicarbonate"]
+    },
+    {
+      "id": "propellant",
+      "name": "Propellant",
+      "notes": "Pressurizes spray and aerosol products. Rare in oral supplements; common in throat sprays.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(25)"}
+      ],
+      "examples": ["nitrogen", "carbon dioxide", "compressed air"]
+    },
+    {
+      "id": "glazing_agent",
+      "name": "Glazing Agent",
+      "notes": "Coating that gives tablets a shiny finish or seals capsules. Cosmetic and protective only.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 170.3(o)(30)"},
+        {"jurisdiction": "EU",  "code": "E901-E914"}
+      ],
+      "examples": ["beeswax", "carnauba wax", "shellac"]
+    },
+    {
+      "id": "prebiotic_fiber",
+      "name": "Prebiotic Fiber",
+      "notes": "Fiber that selectively feeds beneficial gut bacteria. May cause gas or bloating during the first 1-2 weeks of use as gut bacteria adjust.",
+      "regulatory_references": [
+        {"jurisdiction": "FDA", "code": "21 CFR 101.81"}
+      ],
+      "examples": ["acacia gum", "inulin", "FOS (fructooligosaccharides)", "GOS", "psyllium husk"]
+    }
+  ]
+}
