@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 
 class SynergyDetailSection extends StatelessWidget {
   final Map<String, dynamic>? synergyDetail;
@@ -71,13 +73,28 @@ class SynergyDetailSection extends StatelessWidget {
             final pmids = cluster.safeStringList('pmids');
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.all(AppTheme.space12),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  border: Border.all(color: scheme.outlineVariant, width: 0.5),
+              // T6 (2026-04-29) — wrap each cluster row in PGPressable
+              // so the user can read the full explanation. The 3-line
+              // ellipsis stays as the inline summary; tap reveals the
+              // untruncated text in a bottom sheet. Sean's report:
+              // "Stress-resilient — when I tap on it, it's cut off."
+              child: PGPressable(
+                onTap: () => _showClusterDetail(
+                  context,
+                  name: name,
+                  evidenceTier: evidenceTier,
+                  explanation: explanation,
+                  pmids: pmids,
+                  singleIngredientMatch: singleIngredientMatch,
                 ),
+                pressedScale: 0.98,
+                child: Container(
+                  padding: const EdgeInsets.all(AppTheme.space12),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    border: Border.all(color: scheme.outlineVariant, width: 0.5),
+                  ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -155,12 +172,117 @@ class SynergyDetailSection extends StatelessWidget {
                       ),
                     ],
                   ],
+                  ),
                 ),
               ),
             );
           }),
         ],
       ),
+    );
+  }
+
+  /// T6 (2026-04-29) — show full cluster detail in a bottom sheet so
+  /// the user can read the explanation without ellipsis. Inline row
+  /// keeps the 3-line summary; tap reveals everything.
+  void _showClusterDetail(
+    BuildContext context, {
+    required String name,
+    required String evidenceTier,
+    required String explanation,
+    required List<String> pmids,
+    required bool singleIngredientMatch,
+  }) {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) {
+        final theme = Theme.of(sheetCtx);
+        final scheme = theme.colorScheme;
+        return SizedBox(
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space12,
+              AppTheme.space20,
+              AppTheme.space24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    if (evidenceTier.isNotEmpty) ...[
+                      const SizedBox(width: AppTheme.space8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          evidenceTier,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (singleIngredientMatch) ...[
+                  const SizedBox(height: AppTheme.space6),
+                  Text(
+                    'Single-ingredient match',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (explanation.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space12),
+                  // Full text — no maxLines, no ellipsis. This is the
+                  // whole point of the sheet.
+                  Text(
+                    explanation,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                if (pmids.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space12),
+                  Text(
+                    '${pmids.length} published ${pmids.length == 1 ? "study" : "studies"}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -1,8 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/util/ingredient_display.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+
+/// Normalize a per-pillar raw score (e.g. `16.0` out of `25`) to the
+/// 0–100 scale. Returns `null` when [raw] is null or [rawMax] is
+/// non-positive.
+///
+/// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T14.
+/// Pre-T14 the breakdown rendered raw fractions like "16.0/25" — the
+/// user had to mentally normalize each pillar against a different
+/// max. Post-T14 every pillar reads "X/100", which the user can
+/// compare across pillars at a glance.
+int? normalizePillarScore(double? raw, int rawMax) {
+  if (raw == null || rawMax <= 0) return null;
+  final normalized = (raw / rawMax) * 100;
+  return normalized.clamp(0, 100).round();
+}
 
 /// Score breakdown card — four tappable sub-section bars with expandable
 /// explanations showing WHY each pillar scored the way it did.
@@ -59,11 +75,12 @@ class ScoreBreakdownCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                // Spec §3 trust framing — was "Score breakdown" (V0
-                // score-first language). 2026-04-29 dev review caught
-                // the copy drift; changed to match the IA spec which
-                // calls Section 3 "Product Quality".
-                'Product Quality',
+                // T14 (2026-04-29 PM) — was "Product Quality" (Sprint
+                // 1 dev-review copy). New spec calls Section 3
+                // "Product Analysis" — emphasizes the 4-pillar
+                // analytic surface, complements the headline quality
+                // score on the hero card.
+                'Product Analysis',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.15,
@@ -90,22 +107,14 @@ class ScoreBreakdownCard extends StatelessWidget {
                 ),
               ),
             ),
-          // T1.4 continuity label — links the hero's Quality Score
-          // back to its pillar makeup so users can trace the number
-          // they saw at the top into its components down here.
-          if (heroScore != null) ...[
-            const SizedBox(height: AppTheme.space8),
-            Text(
-              'Your ${heroScore!.round()} breaks down as:',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+          // T14 — `heroScore` continuity label deprecated. The score
+          // is now primary on the hero (ScoreLine), so the "Your X
+          // breaks down as:" preamble was duplicate. Param kept on
+          // the constructor for back-compat with existing call sites.
           const SizedBox(height: AppTheme.space16),
           _ExpandableSectionBar(
-            label: 'Ingredient quality',
+            label: 'Ingredient Quality',
+            microExplanation: 'Form, dosage, and bioavailability',
             score: ingredientQuality,
             max: 25,
             subData:
@@ -115,7 +124,9 @@ class ScoreBreakdownCard extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           _ExpandableSectionBar(
-            label: 'Safety & purity',
+            label: 'Safety & Purity',
+            microExplanation:
+                'Free from harmful ingredients and contaminants',
             score: safetyPurity,
             max: 30,
             subData:
@@ -132,7 +143,8 @@ class ScoreBreakdownCard extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           _ExpandableSectionBar(
-            label: 'Evidence & research',
+            label: 'Evidence & Research',
+            microExplanation: 'Clinical support behind ingredients',
             score: evidenceResearch,
             max: 20,
             subData:
@@ -141,7 +153,11 @@ class ScoreBreakdownCard extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           _ExpandableSectionBar(
-            label: 'Brand trust',
+            // T14 — was "Brand trust" (Sprint 1 label). New spec name
+            // is "Transparency & Verification" — same engine field
+            // (`scoreBrandTrust`), better-aligned user-facing copy.
+            label: 'Transparency & Verification',
+            microExplanation: 'Label clarity and independent testing',
             score: brandTrust,
             max: 5,
             subData: sectionBreakdown?['brand_trust'] as Map<String, dynamic>?,
@@ -341,6 +357,17 @@ class ScoreBreakdownCard extends StatelessWidget {
 
 class _ExpandableSectionBar extends StatefulWidget {
   final String label;
+
+  /// One-line micro-explanation rendered below the bar. T14 addition
+  /// (2026-04-29 PM) — gives the user instant context for what each
+  /// pillar measures without requiring a tap-to-expand. Locked copy
+  /// per the design contract; one of:
+  ///   - "Form, dosage, and bioavailability"
+  ///   - "Free from harmful ingredients and contaminants"
+  ///   - "Clinical support behind ingredients"
+  ///   - "Label clarity and independent testing"
+  final String? microExplanation;
+
   final double? score;
   final int max;
   final Map<String, dynamic>? subData;
@@ -354,6 +381,7 @@ class _ExpandableSectionBar extends StatefulWidget {
     this.subData,
     this.badges = const [],
     required this.explainFn,
+    this.microExplanation,
   });
 
   @override
@@ -363,22 +391,21 @@ class _ExpandableSectionBar extends StatefulWidget {
 class _ExpandableSectionBarState extends State<_ExpandableSectionBar> {
   bool _expanded = false;
 
-  static Color _colorFor(double fraction) {
-    if (fraction >= 0.85) return AppTheme.scoreExceptional;
-    if (fraction >= 0.70) return AppTheme.scoreExcellent;
-    if (fraction >= 0.55) return AppTheme.scoreGood;
-    if (fraction >= 0.40) return AppTheme.scoreFair;
-    if (fraction >= 0.25) return AppTheme.scoreBelowAvg;
-    return AppTheme.scoreLow;
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final value = widget.score ?? 0.0;
     final fraction = (value / widget.max).clamp(0.0, 1.0);
-    final color = _colorFor(fraction);
+
+    // T14 — pillar bar color now flows through ScoreTier so the
+    // breakdown reads consistently with the hero ScoreLine. Same
+    // 6-tier banding (Exceptional → Poor) keyed on the normalized
+    // 0–100 score.
+    final normalized = normalizePillarScore(widget.score, widget.max);
+    final tier = tierForScore(normalized ?? 0);
+    final color = tier.color;
+
     final hasExplanation = widget.subData != null || widget.badges.isNotEmpty;
 
     return GestureDetector(
@@ -418,9 +445,11 @@ class _ExpandableSectionBarState extends State<_ExpandableSectionBar> {
                 ],
               ),
               Text(
-                widget.score != null
-                    ? '${value.toStringAsFixed(1)}/${widget.max}'
-                    : '—/${widget.max}',
+                // T14 — display normalized 0–100 score for cross-
+                // pillar comparability. Pre-T14: "16.0/25", "28.0/30",
+                // "15.0/20", "4.0/5" — user had to mentally normalize.
+                // Post-T14: every pillar reads "X/100".
+                normalized != null ? '$normalized/100' : '—/100',
                 style: AppTheme.numeric(
                   theme.textTheme.labelMedium!.copyWith(
                     fontSize: 12.5,
@@ -441,6 +470,21 @@ class _ExpandableSectionBarState extends State<_ExpandableSectionBar> {
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
+          // T14 — micro-explanation row. Sits directly below the bar
+          // in muted body so it reads as supporting context, not a
+          // primary callout. Always visible (no tap required) so the
+          // user understands what each pillar measures at a glance.
+          if (widget.microExplanation != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              widget.microExplanation!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontSize: 11,
+                height: 1.3,
+              ),
+            ),
+          ],
 
           // Expanded explanation
           AnimatedCrossFade(

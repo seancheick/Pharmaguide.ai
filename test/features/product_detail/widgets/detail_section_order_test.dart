@@ -18,9 +18,9 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
+import 'package:pharmaguide/features/product_detail/widgets/ingredients_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
-import 'package:pharmaguide/features/product_detail/widgets/product_details_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
@@ -137,22 +137,22 @@ void main() {
       // Grab top-edge Y for each section. Tradeoffs must come AFTER
       // ingredients; UnknownsSection AFTER Tradeoffs; the §7 group
       // (WithYourStack + InteractionWarningsList) AFTER Unknowns;
-      // PopulationsSection AFTER §7; ProductDetailsSection last.
+      // PopulationsSection AFTER §7. T17 (2026-04-30) — bottom
+      // ProductDetailsSection deleted, no longer asserted.
       final tradeoffsY = _topOf(tester, TradeoffsSection);
       final unknownsY = _topOf(tester, UnknownsSection);
       final withYourStackY = _topOf(tester, WithYourStackSection);
       final interactionListY = _topOf(tester, InteractionWarningsList);
       final populationsY = _topOf(tester, PopulationsSection);
-      final productDetailsY = _topOf(tester, ProductDetailsSection);
 
-      // Ingredients block doesn't have a single section widget type
-      // — it's an inline `_CollapsibleIngredients` + `Wrap` block.
-      // Use the inactive-ingredients header text "Other Ingredients"
-      // as a stable anchor, then assert tradeoffs lands below it.
-      final inactiveHeaderEl = tester.element(find.text('Other Ingredients'));
-      final inactiveHeaderY = (inactiveHeaderEl.renderObject as RenderBox)
-          .localToGlobal(Offset.zero)
-          .dy;
+      // T16 (2026-04-30) — ingredients now live inside an
+      // `IngredientsCard` (single elevated card containing both
+      // active + inactive sub-sections). Anchor via the widget type
+      // instead of the previous "Other Ingredients" header text.
+      // T20 will rebuild this whole pin-the-order test against the
+      // post-S2.2 IA; this fix keeps the existing assertion passing
+      // until then.
+      final inactiveHeaderY = _topOf(tester, IngredientsCard);
 
       // Spec ordering: §4 (ingredients) → §5 (Tradeoffs) → §6
       // (Unknowns) → §7 (WithYourStack + InteractionWarningsList)
@@ -190,13 +190,6 @@ void main() {
         reason:
             'Populations (§8) must render below the §7 '
             'interaction grouping',
-      );
-      expect(
-        populationsY < productDetailsY,
-        isTrue,
-        reason:
-            'ProductDetails (§10) must render last in the '
-            'detail column',
       );
 
       await tester.pumpWidget(const SizedBox.shrink());

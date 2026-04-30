@@ -44,7 +44,6 @@ Widget _wrap(
   UserDatabase userDb, {
   bool isUnsafe = false,
   VoidCallback? onSeeAlternatives,
-  VoidCallback? onLogDose,
 }) {
   return ProviderScope(
     overrides: [
@@ -57,7 +56,6 @@ Widget _wrap(
           dsldId: _dsldId,
           isUnsafe: isUnsafe,
           onSeeAlternatives: onSeeAlternatives,
-          onLogDose: onLogDose,
         ),
       ),
     ),
@@ -67,7 +65,7 @@ Widget _wrap(
 void main() {
   group('PGStackActionButtons — T1.15 conditional primary', () {
     testWidgets(
-      'safe + not in stack → "Add to my stack" + "Log dose" (2 buttons)',
+      'safe + not in stack → "Add to my stack" only (T8: no Log Dose)',
       (tester) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -77,8 +75,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Add to my stack'), findsOneWidget);
-        expect(find.text('Log dose'), findsOneWidget);
         expect(find.text('See safer alternatives'), findsNothing);
+        // T8 — Log Dose secondary moved to the stack screen.
+        expect(find.text('Log dose'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();
@@ -98,8 +97,8 @@ void main() {
 
         expect(find.text('See safer alternatives'), findsOneWidget);
         expect(find.text('Add to my stack'), findsNothing);
-        // Log dose still rendered (always-visible secondary).
-        expect(find.text('Log dose'), findsOneWidget);
+        // T8 — Log Dose moved to stack screen, not rendered here.
+        expect(find.text('Log dose'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();
@@ -108,7 +107,7 @@ void main() {
     );
 
     testWidgets(
-      'already in stack → "In your stack" panel (with Remove) + "Log dose"',
+      'already in stack → "In your stack" panel only (T8: no Log Dose)',
       (tester) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -123,8 +122,8 @@ void main() {
         expect(find.text('Remove'), findsOneWidget);
         // Add button should NOT be visible.
         expect(find.text('Add to my stack'), findsNothing);
-        // Log dose still rendered.
-        expect(find.text('Log dose'), findsOneWidget);
+        // T8 — Log Dose moved to stack screen, not rendered here.
+        expect(find.text('Log dose'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();
@@ -156,75 +155,11 @@ void main() {
       },
     );
 
-    testWidgets(
-      'log dose disabled when not in stack (incoherent to log without tracking)',
-      (tester) async {
-        final coreDb = CoreDatabase.memory();
-        final userDb = UserDatabase.memory();
-        await _seedProduct(coreDb);
-
-        var taps = 0;
-        await tester.pumpWidget(_wrap(coreDb, userDb, onLogDose: () => taps++));
-        await tester.pumpAndSettle();
-
-        // Tap should be ignored when disabled.
-        await tester.tap(find.text('Log dose'));
-        await tester.pumpAndSettle();
-        expect(taps, 0);
-
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      },
-    );
-
-    testWidgets(
-      'log dose enabled when in stack — tap fires onLogDose callback',
-      (tester) async {
-        final coreDb = CoreDatabase.memory();
-        final userDb = UserDatabase.memory();
-        await _seedProduct(coreDb);
-        await _addToStack(userDb);
-
-        var taps = 0;
-        await tester.pumpWidget(_wrap(coreDb, userDb, onLogDose: () => taps++));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Log dose'));
-        await tester.pumpAndSettle();
-        expect(taps, 1);
-
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      },
-    );
-
-    testWidgets(
-      'log dose disabled in unsafe state (even if user added the product)',
-      (tester) async {
-        // Defense-in-depth: user shouldn't be encouraged to log doses
-        // for a product the catalog now flags as unsafe.
-        final coreDb = CoreDatabase.memory();
-        final userDb = UserDatabase.memory();
-        await _seedProduct(coreDb, verdict: 'UNSAFE');
-        await _addToStack(userDb);
-
-        var taps = 0;
-        await tester.pumpWidget(
-          _wrap(coreDb, userDb, isUnsafe: true, onLogDose: () => taps++),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Log dose'));
-        await tester.pumpAndSettle();
-        expect(taps, 0);
-
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      },
-    );
+    // T8 (2026-04-29) — three dedicated Log Dose tests removed
+    // (`disabled when not in stack`, `enabled in stack — fires
+    // onLogDose`, `disabled in unsafe state`). The Log Dose
+    // secondary button is gone from this widget; the contract that
+    // it is NOT rendered is asserted in the three tests above.
 
     testWidgets(
       'tap "See safer alternatives" → fires onSeeAlternatives callback',

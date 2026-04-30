@@ -25,6 +25,11 @@ abstract final class PGModal {
   /// - `useSafeArea: true` — bottom inset never eats content.
   /// - `showDragHandle: true` — Material 3 grabber visible at top.
   /// - `backgroundColor: ColorScheme.surface` — neutral page material.
+  /// - `constraints: BoxConstraints(maxWidth: 560)` — Material 3 modal
+  ///   sheet spec. Phones (≤560pt) span full width; tablets cap at
+  ///   560pt centered. Pass an explicit `constraints` to override
+  ///   (e.g., a settings sheet that wants 720pt on iPad).
+  ///   Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md S2.1 / T5.
   static Future<T?> bottomSheet<T>({
     required BuildContext context,
     required WidgetBuilder builder,
@@ -32,6 +37,7 @@ abstract final class PGModal {
     bool useSafeArea = true,
     bool showDragHandle = true,
     Color? backgroundColor,
+    BoxConstraints? constraints,
   }) {
     return showModalBottomSheet<T>(
       context: context,
@@ -41,6 +47,7 @@ abstract final class PGModal {
       showDragHandle: showDragHandle,
       isScrollControlled: true,
       backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.surface,
+      constraints: constraints ?? const BoxConstraints(maxWidth: 560),
     );
   }
 }

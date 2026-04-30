@@ -26,6 +26,14 @@ class ProductImage extends ConsumerWidget {
   /// "full card" placeholder layout overflows the 1:1 box.
   final bool compact;
 
+  /// Optional tap handler. Called with the resolved image URL when the
+  /// user taps the rendered image. The handler is ONLY wired when a
+  /// real image URL has resolved — placeholder taps are no-ops by
+  /// design (a "fullscreen view" of a placeholder is poor UX).
+  ///
+  /// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.1, T1.
+  final void Function(String imageUrl)? onTap;
+
   const ProductImage({
     super.key,
     required this.dsldId,
@@ -36,6 +44,7 @@ class ProductImage extends ConsumerWidget {
     this.score,
     this.size = 52,
     this.compact = false,
+    this.onTap,
   });
 
   @override
@@ -60,7 +69,7 @@ class ProductImage extends ConsumerWidget {
       error: (_, __) => placeholder,
       data: (imageUrl) {
         if (imageUrl == null) return placeholder;
-        return ClipRRect(
+        final clipped = ClipRRect(
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           child: CachedNetworkImage(
             imageUrl: imageUrl,
@@ -70,6 +79,15 @@ class ProductImage extends ConsumerWidget {
             placeholder: (_, __) => placeholder,
             errorWidget: (_, __, ___) => placeholder,
           ),
+        );
+        // T1 — only wire tap when a real image resolved. Tapping a
+        // placeholder to "zoom" a colored-square initial is poor UX,
+        // so we deliberately leave that path inert.
+        if (onTap == null) return clipped;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onTap!(imageUrl),
+          child: clipped,
         );
       },
     );

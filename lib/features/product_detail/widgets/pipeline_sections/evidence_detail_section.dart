@@ -283,37 +283,67 @@ class EvidenceDetailSection extends StatelessWidget {
     BuildContext context,
     List<Map<String, dynamic>> matches,
   ) {
+    // T5 — pre-filter to matches that actually carry PMIDs. The
+    // pipeline can ship `clinical_matches` rows with empty `pmids`
+    // (the "Limited evidence + 0 studies" case Sean caught). Without
+    // this filter the sheet rendered just a "Citations" header above
+    // a stack of `SizedBox.shrink()` groups → user-perceived "narrow
+    // / crashed" empty sheet.
+    final withCitations = matches
+        .where((m) => m.safeStringList('pmids').isNotEmpty)
+        .toList();
     PGModal.bottomSheet<void>(
       context: context,
       builder: (sheetContext) {
         final theme = Theme.of(sheetContext);
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.space20,
-            AppTheme.space12,
-            AppTheme.space20,
-            AppTheme.space24,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Citations',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: AppTheme.space12),
-              for (final match in matches) ...[
-                _CitationGroup(
-                  ingredient: match['ingredient']?.toString() ?? '',
-                  pmids: match.safeStringList('pmids'),
+        final scheme = theme.colorScheme;
+        return SizedBox(
+          // Ensure the sheet renders at the full constrained width
+          // (matches PGModal's 560pt cap on tablets, full-width on
+          // phones). Without this, an all-MainAxisSize.min Column
+          // shrinks to its narrowest child on some layouts.
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space12,
+              AppTheme.space20,
+              AppTheme.space24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Citations',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
                 ),
                 const SizedBox(height: AppTheme.space12),
+                if (withCitations.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppTheme.space24,
+                    ),
+                    child: Text(
+                      'No citations available for this product.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                else
+                  for (final match in withCitations) ...[
+                    _CitationGroup(
+                      ingredient: match['ingredient']?.toString() ?? '',
+                      pmids: match.safeStringList('pmids'),
+                    ),
+                    const SizedBox(height: AppTheme.space12),
+                  ],
               ],
-            ],
+            ),
           ),
         );
       },
@@ -328,14 +358,20 @@ class EvidenceDetailSection extends StatelessWidget {
     PGModal.bottomSheet<void>(
       context: context,
       builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.space20,
-            AppTheme.space12,
-            AppTheme.space20,
-            AppTheme.space24,
+        return SizedBox(
+          // T5 — match `_showAllCitations` width behavior so single-
+          // ingredient PMID sheets render at the same constrained
+          // width on tablets.
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space20,
+              AppTheme.space12,
+              AppTheme.space20,
+              AppTheme.space24,
+            ),
+            child: _CitationGroup(ingredient: ingredient, pmids: pmids),
           ),
-          child: _CitationGroup(ingredient: ingredient, pmids: pmids),
         );
       },
     );
@@ -361,6 +397,20 @@ class _TierBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
+    // T7 (2026-04-29) — when no studies are on file, swap the dual-
+    // line tier banner for an honest single-line "Limited evidence
+    // available". The pre-fix render was self-contradictory:
+    //   Header:  "Clinical support: LIMITED"
+    //   Subline: "0 studies reviewed"
+    // Sean's note: "Earlier it says it was a clinical study, but it
+    // shows zero study reviews." The header implies clinical
+    // evidence exists; the subline says the count is zero. Better to
+    // acknowledge absence cleanly so the surface stays trustworthy.
+    if (totalStudies == 0) {
+      return _ZeroStudiesBanner(tier: tier);
+    }
+
     final subline = StringBuffer()
       ..write(
         '$totalStudies ${totalStudies == 1 ? 'study' : 'studies'} reviewed',
@@ -435,6 +485,50 @@ class _TierBlock extends StatelessWidget {
   }
 }
 
+/// Honest single-line replacement for the tier banner when no
+/// studies are on file. T7 (2026-04-29) — fixes the self-
+/// contradicting "Clinical support: LIMITED · 0 studies reviewed"
+/// render. Same outline / muted-tint chrome as the full banner so
+/// the section's visual rhythm doesn't break.
+class _ZeroStudiesBanner extends StatelessWidget {
+  final EvidenceTier tier;
+
+  const _ZeroStudiesBanner({required this.tier});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space12,
+        vertical: AppTheme.space8 + 2,
+      ),
+      decoration: BoxDecoration(
+        color: tier.color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: tier.color.withValues(alpha: 0.20),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Limited evidence available',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: tier.color,
+                letterSpacing: -0.1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Group of PMID citations under a single ingredient. Each PMID
 /// renders as a tappable row that launches PubMed externally.
 class _CitationGroup extends StatelessWidget {
@@ -447,7 +541,25 @@ class _CitationGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    if (pmids.isEmpty) return const SizedBox.shrink();
+    if (pmids.isEmpty) {
+      // T5 — defensive empty-state. Callers (`_showAllCitations`,
+      // `_showCitationsForMatch`) are expected to filter out empty-
+      // pmids cases before calling, but if a future path slips
+      // through, render something meaningful instead of a 0×0
+      // SizedBox.shrink (which was the user-perceived "narrow /
+      // crashed" failure mode).
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.space16),
+        child: Text(
+          ingredient.isEmpty
+              ? 'No citations available.'
+              : 'No citations available for $ingredient.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

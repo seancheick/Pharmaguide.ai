@@ -133,7 +133,16 @@ class ForYouSection extends ConsumerWidget {
   }
 
   void _openProfile(BuildContext context) {
-    context.push(Routes.profile);
+    // T2 (2026-04-29) — was `Routes.profile`, which is the SettingsScreen
+    // shell-route tab inside the bottom nav. Pushing a shell-tab path
+    // from a non-shell screen via `context.push` no-ops or throws
+    // depending on the GoRouter version, hence the user-reported "edit
+    // does nothing / crashes." Every other edit-profile call site in
+    // the app (settings, home completeness card, fit-score sheet,
+    // stack screen, product_detail's incomplete-profile CTA) routes to
+    // `Routes.profileSetup` → `ProfileSetupScreen`. This was the lone
+    // outlier with the wrong constant.
+    context.push(Routes.profileSetup);
   }
 
   static List<String> _buildContextChips(ProfileState profile) {

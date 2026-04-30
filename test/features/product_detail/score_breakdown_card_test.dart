@@ -1,3 +1,10 @@
+// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T14.
+//
+// Updated for "Product Analysis" rebuild — pillar names capitalized,
+// "Brand trust" → "Transparency & Verification", scores normalized
+// to 0–100, micro-explanations under each bar, hero continuity label
+// deprecated.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
@@ -25,42 +32,115 @@ void main() {
     );
   }
 
-  group('ScoreBreakdownCard', () {
-    testWidgets('shows all 4 section labels', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Ingredient quality'), findsOneWidget);
-      expect(find.text('Safety & purity'), findsOneWidget);
-      expect(find.text('Evidence & research'), findsOneWidget);
-      expect(find.text('Brand trust'), findsOneWidget);
+  group('normalizePillarScore — pure helper (T14)', () {
+    test('null raw → null', () {
+      expect(normalizePillarScore(null, 25), isNull);
     });
 
-    testWidgets('shows score values when provided', (tester) async {
+    test('zero or negative max → null (defensive)', () {
+      expect(normalizePillarScore(20, 0), isNull);
+      expect(normalizePillarScore(20, -5), isNull);
+    });
+
+    test('exact max → 100', () {
+      expect(normalizePillarScore(25, 25), 100);
+      expect(normalizePillarScore(30, 30), 100);
+    });
+
+    test('zero raw → 0', () {
+      expect(normalizePillarScore(0, 25), 0);
+    });
+
+    test('half raw → 50', () {
+      expect(normalizePillarScore(12.5, 25), 50);
+    });
+
+    test('above max clamps to 100 (defensive)', () {
+      expect(normalizePillarScore(30, 25), 100);
+    });
+
+    test('below 0 clamps to 0 (defensive)', () {
+      expect(normalizePillarScore(-5, 25), 0);
+    });
+
+    test('rounds to nearest int (16.0/25 = 64)', () {
+      expect(normalizePillarScore(16, 25), 64);
+    });
+
+    test('rounds half up (12/30 = 40, 12.5/30 → 42)', () {
+      expect(normalizePillarScore(12, 30), 40);
+      // 12.5/30 = 0.4166... × 100 = 41.666... → 42 with .round()
+      expect(normalizePillarScore(12.5, 30), 42);
+    });
+  });
+
+  group('ScoreBreakdownCard — T14 header + pillar labels', () {
+    testWidgets('header reads "Product Analysis" (T14 rename)', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+      expect(find.text('Product Analysis'), findsOneWidget);
+      // Pre-T14 header is gone.
+      expect(find.text('Product Quality'), findsNothing);
+    });
+
+    testWidgets('all 4 pillar labels match locked spec', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+      expect(find.text('Ingredient Quality'), findsOneWidget);
+      expect(find.text('Safety & Purity'), findsOneWidget);
+      expect(find.text('Evidence & Research'), findsOneWidget);
+      expect(find.text('Transparency & Verification'), findsOneWidget);
+      // Pre-T14 lowercase + "Brand trust" labels are gone.
+      expect(find.text('Ingredient quality'), findsNothing);
+      expect(find.text('Brand trust'), findsNothing);
+    });
+
+    testWidgets('all 4 micro-explanations render under their pillar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Form, dosage, and bioavailability'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Free from harmful ingredients and contaminants'),
+        findsOneWidget,
+      );
+      expect(find.text('Clinical support behind ingredients'), findsOneWidget);
+      expect(
+        find.text('Label clarity and independent testing'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('ScoreBreakdownCard — T14 normalized 0–100 scores', () {
+    testWidgets('shows X/100 for each pillar (normalized)', (tester) async {
       await tester.pumpWidget(
         buildTestWidget(
-          ingredientQuality: 20.5,
-          safetyPurity: 28.0,
-          evidenceResearch: 15.0,
-          brandTrust: 4.0,
+          ingredientQuality: 20.5, // 20.5/25 = 82
+          safetyPurity: 28.0, // 28/30 ≈ 93
+          evidenceResearch: 15.0, // 15/20 = 75
+          brandTrust: 4.0, // 4/5 = 80
         ),
       );
       await tester.pumpAndSettle();
-
-      expect(find.text('20.5/25'), findsOneWidget);
-      expect(find.text('28.0/30'), findsOneWidget);
-      expect(find.text('15.0/20'), findsOneWidget);
-      expect(find.text('4.0/5'), findsOneWidget);
+      expect(find.text('82/100'), findsOneWidget);
+      expect(find.text('93/100'), findsOneWidget);
+      expect(find.text('75/100'), findsOneWidget);
+      expect(find.text('80/100'), findsOneWidget);
+      // Pre-T14 raw fractions are gone.
+      expect(find.text('20.5/25'), findsNothing);
+      expect(find.text('4.0/5'), findsNothing);
     });
 
-    testWidgets('shows dashes when scores are null', (tester) async {
+    testWidgets('shows "—/100" when scores are null', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
-
-      expect(find.text('—/25'), findsOneWidget);
-      expect(find.text('—/30'), findsOneWidget);
-      expect(find.text('—/20'), findsOneWidget);
-      expect(find.text('—/5'), findsOneWidget);
+      // 4 pillars × null score → 4 dash lines.
+      expect(find.text('—/100'), findsNWidgets(4));
     });
 
     testWidgets('renders 4 progress bars', (tester) async {
@@ -73,71 +153,37 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-
       expect(find.byType(LinearProgressIndicator), findsNWidgets(4));
     });
   });
 
-  // T1.4 — hero continuity label + coverage line.
-
-  group('ScoreBreakdownCard — T1.4 hero continuity label', () {
-    testWidgets('renders "Your <X> breaks down as:" when heroScore provided', (
+  group('ScoreBreakdownCard — T14 deprecated hero continuity label', () {
+    testWidgets('"Your X breaks down as:" no longer renders even with heroScore', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        buildTestWidget(
-          ingredientQuality: 20.0,
-          safetyPurity: 25.0,
-          evidenceResearch: 10.0,
-          brandTrust: 3.0,
-          heroScore: 82,
-        ),
-      );
+      // T14 — the score lives on the hero ScoreLine now; the inline
+      // continuity label was duplicate. Param kept for back-compat
+      // but the label is suppressed.
+      await tester.pumpWidget(buildTestWidget(heroScore: 82));
       await tester.pumpAndSettle();
-
-      expect(find.text('Your 82 breaks down as:'), findsOneWidget);
-    });
-
-    testWidgets('rounds heroScore to nearest int (87.6 → "Your 88")', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildTestWidget(heroScore: 87.6));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Your 88 breaks down as:'), findsOneWidget);
-      expect(find.text('Your 87 breaks down as:'), findsNothing);
-    });
-
-    testWidgets('continuity label hidden when heroScore is null', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        buildTestWidget(ingredientQuality: 20.0, safetyPurity: 25.0),
-      );
-      await tester.pumpAndSettle();
-
       expect(find.textContaining('breaks down as:'), findsNothing);
     });
   });
 
-  group('ScoreBreakdownCard — T1.4 coverage line', () {
+  group('ScoreBreakdownCard — T1.4 coverage line (still in scope)', () {
     testWidgets('coverage 0.92 → green tier + "high-confidence" descriptor', (
       tester,
     ) async {
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.92));
       await tester.pumpAndSettle();
-
       expect(find.text('92%'), findsOneWidget);
       expect(find.text('Coverage'), findsOneWidget);
       expect(find.textContaining('high-confidence'), findsOneWidget);
     });
 
     testWidgets('coverage 0.7 (boundary) → green tier', (tester) async {
-      // The threshold is `>= 0.7` for the green tier — 0.7 exactly
-      // should land green, not yellow.
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.7));
       await tester.pumpAndSettle();
-
       expect(find.text('70%'), findsOneWidget);
       expect(find.textContaining('high-confidence'), findsOneWidget);
     });
@@ -147,7 +193,6 @@ void main() {
     ) async {
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.5));
       await tester.pumpAndSettle();
-
       expect(find.text('50%'), findsOneWidget);
       expect(find.textContaining('partial coverage'), findsOneWidget);
     });
@@ -155,7 +200,6 @@ void main() {
     testWidgets('coverage 0.3 (boundary) → yellow tier', (tester) async {
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.3));
       await tester.pumpAndSettle();
-
       expect(find.text('30%'), findsOneWidget);
       expect(find.textContaining('partial coverage'), findsOneWidget);
     });
@@ -165,7 +209,6 @@ void main() {
       (tester) async {
         await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.15));
         await tester.pumpAndSettle();
-
         expect(find.text('15%'), findsOneWidget);
         expect(find.textContaining('Limited data'), findsOneWidget);
       },
@@ -174,12 +217,8 @@ void main() {
     testWidgets('coverage 0.0 → renders 0% in the limited tier', (
       tester,
     ) async {
-      // Defensive: a no-mapping product still renders the coverage
-      // row so the user knows we tried (and got nothing). The hero's
-      // verdict / "Not Scored" copy carries the actual messaging.
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.0));
       await tester.pumpAndSettle();
-
       expect(find.text('0%'), findsOneWidget);
       expect(find.textContaining('Limited data'), findsOneWidget);
     });
@@ -187,11 +226,8 @@ void main() {
     testWidgets('coverage 1.5 (out of range) clamps to 100% — defensive', (
       tester,
     ) async {
-      // Pipeline drift could ship a >1 ratio if mapped > total.
-      // Don't render "150%" — clamp.
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 1.5));
       await tester.pumpAndSettle();
-
       expect(find.text('100%'), findsOneWidget);
       expect(find.text('150%'), findsNothing);
     });
@@ -203,42 +239,8 @@ void main() {
         buildTestWidget(ingredientQuality: 20.0, safetyPurity: 25.0),
       );
       await tester.pumpAndSettle();
-
       expect(find.text('Coverage'), findsNothing);
       expect(find.textContaining('database'), findsNothing);
     });
-  });
-
-  group('ScoreBreakdownCard — T1.4 integration (continuity + coverage)', () {
-    testWidgets(
-      'both heroScore and mappedCoverage render together at correct positions',
-      (tester) async {
-        // Same product, both signals present — verify both render and
-        // the continuity label sits ABOVE the coverage line.
-        await tester.pumpWidget(
-          buildTestWidget(
-            ingredientQuality: 22.0,
-            safetyPurity: 28.0,
-            evidenceResearch: 16.0,
-            brandTrust: 4.0,
-            heroScore: 82,
-            mappedCoverage: 0.85,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Your 82 breaks down as:'), findsOneWidget);
-        expect(find.text('85%'), findsOneWidget);
-        expect(find.text('Coverage'), findsOneWidget);
-
-        // Y-position assertion: continuity label is above the coverage
-        // row.
-        final continuityY = tester
-            .getTopLeft(find.text('Your 82 breaks down as:'))
-            .dy;
-        final coverageY = tester.getTopLeft(find.text('Coverage')).dy;
-        expect(continuityY, lessThan(coverageY));
-      },
-    );
   });
 }

@@ -79,7 +79,7 @@ void main() {
           isA<List<dynamic>>(),
           reason:
               'Repository normalization must expose "clusters" to '
-              'synergy_report_provider.dart and pairs_well_provider.dart.',
+              'synergy_report_provider.dart.',
         );
 
         final clusters = normalized['clusters'] as List<dynamic>;

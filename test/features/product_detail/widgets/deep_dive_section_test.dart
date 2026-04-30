@@ -10,7 +10,6 @@ import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
-import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unmapped_actives_disclosure.dart';
 
@@ -131,17 +130,19 @@ void main() {
         await tester.pumpWidget(_wrap(coreDb, userDb, _buildSection()));
         await tester.pump();
 
-        // Each of the 11 inner widget types the deep-dive composes.
+        // T17 (2026-04-30) — `PairsWellSection` removed from the
+        // Deep Dive composition. Down to 10 inner widget types.
         expect(find.byType(CertificationDetailSection), findsOneWidget);
         expect(find.byType(EvidenceDetailSection), findsOneWidget);
         expect(find.byType(HeavyMetalWarningCard), findsOneWidget);
         expect(find.byType(ExcipientDensityCard), findsOneWidget);
         expect(find.byType(FormulationDetailSection), findsOneWidget);
         expect(find.byType(ProbioticDetailSection), findsOneWidget);
-        expect(find.byType(PairsWellSection), findsOneWidget);
         expect(find.byType(SynergyDetailSection), findsOneWidget);
         expect(find.byType(ManufacturerViolationsSection), findsOneWidget);
-        expect(find.byType(NutritionPanel), findsOneWidget);
+        // T18 (2026-04-30) — collapsed inline NutritionPanel into a
+        // `NutritionFactsLink` that opens a bottom sheet on tap.
+        expect(find.byType(NutritionFactsLink), findsOneWidget);
         expect(find.byType(UnmappedActivesDisclosure), findsOneWidget);
 
         await tester.pumpWidget(const SizedBox.shrink());

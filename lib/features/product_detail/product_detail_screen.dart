@@ -11,18 +11,15 @@ import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
-import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
-import 'package:pharmaguide/core/widgets/pg_modal.dart';
-import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
+import 'package:pharmaguide/features/product_detail/widgets/score_line.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
-import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
@@ -30,27 +27,28 @@ import 'package:pharmaguide/features/product_detail/providers/detail_blob_provid
 import 'package:pharmaguide/features/product_detail/providers/hero_verdict_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
+import 'package:pharmaguide/features/product_detail/blend_grouping.dart';
 import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
 import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
-import 'package:pharmaguide/features/product_detail/widgets/for_you_section.dart';
-import 'package:pharmaguide/features/product_detail/widgets/ingredients_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/ingredients_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/product_detail/widgets/alert_summary_card.dart';
+import 'package:pharmaguide/features/product_detail/widgets/personal_fit_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
-import 'package:pharmaguide/features/product_detail/widgets/product_details_section.dart';
+import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer.dart';
+import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/transparency_footer.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
-import 'package:pharmaguide/features/product_detail/widgets/pairs_well_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/product_detail/widgets/product_status_chip.dart';
-import 'package:pharmaguide/features/product_detail/widgets/refill_reminder_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unmapped_actives_disclosure.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknown_ingredient_banner.dart';
@@ -85,9 +83,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   /// state changes; a stable key keeps the scroll target intact.
   final GlobalKey _alternativesKey = GlobalKey();
 
-  // User stack entry for this product (null = not in stack). Powers the
-  // refill-reminder card; we need addedAt for the days-remaining math.
-  UserStacksLocalData? _stackEntry;
 
   // Personalized interaction warnings from live DB lookup against user's
   // stack. These supplement the static blob-parsed warnings with
@@ -98,27 +93,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   void initState() {
     super.initState();
     _loadProduct();
-    _loadStackEntry();
     _loadPersonalizedInteractions();
   }
 
-  /// Look up whether the user has this product in their stack — needed
-  /// for the refill-reminder card's days-remaining computation. Silent
-  /// failure: if the lookup throws, the card just won't render.
-  Future<void> _loadStackEntry() async {
-    try {
-      final userDb = ref.read(userDatabaseProvider);
-      final entry = await userDb.findStackEntryByDsldId(widget.dsldId);
-      if (mounted) {
-        setState(() {
-          _stackEntry = entry;
-        });
-      }
-    } on Exception {
-      // Stack lookup failure is non-fatal — leave _stackEntry null,
-      // the refill card will simply not render.
-    }
-  }
+  // T17 (2026-04-30) — `_stackEntry` field + `_loadStackEntry` removed
+  // alongside RefillReminderCard. The stack-entry lookup powered the
+  // refill card's days-remaining math; with the card deleted, the
+  // lookup is dead weight.
 
   /// Query the bundled InteractionDatabase for interactions between this
   /// product's ingredients and the user's current stack. Maps results to
@@ -329,6 +310,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final blobLoading = blobAsync.isLoading;
     final blobError = blobAsync.hasError;
 
+    // T16.2e (2026-04-30) — extract ingredient doses ONCE per build so
+    // every gate surface (banner conditionIds, §7 condition_summary
+    // detail cards) sees the same dose-aware picture. Without this the
+    // banner & §7 surfaces fall back to positive-only filtering and
+    // sub-clinical aboveDose entries leak through.
+    final ingredientDoses = extractIngredientDoses(detailBlob);
+
     // Detail blob data + personalized interaction warnings from live DB.
     // Personalized warnings (from InteractionDatabase) appear first,
     // followed by generic blob warnings — deduped by (mechanism, severity)
@@ -405,16 +393,25 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               bannedSubstanceDetail:
                   detailBlob?['banned_substance_detail']
                       as Map<String, dynamic>?,
-              onScoreInfoTap: () => _showScoreEducation(context),
               upc: _product?.upcSku,
+              // T11.1 (2026-04-29 PM) — switched from netContents
+              // to servingsPerContainer per Sean's live walkthrough.
+              // Net contents produces awkward strings for liquids
+              // ("1 Fluid Ounce(s)"); servings × form is cleaner.
+              dosingSummary: _product?.dosingSummary,
+              servingsPerContainer: _product?.servingsPerContainer,
             ),
           ),
 
           // ----------------------------------------------------------------
-          // Section 2 ("For You") — T1.2. Consolidates context chips +
-          // verdict + alerts + Why-this-fits expander. Suppressed when
-          // the hero already shows the BLOCKED banner — at that point
-          // the personalization story is moot.
+          // Section 2 ("Personal Fit") — T12 (2026-04-29). Replaces
+          // the old ForYouSection (context chips + verdict + alerts
+          // + Why-this-fits expander) with a much quieter card:
+          // shield icon + headline + max 2 causal bullets + edit
+          // pencil. The bullet generator prefers the T3 Path A
+          // positive-profile bullets ("Magnesium supports your blood
+          // pressure goal") and falls back to FitScoreResult.reasons.
+          // Alerts list moved to T13 Alert Summary card.
           // ----------------------------------------------------------------
           if (!isBlocked)
             SliverToBoxAdapter(
@@ -430,16 +427,50 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     final fitAsync = innerRef.watch(
                       fitScoreForProductProvider(widget.dsldId),
                     );
-                    return ForYouSection(
-                      fitResult: fitAsync.asData?.value,
-                      warnings: guardedWarnings,
-                      maxSeverity: _maxSeverityOf(guardedWarnings),
-                      topGoalLabel: _topGoalLabelFromFit(
-                        fitAsync.asData?.value,
-                      ),
+                    final fitResult = fitAsync.asData?.value;
+                    final fitDisplay = fitResult != null
+                        ? computeFitDisplay(
+                            verdict: _maxSeverityOf(guardedWarnings),
+                            fitResult: fitResult,
+                          )
+                        : const FitIncomplete();
+                    final ingredientNames =
+                        ((detailBlob?['ingredients'] as List?)
+                                ?.whereType<Map<String, dynamic>>()
+                                .map((e) => e['name']?.toString() ?? '')
+                                .where((n) => n.isNotEmpty)
+                                .toList(growable: false)) ??
+                            const <String>[];
+                    return PersonalFitCard(
+                      fit: fitDisplay,
+                      ingredientNames: ingredientNames,
+                      fitReasons: fitResult?.reasons ?? const [],
+                      topGoalLabel: _topGoalLabelFromFit(fitResult),
+                      onEditProfile: () =>
+                          GoRouter.of(context).push(Routes.profileSetup),
                     );
                   },
                 ),
+              ),
+            ),
+
+          // ----------------------------------------------------------------
+          // T13 — Alert Summary card. Compact count + scroll-to,
+          // hides itself when no alerts fire. Sits above the existing
+          // _ConditionAlertBanner; the two surfaces complement each
+          // other (count vs. condition list). Both will be revisited
+          // in T17/T19 when the page IA finalizes.
+          // ----------------------------------------------------------------
+          if (!isBlocked)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.space20,
+                  0,
+                  AppTheme.space20,
+                  AppTheme.space12,
+                ),
+                child: AlertSummaryCard(warnings: guardedWarnings),
               ),
             ),
 
@@ -448,7 +479,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // ----------------------------------------------------------------
           if (interactionHint.isNotEmpty)
             SliverToBoxAdapter(
-              child: _ConditionAlertBanner(hint: interactionHint),
+              child: _ConditionAlertBanner(
+                hint: interactionHint,
+                // T4 follow-up — pass the summary so the banner can
+                // gate condition_ids the same way the per-condition
+                // detail cards are gated. Keeps the two surfaces
+                // consistent: if a condition is dropped below, it
+                // shouldn't appear in the banner above.
+                interactionSummary:
+                    detailBlob?['interaction_summary'] as Map<String, dynamic>?,
+                // T16.2e — same dose-aware view as §7 below.
+                ingredientDoses: ingredientDoses,
+              ),
             ),
 
           // ----------------------------------------------------------------
@@ -527,6 +569,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // ----------------------------------------------------------------
           // Detail section (ingredients, pros/cons, warnings) — key content
           // ----------------------------------------------------------------
+          // T16.2g (2026-04-30) — `_alertsKey` removed. The
+          // AlertSummaryCard now expands inline as an accordion (Sean's
+          // "drop down and we see everything there, one source"), so
+          // we no longer need a scroll-target anchor for it.
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -640,26 +686,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ),
 
-          // ----------------------------------------------------------------
-          // Refill reminder
-          // ----------------------------------------------------------------
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.space20,
-                0,
-                AppTheme.space20,
-                AppTheme.space12,
-              ),
-              child: RefillReminderCard(
-                servingsPerContainer: _product?.servingsPerContainer,
-                netContentsQuantity: _product?.netContentsQuantity,
-                netContentsUnit: _product?.netContentsUnit,
-                dosingSummary: _product?.dosingSummary,
-                addedAt: _stackEntry?.addedAt,
-              ),
-            ),
-          ),
+          // T17 (2026-04-30) — Refill reminder card deleted per spec
+          // (60-day battery estimate). Lives only when the user has
+          // stack data anyway, and the value didn't justify the
+          // hero-area real-estate. Spec line 81 of
+          // INITIATIVE_PRODUCT_DETAIL_CLEANUP.md.
 
           // ----------------------------------------------------------------
           // T1.12 Section 11 — Better Alternatives, V1 non-personalized.
@@ -759,7 +790,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           dsldId: widget.dsldId,
           isUnsafe: isBlocked,
           onSeeAlternatives: _handleSeeAlternatives,
-          onLogDose: _handleLogDose,
         ),
       ),
     );
@@ -795,20 +825,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
   }
 
-  /// T1.15 — placeholder secondary tap for "Log dose". Sprint 2
-  /// wires the real dose-logging flow. V1 surfaces a snackbar so
-  /// the affordance is discoverable without committing to an
-  /// implementation we don't yet have.
-  void _handleLogDose() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Dose logging coming soon.'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  // T8 (2026-04-29) — removed `_handleLogDose` placeholder method.
+  // The Log Dose secondary action is gone from the product page; it
+  // belongs on the stack screen. See `INITIATIVE_PRODUCT_DETAIL_
+  // CLEANUP.md` S2.1 / T8.
 
   /// Worst-applicable severity across the personalized + blob warnings —
   /// drives T1.3's risk-gate inside the For You section. Empty list →
@@ -931,14 +951,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return tokens.contains('status') || tokens.contains('product_status');
   }
 
-  void _showScoreEducation(BuildContext context) {
-    PGModal.bottomSheet<void>(
-      context: context,
-      useSafeArea: false,
-      showDragHandle: false,
-      builder: (_) => const _ScoreEducationSheet(),
-    );
-  }
+  // T11 (2026-04-29) — `_showScoreEducation` + `_ScoreEducationSheet`
+  // removed. The score-ring tap-to-explain flow no longer fires
+  // (`ScoreLine` doesn't carry an info affordance in V1). Future
+  // sprint can reintroduce a tap-to-explain via a new help icon next
+  // to the tier label if user testing surfaces a need.
 }
 
 /// Best-effort top goal label for the For You section's verdict
@@ -985,7 +1002,20 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
   required Set<String> userDrugClasses,
 }) {
   final combinedWarnings = [..._synthesizeUlWarnings(detailBlob), ...warnings];
-  return combinedWarnings
+
+  // T4 (2026-04-29) — apply (condition, ingredient, dose) threshold
+  // gating BEFORE the profile-visibility filter. Drops false-positive
+  // condition monitor warnings the pipeline emits without dose
+  // awareness (Vit D + TTC, Mg + diabetes, etc.). UL warnings carry
+  // no conditionIds so they pass through untouched. Spec:
+  // INITIATIVE_PRODUCT_DETAIL_CLEANUP.md S2.1 / T3 + T4.
+  final ingredientDoses = extractIngredientDoses(detailBlob);
+  final gatedWarnings = applyConditionThresholdGate(
+    warnings: combinedWarnings,
+    ingredientDoses: ingredientDoses,
+  );
+
+  return gatedWarnings
       .where((w) {
         if (w.matchesProfile(
           userConditions: userConditions,
@@ -1034,264 +1064,6 @@ List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
       .toList(growable: false);
 }
 
-// ---------------------------------------------------------------------------
-// Score education overlay
-// ---------------------------------------------------------------------------
-
-class _ScoreEducationSheet extends StatelessWidget {
-  const _ScoreEducationSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      minChildSize: 0.4,
-      maxChildSize: 0.85,
-      expand: false,
-      builder: (context, scrollController) {
-        return SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'What does this score mean?',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // How We Score
-              Text(
-                'How We Score',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Each product is scored 0–100 from our reference catalog. '
-                'This explains the core product score, not your personalized '
-                'Personal Fit state.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // The 4 Pillars — visual bars
-              Text(
-                'The 4 Pillars',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _pillarBar(
-                theme,
-                scheme,
-                'Ingredient Quality',
-                25,
-                Icons.science_outlined,
-              ),
-              const SizedBox(height: 8),
-              _pillarBar(
-                theme,
-                scheme,
-                'Safety & Purity',
-                30,
-                Icons.shield_outlined,
-              ),
-              const SizedBox(height: 8),
-              _pillarBar(
-                theme,
-                scheme,
-                'Evidence & Research',
-                20,
-                Icons.menu_book_outlined,
-              ),
-              const SizedBox(height: 8),
-              _pillarBar(
-                theme,
-                scheme,
-                'Brand Trust',
-                5,
-                Icons.verified_outlined,
-              ),
-              const SizedBox(height: 20),
-
-              // Catalog Verdicts
-              Text(
-                'Catalog Verdicts',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _verdictRow(
-                theme,
-                scheme,
-                'SAFE',
-                'No block-level flag',
-                AppTheme.scoreExcellent,
-              ),
-              _verdictRow(
-                theme,
-                scheme,
-                'CAUTION',
-                'Review before use',
-                AppTheme.scoreFair,
-              ),
-              _verdictRow(
-                theme,
-                scheme,
-                'POOR',
-                'Low-quality signal',
-                AppTheme.scoreLow,
-              ),
-              _verdictRow(
-                theme,
-                scheme,
-                'BLOCKED',
-                'Do not use',
-                AppTheme.severityContraindicated,
-              ),
-              _verdictRow(
-                theme,
-                scheme,
-                'NOT SCORED',
-                'Not enough data',
-                AppTheme.insufficientData,
-              ),
-              _verdictRow(
-                theme,
-                scheme,
-                'NUTRITION ONLY',
-                'Nutrition facts only',
-                AppTheme.insufficientData,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// Visual progress bar for a score pillar — shows icon, name, max points,
-  /// and a proportional bar (fraction of the total 80-point scale).
-  static Widget _pillarBar(
-    ThemeData theme,
-    ColorScheme scheme,
-    String name,
-    int maxPoints,
-    IconData icon,
-  ) {
-    final fraction = maxPoints / 80.0; // 80 is the total across all 4 pillars
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: scheme.primary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '$maxPoints pts',
-                    style: AppTheme.numeric(
-                      theme.textTheme.labelSmall!.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                child: LinearProgressIndicator(
-                  value: fraction,
-                  minHeight: 4,
-                  backgroundColor: scheme.surfaceContainerHigh,
-                  valueColor: AlwaysStoppedAnimation(scheme.primary),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  static Widget _verdictRow(
-    ThemeData theme,
-    ColorScheme scheme,
-    String label,
-    String range,
-    Color color,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              border: Border.all(color: color, width: 1.5),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            range,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Condition alert banner
@@ -1317,7 +1089,27 @@ class _ScoreEducationSheet extends StatelessWidget {
 class _ConditionAlertBanner extends ConsumerWidget {
   final String hint;
 
-  const _ConditionAlertBanner({required this.hint});
+  /// Pipeline `interaction_summary` blob — passed in so the banner can
+  /// gate `parsed.conditionIds` against T4's threshold table. Without
+  /// it, the banner will surface "Use with caution — your conditions:
+  /// Diabetes" even when every diabetes-tagged warning was suppressed
+  /// downstream (Vit D positive for diabetes, etc). Optional for back-
+  /// compat with call sites that don't have the summary loaded yet.
+  final Map<String, dynamic>? interactionSummary;
+
+  /// T16.2e (2026-04-30) — ingredient-dose map (canonical name →
+  /// {value, unit}) extracted from the detail blob. Lets
+  /// `gateInteractionSummary` apply per-ingredient dose-threshold
+  /// gating, which suppresses banner conditionIds whose only surviving
+  /// ingredients are all sub-clinical. Optional for back-compat —
+  /// without it the gate falls back to positive-only filtering.
+  final Map<String, IngredientDose>? ingredientDoses;
+
+  const _ConditionAlertBanner({
+    required this.hint,
+    this.interactionSummary,
+    this.ingredientDoses,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1326,11 +1118,40 @@ class _ConditionAlertBanner extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    // T4 follow-up (2026-04-29 PM) — gate the hint's conditionIds
+    // against the gated `condition_summary`. Conditions whose
+    // ingredients are all `positive` for them got dropped by
+    // `gateInteractionSummary`; if a condition isn't in the surviving
+    // map, drop it from the banner too. Otherwise the banner says
+    // "your conditions: Diabetes" but scrolling down reveals no
+    // matching condition card — incoherent surface.
+    final gatedSummary = gateInteractionSummary(
+      interactionSummary,
+      ingredientDoses: ingredientDoses,
+    );
+    final survivingConditionIds =
+        (gatedSummary?['condition_summary'] as Map<String, dynamic>?)
+            ?.keys
+            .toSet();
+    // When the summary isn't available, fall through to the
+    // (ungated) original behavior — better to over-warn than miss.
+    final filteredConditionIds = survivingConditionIds == null
+        ? parsed.conditionIds
+        : parsed.conditionIds
+            .where(survivingConditionIds.contains)
+            .toList(growable: false);
+
+    // Recompute hasAny against the filtered conditions. If everything
+    // got gated AND there are no drug-class warnings, hide the banner.
+    if (filteredConditionIds.isEmpty && parsed.drugClassIds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final profile = ref.watch(profileProvider);
     final hasProfile =
         profile.conditions.isNotEmpty || profile.drugClasses.isNotEmpty;
 
-    final matchedConditions = parsed.conditionIds
+    final matchedConditions = filteredConditionIds
         .where(profile.conditions.contains)
         .toList(growable: false);
     final matchedDrugClasses = parsed.drugClassIds
@@ -1369,8 +1190,25 @@ class _ConditionAlertBanner extends ConsumerWidget {
     }
 
     // Profile populated AND matches found — show specific warning.
-    final tone = _toneFor(parsed.highestSeverity);
-    final title = _titleFor(parsed.highestSeverity);
+    //
+    // T16.2a (2026-04-30) — recompute severity from MATCHED entries
+    // only. `parsed.highestSeverity` is the pipeline's overall
+    // highest severity across the whole product, including warnings
+    // that don't match this user. Walking the gated
+    // `condition_summary` / `drug_class_summary` for matched IDs only
+    // gives us the severity that's actually relevant to this user,
+    // so the banner title matches the warnings rendered below.
+    // Falls back to `parsed.highestSeverity` if the gated summary
+    // lacks per-entry severities (defensive — over-warn rather than
+    // under-warn).
+    final matchedSeverity = computeMatchedHighestSeverity(
+      gatedSummary: gatedSummary,
+      matchedConditionIds: matchedConditions,
+      matchedDrugClassIds: matchedDrugClasses,
+      fallback: parsed.highestSeverity,
+    );
+    final tone = _toneFor(matchedSeverity);
+    final title = _titleFor(matchedSeverity);
     final body = _buildMatchBody(
       matchedConditions: matchedConditions,
       matchedDrugClasses: matchedDrugClasses,
@@ -1563,7 +1401,13 @@ List<({String label, String detail, bool isPositive})> _extractWhyItems(
         isPositive: false,
       ),
     ),
-  ].where((item) => item.label.trim().isNotEmpty).take(3).toList();
+  ].where((item) => item.label.trim().isNotEmpty).toList();
+  // T15 (2026-04-29 PM) — removed `.take(3)` total-items cap. Per-side
+  // cap (4 bonuses, 4 penalties) lives in `TradeoffsSection.build`,
+  // which also computes the "and N more" overflow footer. Pre-T15 the
+  // global cap meant a product with 5 bonuses + 0 penalties showed 3
+  // bonuses; with T15's per-side cap it shows all 4 (or 4 + "and 1
+  // more").
 }
 
 // _pickHeroScoreReason was removed in T1.1 (2026-04-29) — the hero no
@@ -1581,6 +1425,114 @@ List<({String label, String detail, bool isPositive})> _extractWhyItems(
 bool _hasAnyHeroSubtitle(String brand, String form, String? dose) =>
     brand.isNotEmpty || form.isNotEmpty || (dose != null && dose.isNotEmpty);
 
+/// Known clean form-noun keywords. Used by [_extractFormNoun] to pick a
+/// premium-looking word out of a messy pipeline `form_factor` value
+/// (e.g., `"30 round yello tablet"` → `"Tablet"`).
+const Set<String> _knownFormNouns = {
+  'capsule',
+  'capsules',
+  'softgel',
+  'softgels',
+  'tablet',
+  'tablets',
+  'caplet',
+  'caplets',
+  'gummy',
+  'gummies',
+  'liquid',
+  'powder',
+  'tincture',
+  'drops',
+  'lozenge',
+  'lozenges',
+  'spray',
+  'cream',
+  'patch',
+  'patches',
+};
+
+/// Pull a single clean form-noun out of a free-form `form_factor`
+/// string. The pipeline ships values that range from clean
+/// (`"Capsules"`) to noisy (`"30 round yello tablet"`); the hero
+/// subtitle should display only the form word, not the embedded count
+/// or descriptive prefix. Returns null when no recognizable noun
+/// surfaces — caller drops the segment cleanly.
+///
+/// T11.1 (2026-04-29 PM, post live walkthrough fix): Sean caught
+/// products rendering as "Vitamin D · GNC · 30 round yello tablet"
+/// when the pipeline form_factor was the full descriptor.
+String? _extractFormNoun(String raw) {
+  if (raw.trim().isEmpty) return null;
+  final words = raw.toLowerCase().split(RegExp(r'\s+'));
+  for (final w in words) {
+    if (_knownFormNouns.contains(w)) {
+      return '${w[0].toUpperCase()}${w.substring(1)}';
+    }
+  }
+  return null;
+}
+
+/// Mass-noun form factors that don't take a count modifier in
+/// English ("600 Liquids" reads as a typo). When the form is one of
+/// these, [_formatServingsForm] drops the count and renders just the
+/// form word — the dosing-summary segment ("Take 2 drops three times
+/// daily") already conveys quantity for liquids/powders.
+const Set<String> _massNounForms = {'Liquid', 'Powder', 'Tincture'};
+
+/// Build the middle subtitle segment from servings-per-container +
+/// form factor. Combines them with proper singular/plural agreement:
+/// `60 Capsules` / `1 Capsule` / `30 Tablets`. Mass nouns
+/// (Liquid/Powder/Tincture) drop the count. Falls back gracefully:
+///   - servings + countable form → `"60 Capsules"`
+///   - servings + mass-noun form → `"Liquid"` (count dropped)
+///   - servings only             → `"60"` (better than nothing)
+///   - form only                 → `"Capsules"`
+///   - neither                   → null
+///
+/// T11.1 — replaces the prior call to `formatNetContents(...)` which
+/// produced awkward strings like "1 Fluid Ounce(s)" for liquid
+/// products. T12.1 (2026-04-29 PM live walkthrough) added the mass-
+/// noun handling — Sean caught "600 Liquids · Take 2 drops three
+/// times daily" rendering after T11.1.
+String? _formatServingsForm(int? servings, String rawForm) {
+  final form = _extractFormNoun(rawForm);
+  if (servings == null || servings <= 0) {
+    return form; // form-only or null
+  }
+  if (form == null) {
+    return '$servings'; // servings-only
+  }
+  // Mass nouns: count is meaningless ("600 Liquids" = grammatically
+  // odd). Render form alone; dosing summary segment carries quantity.
+  if (_massNounForms.contains(form)) {
+    return form;
+  }
+  // Naive singular agreement: drop trailing 's' when count == 1 and
+  // the form is plural.
+  if (servings == 1 && form.endsWith('s')) {
+    return '$servings ${form.substring(0, form.length - 1)}';
+  }
+  // Pluralize singular forms when count > 1 (e.g., "Capsule" → "Capsules").
+  if (servings > 1 && !form.endsWith('s')) {
+    // Form-specific plural: "Gummy" → "Gummies" not "Gummys".
+    if (form == 'Gummy') return '$servings Gummies';
+    return '$servings ${form}s';
+  }
+  return '$servings $form';
+}
+
+/// Capitalize the first character of [s] iff it isn't already
+/// uppercase. T11.1 hygiene — pipeline data ranges from clean
+/// ("Thorne") to inconsistent ("thorne", "take 1 tablet daily"); this
+/// keeps the hero subtitle reading like a premium label without
+/// over-titlecasing already-uppercased input ("GNC" stays "GNC").
+String _capFirst(String s) {
+  if (s.isEmpty) return s;
+  final first = s[0];
+  if (first.toUpperCase() == first) return s;
+  return '${first.toUpperCase()}${s.substring(1)}';
+}
+
 /// Builds the dot-separated hero subtitle: `Brand  ·  Form  ·  Dose`.
 /// Drops orphan dots — if `brand` is empty but `form` is present, the
 /// result starts with `form`, not ` · form`. App Store / Apple Health
@@ -1595,14 +1547,20 @@ TextSpan _buildHeroSubtitleSpan({
   final theme = Theme.of(context);
   final scheme = theme.colorScheme;
   final segments = <String>[
-    if (brand.isNotEmpty) brand,
-    if (form.isNotEmpty) form,
-    if (dose != null && dose.isNotEmpty) dose,
+    if (brand.isNotEmpty) _capFirst(brand),
+    if (form.isNotEmpty) _capFirst(form),
+    if (dose != null && dose.isNotEmpty) _capFirst(dose),
   ];
   return TextSpan(
-    text: segments.join('  ·  '),
+    // T16.1 (2026-04-30) — tighten subtitle. Pre-T16.1: 14pt, two
+    // spaces around dots ('  ·  '). For long brands like "Pure
+    // encapsulations" + "Take 2 capsules daily" the segments wrapped
+    // mid-text and looked unpremium. App Store / Apple Health
+    // convention: tighter density on a single line, soft-wrap to a
+    // second line gracefully when content is genuinely too long.
+    text: segments.join(' · '),
     style: theme.textTheme.bodyMedium?.copyWith(
-      fontSize: 14,
+      fontSize: 13,
       color: scheme.onSurfaceVariant,
       fontWeight: FontWeight.w500,
       letterSpacing: -0.05,
@@ -1614,25 +1572,28 @@ TextSpan _buildHeroSubtitleSpan({
 // Header section
 // ---------------------------------------------------------------------------
 
-/// Score-led product detail hero (T1.1, revised 2026-04-29).
+/// Score-led product detail hero.
 ///
-/// Layout:
-///   1. Identity row — 96pt product image + name/brand/form column
-///   2. Quality Score altar — centered 96pt PGScoreRing with "PG SCORE" label
-///   3. Safety verdict banner — renders ONLY when [computeHeroVerdict]
-///      returns Blocked or Avoid (lower verdicts live in T1.2 Section 2)
-///   4. Dietary chips
+/// **T11 rebuild (2026-04-29)** — replaces the score-ring altar with a
+/// compact text-based [ScoreLine]. New layout:
+///   1. Identity row — 96pt image + title + dot-separated subtitle
+///      (Brand · Net contents · Dosing summary)
+///   2. Dietary / certification chips — one row, small outlined
+///   3. Score line — `● 90/100 Exceptional` + tier description
+///   4. Safety verdict banner — only when blocked/avoid (rendered last
+///      so the score is read first; the banner expands beneath when
+///      it fires)
 ///
-/// Notable removals from the pre-T1.1 hero:
-///   * VerdictBadge (Caution / Safe / etc.) → moved to T1.2 Section 2
-///   * percentile label text → moved to T1.4 Section 3 subtitle
-///   * grade pill (`_HeroMetaPill` with grade) → moved to T1.4 Section 3
-///   * "Limited data" pill → moved to T1.4 coverage line
-///   * `_HeroScoreReason` → moved to T1.6 Tradeoffs section
-///   * Personal Fit row (`PGFitScoreBadge`) → moved to T1.2 Section 2
-///   * "View Supplement Label" outline button → moved to T1.11 Section 10
+/// `PGScoreRing` is still used elsewhere (search-list rows) but no
+/// longer appears in the hero. The 96pt ring + "PG SCORE" label freed
+/// ~120pt of vertical real estate.
 ///
-/// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.1.
+/// Notable T11 carryovers from prior cleanups:
+///   * Image is tap-to-fullscreen (T1)
+///   * Subtitle is dot-separated inline (App Store / Apple Health
+///     pattern, G.3 cleanup 2026-04-29)
+///
+/// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T11.
 class _HeaderSection extends ConsumerWidget {
   final String dsldId;
   final String productName;
@@ -1645,8 +1606,19 @@ class _HeaderSection extends ConsumerWidget {
   final bool isNotScored;
   final List<Map<String, dynamic>> topWarnings;
   final Map<String, dynamic>? bannedSubstanceDetail;
-  final VoidCallback onScoreInfoTap;
   final String? upc;
+
+  /// User-facing dosing summary (e.g., `"1 capsule daily"`,
+  /// `"1-2 caps daily"`). Pulled from `_product.dosingSummary`. Null
+  /// when the pipeline didn't ship a dosing string for this product;
+  /// the subtitle drops the segment cleanly.
+  final String? dosingSummary;
+
+  /// Container size in servings — `60` for "60 Capsules". Pulled
+  /// from `_product.servingsPerContainer`. Combines with [formFactor]
+  /// via `_formatServingsForm` to produce the subtitle's middle
+  /// segment with proper singular/plural agreement.
+  final int? servingsPerContainer;
 
   const _HeaderSection({
     required this.dsldId,
@@ -1660,14 +1632,14 @@ class _HeaderSection extends ConsumerWidget {
     required this.isNotScored,
     required this.topWarnings,
     this.bannedSubstanceDetail,
-    required this.onScoreInfoTap,
     this.upc,
+    this.dosingSummary,
+    this.servingsPerContainer,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     // T1.1: compute the gated verdict. Banner renders only when severity
     // ≥ Avoid; lower-tier verdicts (Caution / Monitor / Safe / Recommended /
@@ -1678,6 +1650,16 @@ class _HeaderSection extends ConsumerWidget {
       topWarnings: topWarnings,
       bannedSubstanceDetail: bannedSubstanceDetail,
     );
+
+    // T11.1 (2026-04-29 PM) — middle subtitle segment is now
+    // servings × form (e.g., "60 Capsules") instead of net contents
+    // (which produced awkward strings like "1 Fluid Ounce(s)" for
+    // liquids). The helper strips noise out of the pipeline
+    // form_factor — products shipping as "30 round yello tablet"
+    // now render as "30 Tablets". Falls back to a clean form noun
+    // when servings is missing.
+    final servingsLabel =
+        _formatServingsForm(servingsPerContainer, formFactor) ?? '';
 
     // Single elevated surface for the hero — replaces the previous
     // nested Container + DecoratedBox. PGCard.elevated handles
@@ -1757,6 +1739,15 @@ class _HeaderSection extends ConsumerWidget {
                       score: score100,
                       size: 96,
                       compact: true,
+                      // T1 — tap-to-fullscreen. Reuses the same Hero
+                      // tag so the image lifts smoothly from 96pt
+                      // into the viewer; placeholder taps are inert.
+                      onTap: (imageUrl) => ProductImageViewer.show(
+                        context,
+                        imageUrl: imageUrl,
+                        heroTag: 'product-$dsldId',
+                        productName: productName,
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppTheme.space16),
@@ -1773,28 +1764,35 @@ class _HeaderSection extends ConsumerWidget {
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        // G.3 — inline dot-separated subtitle replaces the
-                        // prior stacked `[brand]\n[form]` Text widgets.
-                        // Dose segment is null until the detail blob's
-                        // ingredients[0].dose is reliably available; the
-                        // helper drops orphan dots cleanly when segments
-                        // are missing.
+                        // T11.1 (2026-04-29 PM) — subtitle: Brand ·
+                        // Servings × Form · Dosing summary. Drops
+                        // segments cleanly when missing (no orphan
+                        // dots).
                         if (_hasAnyHeroSubtitle(
                           brandName,
-                          formFactor,
-                          null,
+                          servingsLabel,
+                          dosingSummary,
                         )) ...[
                           const SizedBox(height: 4),
                           Text.rich(
                             _buildHeroSubtitleSpan(
                               context: context,
                               brand: brandName,
-                              form: formFactor,
-                              dose: null,
+                              form: servingsLabel,
+                              dose: dosingSummary,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                        ],
+                        // T11.1 — chips moved INTO the right column
+                        // (under subtitle, next to image). The image
+                        // now visually owns the left side full-height
+                        // for a more premium tile-like feel,
+                        // matching Sean's reference sample.
+                        if (dietaryTags.isNotEmpty) ...[
+                          const SizedBox(height: AppTheme.space8),
+                          _HeroTrustChips(tags: dietaryTags),
                         ],
                       ],
                     ),
@@ -1802,55 +1800,22 @@ class _HeaderSection extends ConsumerWidget {
                 ],
               ),
 
-              // Score altar — centered 96pt PGScoreRing with sub-label.
-              // The score ring's tier-tinted glow + sweep gradient + count-up
-              // animation give the hero its Apple-Health-grade focal moment.
-              //
-              // Suppressed when the product is product-side BLOCKED/UNSAFE.
-              // For a banned product, the score is informational at best and
-              // confusing at worst — "DO NOT USE" alongside "82/100" sends
-              // mixed signals. The blocked banner replaces the altar.
-              // Stack-side Avoid/Contra still shows the score because the
-              // product itself is fine; the issue is the user's stack.
-              if (heroVerdict is! HeroVerdictBlocked) ...[
-                const SizedBox(height: AppTheme.space20),
-                // Premium-feel signals: tier-tinted glow, sweep gradient,
-                // count-up animation, and tabular figures all live inside
-                // PGScoreRing. Sized at 96pt × 7pt stroke (the apple-grade
-                // hero altar size; the +1pt thinner stroke vs the natural
-                // 8pt-at-96 scaling avoids 2.1px overflow in PGScoreRing's
-                // inner Column). The "PG SCORE" label is rendered outside
-                // the ring (rather than PGScoreRing's internal `label`
-                // slot) for typographic control + extra breathing room.
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _ScoreRingButton(
-                        score: isNotScored ? null : score100,
-                        onTap: onScoreInfoTap,
-                      ),
-                      const SizedBox(height: AppTheme.space8),
-                      Text(
-                        'PG SCORE',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (isNotScored) ...[
-                        const SizedBox(height: AppTheme.space4),
-                        Text(
-                          'Not enough verified data to score.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.35,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ],
+              // T11 — text-based score line replaces the 96pt score
+              // ring + "PG SCORE" label altar. ~120pt of vertical real
+              // estate freed; tier label + description make the score
+              // immediately interpretable. Suppressed when the
+              // product is BLOCKED — a "DO NOT USE" + "82/100" UI
+              // sends mixed signals; the BlockedBanner replaces it.
+              if (heroVerdict is! HeroVerdictBlocked && !isNotScored) ...[
+                const SizedBox(height: AppTheme.space16),
+                ScoreLine(score: (score100 ?? 0).round()),
+              ] else if (isNotScored) ...[
+                const SizedBox(height: AppTheme.space12),
+                Text(
+                  'Not enough verified data to score.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -1876,11 +1841,6 @@ class _HeaderSection extends ConsumerWidget {
                       'review the details before adding to your stack.',
                 ),
               ],
-
-              if (dietaryTags.isNotEmpty) ...[
-                const SizedBox(height: AppTheme.space12),
-                _HeroTrustChips(tags: dietaryTags),
-              ],
             ],
           ),
         ),
@@ -1893,59 +1853,11 @@ class _HeaderSection extends ConsumerWidget {
 // Reasoning lives in T1.6 Tradeoffs section; "Why this score" rows there
 // will reuse this DNA once T1.4 / T1.6 are wired.
 
-class _ScoreRingButton extends StatelessWidget {
-  final double? score;
-  final VoidCallback onTap;
-
-  const _ScoreRingButton({required this.score, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final hasScore = score != null;
-
-    return Semantics(
-      button: true,
-      label: 'Open score explanation',
-      // PGPressable for the Apple-style press response: 0.96 scale
-      // compression on tap-down, spring back on release, light haptic
-      // tick on the tap. Replaces the previous Material+InkWell which
-      // used a dim ripple (Material idiom) instead of the iOS press
-      // depth idiom that matches the rest of the app's polish layer.
-      child: PGPressable(
-        onTap: onTap,
-        // pressedScale defaults to 0.96 — the App Store / Apple TV tile
-        // depth, which feels right for a hero focal element. A more
-        // dramatic 0.92 would feel cartoonish at this size.
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: hasScore
-                ? [
-                    BoxShadow(
-                      color: _glowColor(score!).withValues(alpha: 0.16),
-                      blurRadius: 28,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: scheme.surface,
-            ),
-            // Hero altar: 96pt × 7pt stroke. Slightly thinner stroke
-            // than the default 8 (proven not to overflow PGScoreRing's
-            // inner Column at this size with no internal label slot).
-            child: PGScoreRing(score: score, size: 96, strokeWidth: 7),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// T11 (2026-04-29) — `_ScoreRingButton` removed. The 96pt score ring
+// + tier-tinted glow + tap-to-explain affordance is replaced by the
+// compact text-based `ScoreLine` in the rebuilt header. `PGScoreRing`
+// itself is still used in `product_list_item.dart` for the small
+// 52pt ring on each search-result row.
 
 class _HeroTrustChips extends StatelessWidget {
   final List<({String label, bool isCertification})> tags;
@@ -1958,8 +1870,11 @@ class _HeroTrustChips extends StatelessWidget {
     final overflow = tags.length - visible.length;
 
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      // T16.1 (2026-04-30) — tighter inter-chip spacing 8→6 to pair
+      // with the smaller chip body, helping "Trusted Manufacturer" +
+      // "Gluten Free" fit on one line.
+      spacing: 6,
+      runSpacing: 6,
       children: [
         ...visible.map(
           (tag) => _HeroTrustChipOutline(
@@ -2000,19 +1915,25 @@ class _HeroTrustChipOutline extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final tone = isCertification ? scheme.primary : AppTheme.scoreExcellent;
+    // T16.1 (2026-04-30) — second shrink pass. Pre-T16.1: 10×4 / 11pt
+    // / 0.8 border. "Trusted Manufacturer" + "Gluten Free" still
+    // overflowed the right column on iPhone SE width and ran to a
+    // second row. Tightened to 8×3 / 10pt / 0.7 border (10pt is the
+    // iOS HIG floor for readable secondary text). Saves ~35pt
+    // horizontal, fits both common chip pairs on a single line.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        border: Border.all(color: tone.withValues(alpha: 0.55), width: 1.0),
+        border: Border.all(color: tone.withValues(alpha: 0.55), width: 0.7),
         borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: tone,
-          fontSize: 13,
+          fontSize: 10,
           fontWeight: FontWeight.w600,
-          letterSpacing: -0.1,
+          letterSpacing: -0.05,
         ),
       ),
     );
@@ -2292,6 +2213,24 @@ class DetailSection extends ConsumerWidget {
     final interactionSummary =
         blob['interaction_summary'] as Map<String, dynamic>?;
 
+    // T16.2e (2026-04-30) — ingredient dose map, used to dose-gate the
+    // condition_summary surface (§7) so sub-clinical aboveDose entries
+    // (PureLean ALA 350mg, Vanadium 50mcg, Niacin 37.5mg) don't leak
+    // through the way they did pre-T16.2e. Same shape as the warnings-
+    // list gate consumes upstream.
+    final ingredientDoses = extractIngredientDoses(blob);
+
+    // T16.2f (2026-04-30) — proprietary-blend metadata for label-style
+    // grouping in the active list. The pipeline emits this whenever a
+    // product has a named blend (Eye Health Blend, Energy Complex, etc).
+    // Null/empty when the product has no blends — renderer falls
+    // through to flat layout in that case.
+    final propBlends =
+        ((blob['proprietary_blend_detail'] as Map<String, dynamic>?)?['blends']
+                as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList(growable: false);
+
     // FLTR-11a RETIRED (2026-04-24) — pipeline E1.11 now emits
     // dose-aware severity at source, so no Flutter-side downgrade
     // pass is needed. Pass profile-filtered warnings through directly.
@@ -2301,9 +2240,10 @@ class DetailSection extends ConsumerWidget {
       userConditions: userConditions,
       userDrugClasses: userDrugClasses,
     );
-    final visibleInactives = inactiveIngredients.take(8).toList();
-    final hiddenInactivesCount =
-        inactiveIngredients.length - visibleInactives.length;
+    // T16 — `visibleInactives` / `hiddenInactivesCount` removed.
+    // The 8-chip cap + "+N more" pill logic now lives inside
+    // `IngredientsCard` which also drives the new color-dotted
+    // expanded list.
 
     // Section ordering matches the IA spec exactly — see
     // INITIATIVE_PRODUCT_TRUST_AND_IA.md "IA structure":
@@ -2325,14 +2265,38 @@ class DetailSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ---- §4 Active Ingredients (collapsible — long for multivitamins) ----
-        if (ingredients.isNotEmpty) ...[
-          _CollapsibleIngredients(
-            ingredients: ingredients,
-            ulAnalysis: ulAnalysis,
+        // ---- §4 Ingredients (T16 merged card) ----
+        // T16 (2026-04-30) — was two separate sections (active list +
+        // inactive chip wrap). Now a single elevated `IngredientsCard`
+        // with an internal divider. Active rendering still flows
+        // through `_CollapsibleIngredients` (passed as `activeContent`);
+        // inactive sub-section gets a "See all N ⌄" toggle that
+        // reveals the FULL list with `inactiveColorRank` color dots.
+        if (ingredients.isNotEmpty || inactiveIngredients.isNotEmpty) ...[
+          IngredientsCard(
+            activeContent: ingredients.isNotEmpty
+                ? _CollapsibleIngredients(
+                    ingredients: ingredients,
+                    ulAnalysis: ulAnalysis,
+                    blends: propBlends,
+                  )
+                : null,
+            inactiveNames: inactiveIngredients
+                .map(
+                  (ing) =>
+                      ing['name']?.toString() ??
+                      ing['raw_source_text']?.toString() ??
+                      '',
+                )
+                .where((n) => n.isNotEmpty)
+                .toList(growable: false),
           ),
           const SizedBox(height: 20),
         ] else if (ingredientsSummary.isNotEmpty) ...[
+          // Legacy fallback path — when the pipeline ships only a
+          // free-text `ingredients_summary` blob (no structured
+          // active list and no inactives), render the summary alone.
+          // Rare; pre-T16 behavior preserved here.
           Text(
             'Ingredients',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -2356,51 +2320,6 @@ class DetailSection extends ConsumerWidget {
         // `FormAbsorptionSection` widget stays in the repo for
         // potential reuse (e.g. a dedicated explainer) — it's no
         // longer wired into the scroll.
-
-        // ---- §4 Inactive Ingredients ----
-        if (inactiveIngredients.isNotEmpty) ...[
-          _sectionTitle(theme, 'Other Ingredients', inactiveIngredients.length),
-          const SizedBox(height: 8),
-          // T1.5 — inactive chips are now tappable. Tapping a chip
-          // opens a bottom sheet explaining the ingredient's role
-          // (capsule shell, anti-caking agent, sweetener, etc.).
-          // Lookup table lives in `ingredients_section.dart` next to
-          // the chip widget. Unknown names fall back to a generic
-          // "added during manufacturing" copy so no chip is a
-          // dead-end.
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              ...visibleInactives.map((ing) {
-                final name =
-                    ing['name']?.toString() ??
-                    ing['raw_source_text']?.toString() ??
-                    '';
-                return InactiveIngredientChip(name: name);
-              }),
-              if (hiddenInactivesCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                  ),
-                  child: Text(
-                    '+$hiddenInactivesCount more',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: scheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
 
         // ---- §5 Tradeoffs ----
         if (whyItems.isNotEmpty) ...[
@@ -2447,9 +2366,25 @@ class DetailSection extends ConsumerWidget {
         // ---- §7.2 Legacy condition-specific details (deferred to
         // Sprint 3 retire/refactor — moved into the §7 grouping
         // 2026-04-29 per dev review). ----
+        // T4 follow-up (2026-04-29 PM, post live walkthrough) — pass
+        // the summary through `gateInteractionSummary` so per-condition
+        // ingredient lists drop positive nutrients (Vit D for diabetes,
+        // magnesium for hypertension, etc.). Conditions whose entire
+        // ingredient list was positive get dropped wholesale. Sean's
+        // walkthrough caught this surface bypassing T4's warnings-list
+        // gate. The widget itself self-hides on empty input, so we
+        // unconditionally pass the gated summary.
         if (interactionSummary != null) ...[
           _InteractionConditionDetails(
-            summary: interactionSummary,
+            // T16.2e — dose-gate the condition_summary surface so
+            // sub-clinical aboveDose entries (ALA, Vanadium, Niacin)
+            // don't leak as "Diabetes — caution — affected by …" while
+            // T4's main gate already suppressed the inline warnings.
+            summary: gateInteractionSummary(
+                  interactionSummary,
+                  ingredientDoses: ingredientDoses,
+                ) ??
+                interactionSummary,
             userConditions: userConditions,
             userDrugClasses: userDrugClasses,
           ),
@@ -2485,74 +2420,20 @@ class DetailSection extends ConsumerWidget {
           ageBracket: ref.watch(profileProvider).ageBracket,
         ),
 
-        // T1.11 Section 10 — Product Details, collapsed by default.
-        // Reference panel: serving size, servings, net contents, form,
-        // manufacturer, country. Hides entirely when no field has data.
-        // Manufacturer name + country read from detailBlob.manufacturer_info
-        // inline (parent screen doesn't carry them as typed params yet).
-        const SizedBox(height: AppTheme.space12),
-        Builder(
-          builder: (context) {
-            final manufacturerInfo =
-                detailBlob?['manufacturer_info'] as Map<String, dynamic>?;
-            return ProductDetailsSection(
-              servingSize: dosingSummary,
-              servingsPerContainer: servingsPerContainer,
-              manufacturer: manufacturerInfo?['name']?.toString(),
-              netContentsQuantity: netContentsQuantity,
-              netContentsUnit: netContentsUnit,
-              formFactor: formFactor,
-              country: manufacturerInfo?['country']?.toString(),
-            );
-          },
-        ),
+        // T17 (2026-04-30) — Bottom Product Details block deleted per
+        // spec (line 83: "merged into header"). Brand + dosing already
+        // surface in the hero `_HeaderSection`; manufacturer / net
+        // contents / form factor moved to Deep Dive's manufacturer
+        // section. Pre-T17 the bottom panel was redundant chrome that
+        // pushed real content (Interactions, Populations) further down.
       ],
     );
   }
 
-  Widget _sectionTitle(
-    ThemeData theme,
-    String title,
-    int count, {
-    IconData? icon,
-    Color? color,
-  }) {
-    final scheme = theme.colorScheme;
-    return Row(
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 18, color: color ?? scheme.primary),
-          const SizedBox(width: 6),
-        ],
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-            color: color,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-          ),
-          child: Text(
-            '$count',
-            style: AppTheme.numeric(
-              TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // T16 (2026-04-30) — `_sectionTitle` private helper removed. Was
+  // only used by the old standalone "Other Ingredients" section
+  // header; that section now lives inside `IngredientsCard` with its
+  // own integrated title.
 }
 
 // _WhyThisProductSection + _ProConTile removed in T1.6 (2026-04-29).
@@ -2576,7 +2457,18 @@ class _CollapsibleIngredients extends StatefulWidget {
   /// badge in that case.
   final List<Map<String, dynamic>>? ulAnalysis;
 
-  const _CollapsibleIngredients({required this.ingredients, this.ulAnalysis});
+  /// T16.2f (2026-04-30) — pipeline's
+  /// `proprietary_blend_detail.blends[]`. When non-empty, ingredients
+  /// matching `child_ingredients[].name` render under a label-style
+  /// blend header (name + total dose) with indented child rows.
+  /// Optional for back-compat with non-blend products.
+  final List<Map<String, dynamic>>? blends;
+
+  const _CollapsibleIngredients({
+    required this.ingredients,
+    this.ulAnalysis,
+    this.blends,
+  });
 
   @override
   State<_CollapsibleIngredients> createState() =>
@@ -2660,22 +2552,133 @@ class _CollapsibleIngredientsState extends State<_CollapsibleIngredients> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    // FLTR-9 — disclosed-dose actives first, no-dose
-                    // last, pipeline order preserved within each
-                    // bucket.
-                    children: sortActivesForDisplay(widget.ingredients)
-                        .map(
-                          (ing) => _IngredientTile(
-                            ingredient: ing,
-                            ulEntry: matchUlEntry(ing, widget.ulAnalysis),
-                          ),
-                        )
-                        .toList(),
+                    children: _buildExpandedRows(),
                   ),
                 )
               : const SizedBox(width: double.infinity),
         ),
       ],
+    );
+  }
+
+  /// T16.2f (2026-04-30) — build the active-ingredient body, grouping
+  /// matched blend members under a label-style header with indented
+  /// child rows. Falls through to the pre-T16.2f flat layout when the
+  /// product has no proprietary blends OR when no ingredients matched
+  /// any blend's children.
+  ///
+  /// Render order:
+  ///   1. Loose disclosed-dose actives (FLTR-9 sort)
+  ///   2. Per-blend bucket: header row + indented children (pipeline order)
+  ///   3. Loose undisclosed-dose actives (FLTR-9 sort)
+  ///
+  /// This isolates blend ingredients from loose ones so the user can
+  /// tell at a glance which "amount not disclosed" entries are inside a
+  /// blend (and therefore have a known parent total) vs. genuinely
+  /// non-quantified standalone ingredients.
+  List<Widget> _buildExpandedRows() {
+    final grouped = groupActivesByBlend(
+      ingredients: widget.ingredients,
+      blendsRaw: widget.blends,
+    );
+
+    if (!grouped.hasBlends) {
+      // No blends matched — preserve pre-T16.2f flat behavior.
+      return sortActivesForDisplay(widget.ingredients)
+          .map(
+            (ing) => _IngredientTile(
+              ingredient: ing,
+              ulEntry: matchUlEntry(ing, widget.ulAnalysis),
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    final rows = <Widget>[];
+    for (final ing in grouped.looseDisclosed) {
+      rows.add(
+        _IngredientTile(
+          ingredient: ing,
+          ulEntry: matchUlEntry(ing, widget.ulAnalysis),
+        ),
+      );
+    }
+    for (final blend in grouped.blends) {
+      rows.add(_BlendHeaderTile(blend: blend));
+      for (final child in blend.children) {
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(left: AppTheme.space20),
+            child: _IngredientTile(
+              ingredient: child,
+              ulEntry: matchUlEntry(child, widget.ulAnalysis),
+            ),
+          ),
+        );
+      }
+    }
+    for (final ing in grouped.looseUndisclosed) {
+      rows.add(
+        _IngredientTile(
+          ingredient: ing,
+          ulEntry: matchUlEntry(ing, widget.ulAnalysis),
+        ),
+      );
+    }
+    return rows;
+  }
+}
+
+/// T16.2f — proprietary-blend header row matching the supplement-facts
+/// label format: bold blend name on the left, total dose on the right.
+/// Children render indented below this tile via the renderer.
+class _BlendHeaderTile extends StatelessWidget {
+  final BlendGroup blend;
+
+  const _BlendHeaderTile({required this.blend});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final hasTotal = blend.totalAmount != null && blend.unit.isNotEmpty;
+    final totalLabel = hasTotal
+        ? '${blend.totalAmount} ${blend.unit}'
+        : 'Amount not disclosed';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.space8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.layers_outlined,
+            size: 14,
+            color: scheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              blend.name,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.1,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            totalLabel,
+            style: AppTheme.numeric(
+              theme.textTheme.labelSmall!.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -3289,14 +3292,10 @@ class _DetailErrorBanner extends StatelessWidget {
 // Old _ActionButtons removed — replaced by [PGStackActionButtons] which
 // handles safety check, add/remove, and undo snackbar.
 
-/// Score-tier color for the glow behind the ring on the header.
-Color _glowColor(double score) {
-  if (score >= 85) return AppTheme.scoreExceptional;
-  if (score >= 70) return AppTheme.scoreExcellent;
-  if (score >= 55) return AppTheme.scoreGood;
-  if (score >= 40) return AppTheme.scoreFair;
-  return AppTheme.scoreBelowAvg;
-}
+// T11 (2026-04-29) — `_glowColor` removed. Was the score-tier glow
+// hue for the score ring's drop shadow; the ring is gone, so the
+// helper is orphaned. The new `ScoreLine` uses `ScoreTier.color`
+// directly.
 
 // ---------------------------------------------------------------------------
 // Deep dive — collapsible wrapper for detailed analysis sections.
@@ -3473,15 +3472,19 @@ class _DeepDiveSectionState extends State<DeepDiveSection>
                 const SizedBox(height: AppTheme.space8),
                 ProbioticDetailSection(probioticDetail: widget.probioticDetail),
                 const SizedBox(height: AppTheme.space8),
-                PairsWellSection(dsldId: widget.dsldId),
-                const SizedBox(height: AppTheme.space8),
+                // T17 (2026-04-30) — `PairsWellSection` deleted per
+                // spec (replaced by tightened Synergy Cluster).
                 SynergyDetailSection(synergyDetail: widget.synergyDetail),
                 const SizedBox(height: AppTheme.space8),
                 ManufacturerViolationsSection(
                   manufacturerDetail: widget.manufacturerDetail,
                 ),
                 const SizedBox(height: AppTheme.space8),
-                NutritionPanel(
+                // T18 (2026-04-30) — collapsed full Nutrition Facts
+                // panel into a "View supplement facts" link that opens
+                // a bottom sheet. Same hide rule applies (no nutrition
+                // data → link auto-hides).
+                NutritionFactsLink(
                   caloriesPerServing: widget.caloriesPerServing,
                   nutritionDetail: widget.nutritionDetail,
                 ),

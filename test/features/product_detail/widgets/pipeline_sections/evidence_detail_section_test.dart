@@ -168,6 +168,24 @@ void main() {
         );
       }
     });
+
+    test('T7 — 0 studies + meta-quality match → LIMITED (not STRONG)', () {
+      // Pipeline can ship a clinical_match with `evidence_level:
+      // 'strong'` but `pmids: []` — meaning the literature claims
+      // meta-quality evidence exists but no PMIDs were attached.
+      // The tier MUST resolve to LIMITED because volume threshold
+      // is unmet. A naive `if (meta) return strong` would mis-read
+      // this as STRONG; pin the behavior so a future refactor
+      // can't regress it.
+      expect(
+        evidenceTier([_match(evidence: 'strong', pmids: const [])]),
+        EvidenceTier.limited,
+      );
+      expect(
+        evidenceTier([_match(evidence: 'established', pmids: const [])]),
+        EvidenceTier.limited,
+      );
+    });
   });
 
   group('EvidenceDetailSection — render', () {
@@ -231,6 +249,37 @@ void main() {
       expect(find.text('1 study reviewed'), findsOneWidget);
       expect(find.textContaining('meta-analysis'), findsNothing);
     });
+
+    testWidgets(
+      'T7 — 0-PMID match renders "Limited evidence available", not the contradiction',
+      (tester) async {
+        // The buggy pre-T7 render was self-contradictory: tier banner
+        // claimed "Clinical support: LIMITED" while the subline said
+        // "0 studies reviewed". Sean's 2026-04-29 walkthrough caught
+        // it — surfacing as "looks like a crash" because the empty
+        // citation sheet (T5) magnified the broken impression.
+        await _pump(
+          tester,
+          evidenceData: {
+            'match_count': 1,
+            'clinical_matches': [
+              _match(evidence: 'strong', pmids: const []),
+            ],
+          },
+        );
+        await tester.pumpAndSettle();
+
+        // Honest single-line banner present.
+        expect(find.text('Limited evidence available'), findsOneWidget);
+        // The contradictory copy must NOT render.
+        expect(find.text('0 studies reviewed'), findsNothing);
+        expect(find.textContaining('Clinical support:'), findsNothing);
+        expect(find.text('LIMITED'), findsNothing);
+        // Section itself still renders (the per-ingredient rows are
+        // untouched — this fix is scoped to the tier banner only).
+        expect(find.text('Evidence & Research'), findsOneWidget);
+      },
+    );
 
     testWidgets('MODERATE tier renders for 3-4 studies', (tester) async {
       await _pump(

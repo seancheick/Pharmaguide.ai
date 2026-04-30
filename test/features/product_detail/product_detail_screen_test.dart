@@ -11,6 +11,7 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
+import 'package:pharmaguide/features/product_detail/widgets/score_line.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 
@@ -40,32 +41,15 @@ class _FakeCoreDatabase extends CoreDatabase {
 }
 
 void main() {
-  late _FakeCoreDatabase coreDb;
-  late UserDatabase userDb;
+  // T11 (2026-04-29) — `coreDb` + `userDb` setUp removed. The only
+  // test that consumed them was the "score education sheet"
+  // walkthrough, which was retired with the score-ring affordance.
+  // Other tests in this file construct their own per-test fixtures
+  // (`reviewDb`, etc.), so the file-level setUp() was dead post-T11.
   late InteractionDatabase interactionDb;
 
   setUp(() async {
     interactionDb = InteractionDatabase.memory();
-    coreDb = _FakeCoreDatabase(
-      const ProductsCoreData(
-        dsldId: 'TEST_DETAIL_001',
-        productName: 'Guided Vitamin D',
-        productStatus: 'active',
-        scoreQuality80: 72.5,
-        score100Equivalent: 91.0,
-        grade: 'A-',
-        verdict: 'SAFE',
-        mappedCoverage: 0.95,
-        scoreIngredientQuality: 22.0,
-        scoreSafetyPurity: 27.0,
-        scoreEvidenceResearch: 18.0,
-        scoreBrandTrust: 5.0,
-        primaryCategory: 'single_nutrient',
-        exportVersion: 'test',
-        exportedAt: '2026-04-09T00:00:00Z',
-      ),
-    );
-    userDb = UserDatabase.memory();
   });
 
   setUpAll(() {
@@ -76,70 +60,13 @@ void main() {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = false;
   });
 
-  testWidgets(
-    'score education sheet describes the core product score accurately',
-    (tester) async {
-      await userDb.cacheDetail(
-        'TEST_DETAIL_001',
-        jsonEncode(<String, Object>{'warnings': <Object>[]}),
-        null,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            coreDatabaseProvider.overrideWithValue(coreDb),
-            userDatabaseProvider.overrideWithValue(userDb),
-            interactionDatabaseProvider.overrideWithValue(interactionDb),
-            // FitScoreService loads Flutter assets via rootBundle which aren't
-            // available in widget tests. Override to throw immediately so the
-            // provider resolves to AsyncValue.error instead of hanging forever.
-            fitScoreServiceProvider.overrideWith((ref) async {
-              throw UnimplementedError('No FitScore in test');
-            }),
-          ],
-          child: const MaterialApp(
-            home: ProductDetailScreen(dsldId: 'TEST_DETAIL_001'),
-          ),
-        ),
-      );
-
-      // Allow async initState operations to complete (_loadProduct,
-      // _loadDetailBlob, _loadStackEntry, _loadPersonalizedInteractions).
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.text('Guided Vitamin D'), findsWidgets);
-      await tester.tap(find.byType(PGScoreRing));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.textContaining('core product score'), findsOneWidget);
-      // Pillar names rendered as separate Text widgets (with visual bars)
-      expect(find.text('Ingredient Quality'), findsOneWidget);
-      expect(find.text('Safety & Purity'), findsOneWidget);
-      expect(find.text('Evidence & Research'), findsOneWidget);
-      expect(find.text('Brand Trust'), findsOneWidget);
-      // Point values as numeric labels
-      expect(find.text('25 pts'), findsOneWidget);
-      expect(find.text('30 pts'), findsOneWidget);
-      expect(find.text('20 pts'), findsOneWidget);
-      expect(find.text('5 pts'), findsOneWidget);
-      expect(find.text('Catalog Verdicts'), findsOneWidget);
-      expect(find.text('SAFE'), findsOneWidget);
-      expect(find.text('CAUTION'), findsOneWidget);
-      expect(find.text('POOR'), findsOneWidget);
-      expect(find.text('BLOCKED'), findsOneWidget);
-      expect(find.text('NOT SCORED'), findsOneWidget);
-      expect(find.text('NUTRITION ONLY'), findsOneWidget);
-      expect(find.text('RECOMMENDED'), findsNothing);
-      expect(find.text('MODERATE'), findsNothing);
-      expect(find.text('REVIEW'), findsNothing);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-    },
-  );
+  // T11 (2026-04-29) — `score education sheet` test removed.
+  // The score-ring tap-to-explain affordance was deleted along with
+  // the ring itself; `_ScoreEducationSheet` no longer exists. The
+  // pillar breakdown the sheet documented now lives in the
+  // `score_breakdown_card.dart` (renamed to "Product Analysis" in
+  // T14). The score itself is covered by widget tests in
+  // `test/features/product_detail/widgets/score_line_test.dart`.
 
   testWidgets(
     'T1.1 hero does NOT render the inline "Why this score" reasoning row '
@@ -202,18 +129,18 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // T1.1 invariant: no inline "Why this score" reasoning in the hero.
-      // The text might still appear elsewhere in the screen later (e.g.
-      // T1.4 ScoreBreakdownCard or T1.6 Tradeoffs section), so we lock
-      // the invariant via the now-removed `_HeroScoreReason` widget being
-      // gone — there should be exactly zero "Why this score" labels
-      // since neither T1.4 nor T1.6 has shipped yet. When T1.6 lands and
-      // re-introduces the phrase under the Tradeoffs section, this test
-      // can be relaxed to "find within Tradeoffs section only".
+      // T1.1 invariant: no inline "Why this score" reasoning in the
+      // hero. The text might still appear elsewhere later (T14
+      // Product Analysis pillar bars), so we lock the invariant
+      // here only.
       expect(find.text('Why this score'), findsNothing);
 
-      // The PG SCORE altar IS in the hero (verifies the score-led layout).
-      expect(find.text('PG SCORE'), findsOneWidget);
+      // T11 (2026-04-29) — score is now rendered as a `ScoreLine`
+      // widget (text-based) instead of a `PGScoreRing` altar +
+      // "PG SCORE" label. Lock the new invariant: ScoreLine is in
+      // the hero, the old "PG SCORE" altar string is gone.
+      expect(find.byType(ScoreLine), findsOneWidget);
+      expect(find.text('PG SCORE'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

@@ -17,6 +17,54 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 /// keep this in sync if the helper's record changes.
 typedef TradeoffItem = ({String label, String detail, bool isPositive});
 
+/// Maximum number of bullets rendered per column. Beyond this the
+/// section adds an "… and N more concerns" muted footer (no chevron —
+/// the section stays quiet by design). Per the T15 spec.
+const int _maxTradeoffBulletsPerSide = 4;
+
+/// "Harmful additive " prefix the pipeline emits on score_penalties
+/// labels (e.g., `"Harmful additive Sugar syrup"`). T15 collapses
+/// every penalty matching this prefix into a single combined row
+/// `"Additives: Sugar syrup, Palm oil"` so the user reads one line
+/// instead of 5 near-duplicates. Lowercase match against
+/// `label.toLowerCase().startsWith(_harmfulAdditivePrefix)` for
+/// pipeline-drift tolerance.
+const String _harmfulAdditivePrefix = 'harmful additive ';
+
+/// Collapse all `"Harmful additive X"` items in [penalties] into a
+/// single combined row at the front of the returned list. Non-matching
+/// penalties pass through unchanged.
+///
+/// Pipeline ships labels like `"Harmful additive Sugar syrup"` for
+/// each flagged additive. Sean's 2026-04-29 walkthrough: "we don't
+/// need to keep repeating 'harmful additive sugar syrup', 'harmful
+/// additive palm oil' — just put 'additive sugar syrup, palm oil'
+/// with a comma." This helper does exactly that.
+///
+/// Public so unit tests can pin the collapse contract directly.
+List<TradeoffItem> collapseHarmfulAdditives(List<TradeoffItem> penalties) {
+  final additiveNames = <String>[];
+  final remaining = <TradeoffItem>[];
+  for (final item in penalties) {
+    final label = item.label.trim();
+    if (label.toLowerCase().startsWith(_harmfulAdditivePrefix)) {
+      final name = label.substring(_harmfulAdditivePrefix.length).trim();
+      if (name.isNotEmpty) {
+        additiveNames.add(name);
+      }
+      continue;
+    }
+    remaining.add(item);
+  }
+  if (additiveNames.isEmpty) return penalties;
+  final combined = (
+    label: 'Additives: ${additiveNames.join(", ")}',
+    detail: '',
+    isPositive: false,
+  );
+  return [combined, ...remaining];
+}
+
 /// Tradeoffs section (Section 5).
 ///
 /// Splits [items] into bonuses (`isPositive == true`) and penalties
@@ -43,20 +91,31 @@ class TradeoffsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     // Filter out blank-label entries (defensive — `_extractWhyItems`
     // shouldn't emit them, but pipeline drift could).
-    final bonuses = <TradeoffItem>[];
-    final penalties = <TradeoffItem>[];
+    final bonusesRaw = <TradeoffItem>[];
+    final penaltiesRaw = <TradeoffItem>[];
     for (final item in items) {
       if (item.label.trim().isEmpty) continue;
       if (item.isPositive) {
-        bonuses.add(item);
+        bonusesRaw.add(item);
       } else {
-        penalties.add(item);
+        penaltiesRaw.add(item);
       }
     }
+
+    // T15 (2026-04-29 PM) — collapse "Harmful additive X" rows into a
+    // single combined "Additives: X, Y, Z" row before capping. Bonuses
+    // don't have an equivalent prefix pattern, so they pass through.
+    final bonuses = bonusesRaw;
+    final penalties = collapseHarmfulAdditives(penaltiesRaw);
 
     if (bonuses.isEmpty && penalties.isEmpty) {
       return const SizedBox.shrink();
     }
+
+    // T15.1 — per-side cap is now enforced INSIDE `_TradeoffColumn`
+    // so it can also drive the expand-in-place toggle. The section
+    // just hands off the full lists; the column collapses to its
+    // visible cap by default and reveals the rest on tap.
 
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -81,6 +140,13 @@ class TradeoffsSection extends StatelessWidget {
               bonuses.isEmpty ||
               penalties.isEmpty;
 
+          // T15.1 (2026-04-29 PM follow-up) — pass the FULL items
+          // list plus the visible-cap so `_TradeoffColumn` can render
+          // an expand-in-place toggle. Pre-T15.1 the section showed
+          // "… and N concerns" as a static line, forcing the user to
+          // scroll elsewhere to find what those concerns were.
+          // Sean's call: "we should have a drop down to show more,
+          // and list all there".
           if (stack) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,6 +156,8 @@ class TradeoffsSection extends StatelessWidget {
                     title: '👍 What\'s good',
                     tone: AppTheme.severitySafe,
                     items: bonuses,
+                    visibleCap: _maxTradeoffBulletsPerSide,
+                    overflowSingularNoun: 'bonus',
                   ),
                   if (penalties.isNotEmpty)
                     const SizedBox(height: AppTheme.space12),
@@ -99,6 +167,8 @@ class TradeoffsSection extends StatelessWidget {
                     title: '⚖️ What to consider',
                     tone: AppTheme.severityAvoid,
                     items: penalties,
+                    visibleCap: _maxTradeoffBulletsPerSide,
+                    overflowSingularNoun: 'concern',
                   ),
               ],
             );
@@ -112,6 +182,8 @@ class TradeoffsSection extends StatelessWidget {
                   title: '👍 What\'s good',
                   tone: AppTheme.severitySafe,
                   items: bonuses,
+                  visibleCap: _maxTradeoffBulletsPerSide,
+                  overflowSingularNoun: 'bonus',
                 ),
               ),
               const SizedBox(width: AppTheme.space16),
@@ -120,6 +192,8 @@ class TradeoffsSection extends StatelessWidget {
                   title: '⚖️ What to consider',
                   tone: AppTheme.severityAvoid,
                   items: penalties,
+                  visibleCap: _maxTradeoffBulletsPerSide,
+                  overflowSingularNoun: 'concern',
                 ),
               ),
             ],
@@ -133,34 +207,129 @@ class TradeoffsSection extends StatelessWidget {
 /// One side of the tradeoffs split — the column header + the list of
 /// pro/con rows. Public-private (lives in the same file as
 /// [TradeoffsSection]) so the widget tree stays self-contained.
-class _TradeoffColumn extends StatelessWidget {
+/// Naive English pluralizer used by the "Show N more X" toggle copy.
+/// Handles the two nouns this widget passes:
+///   - `'concern'` → `'concerns'`
+///   - `'bonus'`   → `'bonuses'`
+/// Anything ending in 's', 'x', 'z' or 'sh'/'ch' takes 'es'; else 's'.
+/// Adequate for the small fixed vocabulary; not a general pluralizer.
+String _pluralize(String singular) {
+  final lower = singular.toLowerCase();
+  if (lower.endsWith('s') ||
+      lower.endsWith('x') ||
+      lower.endsWith('z') ||
+      lower.endsWith('sh') ||
+      lower.endsWith('ch')) {
+    return '${singular}es';
+  }
+  return '${singular}s';
+}
+
+/// Single tradeoff column — stateful so the "Show N more / Show
+/// less" toggle can flip the rendered slice without rebuilding the
+/// section. T15.1 (2026-04-29 PM follow-up) — pre-fix the column was
+/// stateless with a static "… and N more" footer; Sean's walkthrough:
+/// *"if it goes over few line, we should have a drop down to show
+/// more, and list all there, easier than scrolling somewhere else
+/// to read."*
+class _TradeoffColumn extends StatefulWidget {
   final String title;
   final Color tone;
   final List<TradeoffItem> items;
+
+  /// Maximum items to show in the collapsed state. The toggle reveals
+  /// the rest in place when the user taps. Defaults match the section
+  /// constant so callers don't need to import it.
+  final int visibleCap;
+
+  /// Singular noun for the toggle copy (e.g., `'more'` for bonuses,
+  /// `'concern'` for penalties). Pluralized as needed.
+  final String overflowSingularNoun;
 
   const _TradeoffColumn({
     required this.title,
     required this.tone,
     required this.items,
+    this.visibleCap = _maxTradeoffBulletsPerSide,
+    this.overflowSingularNoun = 'more',
   });
+
+  @override
+  State<_TradeoffColumn> createState() => _TradeoffColumnState();
+}
+
+class _TradeoffColumnState extends State<_TradeoffColumn> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final overflow = widget.items.length - widget.visibleCap;
+    // When expanded → render every item. When collapsed → render up
+    // to the cap. `take` is safe when cap >= length.
+    final visible = _expanded
+        ? widget.items
+        : widget.items.take(widget.visibleCap).toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          title,
+          widget.title,
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w800,
-            color: tone,
+            color: widget.tone,
             letterSpacing: -0.1,
           ),
         ),
         const SizedBox(height: AppTheme.space8),
-        for (final item in items)
-          TradeoffRow(label: item.label, detail: item.detail, tone: tone),
+        for (final item in visible)
+          TradeoffRow(
+            label: item.label,
+            detail: item.detail,
+            tone: widget.tone,
+          ),
+        // T15.1 — tappable expand-in-place toggle. Collapsed copy:
+        // "Show N more concerns ⌄". Expanded: "Show less ⌃". Reveals
+        // the rest of the items inline so the user doesn't have to
+        // scroll elsewhere to read them.
+        if (overflow > 0) ...[
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              // Padding makes the tap target reach the row edges so
+              // the user doesn't have to land precisely on the text.
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _expanded
+                        ? 'Show less'
+                        : (overflow == 1
+                              ? 'Show 1 more ${widget.overflowSingularNoun}'
+                              : 'Show $overflow more '
+                                    '${_pluralize(widget.overflowSingularNoun)}'),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

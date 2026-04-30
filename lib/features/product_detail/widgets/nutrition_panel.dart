@@ -27,6 +27,98 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 
+/// T18 (2026-04-30) — collapsed Nutrition Facts to a link that opens
+/// a bottom-sheet containing the full panel. Pre-T18 the full panel
+/// rendered inline in the Deep Dive section, dominating scroll for
+/// products that ship a nutrition label (gummies, powders, RTD shakes).
+/// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T18.
+///
+/// Hides itself when neither caloriesPerServing nor any macro is
+/// present — same auto-hide rule as the embedded panel below.
+class NutritionFactsLink extends StatelessWidget {
+  final double? caloriesPerServing;
+  final Map<String, dynamic>? nutritionDetail;
+
+  const NutritionFactsLink({
+    super.key,
+    required this.caloriesPerServing,
+    required this.nutritionDetail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Reuse NutritionPanel's row-building logic to test for content.
+    // Cheaper than duplicating the row checks here.
+    final probe = NutritionPanel(
+      caloriesPerServing: caloriesPerServing,
+      nutritionDetail: nutritionDetail,
+    );
+    if (probe._buildRows().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      onTap: () => _openSheet(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space12,
+          vertical: AppTheme.space12,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppTheme.space12),
+            Expanded(
+              child: Text(
+                'View supplement facts',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetCtx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppTheme.space16,
+            0,
+            AppTheme.space16,
+            MediaQuery.of(sheetCtx).viewPadding.bottom + AppTheme.space16,
+          ),
+          child: NutritionPanel(
+            caloriesPerServing: caloriesPerServing,
+            nutritionDetail: nutritionDetail,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class NutritionPanel extends StatelessWidget {
   final double? caloriesPerServing;
   final Map<String, dynamic>? nutritionDetail;

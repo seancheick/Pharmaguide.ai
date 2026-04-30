@@ -11,7 +11,9 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
 /// Sticky action bar at the bottom of the product detail screen.
 ///
-/// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.15.
+/// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.15
+/// (T8 follow-up 2026-04-29 — Log Dose secondary button removed
+/// from this widget per `INITIATIVE_PRODUCT_DETAIL_CLEANUP.md` S2.1).
 ///
 /// Conditional primary button per state:
 ///   - **Unsafe verdict (BLOCKED / UNSAFE):** "See safer alternatives" —
@@ -21,11 +23,10 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 ///   - **Default (safe, not in stack):** "Add to my stack" — runs the
 ///     safety-check sheet → addProduct flow (unchanged from V0).
 ///
-/// Secondary button is always **Log Dose** — placeholder in V1 (calls
-/// [onLogDose] which the screen wires to a "Coming soon" snackbar
-/// until the dose-logging flow ships in Sprint 2). Disabled when the
-/// product isn't yet in the user's stack (logging a dose for a product
-/// you aren't tracking is incoherent).
+/// Log Dose lives on the stack screen now — the product page is for
+/// "should I add this?" decisions, not "I just took my dose"
+/// telemetry. Trying to do both burned the bottom action bar with
+/// two buttons users were equally likely to mis-tap.
 class PGStackActionButtons extends ConsumerWidget {
   final String dsldId;
 
@@ -39,43 +40,21 @@ class PGStackActionButtons extends ConsumerWidget {
   /// No-op if null.
   final VoidCallback? onSeeAlternatives;
 
-  /// Tap target for the always-visible Log Dose secondary. V1 wires
-  /// this to a placeholder snackbar; Sprint 2 wires the real flow.
-  final VoidCallback? onLogDose;
-
   const PGStackActionButtons({
     super.key,
     required this.dsldId,
     this.isUnsafe = false,
     this.onSeeAlternatives,
-    this.onLogDose,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final entryAsync = ref.watch(stackEntryForDsldIdProvider(dsldId));
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        entryAsync.when(
-          loading: () => const _LoadingPrimary(),
-          error: (_, __) => _primary(context, ref, entry: null),
-          data: (entry) => _primary(context, ref, entry: entry),
-        ),
-        const SizedBox(height: AppTheme.space12),
-        // Secondary — always visible Log Dose (Sprint 2 wires real flow).
-        // Disabled until the product is in the stack: logging a dose
-        // before tracking the product is incoherent. Wraps the in-stack
-        // resolution so the disabled state is reactive.
-        entryAsync.when(
-          loading: () => _logDoseButton(context, enabled: false),
-          error: (_, __) => _logDoseButton(context, enabled: false),
-          data: (entry) =>
-              _logDoseButton(context, enabled: entry != null && !isUnsafe),
-        ),
-      ],
+    return entryAsync.when(
+      loading: () => const _LoadingPrimary(),
+      error: (_, __) => _primary(context, ref, entry: null),
+      data: (entry) => _primary(context, ref, entry: entry),
     );
   }
 
@@ -103,19 +82,6 @@ class PGStackActionButtons extends ConsumerWidget {
       );
     }
     return _AddButton(onTap: () => _handleAdd(context, ref));
-  }
-
-  Widget _logDoseButton(BuildContext context, {required bool enabled}) {
-    return OutlinedButton.icon(
-      onPressed: enabled
-          ? () {
-              PGHaptics.tap();
-              onLogDose?.call();
-            }
-          : null,
-      icon: const Icon(Icons.history_edu_outlined, size: 18),
-      label: const Text('Log dose'),
-    );
   }
 
   // ---------------------------------------------------------------------
