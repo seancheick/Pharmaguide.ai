@@ -24,18 +24,28 @@ TradeoffItem _penalty(String label, [String detail = '']) => (
   isPositive: false,
 );
 
-Future<void> _pump(WidgetTester tester, List<TradeoffItem> items) {
+Future<void> _pump(
+  WidgetTester tester,
+  List<TradeoffItem> items, {
+  List<Map<String, dynamic>> inactives = const [],
+}) {
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(20),
-          child: TradeoffsSection(items: items),
+          child: TradeoffsSection(
+            items: items,
+            inactiveIngredients: inactives,
+          ),
         ),
       ),
     ),
   );
 }
+
+Map<String, dynamic> _ing(String severity) =>
+    {'name': 'Ing', 'severity_level': severity};
 
 void main() {
   group('collapseHarmfulAdditives — pure helper (T15)', () {
@@ -330,4 +340,147 @@ void main() {
       expect(find.text('⚖️ What to consider'), findsNothing);
     });
   });
+
+  group(
+    'TradeoffsSection — 2026-04-30 safety-summary bullet (locked design)',
+    () {
+      testWidgets(
+        'no inactives → no summary bullet, no penalty section if no items',
+        (tester) async {
+          await _pump(tester, const []);
+          await tester.pumpAndSettle();
+          expect(find.textContaining('flagged for safety'), findsNothing);
+        },
+      );
+
+      testWidgets('only LOW severity → guardrail blocks summary', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          [_penalty('Some concern')],
+          inactives: [_ing('low'), _ing('low'), _ing('low')],
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('flagged for safety'), findsNothing);
+      });
+
+      testWidgets('only NONE/empty → guardrail blocks summary', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          [_penalty('Some concern')],
+          inactives: [_ing(''), _ing('none')],
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('flagged for safety'), findsNothing);
+      });
+
+      testWidgets('1 high → triggers summary with red dot', (tester) async {
+        await _pump(
+          tester,
+          [_penalty('Some concern')],
+          inactives: [_ing('high')],
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('1 ingredients flagged for safety — review the list'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('3 moderate → triggers summary with orange dot', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          [_penalty('Some concern')],
+          inactives: [_ing('moderate'), _ing('moderate'), _ing('moderate')],
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('3 ingredients flagged for safety — review the list'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('2 moderate → triggers (combined ≥ 2 path)', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          [_penalty('Some concern')],
+          inactives: [_ing('moderate'), _ing('moderate')],
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('2 ingredients flagged for safety — review the list'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('1 high + 1 moderate → combined ≥ 2 fires', (tester) async {
+        await _pump(
+          tester,
+          [_penalty('Some concern')],
+          inactives: [_ing('high'), _ing('moderate')],
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('2 ingredients flagged for safety — review the list'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('1 moderate alone → does NOT trigger', (tester) async {
+        await _pump(
+          tester,
+          [_penalty('Some concern')],
+          inactives: [_ing('moderate')],
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('flagged for safety'), findsNothing);
+      });
+
+      testWidgets(
+        'low entries do not count toward total (only high+moderate)',
+        (tester) async {
+          // 1 moderate + 5 low → moderate=1, high=0, total=1 → no fire.
+          await _pump(
+            tester,
+            [_penalty('Some concern')],
+            inactives: [
+              _ing('moderate'),
+              _ing('low'),
+              _ing('low'),
+              _ing('low'),
+              _ing('low'),
+              _ing('low'),
+            ],
+          );
+          await tester.pumpAndSettle();
+          expect(find.textContaining('flagged for safety'), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'summary renders even when penalty list is empty (additives-only)',
+        (tester) async {
+          // No regular penalties, but high inactive triggers section.
+          await _pump(
+            tester,
+            const [],
+            inactives: [_ing('high'), _ing('moderate')],
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('⚖️ What to consider'), findsOneWidget);
+          expect(
+            find.textContaining('flagged for safety'),
+            findsOneWidget,
+          );
+        },
+      );
+    },
+  );
 }

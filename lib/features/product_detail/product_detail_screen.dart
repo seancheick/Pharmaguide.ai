@@ -2151,6 +2151,10 @@ class DetailSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    // Local aliases so null-promotion works downstream (fields don't
+    // promote across reads — locals do).
+    final detailBlob = this.detailBlob;
+    final warnings = this.warnings;
 
     // User's active conditions and drug classes for personalized filtering.
     // A multivitamin interacts with dozens of conditions in general — but
@@ -2171,7 +2175,7 @@ class DetailSection extends ConsumerWidget {
       );
     }
 
-    final blob = detailBlob!;
+    final blob = detailBlob;
 
     // Parse structured data from blob
     final ingredients =
@@ -2326,7 +2330,10 @@ class DetailSection extends ConsumerWidget {
           // routed through the new `TradeoffsSection` which splits +
           // renders + handles the empty-side and SE-class
           // single-column fallback.
-          TradeoffsSection(items: whyItems),
+          TradeoffsSection(
+            items: whyItems,
+            inactiveIngredients: inactiveIngredients,
+          ),
           const SizedBox(height: 20),
         ],
 
@@ -2394,8 +2401,7 @@ class DetailSection extends ConsumerWidget {
         // filter (tier ≤ 2, match_count ≥ 2, all_adequate) yields zero
         // results, so unconditional placement here is safe.
         SynergyDetailSection(
-          synergyDetail:
-              detailBlob?['synergy_detail'] as Map<String, dynamic>?,
+          synergyDetail: detailBlob['synergy_detail'] as Map<String, dynamic>?,
         ),
 
         // ---- §9 Populations ----

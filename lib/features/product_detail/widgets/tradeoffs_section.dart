@@ -94,9 +94,60 @@ List<TradeoffItem> collapseHarmfulAdditives(List<TradeoffItem> penalties) {
 ///                         responsive single-column fallback below
 ///                         a 380pt width breakpoint (SE-class
 ///                         devices) so each column has room to read.
+/// Count of high- and moderate-severity inactives derived from the
+/// pipeline's `inactive_ingredients[].severity_level`. Drives the
+/// "What to consider" summary bullet.
+class _InactiveSeverityCount {
+  final int high;
+  final int moderate;
+  const _InactiveSeverityCount({required this.high, required this.moderate});
+
+  int get total => high + moderate;
+
+  /// 2026-04-30 — Sean's locked threshold:
+  ///   trigger if (≥ 1 high) OR (≥ 3 moderate) OR (≥ 2 combined)
+  ///
+  /// Catches a single serious offender, a cluster of moderate concerns,
+  /// AND mixed cases (1 high + 1 moderate, 2 moderate, etc.). Does NOT
+  /// fire on `low`-only or empty.
+  bool get shouldShowSummary => high >= 1 || moderate >= 3 || total >= 2;
+}
+
+_InactiveSeverityCount _countInactiveSeverity(
+  List<Map<String, dynamic>> inactives,
+) {
+  var high = 0;
+  var moderate = 0;
+  for (final ing in inactives) {
+    final raw = ing['severity_level'];
+    final sev = raw is String ? raw.trim().toLowerCase() : '';
+    if (sev == 'high') {
+      high++;
+    } else if (sev == 'moderate') {
+      moderate++;
+    }
+  }
+  return _InactiveSeverityCount(high: high, moderate: moderate);
+}
+
 class TradeoffsSection extends StatelessWidget {
   final List<TradeoffItem> items;
-  const TradeoffsSection({super.key, required this.items});
+
+  /// 2026-04-30 — full inactive-ingredient rows from the pipeline blob.
+  /// Used to derive the "N ingredients flagged for safety — review the
+  /// list" summary bullet at the top of "What to consider" when the
+  /// per-ingredient `severity_level` cluster crosses Sean's locked
+  /// threshold. Empty / null → no summary bullet rendered. The bullet
+  /// is informational only (no tap) — the dot-coded inactives list
+  /// renders directly above this section, so "review the list" is a
+  /// passive directive not an interactive affordance.
+  final List<Map<String, dynamic>> inactiveIngredients;
+
+  const TradeoffsSection({
+    super.key,
+    required this.items,
+    this.inactiveIngredients = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +170,19 @@ class TradeoffsSection extends StatelessWidget {
     final bonuses = bonusesRaw;
     final penalties = collapseHarmfulAdditives(penaltiesRaw);
 
-    if (bonuses.isEmpty && penalties.isEmpty) {
+    // 2026-04-30 — derive the "N ingredients flagged for safety —
+    // review the list" summary bullet. Only built when the locked
+    // threshold fires; otherwise null and the column renders normally.
+    final severity = _countInactiveSeverity(inactiveIngredients);
+    final summaryWidget = severity.shouldShowSummary
+        ? _SafetySummaryBullet(
+            count: severity.total,
+            // Red dot when ANY high; orange when moderate-only.
+            isHighSeverity: severity.high >= 1,
+          )
+        : null;
+
+    if (bonuses.isEmpty && penalties.isEmpty && summaryWidget == null) {
       return const SizedBox.shrink();
     }
 
@@ -146,10 +209,17 @@ class TradeoffsSection extends StatelessWidget {
           //   * The card is narrower than 380pt (each column would
           //     have ~165pt of usable text width — too cramped for
           //     supplement labels with long branded names).
+          // 2026-04-30 — `hasPenaltyContent` includes both regular
+          // penalty bullets AND the new safety-summary leading bullet
+          // (which can fire even on an otherwise-empty penalty side
+          // for products with severe additives but no other quality
+          // concerns).
+          final hasPenaltyContent =
+              penalties.isNotEmpty || summaryWidget != null;
           final stack =
               constraints.maxWidth < 380 ||
               bonuses.isEmpty ||
-              penalties.isEmpty;
+              !hasPenaltyContent;
 
           // T15.1 (2026-04-29 PM follow-up) — pass the FULL items
           // list plus the visible-cap so `_TradeoffColumn` can render
@@ -170,16 +240,17 @@ class TradeoffsSection extends StatelessWidget {
                     visibleCap: _maxTradeoffBulletsPerSide,
                     overflowSingularNoun: 'bonus',
                   ),
-                  if (penalties.isNotEmpty)
+                  if (hasPenaltyContent)
                     const SizedBox(height: AppTheme.space12),
                 ],
-                if (penalties.isNotEmpty)
+                if (hasPenaltyContent)
                   _TradeoffColumn(
                     title: '⚖️ What to consider',
                     tone: AppTheme.severityAvoid,
                     items: penalties,
                     visibleCap: _maxTradeoffBulletsPerSide,
                     overflowSingularNoun: 'concern',
+                    leading: summaryWidget,
                   ),
               ],
             );
@@ -205,6 +276,7 @@ class TradeoffsSection extends StatelessWidget {
                   items: penalties,
                   visibleCap: _maxTradeoffBulletsPerSide,
                   overflowSingularNoun: 'concern',
+                  leading: summaryWidget,
                 ),
               ),
             ],
@@ -257,12 +329,17 @@ class _TradeoffColumn extends StatefulWidget {
   /// `'concern'` for penalties). Pluralized as needed.
   final String overflowSingularNoun;
 
+  /// Optional widget rendered above the bullet list (after the title).
+  /// Used by 2026-04-30's safety-summary bullet on the penalties side.
+  final Widget? leading;
+
   const _TradeoffColumn({
     required this.title,
     required this.tone,
     required this.items,
     this.visibleCap = _maxTradeoffBulletsPerSide,
     this.overflowSingularNoun = 'more',
+    this.leading,
   });
 
   @override
@@ -294,6 +371,10 @@ class _TradeoffColumnState extends State<_TradeoffColumn> {
           ),
         ),
         const SizedBox(height: AppTheme.space8),
+        if (widget.leading != null) ...[
+          widget.leading!,
+          if (visible.isNotEmpty) const SizedBox(height: 6),
+        ],
         for (final item in visible)
           TradeoffRow(
             label: item.label,
@@ -403,6 +484,72 @@ class TradeoffRow extends StatelessWidget {
                   ),
                 ],
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 2026-04-30 — top-of-"What to consider" summary bullet driven by the
+/// pipeline's per-inactive `severity_level`. Rendered as a leading row
+/// in the penalties column when [_InactiveSeverityCount.shouldShowSummary]
+/// returns true.
+///
+/// Visual cue:
+///   - 🔴 red dot when ANY high-severity additive is present
+///   - 🟠 orange dot when only moderate-severity additives are present
+///
+/// Copy is locked: "N ingredients flagged for safety — review the
+/// list" (Sean 2026-04-30). Informational only — no tap. The dot-coded
+/// inactives list renders directly above this section, so "review the
+/// list" is a passive directive.
+class _SafetySummaryBullet extends StatelessWidget {
+  final int count;
+
+  /// `true` when `≥ 1 high` additives present → render with red dot.
+  /// `false` when moderate-only → orange dot.
+  final bool isHighSeverity;
+
+  const _SafetySummaryBullet({
+    required this.count,
+    required this.isHighSeverity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dotColor = isHighSeverity
+        ? AppTheme.severityContraindicated
+        : AppTheme.severityAvoid;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$count ingredients flagged for safety — review the list',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurface,
+                height: 1.3,
+              ),
             ),
           ),
         ],
