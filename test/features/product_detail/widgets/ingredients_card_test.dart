@@ -82,18 +82,17 @@ void main() {
     });
   });
 
-  group('IngredientsCard — render', () {
+  group('IngredientsCard — render (post-2026-04-30 collapsible)', () {
     testWidgets(
       'both empty → SizedBox.shrink (no card rendered)',
       (tester) async {
         await _pump(tester, activeContent: null, inactiveNames: const []);
         await tester.pumpAndSettle();
-        // Card should not render its title.
         expect(find.text('Other ingredients'), findsNothing);
       },
     );
 
-    testWidgets('inactive only → renders title + chips, no divider', (
+    testWidgets('inactive only → renders title + count badge, no divider', (
       tester,
     ) async {
       await _pump(
@@ -103,7 +102,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Other ingredients'), findsOneWidget);
-      // No active content means no divider.
+      // Count badge shows the number.
+      expect(find.text('2'), findsOneWidget);
+      // No active content → no inter-sub-section divider.
       expect(find.byType(Divider), findsNothing);
     });
 
@@ -116,13 +117,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('ACTIVE_BLOCK'), findsOneWidget);
       expect(find.text('Other ingredients'), findsOneWidget);
-      // Divider between sub-sections.
       expect(find.byType(Divider), findsOneWidget);
     });
 
     testWidgets(
-      '≤ 8 inactives → all chips rendered, no "See all" toggle',
+      '≤ 5 inactives → auto-expands so all rows visible by default',
       (tester) async {
+        // Mirrors `_CollapsibleIngredientsState`'s autoExpand-if-≤5
+        // contract on the actives side.
         await _pump(
           tester,
           activeContent: null,
@@ -134,75 +136,58 @@ void main() {
           ],
         );
         await tester.pumpAndSettle();
-        expect(find.textContaining('See all'), findsNothing);
-        expect(find.textContaining('Show less'), findsNothing);
+        // Each name renders inline (not behind a "See all" toggle).
+        expect(find.text('Gelatin'), findsOneWidget);
+        expect(find.text('Silica'), findsOneWidget);
+        expect(find.text('Cellulose'), findsOneWidget);
+        expect(find.text('Magnesium stearate'), findsOneWidget);
+        // Chevron is still present (header is tappable to collapse).
+        expect(find.byIcon(Icons.expand_more_rounded), findsOneWidget);
       },
     );
 
     testWidgets(
-      '> 8 inactives → "See all N ingredients" toggle visible, only top 8 chips initially',
+      '> 5 inactives → starts collapsed; tap header expands the full list',
       (tester) async {
         final names = List.generate(12, (i) => 'Ingredient ${i + 1}');
         await _pump(tester, activeContent: null, inactiveNames: names);
         await tester.pumpAndSettle();
-        // Toggle visible.
-        expect(find.text('See all 12 ingredients'), findsOneWidget);
-        // Top 8 chip labels appear; remaining 4 don't (until expanded).
+
+        // Count badge shows total.
+        expect(find.text('12'), findsOneWidget);
+        // Pre-expand: rows hidden (long list defaults collapsed).
+        expect(find.text('Ingredient 1'), findsNothing);
+
+        // Tap header to expand.
+        await tester.tap(find.text('Other ingredients'));
+        await tester.pumpAndSettle();
+
+        // All rows now visible inline.
         expect(find.text('Ingredient 1'), findsOneWidget);
-        expect(find.text('Ingredient 8'), findsOneWidget);
-        // Items 9-12 NOT in initial render (chip wrap is capped).
-        // The expanded list will surface them after tap.
+        expect(find.text('Ingredient 12'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'tap "See all" → expands the FULL list with color dots',
+      'tap header twice toggles collapse → expand → collapse',
       (tester) async {
-        await _pump(
-          tester,
-          activeContent: null,
-          inactiveNames: const [
-            'Gelatin', // green
-            'Palm oil', // orange
-            'Aspartame', // red
-            'Some other thing', // yellow
-            'Microcrystalline cellulose', // green
-            'Red 40', // red
-            'Magnesium stearate', // green
-            'Polysorbate 80', // orange
-            'Brewers yeast', // yellow (overflow)
-          ],
-        );
+        final names = List.generate(10, (i) => 'Ingredient ${i + 1}');
+        await _pump(tester, activeContent: null, inactiveNames: names);
         await tester.pumpAndSettle();
 
-        // Pre-expand: the top-8 chips are present, plus the toggle.
-        expect(find.text('See all 9 ingredients'), findsOneWidget);
+        // Starts collapsed (length > 5).
+        expect(find.text('Ingredient 1'), findsNothing);
 
-        await tester.tap(find.text('See all 9 ingredients'));
+        // Expand.
+        await tester.tap(find.text('Other ingredients'));
         await tester.pumpAndSettle();
+        expect(find.text('Ingredient 1'), findsOneWidget);
 
-        // Post-expand: toggle copy flips.
-        expect(find.text('Show less'), findsOneWidget);
-        expect(find.text('See all 9 ingredients'), findsNothing);
-        // Overflow item now visible in the expanded list.
-        expect(find.textContaining('Brewers yeast'), findsWidgets);
+        // Collapse.
+        await tester.tap(find.text('Other ingredients'));
+        await tester.pumpAndSettle();
+        expect(find.text('Ingredient 1'), findsNothing);
       },
     );
-
-    testWidgets('tap "Show less" collapses back', (tester) async {
-      final names = List.generate(10, (i) => 'Ingredient ${i + 1}');
-      await _pump(tester, activeContent: null, inactiveNames: names);
-      await tester.pumpAndSettle();
-
-      // Expand.
-      await tester.tap(find.text('See all 10 ingredients'));
-      await tester.pumpAndSettle();
-      expect(find.text('Show less'), findsOneWidget);
-      // Collapse.
-      await tester.tap(find.text('Show less'));
-      await tester.pumpAndSettle();
-      expect(find.text('See all 10 ingredients'), findsOneWidget);
-      expect(find.text('Show less'), findsNothing);
-    });
   });
 }

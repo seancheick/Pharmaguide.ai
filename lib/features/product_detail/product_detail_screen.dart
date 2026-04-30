@@ -41,7 +41,6 @@ import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/transparency_footer.dart';
-import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
@@ -743,15 +742,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // T1.14 Section 13 — Transparency footer. Always rendered.
           // No personalization (it's site-wide trust language). Sits
           // above the bottom action-bar clearance padding.
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppTheme.space20,
                 AppTheme.space8,
                 AppTheme.space20,
                 AppTheme.space8,
               ),
-              child: const TransparencyFooter(),
+              child: TransparencyFooter(),
             ),
           ),
 
@@ -2330,21 +2329,12 @@ class DetailSection extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        // ---- §6 What we don't know ----
-        // T1.7 — surfaces gaps in the data PharmaGuide has on this
-        // product (no third-party testing, manufacturer hasn't
-        // published recent COAs, low mapped coverage, limited
-        // evidence). Soft visual treatment — context, not warning.
-        // Hides entirely when all four trust signals are positive.
-        UnknownsSection(
-          isTrustedManufacturer: isTrustedManufacturer,
-          hasThirdPartyTesting: hasThirdPartyTesting,
-          mappedCoverage: mappedCoverage,
-          scoreEvidenceResearch: scoreEvidenceResearch,
-          scoreEvidenceResearchMax: scoreEvidenceResearchMax,
-        ),
-        const SizedBox(height: AppTheme.space12),
-
+        // ---- §6 What we don't know — REMOVED 2026-04-30 ----
+        // Sean's call: redundant with the trust signals already
+        // surfaced in §5 Tradeoffs ("Third-party tested" / "no recent
+        // COAs") and the §10 Footer's coverage / sources lines. The
+        // standalone gap-list was noise.
+        //
         // ---- §7.1 With your stack (per-profile-entry interactions) ----
         // T1.8 — one row per drug class / condition the user has on
         // file: ⚠ when a warning matches, ✓ when none does (positive
@@ -2387,16 +2377,11 @@ class DetailSection extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        // ---- §7.2 Generic precautions list (FLTR-18 split kept for
-        // now — T1.7's per-profile rows above don't replace the
-        // generic "Other precautions" bucket; T1.7's spec explicitly
-        // defers 7.2 general interactions to Sprint 3). ----
-        InteractionWarningsList(
-          warnings: guardedWarnings,
-          userConditions: userConditions,
-          userDrugClasses: userDrugClasses,
-        ),
-        const SizedBox(height: AppTheme.space12),
+        // ---- §7.2 Other precautions — REMOVED 2026-04-30 ----
+        // Sean's call: post-T16.2g the AlertSummaryCard accordion at
+        // the top of the page already shows every warning inline (no
+        // scroll, no extra surface needed). The legacy generic-
+        // precautions bucket here was duplicative chrome.
 
         // ---- §8 Synergy Cluster (T22 — promoted out of Deep Dive) ----
         // T20/T22 (2026-04-30) — `SynergyDetailSection` was previously

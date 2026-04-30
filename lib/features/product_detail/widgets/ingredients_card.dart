@@ -1,32 +1,37 @@
 // Merged Ingredients card — single 3D card combining the active +
 // inactive ingredient sub-sections.
 //
-// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T16.
+// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T16 +
+// follow-up 2026-04-30.
 //
-// Pre-T16 the screen rendered active ingredients (collapsible list
-// of name + dose + form chips) and inactive ingredients (chip wrap
-// with top-8 cap + "+N more" pill) as TWO independent sections,
-// stacked with a 20pt gap. Sean's design contract collapses them
-// into ONE elevated card with an internal divider:
+// **2026-04-30 follow-up — symmetry with Active Ingredients.**
+// Pre-follow-up the inactive section had TWO surfaces stacked: a chip
+// wrap (top 8) AND a "See all N ⌄" toggle that revealed a separate
+// full color-dot list. Sean's call: "the drop down for inactive
+// ingredient don't make sense, there are chips and then drop down,
+// it's either or, not both. Make other ingredients just like active
+// ingredients then — tag showing how many, drop down to see them all,
+// show the first x number just like active ingredients if more drop
+// down to see all, same horizontal line separating each ingredient."
 //
 //   ┌──────────────────────────────────────┐
-//   │ Active ingredients                   │
-//   │  Magnesium Bisglycinate 135 mg [chip]│
-//   │  Vitamin D3            1000 IU [chip]│
+//   │ Active Ingredients [44]           ⌄ │
+//   │  Magnesium Bisglycinate 135 mg       │
+//   │  Vitamin D3            1000 IU       │
 //   │ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
-//   │ Other ingredients                    │
-//   │  [Cellulose] [Silica] [Mag stearate] │
-//   │  See all 14 ingredients ⌄            │
-//   │   🟢 Cellulose                       │
-//   │   🟡 Magnesium stearate              │
-//   │   🟠 Palm oil                        │
-//   │   🔴 Sugar syrup                     │
+//   │ Other ingredients [8]             ⌄ │
+//   │  🟢 Cellulose                        │
+//   │  ─────────────────────────────────  │
+//   │  🟡 Magnesium stearate               │
+//   │  ─────────────────────────────────  │
+//   │  🟠 Palm oil                         │
+//   │  ─────────────────────────────────  │
+//   │  🔴 Sugar syrup                      │
 //   └──────────────────────────────────────┘
 //
-// The inactive expander on tap reveals the FULL list with color dots
-// (T16's `inactiveColorRank` rubric — green/yellow/orange/red).
-// Active rendering reuses `CollapsibleIngredients` from the screen
-// file (promoted from `_CollapsibleIngredients` for cross-file use).
+// Color rubric: green = whitelisted excipient, yellow = acceptable,
+// orange = watchlist, red = penalty. Each row taps to a bottom-sheet
+// explanation (preserves the prior chip's tap-to-explain UX).
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
@@ -49,20 +54,22 @@ class IngredientsCard extends StatefulWidget {
   /// hidden.
   final Widget? activeContent;
 
-  /// Inactive ingredient names in label order. Cards renders the
-  /// top 8 as small chips; tapping "See all N ⌄" expands to the
-  /// full list with color-dot tone per [inactiveColorRank].
+  /// Inactive ingredient names in label order. Renders inline with
+  /// color-dot tone per [inactiveColorRank], matching the Active
+  /// Ingredients collapsible pattern.
   final List<String> inactiveNames;
 
-  /// Number of inactive chips shown before the "See all N" toggle
-  /// fires. Default matches the spec.
-  final int inactiveChipCap;
+  /// Auto-expand threshold. Lists at-or-below this size start expanded;
+  /// longer lists start collapsed and reveal on tap. Mirrors
+  /// `_CollapsibleIngredientsState.initState` behavior on the actives
+  /// side so users get the same "short list = visible by default" feel.
+  final int autoExpandThreshold;
 
   const IngredientsCard({
     super.key,
     required this.activeContent,
     required this.inactiveNames,
-    this.inactiveChipCap = 8,
+    this.autoExpandThreshold = 5,
   });
 
   @override
@@ -70,7 +77,13 @@ class IngredientsCard extends StatefulWidget {
 }
 
 class _IngredientsCardState extends State<IngredientsCard> {
-  bool _expanded = false;
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.inactiveNames.length <= widget.autoExpandThreshold;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,124 +118,149 @@ class _IngredientsCardState extends State<IngredientsCard> {
 
   Widget _buildInactiveSection(ThemeData theme, ColorScheme scheme) {
     final names = widget.inactiveNames;
-    final visibleChips = names.take(widget.inactiveChipCap).toList();
-    final hasOverflow = names.length > widget.inactiveChipCap;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Other ingredients',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
-          ),
-        ),
-        const SizedBox(height: AppTheme.space8),
-        // Top-N chip wrap — quick scan of the most prominent inactives
-        // without overwhelming the card. Reuses InactiveIngredientChip
-        // for the existing tap-to-explain bottom-sheet UX.
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final name in visibleChips) InactiveIngredientChip(name: name),
-          ],
-        ),
-        if (hasOverflow || _expanded) ...[
-          const SizedBox(height: AppTheme.space12),
-          // T16 — "See all N" toggle. Reveals the FULL list (label
-          // order) with color dots per `inactiveColorRank`. Default
-          // collapsed; tap expands inline. Color rubric: 🟢 green
-          // (whitelisted excipients), 🟡 yellow (acceptable),
-          // 🟠 orange (watchlist), 🔴 red (penalty). Sean's call:
-          // "we need to know which ingredient had a penalty, red,
-          // orange or green in front of them could help on the full
-          // list."
-          PGPressable(
-            onTap: () => setState(() => _expanded = !_expanded),
-            pressedScale: 0.98,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _expanded
-                        ? 'Show less'
-                        : 'See all ${names.length} ingredients',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
+        // Tappable header — title + count badge + chevron. Mirrors the
+        // Active Ingredients section header (see `_CollapsibleIngredients`
+        // in product_detail_screen.dart).
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  'Other ingredients',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  ),
+                  child: Text(
+                    '${names.length}',
+                    style: AppTheme.numeric(
+                      theme.textTheme.labelSmall!.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _expanded
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                    size: 16,
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    size: 22,
                     color: scheme.onSurfaceVariant,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          if (_expanded) ...[
-            const SizedBox(height: AppTheme.space8),
-            for (final name in names)
-              _InactiveDotRow(name: name, theme: theme, scheme: scheme),
-          ],
-        ],
+        ),
+        // Animated expand/collapse of the inactive rows. Color-dot
+        // (per `inactiveColorRank`) + name + bottom divider. Tap a row
+        // to open the existing bottom-sheet explanation (the prior
+        // chip's UX).
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: _expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < names.length; i++)
+                        _InactiveRow(
+                          name: names[i],
+                          isLast: i == names.length - 1,
+                        ),
+                    ],
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
       ],
     );
   }
 }
 
-/// Single full-list row in the expanded inactive section: color dot
-/// (per [inactiveColorRank]) + ingredient name.
-class _InactiveDotRow extends StatelessWidget {
+/// Single inactive ingredient row: color dot (per [inactiveColorRank])
+/// + name + bottom divider. Tappable to open the existing bottom-sheet
+/// explanation (preserves the prior `InactiveIngredientChip` UX).
+class _InactiveRow extends StatelessWidget {
   final String name;
-  final ThemeData theme;
-  final ColorScheme scheme;
+  final bool isLast;
 
-  const _InactiveDotRow({
-    required this.name,
-    required this.theme,
-    required this.scheme,
-  });
+  const _InactiveRow({required this.name, required this.isLast});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final tone = inactiveColorRank(name);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: tone.color,
-                shape: BoxShape.circle,
+
+    return PGPressable(
+      onTap: () => _showExplanationSheet(context, name),
+      pressedScale: 0.98,
+      child: Container(
+        decoration: BoxDecoration(
+          border: isLast
+              ? null
+              : Border(
+                  bottom: BorderSide(
+                    color: scheme.outlineVariant,
+                    width: 0.4,
+                  ),
+                ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.space8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: tone.color,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: AppTheme.space8),
-          Expanded(
-            child: Text(
-              name,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurface,
-                height: 1.35,
+              Expanded(
+                child: Text(
+                  name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  void _showExplanationSheet(BuildContext context, String ingredientName) {
+    showInactiveExplanationSheet(context, ingredientName);
   }
 }

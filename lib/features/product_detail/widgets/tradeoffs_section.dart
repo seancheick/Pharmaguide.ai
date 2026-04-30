@@ -22,34 +22,45 @@ typedef TradeoffItem = ({String label, String detail, bool isPositive});
 /// the section stays quiet by design). Per the T15 spec.
 const int _maxTradeoffBulletsPerSide = 4;
 
-/// "Harmful additive " prefix the pipeline emits on score_penalties
-/// labels (e.g., `"Harmful additive Sugar syrup"`). T15 collapses
-/// every penalty matching this prefix into a single combined row
-/// `"Additives: Sugar syrup, Palm oil"` so the user reads one line
-/// instead of 5 near-duplicates. Lowercase match against
-/// `label.toLowerCase().startsWith(_harmfulAdditivePrefix)` for
-/// pipeline-drift tolerance.
-const String _harmfulAdditivePrefix = 'harmful additive ';
+/// Regex matching the "Harmful additive" prefix the pipeline emits on
+/// score_penalties labels. Matches both `"Harmful additive Sugar syrup"`
+/// (no colon — original T15 shape) and `"Harmful additive: Sugar syrup"`
+/// (with colon — what the live pipeline now actually emits, caught by
+/// Sean's 2026-04-30 walkthrough). Case-insensitive for drift tolerance.
+final RegExp _harmfulAdditivePrefix = RegExp(
+  r'^harmful additive[: ]\s*',
+  caseSensitive: false,
+);
 
 /// Collapse all `"Harmful additive X"` items in [penalties] into a
 /// single combined row at the front of the returned list. Non-matching
 /// penalties pass through unchanged.
 ///
-/// Pipeline ships labels like `"Harmful additive Sugar syrup"` for
-/// each flagged additive. Sean's 2026-04-29 walkthrough: "we don't
-/// need to keep repeating 'harmful additive sugar syrup', 'harmful
-/// additive palm oil' — just put 'additive sugar syrup, palm oil'
-/// with a comma." This helper does exactly that.
+/// **Sean 2026-04-29:** "we don't need to keep repeating 'harmful
+/// additive sugar syrup', 'harmful additive palm oil' — just put
+/// 'additive sugar syrup, palm oil' with a comma."
+///
+/// **Sean 2026-04-30 (this revision):** drop the word "Harmful" — too
+/// harsh, and the per-additive evidence carries the actual concern in
+/// the inactives color-dot list. Use singular "Additive:" prefix for
+/// the consolidated row even when multiple names follow (e.g.
+/// "Additive: Modified Food Starch, Silicon Dioxide"). Also dedupe
+/// names case-insensitively — pipeline sometimes emits a name twice
+/// (e.g. duplicate "Modified Food Starch" entries from two source
+/// fields), and the consolidated bullet shouldn't repeat.
 ///
 /// Public so unit tests can pin the collapse contract directly.
 List<TradeoffItem> collapseHarmfulAdditives(List<TradeoffItem> penalties) {
   final additiveNames = <String>[];
+  final seen = <String>{};
   final remaining = <TradeoffItem>[];
   for (final item in penalties) {
     final label = item.label.trim();
-    if (label.toLowerCase().startsWith(_harmfulAdditivePrefix)) {
-      final name = label.substring(_harmfulAdditivePrefix.length).trim();
-      if (name.isNotEmpty) {
+    final match = _harmfulAdditivePrefix.firstMatch(label);
+    if (match != null) {
+      final name = label.substring(match.end).trim();
+      final key = name.toLowerCase();
+      if (name.isNotEmpty && seen.add(key)) {
         additiveNames.add(name);
       }
       continue;
@@ -58,7 +69,7 @@ List<TradeoffItem> collapseHarmfulAdditives(List<TradeoffItem> penalties) {
   }
   if (additiveNames.isEmpty) return penalties;
   final combined = (
-    label: 'Additives: ${additiveNames.join(", ")}',
+    label: 'Additive: ${additiveNames.join(", ")}',
     detail: '',
     isPositive: false,
   );

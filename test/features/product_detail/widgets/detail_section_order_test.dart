@@ -23,7 +23,6 @@ import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_sections/synergy_detail_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
-import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
 
 /// Minimal `detail_blob` shape that fires every section branch:
@@ -150,63 +149,34 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Grab top-edge Y for each section. Tradeoffs must come AFTER
-      // ingredients; UnknownsSection AFTER Tradeoffs; the §7 group
-      // (WithYourStack + InteractionWarningsList) AFTER Unknowns;
-      // PopulationsSection AFTER §7. T17 (2026-04-30) — bottom
-      // ProductDetailsSection deleted, no longer asserted.
+      // Grab top-edge Y for each section.
+      // 2026-04-30 — `UnknownsSection` (§6) and the legacy
+      // `InteractionWarningsList` (§7.2 "Other precautions") were
+      // dropped. AlertSummaryCard's accordion now carries the
+      // warning bodies; the gap-list is redundant with §5 / footer.
       final tradeoffsY = _topOf(tester, TradeoffsSection);
-      final unknownsY = _topOf(tester, UnknownsSection);
       final withYourStackY = _topOf(tester, WithYourStackSection);
-      final interactionListY = _topOf(tester, InteractionWarningsList);
       final synergyY = _topOf(tester, SynergyDetailSection);
       final populationsY = _topOf(tester, PopulationsSection);
-
-      // T16 (2026-04-30) — ingredients now live inside an
-      // `IngredientsCard` (single elevated card containing both
-      // active + inactive sub-sections). Anchor via the widget type
-      // instead of the previous "Other Ingredients" header text.
-      // T20 will rebuild this whole pin-the-order test against the
-      // post-S2.2 IA; this fix keeps the existing assertion passing
-      // until then.
       final inactiveHeaderY = _topOf(tester, IngredientsCard);
 
-      // Spec ordering: §4 (ingredients) → §5 (Tradeoffs) → §6
-      // (Unknowns) → §7 (WithYourStack + InteractionWarningsList)
-      // → §8 (Populations) → §10 (Product Details).
+      // Spec ordering: §4 Ingredients → §5 Tradeoffs → §7.1 WithYourStack
+      // → §8 Synergy → §9 Populations.
       expect(
         inactiveHeaderY < tradeoffsY,
         isTrue,
-        reason:
-            'Tradeoffs (§5) must render below Inactive '
-            'Ingredients (§4)',
+        reason: 'Tradeoffs (§5) must render below Ingredients (§4)',
       );
       expect(
-        tradeoffsY < unknownsY,
-        isTrue,
-        reason: 'Unknowns (§6) must render below Tradeoffs (§5)',
-      );
-      expect(
-        unknownsY < withYourStackY,
+        tradeoffsY < withYourStackY,
         isTrue,
         reason:
-            'WithYourStack (§7.1) must render below Unknowns '
-            '(§6)',
+            'WithYourStack (§7.1) must render below Tradeoffs (§5)',
       );
       expect(
-        withYourStackY < interactionListY,
+        withYourStackY < synergyY,
         isTrue,
-        reason:
-            'InteractionWarningsList (§7.2 legacy) must '
-            'render below WithYourStack (§7.1) — both inside the '
-            '§7 grouping',
-      );
-      expect(
-        interactionListY < synergyY,
-        isTrue,
-        reason:
-            'Synergy (§8 — T22 promoted from Deep Dive) must render '
-            'below the §7 interaction grouping',
+        reason: 'Synergy (§8) must render below WithYourStack (§7.1)',
       );
       expect(
         synergyY < populationsY,

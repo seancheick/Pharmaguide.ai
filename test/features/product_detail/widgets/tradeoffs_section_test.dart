@@ -2,7 +2,7 @@
 //
 // Verifies the Tradeoffs cleanup:
 //   - "Harmful additive X" rows collapse into a single combined
-//     "Additives: X, Y, Z" row
+//     "Additive: X, Y, Z" row
 //   - Per-side cap at 4 bullets, with "… and N more concerns"
 //     muted footer for the overflow
 //   - The literal "Harmful additive" prefix never reaches the
@@ -51,12 +51,12 @@ void main() {
       expect(collapseHarmfulAdditives(input), input);
     });
 
-    test('single "Harmful additive X" → single "Additives: X" row', () {
+    test('single "Harmful additive X" → single "Additive: X" row', () {
       final result = collapseHarmfulAdditives([
         _penalty('Harmful additive Sugar syrup'),
       ]);
       expect(result, hasLength(1));
-      expect(result.first.label, 'Additives: Sugar syrup');
+      expect(result.first.label, 'Additive: Sugar syrup');
     });
 
     test('multiple harmful additives → ONE combined row', () {
@@ -66,7 +66,7 @@ void main() {
         _penalty('Harmful additive Red 40'),
       ]);
       expect(result, hasLength(1));
-      expect(result.first.label, 'Additives: Sugar syrup, Palm oil, Red 40');
+      expect(result.first.label, 'Additive: Sugar syrup, Palm oil, Red 40');
       expect(result.first.isPositive, isFalse);
     });
 
@@ -79,7 +79,7 @@ void main() {
       ]);
       expect(result, hasLength(3));
       // Combined "Additives:" row goes to the FRONT.
-      expect(result.first.label, 'Additives: Sugar syrup, Palm oil');
+      expect(result.first.label, 'Additive: Sugar syrup, Palm oil');
       expect(result[1].label, 'Proprietary blend');
       expect(result[2].label, 'Below RDA for daily magnesium');
     });
@@ -94,8 +94,59 @@ void main() {
         _penalty('HARMFUL ADDITIVE Red 40'),
       ]);
       expect(result, hasLength(1));
-      expect(result.first.label, 'Additives: Sugar syrup, Palm oil, Red 40');
+      expect(result.first.label, 'Additive: Sugar syrup, Palm oil, Red 40');
     });
+
+    test(
+      '2026-04-30 — colon-form prefix "Harmful additive: NAME" also collapses',
+      () {
+        // Live pipeline ships the colon form (Sean's PureLean
+        // walkthrough). Pre-fix, only the no-colon form matched and
+        // colon-form labels rendered as raw repeats.
+        final result = collapseHarmfulAdditives([
+          _penalty('Harmful additive: Modified Food Starch'),
+          _penalty('Harmful additive: Silicon Dioxide (E551)'),
+        ]);
+        expect(result, hasLength(1));
+        expect(
+          result.first.label,
+          'Additive: Modified Food Starch, Silicon Dioxide (E551)',
+        );
+      },
+    );
+
+    test(
+      '2026-04-30 — dedupes same name (case-insensitive) across multiple emits',
+      () {
+        // Pipeline sometimes emits the same additive twice (e.g. from
+        // two source fields). The combined bullet should list each
+        // unique name only once.
+        final result = collapseHarmfulAdditives([
+          _penalty('Harmful additive: Modified Food Starch'),
+          _penalty('Harmful additive: Modified Food Starch'),
+          _penalty('Harmful additive: modified food starch'),
+          _penalty('Harmful additive: Silicon Dioxide'),
+        ]);
+        expect(result, hasLength(1));
+        expect(
+          result.first.label,
+          'Additive: Modified Food Starch, Silicon Dioxide',
+        );
+      },
+    );
+
+    test(
+      '2026-04-30 — never says "Harmful" in output (Sean: too harsh)',
+      () {
+        final result = collapseHarmfulAdditives([
+          _penalty('Harmful additive Sugar'),
+          _penalty('harmful additive: Palm oil'),
+        ]);
+        expect(result.first.label, isNot(contains('Harmful')));
+        expect(result.first.label, isNot(contains('harmful')));
+        expect(result.first.label.startsWith('Additive: '), isTrue);
+      },
+    );
   });
 
   group('TradeoffsSection — T15 collapse + cap render', () {
@@ -109,7 +160,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Combined row IS rendered.
-      expect(find.text('Additives: Sugar syrup, Palm oil'), findsOneWidget);
+      expect(find.text('Additive: Sugar syrup, Palm oil'), findsOneWidget);
       // Original prefixed labels are NOT.
       expect(find.text('Harmful additive Sugar syrup'), findsNothing);
       expect(find.text('Harmful additive Palm oil'), findsNothing);
@@ -261,7 +312,7 @@ void main() {
 
         // Combined additives row rendered.
         expect(
-          find.text('Additives: Sugar, Palm, Red 40, Yellow 5, Aspartame'),
+          find.text('Additive: Sugar, Palm, Red 40, Yellow 5, Aspartame'),
           findsOneWidget,
         );
         // After collapse there are 4 penalties; cap = 4 → no toggle.

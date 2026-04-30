@@ -207,13 +207,21 @@ class InactiveIngredientChip extends StatelessWidget {
   }
 
   void _showExplanationSheet(BuildContext context, String ingredientName) {
-    PGModal.bottomSheet<void>(
-      context: context,
-      builder: (sheetContext) {
-        return _InactiveIngredientExplanationSheet(name: ingredientName);
-      },
-    );
+    showInactiveExplanationSheet(context, ingredientName);
   }
+}
+
+/// Opens the inactive-ingredient explanation bottom sheet for [name].
+/// Public so other widgets (e.g. `_InactiveRow` in `ingredients_card.dart`)
+/// can reuse the same explanation surface without duplicating the modal
+/// logic.
+void showInactiveExplanationSheet(BuildContext context, String name) {
+  PGModal.bottomSheet<void>(
+    context: context,
+    builder: (sheetContext) {
+      return _InactiveIngredientExplanationSheet(name: name);
+    },
+  );
 }
 
 /// Bottom-sheet body explaining an inactive ingredient's purpose.
