@@ -105,7 +105,9 @@ void main() {
 
       expect(find.text('Statins'), findsOneWidget);
       expect(
-        find.textContaining('AVOID'),
+        // 2026-04-30 — softer-tone vocab: "AVOID" → "Not recommended".
+        // See severity.dart for the full mapping.
+        find.textContaining('Not recommended'),
         findsOneWidget,
         reason: 'severity label prefix should render in the row sub-line',
       );

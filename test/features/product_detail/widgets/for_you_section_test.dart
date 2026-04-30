@@ -195,7 +195,8 @@ void main() {
         );
         expect(find.text('Good match for your profile'), findsOneWidget);
         // Caution alert IS rendered.
-        expect(find.text('CAUTION'), findsOneWidget);
+        // 2026-04-30 — softer-tone vocab (severity.dart).
+        expect(find.text('Use caution'), findsOneWidget);
       },
     );
 
@@ -288,8 +289,9 @@ void main() {
       expect(find.text('Info row'), findsNothing);
       expect(find.text('Safe row'), findsNothing);
       // Severity LABELs from those tiers should also be absent.
-      expect(find.text('MONITOR'), findsNothing);
-      expect(find.text('INFO'), findsNothing);
+      // 2026-04-30 — softer-tone vocab (severity.dart).
+      expect(find.text('Monitor'), findsNothing);
+      expect(find.text('Informational'), findsNothing);
     });
 
     testWidgets('empty warnings list → no alerts row rendered', (tester) async {
@@ -301,9 +303,10 @@ void main() {
         maxSeverity: Severity.safe,
       );
       // No severity labels.
-      expect(find.text('CAUTION'), findsNothing);
-      expect(find.text('AVOID'), findsNothing);
-      expect(find.text('BLOCK — Do Not Use'), findsNothing);
+      // 2026-04-30 — softer-tone vocab (severity.dart).
+      expect(find.text('Use caution'), findsNothing);
+      expect(find.text('Not recommended'), findsNothing);
+      expect(find.text('Do not use'), findsNothing);
     });
   });
 

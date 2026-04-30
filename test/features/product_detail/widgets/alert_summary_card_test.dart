@@ -92,7 +92,8 @@ void main() {
         expect(find.text('Caffeine + BP meds'), findsOneWidget);
         expect(find.text('BP rises'), findsOneWidget);
         expect(find.text('Limit caffeine.'), findsOneWidget);
-        expect(find.text('CAUTION'), findsOneWidget);
+        // 2026-04-30 — severity label vocab softened (severity.dart).
+        expect(find.text('Use caution'), findsOneWidget);
       },
     );
 

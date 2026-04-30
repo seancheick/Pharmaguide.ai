@@ -89,13 +89,16 @@ void main() {
       find.byType(PGSeverityBanner),
     );
     expect(banner.tone, PGBannerTone.danger);
-    expect(banner.title, contains('AVOID'));
+    // 2026-04-30 — softer-tone vocab. "AVOID" → "Not recommended"
+    // (severity.dart). "Avoid" word is reserved for contraindicated.
+    expect(banner.title, contains('Not recommended'));
     expect(banner.title, contains('Warfarin'));
     expect(banner.title, contains('Fish Oil'));
     expect(banner.body, contains('Monitor INR'));
   });
 
-  testWidgets('contraindicated severity → danger tone with BLOCK label', (
+  testWidgets('contraindicated severity → danger tone with "Do not use" label',
+      (
     tester,
   ) async {
     final report = StackSafetyReport(
@@ -114,7 +117,9 @@ void main() {
       find.byType(PGSeverityBanner),
     );
     expect(banner.tone, PGBannerTone.danger);
-    expect(banner.title, contains('BLOCK'));
+    // 2026-04-30 — softer-tone vocab (severity.dart): contraindicated
+    // is now "Do not use" (was "BLOCK — Do Not Use").
+    expect(banner.title, contains('Do not use'));
     expect(banner.body, contains('serotonin syndrome'));
   });
 
@@ -135,7 +140,8 @@ void main() {
       find.byType(PGSeverityBanner),
     );
     expect(banner.tone, PGBannerTone.caution);
-    expect(banner.title, contains('CAUTION'));
+    // 2026-04-30 — softer-tone vocab (severity.dart).
+    expect(banner.title, contains('Use caution'));
     expect(banner.body, contains('Space doses'));
   });
 
@@ -154,7 +160,8 @@ void main() {
       find.byType(PGSeverityBanner),
     );
     expect(banner.tone, PGBannerTone.caution);
-    expect(banner.title, contains('MONITOR'));
+    // 2026-04-30 — softer-tone vocab (severity.dart).
+    expect(banner.title, contains('Monitor'));
   });
 
   testWidgets(
@@ -229,7 +236,8 @@ void main() {
     );
     expect(banner.tone, PGBannerTone.danger);
     // Top-severity is the medication interaction (avoid > caution > monitor)
-    expect(banner.title, contains('AVOID'));
+    // 2026-04-30 — softer-tone vocab (severity.dart).
+    expect(banner.title, contains('Not recommended'));
     expect(banner.body, contains('2 more signals'));
   });
 

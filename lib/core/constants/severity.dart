@@ -1,23 +1,42 @@
 import 'package:flutter/material.dart';
 
+// Display labels — sentence case, softer-tone vocabulary (Sean 2026-04-30).
+// "AVOID" felt synonymous with "banned" to users; the word is reserved
+// for `contraindicated` shapes (banned / recalled / drug-interaction
+// blocks) which rendered as "BLOCK — Do Not Use" pre-fix. The new
+// vocabulary keeps the severity hierarchy intact while reading less
+// like a courtroom verdict:
+//   contraindicated → "Do not use"        (was: "BLOCK — Do Not Use")
+//   avoid           → "Not recommended"   (was: "AVOID")
+//   caution         → "Use caution"       (was: "CAUTION")
+//   monitor         → "Monitor"           (was: "MONITOR")
+//   informational   → "Informational"     (was: "INFO")
+//   safe            → "Safe"              (was: "SAFE")
+// Enum names + ordering are unchanged — only the user-facing display
+// label moves.
 enum Severity {
   contraindicated(
     weight: 5,
     e2cPenalty: -8,
-    label: 'BLOCK — Do Not Use',
+    label: 'Do not use',
     color: Color(0xFFDC2626),
   ),
-  avoid(weight: 4, e2cPenalty: -5, label: 'AVOID', color: Color(0xFFDC2626)),
+  avoid(
+    weight: 4,
+    e2cPenalty: -5,
+    label: 'Not recommended',
+    color: Color(0xFFDC2626),
+  ),
   caution(
     weight: 3,
     e2cPenalty: -3,
-    label: 'CAUTION',
+    label: 'Use caution',
     color: Color(0xFFF97316),
   ),
   monitor(
     weight: 2,
     e2cPenalty: -1,
-    label: 'MONITOR',
+    label: 'Monitor',
     color: Color(0xFFEAB308),
   ),
   // Informational tier — the profile-less rendering of rules whose
@@ -29,10 +48,10 @@ enum Severity {
   informational(
     weight: 1,
     e2cPenalty: 0,
-    label: 'INFO',
+    label: 'Informational',
     color: Color(0xFF64748B),
   ),
-  safe(weight: 0, e2cPenalty: 0, label: 'SAFE', color: Color(0xFF22C55E));
+  safe(weight: 0, e2cPenalty: 0, label: 'Safe', color: Color(0xFF22C55E));
 
   final int weight;
   final int e2cPenalty;

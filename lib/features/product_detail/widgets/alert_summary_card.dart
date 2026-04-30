@@ -183,7 +183,11 @@ class _AlertRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  warning.severity.name.toUpperCase(),
+                  // 2026-04-30 — was `severity.name.toUpperCase()`
+                  // ("CAUTION"). Now uses the shared softer-tone label
+                  // from severity.dart ("Use caution") for consistency
+                  // with the rest of the app.
+                  warning.severity.label,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,

@@ -262,11 +262,12 @@ void main() {
         expect(iAvoid, greaterThan(iCon));
         expect(iCaution, greaterThan(iAvoid));
         expect(iMonitor, greaterThan(iCaution));
-        // Severity labels render in caps (matches Severity.label).
-        expect(out, contains('**BLOCK — Do Not Use**'));
-        expect(out, contains('**AVOID**'));
-        expect(out, contains('**CAUTION**'));
-        expect(out, contains('**MONITOR**'));
+        // 2026-04-30 — softer-tone vocab (severity.dart): labels are
+        // sentence case, no longer screaming caps.
+        expect(out, contains('**Do not use**'));
+        expect(out, contains('**Not recommended**'));
+        expect(out, contains('**Use caution**'));
+        expect(out, contains('**Monitor**'));
       },
     );
   });
@@ -341,7 +342,7 @@ void main() {
 - Nutrient warnings: 0
 
 ## Warnings (most severe first)
-- **CAUTION** — Magnesium — track glucose tolerance at high doses
+- **Use caution** — Magnesium — track glucose tolerance at high doses
 
 ---
 

@@ -17,43 +17,45 @@ void main() {
   }
 
   group('PGSeverityPill — labels', () {
-    testWidgets('contraindicated renders "DO NOT USE"', (tester) async {
+    // 2026-04-30 — labels migrated to softer-tone sentence case.
+    // See severity.dart for the full vocab + rationale.
+    testWidgets('contraindicated renders "Do not use"', (tester) async {
       await tester.pumpWidget(
         wrap(const PGSeverityPill(severity: Severity.contraindicated)),
       );
-      expect(find.text('DO NOT USE'), findsOneWidget);
+      expect(find.text('Do not use'), findsOneWidget);
       expect(find.byIcon(Icons.block_rounded), findsOneWidget);
     });
 
-    testWidgets('avoid renders "AVOID"', (tester) async {
+    testWidgets('avoid renders "Not recommended"', (tester) async {
       await tester.pumpWidget(
         wrap(const PGSeverityPill(severity: Severity.avoid)),
       );
-      expect(find.text('AVOID'), findsOneWidget);
+      expect(find.text('Not recommended'), findsOneWidget);
       expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
     });
 
-    testWidgets('caution renders "CAUTION"', (tester) async {
+    testWidgets('caution renders "Use caution"', (tester) async {
       await tester.pumpWidget(
         wrap(const PGSeverityPill(severity: Severity.caution)),
       );
-      expect(find.text('CAUTION'), findsOneWidget);
+      expect(find.text('Use caution'), findsOneWidget);
       expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     });
 
-    testWidgets('monitor renders "MONITOR"', (tester) async {
+    testWidgets('monitor renders "Monitor"', (tester) async {
       await tester.pumpWidget(
         wrap(const PGSeverityPill(severity: Severity.monitor)),
       );
-      expect(find.text('MONITOR'), findsOneWidget);
+      expect(find.text('Monitor'), findsOneWidget);
       expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
     });
 
-    testWidgets('safe renders "SAFE"', (tester) async {
+    testWidgets('safe renders "Safe"', (tester) async {
       await tester.pumpWidget(
         wrap(const PGSeverityPill(severity: Severity.safe)),
       );
-      expect(find.text('SAFE'), findsOneWidget);
+      expect(find.text('Safe'), findsOneWidget);
       expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
     });
   });
@@ -95,7 +97,7 @@ void main() {
           brightness: Brightness.dark,
         ),
       );
-      expect(find.text('DO NOT USE'), findsOneWidget);
+      expect(find.text('Do not use'), findsOneWidget);
       // Verify color is the severity token (exact alpha is internal)
       final iconFinder = find.byIcon(Icons.block_rounded);
       final icon = tester.widget<Icon>(iconFinder);

@@ -35,14 +35,17 @@ class PGSeverityPill extends StatelessWidget {
           bg: AppTheme.severityAvoid.withValues(alpha: isDark ? 0.22 : 0.10),
           fg: AppTheme.severityAvoid,
           icon: Icons.error_outline_rounded,
-          label: 'Avoid',
+          // Sean 2026-04-30 — see severity.dart for the softer-tone
+          // vocab rationale. The word "Avoid" is reserved for
+          // contraindicated (banned/recalled).
+          label: 'Not recommended',
         );
       case Severity.caution:
         return (
           bg: AppTheme.severityCaution.withValues(alpha: isDark ? 0.22 : 0.12),
           fg: AppTheme.severityCaution,
           icon: Icons.warning_amber_rounded,
-          label: 'Caution',
+          label: 'Use caution',
         );
       case Severity.monitor:
         return (
@@ -95,7 +98,10 @@ class PGSeverityPill extends StatelessWidget {
           Icon(s.icon, size: iconSize, color: s.fg),
           SizedBox(width: compact ? 4 : 5),
           Text(
-            s.label.toUpperCase(),
+            // Sean 2026-04-30 — sentence case (no .toUpperCase) so the
+            // pill matches the softer-tone vocabulary in severity.dart
+            // ("Not recommended" reads softer than "NOT RECOMMENDED").
+            s.label,
             style: TextStyle(
               fontSize: textSize,
               fontWeight: FontWeight.w700,
