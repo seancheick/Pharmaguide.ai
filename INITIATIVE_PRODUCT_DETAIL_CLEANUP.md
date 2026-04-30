@@ -744,6 +744,26 @@ Two issues caught after T12 first ship:
 
 ---
 
+### T15.2 — Tradeoffs safety-summary bullet (live-walkthrough follow-up) — `verified-2026-04-30`
+
+**Trigger:** Sean's 2026-04-30 PM walkthrough — once inactive ingredients ship pipeline-driven `severity_level` (T16 follow-up), long lists default to collapsed and the user has no at-a-glance signal that some entries are clinically concerning. Sean's call: *"we can add a one liner concern in case the products has x amount of high penalty ingredients, but user friendly."*
+
+**Locked design contract (Sean):**
+
+- **Surface:** ONLY in "What to consider". Sacred separation — never in Interactions (additives ≠ body/med interactions; mixing dilutes clinical meaning).
+- **Threshold:** trigger if `(high ≥ 1) OR (moderate ≥ 3) OR (combined ≥ 2)`. Catches a single serious offender, a cluster of moderates, and mixed cases. Does NOT fire on `low`-only or empty.
+- **Copy:** `"N ingredients flagged for safety — review the list"` — neutral, action-oriented, works for both high and moderate clusters; avoids legal/clinical overstatement.
+- **Visual cue:** 🔴 red dot when ANY high present, 🟠 orange when moderate-only.
+- **Guardrail:** never show on `low`/`none` only. Never duplicate across surfaces.
+
+**Decision evolution worth recording:** initial implementation included a tap-and-scroll affordance (controller + `GlobalKey` + `KeyedSubtree` + `ConsumerStatefulWidget` conversion of `DetailSection`) so the bullet's `"review the list"` would scroll-and-expand the inactives section. Sean cut it: *"we don't need to tap anything in what to consider, do you really think we need to tap and scroll? also inactive ingredients section comes before what to consider."* Stripped the entire plumbing back to a static informational line — the dot-coded inactives list renders directly above this section, so `"review the list"` is a passive directive. ~150 lines deleted relative to the tap-enabled draft. **Future reader: do not re-add tap; see this entry for why.**
+
+**Files touched:** `tradeoffs_section.dart` (`_SafetySummaryBullet`, `_InactiveSeverityCount` + `shouldShowSummary` threshold, `inactiveIngredients` param on `TradeoffsSection`, `leading` slot on `_TradeoffColumn`), `product_detail_screen.dart` (wire `inactiveIngredients` from blob into `TradeoffsSection`), `tradeoffs_section_test.dart` — 11 new widget tests covering threshold + dot color + guardrails.
+
+**Verification:** **1241/1241** full suite pass; `flutter analyze` clean. Pushed as commit [`b06c1a8`](https://github.com/seancheick/Pharmaguide.ai/commit/b06c1a8).
+
+---
+
 ### T17 — Strip dead sections
 
 **Goal:** Delete from screen: Pair Well With Your Stack, 60-day battery, bottom Product Details block.
