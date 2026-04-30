@@ -2402,7 +2402,21 @@ class DetailSection extends ConsumerWidget {
         ),
         const SizedBox(height: AppTheme.space12),
 
-        // ---- §8 Populations ----
+        // ---- §8 Synergy Cluster (T22 — promoted out of Deep Dive) ----
+        // T20/T22 (2026-04-30) — `SynergyDetailSection` was previously
+        // wrapped inside Deep Dive (collapsed by default), so genuine
+        // tier-1 "Proven synergy" qualifications were hidden from the
+        // primary IA. Spec line 36 lists Synergy as §8 — a top-level
+        // section that surfaces conditionally when high-confidence
+        // matches exist. The widget itself self-hides when the T22
+        // filter (tier ≤ 2, match_count ≥ 2, all_adequate) yields zero
+        // results, so unconditional placement here is safe.
+        SynergyDetailSection(
+          synergyDetail:
+              detailBlob?['synergy_detail'] as Map<String, dynamic>?,
+        ),
+
+        // ---- §9 Populations ----
         // T1.9 — at-risk populations dedupe. Aggregates
         // populationWarnings across all warnings, dedupes by string,
         // filters out entries that match the user's profile (those
@@ -3474,8 +3488,9 @@ class _DeepDiveSectionState extends State<DeepDiveSection>
                 const SizedBox(height: AppTheme.space8),
                 // T17 (2026-04-30) — `PairsWellSection` deleted per
                 // spec (replaced by tightened Synergy Cluster).
-                SynergyDetailSection(synergyDetail: widget.synergyDetail),
-                const SizedBox(height: AppTheme.space8),
+                // T20/T22 (2026-04-30) — `SynergyDetailSection`
+                // promoted out of Deep Dive to top-level §8 (in the
+                // main DetailSection column). See call site there.
                 ManufacturerViolationsSection(
                   manufacturerDetail: widget.manufacturerDetail,
                 ),

@@ -131,14 +131,15 @@ void main() {
         await tester.pump();
 
         // T17 (2026-04-30) — `PairsWellSection` removed from the
-        // Deep Dive composition. Down to 10 inner widget types.
+        // Deep Dive composition.
+        // T20/T22 (2026-04-30) — `SynergyDetailSection` promoted out
+        // of Deep Dive to top-level §8. Down to 9 inner widget types.
         expect(find.byType(CertificationDetailSection), findsOneWidget);
         expect(find.byType(EvidenceDetailSection), findsOneWidget);
         expect(find.byType(HeavyMetalWarningCard), findsOneWidget);
         expect(find.byType(ExcipientDensityCard), findsOneWidget);
         expect(find.byType(FormulationDetailSection), findsOneWidget);
         expect(find.byType(ProbioticDetailSection), findsOneWidget);
-        expect(find.byType(SynergyDetailSection), findsOneWidget);
         expect(find.byType(ManufacturerViolationsSection), findsOneWidget);
         // T18 (2026-04-30) — collapsed inline NutritionPanel into a
         // `NutritionFactsLink` that opens a bottom sheet on tap.

@@ -1,4 +1,29 @@
 // Synergy detail — cluster matches, evidence, PMIDs.
+//
+// **T22 (2026-04-30) — tightened to high-confidence "Works well with"
+// chip row.** Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md §8.
+//
+// Pre-T22: rendered up to 4 clusters as detailed cards with
+// explanation, regardless of quality. Sean's complaint: "Popular
+// combination" tier 4 noise drowned the genuine "Proven synergy"
+// tier 1 signals.
+//
+// Pipeline shape (verified across 5,450 cluster rows):
+//   evidence_tier (1-4): 1=Proven, 2=Supported, 3=Promising, 4=Popular
+//   match_count: how many of the cluster's ingredients are in this
+//                product
+//   all_adequate (0/1): whether all matched ingredients are at
+//                       clinically meaningful doses
+//   single_ingredient_match (0/1): true when only ONE matched
+//
+// T22 filter — render only clusters where:
+//   - evidence_tier ≤ 2 (Proven or Supported)
+//   - match_count ≥ 2 (real synergy, not single-ingredient match)
+//   - all_adequate == 1 (doses meaningful)
+//
+// Sort by tier (asc, 1 best) then match_count (desc). Cap at 3.
+// Hide entire section when 0 clusters pass — the section is a
+// trust-positive surface, not a "we tried" placeholder.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
@@ -11,6 +36,33 @@ class SynergyDetailSection extends StatelessWidget {
   final Map<String, dynamic>? synergyDetail;
   const SynergyDetailSection({super.key, this.synergyDetail});
 
+  /// T22 — filter raw clusters down to the high-confidence subset
+  /// shown in the "Works well with" chip row. Pure helper so the
+  /// filter rule is unit-testable independent of widget pumping.
+  static List<Map<String, dynamic>> filterHighConfidence(
+    List<Map<String, dynamic>> clusters,
+  ) {
+    final filtered = clusters.where((c) {
+      final tierRaw = c['evidence_tier'];
+      final tier = tierRaw is num ? tierRaw : 99;
+      final mcRaw = c['match_count'];
+      final matchCount = mcRaw is num ? mcRaw : 0;
+      final adequateRaw = c['all_adequate'];
+      final allAdequate = adequateRaw == 1 || adequateRaw == true;
+      return tier <= 2 && matchCount >= 2 && allAdequate;
+    }).toList();
+    filtered.sort((a, b) {
+      final tierA = (a['evidence_tier'] is num) ? a['evidence_tier'] as num : 99;
+      final tierB = (b['evidence_tier'] is num) ? b['evidence_tier'] as num : 99;
+      final tierCmp = tierA.compareTo(tierB);
+      if (tierCmp != 0) return tierCmp;
+      final mcA = (a['match_count'] is num) ? a['match_count'] as num : 0;
+      final mcB = (b['match_count'] is num) ? b['match_count'] as num : 0;
+      return mcB.compareTo(mcA);
+    });
+    return filtered.take(3).toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (synergyDetail == null) return const SizedBox.shrink();
@@ -20,163 +72,95 @@ class SynergyDetailSection extends StatelessWidget {
 
     if (clusters.isEmpty) return const SizedBox.shrink();
 
+    // T22 — filter to the top 3 high-confidence clusters. Hide the
+    // section entirely when nothing passes (no "0 high-confidence
+    // synergies" placeholder).
+    final highConfidence = filterHighConfidence(clusters);
+    if (highConfidence.isEmpty) return const SizedBox.shrink();
+
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // T22 — header: lead label + horizontal chip row of top-3
+          // high-confidence clusters. Tap a chip → modal explainer.
           Row(
             children: [
               Icon(Icons.hub_outlined, size: 18, color: scheme.primary),
               const SizedBox(width: AppTheme.space6),
               Text(
-                'Synergy Clusters',
+                'Works well with',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.15,
                 ),
               ),
-              const SizedBox(width: AppTheme.space8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                ),
-                child: Text(
-                  '${clusters.length}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onPrimaryContainer,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: AppTheme.space12),
-          ...clusters.take(4).map((cluster) {
-            final name =
-                cluster['name']?.toString() ??
-                cluster['cluster_name']?.toString() ??
-                '';
-            final evidenceTier = cluster['evidence_tier']?.toString() ?? '';
-            final singleIngredientMatch =
-                cluster['single_ingredient_match'] == true;
-            // Prefer Dr. Pham's authored benefit_short (layperson,
-            // positive framing); fall back to bonus_explanation
-            // (pipeline-generated), then the dense synergy_mechanism.
-            final explanation =
-                cluster['benefit_short']?.toString().isNotEmpty == true
-                ? cluster['benefit_short'].toString()
-                : (cluster['bonus_explanation']?.toString() ?? '');
-            final pmids = cluster.safeStringList('pmids');
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              // T6 (2026-04-29) — wrap each cluster row in PGPressable
-              // so the user can read the full explanation. The 3-line
-              // ellipsis stays as the inline summary; tap reveals the
-              // untruncated text in a bottom sheet. Sean's report:
-              // "Stress-resilient — when I tap on it, it's cut off."
-              child: PGPressable(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: highConfidence.map((cluster) {
+              final name =
+                  cluster['name']?.toString() ??
+                  cluster['cluster_name']?.toString() ??
+                  '';
+              final evidenceTier =
+                  cluster['evidence_tier']?.toString() ?? '';
+              final explanation =
+                  cluster['benefit_short']?.toString().isNotEmpty == true
+                  ? cluster['benefit_short'].toString()
+                  : (cluster['bonus_explanation']?.toString() ?? '');
+              final pmids = cluster.safeStringList('pmids');
+              return PGPressable(
                 onTap: () => _showClusterDetail(
                   context,
                   name: name,
                   evidenceTier: evidenceTier,
                   explanation: explanation,
                   pmids: pmids,
-                  singleIngredientMatch: singleIngredientMatch,
+                  singleIngredientMatch: false,
                 ),
-                pressedScale: 0.98,
+                pressedScale: 0.96,
                 child: Container(
-                  padding: const EdgeInsets.all(AppTheme.space12),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    border: Border.all(color: scheme.outlineVariant, width: 0.5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.space12,
+                    vertical: 8,
                   ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        if (singleIngredientMatch) ...[
-                          Container(
-                            margin: const EdgeInsets.only(right: 6),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.secondaryContainer,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Single-ingredient match',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: scheme.onSecondaryContainer,
-                              ),
-                            ),
-                          ),
-                        ],
-                        if (evidenceTier.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              evidenceTier,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: scheme.onPrimaryContainer,
-                              ),
-                            ),
-                          ),
-                      ],
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.25),
+                      width: 0.8,
                     ),
-                    if (explanation.isNotEmpty) ...[
-                      const SizedBox(height: AppTheme.space4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        explanation,
+                        name,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onPrimaryContainer,
                         ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                    if (pmids.isNotEmpty) ...[
-                      const SizedBox(height: AppTheme.space4),
-                      Text(
-                        '${pmids.length} published ${pmids.length == 1 ? "study" : "studies"}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: scheme.primary,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 13,
+                        color: scheme.onPrimaryContainer.withValues(
+                          alpha: 0.7,
                         ),
                       ),
                     ],
-                  ],
                   ),
                 ),
-              ),
-            );
-          }),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );

@@ -20,6 +20,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/product_detail/widgets/pipeline_sections/synergy_detail_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/unknowns_section.dart';
@@ -55,6 +56,21 @@ Map<String, dynamic> _fullDetailBlob() {
       'drug_class_details': <Map<String, dynamic>>[],
     },
     'manufacturer_info': {'name': 'Test Manufacturer', 'country': 'USA'},
+    // T20/T22 (2026-04-30) — synergy cluster fixture so the new §8
+    // SynergyDetailSection renders. T22 filter requires
+    // evidence_tier ≤ 2, match_count ≥ 2, all_adequate truthy.
+    'synergy_detail': <String, dynamic>{
+      'clusters': <Map<String, dynamic>>[
+        {
+          'name': 'Magnesium + B6',
+          'evidence_tier': 1,
+          'match_count': 2,
+          'all_adequate': 1,
+          'benefit_short': 'Synergy fixture for the IA pin-order test.',
+          'pmids': <String>[],
+        },
+      ],
+    },
   };
 }
 
@@ -143,6 +159,7 @@ void main() {
       final unknownsY = _topOf(tester, UnknownsSection);
       final withYourStackY = _topOf(tester, WithYourStackSection);
       final interactionListY = _topOf(tester, InteractionWarningsList);
+      final synergyY = _topOf(tester, SynergyDetailSection);
       final populationsY = _topOf(tester, PopulationsSection);
 
       // T16 (2026-04-30) — ingredients now live inside an
@@ -185,11 +202,17 @@ void main() {
             '§7 grouping',
       );
       expect(
-        interactionListY < populationsY,
+        interactionListY < synergyY,
         isTrue,
         reason:
-            'Populations (§8) must render below the §7 '
-            'interaction grouping',
+            'Synergy (§8 — T22 promoted from Deep Dive) must render '
+            'below the §7 interaction grouping',
+      );
+      expect(
+        synergyY < populationsY,
+        isTrue,
+        reason:
+            'Populations (§9 post-T20) must render below Synergy (§8)',
       );
 
       await tester.pumpWidget(const SizedBox.shrink());
