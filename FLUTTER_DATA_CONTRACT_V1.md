@@ -862,3 +862,92 @@ This allows the app to cross-reference warnings against external databases
 without a separate lookup. The identifiers come from the same reference data
 that generated the warning. Allergen and interaction warnings do NOT carry
 identifiers.
+
+---
+
+## Sprint 2026-05-01 — New blob fields (additive, no breaking changes)
+
+The following fields were added to the detail blob schema. Existing parsers
+won't crash on them (Map<String, dynamic> JSON tolerates extra keys). The
+app can render them when ready — none are required for the existing flow.
+
+### `omega3_detail` (NEW top-level block)
+
+Surfaces EPA+DHA dose adequacy bonus + transparency for products with
+omega-3 ingredients in opaque proprietary blends. Replaces the deprecated
+`section_scores.E_dose_adequacy` shape with richer detail.
+
+```json
+{
+  "omega3_detail": {
+    "score": 1.6,                            // current bonus (capped at 2.0 per clinician 2026-05-01)
+    "max": 2.0,
+    "applicable": true,
+    "dose_band": "aha_cvd",                  // below_efsa_ai | efsa_ai_zone | general_health | aha_cvd | high_clinical | prescription_dose
+    "per_day_mid_mg": 1500.0,
+    "per_day_min_mg": 1500.0,
+    "per_day_max_mg": 1500.0,
+    "epa_mg_per_unit": 500.0,
+    "dha_mg_per_unit": 250.0,
+    "prescription_dose": false,              // true at ≥4000 mg/day; flag PRESCRIPTION_DOSE_OMEGA3 also fires
+    "bonus_missed_due_to_opacity": false,    // NEW: true when score=0 because EPA/DHA hidden in opaque blend
+    "bonus_missed_reason": ""                // NEW: human-readable explanation when bonus_missed_due_to_opacity=true
+  }
+}
+```
+
+**Display when `bonus_missed_due_to_opacity=true`:** show an info chip / tooltip
+with `bonus_missed_reason` text. The product genuinely contains omega-3 but
+the breakdown isn't disclosed, so the bonus correctly stays 0 — the explanation
+prevents user confusion ("why no omega bonus?"). This is informational only;
+score is unchanged.
+
+**Companion product-level flag:** `OMEGA3_BONUS_MISSED_OPAQUE_BLEND` may appear
+in the `flags[]` array.
+
+### `probiotic_detail.has_postbiotic_strains` (NEW boolean)
+
+True when the product contains heat-killed / inactivated / tyndallized /
+postbiotic / paraprobiotic strains, detected from probiotic_blends, active
+ingredient names, or IQM matched_form. Independent of `clinical_strains[]`
+matching (which is a high-quality bonus DB, not a presence list).
+
+```json
+{
+  "probiotic_detail": {
+    "has_postbiotic_strains": true,
+    "detected_postbiotic_patterns": ["heat-killed"],
+    // ... other existing fields ...
+  }
+}
+```
+
+**Display when true:** show a "Postbiotic" chip alongside the existing CFU /
+Strains / Prebiotic chips in the Probiotic Profile section. This Flutter
+patch already shipped in `probiotic_detail_section.dart`.
+
+**CFU credit** for inactivated strains is automatically zeroed by the scoring
+engine — no additional client-side gating needed.
+
+### `probiotic_detail.clinical_strains[]` per-strain flags (NEW)
+
+Each entry in `clinical_strains[]` may now carry these optional flags:
+
+| Field | Type | When set |
+|---|---|---|
+| `is_inactivated` | bool | Heat-killed / postbiotic strain — CFU credit excluded |
+| `is_postbiotic` | bool | Same as is_inactivated; surfaced for explicit UI badge |
+| `postbiotic_note` | string | Human-readable explanation |
+| `is_blocked` | bool | Strain rejected by clinician (e.g., S. uberis KJ2) — should be hidden or shown as warning |
+| `block_reason` | string | Reason for rejection |
+| `skipped_reason` | string | Why CFU credit was skipped (e.g., "postbiotic_inactivated_no_cfu_credit") |
+
+### `rda_ul_data.adequacy_results[].highest_ul` (NEW field on existing list)
+
+Previously emitted only on `analyzed_ingredients[]`. Now also populated on
+`adequacy_results[]` so any consumer reading either list gets the worst-case
+UL for anonymous-user fallback. Both lists hold the same value per-nutrient.
+
+The canonical Flutter read remains `analyzed_ingredients[].highest_ul` — this
+addition is for future consumers that prefer the richer adequacy_results
+shape.

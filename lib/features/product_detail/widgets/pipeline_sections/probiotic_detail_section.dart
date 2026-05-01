@@ -29,6 +29,16 @@ class ProbioticDetailSection extends StatelessWidget {
     };
     final prebioticPresent = probioticDetail!.safeBool('prebiotic_present');
     final survivability = probioticDetail!.safeString('survivability');
+    // Sprint 2026-05-01 — product-level postbiotic indicator from pipeline.
+    // True when probiotic_blends or active ingredient text contains
+    // heat-killed / inactivated / postbiotic / paraprobiotic patterns.
+    // Independent of clinical_strains matching (which is a high-quality
+    // bonus DB, not a presence list). When true, the product's CFU
+    // adequacy bonus already excludes inactivated strains; this badge is
+    // purely informational so users can see "Postbiotic" content.
+    final hasPostbioticStrains = probioticDetail!.safeBool(
+      'has_postbiotic_strains',
+    );
 
     if (strains.isEmpty && totalCfu.isEmpty) return const SizedBox.shrink();
 
@@ -66,6 +76,8 @@ class ProbioticDetailSection extends StatelessWidget {
                 ),
               if (prebioticPresent)
                 const _InfoChip(label: 'Prebiotic', value: 'Yes'),
+              if (hasPostbioticStrains)
+                const _InfoChip(label: 'Postbiotic', value: 'Yes'),
               if (survivability.isNotEmpty)
                 _InfoChip(label: 'Survivability', value: survivability),
             ],
