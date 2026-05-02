@@ -1,0 +1,127 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 15 primary_outcome categories used in backed_clinical_studies.primary_outcome. NOTE: source-data values are still human-readable strings (e.g. 'Reduce Stress/Anxiety') from the V1 schema. This vocab provides snake_case canonical IDs and round-trip mapping via legacy_display. A future v1.1 migration will canonicalize the source-data field to use snake_case IDs.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 15,
+    "status": "LOCKED — verified against backed_clinical_studies.json 2026-05-01",
+    "purpose": "Single source of truth for primary-outcome labels. Surfaced as evidence-grouping chips on the product detail screen.",
+    "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json `primary_outcome` field (197 entries; legacy human-readable values still in use).",
+    "field_contract": {
+      "id": "Stable snake_case canonical identifier (target schema).",
+      "name": "User-facing label (sentence case).",
+      "legacy_display": "The legacy human-readable string currently in source data. Use for round-trip lookup until v1.1 migration.",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "related_user_goal_id": "Optional. The corresponding user_goals_vocab ID (e.g. GOAL_SLEEP_QUALITY)."
+    },
+    "char_limit_notes": 200,
+    "v1_1_followup": "Migrate backed_clinical_studies.primary_outcome from human-readable strings to snake_case IDs. Update enricher emitters."
+  },
+  "primary_outcomes": [
+    {
+      "id": "blood_sugar_support",
+      "name": "Blood Sugar Support",
+      "legacy_display": "Blood Sugar Support",
+      "notes": "Glycemic control outcomes — fasting glucose, HbA1c, insulin sensitivity.",
+      "related_user_goal_id": "GOAL_BLOOD_SUGAR_SUPPORT"
+    },
+    {
+      "id": "cardiovascular_heart_health",
+      "name": "Cardiovascular/Heart Health",
+      "legacy_display": "Cardiovascular/Heart Health",
+      "notes": "Heart, vessel, and lipid outcomes — blood pressure, lipid panel, vascular function.",
+      "related_user_goal_id": "GOAL_CARDIOVASCULAR_HEART_HEALTH"
+    },
+    {
+      "id": "digestive_health",
+      "name": "Digestive Health",
+      "legacy_display": "Digestive Health",
+      "notes": "GI symptoms, gut motility, microbiome diversity, barrier function.",
+      "related_user_goal_id": "GOAL_DIGESTIVE_HEALTH"
+    },
+    {
+      "id": "eye_vision",
+      "name": "Eye & Vision",
+      "legacy_display": "Eye & Vision",
+      "notes": "Macular pigment, dry-eye symptoms, age-related vision changes.",
+      "related_user_goal_id": "GOAL_EYE_VISION_HEALTH"
+    },
+    {
+      "id": "focus_mental_clarity",
+      "name": "Focus & Mental Clarity",
+      "legacy_display": "Focus & Mental Clarity",
+      "notes": "Attention, working memory, processing speed.",
+      "related_user_goal_id": "GOAL_FOCUS_MENTAL_CLARITY"
+    },
+    {
+      "id": "healthy_aging_longevity",
+      "name": "Healthy Aging/Longevity",
+      "legacy_display": "Healthy Aging/Longevity",
+      "notes": "Cellular and metabolic resilience over time, healthspan markers.",
+      "related_user_goal_id": "GOAL_HEALTHY_AGING_LONGEVITY"
+    },
+    {
+      "id": "hormone_balance",
+      "name": "Hormone Balance",
+      "legacy_display": "Hormone Balance",
+      "notes": "Endocrine outcomes — thyroid, sex hormones, cortisol modulation.",
+      "related_user_goal_id": "GOAL_HORMONAL_BALANCE"
+    },
+    {
+      "id": "immune_support",
+      "name": "Immune Support",
+      "legacy_display": "Immune Support",
+      "notes": "Immune-cell function, infection-duration reduction, vaccine response.",
+      "related_user_goal_id": "GOAL_IMMUNE_SUPPORT"
+    },
+    {
+      "id": "increase_energy",
+      "name": "Increase Energy",
+      "legacy_display": "Increase Energy",
+      "notes": "Fatigue reduction, daytime stamina, mitochondrial energy markers.",
+      "related_user_goal_id": "GOAL_INCREASE_ENERGY"
+    },
+    {
+      "id": "joint_bone_health",
+      "name": "Joint & Bone Health",
+      "legacy_display": "Joint & Bone Health",
+      "notes": "Joint comfort, range of motion, cartilage health, bone density.",
+      "related_user_goal_id": "GOAL_JOINT_BONE_MOBILITY"
+    },
+    {
+      "id": "muscle_growth_recovery",
+      "name": "Muscle Growth & Recovery",
+      "legacy_display": "Muscle Growth & Recovery",
+      "notes": "Training adaptation, recovery, lean mass, strength outcomes.",
+      "related_user_goal_id": "GOAL_MUSCLE_GROWTH_RECOVERY"
+    },
+    {
+      "id": "reduce_stress_anxiety",
+      "name": "Reduce Stress/Anxiety",
+      "legacy_display": "Reduce Stress/Anxiety",
+      "notes": "Stress reactivity, perceived stress, anxiety-scale outcomes.",
+      "related_user_goal_id": "GOAL_REDUCE_STRESS_ANXIETY"
+    },
+    {
+      "id": "skin_hair_nails",
+      "name": "Skin, Hair & Nails",
+      "legacy_display": "Skin, Hair & Nails",
+      "notes": "Skin elasticity, hydration, hair density, nail strength.",
+      "related_user_goal_id": "GOAL_SKIN_HAIR_NAILS"
+    },
+    {
+      "id": "sleep_quality",
+      "name": "Sleep Quality",
+      "legacy_display": "Sleep Quality",
+      "notes": "Sleep onset, depth, duration, sleep-quality questionnaires.",
+      "related_user_goal_id": "GOAL_SLEEP_QUALITY"
+    },
+    {
+      "id": "weight_management",
+      "name": "Weight Management",
+      "legacy_display": "Weight Management",
+      "notes": "Body composition, weight loss/maintenance, waist circumference.",
+      "related_user_goal_id": "GOAL_WEIGHT_MANAGEMENT"
+    }
+  ]
+}

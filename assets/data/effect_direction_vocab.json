@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 5 effect_direction values in backed_clinical_studies.json. Drives the scoring multiplier (positive_strong=1.0 → negative=0.0 per scoring_config.json).",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 5,
+    "status": "LOCKED — verified against backed_clinical_studies + scoring_config 2026-05-01",
+    "purpose": "Single source of truth for effect-direction labels and scoring multipliers. The `negative` ID is reserved (no current uses) but kept in vocab for completeness.",
+    "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json `effect_direction` field. Multipliers: scripts/config/scoring_config.json effect_direction_multipliers. Live: positive_strong=125, positive_weak=40, mixed=28, null=4, negative=0.",
+    "field_contract": {
+      "id": "Stable snake_case identifier (or 'null' literal for studies with no effect_direction).",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "multiplier": "Numeric multiplier applied to the study's score contribution (matches scoring_config.json)."
+    },
+    "char_limit_notes": 200
+  },
+  "effect_directions": [
+    {
+      "id": "positive_strong",
+      "name": "Strong positive",
+      "notes": "Studies show consistent, statistically significant benefit on primary outcomes. Applies a 1.0x multiplier to the evidence score.",
+      "multiplier": 1.0
+    },
+    {
+      "id": "positive_weak",
+      "name": "Weak positive",
+      "notes": "Studies show benefit on some outcomes but inconsistent or small effect sizes. Applies a 0.85x multiplier.",
+      "multiplier": 0.85
+    },
+    {
+      "id": "mixed",
+      "name": "Mixed evidence",
+      "notes": "Studies show conflicting results — some show benefit, others show no effect. Applies a 0.6x multiplier.",
+      "multiplier": 0.6
+    },
+    {
+      "id": "null",
+      "name": "Null effect",
+      "notes": "Studies consistently show no statistically significant effect. Applies a 0.25x multiplier.",
+      "multiplier": 0.25
+    },
+    {
+      "id": "negative",
+      "name": "Negative effect",
+      "notes": "Studies show harm or worse outcomes vs. placebo/control. Applies a 0.0x multiplier (no scoring credit). Reserved for future use; no current studies in this tier.",
+      "multiplier": 0.0
+    }
+  ]
+}

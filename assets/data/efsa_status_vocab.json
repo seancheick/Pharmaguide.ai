@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 10 efsa_status values in efsa_openfoodtox_reference.json. Lean schema (internal taxonomy ID). NOTE: 3 near-duplicates flagged for clinician consolidation in v1.1: approved vs approved_with_restrictions vs approved_restricted — semantically overlapping; consolidating to approved + approved_with_restrictions would clean the vocab.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 10,
+    "status": "LOCKED — verified against efsa_openfoodtox_reference.json 2026-05-01",
+    "purpose": "Single source of truth for EFSA OpenFoodTox status labels. Surfaced in tap-to-explain on EU regulatory cards.",
+    "alignment": "Pipeline source: scripts/data/efsa_openfoodtox_reference.json `efsa_status` field (91 substances; live: approved=64, banned_eu=7, contaminant_monitored=6, approved_with_restrictions=4, approved_restricted=2, restricted_eu=2, food_ingredient=2, under_review=2, extraction_solvent=1, not_authorised_eu=1).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal."
+    },
+    "char_limit_notes": 200,
+    "v1_1_followup": "Consolidate approved + approved_with_restrictions + approved_restricted into 2 IDs after clinician review."
+  },
+  "efsa_statuses": [
+    {
+      "id": "approved",
+      "name": "Approved (EFSA)",
+      "notes": "Substance has been evaluated by EFSA and approved for use in the EU without significant restrictions."
+    },
+    {
+      "id": "approved_with_restrictions",
+      "name": "Approved with restrictions",
+      "notes": "Substance is approved by EFSA but with explicit dose, age-group, or use-case limitations spelled out in the assessment."
+    },
+    {
+      "id": "approved_restricted",
+      "name": "Approved (restricted)",
+      "notes": "Variant of approved_with_restrictions used for specific regulatory categories. Pending consolidation with approved_with_restrictions in v1.1."
+    },
+    {
+      "id": "restricted_eu",
+      "name": "Restricted in EU",
+      "notes": "Substance is restricted under EU regulation — limited use cases or specific authorization required."
+    },
+    {
+      "id": "banned_eu",
+      "name": "Banned in EU",
+      "notes": "Substance is prohibited for use in supplements or food in the EU per EFSA recommendation."
+    },
+    {
+      "id": "not_authorised_eu",
+      "name": "Not authorised in EU",
+      "notes": "Substance has not received EU authorization for use in the relevant product category. Distinct from banned (which implies prior denial)."
+    },
+    {
+      "id": "contaminant_monitored",
+      "name": "Monitored as contaminant",
+      "notes": "EFSA monitors this substance as a potential contaminant rather than as a deliberately added ingredient."
+    },
+    {
+      "id": "under_review",
+      "name": "Under EFSA review",
+      "notes": "EFSA review of this substance is ongoing; status may change as the assessment is completed."
+    },
+    {
+      "id": "food_ingredient",
+      "name": "Food ingredient (no supplement assessment)",
+      "notes": "Substance is recognized as a food ingredient under EU food law but has no separate dietary-supplement assessment."
+    },
+    {
+      "id": "extraction_solvent",
+      "name": "Extraction solvent (regulated)",
+      "notes": "Substance is regulated as an extraction solvent under EU food-processing rules; not a final-product ingredient."
+    }
+  ]
+}

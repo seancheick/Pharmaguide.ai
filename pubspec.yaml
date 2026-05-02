@@ -108,6 +108,118 @@ flutter:
     # app release. Source of truth: pipeline repo
     # `scripts/data/functional_roles_vocab.json`.
     - assets/data/functional_roles_vocab.json
+    # Verdict vocab — locked v1.0.0, 6 shipped IDs
+    # (SAFE/CAUTION/POOR/BLOCKED/UNSAFE/NUTRITION_ONLY).
+    # Display contract for product verdicts (name + short_label + tone +
+    # ui_color + ui_icon + action). Single source of truth for verdict
+    # presentation across verdict_badge, alert_summary_card, banner,
+    # and score_breakdown_card. Source: pipeline `scripts/data/verdict_vocab.json`.
+    - assets/data/verdict_vocab.json
+    # Severity vocab — locked v1.0.0, 6 IDs (contraindicated/avoid/caution/
+    # monitor/informational/safe). Display contract for severity tiers
+    # used by interaction-rule warnings, harmful-additive flags, and
+    # allergen alerts. Source: pipeline `scripts/data/severity_vocab.json`.
+    - assets/data/severity_vocab.json
+    # Condition vocab — locked v1.0.0, 14 IDs (pregnancy, lactation, ttc,
+    # surgery_scheduled, hypertension, etc.). Lean schema (id+name+notes+
+    # optional synonyms+icd10). Migrated from hardcoded conditionLabels in
+    # schema_ids.dart. Source: pipeline `scripts/data/condition_vocab.json`.
+    - assets/data/condition_vocab.json
+    # Drug-class vocab — locked v1.0.0, 21 IDs (13 user_selectable + 8
+    # rule-only CYP/narrow families). Carries name, notes, examples,
+    # rx_status, user_selectable. 13 user_selectable match drugClasses in
+    # schema_ids.dart. Source: pipeline `scripts/data/drug_class_vocab.json`.
+    - assets/data/drug_class_vocab.json
+    # User-goals vocab — locked v1.0.0, 18 IDs (GOAL_SLEEP_QUALITY,
+    # GOAL_REDUCE_STRESS_ANXIETY, etc.). Lean schema + extras: name, notes,
+    # priority, related_condition_ids, related_drug_class_ids. Migrated from
+    # hardcoded goalLabels + goalPriorities in schema_ids.dart. Cluster
+    # mapping stays in user_goals_to_clusters.json. Source: pipeline
+    # `scripts/data/user_goals_vocab.json`.
+    - assets/data/user_goals_vocab.json
+    # Evidence-level vocab — locked v1.0.0, 5 clinical-study design tiers
+    # from backed_clinical_studies.json. Source: pipeline
+    # `scripts/data/evidence_level_vocab.json`.
+    - assets/data/evidence_level_vocab.json
+    # Evidence-strength vocab — locked v1.0.0, 6 interaction-rule strength
+    # tiers. Source data field is still evidence_level; separate asset name
+    # prevents conflating rule strength with clinical-study design.
+    # Source: pipeline `scripts/data/evidence_strength_vocab.json`.
+    - assets/data/evidence_strength_vocab.json
+    # Study-type vocab — locked v1.0.0, 7 clinical study-design categories
+    # with scoring base points. Source: pipeline
+    # `scripts/data/study_type_vocab.json`.
+    - assets/data/study_type_vocab.json
+    # Clinical-indication vocab — locked v1.0.0, 22 categories used by
+    # backed_clinical_studies for evidence grouping in Flutter UI.
+    # Source: pipeline `scripts/data/clinical_indication_vocab.json`.
+    - assets/data/clinical_indication_vocab.json
+    # IQM category vocab — locked v1.0.0, 12 parent-category buckets for
+    # ingredient_quality_map's 621+ active-ingredient parents.
+    # Source: pipeline `scripts/data/iqm_category_vocab.json`.
+    - assets/data/iqm_category_vocab.json
+    # Banned-status vocab — locked v1.0.0, 4 IDs (banned/recalled/
+    # high_risk/watchlist). Display contract for B0-gate alerts.
+    # Source: pipeline `scripts/data/banned_status_vocab.json`.
+    - assets/data/banned_status_vocab.json
+    # Clinical-risk vocab — locked v1.0.0, 5 IDs (critical/high/moderate/
+    # dose_dependent/low). Display contract for clinical_risk_enum tier.
+    # Source: pipeline `scripts/data/clinical_risk_vocab.json`.
+    - assets/data/clinical_risk_vocab.json
+    # Legal-status vocab — locked v1.0.0, 10 IDs (regulatory classifications:
+    # not_lawful_as_supplement, adulterant, banned_federal, etc.).
+    # Source: pipeline `scripts/data/legal_status_vocab.json`.
+    - assets/data/legal_status_vocab.json
+    # Ban-context vocab — locked v1.0.0, 5 IDs (substance/adulterant_in_
+    # supplements/contamination_recall/watchlist/export_restricted).
+    # Source: pipeline `scripts/data/ban_context_vocab.json`.
+    - assets/data/ban_context_vocab.json
+    # Effect-direction vocab — locked v1.0.0, 5 IDs (positive_strong/
+    # positive_weak/mixed/null/negative). Multipliers verified against
+    # scoring_config.json. Source: pipeline `scripts/data/effect_direction_vocab.json`.
+    - assets/data/effect_direction_vocab.json
+    # Signal-strength vocab — locked v1.0.0, 3 IDs (strong/moderate/weak)
+    # for CAERS adverse-event signals. Display contract; scoring layer
+    # currently disabled per V1.1 ROADMAP §5.1.
+    # Source: pipeline `scripts/data/signal_strength_vocab.json`.
+    - assets/data/signal_strength_vocab.json
+    # Allergen-prevalence vocab — locked v1.0.0, 3 IDs (high/moderate/low).
+    # Display contract for allergen prevalence chip.
+    # Source: pipeline `scripts/data/allergen_prevalence_vocab.json`.
+    - assets/data/allergen_prevalence_vocab.json
+    # Allergen-regulatory-status vocab — locked v1.0.0, 3 IDs (fda_major/
+    # eu_major/eu_allergen). Lean schema.
+    # Source: pipeline `scripts/data/allergen_regulatory_status_vocab.json`.
+    - assets/data/allergen_regulatory_status_vocab.json
+    # Manufacturer-trust-tier vocab — locked v1.0.0, 4 IDs (trusted/neutral/
+    # violations_minor/violations_critical). Display contract; tier is
+    # computed from top_manufacturers_data + manufacturer_violations join.
+    # Source: pipeline `scripts/data/manufacturer_trust_tier_vocab.json`.
+    - assets/data/manufacturer_trust_tier_vocab.json
+    # EFSA-status vocab — locked v1.0.0, 10 IDs from EFSA OpenFoodTox.
+    # Source: pipeline `scripts/data/efsa_status_vocab.json`.
+    - assets/data/efsa_status_vocab.json
+    # EFSA-genotoxicity vocab — locked v1.0.0, 7 IDs (negative/positive/
+    # equivocal/insufficient_data/indirect/cannot_be_excluded/under_review).
+    # Source: pipeline `scripts/data/efsa_genotoxicity_vocab.json`.
+    - assets/data/efsa_genotoxicity_vocab.json
+    # Match-mode vocab — locked v1.0.0, 3 IDs (active/disabled/historical)
+    # for banned_recalled_ingredients rule-engine state.
+    # Source: pipeline `scripts/data/match_mode_vocab.json`.
+    - assets/data/match_mode_vocab.json
+    # Confidence-tier vocab — locked v1.0.0, 3 IDs (high/medium/low) used
+    # in harmful_additives + clinical_studies. Display contract.
+    # Source: pipeline `scripts/data/confidence_tier_vocab.json`.
+    - assets/data/confidence_tier_vocab.json
+    # Score-contribution-tier vocab — locked v1.0.0, 3 IDs (tier_1/tier_2/
+    # tier_3) for backed_clinical_studies score brackets. Display contract.
+    # Source: pipeline `scripts/data/score_contribution_tier_vocab.json`.
+    - assets/data/score_contribution_tier_vocab.json
+    # Primary-outcome vocab — locked v1.0.0, 15 IDs for backed_clinical_studies
+    # primary_outcome categories. Snake_case canonical IDs + legacy_display
+    # for round-trip lookup until v1.1 source-data migration.
+    # Source: pipeline `scripts/data/primary_outcome_vocab.json`.
+    - assets/data/primary_outcome_vocab.json
 
 sentry:
   upload_debug_symbols: true

@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 3 regulatory_status values in allergens.json (eu_allergen, fda_major, eu_major). Lean schema — internal taxonomy ID surfaced in tap-to-explain only.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 3,
+    "status": "LOCKED — verified against allergens.json 2026-05-01",
+    "purpose": "Single source of truth for allergen regulatory-classification labels.",
+    "alignment": "Pipeline source: scripts/data/allergens.json `regulatory_status` field (17 entries; live: fda_major=9, eu_allergen=7, eu_major=1).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "authority": "Regulatory authority (FDA | EU)."
+    },
+    "char_limit_notes": 200
+  },
+  "allergen_regulatory_statuses": [
+    {
+      "id": "fda_major",
+      "name": "FDA Major Allergen",
+      "notes": "Listed by the FDA as one of the 9 major food allergens (FALCPA + sesame addition 2023). Required to be declared on US labels.",
+      "authority": "FDA"
+    },
+    {
+      "id": "eu_major",
+      "name": "EU Major Allergen",
+      "notes": "Listed by the EU under Annex II of Regulation 1169/2011 as a major allergen requiring mandatory labeling.",
+      "authority": "EU"
+    },
+    {
+      "id": "eu_allergen",
+      "name": "EU-Recognized Allergen",
+      "notes": "Recognized by EU regulators as an allergen requiring disclosure but not classified as a major allergen tier.",
+      "authority": "EU"
+    }
+  ]
+}

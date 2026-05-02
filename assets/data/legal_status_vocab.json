@@ -1,0 +1,91 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 10 legal_status_enum values in banned_recalled_ingredients.json. Distinct from clinical_risk_vocab — captures the regulatory/legal classification rather than the clinical danger level.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 10,
+    "status": "LOCKED — verified against banned_recalled_ingredients.json 2026-05-01",
+    "purpose": "Single source of truth for legal-status labels. Each entry includes the regulatory authority that owns the determination (FDA / DEA / WADA / state).",
+    "alignment": "Pipeline source: scripts/data/banned_recalled_ingredients.json `legal_status_enum` field (146 entries; live: not_lawful_as_supplement=44, high_risk=28, adulterant=24, banned_federal=18, contaminant_risk=16, controlled_substance=7, restricted=5, wada_prohibited=2, banned_state=1, lawful=1).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "authority": "Primary regulatory authority. One of: FDA | DEA | WADA | state | EU.",
+      "implication": "Plain-English consequence for the consumer."
+    },
+    "char_limit_notes": 200
+  },
+  "legal_statuses": [
+    {
+      "id": "not_lawful_as_supplement",
+      "name": "Not lawful as a dietary supplement",
+      "notes": "Substance does not meet the FDA definition of a dietary ingredient (DSHEA). Cannot be sold as a supplement, though may exist in other product categories.",
+      "authority": "FDA",
+      "implication": "Selling this in a supplement violates federal law. Avoid the product."
+    },
+    {
+      "id": "adulterant",
+      "name": "Supplement adulterant",
+      "notes": "FDA has issued an adulterant determination — products containing this substance are considered adulterated under federal law.",
+      "authority": "FDA",
+      "implication": "Subject to FDA enforcement action; product may be seized or recalled."
+    },
+    {
+      "id": "banned_federal",
+      "name": "Banned at federal level",
+      "notes": "Substance is explicitly prohibited in dietary supplements by federal regulation or court ruling.",
+      "authority": "FDA",
+      "implication": "Sale and possession in supplements is illegal nationwide."
+    },
+    {
+      "id": "banned_state",
+      "name": "Banned at state level",
+      "notes": "Banned in one or more US states (commonly California, Massachusetts, or New York under youth-access or consumer-protection laws).",
+      "authority": "state",
+      "implication": "Legal status varies by state; check local regulations."
+    },
+    {
+      "id": "controlled_substance",
+      "name": "Controlled substance",
+      "notes": "Listed under the federal Controlled Substances Act. Possession and sale are restricted; selling in supplements is illegal.",
+      "authority": "DEA",
+      "implication": "Federal scheduling; supplement form is not a legal pathway."
+    },
+    {
+      "id": "wada_prohibited",
+      "name": "WADA prohibited",
+      "notes": "Listed on the World Anti-Doping Agency Prohibited List. Banned in competition for elite athletes; some are banned at all times.",
+      "authority": "WADA",
+      "implication": "Use will trigger a positive doping test for tested athletes."
+    },
+    {
+      "id": "restricted",
+      "name": "Restricted use",
+      "notes": "Permitted under specific conditions (dose limits, age restrictions, prescription-only forms). Not freely available as a supplement.",
+      "authority": "FDA",
+      "implication": "Read product labels carefully; may require provider oversight."
+    },
+    {
+      "id": "high_risk",
+      "name": "High-risk substance",
+      "notes": "Legal but flagged by FDA, NIH, or international authorities for significant safety concerns. May be subject to future regulation.",
+      "authority": "FDA",
+      "implication": "Use only with informed consent and provider awareness."
+    },
+    {
+      "id": "contaminant_risk",
+      "name": "Contaminant-risk substance",
+      "notes": "Substance is associated with frequent contamination of supplement products (heavy metals, pesticides, microbial). Not the substance itself but the supply chain risk.",
+      "authority": "FDA",
+      "implication": "Choose certified-tested products; verify third-party COA."
+    },
+    {
+      "id": "lawful",
+      "name": "Lawful with monitoring",
+      "notes": "Currently lawful as a supplement but under regulatory monitoring. May appear on watchlists or future ban lists.",
+      "authority": "FDA",
+      "implication": "Permitted but monitor regulatory updates."
+    }
+  ]
+}

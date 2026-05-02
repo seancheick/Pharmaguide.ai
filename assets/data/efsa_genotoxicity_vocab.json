@@ -1,0 +1,54 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 7 genotoxicity classification values in efsa_openfoodtox_reference.json `genotoxicity` field. Reflects EFSA's risk-assessment outcome.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 7,
+    "status": "LOCKED — verified against efsa_openfoodtox_reference.json 2026-05-01",
+    "purpose": "Single source of truth for EFSA genotoxicity classification labels. Surfaced in tap-to-explain on the regulatory card.",
+    "alignment": "Pipeline source: scripts/data/efsa_openfoodtox_reference.json `genotoxicity` field (91 substances; live: negative=67, insufficient_data=8, indirect=7, positive=4, equivocal=3, cannot_be_excluded=1, under_review=1).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal."
+    },
+    "char_limit_notes": 200
+  },
+  "genotoxicity_classifications": [
+    {
+      "id": "negative",
+      "name": "Genotoxicity: negative",
+      "notes": "EFSA assessment found no evidence of genotoxic effect. The most common classification."
+    },
+    {
+      "id": "positive",
+      "name": "Genotoxicity: positive",
+      "notes": "EFSA assessment found evidence of genotoxic effect. Use is restricted or banned depending on the magnitude and pathway."
+    },
+    {
+      "id": "equivocal",
+      "name": "Genotoxicity: equivocal",
+      "notes": "EFSA assessment was inconclusive — some assays positive, others negative. Treated cautiously pending follow-up data."
+    },
+    {
+      "id": "insufficient_data",
+      "name": "Genotoxicity: insufficient data",
+      "notes": "EFSA could not reach a conclusion due to insufficient or low-quality data. Substance is treated cautiously by default."
+    },
+    {
+      "id": "indirect",
+      "name": "Genotoxicity: indirect",
+      "notes": "EFSA assessment found evidence of indirect genotoxicity (downstream pathway) rather than direct DNA damage. Mechanism-dependent risk."
+    },
+    {
+      "id": "cannot_be_excluded",
+      "name": "Genotoxicity: cannot be excluded",
+      "notes": "EFSA could not rule out a genotoxic effect from the available data. Default to precautionary handling."
+    },
+    {
+      "id": "under_review",
+      "name": "Genotoxicity: under review",
+      "notes": "EFSA review of genotoxicity is ongoing; classification may change."
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 6 qualitative evidence-strength tiers used by ingredient_interaction_rules evidence_level fields. This is intentionally separate from evidence_level_vocab.json, which covers study-design tiers in backed_clinical_studies.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 6,
+    "status": "LOCKED — split from evidence_level_vocab 2026-05-01",
+    "purpose": "Single source of truth for interaction-rule evidence strength labels and descriptions. Source data still uses the field name evidence_level; this vocab names the concept evidence_strength to avoid conflating rule strength with clinical-study design.",
+    "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json and scripts/data/ingredient_interaction_rules_Reviewed.json evidence_level fields. Flutter consumer: future replacement for lib/core/constants/severity.dart EvidenceLevel enum.",
+    "field_contract": {
+      "id": "Stable snake_case identifier found in interaction-rule evidence_level fields.",
+      "name": "User-facing label.",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
+      "tier": "Hierarchy hint: 1=strongest, 6=no data."
+    },
+    "char_limit_notes": 200
+  },
+  "evidence_strengths": [
+    {
+      "id": "established",
+      "name": "Established evidence",
+      "notes": "Well-supported rule with consistent clinical or regulatory backing. Treat as the strongest interaction evidence tier.",
+      "tier": 1
+    },
+    {
+      "id": "probable",
+      "name": "Probable evidence",
+      "notes": "Likely clinically relevant based on credible human, pharmacology, or regulatory evidence, but not as definitive as established.",
+      "tier": 2
+    },
+    {
+      "id": "moderate",
+      "name": "Moderate evidence",
+      "notes": "Meaningful but mixed or narrower evidence. Use for rule context where support is stronger than limited but not probable.",
+      "tier": 3
+    },
+    {
+      "id": "limited",
+      "name": "Limited evidence",
+      "notes": "Sparse or early evidence. Useful for context, but should not be presented as a firm clinical conclusion.",
+      "tier": 4
+    },
+    {
+      "id": "theoretical",
+      "name": "Theoretical evidence",
+      "notes": "Mechanism-based concern without direct confirmation. Present as possible risk, not as a proven interaction.",
+      "tier": 5
+    },
+    {
+      "id": "no_data",
+      "name": "No evidence data",
+      "notes": "No usable evidence tier is available for this rule. Keep copy neutral and avoid implying a proven risk.",
+      "tier": 6
+    }
+  ]
+}

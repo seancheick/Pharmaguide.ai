@@ -1,0 +1,71 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 4 manufacturer trust tiers (trusted/neutral/violations_minor/violations_critical). Bridges top_manufacturers_data.json (presence = trusted) and manufacturer_violations.json (severity_level mapping). UI-bound vocab — carries DISPLAY CONTRACT. Replaces the hardcoded 'Trusted manufacturer' string in score_breakdown_card.dart.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 4,
+    "status": "LOCKED — clinician + design alignment 2026-05-01",
+    "purpose": "Single source of truth for manufacturer trust-tier presentation. Computed by joining top_manufacturers_data + manufacturer_violations at score time.",
+    "alignment": "Pipeline source: derived field. Computed by build_final_db.py from: (1) presence in top_manufacturers_data.json `top_manufacturers` list (=> trusted); (2) presence in manufacturer_violations.json with severity_level=critical (=> violations_critical); high (=> violations_critical); moderate (=> violations_minor); (3) neither source (=> neutral).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "Full label.",
+      "short_label": "Compact pill label (≤12 chars).",
+      "tone": "Semantic intent.",
+      "ui_color": "Color hint.",
+      "ui_icon": "Icon hint.",
+      "action": "Suggested user action verb-phrase (≤40 chars).",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "derivation_rule": "Plain-text rule for when this tier is computed."
+    },
+    "char_limit_short_label": 12,
+    "char_limit_action": 40,
+    "char_limit_notes": 200
+  },
+  "manufacturer_trust_tiers": [
+    {
+      "id": "trusted",
+      "name": "Trusted manufacturer",
+      "short_label": "Trusted",
+      "tone": "positive",
+      "ui_color": "green",
+      "ui_icon": "check",
+      "action": "Reasonable confidence",
+      "notes": "Manufacturer is on the curated trusted list — no recent regulatory violations and demonstrates QC transparency.",
+      "derivation_rule": "Manufacturer ID present in top_manufacturers_data.json `top_manufacturers` list."
+    },
+    {
+      "id": "neutral",
+      "name": "No public record",
+      "short_label": "No record",
+      "tone": "neutral",
+      "ui_color": "gray",
+      "ui_icon": "info",
+      "action": "Read context",
+      "notes": "Manufacturer has neither a curated trust listing nor recorded violations. Use other quality signals to assess.",
+      "derivation_rule": "Manufacturer ID not present in either top_manufacturers_data.json or manufacturer_violations.json."
+    },
+    {
+      "id": "violations_minor",
+      "name": "Minor violations on record",
+      "short_label": "Minor",
+      "tone": "warning",
+      "ui_color": "yellow",
+      "ui_icon": "warning",
+      "action": "Read violation history",
+      "notes": "Manufacturer has documented violations classified as moderate severity (cGMP issues, labeling errors). Not severe but worth knowing.",
+      "derivation_rule": "Manufacturer ID in manufacturer_violations.json with all violations at severity_level=moderate."
+    },
+    {
+      "id": "violations_critical",
+      "name": "Serious violations on record",
+      "short_label": "Critical",
+      "tone": "danger",
+      "ui_color": "red",
+      "ui_icon": "alert",
+      "action": "Avoid without supervision",
+      "notes": "Manufacturer has documented violations classified as high or critical severity (contamination, undeclared drugs, deaths reported).",
+      "derivation_rule": "Manufacturer ID in manufacturer_violations.json with one or more violations at severity_level=high or critical."
+    }
+  ]
+}

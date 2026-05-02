@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 7 clinical study-type tiers used by backed_clinical_studies. Determines base points before evidence-level multipliers are applied.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 7,
+    "status": "LOCKED — verified against backed_clinical_studies 2026-05-01",
+    "purpose": "Single source of truth for study-type labels, explanations, and base scoring points in clinical evidence records.",
+    "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json study_type field. Base points must match scripts/config/scoring_config.json section_C_evidence_research.study_type_base_points.",
+    "field_contract": {
+      "id": "Stable snake_case identifier found in backed_clinical_studies.study_type.",
+      "name": "User-facing label.",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
+      "base_points": "Base evidence points before evidence_level multiplier is applied.",
+      "tier": "Hierarchy hint: 1=strongest, 6=lowest."
+    },
+    "char_limit_notes": 200
+  },
+  "study_types": [
+    {
+      "id": "systematic_review_meta",
+      "name": "Systematic review or meta-analysis",
+      "notes": "Evidence synthesis across multiple studies. Highest base tier because it summarizes a broader body of clinical literature.",
+      "base_points": 6,
+      "tier": 1
+    },
+    {
+      "id": "rct_multiple",
+      "name": "Multiple randomized trials",
+      "notes": "Two or more randomized controlled trials. Strong direct evidence, especially when results point in the same direction.",
+      "base_points": 5,
+      "tier": 2
+    },
+    {
+      "id": "rct_single",
+      "name": "Single randomized trial",
+      "notes": "One randomized controlled trial. Useful direct evidence, but less robust than repeated trials or pooled analyses.",
+      "base_points": 4,
+      "tier": 3
+    },
+    {
+      "id": "clinical_strain",
+      "name": "Clinical probiotic strain study",
+      "notes": "Clinical evidence tied to a specific probiotic strain. Strain identity is essential for applying the finding.",
+      "base_points": 4,
+      "tier": 3
+    },
+    {
+      "id": "observational",
+      "name": "Observational human study",
+      "notes": "Human data without randomized assignment. Helpful for associations, but weaker for proving supplement effect.",
+      "base_points": 2,
+      "tier": 4
+    },
+    {
+      "id": "animal_study",
+      "name": "Animal study",
+      "notes": "Preclinical animal evidence. Supports plausibility but does not establish expected human benefit.",
+      "base_points": 2,
+      "tier": 5
+    },
+    {
+      "id": "in_vitro",
+      "name": "In-vitro study",
+      "notes": "Cell, tissue, or laboratory evidence only. Useful for mechanism context, not direct clinical benefit.",
+      "base_points": 1,
+      "tier": 6
+    }
+  ]
+}

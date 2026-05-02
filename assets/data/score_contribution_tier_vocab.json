@@ -1,0 +1,60 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 3 score-contribution tiers (tier_1/tier_2/tier_3) in backed_clinical_studies.score_contribution. Reflects computed evidence bracket. UI-bound vocab — carries DISPLAY CONTRACT. NOTE: per metadata description in source data, this field is a metadata label not used by the scorer; it's display-only.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 3,
+    "status": "LOCKED — verified against backed_clinical_studies.json 2026-05-01",
+    "purpose": "Single source of truth for score-contribution tier presentation in evidence cards.",
+    "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json `score_contribution` field (197 entries; live: tier_1=163, tier_2=24, tier_3=10).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "Full label.",
+      "short_label": "Compact pill label (≤12 chars).",
+      "tone": "Semantic intent.",
+      "ui_color": "Color hint.",
+      "ui_icon": "Icon hint.",
+      "action": "Suggested action verb-phrase (≤40 chars).",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "tier_rank": "Numeric tier rank: 1=highest, 3=lowest."
+    },
+    "char_limit_short_label": 12,
+    "char_limit_action": 40,
+    "char_limit_notes": 200
+  },
+  "score_contribution_tiers": [
+    {
+      "id": "tier_1",
+      "name": "Tier 1 evidence",
+      "short_label": "Tier 1",
+      "tone": "positive",
+      "ui_color": "green",
+      "ui_icon": "check",
+      "action": "Strong evidence",
+      "notes": "Highest-quality study tier (most common). Studies in this tier contribute the most to the evidence score.",
+      "tier_rank": 1
+    },
+    {
+      "id": "tier_2",
+      "name": "Tier 2 evidence",
+      "short_label": "Tier 2",
+      "tone": "info",
+      "ui_color": "blue",
+      "ui_icon": "info",
+      "action": "Moderate evidence",
+      "notes": "Mid-tier studies. Contribute to the evidence score but with reduced weight relative to tier 1.",
+      "tier_rank": 2
+    },
+    {
+      "id": "tier_3",
+      "name": "Tier 3 evidence",
+      "short_label": "Tier 3",
+      "tone": "neutral",
+      "ui_color": "gray",
+      "ui_icon": "info",
+      "action": "Limited evidence",
+      "notes": "Lowest weighted tier. Studies contribute minimally to the evidence score; treated as supporting context only.",
+      "tier_rank": 3
+    }
+  ]
+}

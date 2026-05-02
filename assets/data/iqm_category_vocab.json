@@ -1,0 +1,106 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 12 IQM (Ingredient Quality Map) parent-category buckets used to classify the 621+ active-ingredient parents. Drives evidence/UI grouping in the Flutter app and integrity-gate enforcement in db_integrity_sanity_check.py.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 12,
+    "status": "LOCKED — verified against ingredient_quality_map.json 2026-05-01",
+    "purpose": "Single source of truth for IQM parent-category labels and descriptions. The 12 categories are clinician-locked; adding or removing requires a coordinated review.",
+    "alignment": "Pipeline source: scripts/data/ingredient_quality_map.json `category` field (621 parents, 12 distinct values verified 2026-05-01).",
+    "field_contract": {
+      "id": "Stable snake_case identifier matching ingredient_quality_map.category.",
+      "name": "User-facing label.",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
+      "examples": "Up to 5 ingredient names users might recognize from this category."
+    },
+    "char_limit_notes": 200,
+    "live_distribution_2026_05_01": {
+      "herbs": 199,
+      "antioxidants": 110,
+      "fatty_acids": 64,
+      "amino_acids": 57,
+      "probiotics": 43,
+      "minerals": 29,
+      "functional_foods": 27,
+      "other": 23,
+      "vitamins": 22,
+      "fibers": 17,
+      "proteins": 16,
+      "enzymes": 10
+    }
+  },
+  "iqm_categories": [
+    {
+      "id": "amino_acids",
+      "name": "Amino Acids",
+      "notes": "Free-form amino acids and amino-acid derivatives (taurine, glutamine, etc.). Building blocks for proteins and neurotransmitters.",
+      "examples": ["L-glutamine", "L-theanine", "taurine", "L-tyrosine", "BCAAs"]
+    },
+    {
+      "id": "antioxidants",
+      "name": "Antioxidants",
+      "notes": "Compounds that scavenge reactive oxygen species or upregulate endogenous antioxidant defenses. Largest IQM bucket by parent count.",
+      "examples": ["alpha-lipoic acid", "astaxanthin", "glutathione", "PQQ", "resveratrol"]
+    },
+    {
+      "id": "enzymes",
+      "name": "Enzymes",
+      "notes": "Active enzyme supplements — digestive, systemic, or fibrinolytic. Smallest IQM bucket; highly specialized.",
+      "examples": ["bromelain", "papain", "serrapeptase", "lactase", "pancreatin"]
+    },
+    {
+      "id": "fatty_acids",
+      "name": "Fatty Acids",
+      "notes": "Omega-3, omega-6, and other long-chain fatty-acid supplements. Includes triglyceride, ethyl ester, phospholipid, and free-fatty-acid forms.",
+      "examples": ["EPA", "DHA", "ALA", "GLA", "CLA"]
+    },
+    {
+      "id": "fibers",
+      "name": "Fibers",
+      "notes": "Soluble and insoluble dietary fibers, prebiotics, and resistant starches.",
+      "examples": ["psyllium", "inulin", "fructo-oligosaccharides (FOS)", "acacia fiber", "glucomannan"]
+    },
+    {
+      "id": "functional_foods",
+      "name": "Functional Foods",
+      "notes": "Whole-food extracts and concentrates with bioactive evidence beyond basic nutrition (e.g. tart cherry, beetroot powder).",
+      "examples": ["tart cherry", "beetroot powder", "spirulina", "chlorella", "wheatgrass"]
+    },
+    {
+      "id": "herbs",
+      "name": "Herbs",
+      "notes": "Botanical extracts and whole-plant powders. Largest active-ingredient category; covers adaptogens, nervines, hepatics, and more.",
+      "examples": ["ashwagandha", "rhodiola", "turmeric", "ginseng", "milk thistle"]
+    },
+    {
+      "id": "minerals",
+      "name": "Minerals",
+      "notes": "Essential and trace minerals in salt, chelate, or organic-acid forms. Bioavailability varies dramatically by form.",
+      "examples": ["magnesium glycinate", "zinc picolinate", "iron bisglycinate", "selenium", "chromium"]
+    },
+    {
+      "id": "other",
+      "name": "Other Bioactives",
+      "notes": "Compounds that don't fit the other 11 buckets — hormones (DHEA), nucleotides (NAD+ precursors), miscellaneous bioactives.",
+      "examples": ["DHEA", "NMN", "NAD+ (NR)", "shilajit", "humic/fulvic acids"]
+    },
+    {
+      "id": "probiotics",
+      "name": "Probiotics",
+      "notes": "Live microbial strains with documented health-benefit evidence. Strain identity is essential for evidence transfer.",
+      "examples": ["L. rhamnosus GG", "S. boulardii", "B. longum 35624", "L. plantarum 299v", "B. coagulans MTCC 5856"]
+    },
+    {
+      "id": "proteins",
+      "name": "Proteins",
+      "notes": "Whole-protein supplements — whey, casein, plant proteins, collagen, peptides.",
+      "examples": ["whey isolate", "casein", "pea protein", "collagen peptides", "soy isolate"]
+    },
+    {
+      "id": "vitamins",
+      "name": "Vitamins",
+      "notes": "Fat- and water-soluble vitamins in active or precursor forms. Methylated B-vitamins and active D3/K2 forms have higher bioavailability.",
+      "examples": ["vitamin D3", "methylfolate", "methylcobalamin (B12)", "vitamin K2 MK-7", "ascorbic acid"]
+    }
+  ]
+}

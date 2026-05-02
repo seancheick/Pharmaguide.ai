@@ -1,0 +1,192 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 21 drug-class identifiers referenced by interaction_rules.drug_class_rules. Splits into two tiers: 13 USER-SELECTABLE classes shown in onboarding/profile (matches lib/core/constants/schema_ids.dart drugClasses) and 8 RULE-ONLY classes used by interaction rules but not surfaced as profile picks (CYP substrate categories, narrow drug families inferred from other selections). Migrating gives clinician control of the user-facing drug-class copy and brand examples.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-04-30",
+    "total_entries": 21,
+    "user_selectable_count": 13,
+    "rule_only_count": 8,
+    "status": "LOCKED — labels migrated from schema_ids.dart 2026-04-30",
+    "purpose": "Single source of truth for drug-class labels, brand examples, and prescription/OTC indicator. Drives drug-interaction warnings (e.g. anticoagulants + vitamin E high-dose → caution).",
+    "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json `drug_class_rules[].drug_class_id`, scripts/data/clinical_risk_taxonomy.json `drug_classes`. Flutter consumer (user-selectable subset): lib/core/constants/schema_ids.dart `drugClasses` + `drugClassLabels`.",
+    "field_contract": {
+      "id": "Stable snake_case identifier shared with the user profile and interaction rules.",
+      "name": "User-facing label shown in onboarding and the profile screen (for user_selectable=true entries only).",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
+      "examples": "Common brand or generic medication names users might recognize on labels.",
+      "rx_status": "Prescription / OTC indicator. One of: rx_only | otc | mixed.",
+      "user_selectable": "Whether this class appears in onboarding profile picker. False classes are referenced only by interaction rules (CYP substrates, narrow families)."
+    },
+    "char_limit_notes": 200
+  },
+  "drug_classes": [
+    {
+      "id": "anticoagulants",
+      "name": "Blood thinners",
+      "notes": "Reduce blood clotting. Many supplements (vitamin E high-dose, fish oil, ginkgo, garlic, turmeric) further inhibit clotting and increase bleeding risk.",
+      "examples": ["warfarin (Coumadin)", "apixaban (Eliquis)", "rivaroxaban (Xarelto)", "dabigatran (Pradaxa)", "heparin"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "antiplatelets",
+      "name": "Antiplatelet medication",
+      "notes": "Block platelet aggregation. Combining with bleeding-risk supplements (vitamin E, fish oil, ginkgo) compounds the effect.",
+      "examples": ["aspirin (low-dose daily)", "clopidogrel (Plavix)", "prasugrel (Effient)", "ticagrelor (Brilinta)"],
+      "rx_status": "mixed",
+      "user_selectable": true
+    },
+    {
+      "id": "nsaids",
+      "name": "NSAIDs (Ibuprofen, Aspirin regularly)",
+      "notes": "Non-steroidal anti-inflammatories. Stack-with-supplement risks include GI bleeding (with fish oil, ginkgo) and reduced kidney function (with high-dose vitamin C).",
+      "examples": ["ibuprofen (Advil, Motrin)", "naproxen (Aleve)", "celecoxib (Celebrex)", "aspirin (regular use)"],
+      "rx_status": "mixed",
+      "user_selectable": true
+    },
+    {
+      "id": "antihypertensives",
+      "name": "Blood pressure medication",
+      "notes": "Lower blood pressure. Some supplements (licorice, ephedra, high-dose caffeine) raise BP and counteract treatment; others (potassium, magnesium) compound effect.",
+      "examples": ["lisinopril", "amlodipine", "losartan", "metoprolol", "hydrochlorothiazide (HCTZ)"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "hypoglycemics",
+      "name": "Diabetes medication",
+      "notes": "Lower blood sugar. Several supplements (cinnamon, berberine, alpha-lipoic acid, chromium) potentiate the glucose-lowering effect; risk of hypoglycemia.",
+      "examples": ["metformin", "insulin", "glipizide", "glyburide", "semaglutide (Ozempic)", "empagliflozin (Jardiance)"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "thyroid_medications",
+      "name": "Thyroid medication",
+      "notes": "Replace or modulate thyroid hormone. Iodine, kelp, soy isoflavones, and biotin can alter levels or assay results — separate by 4 hours from levothyroxine.",
+      "examples": ["levothyroxine (Synthroid, Levoxyl)", "liothyronine (Cytomel)", "armour thyroid", "methimazole"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "sedatives",
+      "name": "Sedatives / Sleep medication",
+      "notes": "Promote sleep or reduce anxiety. Combining with supplemental melatonin, valerian, kava, or 5-HTP compounds CNS depression.",
+      "examples": ["zolpidem (Ambien)", "alprazolam (Xanax)", "diazepam (Valium)", "lorazepam (Ativan)", "trazodone"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "immunosuppressants",
+      "name": "Immunosuppressants",
+      "notes": "Suppress immune response after transplant or for autoimmune disease. Echinacea, astragalus, and other immune-stimulating herbs may counteract effect.",
+      "examples": ["tacrolimus", "cyclosporine", "mycophenolate", "methotrexate", "prednisone (chronic)"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "statins",
+      "name": "Statins / Cholesterol medication",
+      "notes": "Lower LDL cholesterol via HMG-CoA reductase. Red yeast rice contains natural lovastatin and shouldn't combine; CoQ10 is often co-prescribed.",
+      "examples": ["atorvastatin (Lipitor)", "simvastatin (Zocor)", "rosuvastatin (Crestor)", "pravastatin"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "antidepressants_ssri_snri",
+      "name": "Antidepressants (SSRIs/SNRIs)",
+      "notes": "Increase serotonin (and sometimes norepinephrine) signaling. Combining with St. John's wort, 5-HTP, SAMe, or tryptophan risks serotonin syndrome.",
+      "examples": ["sertraline (Zoloft)", "escitalopram (Lexapro)", "fluoxetine (Prozac)", "venlafaxine (Effexor)", "duloxetine (Cymbalta)"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "maois",
+      "name": "MAOIs",
+      "notes": "Monoamine oxidase inhibitors. Strict dietary restrictions (avoid tyramine-rich foods + supplements); many supplements are contraindicated or risky.",
+      "examples": ["phenelzine (Nardil)", "tranylcypromine (Parnate)", "selegiline (Eldepryl)", "rasagiline (Azilect)"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "cardiac_glycosides",
+      "name": "Digoxin / Heart rhythm medication",
+      "notes": "Affect heart muscle contractility and rhythm. Hawthorn, licorice, and grapefruit-related compounds can alter levels.",
+      "examples": ["digoxin (Lanoxin)", "digitoxin"],
+      "rx_status": "rx_only",
+      "user_selectable": true
+    },
+    {
+      "id": "anticholinergics",
+      "name": "Anticholinergic medication",
+      "notes": "Block acetylcholine at muscarinic receptors. Combining with anticholinergic herbs (jimsonweed, belladonna) compounds dry mouth, constipation, confusion.",
+      "examples": ["diphenhydramine (Benadryl)", "oxybutynin", "amitriptyline", "scopolamine"],
+      "rx_status": "mixed",
+      "user_selectable": true
+    },
+    {
+      "id": "anticonvulsants",
+      "name": "Anti-seizure medication",
+      "notes": "Used for epilepsy and some pain/mood conditions. Several supplements alter levels via CYP induction or affect seizure threshold.",
+      "examples": ["levetiracetam (Keppra)", "lamotrigine", "valproate", "phenytoin", "carbamazepine"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "antiarrhythmics",
+      "name": "Antiarrhythmic medication",
+      "notes": "Stabilize heart rhythm. Several have narrow therapeutic windows and interact with grapefruit-related compounds, hawthorn, or motherwort.",
+      "examples": ["amiodarone", "flecainide", "sotalol", "propafenone"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "calcium_channel_blockers",
+      "name": "Calcium channel blockers",
+      "notes": "Lower blood pressure and treat angina by blocking calcium influx. Grapefruit-related compounds raise levels of dihydropyridines.",
+      "examples": ["amlodipine", "nifedipine", "diltiazem", "verapamil"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "thiazide_diuretics",
+      "name": "Thiazide diuretics",
+      "notes": "Increase urine output and lower blood pressure. Cause potassium and magnesium loss; supplements that further deplete or supplement these need monitoring.",
+      "examples": ["hydrochlorothiazide (HCTZ)", "chlorthalidone", "indapamide"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "lithium",
+      "name": "Lithium",
+      "notes": "Mood stabilizer with a narrow therapeutic window. Caffeine, salt intake, NSAIDs, and dehydration affect blood levels.",
+      "examples": ["lithium carbonate (Lithobid, Eskalith)"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "oral_contraceptives",
+      "name": "Oral contraceptives",
+      "notes": "Combination or progestin-only birth control pills. St. John's wort and some CYP-inducing supplements can reduce contraceptive efficacy.",
+      "examples": ["estradiol-containing combo pills", "norethindrone", "drospirenone-containing pills"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "cyp2d6_substrates",
+      "name": "CYP2D6-substrate drugs",
+      "notes": "Drugs metabolized by CYP2D6 enzyme. Several supplements (St. John's wort, goldenseal) inhibit or induce this enzyme and alter drug levels.",
+      "examples": ["codeine", "tramadol", "metoprolol", "many SSRIs", "some antipsychotics"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "cyp3a4_substrates",
+      "name": "CYP3A4-substrate drugs",
+      "notes": "Drugs metabolized by CYP3A4 enzyme. Grapefruit, St. John's wort, and many botanicals interact via this pathway and alter drug levels.",
+      "examples": ["statins (most)", "many calcium channel blockers", "tacrolimus", "many benzodiazepines"],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    }
+  ]
+}

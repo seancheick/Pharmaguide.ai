@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 3 match_mode values in banned_recalled_ingredients.json (active/disabled/historical). Internal taxonomy ID — controls whether the rule fires in scoring.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 3,
+    "status": "LOCKED — verified against banned_recalled_ingredients.json 2026-05-01",
+    "purpose": "Single source of truth for match_mode labels. Drives the rule-engine on/off behavior; surfaced in admin/audit views.",
+    "alignment": "Pipeline source: scripts/data/banned_recalled_ingredients.json `match_mode` field (146 entries; live: active=142, historical=3, disabled=1).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "fires_in_scoring": "Boolean indicating whether rules with this match_mode contribute to scoring."
+    },
+    "char_limit_notes": 200
+  },
+  "match_modes": [
+    {
+      "id": "active",
+      "name": "Active",
+      "notes": "Rule actively fires in scoring and surfaces in user-facing alerts. Default state for new entries.",
+      "fires_in_scoring": true
+    },
+    {
+      "id": "disabled",
+      "name": "Disabled",
+      "notes": "Rule is intentionally disabled and does NOT fire in scoring. Kept in data for audit history.",
+      "fires_in_scoring": false
+    },
+    {
+      "id": "historical",
+      "name": "Historical",
+      "notes": "Rule covers a historical recall or regulatory action no longer active. Does NOT fire in scoring but documents the past event.",
+      "fires_in_scoring": false
+    }
+  ]
+}

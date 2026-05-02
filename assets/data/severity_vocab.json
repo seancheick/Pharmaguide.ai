@@ -1,0 +1,93 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 6 severity tiers used across interaction rules, harmful-additive flags, allergen warnings, and the clinical-risk taxonomy. Carries the full DISPLAY CONTRACT (name + short_label + tone + ui_color + ui_icon + action + notes) per the cross-cutting rule in REFERENCE_DATA_LOOKUP_OPPORTUNITIES.md — Flutter is a renderer, not a decision-maker for tone/color/icon. This is the most-repeated descriptive token in the blob ecosystem; centralizing it pays for itself many times over.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-04-30",
+    "total_entries": 6,
+    "status": "LOCKED — clinician + design alignment 2026-04-30",
+    "purpose": "Display contract for the 6 canonical severities emitted by enrich_supplements_v3 / interaction-rules engine and consumed by Flutter alert widgets. Each entry carries the locked name/short_label/tone/ui_color/ui_icon/action — Flutter renders verbatim.",
+    "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json (`severity` field), scripts/data/clinical_risk_taxonomy.json (`severity_levels` taxonomy id field). Flutter consumer: lib/core/constants/severity.dart (replaces enum-embedded labels).",
+    "field_contract": {
+      "id": "Stable snake_case identifier emitted by the pipeline (lowercase). Source data field: `severity` on interaction rules; `id` on clinical_risk_taxonomy.severity_levels.",
+      "name": "Full user-facing label (sentence case). Shown in detail screens.",
+      "short_label": "Compact chip / pill label (≤12 chars). Shown in dense list views.",
+      "tone": "Semantic intent. One of: positive, neutral, info, warning, danger.",
+      "ui_color": "Color hint. One of: green, blue, gray, yellow, orange, red.",
+      "ui_icon": "Icon hint. One of: check, info, warning, alert, block.",
+      "action": "Suggested user action verb-phrase (≤40 chars).",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal."
+    },
+    "char_limit_short_label": 12,
+    "char_limit_action": 40,
+    "char_limit_notes": 200,
+    "co_render_surfaces": [
+      "lib/features/product_detail/widgets/severity_pill.dart",
+      "lib/features/product_detail/widgets/alert_summary_card.dart",
+      "lib/features/product_detail/widgets/score_breakdown_card.dart",
+      "lib/features/safety/widgets/banner.dart"
+    ],
+    "prerequisite_completed": "info → informational rename landed 2026-04-30 across ingredient_interaction_rules*.json (20 occurrences) + clinical_risk_taxonomy.json (1 id) + dosage_normalizer.py + build_final_db.py."
+  },
+  "severities": [
+    {
+      "id": "contraindicated",
+      "name": "Do not use",
+      "short_label": "Do not use",
+      "tone": "danger",
+      "ui_color": "red",
+      "ui_icon": "block",
+      "action": "Avoid completely",
+      "notes": "Use is contraindicated — the combination is unsafe and there is no acceptable monitoring path. Stop the product and contact your provider."
+    },
+    {
+      "id": "avoid",
+      "name": "Not recommended",
+      "short_label": "Avoid",
+      "tone": "danger",
+      "ui_color": "red",
+      "ui_icon": "alert",
+      "action": "Skip this product",
+      "notes": "Risk outweighs benefit for most people. Avoid this product and consider an alternative or talk to your provider before using."
+    },
+    {
+      "id": "caution",
+      "name": "Use caution",
+      "short_label": "Caution",
+      "tone": "warning",
+      "ui_color": "orange",
+      "ui_icon": "warning",
+      "action": "Use under guidance",
+      "notes": "Possible interaction or sensitivity. Use only with healthcare provider awareness. Watch for the symptoms described in the warning."
+    },
+    {
+      "id": "monitor",
+      "name": "Monitor",
+      "short_label": "Monitor",
+      "tone": "warning",
+      "ui_color": "yellow",
+      "ui_icon": "warning",
+      "action": "Track for effects",
+      "notes": "Use is generally acceptable but track for the effects described. Report changes to your provider at your next visit."
+    },
+    {
+      "id": "informational",
+      "name": "Informational",
+      "short_label": "Info",
+      "tone": "info",
+      "ui_color": "blue",
+      "ui_icon": "info",
+      "action": "Read context",
+      "notes": "Context-only — no profile-specific risk detected. Shown so you understand the underlying biology before adding to a stack."
+    },
+    {
+      "id": "safe",
+      "name": "Safe",
+      "short_label": "Safe",
+      "tone": "positive",
+      "ui_color": "green",
+      "ui_icon": "check",
+      "action": "Use as directed",
+      "notes": "No interaction or sensitivity flagged. Use as directed on the label."
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 6 product-quality verdicts shipped to Flutter (SAFE, CAUTION, POOR, BLOCKED, UNSAFE, NUTRITION_ONLY). Carries the full display contract per second-opinion review 2026-04-30: name + short_label + tone + ui_color + ui_icon + action live in this vocab so Flutter is a renderer (no presentation logic in Dart). Single source of truth for verdict labels across verdict_badge, alert_summary_card, banner, and score_breakdown_card. Bundled as a Flutter asset.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 6,
+    "status": "LOCKED — pipeline + Flutter alignment 2026-05-01",
+    "purpose": "Display contract for the canonical 6 shipped verdicts emitted by score_supplements.py / build_final_db.py and consumed by Flutter. Each entry carries the locked name/short_label/tone/ui_color/ui_icon/action — Flutter renders verbatim, no inference. Verdict precedence (BLOCKED > UNSAFE > CAUTION > POOR > SAFE) lives in scoring_config.json; NUTRITION_ONLY is a food-shape export verdict.",
+    "alignment": "Pipeline source: scripts/score_supplements.py _derive_verdict() (BLOCKED via B0 banned/recalled gate; UNSAFE via critical-flag escalation; CAUTION/POOR via quality-score thresholds; SAFE default). Flutter consumer: lib/features/product_detail/widgets/verdict_badge.dart (replaces hardcoded switch).",
+    "field_contract": {
+      "id": "Stable uppercase identifier emitted by the scoring engine. Never rename without a pipeline + Flutter + cached-blob migration.",
+      "name": "Full user-facing label (sentence case). Shown in detail screens and full-text contexts.",
+      "short_label": "Compact chip / pill label. ≤12 chars. Shown in search-result tiles and dense list views.",
+      "tone": "Semantic intent for theming. One of: positive, neutral, info, warning, danger.",
+      "ui_color": "Color hint Flutter resolves to a theme color. One of: green, blue, gray, yellow, orange, red.",
+      "ui_icon": "Icon hint Flutter resolves to an icon asset. One of: check, info, warning, alert, block.",
+      "action": "Suggested user action verb-phrase (≤40 chars). Shown beneath the verdict in product detail.",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal."
+    },
+    "char_limit_short_label": 12,
+    "char_limit_action": 40,
+    "char_limit_notes": 200,
+    "pipeline_contract_note": "Per REFERENCE_DATA_LOOKUP_OPPORTUNITIES.md §1: NOT_SCORED is intentionally NOT in vocab — products that fail scoring divert to the review queue and never ship to Flutter. NUTRITION_ONLY is intentionally included because food-shape products ship with ingredient-focused display rather than bioactive scoring.",
+    "co_render_surfaces": [
+      "lib/features/product_detail/widgets/verdict_badge.dart",
+      "lib/features/search/widgets/result_tile.dart",
+      "lib/features/product_detail/widgets/score_breakdown_card.dart"
+    ]
+  },
+  "verdicts": [
+    {
+      "id": "SAFE",
+      "name": "Safe",
+      "short_label": "Safe",
+      "tone": "positive",
+      "ui_color": "green",
+      "ui_icon": "check",
+      "action": "Use as directed",
+      "notes": "Product passed all safety gates and meets the quality threshold. Use as directed on the label and follow your healthcare provider's guidance."
+    },
+    {
+      "id": "CAUTION",
+      "name": "Caution",
+      "short_label": "Caution",
+      "tone": "warning",
+      "ui_color": "yellow",
+      "ui_icon": "warning",
+      "action": "Review before use",
+      "notes": "Product has flags worth reviewing before use — possible interactions, dose concerns, or quality issues. Read the warnings and check with your provider."
+    },
+    {
+      "id": "POOR",
+      "name": "Poor quality",
+      "short_label": "Poor",
+      "tone": "warning",
+      "ui_color": "orange",
+      "ui_icon": "warning",
+      "action": "Consider alternatives",
+      "notes": "Product is safe to use but scored low for ingredient quality, dosing, or evidence backing. Consider higher-quality alternatives in the same category."
+    },
+    {
+      "id": "BLOCKED",
+      "name": "Do not use",
+      "short_label": "Blocked",
+      "tone": "danger",
+      "ui_color": "red",
+      "ui_icon": "block",
+      "action": "Do not use",
+      "notes": "Product contains a banned, recalled, or otherwise prohibited substance. Do not use. Consult your provider or pharmacist if you have already been taking it."
+    },
+    {
+      "id": "UNSAFE",
+      "name": "Unsafe",
+      "short_label": "Unsafe",
+      "tone": "danger",
+      "ui_color": "red",
+      "ui_icon": "alert",
+      "action": "Do not use",
+      "notes": "Product has critical safety flags (high-dose contraindications, severe interaction risk, or regulatory adverse events). Do not use without medical supervision."
+    },
+    {
+      "id": "NUTRITION_ONLY",
+      "name": "Food product — see ingredients",
+      "short_label": "Food",
+      "tone": "info",
+      "ui_color": "gray",
+      "ui_icon": "info",
+      "action": "Read ingredients label",
+      "notes": "Food-shape product where supplement-style scoring does not apply. Review the ingredients, nutrition facts, allergens, and label claims."
+    }
+  ]
+}

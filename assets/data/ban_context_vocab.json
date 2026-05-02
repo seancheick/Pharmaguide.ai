@@ -1,0 +1,56 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 5 ban_context values in banned_recalled_ingredients.json. Disambiguates WHY a substance was flagged — substance-level vs adulterant vs contamination vs export-control vs watchlist.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-01",
+    "total_entries": 5,
+    "status": "LOCKED — verified against banned_recalled_ingredients.json 2026-05-01",
+    "purpose": "Single source of truth for ban-context labels. Drives the alert-context badge in Flutter (e.g. 'adulterant in supplements' vs 'contamination recall').",
+    "alignment": "Pipeline source: scripts/data/banned_recalled_ingredients.json `ban_context` field (146 entries; live: substance=95, adulterant_in_supplements=29, watchlist=12, contamination_recall=9, export_restricted=1).",
+    "field_contract": {
+      "id": "Stable snake_case identifier.",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "when_it_applies": "Plain-text description of the situation that triggers this context.",
+      "action_recommendation": "Suggested user action."
+    },
+    "char_limit_notes": 200
+  },
+  "ban_contexts": [
+    {
+      "id": "substance",
+      "name": "Substance-level ban",
+      "notes": "The substance itself is banned, regardless of product or formulation. Most common ban context.",
+      "when_it_applies": "FDA, DEA, or international authority has prohibited the substance in any form sold to consumers.",
+      "action_recommendation": "Avoid all products containing this substance."
+    },
+    {
+      "id": "adulterant_in_supplements",
+      "name": "Adulterant in supplements",
+      "notes": "Substance is legal in other contexts (food, cosmetics) but considered an adulterant when added to dietary supplements.",
+      "when_it_applies": "FDA has issued an adulterant determination specific to the dietary supplement category (DSHEA).",
+      "action_recommendation": "Avoid supplements that list this substance; legal in non-supplement products."
+    },
+    {
+      "id": "contamination_recall",
+      "name": "Contamination recall",
+      "notes": "Specific products were recalled because of contamination (heavy metals, microbial, undeclared pharmaceutical), not because the substance itself is banned.",
+      "when_it_applies": "Recall driven by lot-specific QC failure rather than the ingredient identity.",
+      "action_recommendation": "Check the recall lot number; the substance itself may still be safe in clean products."
+    },
+    {
+      "id": "watchlist",
+      "name": "Regulatory watchlist",
+      "notes": "Substance is under active monitoring by regulators. Not yet banned but warrants caution and informed-consent discussion.",
+      "when_it_applies": "FDA, NIH, or EFSA has flagged the substance for ongoing safety review.",
+      "action_recommendation": "Use with provider awareness; monitor regulatory updates."
+    },
+    {
+      "id": "export_restricted",
+      "name": "Export-restricted",
+      "notes": "Substance is legal in the country of origin but cannot be exported to certain markets due to local regulations.",
+      "when_it_applies": "International trade restriction (e.g. EU vs US permitted-substance differences).",
+      "action_recommendation": "Verify legality in your country before purchasing."
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 5 evidence-level study-design tiers used by backed_clinical_studies (197 entries). Determines the scoring multiplier for clinical-evidence bonuses. NOTE: ingredient_interaction_rules.json uses a DIFFERENT field also called `evidence_level` containing strength values (established/probable/theoretical) — that is a separate concept and warrants its own evidence_strength_vocab in a future sprint.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-04-30",
+    "total_entries": 5,
+    "status": "LOCKED — clinician sign-off",
+    "purpose": "Single source of truth for evidence-tier labels in backed_clinical_studies. The `multiplier` field aligns with scoring_config.json effect_direction_multipliers.",
+    "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json `evidence_level` field. Multiplier weights: scripts/config/scoring_config.json. Flutter consumer: lib/core/constants/severity.dart `EvidenceLevel` enum (legacy mapping; future migration target).",
+    "field_contract": {
+      "id": "Stable kebab-case identifier (matches source-data hyphenation, e.g. 'product-human').",
+      "name": "User-facing label.",
+      "notes": "≤200-char description shown in tap-to-learn modal.",
+      "multiplier": "Numeric multiplier applied to the study's score contribution (matches scoring_config.json).",
+      "tier": "Hierarchy hint: 1=highest, 5=lowest."
+    },
+    "char_limit_notes": 200,
+    "future_split_note": "ingredient_interaction_rules `evidence_level` (established/probable/theoretical/limited/moderate/no_data) should split into evidence_strength_vocab.json — different concept (qualitative grade vs study design)."
+  },
+  "evidence_levels": [
+    {
+      "id": "product-human",
+      "name": "Product-level human RCT",
+      "notes": "Randomized controlled trial conducted on the actual finished product. Strongest study-design tier — directly applicable to the marketed formulation.",
+      "multiplier": 1.0,
+      "tier": 1
+    },
+    {
+      "id": "branded-rct",
+      "name": "Branded ingredient RCT",
+      "notes": "Randomized controlled trial on a specific branded raw material used in the product (e.g. KSM-66 ashwagandha). Strong because the trial used the same supplier-batched ingredient.",
+      "multiplier": 0.9,
+      "tier": 2
+    },
+    {
+      "id": "ingredient-human",
+      "name": "Generic ingredient human study",
+      "notes": "Human study on the generic ingredient (not branded). Applicable but less specific to the formulation.",
+      "multiplier": 0.8,
+      "tier": 3
+    },
+    {
+      "id": "strain-clinical",
+      "name": "Probiotic strain clinical study",
+      "notes": "Clinical trial on a specific probiotic strain used in the product. Strain identity is essential for probiotic evidence transfer.",
+      "multiplier": 0.65,
+      "tier": 3
+    },
+    {
+      "id": "preclinical",
+      "name": "Preclinical evidence",
+      "notes": "Animal model or in-vitro evidence only. Mechanistic plausibility but no human confirmation. Used for context, not for primary scoring.",
+      "multiplier": 0.3,
+      "tier": 5
+    }
+  ]
+}

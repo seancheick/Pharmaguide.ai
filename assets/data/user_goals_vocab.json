@@ -1,0 +1,166 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 18 user wellness goals shown in onboarding and the goals screen. Presentation layer for goals; cluster-mapping data (which clusters drive recommendations for each goal) lives in user_goals_to_clusters.json. The 18 IDs MUST match between these two files. Migrating gives clinician control of the user-facing goal copy and priority weighting.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-04-30",
+    "total_entries": 18,
+    "status": "LOCKED — labels migrated from schema_ids.dart 2026-04-30",
+    "purpose": "Single source of truth for goal labels, descriptions, priority tier, and cross-references to relevant condition_ids / drug_class_ids. Drives the personalization layer (which goals surface which products, which goals affect interaction-warning relevance).",
+    "alignment": "Pipeline source: scripts/data/user_goals_to_clusters.json (18 mapping entries; same IDs). Flutter consumer: lib/core/constants/schema_ids.dart `goals` + `goalLabels` + `goalPriorities` (replaces hardcoded maps).",
+    "field_contract": {
+      "id": "Stable UPPER_SNAKE identifier prefixed GOAL_. Shared with user_goals_to_clusters.json.",
+      "name": "User-facing label shown in onboarding and the goals screen.",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
+      "priority": "Tier hint for default sort/recommendation weight. One of: high | medium | low.",
+      "related_condition_ids": "Optional. Condition IDs (from condition_vocab.json) that often co-occur with this goal — used for context-relevant warnings.",
+      "related_drug_class_ids": "Optional. Drug-class IDs (from drug_class_vocab.json) that often co-occur with this goal."
+    },
+    "char_limit_notes": 200
+  },
+  "user_goals": [
+    {
+      "id": "GOAL_SLEEP_QUALITY",
+      "name": "Sleep Quality",
+      "notes": "Improve sleep onset, depth, or duration. Common targets: melatonin, magnesium glycinate, L-theanine, valerian, glycine.",
+      "priority": "high",
+      "related_condition_ids": [],
+      "related_drug_class_ids": ["sedatives"]
+    },
+    {
+      "id": "GOAL_REDUCE_STRESS_ANXIETY",
+      "name": "Reduce Stress/Anxiety",
+      "notes": "Lower stress reactivity and tension. Common targets: ashwagandha, L-theanine, magnesium, rhodiola, holy basil.",
+      "priority": "high",
+      "related_condition_ids": [],
+      "related_drug_class_ids": ["sedatives", "antidepressants_ssri_snri"]
+    },
+    {
+      "id": "GOAL_INCREASE_ENERGY",
+      "name": "Increase Energy",
+      "notes": "Reduce fatigue and improve daytime stamina. Common targets: B-complex, CoQ10, iron (if low), creatine, ginseng, rhodiola.",
+      "priority": "high",
+      "related_condition_ids": ["thyroid_disorder"],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_DIGESTIVE_HEALTH",
+      "name": "Digestive Health",
+      "notes": "Support gut function and reduce GI symptoms. Common targets: probiotics, prebiotics, digestive enzymes, fiber, glutamine.",
+      "priority": "medium",
+      "related_condition_ids": ["autoimmune"],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_WEIGHT_MANAGEMENT",
+      "name": "Weight Management",
+      "notes": "Support healthy body composition. Common targets: protein, fiber, green tea extract, berberine, conjugated linoleic acid (CLA).",
+      "priority": "high",
+      "related_condition_ids": ["diabetes", "hypertension"],
+      "related_drug_class_ids": ["hypoglycemics"]
+    },
+    {
+      "id": "GOAL_CARDIOVASCULAR_HEART_HEALTH",
+      "name": "Cardiovascular/Heart Health",
+      "notes": "Support heart, vessels, and lipid profile. Common targets: omega-3 (EPA/DHA), CoQ10, garlic, hawthorn, plant sterols.",
+      "priority": "high",
+      "related_condition_ids": ["heart_disease", "hypertension", "high_cholesterol"],
+      "related_drug_class_ids": ["statins", "antihypertensives", "anticoagulants"]
+    },
+    {
+      "id": "GOAL_HEALTHY_AGING_LONGEVITY",
+      "name": "Healthy Aging/Longevity",
+      "notes": "Cellular and metabolic resilience over time. Common targets: NAD+ precursors, resveratrol, omega-3, vitamin D, polyphenols.",
+      "priority": "high",
+      "related_condition_ids": [],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_BLOOD_SUGAR_SUPPORT",
+      "name": "Blood Sugar Support",
+      "notes": "Improve glycemic control. Common targets: berberine, chromium, alpha-lipoic acid, cinnamon, magnesium.",
+      "priority": "medium",
+      "related_condition_ids": ["diabetes"],
+      "related_drug_class_ids": ["hypoglycemics"]
+    },
+    {
+      "id": "GOAL_IMMUNE_SUPPORT",
+      "name": "Immune Support",
+      "notes": "Strengthen immune defense. Common targets: vitamin D, vitamin C, zinc, elderberry, beta-glucans, probiotics.",
+      "priority": "high",
+      "related_condition_ids": ["autoimmune"],
+      "related_drug_class_ids": ["immunosuppressants"]
+    },
+    {
+      "id": "GOAL_FOCUS_MENTAL_CLARITY",
+      "name": "Focus & Mental Clarity",
+      "notes": "Improve attention, working memory, and processing speed. Common targets: caffeine + L-theanine, omega-3, B-complex, lion's mane, bacopa.",
+      "priority": "high",
+      "related_condition_ids": [],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_MOOD_EMOTIONAL_WELLNESS",
+      "name": "Mood & Emotional Wellness",
+      "notes": "Support emotional regulation. Common targets: omega-3 EPA-rich, vitamin D, SAMe, saffron, B-complex, magnesium.",
+      "priority": "medium",
+      "related_condition_ids": [],
+      "related_drug_class_ids": ["antidepressants_ssri_snri", "maois"]
+    },
+    {
+      "id": "GOAL_MUSCLE_GROWTH_RECOVERY",
+      "name": "Muscle Growth & Recovery",
+      "notes": "Support training adaptation and recovery. Common targets: whey protein, creatine, branched-chain amino acids, beta-alanine, vitamin D.",
+      "priority": "medium",
+      "related_condition_ids": [],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_JOINT_BONE_MOBILITY",
+      "name": "Joint & Bone Mobility",
+      "notes": "Support joint comfort and bone density. Common targets: glucosamine + chondroitin, collagen, vitamin D, calcium, magnesium, vitamin K2.",
+      "priority": "medium",
+      "related_condition_ids": [],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_SKIN_HAIR_NAILS",
+      "name": "Skin, Hair, & Nails",
+      "notes": "Support keratin and collagen synthesis. Common targets: biotin, collagen peptides, vitamin C, zinc, omega-3, silica.",
+      "priority": "low",
+      "related_condition_ids": [],
+      "related_drug_class_ids": ["thyroid_medications"]
+    },
+    {
+      "id": "GOAL_LIVER_DETOX",
+      "name": "Liver & Detox Support",
+      "notes": "Support hepatic detoxification pathways. Common targets: milk thistle, NAC, alpha-lipoic acid, dandelion root, B-complex.",
+      "priority": "low",
+      "related_condition_ids": ["liver_disease"],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_PRENATAL_PREGNANCY",
+      "name": "Prenatal/Pregnancy Support",
+      "notes": "Pregnancy or pre-conception nutrition. Common targets: prenatal multivitamin (with folate), omega-3 DHA, iron, choline, vitamin D.",
+      "priority": "high",
+      "related_condition_ids": ["pregnancy", "lactation", "ttc"],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_HORMONAL_BALANCE",
+      "name": "Hormonal Balance",
+      "notes": "Support endocrine regulation. Common targets: ashwagandha, vitex (chasteberry), magnesium, omega-3, vitamin D, zinc.",
+      "priority": "medium",
+      "related_condition_ids": ["thyroid_disorder"],
+      "related_drug_class_ids": ["thyroid_medications", "oral_contraceptives"]
+    },
+    {
+      "id": "GOAL_EYE_VISION_HEALTH",
+      "name": "Eye & Vision Health",
+      "notes": "Support retinal and macular health. Common targets: lutein, zeaxanthin, omega-3 DHA, vitamin A, vitamin C, zinc.",
+      "priority": "low",
+      "related_condition_ids": [],
+      "related_drug_class_ids": []
+    }
+  ]
+}

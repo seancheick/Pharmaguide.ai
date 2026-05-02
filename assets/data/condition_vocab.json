@@ -1,0 +1,119 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 14 user-profile health conditions referenced by interaction_rules.condition_rules and clinical_risk_taxonomy.conditions. The user-facing label was previously hardcoded in lib/core/constants/schema_ids.dart conditionLabels — migrating gives clinician control of the user-facing condition copy. Lean schema (no display contract): id + name + notes + (optional) icd10 references + synonyms.",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-04-30",
+    "total_entries": 14,
+    "status": "LOCKED — labels migrated from schema_ids.dart 2026-04-30",
+    "purpose": "Single source of truth for user-profile condition labels and descriptions. Drives condition-triggered interaction warnings (e.g. pregnancy + retinol → contraindicated). The `name` is shown in onboarding and the profile screen; `notes` shown in tap-to-learn.",
+    "alignment": "Pipeline source: scripts/data/clinical_risk_taxonomy.json `conditions` list, scripts/data/ingredient_interaction_rules.json `condition_rules[].condition_id`. Flutter consumer: lib/core/constants/schema_ids.dart `conditions` + `conditionLabels` (replaces hardcoded map).",
+    "field_contract": {
+      "id": "Stable snake_case identifier shared with the user profile and interaction rules.",
+      "name": "User-facing label shown in onboarding and the profile screen.",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
+      "synonyms": "Optional. Common alternative names users may recognize.",
+      "icd10": "Optional. ICD-10 code references for clinical context (e.g. {'code': 'O00-O9A', 'description': 'Pregnancy, childbirth and the puerperium'})."
+    },
+    "char_limit_notes": 200
+  },
+  "conditions": [
+    {
+      "id": "pregnancy",
+      "name": "Pregnancy",
+      "notes": "Currently pregnant. Many supplements have specific dose limits or are contraindicated; some interact with maternal-fetal physiology.",
+      "synonyms": ["expecting", "gestation"],
+      "icd10": [{"code": "O00-O9A", "description": "Pregnancy, childbirth and the puerperium"}]
+    },
+    {
+      "id": "lactation",
+      "name": "Breastfeeding",
+      "notes": "Currently nursing. Some supplements pass into breast milk and can affect the infant; others alter milk supply.",
+      "synonyms": ["nursing", "lactating"],
+      "icd10": [{"code": "Z39.1", "description": "Encounter for care and examination of lactating mother"}]
+    },
+    {
+      "id": "ttc",
+      "name": "Trying to Conceive",
+      "notes": "Actively attempting pregnancy. Pre-conception nutrition matters for fetal development; some supplements impact fertility.",
+      "synonyms": ["trying for a baby", "preconception"],
+      "icd10": [{"code": "Z31", "description": "Encounter for procreative management"}]
+    },
+    {
+      "id": "surgery_scheduled",
+      "name": "Upcoming Surgery",
+      "notes": "Surgery planned in the near term. Several supplements increase bleeding risk or interact with anesthesia and must be paused 1-2 weeks pre-op.",
+      "synonyms": ["pre-op", "preoperative"],
+      "icd10": [{"code": "Z01.818", "description": "Encounter for other preprocedural examination"}]
+    },
+    {
+      "id": "hypertension",
+      "name": "High Blood Pressure",
+      "notes": "Diagnosed elevated blood pressure. Some supplements raise BP (licorice, ephedra) or interfere with antihypertensive medications.",
+      "synonyms": ["high BP", "HTN"],
+      "icd10": [{"code": "I10-I16", "description": "Hypertensive diseases"}]
+    },
+    {
+      "id": "heart_disease",
+      "name": "Heart Disease",
+      "notes": "History of cardiac disease (coronary artery disease, heart failure, arrhythmia). Several supplements affect rhythm, contractility, or interact with cardiac medications.",
+      "synonyms": ["cardiovascular disease", "CVD", "CAD"],
+      "icd10": [{"code": "I20-I25", "description": "Ischemic heart diseases"}]
+    },
+    {
+      "id": "diabetes",
+      "name": "Diabetes",
+      "notes": "Type 1, type 2, or pre-diabetes. Many supplements affect blood sugar; some potentiate hypoglycemic medications and risk a low.",
+      "synonyms": ["DM", "type 2 diabetes", "T2D"],
+      "icd10": [{"code": "E08-E13", "description": "Diabetes mellitus"}]
+    },
+    {
+      "id": "bleeding_disorders",
+      "name": "Bleeding Disorders",
+      "notes": "Hemophilia, von Willebrand disease, low platelets, or on chronic anticoagulation. Avoid supplements that further inhibit platelet function or clotting (vitamin E high-dose, fish oil, ginkgo).",
+      "synonyms": ["coagulopathy", "hemophilia"],
+      "icd10": [{"code": "D65-D69", "description": "Coagulation defects, purpura and other hemorrhagic conditions"}]
+    },
+    {
+      "id": "kidney_disease",
+      "name": "Kidney Disease",
+      "notes": "Chronic kidney disease (any stage). Several supplements accumulate when renal clearance is reduced; some directly damage the kidneys at high doses.",
+      "synonyms": ["CKD", "renal disease"],
+      "icd10": [{"code": "N17-N19", "description": "Acute kidney failure and chronic kidney disease"}]
+    },
+    {
+      "id": "liver_disease",
+      "name": "Liver Disease",
+      "notes": "Hepatitis, cirrhosis, fatty liver, or elevated liver enzymes. Avoid hepatotoxic supplements (kava, comfrey, high-dose niacin); many supplements need dose adjustment.",
+      "synonyms": ["hepatic disease", "cirrhosis"],
+      "icd10": [{"code": "K70-K77", "description": "Diseases of liver"}]
+    },
+    {
+      "id": "thyroid_disorder",
+      "name": "Thyroid Condition",
+      "notes": "Hypothyroid, hyperthyroid, or on thyroid hormone replacement. Iodine, kelp, soy isoflavones, and biotin can alter thyroid hormone levels or assay results.",
+      "synonyms": ["hypothyroidism", "hyperthyroidism"],
+      "icd10": [{"code": "E00-E07", "description": "Disorders of thyroid gland"}]
+    },
+    {
+      "id": "autoimmune",
+      "name": "Autoimmune Condition",
+      "notes": "Lupus, rheumatoid arthritis, MS, IBD, or similar. Immune-stimulating supplements (echinacea, astragalus, high-dose vitamin C) may worsen disease activity.",
+      "synonyms": ["autoimmune disease", "immune dysregulation"],
+      "icd10": [{"code": "M30-M36", "description": "Systemic connective tissue disorders"}]
+    },
+    {
+      "id": "seizure_disorder",
+      "name": "Epilepsy/Seizures",
+      "notes": "Diagnosed seizure disorder. Several supplements lower seizure threshold (high-dose evening primrose, GABA, ginkgo) or interact with antiepileptic drugs.",
+      "synonyms": ["epilepsy", "seizures"],
+      "icd10": [{"code": "G40", "description": "Epilepsy and recurrent seizures"}]
+    },
+    {
+      "id": "high_cholesterol",
+      "name": "High Cholesterol",
+      "notes": "Diagnosed dyslipidemia or on a statin. Red yeast rice contains natural lovastatin and shouldn't combine with prescribed statins; niacin and fish oil affect lipid panel.",
+      "synonyms": ["dyslipidemia", "hyperlipidemia"],
+      "icd10": [{"code": "E78", "description": "Disorders of lipoprotein metabolism and other lipidemias"}]
+    }
+  ]
+}
