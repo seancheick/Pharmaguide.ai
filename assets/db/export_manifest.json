@@ -1,2250 +1,786 @@
 {
-  "checksum": "sha256:20093917b0129aba1540a1cb5431e7e5a6fbb41296923ec275deb2158475dd5a",
-  "checksum_sha256": "20093917b0129aba1540a1cb5431e7e5a6fbb41296923ec275deb2158475dd5a",
-  "db_version": "2026.04.28.082957",
-  "detail_blob_count": 7982,
-  "detail_blob_unique_count": 7982,
-  "detail_index_checksum": "sha256:5c56e81afdaffa1d954cec352767aa724d739f34d241490b7c7c8374398bd79c",
+  "checksum": "sha256:2f51126e9c6ab0a11f66aeb1c2ae5c710290891687a8758bc62f8d47d4a8f3b4",
+  "checksum_sha256": "2f51126e9c6ab0a11f66aeb1c2ae5c710290891687a8758bc62f8d47d4a8f3b4",
+  "db_version": "2026.05.02.074952",
+  "detail_blob_count": 8331,
+  "detail_blob_unique_count": 8331,
+  "detail_index_checksum": "sha256:89ebbac82160b80a8d51df74c9f8ff298eb1697ece2588bd377c4c21bbdbc04e",
   "errors": [],
   "excluded_by_gate": [
     {
       "dsld_id": "1056",
-      "error": "[1056] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[1056] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "11587",
-      "error": "[11587] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[11587] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "11588",
-      "error": "[11588] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "1256",
-      "error": "[1256] raw DSLD disclosed 8 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "1429",
-      "error": "[1429] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+    },
+    {
+      "dsld_id": "16013",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+    },
+    {
+      "dsld_id": "16015",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+    },
+    {
+      "dsld_id": "16040",
+      "error": "[16040] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "16202",
-      "error": "[16202] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "16359",
-      "error": "[16359] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "174860",
-      "error": "[174860] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "175321",
-      "error": "[175321] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "175392",
-      "error": "[175392] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "176925",
-      "error": "[176925] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[16202] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "17794",
-      "error": "[17794] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "178574",
-      "error": "[178574] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "178677",
-      "error": "[178677] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "178797",
-      "error": "[178797] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "179444",
-      "error": "[179444] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "179625",
-      "error": "[179625] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "179639",
-      "error": "[179639] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "179987",
-      "error": "[179987] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "181776",
-      "error": "[181776] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182164",
-      "error": "[182164] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182169",
-      "error": "[182169] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "182228",
-      "error": "[182228] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "182231",
-      "error": "[182231] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182235",
-      "error": "[182235] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[178677] raw DSLD disclosed 3 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "182260",
-      "error": "[182260] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "182424",
-      "error": "[182424] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "182455",
-      "error": "[182455] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182506",
-      "error": "[182506] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182509",
-      "error": "[182509] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182512",
-      "error": "[182512] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182542",
-      "error": "[182542] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "182579",
-      "error": "[182579] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "182607",
-      "error": "[182607] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "dsld_id": "18259",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "182777",
-      "error": "[182777] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "182795",
-      "error": "[182795] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=2, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "182853",
-      "error": "[182853] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "182964",
-      "error": "[182964] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "183352",
-      "error": "[183352] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "183513",
-      "error": "[183513] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "183524",
-      "error": "[183524] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "183980",
-      "error": "[183980] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=2, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "184059",
-      "error": "[184059] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "184096",
-      "error": "[184096] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "184252",
-      "error": "[184252] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "18441",
-      "error": "[18441] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "184539",
-      "error": "[184539] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "184702",
-      "error": "[184702] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "184769",
-      "error": "[184769] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "185193",
-      "error": "[185193] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "18479",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "187568",
-      "error": "[187568] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "187577",
-      "error": "[187577] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "188785",
-      "error": "[188785] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "188838",
-      "error": "[188838] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "199411",
-      "error": "[199411] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "199415",
-      "error": "[199415] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "202873",
-      "error": "[202873] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "203057",
-      "error": "[203057] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "203103",
-      "error": "[203103] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "203163",
-      "error": "[203163] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "203218",
-      "error": "[203218] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "203266",
-      "error": "[203266] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "203401",
-      "error": "[203401] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "203412",
-      "error": "[203412] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "204222",
-      "error": "[204222] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "205211",
-      "error": "[205211] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "20529",
-      "error": "[20529] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "207001",
-      "error": "[207001] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "209385",
-      "error": "[209385] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "209418",
-      "error": "[209418] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "[20529] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "209969",
-      "error": "[209969] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "210019",
-      "error": "[210019] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+    },
+    {
+      "dsld_id": "210596",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "212518",
-      "error": "[212518] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "213306",
-      "error": "[213306] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "217247",
-      "error": "[217247] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "217362",
-      "error": "[217362] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "217363",
-      "error": "[217363] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "217376",
-      "error": "[217376] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "219102",
-      "error": "[219102] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "219243",
-      "error": "[219243] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "214221",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "219246",
-      "error": "[219246] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "219550",
-      "error": "[219550] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=2, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "219554",
-      "error": "[219554] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=2, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "219564",
-      "error": "[219564] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "219646",
-      "error": "[219646] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "219648",
-      "error": "[219648] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "219653",
-      "error": "[219653] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "219734",
-      "error": "[219734] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "219735",
-      "error": "[219735] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "220056",
-      "error": "[220056] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "220100",
-      "error": "[220100] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "221030",
-      "error": "[221030] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "221037",
-      "error": "[221037] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "221079",
-      "error": "[221079] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "221100",
-      "error": "[221100] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "221133",
-      "error": "[221133] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "221134",
-      "error": "[221134] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "221150",
-      "error": "[221150] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "221671",
-      "error": "[221671] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "222765",
-      "error": "[222765] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "222781",
-      "error": "[222781] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "222967",
-      "error": "[222967] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "222998",
-      "error": "[222998] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223002",
-      "error": "[223002] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223006",
-      "error": "[223006] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223033",
-      "error": "[223033] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223046",
-      "error": "[223046] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "223084",
-      "error": "[223084] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "223090",
-      "error": "[223090] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223119",
-      "error": "[223119] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223127",
-      "error": "[223127] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223146",
-      "error": "[223146] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223150",
-      "error": "[223150] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "223280",
-      "error": "[223280] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223320",
-      "error": "[223320] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223321",
-      "error": "[223321] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223363",
-      "error": "[223363] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "223388",
-      "error": "[223388] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223422",
-      "error": "[223422] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223454",
-      "error": "[223454] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "223536",
-      "error": "[223536] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223539",
-      "error": "[223539] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "223544",
-      "error": "[223544] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "2246",
-      "error": "[2246] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "224688",
-      "error": "[224688] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "2247",
-      "error": "[2247] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "224722",
-      "error": "[224722] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "224727",
-      "error": "[224727] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "224731",
-      "error": "[224731] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "224766",
-      "error": "[224766] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "224785",
-      "error": "[224785] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "2248",
-      "error": "[2248] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "228893",
-      "error": "[228893] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[2248] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "229109",
-      "error": "[229109] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "229926",
-      "error": "[229926] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "230141",
-      "error": "[230141] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "231195",
-      "error": "[231195] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "231262",
-      "error": "[231262] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "231298",
-      "error": "[231298] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "231305",
-      "error": "[231305] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "231512",
-      "error": "[231512] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "232853",
-      "error": "[232853] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "232956",
-      "error": "[232956] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "232962",
-      "error": "[232962] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "239433",
-      "error": "[239433] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "239537",
-      "error": "[239537] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "239764",
-      "error": "[239764] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "239871",
-      "error": "[239871] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "239891",
-      "error": "[239891] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "241541",
-      "error": "[241541] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "241737",
-      "error": "[241737] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "241908",
-      "error": "[241908] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "242248",
-      "error": "[242248] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "242262",
-      "error": "[242262] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=12, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "242312",
-      "error": "[242312] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[242312] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
-      "dsld_id": "243579",
-      "error": "[243579] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "243676",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "243713",
-      "error": "[243713] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[243713] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "24440",
-      "error": "[24440] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "24460",
-      "error": "[24460] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "24461",
-      "error": "[24461] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "24598",
-      "error": "[24598] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "24600",
-      "error": "[24600] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "24603",
-      "error": "[24603] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "246330",
-      "error": "[246330] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "247382",
-      "error": "[247382] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "247594",
-      "error": "[247594] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "251227",
-      "error": "[251227] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "251233",
-      "error": "[251233] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "251234",
-      "error": "[251234] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "251236",
-      "error": "[251236] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[246330] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "25167",
-      "error": "[25167] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "25915",
-      "error": "[25915] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "25595",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "25935",
-      "error": "[25935] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "259731",
-      "error": "[259731] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "260367",
-      "error": "[260367] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "260385",
-      "error": "[260385] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "260616",
-      "error": "[260616] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "261071",
-      "error": "[261071] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "261620",
-      "error": "[261620] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "261672",
-      "error": "[261672] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "26289",
-      "error": "[26289] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "26310",
-      "error": "[26310] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "26321",
-      "error": "[26321] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "26372",
-      "error": "[26372] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "26415",
-      "error": "[26415] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "26419",
-      "error": "[26419] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=7, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "26493",
-      "error": "[26493] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "26568",
-      "error": "[26568] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "266815",
-      "error": "[266815] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "267311",
-      "error": "[267311] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "267643",
-      "error": "[267643] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "268245",
-      "error": "[268245] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "268296",
-      "error": "[268296] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[268245] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "268365",
-      "error": "[268365] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[268365] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "268390",
-      "error": "[268390] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "268450",
-      "error": "[268450] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "268483",
-      "error": "[268483] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "268524",
-      "error": "[268524] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[268524] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "268533",
-      "error": "[268533] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[268533] raw DSLD disclosed 2 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "268535",
-      "error": "[268535] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[268535] raw DSLD disclosed 3 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "268537",
-      "error": "[268537] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "268569",
-      "error": "[268569] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "268615",
-      "error": "[268615] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=7, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "268695",
-      "error": "[268695] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "268718",
-      "error": "[268718] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "269278",
-      "error": "[269278] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269321",
-      "error": "[269321] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "269323",
-      "error": "[269323] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "269402",
-      "error": "[269402] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269425",
-      "error": "[269425] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "269490",
-      "error": "[269490] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269649",
-      "error": "[269649] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269651",
-      "error": "[269651] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269655",
-      "error": "[269655] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269666",
-      "error": "[269666] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269671",
-      "error": "[269671] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269677",
-      "error": "[269677] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "269691",
-      "error": "[269691] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269727",
-      "error": "[269727] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269747",
-      "error": "[269747] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269803",
-      "error": "[269803] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269836",
-      "error": "[269836] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269949",
-      "error": "[269949] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "269952",
-      "error": "[269952] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "270257",
-      "error": "[270257] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "270263",
-      "error": "[270263] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=9, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "270330",
-      "error": "[270330] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "[270263] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=9, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "270397",
-      "error": "[270397] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "270400",
-      "error": "[270400] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "270515",
-      "error": "[270515] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "270516",
-      "error": "[270516] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "270607",
-      "error": "[270607] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "270608",
-      "error": "[270608] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "270614",
-      "error": "[270614] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "270617",
-      "error": "[270617] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "270619",
-      "error": "[270619] raw DSLD disclosed 2 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "270620",
-      "error": "[270620] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "270621",
-      "error": "[270621] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "270771",
-      "error": "[270771] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "270795",
-      "error": "[270795] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "270796",
-      "error": "[270796] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "270961",
-      "error": "[270961] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "271346",
-      "error": "[271346] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=2, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "271663",
-      "error": "[271663] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "27191",
-      "error": "[27191] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "273996",
-      "error": "[273996] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=11, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "274597",
-      "error": "[274597] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "277659",
-      "error": "[277659] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "280415",
-      "error": "[280415] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "28417",
-      "error": "[28417] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "284186",
-      "error": "[284186] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "284192",
-      "error": "[284192] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "284198",
-      "error": "[284198] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "284208",
-      "error": "[284208] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "284239",
-      "error": "[284239] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "284241",
-      "error": "[284241] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "284250",
-      "error": "[284250] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "287432",
-      "error": "[287432] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "288627",
-      "error": "[288627] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "288629",
-      "error": "[288629] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "290208",
-      "error": "[290208] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "290590",
-      "error": "[290590] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=7, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "291769",
-      "error": "[291769] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "291773",
-      "error": "[291773] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "291779",
-      "error": "[291779] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "291783",
-      "error": "[291783] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "293931",
-      "error": "[293931] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=7, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "293983",
-      "error": "[293983] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "293996",
-      "error": "[293996] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "294048",
-      "error": "[294048] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "294055",
-      "error": "[294055] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "294073",
-      "error": "[294073] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "295499",
-      "error": "[295499] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "295505",
-      "error": "[295505] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=7, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "297670",
-      "error": "[297670] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "297683",
-      "error": "[297683] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "297684",
-      "error": "[297684] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "298029",
-      "error": "[298029] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "298035",
-      "error": "[298035] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "298066",
-      "error": "[298066] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "298067",
-      "error": "[298067] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "298077",
-      "error": "[298077] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "298078",
-      "error": "[298078] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "298084",
-      "error": "[298084] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "298940",
-      "error": "[298940] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "299218",
-      "error": "[299218] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "299907",
-      "error": "[299907] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "299909",
-      "error": "[299909] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "299910",
-      "error": "[299910] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[299909] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "299952",
-      "error": "[299952] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[299952] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "299953",
-      "error": "[299953] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[299953] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "302653",
-      "error": "[302653] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "302684",
-      "error": "[302684] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "302690",
-      "error": "[302690] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "302702",
-      "error": "[302702] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "302703",
-      "error": "[302703] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "302704",
-      "error": "[302704] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "304444",
-      "error": "[304444] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "305905",
-      "error": "[305905] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "306053",
-      "error": "[306053] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306059",
-      "error": "[306059] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306184",
-      "error": "[306184] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306185",
-      "error": "[306185] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "306191",
-      "error": "[306191] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "306203",
-      "error": "[306203] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306205",
-      "error": "[306205] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "dsld_id": "30568",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "306207",
-      "error": "[306207] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306240",
-      "error": "[306240] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306316",
-      "error": "[306316] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306317",
-      "error": "[306317] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "306318",
-      "error": "[306318] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306321",
-      "error": "[306321] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306327",
-      "error": "[306327] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306332",
-      "error": "[306332] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306350",
-      "error": "[306350] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=11, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "306352",
-      "error": "[306352] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "306353",
-      "error": "[306353] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "306367",
-      "error": "[306367] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306371",
-      "error": "[306371] raw DSLD disclosed 2 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306372",
-      "error": "[306372] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306373",
-      "error": "[306373] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "306374",
-      "error": "[306374] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306376",
-      "error": "[306376] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306391",
-      "error": "[306391] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "306405",
-      "error": "[306405] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "307774",
-      "error": "[307774] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "307775",
-      "error": "[307775] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "307782",
-      "error": "[307782] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "307783",
-      "error": "[307783] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "307784",
-      "error": "[307784] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "307785",
-      "error": "[307785] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "307786",
-      "error": "[307786] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "308229",
-      "error": "[308229] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "308230",
-      "error": "[308230] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308231",
-      "error": "[308231] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308232",
-      "error": "[308232] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308234",
-      "error": "[308234] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308235",
-      "error": "[308235] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308236",
-      "error": "[308236] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308237",
-      "error": "[308237] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308238",
-      "error": "[308238] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "308239",
-      "error": "[308239] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "308241",
-      "error": "[308241] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308288",
-      "error": "[308288] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "308693",
-      "error": "[308693] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "308694",
-      "error": "[308694] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "309604",
-      "error": "[309604] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "309608",
-      "error": "[309608] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "31034",
-      "error": "[31034] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "31105",
-      "error": "[31105] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "31146",
-      "error": "[31146] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "311618",
-      "error": "[311618] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "311619",
-      "error": "[311619] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "311676",
-      "error": "[311676] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "dsld_id": "31141",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "311677",
-      "error": "[311677] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[311677] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "311678",
-      "error": "[311678] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "311679",
-      "error": "[311679] raw DSLD disclosed 2 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "311681",
-      "error": "[311681] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "311683",
-      "error": "[311683] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "311730",
-      "error": "[311730] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "311879",
-      "error": "[311879] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "311946",
-      "error": "[311946] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "312256",
-      "error": "[312256] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "313843",
-      "error": "[313843] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "313912",
-      "error": "[313912] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "315323",
-      "error": "[315323] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "315324",
-      "error": "[315324] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "315593",
-      "error": "[315593] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "315598",
-      "error": "[315598] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "315692",
-      "error": "[315692] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "319643",
-      "error": "[319643] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "322238",
-      "error": "[322238] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "322381",
-      "error": "[322381] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "322382",
-      "error": "[322382] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "322384",
-      "error": "[322384] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "323124",
-      "error": "[323124] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "dsld_id": "326246",
+      "error": "[326246] raw DSLD disclosed 2 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "326247",
-      "error": "[326247] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[326247] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "326258",
-      "error": "[326258] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[326258] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "326266",
-      "error": "[326266] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[326266] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "326267",
-      "error": "[326267] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "326280",
-      "error": "[326280] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=7, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "326281",
-      "error": "[326281] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=7, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "326282",
-      "error": "[326282] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[326282] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "326298",
-      "error": "[326298] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "326299",
-      "error": "[326299] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[326298] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "327403",
-      "error": "[327403] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "327415",
-      "error": "[327415] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "328780",
-      "error": "[328780] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[327403] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "328814",
-      "error": "[328814] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=2, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "328825",
-      "error": "[328825] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "328826",
-      "error": "[328826] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "328828",
-      "error": "[328828] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "329092",
-      "error": "[329092] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=10, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "330885",
-      "error": "[330885] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[329092] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "33511",
-      "error": "[33511] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "33527",
-      "error": "[33527] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[33527] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "33529",
-      "error": "[33529] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "335658",
-      "error": "[335658] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "33585",
-      "error": "[33585] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "33628",
-      "error": "[33628] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "336319",
-      "error": "[336319] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "336326",
-      "error": "[336326] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "336341",
-      "error": "[336341] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "336345",
-      "error": "[336345] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "336362",
-      "error": "[336362] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "336626",
-      "error": "[336626] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "3512",
-      "error": "[3512] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "3527",
-      "error": "[3527] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "35432",
-      "error": "[35432] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "35474",
-      "error": "[35474] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "3552",
-      "error": "[3552] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "35569",
-      "error": "[35569] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "35757",
-      "error": "[35757] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "36053",
-      "error": "[36053] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "36092",
-      "error": "[36092] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "37283",
-      "error": "[37283] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "42300",
-      "error": "[42300] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "42327",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "43425",
-      "error": "[43425] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "43442",
-      "error": "[43442] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "dsld_id": "4844",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "43968",
-      "error": "[43968] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "44037",
-      "error": "[44037] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "4457",
-      "error": "[4457] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "4466",
-      "error": "[4466] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "46304",
-      "error": "[46304] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "46414",
-      "error": "[46414] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "46418",
-      "error": "[46418] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "46419",
-      "error": "[46419] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "47339",
-      "error": "[47339] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "47513",
-      "error": "[47513] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "50564",
-      "error": "[50564] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "50566",
-      "error": "[50566] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "50735",
-      "error": "[50735] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=9, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "4845",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "57157",
-      "error": "[57157] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "59867",
-      "error": "[59867] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "dsld_id": "5776",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "59869",
-      "error": "[59869] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "59872",
-      "error": "[59872] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "59874",
-      "error": "[59874] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "59876",
-      "error": "[59876] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "5884",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "60033",
-      "error": "[60033] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "60034",
-      "error": "[60034] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "60215",
-      "error": "[60215] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "62130",
-      "error": "[62130] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "62193",
-      "error": "[62193] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "63569",
-      "error": "[63569] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "63607",
-      "error": "[63607] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "63608",
-      "error": "[63608] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "63786",
-      "error": "[63786] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "63788",
-      "error": "[63788] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "63945",
-      "error": "[63945] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "63946",
-      "error": "[63946] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "63947",
-      "error": "[63947] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "64074",
-      "error": "[64074] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "64075",
-      "error": "[64075] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "64076",
-      "error": "[64076] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "64081",
-      "error": "[64081] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "64082",
-      "error": "[64082] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "65035",
-      "error": "[65035] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=9, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[64074] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "65938",
-      "error": "[65938] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "66482",
-      "error": "[66482] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "66730",
-      "error": "[66730] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "66781",
-      "error": "[66781] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "66888",
-      "error": "[66888] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "67277",
-      "error": "[67277] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "67594",
-      "error": "[67594] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "68819",
-      "error": "[68819] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "68873",
-      "error": "[68873] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "69274",
-      "error": "[69274] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "69277",
-      "error": "[69277] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "dsld_id": "67310",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "69281",
-      "error": "[69281] raw DSLD disclosed 5 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "69282",
-      "error": "[69282] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "69292",
-      "error": "[69292] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "69300",
-      "error": "[69300] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "69301",
-      "error": "[69301] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "69302",
-      "error": "[69302] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "69303",
-      "error": "[69303] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "69400",
-      "error": "[69400] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "69546",
-      "error": "[69546] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "69333",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "69686",
-      "error": "[69686] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "70049",
-      "error": "[70049] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[70049] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "70057",
-      "error": "[70057] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[70057] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "70623",
-      "error": "[70623] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "72360",
-      "error": "[72360] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "73315",
-      "error": "[73315] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "73337",
-      "error": "[73337] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "73374",
-      "error": "[73374] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "74369",
-      "error": "[74369] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "74486",
-      "error": "[74486] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "74587",
-      "error": "[74587] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=8, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "74631",
-      "error": "[74631] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "74725",
-      "error": "[74725] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "74771",
-      "error": "[74771] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[74771] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "74774",
-      "error": "[74774] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[74774] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
-      "dsld_id": "75025",
-      "error": "[75025] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "74811",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "75026",
-      "error": "[75026] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "74814",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "75188",
-      "error": "[75188] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "[75188] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "75189",
-      "error": "[75189] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "75256",
-      "error": "[75256] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "75261",
-      "error": "[75261] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "75291",
-      "error": "[75291] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "77079",
-      "error": "[77079] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77122",
-      "error": "[77122] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77130",
-      "error": "[77130] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77153",
-      "error": "[77153] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77160",
-      "error": "[77160] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77215",
-      "error": "[77215] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77218",
-      "error": "[77218] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77220",
-      "error": "[77220] raw DSLD disclosed 3 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "[75291] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "77240",
-      "error": "[77240] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "77257",
-      "error": "[77257] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "77285",
-      "error": "[77285] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "78124",
-      "error": "[78124] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "78309",
-      "error": "[78309] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "78355",
-      "error": "[78355] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=9, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "78468",
-      "error": "[78468] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "78483",
-      "error": "[78483] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "79163",
-      "error": "[79163] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "79230",
-      "error": "[79230] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "81666",
-      "error": "[81666] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "81696",
-      "error": "[81696] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "81834",
-      "error": "[81834] raw DSLD disclosed 4 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "81877",
-      "error": "[81877] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "81878",
-      "error": "[81878] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "81902",
-      "error": "[81902] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "82070",
-      "error": "[82070] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "82303",
-      "error": "[82303] raw DSLD disclosed 1 real active(s) but blob has 0 ingredients AND 0 drop reasons. Unexplained drop \u2014 inspect normalize_product flatten path (Sprint E1.2.5)."
-    },
-    {
-      "dsld_id": "82603",
-      "error": "[82603] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "82868",
-      "error": "[82868] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "83047",
-      "error": "[83047] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "83090",
-      "error": "[83090] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "83109",
-      "error": "[83109] all raw actives reclassified as inactive \u2014 likely cleaner classifier bug. raw_actives=11, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
+      "dsld_id": "855",
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-04-28T08:29:57.409938+00:00",
+  "generated_at": "2026-05-02T07:49:52.096541+00:00",
   "integrity": {
-    "contract_failures": 0,
-    "coverage_pct": 60.31,
-    "enriched_input_count": 13236,
+    "contract_failures": 128,
+    "coverage_pct": 60.61,
+    "enriched_input_count": 13746,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 530,
-    "exported_count": 7982,
-    "has_banned_substance": 113,
+    "excluded_by_gate_count": 164,
+    "exported_count": 8331,
+    "has_banned_substance": 88,
     "has_recalled_ingredient": 0,
-    "scored_input_count": 13236,
+    "scored_input_count": 13746,
     "scored_only_count": 0,
-    "scoring_config_checksum": "sha256:1d9d9ea5141016627f487030319ede46d005a45cf2847020f7855e42059b02a7",
-    "skipped_count": 552,
+    "scoring_config_checksum": "sha256:db7b397c1dd1384e7e6a2d1d6a2b7f0fa64b4bb3e2d28c9b9a153a1f4aff40d7",
+    "skipped_count": 186,
     "strict_mode": false,
-    "total_skipped": 552,
-    "verdict_blocked": 113,
-    "verdict_not_scored": 430,
+    "total_skipped": 186,
+    "verdict_blocked": 88,
+    "verdict_not_scored": 128,
     "verdict_unsafe": 0,
     "warning_count": 22
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 7982,
-  "release_staged_at": "2026-04-28T08:29:57Z",
+  "product_count": 8331,
+  "release_staged_at": "2026-05-02T07:49:52Z",
   "schema_version": "1.4.0",
-  "scoring_config_checksum": "sha256:1d9d9ea5141016627f487030319ede46d005a45cf2847020f7855e42059b02a7",
+  "scoring_config_checksum": "sha256:db7b397c1dd1384e7e6a2d1d6a2b7f0fa64b4bb3e2d28c9b9a153a1f4aff40d7",
   "scoring_version": "3.4.0",
   "warnings": [
     {
       "dsld_id": "1631",
-      "error": "[1631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[1631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "1632",
-      "error": "[1632] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[1632] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "1633",
-      "error": "[1633] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[1633] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "18370",
-      "error": "[18370] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[18370] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "18375",
-      "error": "[18375] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[18375] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "19471",
-      "error": "[19471] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[19471] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "213540",
-      "error": "[213540] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[213540] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "213550",
-      "error": "[213550] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[213550] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "223600",
-      "error": "[223600] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[223600] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "224631",
-      "error": "[224631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[224631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "27275",
-      "error": "[27275] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[27275] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "27307",
-      "error": "[27307] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[27307] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "315314",
-      "error": "[315314] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[315314] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "316107",
-      "error": "[316107] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[316107] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "317643",
-      "error": "[317643] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[317643] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "321926",
-      "error": "[321926] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[321926] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "3671",
-      "error": "[3671] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[3671] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "42298",
-      "error": "[42298] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[42298] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "67304",
-      "error": "[67304] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[67304] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "74440",
-      "error": "[74440] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[74440] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "74456",
-      "error": "[74456] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[74456] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     },
     {
       "dsld_id": "78720",
-      "error": "[78720] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' \u2014 rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
+      "error": "[78720] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
     }
   ]
 }
