@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
@@ -80,6 +81,18 @@ Future<void> _runApp() async {
     supabaseReady = true;
   } on Exception catch (e) {
     debugPrint('Supabase init skipped: $e');
+  }
+
+  // Eager-load all 25 controlled vocabularies in parallel so render-path
+  // widgets can do sync VocabRegistry.instance.verdict(id)?.name lookups
+  // without FutureBuilder. Soft-fail: if a vocab asset is missing the
+  // registry stays empty for that vocab and call sites fall back to
+  // legacy hardcoded labels (drift contracts in test/core/ keep both
+  // sources in lockstep).
+  try {
+    await VocabRegistry.instance.init();
+  } on Object catch (e) {
+    debugPrint('[vocab-registry] init failed (non-fatal): $e');
   }
 
   final userDb = await openUserDatabase();

@@ -32,12 +32,16 @@ void main() {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
-      expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 6);
+      // 1.1.0 added `no_data` as 7th severity per integrity-gate audit
+      // (2026-05-02). Flutter Severity enum doesn't yet have a no_data
+      // variant; consumer migration PR will add it or map no_data to a
+      // neutral display path.
+      expect(md['schema_version'], '1.1.0');
+      expect(md['total_entries'], 7);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
-    test('canonical 6 IDs match Severity enum names', () {
+    test('canonical 7 IDs (incl. no_data tier added v1.1.0)', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries =
@@ -53,6 +57,7 @@ void main() {
           'monitor',
           'informational',
           'safe',
+          'no_data',
         }),
       );
     });

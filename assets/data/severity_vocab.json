@@ -1,10 +1,10 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 6 severity tiers used across interaction rules, harmful-additive flags, allergen warnings, and the clinical-risk taxonomy. Carries the full DISPLAY CONTRACT (name + short_label + tone + ui_color + ui_icon + action + notes) per the cross-cutting rule in REFERENCE_DATA_LOOKUP_OPPORTUNITIES.md — Flutter is a renderer, not a decision-maker for tone/color/icon. This is the most-repeated descriptive token in the blob ecosystem; centralizing it pays for itself many times over.",
-    "schema_version": "1.0.0",
-    "last_updated": "2026-04-30",
-    "total_entries": 6,
-    "status": "LOCKED — clinician + design alignment 2026-04-30",
+    "description": "Controlled vocabulary for the 7 severity tiers used across interaction rules, harmful-additive flags, allergen warnings, and the clinical-risk taxonomy. Carries the full DISPLAY CONTRACT (name + short_label + tone + ui_color + ui_icon + action + notes) per the cross-cutting rule in REFERENCE_DATA_LOOKUP_OPPORTUNITIES.md — Flutter is a renderer, not a decision-maker for tone/color/icon. This is the most-repeated descriptive token in the blob ecosystem; centralizing it pays for itself many times over.",
+    "schema_version": "1.1.0",
+    "last_updated": "2026-05-02",
+    "total_entries": 7,
+    "status": "LOCKED — clinician + design alignment 2026-05-02 (added no_data tier per integrity-gate audit)",
     "purpose": "Display contract for the 6 canonical severities emitted by enrich_supplements_v3 / interaction-rules engine and consumed by Flutter alert widgets. Each entry carries the locked name/short_label/tone/ui_color/ui_icon/action — Flutter renders verbatim.",
     "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json (`severity` field), scripts/data/clinical_risk_taxonomy.json (`severity_levels` taxonomy id field). Flutter consumer: lib/core/constants/severity.dart (replaces enum-embedded labels).",
     "field_contract": {
@@ -88,6 +88,16 @@
       "ui_icon": "check",
       "action": "Use as directed",
       "notes": "No interaction or sensitivity flagged. Use as directed on the label."
+    },
+    {
+      "id": "no_data",
+      "name": "Insufficient data",
+      "short_label": "No data",
+      "tone": "neutral",
+      "ui_color": "gray",
+      "ui_icon": "info",
+      "action": "Discuss with provider",
+      "notes": "Pregnancy, lactation, or interaction evidence is unavailable for this combination. Treat with caution and consult your provider."
     }
   ]
 }

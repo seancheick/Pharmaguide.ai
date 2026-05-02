@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 
 /// Returns true when a verdict string represents a hard-stop
@@ -58,8 +59,21 @@ class VerdictBadge extends StatelessWidget {
   }
 
   /// Human-friendly label. Avoids all-caps for verdicts longer than 12 chars.
+  ///
+  /// Vocab-first lookup (added 2026-05-02): if VocabRegistry is initialized
+  /// and contains the verdict ID, returns vocab[id].name. Falls back to the
+  /// legacy switch for retired labels still cached in older blobs
+  /// (RECOMMENDED, GOOD, MODERATE, REVIEW, NOT_SCORED) and for the early-
+  /// boot window before VocabRegistry.init() completes.
+  ///
+  /// The drift-contract test in test/core/verdict_vocab_drift_test.dart
+  /// asserts vocab labels match this switch — both sources stay in lockstep
+  /// until the legacy switch is deleted in a follow-up cleanup PR.
   static String labelFor(String verdict) {
-    switch (verdict.trim().toUpperCase()) {
+    final id = verdict.trim().toUpperCase();
+    final fromVocab = VocabRegistry.instance.verdict(id);
+    if (fromVocab != null) return fromVocab.name;
+    switch (id) {
       case 'RECOMMENDED':
         return 'Recommended';
       case 'SAFE':
