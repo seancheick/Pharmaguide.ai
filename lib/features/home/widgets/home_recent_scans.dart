@@ -357,6 +357,7 @@ class _RecentScanCard extends StatelessWidget {
                       ProductImage(
                         dsldId: product.dsldId,
                         upc: product.upcSku,
+                        dsldImagePath: product.imageThumbnailUrl,
                         productName: product.productName,
                         brandName: product.brandName ?? '',
                         formFactor: product.formFactor,
@@ -366,6 +367,7 @@ class _RecentScanCard extends StatelessWidget {
                   child: ProductImage(
                     dsldId: product.dsldId,
                     upc: product.upcSku,
+                    dsldImagePath: product.imageThumbnailUrl,
                     productName: product.productName,
                     brandName: product.brandName ?? '',
                     formFactor: product.formFactor,
@@ -612,6 +614,7 @@ class _RecentScanListTile extends StatelessWidget {
               flightShuttleBuilder: (_, __, ___, ____, _____) => ProductImage(
                 dsldId: product.dsldId,
                 upc: product.upcSku,
+                dsldImagePath: product.imageThumbnailUrl,
                 productName: product.productName,
                 brandName: product.brandName ?? '',
                 formFactor: product.formFactor,
@@ -621,6 +624,7 @@ class _RecentScanListTile extends StatelessWidget {
               child: ProductImage(
                 dsldId: product.dsldId,
                 upc: product.upcSku,
+                dsldImagePath: product.imageThumbnailUrl,
                 productName: product.productName,
                 brandName: product.brandName ?? '',
                 formFactor: product.formFactor,

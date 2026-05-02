@@ -6,13 +6,15 @@ import 'package:pharmaguide/core/widgets/branded_placeholder.dart';
 import 'package:pharmaguide/services/product_image_resolver.dart';
 
 /// Orchestrating widget that displays a real product photo when available
-/// (via Open Food Facts) or falls back to a [BrandedPlaceholder].
+/// (DSLD Supabase image first, then Open Food Facts) or falls back to a
+/// [BrandedPlaceholder].
 ///
 /// Never blocks on loading — shows the placeholder immediately while the
-/// OFF lookup runs in the background, then swaps in the real image.
+/// image lookup runs in the background, then swaps in the real image.
 class ProductImage extends ConsumerWidget {
   final String dsldId;
   final String? upc;
+  final String? dsldImagePath;
   final String productName;
   final String brandName;
   final String? formFactor;
@@ -38,6 +40,7 @@ class ProductImage extends ConsumerWidget {
     super.key,
     required this.dsldId,
     this.upc,
+    this.dsldImagePath,
     required this.productName,
     required this.brandName,
     this.formFactor,
@@ -50,7 +53,11 @@ class ProductImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final imageAsync = ref.watch(
-      _productImageProvider((dsldId: dsldId, upc: upc)),
+      _productImageProvider((
+        dsldId: dsldId,
+        upc: upc,
+        dsldImagePath: dsldImagePath,
+      )),
     );
 
     // Build placeholder once per frame — avoids allocating on every
@@ -95,11 +102,15 @@ class ProductImage extends ConsumerWidget {
 }
 
 /// Parameter record for the family provider.
-typedef _ImageParams = ({String dsldId, String? upc});
+typedef _ImageParams = ({String dsldId, String? upc, String? dsldImagePath});
 
 /// Resolves product image URL via cache → OFF API → null.
 final _productImageProvider = FutureProvider.family
     .autoDispose<String?, _ImageParams>((ref, params) async {
       final resolver = ref.read(productImageResolverProvider);
-      return resolver.resolve(params.dsldId, params.upc);
+      return resolver.resolve(
+        params.dsldId,
+        params.upc,
+        dsldImagePath: params.dsldImagePath,
+      );
     });

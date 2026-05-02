@@ -393,6 +393,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   detailBlob?['banned_substance_detail']
                       as Map<String, dynamic>?,
               upc: _product?.upcSku,
+              dsldImagePath: _product?.imageThumbnailUrl,
               // T11.1 (2026-04-29 PM) — switched from netContents
               // to servingsPerContainer per Sean's live walkthrough.
               // Net contents produces awkward strings for liquids
@@ -1591,6 +1592,7 @@ class _HeaderSection extends ConsumerWidget {
   final List<Map<String, dynamic>> topWarnings;
   final Map<String, dynamic>? bannedSubstanceDetail;
   final String? upc;
+  final String? dsldImagePath;
 
   /// User-facing dosing summary (e.g., `"1 capsule daily"`,
   /// `"1-2 caps daily"`). Pulled from `_product.dosingSummary`. Null
@@ -1617,6 +1619,7 @@ class _HeaderSection extends ConsumerWidget {
     required this.topWarnings,
     this.bannedSubstanceDetail,
     this.upc,
+    this.dsldImagePath,
     this.dosingSummary,
     this.servingsPerContainer,
   });
@@ -1707,6 +1710,7 @@ class _HeaderSection extends ConsumerWidget {
                         ProductImage(
                           dsldId: dsldId,
                           upc: upc,
+                          dsldImagePath: dsldImagePath,
                           productName: productName,
                           brandName: brandName,
                           formFactor: formFactor,
@@ -1717,6 +1721,7 @@ class _HeaderSection extends ConsumerWidget {
                     child: ProductImage(
                       dsldId: dsldId,
                       upc: upc,
+                      dsldImagePath: dsldImagePath,
                       productName: productName,
                       brandName: brandName,
                       formFactor: formFactor,

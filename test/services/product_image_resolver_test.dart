@@ -54,6 +54,42 @@ void main() {
   };
 
   group('ProductImageResolver', () {
+    test('absolute DSLD image URL wins over OFF cache and API', () async {
+      await db.cacheImageUrl('dsld-img', 'https://cached.off.example/img.jpg');
+
+      var apiCalled = false;
+      final client = MockClient((request) async {
+        apiCalled = true;
+        return http.Response('{}', 200);
+      });
+      final resolver = ProductImageResolver(db, httpClient: client);
+
+      final result = await resolver.resolve(
+        'dsld-img',
+        '123456789',
+        dsldImagePath: 'https://cdn.example.com/product-images/dsld-img.webp',
+      );
+
+      expect(
+        result,
+        equals('https://cdn.example.com/product-images/dsld-img.webp'),
+      );
+      expect(apiCalled, isFalse);
+    });
+
+    test('DSLD image path normalization strips bucket prefix', () {
+      expect(
+        ProductImageResolver.normalizeDsldImageObjectPath(
+          'product-images/123.webp',
+        ),
+        equals('123.webp'),
+      );
+      expect(
+        ProductImageResolver.normalizeDsldImageObjectPath('/456.webp'),
+        equals('456.webp'),
+      );
+    });
+
     test('OFF API returns image → URL returned and cached', () async {
       const expectedUrl = 'https://images.off.org/test.jpg';
       final client = mockOff(httpStatus: 200, body: successBody(expectedUrl));

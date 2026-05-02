@@ -5,13 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 
 /// Resolves the best available product image URL for a given product.
 ///
 /// Priority:
-///   1. Local cache hit (user_data.db product_image_cache)
-///   2. Open Food Facts API lookup by UPC barcode
-///   3. null → caller renders BrandedPlaceholder
+///   1. DSLD extracted image from Supabase Storage when products_core carries
+///      image_thumbnail_url
+///   2. Local Open Food Facts cache hit (user_data.db product_image_cache)
+///   3. Open Food Facts API lookup by UPC barcode
+///   4. null → caller renders BrandedPlaceholder
 ///
 /// Caching:
 ///   - Positive results (real URL): 30 days
@@ -50,8 +54,16 @@ class ProductImageResolver {
   }
 
   /// Returns the best image URL for a product, or null for placeholder.
-  Future<String?> resolve(String dsldId, String? upc) async {
-    // 1. Check cache
+  Future<String?> resolve(
+    String dsldId,
+    String? upc, {
+    String? dsldImagePath,
+  }) async {
+    // 1. Prefer pipeline-extracted DSLD image when the core DB says one exists.
+    final dsldImageUrl = dsldImagePublicUrl(dsldImagePath);
+    if (dsldImageUrl != null) return dsldImageUrl;
+
+    // 2. Check Open Food Facts cache
     final cached = await _userDb.getCachedImage(dsldId);
     if (cached != null) {
       final age = DateTime.now().difference(cached.cachedAt);
@@ -63,13 +75,13 @@ class ProductImageResolver {
       // Cache expired — fall through to re-query
     }
 
-    // 2. No UPC → can't query OFF
+    // 3. No UPC → can't query OFF
     if (upc == null || upc.trim().isEmpty) {
       await _userDb.cacheImageUrl(dsldId, _noImageMarker);
       return null;
     }
 
-    // 3. Query OFF API (rate-limited)
+    // 4. Query OFF API (rate-limited)
     try {
       await _acquireSemaphore();
       try {
@@ -81,6 +93,43 @@ class ProductImageResolver {
       // Network error — don't cache, allow retry next time
       return null;
     }
+  }
+
+  static String? dsldImagePublicUrl(String? rawPath) {
+    if (rawPath == null || rawPath.trim().isEmpty) return null;
+    final trimmed = rawPath.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (SupabaseConfig.isPlaceholder) return null;
+
+    final objectPath = normalizeDsldImageObjectPath(trimmed);
+    if (objectPath == null) return null;
+
+    final baseUrl = SupabaseConfig.url.replaceFirst(RegExp(r'/+$'), '');
+    final encodedPath = objectPath
+        .split('/')
+        .map(Uri.encodeComponent)
+        .join('/');
+    return '$baseUrl/storage/v1/object/public/'
+        '${SupabaseContract.productImageBucket}/$encodedPath';
+  }
+
+  static String? normalizeDsldImageObjectPath(String rawPath) {
+    var value = rawPath.trim();
+    if (value.isEmpty) return null;
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+
+    const bucketPrefix = '${SupabaseContract.productImageBucket}/';
+    while (value.startsWith('/')) {
+      value = value.substring(1);
+    }
+    if (value.startsWith(bucketPrefix)) {
+      value = value.substring(bucketPrefix.length);
+    }
+    return value.isEmpty ? null : value;
   }
 
   Future<String?> _queryOff(String dsldId, String upc) async {

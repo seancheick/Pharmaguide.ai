@@ -57,6 +57,7 @@ class ProductListItem extends StatelessWidget {
                 ProductImage(
                   dsldId: product.dsldId,
                   upc: product.upcSku,
+                  dsldImagePath: product.imageThumbnailUrl,
                   productName: product.productName,
                   brandName: product.brandName ?? '',
                   formFactor: product.formFactor,
@@ -175,6 +176,7 @@ class ProductGridItem extends StatelessWidget {
                 ProductImage(
                   dsldId: product.dsldId,
                   upc: product.upcSku,
+                  dsldImagePath: product.imageThumbnailUrl,
                   productName: product.productName,
                   brandName: product.brandName ?? '',
                   formFactor: product.formFactor,
