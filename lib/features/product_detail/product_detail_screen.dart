@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
@@ -22,35 +21,34 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
-import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/hero_verdict_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 import 'package:pharmaguide/features/product_detail/blend_grouping.dart';
 import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
-import 'package:pharmaguide/features/product_detail/widgets/blend_warning_banner.dart';
+import 'package:pharmaguide/features/product_detail/widgets/label_confidence_card.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_card.dart';
+import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
+import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
-import 'package:pharmaguide/features/product_detail/widgets/alert_summary_card.dart';
+import 'package:pharmaguide/features/product_detail/allergen_match.dart';
+import 'package:pharmaguide/features/product_detail/widgets/review_before_use_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/personal_fit_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/transparency_footer.dart';
-import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
-import 'package:pharmaguide/features/product_detail/widgets/product_status_chip.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_breakdown_card.dart';
-import 'package:pharmaguide/features/product_detail/widgets/unmapped_actives_disclosure.dart';
-import 'package:pharmaguide/features/product_detail/widgets/unknown_ingredient_banner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Product detail screen.
@@ -83,167 +81,22 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   final GlobalKey _alternativesKey = GlobalKey();
 
 
-  // Personalized interaction warnings from live DB lookup against user's
-  // stack. These supplement the static blob-parsed warnings with
-  // "Because you're taking X" context. Spec §9.2.
-  List<InteractionWarning> _personalizedWarnings = const [];
+  // Personalized interaction warnings live in
+  // `personalizedInteractionWarningsProvider` (T1B, sprint:
+  // docs/sprints/product_detail_page_sprint.md). The provider watches
+  // `activeStackProvider`, so stack mutations from anywhere in the app
+  // trigger a rebuild here automatically — no setState needed.
 
   @override
   void initState() {
     super.initState();
     _loadProduct();
-    _loadPersonalizedInteractions();
   }
 
   // T17 (2026-04-30) — `_stackEntry` field + `_loadStackEntry` removed
   // alongside RefillReminderCard. The stack-entry lookup powered the
   // refill card's days-remaining math; with the card deleted, the
   // lookup is dead weight.
-
-  /// Query the bundled InteractionDatabase for interactions between this
-  /// product's ingredients and the user's current stack. Maps results to
-  /// [InteractionWarning] with "Because you're taking [X]" context.
-  Future<void> _loadPersonalizedInteractions() async {
-    try {
-      final interactionDb = ref.read(interactionDatabaseProvider);
-      final userDb = ref.read(userDatabaseProvider);
-      final coreDb = ref.read(coreDatabaseProvider);
-
-      final product = await coreDb.findById(widget.dsldId);
-      if (product == null || !mounted) return;
-
-      final stack = await userDb.getActiveStack();
-      if (stack.isEmpty || !mounted) return;
-
-      // Extract canonical IDs from this product's key_ingredient_tags
-      // (primary) and herbs from fingerprint (secondary).
-      final canonicalIds = _extractCanonicalIds(
-        product.keyIngredientTags,
-        product.ingredientFingerprint,
-      );
-      if (canonicalIds.isEmpty) return;
-
-      final checker = StackInteractionChecker();
-      final warnings = <InteractionWarning>[];
-      final seenIds = <String>{};
-
-      // Check against stack supplements.
-      final supplements = stack
-          .where((e) => e.type == 'supplement')
-          .toList(growable: false);
-      if (supplements.isNotEmpty) {
-        final hits = await checker.checkSupplementPairInteractions(
-          newProductCanonicalIds: canonicalIds,
-          stackSupplements: supplements,
-          db: interactionDb,
-          newProductName: product.productName,
-        );
-        for (final hit in hits) {
-          if (seenIds.add(hit.id)) {
-            warnings.add(_interactionResultToWarning(hit));
-          }
-        }
-      }
-
-      // Check against stack medications.
-      final medications = stack
-          .where((e) => e.type == 'medication')
-          .toList(growable: false);
-      if (medications.isNotEmpty) {
-        final hits = await checker.checkMedicationInteractions(
-          newProductCanonicalIds: canonicalIds,
-          stackMedications: medications,
-          db: interactionDb,
-          newProductName: product.productName,
-        );
-        for (final hit in hits) {
-          if (seenIds.add(hit.id)) {
-            warnings.add(_interactionResultToWarning(hit));
-          }
-        }
-      }
-
-      if (mounted && warnings.isNotEmpty) {
-        setState(() => _personalizedWarnings = warnings);
-      }
-    } on UnimplementedError {
-      // Provider stub not overridden (test environment) — fall back to
-      // blob-only warnings. This is the only Error we intentionally catch.
-    } on Exception {
-      // Non-fatal — personalized warnings are a bonus on top of blob
-      // warnings. If the interaction DB is missing or corrupt, we
-      // silently fall back to blob-only.
-    }
-  }
-
-  /// Extract canonical ingredient IDs for interaction matching.
-  ///
-  /// Primary source: [tagsJson] from `key_ingredient_tags` column — a JSON
-  /// array like `["iron", "calcium", "vitamin_d"]`.
-  ///
-  /// Secondary source: `herbs` list inside [fingerprintJson] for herbal
-  /// products whose canonical IDs live in the fingerprint's herbs array.
-  ///
-  /// Previous implementation read fingerprint top-level map keys which
-  /// always returned structural keys (`nutrients`, `herbs`, etc.), not
-  /// actual ingredient IDs. Fixed 2026-04-14.
-  static List<String> _extractCanonicalIds(
-    String? tagsJson,
-    String? fingerprintJson,
-  ) {
-    final ids = <String>{};
-
-    // Primary: key_ingredient_tags.
-    if (tagsJson != null && tagsJson.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(tagsJson);
-        if (decoded is List) {
-          for (final tag in decoded) {
-            final s = tag.toString().toLowerCase().trim();
-            if (s.isNotEmpty) ids.add(s);
-          }
-        }
-      } on FormatException {
-        // Fall through.
-      }
-    }
-
-    // Secondary: herbs from ingredient_fingerprint.
-    if (fingerprintJson != null && fingerprintJson.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(fingerprintJson);
-        if (decoded is Map) {
-          final herbs = decoded['herbs'];
-          if (herbs is List) {
-            for (final h in herbs) {
-              final s = h.toString().toLowerCase().trim();
-              if (s.isNotEmpty) ids.add(s);
-            }
-          }
-        }
-      } on FormatException {
-        // Best-effort.
-      }
-    }
-
-    return ids.toList(growable: false);
-  }
-
-  /// Maps an [InteractionResult] from the curated DB to an
-  /// [InteractionWarning] that the existing [InteractionWarningsList]
-  /// widget can render. Adds "Because you're taking [X]" context.
-  static InteractionWarning _interactionResultToWarning(
-    InteractionResult result,
-  ) {
-    return InteractionWarning(
-      severity: result.severity,
-      evidenceLevel: result.evidenceLevel,
-      title: 'Because you\'re taking ${result.agent2Name}',
-      mechanism: result.mechanism,
-      management: result.management,
-      sourceUrls: result.sourceUrls,
-    );
-  }
 
   Future<void> _loadProduct() async {
     final coreDb = ref.read(coreDatabaseProvider);
@@ -320,13 +173,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // Personalized warnings (from InteractionDatabase) appear first,
     // followed by generic blob warnings — deduped by (mechanism, severity)
     // to avoid showing the same interaction twice from different sources.
+    // T1B (sprint product_detail_page_sprint.md): personalized warnings
+    // come from a Riverpod family that watches activeStackProvider, so
+    // stack mutations propagate without a screen restart.
+    final personalizedWarnings = ref
+            .watch(personalizedInteractionWarningsProvider(widget.dsldId))
+            .valueOrNull ??
+        const <InteractionWarning>[];
     final blobWarnings = _parseWarnings(detailBlob);
     final seenKeys = <String>{
-      for (final w in _personalizedWarnings)
+      for (final w in personalizedWarnings)
         '${w.severity.name}:${w.mechanism}',
     };
     final warnings = <InteractionWarning>[
-      ..._personalizedWarnings,
+      ...personalizedWarnings,
       ...blobWarnings.where(
         (w) => !seenKeys.contains('${w.severity.name}:${w.mechanism}'),
       ),
@@ -455,85 +315,55 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
 
           // ----------------------------------------------------------------
-          // T13 — Alert Summary card. Compact count + scroll-to,
-          // hides itself when no alerts fire. Sits above the existing
-          // _ConditionAlertBanner; the two surfaces complement each
-          // other (count vs. condition list). Both will be revisited
-          // in T17/T19 when the page IA finalizes.
+          // T2A (sprint product_detail_page_sprint.md) — unified
+          // "Review before use" card. Replaces AlertSummaryCard +
+          // _ConditionAlertBanner with a single severity-toned card
+          // that also surfaces personalized allergen rows when the
+          // product blob ships structured allergens (Phase 7B/8).
           // ----------------------------------------------------------------
           if (!isBlocked)
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  0,
-                  AppTheme.space20,
-                  AppTheme.space12,
-                ),
-                child: AlertSummaryCard(warnings: guardedWarnings),
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // Condition alert banner (interaction summary hint)
-          // ----------------------------------------------------------------
-          if (interactionHint.isNotEmpty)
-            SliverToBoxAdapter(
-              child: _ConditionAlertBanner(
-                hint: interactionHint,
-                // T4 follow-up — pass the summary so the banner can
-                // gate condition_ids the same way the per-condition
-                // detail cards are gated. Keeps the two surfaces
-                // consistent: if a condition is dropped below, it
-                // shouldn't appear in the banner above.
+              child: ReviewBeforeUseCard(
+                warnings: guardedWarnings,
+                interactionHint: interactionHint,
                 interactionSummary:
                     detailBlob?['interaction_summary'] as Map<String, dynamic>?,
-                // T16.2e — same dose-aware view as §7 below.
                 ingredientDoses: ingredientDoses,
+                matchedAllergens: matchAllergens(
+                  profile.allergens,
+                  detailBlob?['allergens'] as List<dynamic>?,
+                ),
               ),
             ),
 
           // ----------------------------------------------------------------
-          // FLTR-4 — neutral product status. It stays below the primary
-          // risk strip so discontinued/reformulated metadata never competes
-          // with profile safety guidance.
+          // T3 (sprint product_detail_page_sprint.md) — unified
+          // "Label confidence" card. Replaces ProductStatusChip,
+          // UnknownIngredientBanner, BlendWarningBanner, and
+          // UnmappedActivesDisclosure (the latter is also unwired
+          // from DeepDive). Card hides itself when no signal fires.
           // ----------------------------------------------------------------
-          if (detailBlob?['product_status'] is Map)
-            SliverToBoxAdapter(
-              child: ProductStatusChip(
+          if (!isBlocked &&
+              LabelConfidenceCard.hasAnySignal(
+                mappedCoverage: mappedCoverage,
+                hasProprietaryBlends: hasProprietaryBlends,
+                isNotScored: isNotScored,
                 productStatus:
-                    detailBlob!['product_status'] as Map<String, dynamic>,
-              ),
-            ),
-
-          // ----------------------------------------------------------------
-          // Coverage / blend banners — full-bleed feel, tighter spacing
-          // ----------------------------------------------------------------
-          if (!isBlocked) ...[
+                    detailBlob?['product_status'] as Map<String, dynamic>?,
+                unmappedActives:
+                    detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
+              ))
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.space20,
-                  0,
-                  AppTheme.space20,
-                  AppTheme.space8,
-                ),
-                child: UnknownIngredientBanner(mappedCoverage: mappedCoverage),
+              child: LabelConfidenceCard(
+                mappedCoverage: mappedCoverage,
+                hasProprietaryBlends: hasProprietaryBlends,
+                isNotScored: isNotScored,
+                productStatus:
+                    detailBlob?['product_status'] as Map<String, dynamic>?,
+                unmappedActives:
+                    detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
               ),
             ),
-            if (hasProprietaryBlends)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppTheme.space20,
-                    0,
-                    AppTheme.space20,
-                    AppTheme.space8,
-                  ),
-                  child: BlendWarningBanner(),
-                ),
-              ),
-          ],
 
           // ----------------------------------------------------------------
           // Score breakdown — generous breathing room
@@ -613,9 +443,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
-          // Allergen summary banner
+          // Allergen summary banner — legacy free-text fallback for
+          // products that don't yet have structured `detailBlob['allergens']`.
+          // T2A: suppressed when ReviewBeforeUseCard rendered personalized
+          // allergen rows from the structured list.
           // ----------------------------------------------------------------
-          if (!isBlocked && _product?.allergenSummary != null)
+          if (!isBlocked &&
+              _product?.allergenSummary != null &&
+              matchAllergens(
+                profile.allergens,
+                detailBlob?['allergens'] as List<dynamic>?,
+              ).isEmpty)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -1050,283 +888,6 @@ List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
 }
 
 
-// ---------------------------------------------------------------------------
-// Condition alert banner
-// ---------------------------------------------------------------------------
-
-/// Parses the pipeline's `interaction_summary_hint` JSON blob and renders
-/// a banner **only when relevant to this user**.
-///
-/// The hint field stores a JSON dict like:
-/// ```json
-/// {"has_any": true, "highest_severity": "avoid",
-///  "condition_ids": ["hypertension", "surgery_scheduled"],
-///  "drug_class_ids": ["anticoagulants", "statins"]}
-/// ```
-///
-/// Rendering rules:
-///   - `has_any == false` → nothing (no banner at all)
-///   - User has matching conditions/drug classes → specific warning with
-///     only the matched items, tone matches `highest_severity`
-///   - User has profile data but no matches → nothing (no personal risk)
-///   - User has NO profile data → generic "has interactions, complete
-///     your profile" nudge in neutral tone
-class _ConditionAlertBanner extends ConsumerWidget {
-  final String hint;
-
-  /// Pipeline `interaction_summary` blob — passed in so the banner can
-  /// gate `parsed.conditionIds` against T4's threshold table. Without
-  /// it, the banner will surface "Use with caution — your conditions:
-  /// Diabetes" even when every diabetes-tagged warning was suppressed
-  /// downstream (Vit D positive for diabetes, etc). Optional for back-
-  /// compat with call sites that don't have the summary loaded yet.
-  final Map<String, dynamic>? interactionSummary;
-
-  /// T16.2e (2026-04-30) — ingredient-dose map (canonical name →
-  /// {value, unit}) extracted from the detail blob. Lets
-  /// `gateInteractionSummary` apply per-ingredient dose-threshold
-  /// gating, which suppresses banner conditionIds whose only surviving
-  /// ingredients are all sub-clinical. Optional for back-compat —
-  /// without it the gate falls back to positive-only filtering.
-  final Map<String, IngredientDose>? ingredientDoses;
-
-  const _ConditionAlertBanner({
-    required this.hint,
-    this.interactionSummary,
-    this.ingredientDoses,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final parsed = _parseHint(hint);
-    if (parsed == null || parsed.hasAny != true) {
-      return const SizedBox.shrink();
-    }
-
-    // T4 follow-up (2026-04-29 PM) — gate the hint's conditionIds
-    // against the gated `condition_summary`. Conditions whose
-    // ingredients are all `positive` for them got dropped by
-    // `gateInteractionSummary`; if a condition isn't in the surviving
-    // map, drop it from the banner too. Otherwise the banner says
-    // "your conditions: Diabetes" but scrolling down reveals no
-    // matching condition card — incoherent surface.
-    final gatedSummary = gateInteractionSummary(
-      interactionSummary,
-      ingredientDoses: ingredientDoses,
-    );
-    final survivingConditionIds =
-        (gatedSummary?['condition_summary'] as Map<String, dynamic>?)
-            ?.keys
-            .toSet();
-    // When the summary isn't available, fall through to the
-    // (ungated) original behavior — better to over-warn than miss.
-    final filteredConditionIds = survivingConditionIds == null
-        ? parsed.conditionIds
-        : parsed.conditionIds
-            .where(survivingConditionIds.contains)
-            .toList(growable: false);
-
-    // Recompute hasAny against the filtered conditions. If everything
-    // got gated AND there are no drug-class warnings, hide the banner.
-    if (filteredConditionIds.isEmpty && parsed.drugClassIds.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final profile = ref.watch(profileProvider);
-    final hasProfile =
-        profile.conditions.isNotEmpty || profile.drugClasses.isNotEmpty;
-
-    final matchedConditions = filteredConditionIds
-        .where(profile.conditions.contains)
-        .toList(growable: false);
-    final matchedDrugClasses = parsed.drugClassIds
-        .where(profile.drugClasses.contains)
-        .toList(growable: false);
-
-    final hasMatches =
-        matchedConditions.isNotEmpty || matchedDrugClasses.isNotEmpty;
-
-    // Profile is populated but nothing overlaps — this product has known
-    // interactions but none apply to this user. Show nothing.
-    if (hasProfile && !hasMatches) {
-      return const SizedBox.shrink();
-    }
-
-    // No profile at all — show generic nudge so the user knows personalization
-    // is available.
-    if (!hasProfile) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.space20,
-          AppTheme.space8,
-          AppTheme.space20,
-          AppTheme.space12,
-        ),
-        child: PGSeverityBanner(
-          tone: PGBannerTone.neutral,
-          title: 'This product has known interactions',
-          body:
-              'Add your health conditions and medications to get '
-              'warnings personalized to your profile.',
-          actionLabel: 'Complete profile',
-          onAction: () => GoRouter.of(context).push(Routes.profileSetup),
-        ),
-      );
-    }
-
-    // Profile populated AND matches found — show specific warning.
-    //
-    // T16.2a (2026-04-30) — recompute severity from MATCHED entries
-    // only. `parsed.highestSeverity` is the pipeline's overall
-    // highest severity across the whole product, including warnings
-    // that don't match this user. Walking the gated
-    // `condition_summary` / `drug_class_summary` for matched IDs only
-    // gives us the severity that's actually relevant to this user,
-    // so the banner title matches the warnings rendered below.
-    // Falls back to `parsed.highestSeverity` if the gated summary
-    // lacks per-entry severities (defensive — over-warn rather than
-    // under-warn).
-    final matchedSeverity = computeMatchedHighestSeverity(
-      gatedSummary: gatedSummary,
-      matchedConditionIds: matchedConditions,
-      matchedDrugClassIds: matchedDrugClasses,
-      fallback: parsed.highestSeverity,
-    );
-    final tone = _toneFor(matchedSeverity);
-    final title = _titleFor(matchedSeverity);
-    final body = _buildMatchBody(
-      matchedConditions: matchedConditions,
-      matchedDrugClasses: matchedDrugClasses,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.space20,
-        AppTheme.space8,
-        AppTheme.space20,
-        AppTheme.space12,
-      ),
-      child: PGSeverityBanner(tone: tone, title: title, body: body),
-    );
-  }
-
-  static _InteractionHint? _parseHint(String raw) {
-    if (raw.isEmpty) return null;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return null;
-      final map = Map<String, dynamic>.from(decoded);
-      return _InteractionHint(
-        hasAny: map['has_any'] == true,
-        highestSeverity:
-            (map['highest_severity'] as String?)?.toLowerCase() ?? '',
-        conditionIds: _listOfStrings(map['condition_ids']),
-        drugClassIds: _listOfStrings(map['drug_class_ids']),
-      );
-    } on FormatException {
-      return null;
-    }
-  }
-
-  static List<String> _listOfStrings(Object? raw) {
-    if (raw is List) {
-      return raw.map((e) => e.toString()).toList(growable: false);
-    }
-    return const [];
-  }
-
-  static PGBannerTone _toneFor(String severity) {
-    switch (severity) {
-      case 'contraindicated':
-      case 'avoid':
-        return PGBannerTone.danger;
-      case 'caution':
-        return PGBannerTone.caution;
-      case 'monitor':
-        return PGBannerTone.info;
-      default:
-        return PGBannerTone.caution;
-    }
-  }
-
-  static String _titleFor(String severity) {
-    switch (severity) {
-      case 'contraindicated':
-        return 'Do not use — contraindicated for your profile';
-      case 'avoid':
-        // FLTR-13 — soften "conflicts with your profile". "Conflict"
-        // reserved for contraindicated tier (where it still applies);
-        // for avoid tier, stay with the severity label + the common
-        // "relevant to your profile" framing the other tiers use.
-        return 'Avoid — relevant to your profile';
-      case 'caution':
-        return 'Use with caution — relevant to your profile';
-      case 'monitor':
-        return 'Worth monitoring — relevant to your profile';
-      default:
-        return 'Relevant to your profile';
-    }
-  }
-
-  static String _buildMatchBody({
-    required List<String> matchedConditions,
-    required List<String> matchedDrugClasses,
-  }) {
-    final parts = <String>[];
-    if (matchedConditions.isNotEmpty) {
-      final labels = matchedConditions.map(_humanLabel).join(', ');
-      parts.add('Your conditions: $labels');
-    }
-    if (matchedDrugClasses.isNotEmpty) {
-      final labels = matchedDrugClasses.map(_humanLabel).join(', ');
-      parts.add('Your medications: $labels');
-    }
-    parts.add('Scroll down for details on which ingredients are affected.');
-    return parts.join('\n');
-  }
-
-  /// snake_case → Title Case with known medical-term overrides so the
-  /// generic transform doesn't produce "Ttc" or "Nsaids".
-  static String _humanLabel(String id) {
-    const overrides = {
-      'ttc': 'Trying to conceive',
-      'nsaids': 'NSAIDs',
-      'ssris': 'SSRIs',
-      'snris': 'SNRIs',
-      'maois': 'MAOIs',
-      'gi_disorders': 'GI disorders',
-      'gerd': 'GERD',
-      'ibs': 'IBS',
-      'ibd': 'IBD',
-      'copd': 'COPD',
-      'pcos': 'PCOS',
-      'adhd': 'ADHD',
-      'hiv_aids': 'HIV/AIDS',
-    };
-    final lower = id.toLowerCase();
-    if (overrides.containsKey(lower)) return overrides[lower]!;
-    return lower
-        .split('_')
-        .where((w) => w.isNotEmpty)
-        .map((w) => w[0].toUpperCase() + w.substring(1))
-        .join(' ');
-  }
-}
-
-/// Lightweight value type for the parsed interaction hint.
-class _InteractionHint {
-  final bool hasAny;
-  final String highestSeverity;
-  final List<String> conditionIds;
-  final List<String> drugClassIds;
-
-  const _InteractionHint({
-    required this.hasAny,
-    required this.highestSeverity,
-    required this.conditionIds,
-    required this.drugClassIds,
-  });
-}
 
 /// Strip noisy numeric or "Tier N" detail strings emitted by the
 /// pipeline (e.g. `score_bonuses[i].detail == "3"` for the delivery
@@ -2202,16 +1763,11 @@ class DetailSection extends ConsumerWidget {
     final ingredientsSummary = blob['ingredients_summary']?.toString() ?? '';
     final whyItems = _extractWhyItems(blob);
 
-    // Interaction summary with condition details
-    final interactionSummary =
-        blob['interaction_summary'] as Map<String, dynamic>?;
-
-    // T16.2e (2026-04-30) — ingredient dose map, used to dose-gate the
-    // condition_summary surface (§7) so sub-clinical aboveDose entries
-    // (PureLean ALA 350mg, Vanadium 50mcg, Niacin 37.5mg) don't leak
-    // through the way they did pre-T16.2e. Same shape as the warnings-
-    // list gate consumes upstream.
-    final ingredientDoses = extractIngredientDoses(blob);
+    // T2A/2B (sprint product_detail_page_sprint.md) — `interactionSummary`
+    // and `ingredientDoses` were previously consumed here for the
+    // `_InteractionConditionDetails` ("Relevant to your health") section,
+    // which has been removed. ReviewBeforeUseCard at the top of the page
+    // already gates these against profile via `gateInteractionSummary`.
 
     // T16.2f (2026-04-30) — proprietary-blend metadata for label-style
     // grouping in the active list. The pipeline emits this whenever a
@@ -2337,47 +1893,16 @@ class DetailSection extends ConsumerWidget {
         // COAs") and the §10 Footer's coverage / sources lines. The
         // standalone gap-list was noise.
         //
-        // ---- §7.1 With your stack (per-profile-entry interactions) ----
-        // T1.8 — one row per drug class / condition the user has on
-        // file: ⚠ when a warning matches, ✓ when none does (positive
-        // trust signal). Tap-expandable for the ⚠ rows showing
-        // mechanism + recommendation + citations. Hides entirely when
-        // the profile has no signals.
-        WithYourStackSection(
-          warnings: guardedWarnings,
-          userConditions: userConditions,
-          userDrugClasses: userDrugClasses,
-        ),
-        if (userConditions.isNotEmpty || userDrugClasses.isNotEmpty)
-          const SizedBox(height: AppTheme.space12),
-
-        // ---- §7.2 Legacy condition-specific details (deferred to
-        // Sprint 3 retire/refactor — moved into the §7 grouping
-        // 2026-04-29 per dev review). ----
-        // T4 follow-up (2026-04-29 PM, post live walkthrough) — pass
-        // the summary through `gateInteractionSummary` so per-condition
-        // ingredient lists drop positive nutrients (Vit D for diabetes,
-        // magnesium for hypertension, etc.). Conditions whose entire
-        // ingredient list was positive get dropped wholesale. Sean's
-        // walkthrough caught this surface bypassing T4's warnings-list
-        // gate. The widget itself self-hides on empty input, so we
-        // unconditionally pass the gated summary.
-        if (interactionSummary != null) ...[
-          _InteractionConditionDetails(
-            // T16.2e — dose-gate the condition_summary surface so
-            // sub-clinical aboveDose entries (ALA, Vanadium, Niacin)
-            // don't leak as "Diabetes — caution — affected by …" while
-            // T4's main gate already suppressed the inline warnings.
-            summary: gateInteractionSummary(
-                  interactionSummary,
-                  ingredientDoses: ingredientDoses,
-                ) ??
-                interactionSummary,
-            userConditions: userConditions,
-            userDrugClasses: userDrugClasses,
-          ),
-          const SizedBox(height: 20),
-        ],
+        // §7.1 / §7.2 — WithYourStackSection + _InteractionConditionDetails
+        // REMOVED 2026-05-05 (Phase 2B / sprint product_detail_page_sprint).
+        // Both were re-rendering the same profile-matched interaction
+        // data ReviewBeforeUseCard already shows at the top of the page.
+        // Useful bits — evidence chip, citation count chip,
+        // tap-to-open citations sheet — were lifted into _AlertRow
+        // inside ReviewBeforeUseCard so users still have one tap to
+        // sources. The "✓ No known interaction" positive trust beat
+        // is dropped per Sean: silence in ReviewBeforeUseCard is
+        // sufficient — no need for a row that says nothing fired.
 
         // ---- §7.2 Other precautions — REMOVED 2026-04-30 ----
         // Sean's call: post-T16.2g the AlertSummaryCard accordion at
@@ -2679,14 +2204,25 @@ class _BlendHeaderTile extends StatelessWidget {
   }
 }
 
-/// A single active ingredient row showing name, dose, form, and category.
+/// A single active ingredient row.
+///
+/// T4A/T4B (sprint product_detail_page_sprint.md) — Material 3 layout:
+///
+///   ┌────────────────────────────────────────────┐
+///   │ Magnesium                          200 mg  │
+///   │ bisglycinate                               │   ← 12sp gray helper
+///   │ [Excellent]  [High dose]                   │   ← M3 chips
+///   └────────────────────────────────────────────┘
+///
+/// Whole row is an InkWell that opens [showIngredientExplainSheet].
+/// The chips also tap into the same sheet — dual targets, single
+/// surface so future-data additions land in one place.
 class _IngredientTile extends StatelessWidget {
   final Map<String, dynamic> ingredient;
 
   /// The UL-analysis entry matched for this ingredient (if any).
   /// Pre-matched by [_CollapsibleIngredients] so we don't re-scan the
-  /// list per tile. Drives the FLTR-11 dose-safety badge on
-  /// [_SafetyTag].
+  /// list per tile.
   final Map<String, dynamic>? ulEntry;
 
   const _IngredientTile({required this.ingredient, this.ulEntry});
@@ -2695,159 +2231,257 @@ class _IngredientTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    // FLTR-2 — prefer the pipeline's pre-formatted display fields.
-    // `display_label` already carries the form (e.g. "Vitamin A Palmitate"
-    // rather than "Vitamin A" with an empty form subtitle), and
-    // `display_dose_label` is the authoritative dose string including
-    // edge cases like "Amount not disclosed" the raw quantity/unit
-    // composition can't represent. Fall back to the raw fields when
-    // the pipeline hasn't populated these (legacy blobs).
+    // v1.5.0 canonical contract — pipeline emits explicit display +
+    // routing fields so Flutter renders them directly without local
+    // inference. See scripts/FINAL_EXPORT_SCHEMA_V1.md for the contract
+    // definitions.
+    //   display_form_label  user-visible form, null when truly unknown
+    //   form_status         'known' | 'unknown'
+    //   display_dose_label  pre-formatted dose string
+    //   dose_status         'disclosed' | 'not_disclosed_blend' | 'missing'
+    //   is_safety_concern   true only for moderate/high/critical hazards
+    // Legacy `form` field is read as a fallback for blobs built before
+    // the v1.5.0 refactor; it will be removed once all consumers migrate.
+    final formStatus = ingredient['form_status']?.toString();
+    final displayFormLabel = ingredient['display_form_label']?.toString().trim();
+    final legacyForm = ingredient['form']?.toString().trim() ?? '';
+    final formLabel = (displayFormLabel != null && displayFormLabel.isNotEmpty)
+        ? displayFormLabel
+        : legacyForm;
+    final hasKnownForm = formStatus != null
+        ? formStatus == 'known'
+        : formLabel.isNotEmpty;
+
     final displayLabel = ingredient['display_label']?.toString().trim();
-    final name = (displayLabel != null && displayLabel.isNotEmpty)
-        ? displayLabel
-        : (ingredient['standard_name']?.toString() ??
-              ingredient['name']?.toString() ??
-              ingredient['raw_source_text']?.toString() ??
-              '');
-    final quantity = ingredient['quantity'];
-    final unit = ingredient['unit']?.toString() ?? '';
-    final form = ingredient['form']?.toString() ?? '';
-    final category = ingredient['category']?.toString() ?? '';
-    final bioScore = ingredient['bio_score'];
+    final cleanName = ingredient['standard_name']?.toString().trim() ??
+        ingredient['name']?.toString().trim() ??
+        ingredient['raw_source_text']?.toString().trim() ??
+        '';
+    final name = (hasKnownForm && cleanName.isNotEmpty)
+        ? cleanName
+        : ((displayLabel != null && displayLabel.isNotEmpty)
+            ? displayLabel
+            : cleanName);
     final isInferredFromName =
         ingredient['display_type'] == 'inferred_from_name' ||
         ingredient['provenance'] == 'product_name_fallback';
 
-    final displayDoseLabel = ingredient['display_dose_label']
-        ?.toString()
-        .trim();
-    final doseLabel = (displayDoseLabel != null && displayDoseLabel.isNotEmpty)
-        ? displayDoseLabel
-        : (quantity != null ? '$quantity $unit'.trim() : '');
+    // Dose: trust display_dose_label (pipeline pre-formats per the
+    // three-class rule "X mg" / "Amount not disclosed" / "—"). The legacy
+    // quantity+unit fallback is retained ONLY for pre-v1.5.0 blobs.
+    final displayDoseLabel = ingredient['display_dose_label']?.toString().trim();
+    final doseStatus = ingredient['dose_status']?.toString();
+    String doseLabel;
+    if (displayDoseLabel != null && displayDoseLabel.isNotEmpty) {
+      doseLabel = displayDoseLabel;
+    } else if (doseStatus == 'missing' || doseStatus == 'not_disclosed_blend') {
+      doseLabel = '';
+    } else {
+      // Legacy fallback for stale blobs.
+      final quantity = ingredient['quantity'];
+      final unit = ingredient['unit']?.toString() ?? '';
+      doseLabel = quantity != null ? '$quantity $unit'.trim() : '';
+    }
 
-    // Compact row — no card border, bottom divider only (premium density)
+    final formQuality = resolveFormQuality(ingredient['bio_score']);
+    final doseCallOut = resolveDoseCallOut(
+      ingredient: ingredient,
+      ulEntry: ulEntry,
+    );
+
+    void openSheet() {
+      showIngredientExplainSheet(
+        context,
+        ingredient: ingredient,
+        ulEntry: ulEntry,
+      );
+    }
+
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.space8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Bioavailability indicator dot
-              Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(right: 10),
-                decoration: BoxDecoration(
-                  color: bioScore != null
-                      ? _bioColor(bioScore)
-                      : scheme.outlineVariant,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              // Name + dose on one line
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        InkWell(
+          onTap: openSheet,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppTheme.space8,
+              horizontal: 4,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name + dose row.
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: theme.textTheme.bodyMedium?.copyWith(
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (doseLabel.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          doseLabel,
+                          style: AppTheme.numeric(
+                            theme.textTheme.labelSmall!.copyWith(
+                              color: scheme.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (doseLabel.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Text(
-                              doseLabel,
-                              style: AppTheme.numeric(
-                                theme.textTheme.labelSmall!.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      runSpacing: 4,
-                      children: [
-                        _SafetyTag(
-                          bioScore: bioScore,
-                          ingredient: ingredient,
-                          ulEntry: ulEntry,
-                        ),
-                        if (isInferredFromName) ...[
-                          const SizedBox(width: 6),
-                          const _IngredientMiniChip(
-                            label: 'Inferred from label',
-                            icon: Icons.manage_search_rounded,
-                            color: AppTheme.insufficientData,
-                          ),
-                        ],
-                        if (form.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            form,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                        if (category.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.primaryContainer.withValues(
-                                alpha: 0.5,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusFull,
-                              ),
-                            ),
-                            child: Text(
-                              category,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: scheme.onPrimaryContainer,
-                                fontSize: 9,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
                   ],
                 ),
-              ),
-            ],
+                // Form helper line (12sp gray) — only when form known.
+                if (hasKnownForm && formLabel.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    formLabel.toLowerCase(),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+                // Chips row — Form chip + Dose chip (when applicable).
+                if (formQuality != FormQuality.unknown ||
+                    doseCallOut != DoseCallOut.withinLimits ||
+                    isInferredFromName) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (formQuality != FormQuality.unknown)
+                        _FormChip(quality: formQuality, onTap: openSheet),
+                      if (doseCallOut != DoseCallOut.withinLimits)
+                        _DoseChip(callOut: doseCallOut, onTap: openSheet),
+                      if (isInferredFromName)
+                        const _IngredientMiniChip(
+                          label: 'Inferred from label',
+                          icon: Icons.manage_search_rounded,
+                          color: AppTheme.insufficientData,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
         Divider(height: 0.5, thickness: 0.5, color: scheme.outlineVariant),
       ],
     );
   }
+}
 
-  Color _bioColor(dynamic score) {
-    final s = (score is num) ? score.toDouble() : 0.0;
-    if (s >= 12) return AppTheme.severitySafe;
-    if (s >= 8) return AppTheme.scoreGood;
-    if (s >= 4) return AppTheme.severityCaution;
-    return AppTheme.severityAvoid;
+/// Form-quality chip — short label per the vocabulary contract.
+/// Bottom tier ("Poor") uses amber, not red — bioavailability is
+/// form quality, not safety.
+class _FormChip extends StatelessWidget {
+  final FormQuality quality;
+  final VoidCallback onTap;
+
+  const _FormChip({required this.quality, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color(quality);
+    final label = formChipLabel(quality);
+    return _PillChip(label: label, color: color, onTap: onTap);
+  }
+
+  static Color _color(FormQuality q) {
+    switch (q) {
+      case FormQuality.excellent:
+        return AppTheme.severitySafe;
+      case FormQuality.good:
+        return AppTheme.scoreGood;
+      case FormQuality.fair:
+        return AppTheme.severityCaution;
+      case FormQuality.poor:
+        // Sean: bottom tier is amber, not red — bioavailability is a
+        // form-quality signal, not a safety signal.
+        return AppTheme.severityCaution;
+      case FormQuality.unknown:
+        return AppTheme.insufficientData;
+    }
+  }
+}
+
+/// Dose chip — surfaces UL exceedance, sub-clinical dose, or
+/// non-disclosed dose. Red only for `High dose` (real safety signal).
+class _DoseChip extends StatelessWidget {
+  final DoseCallOut callOut;
+  final VoidCallback onTap;
+
+  const _DoseChip({required this.callOut, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return _PillChip(
+      label: doseChipLabel(callOut),
+      color: _color(callOut),
+      onTap: onTap,
+    );
+  }
+
+  static Color _color(DoseCallOut d) {
+    switch (d) {
+      case DoseCallOut.high:
+        return AppTheme.severityAvoid; // Red — actual safety signal.
+      case DoseCallOut.low:
+        return AppTheme.severityCaution;
+      case DoseCallOut.notDisclosed:
+        return AppTheme.insufficientData;
+      case DoseCallOut.withinLimits:
+        return AppTheme.severitySafe;
+    }
+  }
+}
+
+/// Compact M3-style pill used by both chips. Tappable; same sheet
+/// target as the parent row.
+class _PillChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _PillChip({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: color,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -2889,349 +2523,11 @@ class _IngredientMiniChip extends StatelessWidget {
   }
 }
 
-/// Compact safety tag chip for ingredients — "Safe", "Caution", or "Risky".
-class _SafetyTag extends StatelessWidget {
-  final dynamic bioScore;
-  final Map<String, dynamic> ingredient;
-
-  /// FLTR-11 — the matched pipeline UL-analysis entry, already
-  /// resolved from `blob.rda_ul_data.analyzed_ingredients` by
-  /// [_CollapsibleIngredients]. Null when the ingredient has no
-  /// corresponding UL row (e.g. not a recognized nutrient or the
-  /// blob doesn't carry the block), in which case we fall through
-  /// to bioScore-based labeling.
-  final Map<String, dynamic>? ulEntry;
-
-  const _SafetyTag({
-    required this.bioScore,
-    required this.ingredient,
-    this.ulEntry,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color, icon) = _resolve();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: color,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  (String, Color, IconData) _resolve() {
-    // FLTR-11 — dose-vs-UL is a pipeline decision. The UI renders
-    // whatever the pipeline's rda_ul_data.analyzed_ingredients block
-    // says, verbatim:
-    //   - UL exceeded      → "High dose" (danger)
-    //   - skip_ul_check    → neutral "Dose not evaluated" state
-    //   - withinLimits     → fall through to bioScore-based labeling
-    // We deliberately do NOT override pipeline decisions in the UI —
-    // even when the pipeline skips UL evaluation on a dose that's
-    // visibly above a known threshold (e.g. the Thorne Vitamin A
-    // 25,000 IU case where pipeline sets skip_ul_check=true with
-    // "unknown_vitamin_form"). Clinical interpretation is owned by
-    // the pipeline. The UI interprets, it does not reinterpret.
-    final doseSafety = resolveDoseSafety(
-      ingredient: ingredient,
-      ulAnalysis: ulEntry == null ? null : <Map<String, dynamic>>[ulEntry!],
-    );
-    switch (doseSafety) {
-      case DoseSafety.exceedsUl:
-        return (
-          'High dose',
-          AppTheme.severityAvoid,
-          Icons.warning_amber_rounded,
-        );
-      case DoseSafety.skip:
-        return (
-          'Dose not evaluated',
-          AppTheme.insufficientData,
-          Icons.help_outline_rounded,
-        );
-      case DoseSafety.withinLimits:
-        break;
-    }
-
-    // Check for explicit flags first
-    final hasWarning =
-        ingredient['has_interaction'] == true ||
-        ingredient['has_warning'] == true;
-    if (hasWarning) {
-      return ('Caution', AppTheme.severityCaution, Icons.warning_amber_rounded);
-    }
-
-    // FLTR-20 — form-quality tag. Replaces the older "Well dosed /
-    // Adequate / Low form / Poor form" vocabulary with the canonical
-    // FormAbsorptionSection tier labels ("Excellent / Good / Fair /
-    // Poor") at the same thresholds the explainer sheet documents
-    // (12 / 8 / 4). Unifies the two tier systems that previously
-    // rendered the same bio_score under two different names.
-    //
-    // bioavailability tiers (pipeline bio_score, 0–18):
-    //   ≥ 12 → Excellent
-    //   ≥ 8  → Good
-    //   ≥ 4  → Fair
-    //   else → Poor
-    final s = (bioScore is num) ? (bioScore as num).toDouble() : -1.0;
-    if (s < 0) {
-      return ('Unknown', AppTheme.insufficientData, Icons.help_outline_rounded);
-    }
-    if (s >= 12) {
-      return ('Excellent', AppTheme.severitySafe, Icons.check_circle_outline);
-    }
-    if (s >= 8) {
-      return ('Good', AppTheme.scoreGood, Icons.check_circle_outline);
-    }
-    if (s >= 4) {
-      return ('Fair', AppTheme.severityCaution, Icons.info_outline);
-    }
-    return ('Poor', AppTheme.severityAvoid, Icons.warning_amber_rounded);
-  }
-}
 
 // _ProConTile removed in T1.6 (2026-04-29) along with its only call
 // site (_WhyThisProductSection). The colored-bullet equivalent now
 // lives as `TradeoffRow` inside `tradeoffs_section.dart`.
 
-/// Shows which specific conditions and drug classes are affected and why.
-///
-/// Filters by the user's actual profile — only conditions the user has
-/// selected and drug classes the user takes are shown. Without this
-/// filter a multivitamin would list every possible condition interaction
-/// regardless of relevance.
-class _InteractionConditionDetails extends StatelessWidget {
-  final Map<String, dynamic> summary;
-  final Set<String> userConditions;
-  final Set<String> userDrugClasses;
-
-  const _InteractionConditionDetails({
-    required this.summary,
-    required this.userConditions,
-    required this.userDrugClasses,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final conditionSummary =
-        summary['condition_summary'] as Map<String, dynamic>? ?? {};
-    final drugClassSummary =
-        summary['drug_class_summary'] as Map<String, dynamic>? ?? {};
-
-    // Filter to only conditions/drug classes in the user's profile.
-    final relevantConditions = conditionSummary.entries
-        .where((e) => userConditions.contains(e.key))
-        .toList();
-    final relevantDrugClasses = drugClassSummary.entries
-        .where((e) => userDrugClasses.contains(e.key))
-        .toList();
-
-    if (relevantConditions.isEmpty && relevantDrugClasses.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          // FLTR-13 — "affect you" reads vague/scary; "relevant to
-          // your health" is neutral and clinical, matching the tone
-          // of the per-severity banners.
-          'Relevant to your health',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-          ),
-        ),
-        const SizedBox(height: 10),
-
-        // Condition details (filtered to user's profile)
-        ...relevantConditions.map((e) {
-          final data = e.value as Map<String, dynamic>? ?? {};
-          final label = data['label']?.toString() ?? e.key;
-          final severity = data['highest_severity']?.toString() ?? '';
-          final ingredients =
-              (data['ingredients'] as List?)
-                  ?.map((i) => i.toString())
-                  .toList() ??
-              [];
-          final actions =
-              (data['actions'] as List?)?.map((a) => a.toString()).toList() ??
-              [];
-          return _ConditionCard(
-            icon: Icons.medical_information_outlined,
-            label: label,
-            severity: severity,
-            ingredients: ingredients,
-            actions: actions,
-          );
-        }),
-
-        // Drug class details (filtered to user's medications)
-        ...relevantDrugClasses.map((e) {
-          final data = e.value as Map<String, dynamic>? ?? {};
-          final label = data['label']?.toString() ?? e.key;
-          final severity = data['highest_severity']?.toString() ?? '';
-          final ingredients =
-              (data['ingredients'] as List?)
-                  ?.map((i) => i.toString())
-                  .toList() ??
-              [];
-          final actions =
-              (data['actions'] as List?)?.map((a) => a.toString()).toList() ??
-              [];
-          return _ConditionCard(
-            icon: Icons.medication_outlined,
-            label: label,
-            severity: severity,
-            ingredients: ingredients,
-            actions: actions,
-          );
-        }),
-      ],
-    );
-  }
-}
-
-/// A card explaining one condition or drug class interaction.
-class _ConditionCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String severity;
-  final List<String> ingredients;
-  final List<String> actions;
-
-  const _ConditionCard({
-    required this.icon,
-    required this.label,
-    required this.severity,
-    required this.ingredients,
-    required this.actions,
-  });
-
-  Color _severityColor() {
-    switch (severity.toLowerCase()) {
-      case 'contraindicated':
-      case 'avoid':
-        return AppTheme.severityContraindicated;
-      case 'caution':
-        return AppTheme.severityCaution;
-      case 'monitor':
-        return AppTheme.severityMonitor;
-      default:
-        return AppTheme.severityCaution;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final color = _severityColor();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.space12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          border: Border.all(color: color.withValues(alpha: 0.2), width: 0.8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: color),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    severity.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (ingredients.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Affected by: ${ingredients.join(", ")}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            if (actions.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              ...actions.map(
-                (a) => Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('  \u2022 ', style: TextStyle(fontSize: 12)),
-                      Expanded(
-                        child: Text(
-                          a,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Shimmer placeholder while detail blob loads
@@ -3485,10 +2781,8 @@ class _DeepDiveSectionState extends State<DeepDiveSection>
                   caloriesPerServing: widget.caloriesPerServing,
                   nutritionDetail: widget.nutritionDetail,
                 ),
-                const SizedBox(height: AppTheme.space8),
-                UnmappedActivesDisclosure(
-                  unmappedActives: widget.unmappedActives,
-                ),
+                // T3 (sprint product_detail_page_sprint.md) —
+                // UnmappedActivesDisclosure moved into LabelConfidenceCard.
               ],
             ),
           ),

@@ -119,6 +119,29 @@ _InactiveSeverityCount _countInactiveSeverity(
   var high = 0;
   var moderate = 0;
   for (final ing in inactives) {
+    // v1.5.0 contract — severity_status enum collapses moderate+high
+    // into "critical" (always show), low into "suppress" (Tradeoffs
+    // only), and non-harmful into "n/a". The summary bullet fires on
+    // the same cluster threshold but counts via severity_status now;
+    // critical maps to "high" and informational to "moderate" so
+    // Sean's locked threshold (≥1 high OR ≥3 moderate OR ≥2 combined)
+    // still applies. Falls back to legacy severity_level for stale
+    // blobs.
+    final statusRaw = ing['severity_status'];
+    if (statusRaw is String && statusRaw.trim().isNotEmpty) {
+      final status = statusRaw.trim().toLowerCase();
+      if (status == 'critical') {
+        high++;
+        continue;
+      } else if (status == 'informational') {
+        moderate++;
+        continue;
+      }
+      // suppress / n/a contribute nothing — silicon dioxide and
+      // similar low-severity excipients route to the Tradeoffs
+      // chip-list directly without escalating the summary.
+      continue;
+    }
     final raw = ing['severity_level'];
     final sev = raw is String ? raw.trim().toLowerCase() : '';
     if (sev == 'high') {

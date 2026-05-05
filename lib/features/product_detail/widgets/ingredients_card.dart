@@ -180,23 +180,35 @@ class _IngredientsCardState extends State<IngredientsCard> {
         ),
         // Animated expand/collapse of the inactive rows. Color-dot
         // (per `inactiveColorRank`, driven by pipeline severity_level)
-        // + name + bottom divider. Tap a row to open the vocab-driven
-        // functional-roles explanation modal.
+        // + name + 1-line role helper + bottom divider. Tap a row to
+        // open the vocab-driven functional-roles explanation modal.
+        //
+        // T4D (sprint product_detail_page_sprint.md) — vocab is loaded
+        // once at this level via FutureBuilder and passed down as a
+        // snapshot. Cold cache / vocab miss → row falls back to
+        // name-only. Tap behavior unchanged.
         AnimatedSize(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           child: _expanded
               ? Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < ingredients.length; i++)
-                        _InactiveRow(
-                          ingredient: ingredients[i],
-                          isLast: i == ingredients.length - 1,
-                        ),
-                    ],
+                  child: FutureBuilder<Map<String, FunctionalRole>>(
+                    future: loadFunctionalRolesVocab(),
+                    builder: (context, snapshot) {
+                      final vocab = snapshot.data;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (var i = 0; i < ingredients.length; i++)
+                            _InactiveRow(
+                              ingredient: ingredients[i],
+                              isLast: i == ingredients.length - 1,
+                              vocab: vocab,
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 )
               : const SizedBox(width: double.infinity),
@@ -206,23 +218,64 @@ class _IngredientsCardState extends State<IngredientsCard> {
   }
 }
 
-/// Single inactive ingredient row: color dot (per [inactiveColorRank])
-/// + name + bottom divider. Tap → vocab-driven functional-roles modal
-/// (see [_showFunctionalRolesSheet]).
+/// Single inactive ingredient row: color dot + name + (optional)
+/// 12sp gray role helper + bottom divider. Tap → vocab-driven
+/// functional-roles modal (see [_showFunctionalRolesSheet]).
 class _InactiveRow extends StatelessWidget {
   final Map<String, dynamic> ingredient;
   final bool isLast;
 
-  const _InactiveRow({required this.ingredient, required this.isLast});
+  /// Pre-loaded functional-roles vocab from the parent
+  /// [IngredientsCard]. Null when the cache is still cold OR the
+  /// asset failed to load — the row falls back to name-only render.
+  final Map<String, FunctionalRole>? vocab;
+
+  const _InactiveRow({
+    required this.ingredient,
+    required this.isLast,
+    this.vocab,
+  });
+
+  /// Comma-joined list of all matched roles for this ingredient,
+  /// capped at 2. Prefers the pipeline's pre-formatted
+  /// `display_role_label` (v1.5.0 canonical contract — single source
+  /// of truth, the cleaner already prettified the role from
+  /// snake_case). Falls back to the vocab lookup against the legacy
+  /// `functional_roles[]` array for blobs built before v1.5.0.
+  String? _roleHelper() {
+    final pipelineLabel = ingredient['display_role_label']?.toString().trim();
+    if (pipelineLabel != null && pipelineLabel.isNotEmpty) {
+      return pipelineLabel;
+    }
+    if (vocab == null) return null;
+    final raw = ingredient['functional_roles'];
+    if (raw is! List) return null;
+    final names = <String>[];
+    for (final r in raw) {
+      final id = r?.toString();
+      if (id == null || id.isEmpty) continue;
+      final hit = vocab![id];
+      if (hit != null && !names.contains(hit.name)) {
+        names.add(hit.name);
+        if (names.length >= 2) break;
+      }
+    }
+    return names.isEmpty ? null : names.join(', ');
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final tone = inactiveColorRank(ingredient);
-    final name = ingredient['name']?.toString() ??
-        ingredient['raw_source_text']?.toString() ??
-        '';
+    // v1.5.0 contract — display_label is the prettified canonical name.
+    // Falls back to legacy `name` / `raw_source_text` for stale blobs.
+    final name = ingredient['display_label']?.toString().trim().isNotEmpty == true
+        ? ingredient['display_label']!.toString().trim()
+        : (ingredient['name']?.toString() ??
+            ingredient['raw_source_text']?.toString() ??
+            '');
+    final roleHelper = _roleHelper();
 
     return PGPressable(
       onTap: () => _showFunctionalRolesSheet(context, ingredient),
@@ -253,12 +306,27 @@ class _InactiveRow extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: Text(
-                  name,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onSurface,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    if (roleHelper != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        roleHelper,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
