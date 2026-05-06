@@ -101,7 +101,7 @@ Widget _wrap(CoreDatabase coreDb, UserDatabase userDb, Widget child) {
   // actually renders a row (not SizedBox.shrink). Required for the
   // ordering assertions below: without a row WithYourStack collapses
   // to 0 height and shares Y with the next section.
-  final profile = const ProfileState(
+  const profile = ProfileState(
     drugClasses: ['anticoagulants'],
   );
   return ProviderScope(

@@ -834,7 +834,7 @@ void main() {
         final result = computeMatchedHighestSeverity(
           gatedSummary: {
             'condition_summary': {
-              'diabetes': {'ingredients': []}, // missing highest_severity
+              'diabetes': {'ingredients': <String>[]}, // missing highest_severity
             },
           },
           matchedConditionIds: const ['diabetes'],

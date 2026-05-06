@@ -4,7 +4,6 @@
 // silently regress what Flutter renders. Mirrors the pipeline-side
 // contract documented at scripts/FINAL_EXPORT_SCHEMA_V1.md (v1.5.0).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 

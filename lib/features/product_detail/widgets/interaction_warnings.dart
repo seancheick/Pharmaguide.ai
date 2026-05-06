@@ -361,9 +361,14 @@ class InteractionWarning {
       );
       return result.fires;
     }
-    // FLTR-1 legacy fallback — pre-v6.0 blob without profile_gate.
-    // Set intersection over plural arrays. Removable once the v1.6.0
-    // catalog DB has fully replaced cached pre-v6.0 detail blobs.
+    // FLTR-1 legacy fallback — pre-v6.0 cached blob without profile_gate.
+    //
+    // TODO(v6.1): remove this branch ~30 days after the v1.6.0 catalog DB
+    // ships to production. By then every active user's local detail
+    // cache will have rolled over to v1.6.0 blobs which always carry
+    // profile_gate. Until then, this fallback keeps cached pre-v6.0
+    // detail blobs functional. Tracking ticket: see commit
+    // dsld_clean@56f1f70 ("v1.6.0 catalog DB profile_gate passthrough").
     if (conditionIds.any(userConditions.contains)) return true;
     if (drugClassIds.any(userDrugClasses.contains)) return true;
     return false;

@@ -264,13 +264,13 @@ void main() {
       'warning without profile_gate falls back to legacy condition_ids '
       'set-intersection (backward compat for cached blobs)',
       (tester) async {
-        final legacy = InteractionWarning(
+        const legacy = InteractionWarning(
           severity: Severity.avoid,
           evidenceLevel: EvidenceLevel.probable,
           title: 'Legacy pregnancy warning (no profile_gate)',
           mechanism: 'm',
           management: 'a',
-          conditionIds: const ['pregnancy'],
+          conditionIds: ['pregnancy'],
           // profileGate intentionally omitted — pre-v6.0 cached blob.
         );
 
