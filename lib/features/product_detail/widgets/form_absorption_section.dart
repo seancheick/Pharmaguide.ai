@@ -1,12 +1,12 @@
-// FormAbsorptionSection — shows per-ingredient bioavailability comparison.
+// FormAbsorptionSection — per-ingredient bioavailability comparison.
 //
-// Reads `ingredients[].bio_score` (0–18 pipeline score) and
-// `ingredients[].form` from the detail blob. Only renders when ≥ 2
-// ingredients have a non-null `bio_score`, so it stays hidden for
-// products where bioavailability data is absent.
+// Reads `ingredients[].bio_score` (0–15, pure form quality) and
+// `ingredients[].form` from the detail blob. Renders only when ≥ 2 ingredients
+// have a non-null `bio_score`, so it stays hidden when comparison is moot.
 //
-// Design principle: show comparative context (glycinate vs oxide) not just
-// a number — that's what helps users make better choices.
+// Contract: bio_score is form/absorption only. Sourcing (natural-source) is
+// scored separately in Section A (A5e) and is intentionally absent from this
+// surface — comparing forms should not be biased by sourcing.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
@@ -18,7 +18,7 @@ class FormAbsorptionSection extends StatelessWidget {
 
   const FormAbsorptionSection({super.key, required this.ingredients});
 
-  /// Human-readable label for a bio_score (0–18).
+  /// Human-readable label for a bio_score (0–15).
   static String bioLabel(num score) {
     if (score >= 12) return 'Excellent';
     if (score >= 8) return 'Good';
@@ -46,7 +46,7 @@ class FormAbsorptionSection extends StatelessWidget {
 
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    const maxScore = 18.0;
+    const maxScore = 15.0;
 
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -87,7 +87,12 @@ class FormAbsorptionSection extends StatelessWidget {
                 ing['name']?.toString() ??
                 ing['standard_name']?.toString() ??
                 '';
-            final form = ing['form']?.toString() ?? '';
+            // v1.5.0 contract — prefer display_form_label, fall back to
+            // legacy `form` for stale blobs. See FINAL_EXPORT_SCHEMA_V1.md.
+            final form = (ing['display_form_label']?.toString().trim()
+                    ?? '').isNotEmpty
+                ? ing['display_form_label']!.toString().trim()
+                : (ing['form']?.toString() ?? '');
             final score = (ing['bio_score'] as num).toDouble();
             final fillPct = (score / maxScore).clamp(0.0, 1.0);
             final color = _bioColor(score);
@@ -177,14 +182,14 @@ class FormAbsorptionSection extends StatelessWidget {
             const SizedBox(height: AppTheme.space12),
             const Text(
               'Bioavailability measures how much of an ingredient your body can actually absorb and use. '
-              'The score (0–18) is based on the ingredient\'s chemical form, known absorption rates, '
+              'The score (0–15) is based on the ingredient\'s chemical form, known absorption rates, '
               'and presence of absorption enhancers.\n\n'
-              'Example: Magnesium glycinate (score 15) absorbs ~4x better than magnesium oxide (score 4), '
+              'Example: Magnesium glycinate (score 15) absorbs ~4x better than magnesium oxide (score 2), '
               'which passes through largely unchanged.',
             ),
             const SizedBox(height: AppTheme.space16),
             const _ExplainerRow(
-              label: 'Excellent (12–18)',
+              label: 'Excellent (12–15)',
               description: 'Highly bioavailable form',
               tier: 'excellent',
             ),
