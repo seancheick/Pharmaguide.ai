@@ -1230,7 +1230,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [ ] Settings: accessibility (dynamic type, high contrast, VoiceOver, reduce motion) — **→ V1.0-beta** (reduceMotion partial, needs Semantics pass)
 - [ ] Settings: offline mode (auto-download, sync frequency) — **→ V1.1**
 - [ ] Settings: advanced (export data, clear cache, reset tutorials, delete account) — **→ V1.1**
-- [x] About section (version, ToS, privacy policy, support, rate app) — ✅ DONE (duplicate, already shipped).
+- [ ] About section (version, ToS, privacy policy, support, rate app) — UI shell exists but all `onTap: () {}` are no-ops. Needs real URLs + `url_launcher` + `StoreReview`.
 
 ### Definition of Done
 
@@ -2497,4 +2497,5 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [ ] Live RxNorm integration test
 - [ ] Integration test against real bundled `interaction_db.sqlite` fixture
 - [ ] Fix markdownlint warnings in `docs/INTERACTION_DB_SPEC.md` (cosmetic)
+- [ ] About section — wire real ToS/privacy URLs + `url_launcher` + `StoreReview` for rate/share (UI shell exists, all no-ops)
 - [ ] V1.4+ Commerce (Track E) — deferred until V1.2 trust ships
