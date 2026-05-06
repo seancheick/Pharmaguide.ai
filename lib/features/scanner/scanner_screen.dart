@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
@@ -13,6 +14,7 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
+import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
@@ -151,6 +153,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     });
   }
 
+  /// Opens the manual barcode entry bottom sheet, then runs the same
+  /// `_lookUpProduct` flow that the camera scan uses.
+  Future<void> _openManualBarcodeSheet() async {
+    final barcode = await showManualBarcodeSheet(context);
+    if (!mounted || barcode == null) return;
+    unawaited(_lookUpProduct(barcode.toString()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,13 +194,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   ),
                 ),
                 const Spacer(),
-                // Scan guide
-                Container(
-                  width: 250,
-                  height: 250,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white70, width: 2),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                // Scan guide — uses Flexible so it shrinks gracefully on
+                // compact viewports (e.g. 600px test frames).
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 250, maxHeight: 250),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white70, width: 2),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppTheme.space16),
@@ -205,23 +222,55 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const Spacer(),
-                // Manual entry
+                // Bottom actions
                 Padding(
-                  padding: const EdgeInsets.all(AppTheme.space24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.keyboard, color: Colors.white),
-                      label: const Text(
-                        'Enter code manually',
-                        style: TextStyle(color: Colors.white),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTheme.space24,
+                    AppTheme.space16,
+                    AppTheme.space24,
+                    AppTheme.space24,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.keyboard, color: Colors.white),
+                          label: const Text(
+                            'Enter code manually',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white54),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: _openManualBarcodeSheet,
+                        ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white54),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      const SizedBox(height: AppTheme.space8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.medication_outlined,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Add medication',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white54),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: () =>
+                              context.push(Routes.medicationEntry),
+                        ),
                       ),
-                      onPressed: () => context.push('/search'),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -344,7 +393,7 @@ class ScannerNotFoundSheet extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space16),
           Text(
-            "We couldn't match this barcode",
+            'Product not found',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -370,8 +419,8 @@ class ScannerNotFoundSheet extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           Text(
-            'This can happen with new, reformulated, or private-label products. '
-            'Try searching by product name, brand, or a key ingredient.',
+            "We couldn't match this barcode yet. You can submit the "
+            'label so PharmaGuide can review and add it.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.45,
@@ -379,8 +428,36 @@ class ScannerNotFoundSheet extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.space24),
+          // Primary: Submit Product (placeholder — submission flow TBD)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Product submission coming soon.',
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.upload_rounded),
+              label: const Text('Submit Product'),
+            ),
+          ),
+          const SizedBox(height: AppTheme.space12),
           Row(
             children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onSearchByName,
+                  icon: const Icon(Icons.search_rounded),
+                  label: const Text('Search by name'),
+                ),
+              ),
+              const SizedBox(width: AppTheme.space12),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onTryAgain,
@@ -388,23 +465,7 @@ class ScannerNotFoundSheet extends StatelessWidget {
                   label: const Text('Scan again'),
                 ),
               ),
-              const SizedBox(width: AppTheme.space12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onSearchByName,
-                  icon: const Icon(Icons.search_rounded),
-                  label: const Text('Search by name'),
-                ),
-              ),
             ],
-          ),
-          const SizedBox(height: AppTheme.space12),
-          Text(
-            'Missing-product reporting stays deferred to the future submission flow.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

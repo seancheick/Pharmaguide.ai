@@ -80,7 +80,6 @@ class SettingsScreen extends ConsumerWidget {
                     _SettingsTile(
                       icon: Icons.person_outline_rounded,
                       title: 'Edit profile',
-                      subtitle: '${profile.completeness}% complete',
                       onTap: () => context.push(Routes.profileSetup),
                     ),
                   ],
@@ -294,8 +293,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.space2),
                 Text(
-                  'Profile ${profile.completenessLabel} '
-                  '(${profile.completeness}%)',
+                  'Your health settings',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

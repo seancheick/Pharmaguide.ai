@@ -16,6 +16,9 @@ abstract final class Routes {
   /// Build a product detail path with dsldId.
   static String productDetail(String dsldId) => '/product/$dsldId';
 
+  /// Add a medication to the user's stack (RxNorm search + class fallback).
+  static const medicationEntry = '/medication-entry';
+
   /// "Safe to Take Together?" quick pair interaction check.
   static const quickCheck = '/quick-check';
 

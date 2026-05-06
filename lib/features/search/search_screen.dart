@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
@@ -380,15 +382,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       );
     }
 
-    return const Padding(
-      padding: EdgeInsets.all(AppTheme.space20),
-      child: PGEmptyState(
-        icon: Icons.search_rounded,
-        title: 'Search supplements',
-        description:
-            'Type a product name or brand to find instantly — or scan a '
-            'barcode from the scan tab for the fastest lookup.',
-        variant: PGEmptyStateVariant.info,
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.space20),
+      child: Column(
+        children: [
+          const PGEmptyState(
+            icon: Icons.search_rounded,
+            title: 'Search supplements',
+            description:
+                'Search supplements by product name, brand, or ingredient.',
+            variant: PGEmptyStateVariant.info,
+          ),
+          const SizedBox(height: AppTheme.space16),
+          TextButton.icon(
+            onPressed: () => context.push(Routes.medicationEntry),
+            icon: const Icon(Icons.medication_outlined, size: 18),
+            label: const Text('Looking for a medication? Add it here'),
+          ),
+        ],
       ),
     );
   }
@@ -400,10 +411,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return Padding(
       padding: const EdgeInsets.all(AppTheme.space20),
-      child: PGEmptyState(
-        icon: Icons.search_off_rounded,
-        title: title,
-        description: 'Try a different spelling or brand name.',
+      child: Column(
+        children: [
+          PGEmptyState(
+            icon: Icons.search_off_rounded,
+            title: title,
+            description:
+                'Try a different spelling or brand name. If you still '
+                "can't find it, you can submit the label for review.",
+          ),
+          const SizedBox(height: AppTheme.space16),
+          TextButton.icon(
+            onPressed: () => context.push(Routes.medicationEntry),
+            icon: const Icon(Icons.medication_outlined, size: 18),
+            label: const Text('Looking for a medication? Add it here'),
+          ),
+        ],
       ),
     );
   }

@@ -30,12 +30,13 @@ void main() {
         ),
       );
 
-      expect(find.text("We couldn't match this barcode"), findsOneWidget);
+      expect(find.text('Product not found'), findsOneWidget);
       expect(find.text('UPC: 0123456789012'), findsOneWidget);
-      expect(find.text('Scan again'), findsOneWidget);
+      expect(find.text('Submit Product'), findsOneWidget);
       expect(find.text('Search by name'), findsOneWidget);
+      expect(find.text('Scan again'), findsOneWidget);
       expect(
-        find.textContaining('new, reformulated, or private-label products'),
+        find.textContaining('submit the label'),
         findsOneWidget,
       );
     });

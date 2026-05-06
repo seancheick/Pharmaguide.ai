@@ -243,9 +243,18 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
 
     if (!mounted) return;
 
-    // Pop immediately — the first reward should be "medication added,
-    // we'll now check interactions." Depletion nudges surface later on
-    // the stack screen, not as a blocking modal here.
+    // Show confirmation snackbar before popping — this fires on the
+    // parent scaffold's messenger so it persists after the pop.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${_selectedName!} added — checking interactions\u2026'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    // Pop back to caller. Stack auto-refreshes via _invalidate() inside
+    // StackActions.addMedication.
     final nav = Navigator.of(context);
     if (nav.canPop()) {
       nav.pop(newId);
@@ -378,31 +387,39 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
       );
     }
 
-    if (_offlineFallbackVisible) {
-      return _buildOfflineFallback(theme);
-    }
-
     if (_query.trim().length >= 2) {
-      return const PGEmptyState(
-        icon: Icons.search_off_rounded,
-        title: 'No matches',
-        description: 'Try a different spelling, or pick a medication type below.',
+      // Show "No matches" message + class picker as fallback regardless
+      // of connectivity. The user can always pick a drug class manually.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PGEmptyState(
+            icon: Icons.search_off_rounded,
+            title: 'No medication matches',
+            description:
+                "Try a different spelling. If you can't find it, "
+                'pick a medication type below.',
+          ),
+          if (_offlineFallbackVisible) ...[
+            const SizedBox(height: AppTheme.space12),
+            _buildClassPicker(theme),
+          ],
+        ],
       );
     }
 
     return const SizedBox.shrink();
   }
 
-  Widget _buildOfflineFallback(ThemeData theme) {
+  Widget _buildClassPicker(ThemeData theme) {
     return Column(
-      key: const Key('med-entry-offline-classes'),
+      key: const Key('med-entry-class-picker'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppTheme.space8),
           child: Text(
-            "We couldn't search medications right now.\n"
-            'Choose a medication type instead so we can still check '
+            'Choose a medication type so we can still check '
             'common interactions.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -425,21 +442,48 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
     );
   }
 
+  void _clearSelection() {
+    setState(() {
+      _selectedName = null;
+      _selectedRxcui = null;
+      _selectedGenericRxcui = null;
+      _ingredientRxcuis = const <String>[];
+      _selectedClasses = const <String>[];
+      _searchController.clear();
+      _query = '';
+      _suggestions = const <RxNormSuggestion>[];
+      _offlineFallbackVisible = false;
+    });
+  }
+
   Widget _buildSelectionSummary(ThemeData theme) {
     if (_selectedName == null) return const SizedBox.shrink();
     return PGCard(
       key: const Key('med-entry-selection-summary'),
       variant: PGCardVariant.highlighted,
+      onTap: _clearSelection,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Selected',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
-            ),
+          Row(
+            children: [
+              Text(
+                'Selected',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Change',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppTheme.space4),
           Text(

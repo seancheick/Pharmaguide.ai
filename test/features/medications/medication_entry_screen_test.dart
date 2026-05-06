@@ -358,7 +358,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.byKey(const Key('med-entry-offline-classes')), findsOneWidget);
+    expect(find.byKey(const Key('med-entry-class-picker')), findsOneWidget);
     expect(
       find.byKey(const Key('med-entry-class-class:ace_inhibitors')),
       findsOneWidget,
@@ -427,8 +427,8 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.byKey(const Key('med-entry-offline-classes')), findsNothing);
-      expect(find.text('No matches'), findsOneWidget);
+      expect(find.byKey(const Key('med-entry-class-picker')), findsNothing);
+      expect(find.text('No medication matches'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await h.userDb.close();

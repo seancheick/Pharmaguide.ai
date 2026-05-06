@@ -17,7 +17,6 @@ import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
-import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -57,10 +56,17 @@ class StackScreen extends ConsumerWidget {
           // user scrolls a tab body up; reappears on scroll-down. Matches
           // iOS Settings / Mail.
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            const PGFrostedAppBar(
+            PGFrostedAppBar(
               title: 'My stack',
               automaticallyImplyLeading: false, // tab root
-              actions: [ShareClinicianReportButton()],
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.add_rounded),
+                  tooltip: 'Add medication',
+                  onPressed: () => context.push(Routes.medicationEntry),
+                ),
+                const ShareClinicianReportButton(),
+              ],
             ),
             // Pinned TabBar directly under the frosted bar — same iOS
             // Settings/Wallet pattern.
@@ -745,16 +751,21 @@ class _StackEmptyView extends StatelessWidget {
             AppTheme.space24,
           ),
         ),
-        const SizedBox(height: AppTheme.space8),
-        Center(
-          child: TextButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const MedicationEntryScreen(),
-              ),
-            ),
-            icon: const Icon(Icons.medication_outlined, size: 18),
-            label: const Text('Add medications manually'),
+        const SizedBox(height: AppTheme.space16),
+        PGEmptyState(
+          icon: Icons.medication_outlined,
+          title: 'No medications added',
+          description:
+              'Add your medications to check supplement interactions '
+              'more accurately.',
+          actionLabel: 'Add medication',
+          onAction: () => context.push(Routes.medicationEntry),
+          variant: PGEmptyStateVariant.info,
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space20,
+            AppTheme.space24,
+            AppTheme.space20,
+            AppTheme.space24,
           ),
         ),
       ],

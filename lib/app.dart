@@ -9,12 +9,15 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
+import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
+import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
+import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
@@ -44,7 +47,10 @@ class _PlaceholderScreen extends StatelessWidget {
 class ScanScreen extends StatelessWidget {
   const ScanScreen({super.key});
   @override
-  Widget build(BuildContext context) => const ScannerScreen();
+  Widget build(BuildContext context) => CameraPermissionGate(
+    childBuilder: () => const ScannerScreen(),
+    onManualEntry: () => showManualBarcodeSheet(context),
+  );
 }
 
 class ChatScreen extends StatelessWidget {
@@ -187,6 +193,11 @@ GoRouter _buildRouter({
             ),
           ),
         ),
+      ),
+      GoRoute(
+        path: Routes.medicationEntry,
+        pageBuilder: (_, state) =>
+            _platformPage(state, const MedicationEntryScreen()),
       ),
       GoRoute(
         path: Routes.quickCheck,

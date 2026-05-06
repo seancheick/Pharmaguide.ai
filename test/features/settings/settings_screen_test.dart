@@ -64,16 +64,14 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('shows profile completeness', (tester) async {
+    testWidgets('shows profile summary card', (tester) async {
       final userDb = UserDatabase.memory();
 
       await tester.pumpWidget(buildTestWidget(userDb));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Default empty profile = 0%
-      expect(find.textContaining('0%'), findsWidgets);
-      expect(find.textContaining('Incomplete (0%)'), findsOneWidget);
+      expect(find.text('Your health settings'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await userDb.close();
