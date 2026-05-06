@@ -163,12 +163,7 @@ Estimated effort: ~7 hours (3h pipeline + 4h Flutter + tests).
 
 Tracked here so they don't get lost between sprints. None are launch-blocking for v1.6.0; pull into a sprint when prioritized.
 
-- [ ] **Hypoglycemics drug-class split (pipeline + Flutter).** Today the `hypoglycemics` drug-class gate fires for every glucose-lowering drug; clinical risk varies sharply. Split into:
-  - High-risk subclass: `insulin`, `sulfonylureas`, `meglitinides` (real hypoglycemia risk → existing `caution`/`avoid` severity holds)
-  - Lower-risk subclass: `metformin`, `glp1_receptor_agonists`, `sglt2_inhibitors`, `dpp4_inhibitors` (rebalance severity downward; many current `caution` warnings should drop to `info` or be suppressed)
-  - Pipeline: extend `clinical_risk_taxonomy.json` drug-class vocab; re-author the ~12 affected rules in `ingredient_interaction_rules.json` to target the new subclasses; update `INTERACTION_RULE_AUTHORING_SOP.md`.
-  - Flutter: schema_ids drug-class catalog + medications-step UI to expose the new buckets; profile migration (auto-map existing `hypoglycemics` selections to the high-risk bucket; nudge user to refine).
-  - Estimated effort: ~6h (3h rule re-authoring + clinical pass, 2h Flutter, 1h tests).
+- [x] **Hypoglycemics drug-class split (pipeline + Flutter).** ✅ DONE (2026-05-06). Three-way split: `hypoglycemics_high_risk` / `hypoglycemics_lower_risk` / `hypoglycemics_unknown`. 18 rules × 3 subclasses. Flutter profile migration maps legacy → unknown. User-friendly labels shipped.
 
 - [ ] **Cross-product dose summation (Flutter stack-aware).** Today profile_gate `dose` evaluates per-product. A user stacking three caffeine products at 80 mg each silently bypasses the 200 mg/day caffeine ceiling. Build a stack-aware dose aggregator:
   - New `lib/services/stack/stack_dose_summer.dart` walking active stack items, summing dose-per-day per `nutrient_form` (caffeine, niacin, vitamin A, etc.)
@@ -183,8 +178,25 @@ Tracked here so they don't get lost between sprints. None are launch-blocking fo
   - Pre-condition: `import_catalog_artifact.sh` should drop `1.3.1` / `1.3.2` / `1.4.0` / `1.5.0` from `APP_SUPPORTED_SCHEMAS` at the same time so we can never re-bind to a pre-gate catalog.
   - Estimated effort: ~1h.
 
-- [ ] **Phase 1.5 — clinical review of 16 entries new since reviewer's 5.2.0 snapshot (pipeline).** Tracked in `dsld_clean/scripts/audits/interaction_rules/diabetes_review_v53/RECONCILIATION.md`. Entries: `ADD_HORDENINE`, `BANNED_BITTER_ORANGE`, `BANNED_PENNYROYAL`, `BANNED_TANSY`, `ADD_TYRAMINE_RICH_EXTRACT`, `bupleurum_root`, `ginkgo_biloba_leaf`, `white_mulberry`, `bromelain`, `holy_basil`, `l_carnitine`, `l_tryptophan`, `maca`, `phenylethylamine`, `same`, `sodium`. Same SOP as the diabetes batch: PMID/CUI verification, severity justification, ban_context audit. Each rule's headline + mechanism rewritten if needed.
-  - Estimated effort: ~8h (clinical review pace = ~30 min/entry).
+- [x] **Phase 1.5 — clinical review of 16 new entries (pipeline).** ✅ DONE (2026-05-06). Ghost PMID 27092496 killed, 5 dead URLs replaced with verified PMIDs, copy fixes across all 16 entries.
+
+- [x] **Full 14-condition clinical sweep (pipeline).** ✅ DONE (2026-05-06). All condition batches reviewed with clinical team: 210→196 rules, 14 deduped (omega-3×5, milk thistle, yohimbe×2, licorice, ginger extract, vitamin D from bleeding). Zero templated bodies, zero repeated headlines remaining.
+
+- [x] **URL-rot audit (pipeline).** ✅ DONE (2026-05-06). 23/263 dead URLs replaced with verified PubMed PMIDs. Audit script at `scripts/audits/interaction_rules/url_rot_audit.py`.
+
+- [x] **Flutter UX overhaul.** ✅ DONE (2026-05-06). Premium splash (520ms settle), activation-first onboarding (4 steps with goal chips), medication entry UX (no RxNorm jargon, bottom sticky CTA), fit score qualitative labels, product detail double-filter fix + IA comments.
+
+- [ ] **Remaining RECONCILIATION backlog (4 items, needs architecture — future release):**
+  - vitamin_d: needs `lab_status` in user profile (~4h)
+  - white_mulberry: needs `form_scope` variant architecture (~3h)
+  - black_seed_oil: dose threshold for thymoquinone extracts (~2h)
+  - stinging_nettle: same dose pattern (~1h)
+
+- [ ] **Future profile flags (not blocking launch):**
+  - Heart subconditions: `coronary_artery_disease`, `prior_mi`, `heart_failure`, `arrhythmia`, `long_qt` — enables precise cardiac severity escalation
+  - `severely_immunocompromised` drug-class escalators: chemo, biologics, transplant immunosuppressants
+  - CKD stage/eGFR flags: `ckd_stage_3`, `ckd_stage_4_5`, `dialysis` — enables dose-aware magnesium/potassium gating
+  - Thyroid levothyroxine timing rules: calcium, iron, magnesium, fiber 4-hour separation — high practical value for thyroid users
 
 ---
 
