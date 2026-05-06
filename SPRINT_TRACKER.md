@@ -26,9 +26,9 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-04-29
-**Current Sprint:** Sprint 27.21 (App-wide Apple-grade polish) ✅ DONE 2026-04-29. Trust & IA Sprint 1 still in flight (T1.2 + T1.4+ remaining). Two parallel initiatives in flight (see "Parallel Initiatives" section below).
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. **890 Flutter tests pass, 0 skipped, 0 failures + 248 pipeline data tests** all green. **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Two full code reviews completed: 26 findings — ALL resolved. Interaction DB spec complete. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 17 PG design components, timing evaluation service. **Pipeline data:** timing_rules.json (42 rules) + medication_depletions.json (68 entries) + interaction rules (127 rules, 13 drug classes). IQM expanded to 588 entries. Context-aware harmful additive scoring. 25 hallucinated PMIDs replaced. **V1.1 + V1.2 + V1.3 OTA code shipped 2026-04-29 via initiative tracks (see Parallel Initiatives section).**
+**Updated:** 2026-05-06
+**Current Sprint:** All code sprints through Trust & IA Sprint 1 DONE. Pipeline v6.0/v6.1 adoption + premium UX overhaul shipped 2026-05-06. Next: V1.0-release gate (auth, analytics, store builds).
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1431 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 14-section product detail IA, risk-gated Fit, transparency footer, sticky action bar, profile_gate adoption (v6.0/v6.1), hypoglycemics three-way split, premium onboarding + splash + medications UX, 17+ PG design components. **Pipeline data:** interaction rules (136 rules, 196 conditions), catalog v2026.05.06 (8331 products), timing_rules.json (42 rules), medication_depletions.json (68 entries). **V1.1 + V1.2 + V1.3 OTA code shipped 2026-04-29. V6.0 profile_gate + v6.1 hypoglycemics split shipped 2026-05-06.**
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -94,8 +94,8 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
 | Sprint | Scope | Status |
 |---|---|---|
 | **0 — Trust Fixes** (T0.1 reword evidence + ingredient prettifier; T0.2 "Why this product" → "Highlights" + strip noisy detail; T0.3 formulation JSON-leak; T0.4 Pairs Well badge ↔ card-count parity; T0.5 Formulation Purity Phase 1 hide-when-clean; T0.6 OTA in-session catalog swap with validation gate + atomic rename + SharedPreferences persistence + snackbar) | T0.1 → T0.6 | ✅ All `[x]` (code). T0.7 ship gate `[-]` — manual smoke + TestFlight + 24h Sentry watch ⏳ Sean. **Two live-test bugs caught and fixed during simulator pre-flight** (T0.1 whitespace-key prettifier follow-up; T0.3 sister JSON-leak in `certification_detail_section.dart`) — commit `2a35eb8`. |
-| **1 — Product Screen IA Refactor** (T1.1 → T1.16 — risk-gated Fit, "For You" merged block, PG Score relocated to Section 3, 14-section IA, transparency footer + sticky action bar) | 14 tasks | ⬜ Next coding chunk after Track D leftovers |
-| **2 — Refinement Polish** | 6 tasks | ⏸ Pending Sprint 1 |
+| **1 — Product Screen IA Refactor** (T1.1 → T1.16 — risk-gated Fit, "For You" merged block, PG Score relocated to Section 3, 14-section IA, transparency footer + sticky action bar) | 16 tasks | ✅ All `[x]` (code) 2026-04-29 — 1074/1074 tests at sign-off. See `INITIATIVE_PRODUCT_TRUST_AND_IA.md` for task-level detail. |
+| **2 — Refinement Polish** | 6 tasks | ⬜ Next — Sprint 1 done, gated on Sean's 5-product real-device smoke |
 | **3 — Backend Foundation** (excipient ontology, prose `score_bonuses[].detail`, percentile ranking, editorial summaries — most pipeline-side) | 7 tasks | ⏸ Pending data work |
 
 ### Cross-references between the two initiatives + Apple-grade visual polish track
@@ -110,14 +110,14 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
   - ✅ **Independent**: Apple-grade C.2/C.3/D.1/D.2/E.1/E.2 — interleave on the other team's schedule; no overlap with Sprint 1.
   - **PGFrostedHeader vs PGFrostedAppBar**: investigated — NOT duplicates. PGFrostedHeader = visual surface primitive (glass/tonal/hairline); PGFrostedAppBar = AppBar composition that wraps PGFrostedHeader. Both kept. Platform-aware glass treatment landed on `main` 2026-04-29 commit `a06bd22` — every consumer (PGFrostedAppBar + home search header + B.1 Profile Setup) inherits iOS-true-glass / Android-tonal-surface automatically.
 
-### Coding sequence locked with Sean (2026-04-29, revised)
+### Coding sequence (updated 2026-05-06)
 
-1. ~~Track D leftovers (D1 + D2 + D4)~~ ✅ Done 2026-04-29 — see Track D row above.
-2. **Now:** Trust & IA Sprint 1 — Product Screen IA Refactor (10–12 dev days, T1.1 → T1.16). Starting with **T1.3 (Risk-gated Fit core logic)** because it's a pure-function helper with no upstream dependency — does not need to wait on Apple-grade F.0/F.1/F.2.
-3. **Then T1.1 + T1.2** once Apple-grade F.0 audit verdict + F.1 ring/donut decision land (other team's next chunk).
-4. **Then T1.4** once Apple-grade F.2 PGPillarBar primitive lands.
-5. **Then T1.5–T1.16** in spec order.
-6. **Later:** Enhance Track C (Clinician Share Report) — already shipped baseline; future work fleshes out clinician-share UX based on real-device feedback.
+1. ~~Track D leftovers (D1 + D2 + D4)~~ ✅ Done 2026-04-29.
+2. ~~Trust & IA Sprint 1 (T1.1 → T1.16)~~ ✅ Done 2026-04-29 — all 16 tasks shipped, 1074 tests at sign-off.
+3. ~~Pipeline v6.0 profile_gate + v6.1 hypoglycemics split + premium UX overhaul~~ ✅ Done 2026-05-06 — catalog v2026.05.06, 136 interactions, 1431 tests.
+4. **Next:** V1.0-release gate — auth (Google/Apple/Email), usage limits, analytics SDK, store builds.
+5. **Then:** Trust & IA Sprint 2 (Refinement Polish) — gated on Sean's real-device smoke.
+6. **Later:** Sprint 28 (Tier 2 Research / RXCUI bridge) — pipeline prereqs partially done.
 
 ### Owed back to Sean (parallel to coding)
 
@@ -470,7 +470,7 @@ Status: DONE
 ### Remaining (ordered by impact)
 - [x] **Search result count + filter chips** — Shipped later in Sprint 27.11. Base filters now appear while typing; result-derived category chips appear once results load; count row now reads `Showing X results` / `Showing X of Y results`.
 - [x] **"Why this score?" 1-liner on product detail** — Shipped later in Sprint 27.10 as the hero-level `Why this score` teaser sourced from pipeline `score_bonuses[]` / `score_penalties[]`.
-- [ ] **Empty stack CTA with scanner shortcut** — Friendly illustration + "Your stack is empty" + subtext explaining value + "Scan your first supplement" primary CTA (opens scanner) + "Add medications manually" secondary. **~0.5 day.**
+- [x] **Empty stack CTA with scanner shortcut** — ✅ DONE. `_StackEmptyView` in `stack_screen.dart` renders `PGEmptyState` with "Your stack is empty" + "Scan a supplement" CTA routing to scanner.
 - [x] **Scanner "not found" copy polish** — Shipped later in Sprint 27.14 with the stronger premium not-found sheet and improved lookup transition state.
 - [x] **Haptic on barcode detect** — This tracker line was stale. Scanner already had capture haptics and verdict haptics when re-audited in Sprint 27.14.
 
@@ -510,7 +510,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] **T5: Stack Health Score (aggregate)** — `_StackSummaryCard` upgraded to `ConsumerWidget`. `PGScoreRing` (0-100) + `RiskTier` label + issue counts. `StackSafetyScorer` computes from all interaction results. Shipped `857b827`.
 - [x] **T6: "Safe to Take Together?" Quick Check** — New `QuickCheckScreen` at `/quick-check` route. Two product search fields + "Check Interactions" button. Queries `InteractionDatabase.lookupByCanonicalId()` for each of product A's canonical IDs, filters hits where other side matches product B. Severity banners or "No known interactions" all-clear card. Registered in GoRouter. Shipped `6d64852`.
 - [x] **T7: Pipeline data wired** — `timing_rules.json` (39 rules, 718 lines) replaced placeholder. `medication_depletions.json` (68 entries, 1877 lines) copied to Flutter `assets/reference_data/` + `loadMedicationDepletions()` added to `ReferenceDataRepository`. 49 pipeline contract tests + 53 live PMID verifications pass.
-- [ ] **T8: Depletion Checker UI** — Wire `medication_depletions.json` to stack screen. When user has medications, show "Metformin may deplete Vitamin B12" warnings with evidence + recommendations. **→ V1.1 (data ready, UI next sprint)**
+- [x] **T8: Depletion Checker UI** — ✅ DONE. `_DepletionSlot` in `stack_screen.dart` watches `depletionReportProvider` and renders `DepletionCheckerCard` when depletions are present.
 
 ### Definition of Done
 
@@ -571,12 +571,12 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ### Pending (deferred to next session)
 
-- [ ] Wire `TimingAdviceCard` into stack screen UI (widget built, not yet rendered)
-- [ ] Offline drug→class cache in SQLite for offline med adds
+- [x] Wire `TimingAdviceCard` into stack screen UI — ✅ DONE. `_TimingAdviceSlot` in `stack_screen.dart` watches `stackSafetyReportProvider` and renders `TimingAdviceCard`.
+- [x] Offline drug→class cache in SQLite — ✅ DONE. `DrugClassMap` Drift table in `drug_class_map_table.dart`, used by `InteractionDatabase.lookupByDrugClass`.
 - [ ] Flutter test coverage for dual-path interaction matching
 - [ ] Re-run full pipeline on fresh dataset to measure score impact of context-aware scoring
 - [ ] `backed_clinical_studies.json`: 6 study_type reviews, 5 missing source texts
-- [ ] T8 from Sprint 21: Depletion Checker UI
+- [x] T8 from Sprint 21: Depletion Checker UI — ✅ DONE (see Sprint 21 T8 above).
 
 ---
 
@@ -627,11 +627,11 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ### Pending
 
-- [ ] Wire `TimingAdviceCard` into stack screen UI
+- [x] Wire `TimingAdviceCard` into stack screen UI — ✅ DONE (see Sprint 22 above).
 - [ ] Re-run full pipeline to measure ALL scoring changes
-- [ ] Depletion Checker UI (data ready, UI next)
-- [ ] Offline drug→class SQLite cache
-- [ ] Fix 3 pre-existing test failures (IQM alias dupes + absorption)
+- [x] Depletion Checker UI — ✅ DONE (see Sprint 21 T8 above).
+- [x] Offline drug→class SQLite cache — ✅ DONE (see Sprint 22 above).
+- [x] Fix 3 pre-existing test failures (IQM alias dupes + absorption) — ✅ RESOLVED. 0 failures, 0 skipped in current suite (1431 tests). Fixes landed incidentally across later sprints.
 - [ ] Enrich 21 branded botanical stubs (Chromax, Cognizin, EpiCor, etc.)
 
 ---
@@ -1223,14 +1223,14 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [ ] Write OTA update tests (success, failure, rollback) — **→ V1.1**
 - [ ] Write usage limit tests — **→ V1.0-release**
 - [ ] Account & Security section (email, password, login/logout) — **→ V1.0-release**
-- [ ] Health Profile editing (all fields from onboarding, re-editable) — **→ V1.1** (onboarding flow exists, re-edit needs wiring)
-- [ ] Privacy Controls (data usage prefs, transparency dashboard, privacy score) — **→ V1.1** (privacy dashboard modal exists)
+- [x] Health Profile editing (all fields from onboarding, re-editable) — ✅ DONE. Settings "Edit profile" routes to `profileSetup`; no read-only guard — full re-edit works.
+- [x] Privacy Controls (data usage prefs, transparency dashboard, privacy score) — ✅ DONE. `_PrivacyDashboardSheet` in `settings_screen.dart` with `_PrivacyItem` entries.
 - [ ] Stack Analysis History (last 3 saved reports, view/email/share/delete) — **→ V1.2**
 - [ ] Settings: notification controls (reminders, alerts, insights, refills) — **→ V1.1**
 - [ ] Settings: accessibility (dynamic type, high contrast, VoiceOver, reduce motion) — **→ V1.0-beta** (reduceMotion partial, needs Semantics pass)
 - [ ] Settings: offline mode (auto-download, sync frequency) — **→ V1.1**
 - [ ] Settings: advanced (export data, clear cache, reset tutorials, delete account) — **→ V1.1**
-- [ ] About section (version, ToS, privacy policy, support, rate app) — DUPLICATE of line 576 (already done)
+- [x] About section (version, ToS, privacy policy, support, rate app) — ✅ DONE (duplicate, already shipped).
 
 ### Definition of Done
 
@@ -1279,7 +1279,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 ### Tasks
 
 #### V1.0-beta Gate (ship to testers without auth)
-- [ ] Full test suite pass: unit, widget, golden, integration — **348 pass, 5 skipped (tech debt), 0 failures as of 2026-04-12**
+- [x] Full test suite pass: unit, widget, golden, integration — ✅ DONE. **1431 pass, 0 skipped, 0 failures as of 2026-05-06.**
 - [ ] Error matrix implementation (toast/sheet/snackbar per error type from spec section 11) — ad-hoc today, needs centralized routing
 - [x] Haptics pass (scan success, verdict reveal, error states) — 4 screens: scanner (light+medium), safety_check_sheet, stack swipe, stack action buttons. PGHaptics is reduceMotion-aware. Verified 2026-04-12
 - [ ] Dark mode audit (every screen) — themes exist (AppTheme.light/dark + ThemeMode.system), needs screen-by-screen visual check
@@ -1287,7 +1287,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [ ] No emojis as structural UI -- Lucide icons audit
 - [ ] Performance profiling: scan-to-result <500ms, search <300ms, app launch <3s
 - [ ] Memory profiling: no leaks on repeated scan/detail/back cycles
-- [ ] CI setup: flutter analyze + flutter test on every PR
+- [x] CI setup: flutter analyze + flutter test on every PR — ✅ DONE. `.github/workflows/ci.yml` runs on every PR/push to main.
 - [-] TestFlight build and internal testing — **code-side ready** as of 2026-04-29; build cut ⏳ Sean
 - [-] Google Play internal track build and testing — **code-side ready** as of 2026-04-29; build cut ⏳ Sean
 - [ ] Store metadata: screenshots, description, privacy policy, encryption questionnaire
@@ -1434,7 +1434,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 ### Pending polish (Sprint 17)
 
 - [ ] Manual device QA on real iOS + Android (the 52 mg zinc red banner)
-- [ ] Golden-image tests for the 7-tier color ladder (visual regression)
+- [x] Golden-image tests for the 7-tier color ladder — ✅ DONE. `nutrient_progress_bar_golden_test.dart` + `pg_score_ring_golden_test.dart` cover all tiers.
 - [ ] "Complete your profile" prompt when ageBracket is null
 - [ ] Tap-to-expand contributions row in the progress bar
 
@@ -1522,7 +1522,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ### Tasks
 
-- [ ] Add `effectType` (inhibitor | enhancer | additive | neutral) to `InteractionResult` model — DEFERRED to V1.1 (current model uses severity + type, effectType is enhancement)
+- [x] Add `effectType` (inhibitor | enhancer | additive | neutral) to `InteractionResult` model — ✅ DONE. `EffectType` enum + `effectType` field in `interaction_result.dart`.
 - [x] Extend `StackInteractionChecker` with two new methods: `checkMedicationInteractions` and `checkSupplementPairInteractions` — 431 LOC, both methods wired to real DB, verified 2026-04-12
 - [x] New `lib/services/stack/stack_safety_report.dart` aggregating M1 nutrient statuses + stack interactions + medication interactions + category warnings — 194 LOC, verified 2026-04-12
 - [x] New `lib/services/medications/rxnorm_api_service.dart` (NLM RxNorm REST client, 20 req/sec cap, in-memory LRU cache) — 435 LOC, verified 2026-04-12
@@ -1729,7 +1729,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] Haptics-respects-accessibility-settings audit — `PGHaptics` checks `MediaQuery.disableAnimationsOf`, safety-critical haptics always fire
 - [x] VoiceOver labels on PGScoreRing + PGFitScoreBadge — `Semantics` wrappers with tier-aware labels
 - [x] Migrate remaining legacy screens — settings_screen, search_screen, scanner_screen, profile_setup_screen all migrated to PG components; onboarding_screen rewritten
-- [ ] Widget tests for PGInteractionCard states (deferred — not blocking)
+- [x] Widget tests for PGInteractionCard states — ✅ DONE. `interaction_warnings_test.dart` has 10+ `PGInteractionCard` assertions.
 - [x] Golden-image tests for NutrientProgressBar in all 7 tiers — shipped 2026-04-16
 
 ### Commits
@@ -1830,10 +1830,10 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ### Remaining Sprint 18 polish (deferred)
 
-- [ ] Widget tests for PGInteractionCard states — nice-to-have, not blocking
-- [ ] Stack test Supabase mock infrastructure — unblocks 2 skipped tests
-- [ ] Search test viewport sizing — unblocks 2 skipped tests
-- [ ] App_test category-chip scroll hit-test — unblocks 1 skipped test
+- [x] Widget tests for PGInteractionCard states — ✅ DONE (see Sprint 17 above).
+- [x] Stack test Supabase mock infrastructure — ✅ RESOLVED. 0 skipped tests; stack tests use in-memory DBs.
+- [x] Search test viewport sizing — ✅ RESOLVED. Viewport override applied; 0 skipped search tests.
+- [x] App_test category-chip scroll hit-test — ✅ RESOLVED. 0 skipped tests in `app_test.dart`.
 
 ### Commits
 
@@ -2162,7 +2162,7 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 
 ### Pending (next sprint)
 
-- [ ] Build branded placeholder card widget (generated product cards using brand color + form icon + score)
+- [x] Build branded placeholder card widget — ✅ DONE. `BrandedPlaceholder` in `lib/core/widgets/branded_placeholder.dart`, used by `ProductImage`, tested.
 - [ ] User-contributed photos: "Help improve PharmaGuide — snap a photo of this bottle?" → store in Supabase → use as display image (post-launch data moat)
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
 - [x] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0 — **done in Sprint 27.5 (schema-alignment audit follow-up)**
@@ -2385,3 +2385,116 @@ Uses in-memory Drift DB + asset fixture. Closes the biggest untested surface on 
 **Path C commits (future):**
 - Pipeline repo: `scripts/data/banned_recalled_ingredients.json` + `scripts/validate_banned_recalled.py`
 - Flutter: remap script + same 4 Flutter files above (re-add fields) + contract test additions
+
+---
+
+## CONSOLIDATED OPEN ITEMS (as of 2026-05-06)
+
+Everything below is genuinely NOT DONE, verified against the codebase. Organized by priority tier so nothing gets lost across sprints.
+
+### P0 — Ship Blockers (Sean-owed manual tasks)
+
+- [ ] **TestFlight build cut + upload** (Tracks A5, T0.7 step 4)
+- [ ] **Google Play internal track build cut + upload**
+- [ ] **Real-device smoke:** B3 home headline, T0.4/T0.5 visual edges, C3 paste-into-Mail/MyChart, D4 force-corruption rollback, 52 mg zinc UL red banner
+- [ ] **Store metadata:** screenshots, description, privacy policy, encryption questionnaire
+- [ ] **App Store Privacy Nutrition Label**
+- [ ] **PHARMAGUIDE-1 (RenderFlex overflow) Sentry triage**
+- [ ] **24h Sentry watch post-deploy**
+- [ ] **G.4 Tighter SE spacing** — needs Sean's design call + simulator validation
+
+### P1 — V1.0-Release Gate (code tasks)
+
+- [ ] Implement Google Sign-In
+- [ ] Implement Apple Sign-In
+- [ ] Implement Email/Password auth
+- [ ] Account & Security section (email, password, login/logout)
+- [ ] Implement scan/AI usage limits with `increment_usage` RPC (guest-side done, server-side stub)
+- [ ] Wire `scan_limit_service` to live `increment_usage` RPC
+- [ ] Build "upgrade to signed-in" prompt when guest hits limits
+- [ ] Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)
+- [ ] Write auth flow tests (sign in, sign out, guest-to-auth migration)
+- [ ] Write usage limit tests
+- [ ] Analytics events wired — real SDK (Firebase/Mixpanel) replacing stub `analytics_service.dart`
+- [ ] Gemini AI quota verification (5/day server-side enforcement)
+
+### P2 — Next Code Sprints
+
+**Trust & IA Sprint 2 — Refinement Polish (6 tasks):**
+- [ ] T2.1–T2.8 — all `[ ]` in `INITIATIVE_PRODUCT_TRUST_AND_IA.md`. Gated on Sean's 5-product real-device smoke test.
+
+**Trust & IA Sprint 3 — Backend Foundation (7 tasks):**
+- [ ] Excipient ontology, prose `score_bonuses[].detail`, percentile ranking, editorial summaries — mostly pipeline-side data work.
+
+**Sprint 28 — Tier 2 Research Evidence + RXCUI Bridge (9 tasks):**
+- [ ] Pipeline: bridge drug CUIs → RXCUIs in `ingest_suppai.py`
+- [ ] Pipeline: rebuild `interaction_db.sqlite` with populated `rxcui_a`/`rxcui_b`
+- [ ] Flutter: `lookupResearchPairsByCanonicalId` + `lookupResearchPairsByRxcui` queries
+- [ ] Flutter: `research_pair_lookup.dart` wrapper service
+- [ ] Flutter: `research_evidence_chip.dart` + `research_evidence_drawer.dart`
+- [ ] Flutter: integrate chip in `product_detail_screen.dart`
+- [ ] Tests: ≥10 widget tests for chip + drawer
+- [ ] UX guardrails: neutral tone, no severity coding, disclaimer
+
+**Cross-product dose summation:**
+- [ ] New `stack_dose_summer.dart` — sum dose-per-day per nutrient_form across active stack. Wire into `StackIntelligenceEngine`. First targets: caffeine 200mg, vitamin A 3000mcg, niacin 35mg, iron 45mg. ~5h.
+
+**QA & Polish:**
+- [ ] Error matrix implementation (centralized error routing per spec §11)
+- [ ] Dark mode audit (screen-by-screen visual check — theme infra done)
+- [ ] Accessibility audit: VoiceOver, TalkBack, full Semantics pass (DT clamp at 1.4x done, partial Semantics done)
+- [ ] No emojis as structural UI — Lucide icons audit
+- [ ] Performance profiling: scan-to-result <500ms, search <300ms, launch <3s
+- [ ] Memory profiling: no leaks on repeated scan/detail/back cycles
+- [ ] "Complete your profile" prompt in nutrient panel when `ageBracket == null`
+- [ ] Tap-to-expand contributions row in progress bar
+
+### P3 — V1.1+ Backlog
+
+- [ ] Build "update available" indicator on Profile tab
+- [ ] Build notification preferences (`flutter_local_notifications`)
+- [ ] Implement `min_app_version` gate (force update) — schema exists, no gate logic
+- [ ] Settings: notification controls (reminders, alerts, insights, refills)
+- [ ] Settings: accessibility (high contrast, VoiceOver — reduceMotion done)
+- [ ] Settings: offline mode (auto-download, sync frequency)
+- [ ] Settings: advanced (export data, clear cache, reset tutorials, delete account)
+- [ ] Write OTA update tests (success, failure, rollback)
+- [ ] Coach marks / feature tour (overlay system)
+- [ ] "Try Demo Mode" (preloaded dummy scan)
+- [ ] FitScore comparison view (side-by-side two products)
+- [ ] Stack share: "Export PDF for Doctor" (clinician report is markdown-only today)
+- [ ] Deep link handling (`app_links` package) + shared product entry point + edge cases
+- [ ] Build Open Graph preview for shared links
+- [ ] Write deep link routing tests
+- [ ] Stack Analysis History (last 3 saved reports)
+- [ ] Pull-sync for multi-device (push-only today)
+- [ ] Stack wishlist: compatibility check against current stack
+- [ ] Full Stack Analysis report (nutrient breakdown, interactions, timing, goals)
+- [ ] Add-to-stack scheduling flow (time, supply, reminders)
+- [ ] Write sync tests against Supabase mock
+- [ ] Handle edge case: 20+ product stack performance
+- [ ] Telemetry on UL breaches (log locally only)
+- [ ] Catalog rollback dashboard card
+- [ ] User-contributed photos ("snap a photo of this bottle" → Supabase)
+- [ ] v6.1 cleanup — remove legacy `matchesProfile` fallback (~30 days after v1.6.0 ships)
+- [ ] Structural pregnancy/lactation split (pipeline + Flutter toggle)
+- [ ] Deep link handling for invalid routes (graceful fallback)
+
+### P4 — Future / Pipeline-Gated
+
+- [ ] Remaining RECONCILIATION backlog: vitamin_d (needs `lab_status`), white_mulberry (needs `form_scope`), black_seed_oil (dose threshold), stinging_nettle (dose pattern)
+- [ ] Future profile flags: heart subconditions, `severely_immunocompromised` escalators, CKD stage/eGFR, thyroid levothyroxine timing
+- [ ] Heavy metal limits reference file + B8 contaminant risk scorer (pipeline)
+- [ ] Excipient density mass calculator + A7 formulation density scorer (pipeline)
+- [ ] Catalog rebuild for pipeline scoring changes
+- [ ] Re-run full pipeline on fresh dataset to measure score impact
+- [ ] Enrich 21 branded botanical stubs (Chromax, Cognizin, EpiCor, etc.)
+- [ ] `backed_clinical_studies.json`: 6 study_type reviews, 5 missing source texts
+- [ ] Flutter test coverage for dual-path interaction matching
+- [ ] Live API integration tests (RxNorm + UMLS) gated on `--live` flag
+- [ ] Blocked-build demo: deliberately broken Major+ entry must fail build
+- [ ] Auto-enrich curated entries with supp.ai PMIDs at build time
+- [ ] Live RxNorm integration test
+- [ ] Integration test against real bundled `interaction_db.sqlite` fixture
+- [ ] Fix markdownlint warnings in `docs/INTERACTION_DB_SPEC.md` (cosmetic)
+- [ ] V1.4+ Commerce (Track E) — deferred until V1.2 trust ships
