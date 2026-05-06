@@ -128,7 +128,7 @@ class ProfileState {
       sex: row.sex,
       goals: _decodeList(row.goals),
       conditions: _decodeList(row.conditions),
-      drugClasses: _decodeList(row.drugClasses),
+      drugClasses: _migrateLegacyDrugClasses(_decodeList(row.drugClasses)),
       allergens: migrateLegacyAllergenIds(_decodeList(row.allergens)),
       profileFlags: _decodeList(row.profileFlags),
     );
@@ -205,6 +205,21 @@ class ProfileState {
       // Else: unsupported sensitivity (corn, yeast, etc.) — silently dropped.
     }
     return out.toList();
+  }
+
+  /// One-shot migration for the v6.1.0 hypoglycemics split.
+  ///
+  /// Users who selected the broad "hypoglycemics" before the split get
+  /// auto-mapped to "hypoglycemics_high_risk" (conservative — assumes the
+  /// higher-risk subclass). The profile-setup screen will prompt them to
+  /// refine on next visit since SchemaIds.drugClasses now shows both options.
+  static List<String> _migrateLegacyDrugClasses(List<String> stored) {
+    if (!stored.contains('hypoglycemics')) return stored;
+    final out = stored.where((id) => id != 'hypoglycemics').toList();
+    if (!out.contains('hypoglycemics_high_risk')) {
+      out.add('hypoglycemics_high_risk');
+    }
+    return out;
   }
 
   static const _listEq = ListEquality<String>();

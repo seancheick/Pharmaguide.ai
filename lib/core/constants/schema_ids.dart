@@ -74,7 +74,8 @@ abstract final class SchemaIds {
     'antiplatelets',
     'nsaids',
     'antihypertensives',
-    'hypoglycemics',
+    'hypoglycemics_high_risk',
+    'hypoglycemics_lower_risk',
     'thyroid_medications',
     'sedatives',
     'immunosuppressants',
@@ -90,7 +91,10 @@ abstract final class SchemaIds {
     'antiplatelets': 'Antiplatelet medication',
     'nsaids': 'NSAIDs (Ibuprofen, Aspirin regularly)',
     'antihypertensives': 'Blood pressure medication',
-    'hypoglycemics': 'Diabetes medication',
+    'hypoglycemics_high_risk':
+        'Insulin, Sulfonylureas, Meglitinides',
+    'hypoglycemics_lower_risk':
+        'Metformin, GLP-1 RAs, SGLT2i, DPP-4i',
     'thyroid_medications': 'Thyroid medication',
     'sedatives': 'Sedatives / Sleep medication',
     'immunosuppressants': 'Immunosuppressants',
