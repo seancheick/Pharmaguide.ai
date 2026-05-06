@@ -97,7 +97,18 @@ class EvidenceDetailSection extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final matchCount = evidenceData!.safeNum('match_count') ?? 0;
-    final clinicalMatches = evidenceData!.safeMapList('clinical_matches');
+    final allClinicalMatches = evidenceData!.safeMapList('clinical_matches');
+    // Pipeline ships `clinical_matches` rows tagged with an evidence
+    // level (e.g. "ingredient-human") even when no PMIDs back them.
+    // Those rows render under the honest "Limited evidence available"
+    // banner and read as a direct contradiction — Sean caught this on
+    // Vitamin A where the banner said "Limited evidence available" and
+    // a row right below claimed "Ingredient-human evidence" with no
+    // citations. Hide PMID-less rows from the list; the tier banner
+    // alone is the truthful surface when nothing is published-backed.
+    final clinicalMatches = allClinicalMatches
+        .where((m) => m.safeStringList('pmids').isNotEmpty)
+        .toList(growable: false);
     final unsubstantiated = evidenceData!.safeStringList(
       'unsubstantiated_claims',
     );
