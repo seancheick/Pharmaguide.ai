@@ -75,12 +75,12 @@ class ScoreBreakdownCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                // T14 (2026-04-29 PM) — was "Product Quality" (Sprint
-                // 1 dev-review copy). New spec calls Section 3
-                // "Product Analysis" — emphasizes the 4-pillar
-                // analytic surface, complements the headline quality
-                // score on the hero card.
-                'Product Analysis',
+                // T5 (sprint product_detail_page_sprint.md) — renamed
+                // from "Product Analysis" to "Why this scored {N}".
+                // The pillar bars below answer that question directly.
+                heroScore != null
+                    ? 'Why this scored ${heroScore!.round()}'
+                    : 'Why this scored',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.15,

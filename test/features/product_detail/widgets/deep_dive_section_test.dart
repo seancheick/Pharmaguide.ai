@@ -11,7 +11,6 @@ import 'package:pharmaguide/features/product_detail/widgets/excipient_density_ca
 import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_detail_sections.dart';
-import 'package:pharmaguide/features/product_detail/widgets/unmapped_actives_disclosure.dart';
 
 Widget _wrap(CoreDatabase coreDb, UserDatabase userDb, Widget child) {
   return ProviderScope(
@@ -144,7 +143,10 @@ void main() {
         // T18 (2026-04-30) — collapsed inline NutritionPanel into a
         // `NutritionFactsLink` that opens a bottom sheet on tap.
         expect(find.byType(NutritionFactsLink), findsOneWidget);
-        expect(find.byType(UnmappedActivesDisclosure), findsOneWidget);
+        // T3 (sprint product_detail_page_sprint.md) —
+        // UnmappedActivesDisclosure removed from Deep Dive; the same
+        // signal is now surfaced inside LabelConfidenceCard at the
+        // top of the screen.
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();

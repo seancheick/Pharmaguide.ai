@@ -578,9 +578,10 @@ Expanded content:
 
   "Active Ingredients" list from ingredients[]:
     Each row: ingredient name + category pill (e.g. "vitamin", "mineral", "botanical").
-    If bio_score >= 14: green "Premium Form" badge.
-    If bio_score >= 10 and < 14: blue "Good Form" badge.
-    If bio_score < 5: grey "Standard Form" badge.
+    If bio_score >= 12: green "Premium Form" badge.   (pipeline v3.6.0: bio_score is /15)
+    If bio_score >= 8 and < 12: blue "Good Form" badge.
+    If bio_score < 4: grey "Standard Form" badge.
+    Thresholds match FormAbsorptionSection.bioLabel — Excellent/Good/Fair/Poor at 12/8/4.
     Show dosage + unit if present (e.g. "400 mg").
     Raw label text shown in small monospace caption below name.
     Tap on ingredient row: opens Ingredient Detail bottom sheet (educational notes from IQM, category, identifiers).

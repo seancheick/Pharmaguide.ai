@@ -6,6 +6,17 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 
+/// Walks RichText widgets and matches when their concatenated plain-
+/// text contains [substring]. Needed because the population bullet is
+/// a styled span (head bold + tail muted) — `find.textContaining`
+/// only inspects `Text.data`, which is null for RichText.
+Finder _richTextContaining(String substring) {
+  return find.byWidgetPredicate((w) {
+    if (w is! RichText) return false;
+    return w.text.toPlainText().contains(substring);
+  });
+}
+
 InteractionWarning _w({List<String> populationWarnings = const []}) {
   return InteractionWarning(
     severity: Severity.caution,
@@ -280,12 +291,16 @@ void main() {
     testWidgets('no populations → section hides entirely', (tester) async {
       await _pump(tester, warnings: [_w()]);
       await tester.pumpAndSettle();
-      expect(find.text('At-risk populations'), findsNothing);
+      expect(find.text('Extra caution if you are…'), findsNothing);
     });
 
     testWidgets(
-      'populations + no user profile → renders main list, no covered line',
+      'populations + no user profile → bullet list, no "already covered" line',
       (tester) async {
+        // 2026-05-05 — content revision: comma-joined "Extra caution
+        // for: A, B" replaced with bulleted list under "Extra caution
+        // if you are…". The "already covered" parenthetical was
+        // dropped (silence in ReviewBeforeUseCard is the signal).
         await _pump(
           tester,
           warnings: [
@@ -293,17 +308,17 @@ void main() {
           ],
         );
         await tester.pumpAndSettle();
-        expect(find.text('At-risk populations'), findsOneWidget);
-        expect(
-          find.text('Extra caution for: Pregnancy, Children'),
-          findsOneWidget,
-        );
+        expect(find.text('Extra caution if you are…'), findsOneWidget);
+        // Each population renders as a RichText bullet — find via
+        // plain-text walk on the rendered span.
+        expect(_richTextContaining('Pregnancy'), findsOneWidget);
+        expect(_richTextContaining('Children'), findsOneWidget);
         expect(find.textContaining('already covered'), findsNothing);
       },
     );
 
     testWidgets(
-      'population matches user condition → covered line; non-match → main',
+      'population matches user condition → only the non-match remains',
       (tester) async {
         await _pump(
           tester,
@@ -319,20 +334,21 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(
-          find.text('Extra caution for: Children — immature gut barrier'),
-          findsOneWidget,
-        );
-        expect(
-          find.text('(You are already covered for Pregnancy)'),
-          findsOneWidget,
-        );
+        // Non-matching population renders.
+        expect(_richTextContaining('Children'), findsOneWidget);
+        // Matching population dropped from main list.
+        expect(_richTextContaining('Pregnancy'), findsNothing);
+        // No "already covered" line.
+        expect(find.textContaining('already covered'), findsNothing);
       },
     );
 
     testWidgets(
-      'all populations match user → main hidden, only covered line renders',
+      'all populations match user → section hides entirely',
       (tester) async {
+        // 2026-05-05 — when every population is in the user's profile,
+        // the section hides instead of rendering a confusing
+        // "(already covered for ...)" parenthetical.
         await _pump(
           tester,
           warnings: [
@@ -342,42 +358,14 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('At-risk populations'), findsOneWidget);
-        // Main list line absent.
+        expect(find.text('Extra caution if you are…'), findsNothing);
         expect(find.textContaining('Extra caution for'), findsNothing);
-        // Covered line lists both, sorted alpha.
-        expect(
-          find.text('(You are already covered for Diabetes, Pregnancy)'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('already covered'), findsNothing);
       },
     );
 
-    testWidgets(
-      'all populations match AND nothing else → section visible only with '
-      'covered line (no orphan empty card)',
-      (tester) async {
-        // Edge case: ensure we don't render an empty card when
-        // dedupe wipes out the main list and there's a covered line
-        // — at minimum the covered line carries the value.
-        await _pump(
-          tester,
-          warnings: [
-            _w(populationWarnings: const ['Pregnancy']),
-          ],
-          userConditions: {'pregnancy'},
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('At-risk populations'), findsOneWidget);
-        expect(
-          find.text('(You are already covered for Pregnancy)'),
-          findsOneWidget,
-        );
-      },
-    );
-
-    testWidgets('age bracket flows through to dedupe', (tester) async {
+    testWidgets('age bracket dedupes a population from the main list',
+        (tester) async {
       await _pump(
         tester,
         warnings: [
@@ -387,10 +375,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('(You are already covered for Under 18)'),
-        findsOneWidget,
-      );
+      // Whole section hides (only population was deduped).
+      expect(find.text('Extra caution if you are…'), findsNothing);
     });
   });
 }

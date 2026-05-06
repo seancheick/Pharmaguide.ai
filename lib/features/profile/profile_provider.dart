@@ -89,7 +89,7 @@ class ProfileState {
       goals: _decodeList(row.goals),
       conditions: _decodeList(row.conditions),
       drugClasses: _decodeList(row.drugClasses),
-      allergens: _decodeList(row.allergens),
+      allergens: migrateLegacyAllergenIds(_decodeList(row.allergens)),
     );
   }
 
@@ -99,6 +99,71 @@ class ProfileState {
       if (decoded is List) return decoded.cast<String>();
     } on Exception catch (_) {}
     return [];
+  }
+
+  /// One-shot migration for legacy allergen IDs that drifted from the
+  /// pipeline canonical set (`scripts/data/allergens.json`).
+  ///
+  /// Idempotent: canonical IDs map to themselves, legacy IDs are rewritten,
+  /// and IDs the pipeline cannot detect are silently dropped (no point
+  /// keeping them in the profile if they will never match).
+  ///
+  /// Drift fixes:
+  ///   ALLERGEN_EGG       → ALLERGEN_EGGS
+  ///   ALLERGEN_PEANUT    → ALLERGEN_PEANUTS
+  ///   ALLERGEN_SULFITE   → ALLERGEN_SULFITES
+  /// Group expansions (legacy single ID → multiple canonical IDs):
+  ///   ALLERGEN_SHELLFISH → ALLERGEN_CRUSTACEANS + ALLERGEN_MOLLUSCS
+  ///   ALLERGEN_GLUTEN    → ALLERGEN_WHEAT + BARLEY + RYE + OATS
+  /// Dropped (not detected by pipeline today, no clinical signoff yet):
+  ///   ALLERGEN_CORN, _YEAST, _GELATIN, _LATEX_FRUIT, _NIGHTSHADE, _SALICYLATE
+  static List<String> migrateLegacyAllergenIds(List<String> stored) {
+    const renames = <String, String>{
+      'ALLERGEN_EGG': 'ALLERGEN_EGGS',
+      'ALLERGEN_PEANUT': 'ALLERGEN_PEANUTS',
+      'ALLERGEN_SULFITE': 'ALLERGEN_SULFITES',
+    };
+    const groupExpansions = <String, List<String>>{
+      'ALLERGEN_SHELLFISH': ['ALLERGEN_CRUSTACEANS', 'ALLERGEN_MOLLUSCS'],
+      'ALLERGEN_GLUTEN': [
+        'ALLERGEN_WHEAT',
+        'ALLERGEN_BARLEY',
+        'ALLERGEN_RYE',
+        'ALLERGEN_OATS',
+      ],
+    };
+    const supported = <String>{
+      'ALLERGEN_MILK',
+      'ALLERGEN_EGGS',
+      'ALLERGEN_FISH',
+      'ALLERGEN_CRUSTACEANS',
+      'ALLERGEN_MOLLUSCS',
+      'ALLERGEN_TREE_NUTS',
+      'ALLERGEN_PEANUTS',
+      'ALLERGEN_WHEAT',
+      'ALLERGEN_BARLEY',
+      'ALLERGEN_RYE',
+      'ALLERGEN_OATS',
+      'ALLERGEN_SOY',
+      'ALLERGEN_SESAME',
+      'ALLERGEN_SULFITES',
+      'ALLERGEN_CELERY',
+      'ALLERGEN_MUSTARD',
+      'ALLERGEN_LUPIN',
+    };
+
+    final out = <String>{};
+    for (final id in stored) {
+      final renamed = renames[id] ?? id;
+      final expanded = groupExpansions[renamed];
+      if (expanded != null) {
+        out.addAll(expanded);
+      } else if (supported.contains(renamed)) {
+        out.add(renamed);
+      }
+      // Else: unsupported sensitivity (corn, yeast, etc.) — silently dropped.
+    }
+    return out.toList();
   }
 
   static const _listEq = ListEquality<String>();
@@ -182,6 +247,27 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       current.remove(allergenId);
     } else {
       current.add(allergenId);
+    }
+    state = state.copyWith(allergens: current);
+  }
+
+  /// Toggle a group of canonical allergen IDs all-or-nothing.
+  ///
+  /// Used by user-facing grouped chips like "Shellfish"
+  /// (CRUSTACEANS + MOLLUSCS) and "Gluten / wheat"
+  /// (WHEAT + BARLEY + RYE + OATS). Selected when every member is
+  /// present; tapping clears all members. Tapping an unselected (or
+  /// partially selected) chip adds every missing member.
+  void toggleAllergenGroup(List<String> allergenIds) {
+    if (allergenIds.isEmpty) return;
+    final current = List<String>.from(state.allergens);
+    final allPresent = allergenIds.every(current.contains);
+    if (allPresent) {
+      current.removeWhere(allergenIds.contains);
+    } else {
+      for (final id in allergenIds) {
+        if (!current.contains(id)) current.add(id);
+      }
     }
     state = state.copyWith(allergens: current);
   }

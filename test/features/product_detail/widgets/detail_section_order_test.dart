@@ -23,7 +23,13 @@ import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_sections/synergy_detail_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
-import 'package:pharmaguide/features/product_detail/widgets/with_your_stack_section.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+
+class _StubProfileNotifier extends ProfileNotifier {
+  _StubProfileNotifier(ProfileState initial) : super() {
+    state = initial;
+  }
+}
 
 /// Minimal `detail_blob` shape that fires every section branch:
 /// has actives + inactives, has score_bonuses + score_penalties
@@ -90,10 +96,19 @@ List<InteractionWarning> _warningsWithStackMatch() {
 }
 
 Widget _wrap(CoreDatabase coreDb, UserDatabase userDb, Widget child) {
+  // Inject a profile that matches the warning fixture's
+  // `drugClassIds: ['anticoagulants']` so WithYourStackSection
+  // actually renders a row (not SizedBox.shrink). Required for the
+  // ordering assertions below: without a row WithYourStack collapses
+  // to 0 height and shares Y with the next section.
+  final profile = const ProfileState(
+    drugClasses: ['anticoagulants'],
+  );
   return ProviderScope(
     overrides: [
       coreDatabaseProvider.overrideWithValue(coreDb),
       userDatabaseProvider.overrideWithValue(userDb),
+      profileProvider.overrideWith((_) => _StubProfileNotifier(profile)),
     ],
     child: MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: child)),
@@ -150,33 +165,25 @@ void main() {
       await tester.pumpAndSettle();
 
       // Grab top-edge Y for each section.
-      // 2026-04-30 — `UnknownsSection` (§6) and the legacy
-      // `InteractionWarningsList` (§7.2 "Other precautions") were
-      // dropped. AlertSummaryCard's accordion now carries the
-      // warning bodies; the gap-list is redundant with §5 / footer.
+      // 2026-05-05 (Phase 2B) — `WithYourStackSection` retired into
+      // ReviewBeforeUseCard at the top of the page. Its citation/
+      // evidence chips now live inside _AlertRow.
       final tradeoffsY = _topOf(tester, TradeoffsSection);
-      final withYourStackY = _topOf(tester, WithYourStackSection);
       final synergyY = _topOf(tester, SynergyDetailSection);
       final populationsY = _topOf(tester, PopulationsSection);
       final inactiveHeaderY = _topOf(tester, IngredientsCard);
 
-      // Spec ordering: §4 Ingredients → §5 Tradeoffs → §7.1 WithYourStack
-      // → §8 Synergy → §9 Populations.
+      // Spec ordering: §4 Ingredients → §5 Tradeoffs → §8 Synergy
+      // → §9 Populations.
       expect(
         inactiveHeaderY < tradeoffsY,
         isTrue,
         reason: 'Tradeoffs (§5) must render below Ingredients (§4)',
       );
       expect(
-        tradeoffsY < withYourStackY,
+        tradeoffsY < synergyY,
         isTrue,
-        reason:
-            'WithYourStack (§7.1) must render below Tradeoffs (§5)',
-      );
-      expect(
-        withYourStackY < synergyY,
-        isTrue,
-        reason: 'Synergy (§8) must render below WithYourStack (§7.1)',
+        reason: 'Synergy (§8) must render below Tradeoffs (§5)',
       );
       expect(
         synergyY < populationsY,

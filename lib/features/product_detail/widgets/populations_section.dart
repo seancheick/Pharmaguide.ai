@@ -255,6 +255,16 @@ class PopulationsSection extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
+    // 2026-05-05 — content revision per Sean. Previous renderer
+    // comma-joined raw pipeline strings ("Children — immature gut
+    // barrier, People with IBD — may aggravate inflammation"), and
+    // surfaced an "(already covered for Anticoagulants)" parenthetical
+    // that confusingly mixed drug-class IDs with population strings.
+    // Now: bullet list with title/subtitle split at the em-dash;
+    // "already covered" line dropped (silence in ReviewBeforeUseCard
+    // is sufficient signal).
+    if (split.mainList.isEmpty) return const SizedBox.shrink();
+
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
       child: Column(
@@ -264,38 +274,93 @@ class PopulationsSection extends StatelessWidget {
             children: [
               Icon(Icons.groups_outlined, size: 18, color: scheme.primary),
               const SizedBox(width: 6),
-              Text(
-                'At-risk populations',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.15,
+              Expanded(
+                child: Text(
+                  'Extra caution if you are…',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.15,
+                  ),
                 ),
               ),
             ],
           ),
-          if (split.mainList.isNotEmpty) ...[
-            const SizedBox(height: AppTheme.space8),
-            Text(
-              'Extra caution for: ${split.mainList.join(', ')}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurface,
-                height: 1.4,
-              ),
+          const SizedBox(height: AppTheme.space8),
+          for (final entry in split.mainList)
+            _PopulationBullet(
+              raw: entry,
+              theme: theme,
+              scheme: scheme,
             ),
-          ],
-          if (split.alreadyCovered.isNotEmpty) ...[
-            const SizedBox(height: AppTheme.space6),
-            Text(
-              '(You are already covered for ${split.alreadyCovered.join(', ')})',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-          ],
         ],
       ),
     );
+  }
+}
+
+/// Bullet rendering for one population string. Splits at the first
+/// em-dash / en-dash / " - " so long pipeline strings ("Children —
+/// immature gut barrier") become a bold lead-in (Children) plus a
+/// muted explanation. Falls back to a plain bullet when no dash.
+class _PopulationBullet extends StatelessWidget {
+  final String raw;
+  final ThemeData theme;
+  final ColorScheme scheme;
+
+  const _PopulationBullet({
+    required this.raw,
+    required this.theme,
+    required this.scheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (head, tail) = _splitAtDash(raw);
+    // Use Text.rich with a leading bullet inline as part of the same
+    // span — avoids a Row + Expanded layout that was overflowing on
+    // narrow widths during regression-test pumps.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Text.rich(
+        TextSpan(
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurface,
+            height: 1.4,
+          ),
+          children: [
+            TextSpan(
+              text: '•  ',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            TextSpan(
+              text: head,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            if (tail.isNotEmpty)
+              TextSpan(
+                text: ' — $tail',
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// (head, tail) split at the first em-dash, en-dash, or " - ".
+  /// tail may be empty when no dash is present.
+  static (String, String) _splitAtDash(String raw) {
+    for (final sep in const ['—', '–', ' - ']) {
+      final i = raw.indexOf(sep);
+      if (i > 0) {
+        final head = raw.substring(0, i).trim();
+        final tail = raw.substring(i + sep.length).trim();
+        if (head.isNotEmpty) return (head, tail);
+      }
+    }
+    return (raw.trim(), '');
   }
 }

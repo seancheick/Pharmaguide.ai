@@ -539,45 +539,38 @@ class _HealthProfileStep extends ConsumerWidget {
 class _AllergensStep extends ConsumerWidget {
   const _AllergensStep();
 
-  static const _allergens = [
-    'ALLERGEN_MILK',
-    'ALLERGEN_EGG',
-    'ALLERGEN_FISH',
-    'ALLERGEN_SHELLFISH',
-    'ALLERGEN_TREE_NUTS',
-    'ALLERGEN_PEANUT',
-    'ALLERGEN_WHEAT',
-    'ALLERGEN_SOY',
-    'ALLERGEN_SESAME',
-    'ALLERGEN_GLUTEN',
-    'ALLERGEN_CORN',
-    'ALLERGEN_YEAST',
-    'ALLERGEN_GELATIN',
-    'ALLERGEN_LATEX_FRUIT',
-    'ALLERGEN_NIGHTSHADE',
-    'ALLERGEN_SULFITE',
-    'ALLERGEN_SALICYLATE',
+  /// User-facing chips. Each chip stores one or more canonical allergen IDs
+  /// from `scripts/data/allergens.json` (the pipeline source of truth).
+  /// Grouped chips ("Shellfish", "Gluten / wheat") store multiple IDs so
+  /// the matcher fires on any constituent grain or shellfish kind.
+  ///
+  /// Sensitivities the pipeline cannot detect today (corn, yeast, gelatin,
+  /// latex-fruit, nightshade, salicylate) are intentionally omitted —
+  /// surfacing them would silently fail to flag products. Re-add when
+  /// pipeline support and clinical signoff land.
+  static const _chips = <_AllergenChipDef>[
+    _AllergenChipDef('Milk / Dairy', ['ALLERGEN_MILK']),
+    _AllergenChipDef('Eggs', ['ALLERGEN_EGGS']),
+    _AllergenChipDef('Fish', ['ALLERGEN_FISH']),
+    _AllergenChipDef('Shellfish', [
+      'ALLERGEN_CRUSTACEANS',
+      'ALLERGEN_MOLLUSCS',
+    ]),
+    _AllergenChipDef('Tree nuts', ['ALLERGEN_TREE_NUTS']),
+    _AllergenChipDef('Peanuts', ['ALLERGEN_PEANUTS']),
+    _AllergenChipDef('Soy', ['ALLERGEN_SOY']),
+    _AllergenChipDef('Sesame', ['ALLERGEN_SESAME']),
+    _AllergenChipDef('Gluten / wheat', [
+      'ALLERGEN_WHEAT',
+      'ALLERGEN_BARLEY',
+      'ALLERGEN_RYE',
+      'ALLERGEN_OATS',
+    ]),
+    _AllergenChipDef('Sulfites', ['ALLERGEN_SULFITES']),
+    _AllergenChipDef('Celery', ['ALLERGEN_CELERY']),
+    _AllergenChipDef('Mustard', ['ALLERGEN_MUSTARD']),
+    _AllergenChipDef('Lupin', ['ALLERGEN_LUPIN']),
   ];
-
-  static const _allergenLabels = {
-    'ALLERGEN_MILK': 'Milk/Dairy',
-    'ALLERGEN_EGG': 'Eggs',
-    'ALLERGEN_FISH': 'Fish',
-    'ALLERGEN_SHELLFISH': 'Shellfish',
-    'ALLERGEN_TREE_NUTS': 'Tree nuts',
-    'ALLERGEN_PEANUT': 'Peanuts',
-    'ALLERGEN_WHEAT': 'Wheat',
-    'ALLERGEN_SOY': 'Soy',
-    'ALLERGEN_SESAME': 'Sesame',
-    'ALLERGEN_GLUTEN': 'Gluten',
-    'ALLERGEN_CORN': 'Corn',
-    'ALLERGEN_YEAST': 'Yeast',
-    'ALLERGEN_GELATIN': 'Gelatin',
-    'ALLERGEN_LATEX_FRUIT': 'Latex-related fruits',
-    'ALLERGEN_NIGHTSHADE': 'Nightshade',
-    'ALLERGEN_SULFITE': 'Sulfites',
-    'ALLERGEN_SALICYLATE': 'Salicylates',
-  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -599,13 +592,17 @@ class _AllergensStep extends ConsumerWidget {
           Wrap(
             spacing: AppTheme.space8,
             runSpacing: AppTheme.space8,
-            children: _allergens.map((allergenId) {
-              final selected = profile.allergens.contains(allergenId);
-              final label = _allergenLabels[allergenId] ?? allergenId;
+            children: _chips.map((chip) {
+              // A chip is considered selected when every constituent ID
+              // is present — partial selections are treated as unselected
+              // so a tap completes the group.
+              final selected = chip.allergenIds.every(
+                profile.allergens.contains,
+              );
               return PGFilterChip(
-                label: label,
+                label: chip.label,
                 selected: selected,
-                onTap: () => notifier.toggleAllergen(allergenId),
+                onTap: () => notifier.toggleAllergenGroup(chip.allergenIds),
               );
             }).toList(),
           ),
@@ -614,6 +611,13 @@ class _AllergensStep extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _AllergenChipDef {
+  final String label;
+  final List<String> allergenIds;
+
+  const _AllergenChipDef(this.label, this.allergenIds);
 }
 
 // ---------------------------------------------------------------------------

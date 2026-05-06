@@ -74,14 +74,28 @@ void main() {
     });
   });
 
-  group('ScoreBreakdownCard — T14 header + pillar labels', () {
-    testWidgets('header reads "Product Analysis" (T14 rename)', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-      expect(find.text('Product Analysis'), findsOneWidget);
-      // Pre-T14 header is gone.
-      expect(find.text('Product Quality'), findsNothing);
-    });
+  group('ScoreBreakdownCard — T5 header + pillar labels', () {
+    testWidgets(
+      'header reads "Why this scored {N}" when heroScore present',
+      (tester) async {
+        await tester.pumpWidget(buildTestWidget(heroScore: 84));
+        await tester.pumpAndSettle();
+        expect(find.text('Why this scored 84'), findsOneWidget);
+        // Pre-T5 headers are gone.
+        expect(find.text('Product Analysis'), findsNothing);
+        expect(find.text('Product Quality'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'header reads "Why this scored" (no number) when heroScore null',
+      (tester) async {
+        await tester.pumpWidget(buildTestWidget());
+        await tester.pumpAndSettle();
+        expect(find.text('Why this scored'), findsOneWidget);
+        expect(find.text('Product Analysis'), findsNothing);
+      },
+    );
 
     testWidgets('all 4 pillar labels match locked spec', (tester) async {
       await tester.pumpWidget(buildTestWidget());

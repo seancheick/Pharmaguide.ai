@@ -218,9 +218,12 @@ class IngredientDetail {
   final String? matched_form;     // selected form match
   final List<Map> matched_forms;  // full multi-form evidence when present
   final List<Map> extracted_forms;// raw extracted form tokens when present
-  final int? bio_score;           // 0-14
-  final bool? natural;
-  final double? score;            // real upstream field, do not rename
+  final int? bio_score;           // 0-15 — pure form/absorption quality (pipeline v3.6.0+)
+  final bool? natural;            // sourcing flag; consumed by Section A's A5e
+  final double? score;            // DEPRECATED: alias of bio_score in v3.6.x;
+                                  //   pre-v3.6.0 blobs had score = bio_score + 3*natural (0-18).
+                                  //   New consumers should read bio_score directly. Field
+                                  //   retained on the wire for backward compat during shadow.
   final String notes;             // educational text from IQM form notes
   final String category;
   final bool mapped;

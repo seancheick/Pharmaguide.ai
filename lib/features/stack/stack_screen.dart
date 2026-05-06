@@ -544,12 +544,14 @@ class _StackItemCard extends ConsumerWidget {
           return;
         }
         if (!context.mounted) return;
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.clearSnackBars();
+        // Sean 2026-05-05 — see pg_stack_action_buttons.dart for why we
+        // use hideCurrentSnackBar() over clearSnackBars() here.
+        final messenger = ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(
             content: Text('Removed ${entry.name}'),
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
               label: 'Undo',

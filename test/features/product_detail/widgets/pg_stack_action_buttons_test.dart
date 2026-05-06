@@ -1,4 +1,4 @@
-// Spec: INITIATIVE_PRODUCT_TRUST_AND_IA.md, Sprint 1, T1.15.
+// Spec: docs/sprints/product_detail_page_sprint.md — T1A.
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -63,9 +63,9 @@ Widget _wrap(
 }
 
 void main() {
-  group('PGStackActionButtons — T1.15 conditional primary', () {
+  group('PGStackActionButtons — conditional primary', () {
     testWidgets(
-      'safe + not in stack → "Add to my stack" only (T8: no Log Dose)',
+      'safe + not in stack → "Add to my stack" only',
       (tester) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -76,7 +76,6 @@ void main() {
 
         expect(find.text('Add to my stack'), findsOneWidget);
         expect(find.text('See safer alternatives'), findsNothing);
-        // T8 — Log Dose secondary moved to the stack screen.
         expect(find.text('Log dose'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -97,7 +96,6 @@ void main() {
 
         expect(find.text('See safer alternatives'), findsOneWidget);
         expect(find.text('Add to my stack'), findsNothing);
-        // T8 — Log Dose moved to stack screen, not rendered here.
         expect(find.text('Log dose'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -107,7 +105,7 @@ void main() {
     );
 
     testWidgets(
-      'already in stack → "In your stack" panel only (T8: no Log Dose)',
+      'already in stack → "In your stack" panel only',
       (tester) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -117,12 +115,9 @@ void main() {
         await tester.pumpWidget(_wrap(coreDb, userDb));
         await tester.pumpAndSettle();
 
-        // In-stack pill renders + Remove button inside it.
         expect(find.text('In your stack'), findsOneWidget);
         expect(find.text('Remove'), findsOneWidget);
-        // Add button should NOT be visible.
         expect(find.text('Add to my stack'), findsNothing);
-        // T8 — Log Dose moved to stack screen, not rendered here.
         expect(find.text('Log dose'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -132,13 +127,12 @@ void main() {
     );
 
     testWidgets(
-      '2026-04-30 — in-stack pill auto-dismisses after 3s window',
+      'T1A — in-stack pill is persistent (does NOT auto-collapse after 3s)',
       (tester) async {
-        // Sean's call: persistent green pill felt like "the banner stays
-        // forever". Now it cross-fades to height-zero after 3s.
-        // AnimatedCrossFade keeps both children in the tree, so we
-        // assert the dismissed state by inspecting the widget itself
-        // (opacity / crossFadeState) rather than `findsNothing`.
+        // The previous version cross-faded the bar to height-zero after
+        // 3s. Sean's new call: the bar must stay visible so users can
+        // remove without leaving the page. Only the snackbar is
+        // ephemeral; the bar itself is persistent.
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
         await _seedProduct(coreDb);
@@ -147,20 +141,16 @@ void main() {
         await tester.pumpWidget(_wrap(coreDb, userDb));
         await tester.pumpAndSettle();
 
-        // Within the 3s window — pill visible.
-        var crossFade = tester.widget<AnimatedCrossFade>(
-          find.byType(AnimatedCrossFade),
-        );
-        expect(crossFade.crossFadeState, CrossFadeState.showFirst);
+        // Pill visible immediately.
+        expect(find.text('In your stack'), findsOneWidget);
+        expect(find.text('Remove'), findsOneWidget);
 
-        // Advance past the 3s timer + the cross-fade animation.
-        await tester.pump(const Duration(seconds: 3));
-        await tester.pump(const Duration(milliseconds: 300));
-
-        crossFade = tester.widget<AnimatedCrossFade>(
-          find.byType(AnimatedCrossFade),
-        );
-        expect(crossFade.crossFadeState, CrossFadeState.showSecond);
+        // Past the old 3s window — bar must still render.
+        await tester.pump(const Duration(seconds: 5));
+        expect(find.text('In your stack'), findsOneWidget);
+        expect(find.text('Remove'), findsOneWidget);
+        // No AnimatedCrossFade — the auto-collapse machinery is gone.
+        expect(find.byType(AnimatedCrossFade), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await coreDb.close();
@@ -171,10 +161,6 @@ void main() {
     testWidgets(
       'unsafe wins over in-stack — "See safer alternatives" beats Remove panel',
       (tester) async {
-        // Edge case: the user already has the product in their stack
-        // and a later catalog update flipped it to UNSAFE. The right
-        // call is to direct them to safer alternatives, not let them
-        // re-open the remove flow as the loudest button.
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
         await _seedProduct(coreDb, verdict: 'UNSAFE');
@@ -191,12 +177,6 @@ void main() {
         await userDb.close();
       },
     );
-
-    // T8 (2026-04-29) — three dedicated Log Dose tests removed
-    // (`disabled when not in stack`, `enabled in stack — fires
-    // onLogDose`, `disabled in unsafe state`). The Log Dose
-    // secondary button is gone from this widget; the contract that
-    // it is NOT rendered is asserted in the three tests above.
 
     testWidgets(
       'tap "See safer alternatives" → fires onSeeAlternatives callback',
@@ -227,16 +207,8 @@ void main() {
     );
 
     testWidgets(
-      'add flow preserved — Add button has non-null onPressed (V0 wiring intact)',
+      'add flow preserved — Add button has non-null onPressed',
       (tester) async {
-        // Per spec: "Tap [Add to Stack] → existing flow (no behavior
-        // change)". The full V0 add flow goes through showSafetyCheckSheet
-        // which depends on a chain of providers (safetyCheckForAddProvider,
-        // verdict provider, interaction DB) that aren't worth full-staging
-        // for this widget test. Instead we assert the structural invariant:
-        // the Add button is rendered as an enabled FilledButton wired to
-        // the V0 _handleAdd handler — exact same construction as before
-        // T1.15's refactor.
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
         await _seedProduct(coreDb);
@@ -253,7 +225,7 @@ void main() {
         expect(
           addButton.onPressed,
           isNotNull,
-          reason: 'V0 _handleAdd handler should be wired up',
+          reason: '_handleAdd handler should be wired up',
         );
 
         await tester.pumpWidget(const SizedBox.shrink());
