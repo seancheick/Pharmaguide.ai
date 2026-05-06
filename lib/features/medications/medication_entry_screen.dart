@@ -6,47 +6,39 @@
 // Flow:
 //   1. Autocomplete text field hits `RxNormApiService.search()` on a
 //      300 ms debounce. While the user is still typing or while the
-//      query is in flight we show a "shimmer" suggestion list.
+//      query is in flight we show a shimmer suggestion list.
 //   2. The user picks a suggestion → we resolve its rxcui's drug
 //      classes via `RxNormApiService.getClasses()` so the curated
 //      check can match class-level rows.
-//   3. Optional dose / frequency text fields. We don't validate them
-//      beyond non-empty: every device shows a different label and the
-//      M5 interaction renderer doesn't read them.
+//   3. Optional dose / frequency text fields (for user reference only —
+//      the interaction engine does not use them yet).
 //   4. Save → calls `StackActions.addMedication()` which inserts a
 //      `type='medication'` row with rxcui + drug_classes JSON. The
 //      privacy grep test guarantees that path never reaches Supabase
 //      sync.
-//   5. After save we pop the screen with `Navigator.pop(context, ...)`
-//      returning the new entry id so the caller can fan a snackbar +
-//      kick off the post-add interaction check (G11 wires that).
+//   5. After save we pop immediately, returning the new entry id so the
+//      caller can fan a snackbar + kick off the post-add interaction
+//      check. Depletion nudges surface later on the stack screen.
 //
 // Offline fallback (spec §8.4): if the autocomplete query yields zero
-// suggestions AND we know we're offline (the network call returned
-// null), we fold the bundled drug-class picker into the suggestion
-// list — the user can still add a class-level entry like "ACE
-// Inhibitors" without a single network round-trip. The class picker
-// pulls its options from `RxNormApiService.offlineDrugClasses()`,
-// which reads the bundled InteractionDb's `drug_class_map` table.
+// suggestions AND we know we're offline, we surface the bundled
+// drug-class picker — the user can still add a class-level entry
+// without a network round-trip.
 //
 // The screen is intentionally feature-flag-free and self-contained.
 // All HTTP / DB / sync calls are routed through Riverpod providers so
-// widget tests can swap them out for fakes. See
-// `test/features/medications/medication_entry_screen_test.dart`.
+// widget tests can swap them out for fakes.
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_search_field.dart';
-import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
-import 'package:pharmaguide/features/stack/widgets/depletion_nudge_sheet.dart';
 import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 
@@ -73,43 +65,16 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
   bool _searching = false;
   List<RxNormSuggestion> _suggestions = const <RxNormSuggestion>[];
 
-  /// True once a search has come back with zero results AND we have
-  /// reason to believe the user is offline (the suggestions list is
-  /// empty even after a fresh search). We then surface the bundled
-  /// drug-class picker as a fallback.
   bool _offlineFallbackVisible = false;
   List<String> _offlineClasses = const <String>[];
 
   // Selection state ---------------------------------------------------------
-  /// The user-picked drug name (either an RxNorm display name or a
-  /// `class:*` slug from the offline picker).
   String? _selectedName;
-
-  /// rxcui resolved when the user picked a real RxNorm suggestion.
-  /// Null when the user fell back to the offline class picker.
   String? _selectedRxcui;
-
-  /// Drug classes resolved for the selected rxcui (or a single class
-  /// slug when the offline picker is in play).
   List<String> _selectedClasses = const <String>[];
-
-  /// Generic ingredient RXCUI resolved from the user's pick. When the
-  /// user selects a brand name (e.g., Synthroid → 224920), this holds
-  /// the base generic IN-level RXCUI (levothyroxine → 10582). Used for
-  /// interaction matching so brand picks match curated entries keyed on
-  /// the generic. Null when offline or already generic.
   String? _selectedGenericRxcui;
-
-  /// Individual ingredient RXCUIs for combination drugs. When the user
-  /// picks "Lisinopril/HCTZ", this holds [lisinopril_rxcui, hctz_rxcui]
-  /// so each ingredient can be checked independently against interactions.
   List<String> _ingredientRxcuis = const <String>[];
-
-  /// Set while we're fetching classes for the just-picked suggestion
-  /// so the save button can stay disabled.
   bool _resolvingClasses = false;
-
-  /// Set while we're inserting the row.
   bool _saving = false;
 
   // -------------------------------------------------------------------------
@@ -164,9 +129,6 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
       _searching = false;
     });
 
-    // Empty results triggers the offline fallback. We treat zero hits
-    // and a network error identically: the medication-entry flow
-    // promises a usable picker either way.
     if (results.isEmpty) {
       await _loadOfflineFallback();
     }
@@ -201,8 +163,6 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
       _offlineFallbackVisible = false;
     });
 
-    // Fire class resolution + generic resolution + ingredient decomposition
-    // in parallel — all are non-blocking and independent.
     final classesFuture = _service.getClasses(suggestion.rxcui);
     final genericsFuture = _service.resolveGenericRxcuis(suggestion.rxcui);
 
@@ -210,25 +170,22 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
     final genericsResult = await genericsFuture;
     if (!mounted) return;
 
-    final classes = classesResult;
-    final generics = genericsResult;
-
     setState(() {
-      _selectedClasses = classes;
-      // If multiple IN-level ingredients → combination drug.
-      // Store the first as the generic_rxcui, all as ingredient_rxcuis.
-      _selectedGenericRxcui = generics.isNotEmpty ? generics.first : null;
-      _ingredientRxcuis = generics.length > 1 ? generics : const <String>[];
+      _selectedClasses = classesResult;
+      _selectedGenericRxcui =
+          genericsResult.isNotEmpty ? genericsResult.first : null;
+      _ingredientRxcuis =
+          genericsResult.length > 1 ? genericsResult : const <String>[];
       _resolvingClasses = false;
     });
   }
 
   void _selectOfflineClass(String classId) {
     setState(() {
-      _selectedName = _humanizeClass(classId);
+      _selectedName = _friendlyClassLabel(classId);
       _selectedRxcui = null;
       _selectedClasses = <String>[classId];
-      _searchController.text = _humanizeClass(classId);
+      _searchController.text = _friendlyClassLabel(classId);
       _searchController.selection = TextSelection.fromPosition(
         TextPosition(offset: _searchController.text.length),
       );
@@ -237,14 +194,17 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
     });
   }
 
-  /// `class:ace_inhibitors` → `ACE Inhibitors`. Title-cases the slug
-  /// for display. The underlying id is preserved verbatim in the
-  /// stack row.
-  static String _humanizeClass(String classId) {
-    final stripped = classId.startsWith('class:')
-        ? classId.substring(6)
-        : classId;
-    return stripped
+  /// Look up the user-friendly label from SchemaIds.drugClassLabels,
+  /// falling back to a humanized version of the slug.
+  static String _friendlyClassLabel(String classId) {
+    final stripped =
+        classId.startsWith('class:') ? classId.substring(6) : classId;
+    return SchemaIds.drugClassLabels[stripped] ?? _humanizeSlug(stripped);
+  }
+
+  /// `ace_inhibitors` → `Ace Inhibitors`.
+  static String _humanizeSlug(String slug) {
+    return slug
         .split('_')
         .where((p) => p.isNotEmpty)
         .map((p) => p[0].toUpperCase() + p.substring(1))
@@ -283,85 +243,14 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
 
     if (!mounted) return;
 
-    // Depletion nudge (Phase 4 of depletion UX plan) — resolve whether
-    // this medication has a gentle "since you take X, here's something
-    // worth knowing" suggestion, and surface it once per (med, nutrient)
-    // pair before we pop. This runs off the main add-medication path, so
-    // any nudge failure must NOT block the save UI.
-    try {
-      await _maybeShowDepletionNudge(newId, _selectedName!, _selectedClasses);
-    } on Exception {
-      // Intentional: nudge is a non-critical enhancement. Never block
-      // the save flow on its plumbing.
-    }
-
-    if (!mounted) return;
+    // Pop immediately — the first reward should be "medication added,
+    // we'll now check interactions." Depletion nudges surface later on
+    // the stack screen, not as a blocking modal here.
     final nav = Navigator.of(context);
     if (nav.canPop()) {
       nav.pop(newId);
     } else {
-      // Screen mounted as the root (e.g. in widget tests) — there's
-      // nothing to pop to. Reset save state so tests / callers that
-      // rely on the post-save UI don't see a stuck spinner.
       setState(() => _saving = false);
-    }
-  }
-
-  /// Compute and (if present) surface the depletion nudge for the
-  /// medication we just saved. Reads the bundled depletions asset,
-  /// filters by user-profile stack coverage, and presents a calm
-  /// modal sheet. Tracks dismissal state in SharedPreferences so
-  /// returning users don't re-see the same suggestion.
-  Future<void> _maybeShowDepletionNudge(
-    String newStackEntryId,
-    String medicationName,
-    List<String> drugClasses,
-  ) async {
-    final nudgeSvc = ref.read(medicationDepletionNudgeServiceProvider);
-    final repo = ref.read(referenceDataRepositoryProvider);
-    final Map<String, dynamic> depletionsData = await repo
-        .loadMedicationDepletions();
-
-    // Build coveredIds from existing supplements in the stack, same
-    // logic as depletionReportProvider. We skip dose data here —
-    // presence-only is enough to avoid nudging users who are already
-    // at least partially covered.
-    final stack = await ref.read(activeStackProvider.future);
-    final coreDb = ref.read(coreDatabaseProvider);
-    final coveredIds = <String>{};
-    for (final supp in stack.where((e) => e.type == 'supplement')) {
-      if (supp.dsldId == null) continue;
-      final product = await coreDb.findById(supp.dsldId!);
-      if (product?.keyIngredientTags == null) continue;
-      try {
-        final tags = jsonDecode(product!.keyIngredientTags!);
-        if (tags is List) {
-          for (final t in tags) {
-            coveredIds.add(t.toString().toLowerCase());
-          }
-        }
-      } on FormatException {
-        // skip malformed rows
-      }
-    }
-
-    final nudge = await nudgeSvc.computePendingNudge(
-      stackEntryId: newStackEntryId,
-      medicationName: medicationName,
-      drugClassIds: drugClasses,
-      depletionsData: depletionsData,
-      stackCanonicalIds: coveredIds,
-    );
-
-    if (nudge == null || nudge.isEmpty) return;
-    if (!mounted) return;
-    final dismissed = await showDepletionNudgeSheet(context, nudge: nudge);
-    // If user chose "Not now" (explicit dismiss) OR "Got it" (read and
-    // acknowledged), mark the pair seen. Only leave it re-surfaceable
-    // if the sheet closed via scrim/back — signals indecision, not
-    // dismissal.
-    if (dismissed == true || dismissed == false) {
-      await nudgeSvc.markAllSeen(nudge);
     }
   }
 
@@ -375,41 +264,47 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add medication'),
-        actions: [
-          TextButton(
-            key: const Key('med-entry-save'),
-            onPressed: _canSave ? _save : null,
-            child: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
-          ),
-        ],
+        title: const Text('Add a medication'),
       ),
       body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.all(AppTheme.space16),
+        child: Column(
           children: [
-            _buildIntroCard(theme),
-            const SizedBox(height: AppTheme.space16),
-            PGSearchField(
-              key: const Key('med-entry-search'),
-              hintText: 'Search RxNorm — e.g. "warfarin"',
-              controller: _searchController,
-              onChanged: _onQueryChanged,
-              autofocus: true,
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(AppTheme.space16),
+                children: [
+                  _buildIntroCard(theme),
+                  const SizedBox(height: AppTheme.space16),
+                  PGSearchField(
+                    key: const Key('med-entry-search'),
+                    hintText: 'Search medication name',
+                    controller: _searchController,
+                    onChanged: _onQueryChanged,
+                    autofocus: true,
+                  ),
+                  if (_query.trim().length < 2) ...[
+                    const SizedBox(height: AppTheme.space8),
+                    Text(
+                      'Try "warfarin," "metformin," or "levothyroxine."',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppTheme.space12),
+                  _buildSuggestionArea(theme),
+                  const SizedBox(height: AppTheme.space24),
+                  _buildSelectionSummary(theme),
+                  const SizedBox(height: AppTheme.space16),
+                  _buildOptionalFields(theme),
+                  // Extra bottom padding so content isn't hidden behind
+                  // the sticky button.
+                  const SizedBox(height: 80),
+                ],
+              ),
             ),
-            const SizedBox(height: AppTheme.space12),
-            _buildSuggestionArea(theme),
-            const SizedBox(height: AppTheme.space24),
-            _buildSelectionSummary(theme),
-            const SizedBox(height: AppTheme.space16),
-            _buildOptionalFields(theme),
+            // Sticky bottom CTA
+            _buildStickyButton(theme),
           ],
         ),
       ),
@@ -430,8 +325,8 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
           const SizedBox(width: AppTheme.space12),
           Expanded(
             child: Text(
-              'Medications stay on this device. We use them only to '
-              'check for interactions with your supplements.',
+              'Your medication list is private. We use it only to check '
+              'supplement interactions on this device.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -464,23 +359,11 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            s.name,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'RxCUI ${s.rxcui}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        s.name,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     Icon(
@@ -503,7 +386,7 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
       return const PGEmptyState(
         icon: Icons.search_off_rounded,
         title: 'No matches',
-        description: 'Try a different spelling, or pick a drug class below.',
+        description: 'Try a different spelling, or pick a medication type below.',
       );
     }
 
@@ -518,8 +401,9 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppTheme.space8),
           child: Text(
-            "Can't reach RxNorm — pick a drug class so we can still "
-            'check for interactions:',
+            "We couldn't search medications right now.\n"
+            'Choose a medication type instead so we can still check '
+            'common interactions.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -532,7 +416,7 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
             for (final cls in _offlineClasses)
               ActionChip(
                 key: Key('med-entry-class-$cls'),
-                label: Text(_humanizeClass(cls)),
+                label: Text(_friendlyClassLabel(cls)),
                 onPressed: () => _selectOfflineClass(cls),
               ),
           ],
@@ -550,44 +434,39 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
+            'Selected',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space4),
+          Text(
             _selectedName!,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: AppTheme.space4),
-          if (_selectedRxcui != null)
-            Text(
-              'RxCUI ${_selectedRxcui!}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
           if (_resolvingClasses)
             Padding(
               padding: const EdgeInsets.only(top: AppTheme.space8),
               child: Text(
-                'Looking up drug classes…',
+                'Looking up interaction categories\u2026',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             )
-          else if (_selectedClasses.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppTheme.space8),
-              child: Wrap(
-                spacing: AppTheme.space4,
-                runSpacing: AppTheme.space4,
-                children: [
-                  for (final cls in _selectedClasses)
-                    Chip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(_humanizeClass(cls)),
-                    ),
-                ],
+          else if (_selectedClasses.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.space4),
+            Text(
+              'Used to check: ${_selectedClasses.map(_friendlyClassLabel).join(', ')}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+          ],
         ],
       ),
     );
@@ -598,17 +477,25 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Optional details',
+          'Optional',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: AppTheme.space8),
+        const SizedBox(height: AppTheme.space4),
+        Text(
+          'Add dose or schedule for your own reference.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space12),
         TextField(
           key: const Key('med-entry-dose'),
           controller: _doseController,
           decoration: const InputDecoration(
-            labelText: 'Dose (e.g. "5 mg")',
+            labelText: 'Dose',
+            hintText: 'e.g. 5 mg',
             border: OutlineInputBorder(),
           ),
         ),
@@ -617,11 +504,49 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
           key: const Key('med-entry-frequency'),
           controller: _frequencyController,
           decoration: const InputDecoration(
-            labelText: 'Frequency (e.g. "once daily")',
+            labelText: 'Schedule',
+            hintText: 'e.g. once daily',
             border: OutlineInputBorder(),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildStickyButton(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space16,
+        AppTheme.space12,
+        AppTheme.space16,
+        AppTheme.space16,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: FilledButton(
+          key: const Key('med-entry-save'),
+          onPressed: _canSave ? _save : null,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Add medication'),
+        ),
+      ),
     );
   }
 }

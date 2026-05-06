@@ -177,8 +177,8 @@ void main() {
     expect(find.byKey(const Key('med-entry-suggestion-list')), findsNothing);
     expect(find.byKey(const Key('med-entry-selection-summary')), findsNothing);
 
-    // Save button is present but disabled (TextButton with onPressed null).
-    final saveBtn = tester.widget<TextButton>(
+    // Save button is present but disabled (FilledButton with onPressed null).
+    final saveBtn = tester.widget<FilledButton>(
       find.byKey(const Key('med-entry-save')),
     );
     expect(saveBtn.onPressed, isNull);
@@ -271,12 +271,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('warfarin'), findsWidgets);
-    expect(find.text('RxCUI 11289'), findsOneWidget);
-    expect(find.text('Anticoagulants'), findsOneWidget);
-    expect(find.text('Vitamin K Antagonists'), findsOneWidget);
+    // Class labels are now user-friendly (via SchemaIds.drugClassLabels).
+    expect(find.textContaining('Blood thinners'), findsWidgets);
 
-    // Save button is now enabled.
-    final saveBtn = tester.widget<TextButton>(
+    // Save button is now enabled (bottom sticky FilledButton).
+    final saveBtn = tester.widget<FilledButton>(
       find.byKey(const Key('med-entry-save')),
     );
     expect(saveBtn.onPressed, isNotNull);
@@ -389,7 +388,7 @@ void main() {
     expect(find.text('Ace Inhibitors'), findsWidgets);
 
     // Save button enabled and the row carries the class id but no rxcui.
-    final saveBtn = tester.widget<TextButton>(
+    final saveBtn = tester.widget<FilledButton>(
       find.byKey(const Key('med-entry-save')),
     );
     expect(saveBtn.onPressed, isNotNull);
