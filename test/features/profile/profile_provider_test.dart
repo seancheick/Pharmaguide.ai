@@ -3,30 +3,11 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 void main() {
   group('ProfileState', () {
-    test('completeness is 0 for empty profile', () {
+    test('empty profile has no fields set', () {
       const state = ProfileState();
-      expect(state.completeness, 0);
-      expect(state.completenessLabel, 'Incomplete');
-    });
-
-    test('completeness is 40 with age + sex (minimum for FitScore)', () {
-      const state = ProfileState(ageBracket: '19-30', sex: 'Male');
-      expect(state.completeness, 40);
-      expect(state.completenessLabel, 'Basic');
-    });
-
-    test('completeness is 100 with all fields', () {
-      const state = ProfileState(
-        nickname: 'Sean',
-        ageBracket: '19-30',
-        sex: 'Male',
-        goals: ['GOAL_SLEEP_QUALITY'],
-        conditions: ['diabetes'],
-        drugClasses: ['statins'],
-        allergens: ['ALLERGEN_SOY'],
-      );
-      expect(state.completeness, 100);
-      expect(state.completenessLabel, 'Complete');
+      expect(state.ageBracket, isNull);
+      expect(state.sex, isNull);
+      expect(state.goals, isEmpty);
     });
   });
 

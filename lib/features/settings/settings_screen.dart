@@ -44,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // Summary card — avatar + completeness
+                // Summary card
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppTheme.space20,

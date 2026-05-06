@@ -638,41 +638,7 @@ class _ReviewStep extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Big completeness ring visual
-          Center(
-            child: PGCard(
-              variant: PGCardVariant.highlighted,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.space32,
-                vertical: AppTheme.space24,
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '${profile.completeness}%',
-                    style: AppTheme.numeric(
-                      theme.textTheme.displayLarge!.copyWith(
-                        fontSize: 52,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1.2,
-                        color: scheme.primary,
-                        height: 1.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.space4),
-                  Text(
-                    'Profile ${profile.completenessLabel}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTheme.space24),
+          const SizedBox(height: AppTheme.space8),
 
           // Review rows grouped in a card
           PGCard(

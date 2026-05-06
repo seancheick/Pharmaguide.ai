@@ -36,3 +36,19 @@ Deep context lives in `knowledge/` — read these when relevant, not by default:
 - `flutter-patterns.md` — project conventions
 - `debugging-playbook.md` — common issues + fixes
 - `pipeline-reference.md` — pipeline data structures + enums
+
+## Knowledge Graph
+
+A navigable graph of the entire codebase + knowledge base lives in `graphify-out/`.
+- `graph.json` — 2,772 nodes, 6,669 edges, 96 communities
+- `graph.html` — interactive visualization (open in browser)
+- `obsidian/` — full Obsidian vault with backlinks
+
+Before answering architecture or "what connects to X" questions, query the graph:
+```
+/graphify query "your question"
+/graphify path "NodeA" "NodeB"
+/graphify explain "NodeName"
+```
+After code changes, the git hook auto-rebuilds for code files.
+For doc/knowledge changes, run `/graphify . --update`.

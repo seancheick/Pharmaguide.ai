@@ -77,30 +77,6 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('shows profile completeness banner for incomplete profile', (
-      tester,
-    ) async {
-      final coreDb = CoreDatabase.memory();
-      final userDb = UserDatabase.memory();
-      await userDb.addToStack(
-        const UserStacksLocalCompanion(
-          id: Value('stack-profile'),
-          type: Value('supplement'),
-          name: Value('Seeded Product'),
-          dsldId: Value('dsld-profile'),
-        ),
-      );
-
-      await tester.pumpWidget(buildTestWidget(coreDb, userDb));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Complete your health profile'), findsOneWidget);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await coreDb.close();
-      await userDb.close();
-    });
 
     testWidgets('shows first-launch variant when stack and history are empty', (
       tester,

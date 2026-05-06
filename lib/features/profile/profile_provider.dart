@@ -84,25 +84,6 @@ class ProfileState {
     return out;
   }
 
-  /// Profile completeness as 0-100.
-  int get completeness {
-    int score = 0;
-    if (ageBracket != null) score += 20;
-    if (sex != null) score += 20;
-    if (goals.isNotEmpty) score += 20;
-    if (conditions.isNotEmpty || drugClasses.isNotEmpty) score += 20;
-    if (allergens.isNotEmpty) score += 10;
-    if (nickname != null && nickname!.isNotEmpty) score += 10;
-    return score;
-  }
-
-  String get completenessLabel {
-    final c = completeness;
-    if (c >= 80) return 'Complete';
-    if (c >= 60) return 'Good';
-    if (c >= 40) return 'Basic';
-    return 'Incomplete';
-  }
 
   /// Convert to Drift companion for DB persistence.
   UserProfilesCompanion toCompanion() {

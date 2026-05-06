@@ -152,7 +152,7 @@ void main() {
       final notifier = ProfileNotifier(db);
       await notifier.loadFromDb();
       expect(notifier.state.nickname, isNull);
-      expect(notifier.state.completeness, 0);
+      expect(notifier.state.ageBracket, isNull);
     });
 
     test('notifier without DB still works (no persistence)', () async {

@@ -12,7 +12,6 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/widgets/home_citation_strip.dart';
 import 'package:pharmaguide/features/home/widgets/home_hero_section.dart';
-import 'package:pharmaguide/features/home/widgets/home_profile_completeness_card.dart';
 import 'package:pharmaguide/features/home/widgets/home_quick_check_cta.dart';
 import 'package:pharmaguide/features/home/widgets/home_recent_scans.dart';
 import 'package:pharmaguide/features/home/widgets/home_scan_cta.dart';
@@ -159,23 +158,6 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-        // ----------------------------------------------------------------
-        // Profile completeness (conditional, highlighted card)
-        // ----------------------------------------------------------------
-        if (showExpandedSections && profile.completeness < 60)
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.space20,
-              AppTheme.space16,
-              AppTheme.space20,
-              0,
-            ),
-            sliver: SliverToBoxAdapter(
-              child: HomeProfileCompletenessCard(
-                completeness: profile.completeness,
-              ),
-            ),
-          ),
 
         // Stack health — premium Oura-style card
         // ----------------------------------------------------------------
