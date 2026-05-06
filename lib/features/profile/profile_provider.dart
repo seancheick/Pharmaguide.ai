@@ -223,7 +223,7 @@ class ProfileState {
     if (!out.contains('hypoglycemics_unknown')) {
       out.add('hypoglycemics_unknown');
     }
-    return out;
+    return out.toSet().toList();
   }
 
   static const _listEq = ListEquality<String>();
