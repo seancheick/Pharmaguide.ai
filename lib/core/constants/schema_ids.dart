@@ -61,12 +61,15 @@ abstract final class SchemaIds {
     'post_op_recovery',
     'hypoglycemia_history',
     'bleeding_history',
+    'severely_immunocompromised',
   ];
 
   static const profileFlagLabels = {
     'post_op_recovery': 'Post-Op Recovery',
     'hypoglycemia_history': 'Hypoglycemia History',
     'bleeding_history': 'Bleeding History',
+    'severely_immunocompromised':
+        'Severely immunocompromised (chemo, transplant)',
   };
 
   static const drugClasses = [
