@@ -420,7 +420,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     )
                   : DetailSection(
                       detailBlob: detailBlob,
-                      warnings: warnings,
+                      warnings: guardedWarnings,
                       // T1.7 inputs — trust signals for the
                       // "What we don't know" section. Read off the
                       // product directly here so DetailSection
@@ -1709,16 +1709,16 @@ class DetailSection extends ConsumerWidget {
     // Local aliases so null-promotion works downstream (fields don't
     // promote across reads — locals do).
     final detailBlob = this.detailBlob;
-    final warnings = this.warnings;
+    // Warnings arrive pre-filtered by the parent screen's
+    // filterProductDetailWarningsForProfile pass. Do NOT re-filter here —
+    // single source of truth prevents drift between hero/ReviewBUC/sticky
+    // and this detail section.
+    final guardedWarnings = warnings;
 
-    // User's active conditions and drug classes for personalized filtering.
-    // A multivitamin interacts with dozens of conditions in general — but
-    // we only want to show ones the user has flagged on their profile.
+    // Profile still needed for populations section + user-conditions display.
     final profile = ref.watch(profileProvider);
     final userConditions = profile.conditions.toSet();
     final userDrugClasses = profile.drugClasses.toSet();
-    // v6.0 — derived + explicit profile flags for the gate evaluator.
-    final userProfileFlags = profile.evaluatorProfileFlags;
 
     if (detailBlob == null) {
       return Padding(
@@ -1784,31 +1784,34 @@ class DetailSection extends ConsumerWidget {
 
     // FLTR-11a RETIRED (2026-04-24) — pipeline E1.11 now emits
     // dose-aware severity at source, so no Flutter-side downgrade
-    // pass is needed. Pass profile-filtered warnings through directly.
-    final guardedWarnings = filterProductDetailWarningsForProfile(
-      detailBlob: blob,
-      warnings: warnings,
-      userConditions: userConditions,
-      userDrugClasses: userDrugClasses,
-      userProfileFlags: userProfileFlags,
-    );
+    // pass is needed.
+    // Profile-gate filtering is done once in the parent
+    // ProductDetailScreen — guardedWarnings arrives pre-filtered.
     // T16 — `visibleInactives` / `hiddenInactivesCount` removed.
     // The 8-chip cap + "+N more" pill logic now lives inside
     // `IngredientsCard` which also drives the new color-dotted
     // expanded list.
 
-    // Section ordering matches the IA spec exactly — see
-    // INITIATIVE_PRODUCT_TRUST_AND_IA.md "IA structure":
-    //   §4 Ingredients (active + inactive)
-    //   §5 Tradeoffs
-    //   §6 What we don't know
-    //   §7 Interactions  (7.1 With your stack + 7.2 legacy generic)
-    //   §8 Populations
-    //   §10 Product Details (collapsed)
+    // Current IA structure (updated 2026-05-06):
     //
-    // Section 9 (Evidence), §11 (Better Alternatives), §12 (Deep Dive),
-    // §13 (Transparency Footer) and §14 (Sticky Action Bar) live on
-    // the outer screen, not inside this Column.
+    // Outer screen (ProductDetailScreen):
+    //   §1 Hero (product identity + score ring)
+    //   §2 Personal Fit (For You section)
+    //   §3 Review Before Use (severity-toned card)
+    //   §4 Label Confidence
+    //   §5 Score Breakdown
+    //
+    // This DetailSection column:
+    //   §6 Ingredients (active + inactive)
+    //   §7 Tradeoffs (What's good / What to consider)
+    //   §8 Synergy
+    //   §9 Populations
+    //
+    // Back on outer screen:
+    //   §10 Deep Dive (collapsed)
+    //   §11 Better Alternatives
+    //   §12 Transparency Footer
+    //   §13 Sticky Action Bar
     //
     // Pre-2026-04-29-review ordering rendered Tradeoffs BEFORE
     // ingredients and stranded `_InteractionConditionDetails` between
