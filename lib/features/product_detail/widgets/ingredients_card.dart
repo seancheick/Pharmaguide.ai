@@ -86,8 +86,7 @@ class _IngredientsCardState extends State<IngredientsCard> {
   @override
   void initState() {
     super.initState();
-    _expanded =
-        widget.inactiveIngredients.length <= widget.autoExpandThreshold;
+    _expanded = widget.inactiveIngredients.length <= widget.autoExpandThreshold;
   }
 
   @override
@@ -108,11 +107,7 @@ class _IngredientsCardState extends State<IngredientsCard> {
           if (hasActive) widget.activeContent!,
           if (hasActive && hasInactive) ...[
             const SizedBox(height: AppTheme.space16),
-            Divider(
-              color: scheme.outlineVariant,
-              height: 1,
-              thickness: 0.5,
-            ),
+            Divider(color: scheme.outlineVariant, height: 1, thickness: 0.5),
             const SizedBox(height: AppTheme.space16),
           ],
           if (hasInactive) _buildInactiveSection(theme, scheme),
@@ -270,11 +265,12 @@ class _InactiveRow extends StatelessWidget {
     final tone = inactiveColorRank(ingredient);
     // v1.5.0 contract — display_label is the prettified canonical name.
     // Falls back to legacy `name` / `raw_source_text` for stale blobs.
-    final name = ingredient['display_label']?.toString().trim().isNotEmpty == true
+    final name =
+        ingredient['display_label']?.toString().trim().isNotEmpty == true
         ? ingredient['display_label']!.toString().trim()
         : (ingredient['name']?.toString() ??
-            ingredient['raw_source_text']?.toString() ??
-            '');
+              ingredient['raw_source_text']?.toString() ??
+              '');
     final roleHelper = _roleHelper();
 
     return PGPressable(
@@ -285,10 +281,7 @@ class _InactiveRow extends StatelessWidget {
           border: isLast
               ? null
               : Border(
-                  bottom: BorderSide(
-                    color: scheme.outlineVariant,
-                    width: 0.4,
-                  ),
+                  bottom: BorderSide(color: scheme.outlineVariant, width: 0.4),
                 ),
         ),
         child: Padding(
@@ -367,10 +360,12 @@ class _FunctionalRolesSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final name = ingredient['name']?.toString() ??
+    final name =
+        ingredient['name']?.toString() ??
         ingredient['raw_source_text']?.toString() ??
         '';
-    final roles = (ingredient['functional_roles'] as List?)
+    final roles =
+        (ingredient['functional_roles'] as List?)
             ?.map((e) => e.toString())
             .where((id) => id.isNotEmpty)
             .toList(growable: false) ??

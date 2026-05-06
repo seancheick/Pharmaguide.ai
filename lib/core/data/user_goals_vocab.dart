@@ -51,11 +51,13 @@ class UserGoalEntry {
       name: json['name']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
       priority: json['priority']?.toString() ?? '',
-      relatedConditionIds: (json['related_condition_ids'] as List?)
+      relatedConditionIds:
+          (json['related_condition_ids'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const [],
-      relatedDrugClassIds: (json['related_drug_class_ids'] as List?)
+      relatedDrugClassIds:
+          (json['related_drug_class_ids'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const [],

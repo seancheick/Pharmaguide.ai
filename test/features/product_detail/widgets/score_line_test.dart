@@ -28,10 +28,7 @@ void main() {
       await _pump(tester, 92);
       expect(find.text('92/100'), findsOneWidget);
       expect(find.text('Exceptional'), findsOneWidget);
-      expect(
-        find.textContaining('High-quality ingredients'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('High-quality ingredients'), findsOneWidget);
     });
 
     testWidgets('85 → Excellent', (tester) async {
@@ -112,9 +109,7 @@ void main() {
       // presence alone is the contract. Detailed pixel-color
       // assertions live in the score_tier_test boundary suite.
       await _pump(tester, 85);
-      final containers = tester.widgetList<Container>(
-        find.byType(Container),
-      );
+      final containers = tester.widgetList<Container>(find.byType(Container));
       final dots = containers.where(
         (c) =>
             c.decoration is BoxDecoration &&
@@ -140,10 +135,7 @@ void main() {
       );
       expect(find.text('Custom blurb for this product'), findsOneWidget);
       // Default description should NOT render.
-      expect(
-        find.textContaining('High-quality ingredients'),
-        findsNothing,
-      );
+      expect(find.textContaining('High-quality ingredients'), findsNothing);
     });
   });
 }

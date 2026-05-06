@@ -356,34 +356,35 @@ class _StackSummaryCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: AppTheme.space12),
-              Builder(builder: (context) {
-                final tone = status?.color ?? scheme.primary;
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.space12,
-                    vertical: AppTheme.space8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tone.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(AppTheme.radiusFull),
-                    border: Border.all(
-                      color: tone.withValues(alpha: 0.2),
-                      width: 0.8,
+              Builder(
+                builder: (context) {
+                  final tone = status?.color ?? scheme.primary;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.space12,
+                      vertical: AppTheme.space8,
                     ),
-                  ),
-                  child: Text(
-                    isAnalyzing
-                        ? 'Analyzing'
-                        : status?.label ?? 'No data yet',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: tone,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.1,
+                    decoration: BoxDecoration(
+                      color: tone.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                      border: Border.all(
+                        color: tone.withValues(alpha: 0.2),
+                        width: 0.8,
+                      ),
                     ),
-                  ),
-                );
-              }),
+                    child: Text(
+                      isAnalyzing
+                          ? 'Analyzing'
+                          : status?.label ?? 'No data yet',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: tone,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppTheme.space12),
@@ -575,8 +576,7 @@ class _StackItemCard extends ConsumerWidget {
         if (!context.mounted) return;
         // Sean 2026-05-05 — see pg_stack_action_buttons.dart for why we
         // use hideCurrentSnackBar() over clearSnackBars() here.
-        final messenger = ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar();
+        final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(
             content: Text('Removed ${entry.name}'),

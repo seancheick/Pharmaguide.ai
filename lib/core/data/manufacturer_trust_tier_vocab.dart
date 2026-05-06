@@ -46,7 +46,7 @@ class ManufacturerTrustTierEntry {
 Map<String, ManufacturerTrustTierEntry>? _cache;
 
 Future<Map<String, ManufacturerTrustTierEntry>>
-    loadManufacturerTrustTierVocab() async {
+loadManufacturerTrustTierVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 

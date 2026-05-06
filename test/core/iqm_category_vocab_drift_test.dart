@@ -56,8 +56,11 @@ void main() {
       for (final c in entries) {
         for (final f in {'id', 'name', 'notes'}) {
           expect(c[f], isA<String>(), reason: '${c['id']}: $f not string');
-          expect((c[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${c['id']}: $f empty');
+          expect(
+            (c[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${c['id']}: $f empty',
+          );
         }
         expect(c['examples'], isA<List<dynamic>>());
         expect((c['examples'] as List<dynamic>).isNotEmpty, isTrue);

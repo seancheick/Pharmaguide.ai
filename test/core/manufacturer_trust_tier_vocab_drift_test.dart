@@ -26,7 +26,12 @@ void main() {
           .cast<Map<String, dynamic>>();
       expect(
         entries.map((e) => e['id'] as String).toSet(),
-        equals({'trusted', 'neutral', 'violations_minor', 'violations_critical'}),
+        equals({
+          'trusted',
+          'neutral',
+          'violations_minor',
+          'violations_critical',
+        }),
       );
     });
 
@@ -36,8 +41,15 @@ void main() {
       final entries = (decoded['manufacturer_trust_tiers'] as List)
           .cast<Map<String, dynamic>>();
       const required = {
-        'id', 'name', 'short_label', 'tone',
-        'ui_color', 'ui_icon', 'action', 'notes', 'derivation_rule',
+        'id',
+        'name',
+        'short_label',
+        'tone',
+        'ui_color',
+        'ui_icon',
+        'action',
+        'notes',
+        'derivation_rule',
       };
       for (final m in entries) {
         for (final f in required) {

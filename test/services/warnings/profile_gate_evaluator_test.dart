@@ -27,20 +27,27 @@ void main() {
     );
 
     test('fixture file exists and parses as v6.0 contract', () {
-      expect(fixtureFile.existsSync(), isTrue,
-          reason: 'fixture must be present at test/fixtures/profile_gate/'
-              ' — run the cp from the pipeline repo per the README');
-      final data = jsonDecode(fixtureFile.readAsStringSync())
-          as Map<String, dynamic>;
+      expect(
+        fixtureFile.existsSync(),
+        isTrue,
+        reason:
+            'fixture must be present at test/fixtures/profile_gate/'
+            ' — run the cp from the pipeline repo per the README',
+      );
+      final data =
+          jsonDecode(fixtureFile.readAsStringSync()) as Map<String, dynamic>;
       final meta = data['_metadata'] as Map<String, dynamic>;
-      expect(meta['evaluator_contract_version'], '6.0',
-          reason: 'fixture metadata must declare evaluator_contract_version=6.0');
+      expect(
+        meta['evaluator_contract_version'],
+        '6.0',
+        reason: 'fixture metadata must declare evaluator_contract_version=6.0',
+      );
       expect((data['test_cases'] as List).length, greaterThanOrEqualTo(18));
     });
 
     test('every fixture case matches the Python reference output', () {
-      final data = jsonDecode(fixtureFile.readAsStringSync())
-          as Map<String, dynamic>;
+      final data =
+          jsonDecode(fixtureFile.readAsStringSync()) as Map<String, dynamic>;
       final cases = (data['test_cases'] as List).cast<Map<String, dynamic>>();
 
       final failures = <String>[];
@@ -84,7 +91,8 @@ void main() {
       expect(
         failures,
         isEmpty,
-        reason: 'Drift detected — Dart and Python disagree on '
+        reason:
+            'Drift detected — Dart and Python disagree on '
             '${failures.length} case(s):\n  ${failures.join("\n  ")}',
       );
     });
@@ -176,13 +184,15 @@ Map<String, dynamic> _gate(
 }) {
   return {
     'gate_type': gateType,
-    'requires': requires ??
+    'requires':
+        requires ??
         const {
           'conditions_any': <String>[],
           'drug_classes_any': <String>[],
           'profile_flags_any': <String>[],
         },
-    'excludes': excludes ??
+    'excludes':
+        excludes ??
         const {
           'conditions_any': <String>[],
           'drug_classes_any': <String>[],

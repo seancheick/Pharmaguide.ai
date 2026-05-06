@@ -46,10 +46,7 @@ class _Sheet extends StatelessWidget {
       maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollController) {
-        return _SheetBody(
-          explain: explain,
-          scrollController: scrollController,
-        );
+        return _SheetBody(explain: explain, scrollController: scrollController);
       },
     );
   }
@@ -59,10 +56,7 @@ class _SheetBody extends StatelessWidget {
   final IngredientExplain explain;
   final ScrollController scrollController;
 
-  const _SheetBody({
-    required this.explain,
-    required this.scrollController,
-  });
+  const _SheetBody({required this.explain, required this.scrollController});
 
   @override
   Widget build(BuildContext context) {

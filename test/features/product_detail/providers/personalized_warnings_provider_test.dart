@@ -71,8 +71,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final result = await container
-          .read(personalizedInteractionWarningsProvider(_dsldId).future);
+      final result = await container.read(
+        personalizedInteractionWarningsProvider(_dsldId).future,
+      );
       expect(result, isEmpty);
 
       await coreDb.close();
@@ -104,8 +105,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final result = await container
-          .read(personalizedInteractionWarningsProvider('missing-id').future);
+      final result = await container.read(
+        personalizedInteractionWarningsProvider('missing-id').future,
+      );
       expect(result, isEmpty);
 
       await coreDb.close();
@@ -113,30 +115,33 @@ void main() {
       await interactionDb.close();
     });
 
-    test('UnimplementedError on stack provider → empty warnings (defensive)',
-        () async {
-      final coreDb = CoreDatabase.memory();
-      final interactionDb = InteractionDatabase.memory();
-      await _seedProduct(coreDb, keyIngredientTags: '["iron"]');
+    test(
+      'UnimplementedError on stack provider → empty warnings (defensive)',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        await _seedProduct(coreDb, keyIngredientTags: '["iron"]');
 
-      final container = ProviderContainer(
-        overrides: [
-          coreDatabaseProvider.overrideWithValue(coreDb),
-          interactionDatabaseProvider.overrideWithValue(interactionDb),
-          activeStackProvider.overrideWith((ref) async {
-            throw UnimplementedError('stack provider not staged in test');
-          }),
-        ],
-      );
-      addTearDown(container.dispose);
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            activeStackProvider.overrideWith((ref) async {
+              throw UnimplementedError('stack provider not staged in test');
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final result = await container
-          .read(personalizedInteractionWarningsProvider(_dsldId).future);
-      expect(result, isEmpty);
+        final result = await container.read(
+          personalizedInteractionWarningsProvider(_dsldId).future,
+        );
+        expect(result, isEmpty);
 
-      await coreDb.close();
-      await interactionDb.close();
-    });
+        await coreDb.close();
+        await interactionDb.close();
+      },
+    );
 
     test('rebuilds when activeStackProvider changes', () async {
       // The whole point of T1B: stack mutations propagate.
@@ -162,8 +167,9 @@ void main() {
       addTearDown(container.dispose);
 
       // First read: empty stack → empty list.
-      final first = await container
-          .read(personalizedInteractionWarningsProvider(_dsldId).future);
+      final first = await container.read(
+        personalizedInteractionWarningsProvider(_dsldId).future,
+      );
       expect(first, isEmpty);
 
       // Mutate "stack" and invalidate (simulates StackActions._invalidate).
@@ -173,8 +179,9 @@ void main() {
       // The personalized provider now sees a non-empty stack. Even though
       // the curated DB has no rows for "iron × Metformin", the lookup
       // should run without throwing.
-      final second = await container
-          .read(personalizedInteractionWarningsProvider(_dsldId).future);
+      final second = await container.read(
+        personalizedInteractionWarningsProvider(_dsldId).future,
+      );
       expect(second, isA<List<dynamic>>());
 
       await coreDb.close();

@@ -71,7 +71,8 @@ class VocabRegistry {
   Map<String, EffectDirectionEntry> _effectDirections = const {};
   Map<String, SignalStrengthEntry> _signalStrengths = const {};
   Map<String, AllergenPrevalenceEntry> _allergenPrevalences = const {};
-  Map<String, AllergenRegulatoryStatusEntry> _allergenRegulatoryStatuses = const {};
+  Map<String, AllergenRegulatoryStatusEntry> _allergenRegulatoryStatuses =
+      const {};
   Map<String, ManufacturerTrustTierEntry> _manufacturerTrustTiers = const {};
   Map<String, EfsaStatusEntry> _efsaStatuses = const {};
   Map<String, EfsaGenotoxicityEntry> _efsaGenotoxicities = const {};

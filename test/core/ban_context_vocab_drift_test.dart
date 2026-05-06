@@ -23,8 +23,8 @@ void main() {
     test('canonical 5 IDs present', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['ban_contexts'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['ban_contexts'] as List)
+          .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
       expect(
@@ -42,18 +42,25 @@ void main() {
     test('all entries have required fields', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['ban_contexts'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['ban_contexts'] as List)
+          .cast<Map<String, dynamic>>();
 
       const required = {
-        'id', 'name', 'notes', 'when_it_applies', 'action_recommendation',
+        'id',
+        'name',
+        'notes',
+        'when_it_applies',
+        'action_recommendation',
       };
 
       for (final b in entries) {
         for (final f in required) {
           expect(b[f], isA<String>(), reason: '${b['id']}: $f not string');
-          expect((b[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${b['id']}: $f empty');
+          expect(
+            (b[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${b['id']}: $f empty',
+          );
         }
         expect((b['notes'] as String).length, lessThanOrEqualTo(200));
       }

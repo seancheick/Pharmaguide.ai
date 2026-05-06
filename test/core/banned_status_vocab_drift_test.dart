@@ -38,15 +38,25 @@ void main() {
           .cast<Map<String, dynamic>>();
 
       const required = {
-        'id', 'name', 'short_label', 'tone',
-        'ui_color', 'ui_icon', 'action', 'notes', 'regulatory_basis',
+        'id',
+        'name',
+        'short_label',
+        'tone',
+        'ui_color',
+        'ui_icon',
+        'action',
+        'notes',
+        'regulatory_basis',
       };
 
       for (final s in entries) {
         for (final f in required) {
           expect(s[f], isA<String>(), reason: '${s['id']}: $f not string');
-          expect((s[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${s['id']}: $f empty');
+          expect(
+            (s[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${s['id']}: $f empty',
+          );
         }
       }
     });
@@ -63,7 +73,11 @@ void main() {
 
       for (final s in entries) {
         expect(tones.contains(s['tone']), isTrue, reason: '${s['id']} tone');
-        expect(colors.contains(s['ui_color']), isTrue, reason: '${s['id']} color');
+        expect(
+          colors.contains(s['ui_color']),
+          isTrue,
+          reason: '${s['id']} color',
+        );
         expect(icons.contains(s['ui_icon']), isTrue, reason: '${s['id']} icon');
       }
     });

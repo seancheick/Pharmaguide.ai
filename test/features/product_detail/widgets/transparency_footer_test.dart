@@ -157,10 +157,7 @@ void main() {
           find.text('PharmaGuide does not sell supplements. Educational only.'),
           findsNothing,
         );
-        expect(
-          find.text(kTransparencyDisclaimer),
-          findsOneWidget,
-        );
+        expect(find.text(kTransparencyDisclaimer), findsOneWidget);
         expect(
           kTransparencyDisclaimer,
           'Educational use only — not medical advice.',

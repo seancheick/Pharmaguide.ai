@@ -36,9 +36,7 @@ Future<Map<String, BanContextEntry>> loadBanContextVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 
-  final raw = await rootBundle.loadString(
-    'assets/data/ban_context_vocab.json',
-  );
+  final raw = await rootBundle.loadString('assets/data/ban_context_vocab.json');
   final decoded = jsonDecode(raw) as Map<String, dynamic>;
   final entries = (decoded['ban_contexts'] as List?) ?? const [];
 
@@ -54,8 +52,6 @@ Future<Map<String, BanContextEntry>> loadBanContextVocab() async {
   return byId;
 }
 
-void debugSetBanContextVocabForTesting(
-  Map<String, BanContextEntry>? value,
-) {
+void debugSetBanContextVocabForTesting(Map<String, BanContextEntry>? value) {
   _cache = value;
 }

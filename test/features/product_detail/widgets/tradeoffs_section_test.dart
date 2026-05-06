@@ -12,17 +12,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 
-TradeoffItem _bonus(String label, [String detail = '']) => (
-  label: label,
-  detail: detail,
-  isPositive: true,
-);
+TradeoffItem _bonus(String label, [String detail = '']) =>
+    (label: label, detail: detail, isPositive: true);
 
-TradeoffItem _penalty(String label, [String detail = '']) => (
-  label: label,
-  detail: detail,
-  isPositive: false,
-);
+TradeoffItem _penalty(String label, [String detail = '']) =>
+    (label: label, detail: detail, isPositive: false);
 
 Future<void> _pump(
   WidgetTester tester,
@@ -34,18 +28,17 @@ Future<void> _pump(
       home: Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(20),
-          child: TradeoffsSection(
-            items: items,
-            inactiveIngredients: inactives,
-          ),
+          child: TradeoffsSection(items: items, inactiveIngredients: inactives),
         ),
       ),
     ),
   );
 }
 
-Map<String, dynamic> _ing(String severity) =>
-    {'name': 'Ing', 'harmful_severity': severity};
+Map<String, dynamic> _ing(String severity) => {
+  'name': 'Ing',
+  'harmful_severity': severity,
+};
 
 void main() {
   group('collapseHarmfulAdditives — pure helper (T15)', () {
@@ -80,19 +73,22 @@ void main() {
       expect(result.first.isPositive, isFalse);
     });
 
-    test('mixed: harmful additives collapse + non-additive penalties retained', () {
-      final result = collapseHarmfulAdditives([
-        _penalty('Proprietary blend'),
-        _penalty('Harmful additive Sugar syrup'),
-        _penalty('Harmful additive Palm oil'),
-        _penalty('Below RDA for daily magnesium'),
-      ]);
-      expect(result, hasLength(3));
-      // Combined "Additives:" row goes to the FRONT.
-      expect(result.first.label, 'Additive: Sugar syrup, Palm oil');
-      expect(result[1].label, 'Proprietary blend');
-      expect(result[2].label, 'Below RDA for daily magnesium');
-    });
+    test(
+      'mixed: harmful additives collapse + non-additive penalties retained',
+      () {
+        final result = collapseHarmfulAdditives([
+          _penalty('Proprietary blend'),
+          _penalty('Harmful additive Sugar syrup'),
+          _penalty('Harmful additive Palm oil'),
+          _penalty('Below RDA for daily magnesium'),
+        ]);
+        expect(result, hasLength(3));
+        // Combined "Additives:" row goes to the FRONT.
+        expect(result.first.label, 'Additive: Sugar syrup, Palm oil');
+        expect(result[1].label, 'Proprietary blend');
+        expect(result[2].label, 'Below RDA for daily magnesium');
+      },
+    );
 
     test('case-insensitive match against pipeline drift', () {
       // Pipeline could ship "harmful additive" / "HARMFUL ADDITIVE".
@@ -145,18 +141,15 @@ void main() {
       },
     );
 
-    test(
-      '2026-04-30 — never says "Harmful" in output (Sean: too harsh)',
-      () {
-        final result = collapseHarmfulAdditives([
-          _penalty('Harmful additive Sugar'),
-          _penalty('harmful additive: Palm oil'),
-        ]);
-        expect(result.first.label, isNot(contains('Harmful')));
-        expect(result.first.label, isNot(contains('harmful')));
-        expect(result.first.label.startsWith('Additive: '), isTrue);
-      },
-    );
+    test('2026-04-30 — never says "Harmful" in output (Sean: too harsh)', () {
+      final result = collapseHarmfulAdditives([
+        _penalty('Harmful additive Sugar'),
+        _penalty('harmful additive: Palm oil'),
+      ]);
+      expect(result.first.label, isNot(contains('Harmful')));
+      expect(result.first.label, isNot(contains('harmful')));
+      expect(result.first.label.startsWith('Additive: '), isTrue);
+    });
   });
 
   group('TradeoffsSection — T15 collapse + cap render', () {
@@ -214,75 +207,68 @@ void main() {
       },
     );
 
-    testWidgets(
-      'T15.1 — tap toggle expands the list in place',
-      (tester) async {
-        await _pump(tester, [
-          _penalty('Concern A'),
-          _penalty('Concern B'),
-          _penalty('Concern C'),
-          _penalty('Concern D'),
-          _penalty('Concern E'),
-          _penalty('Concern F'),
-        ]);
-        await tester.pumpAndSettle();
+    testWidgets('T15.1 — tap toggle expands the list in place', (tester) async {
+      await _pump(tester, [
+        _penalty('Concern A'),
+        _penalty('Concern B'),
+        _penalty('Concern C'),
+        _penalty('Concern D'),
+        _penalty('Concern E'),
+        _penalty('Concern F'),
+      ]);
+      await tester.pumpAndSettle();
 
-        // Tap the toggle.
-        await tester.tap(find.text('Show 2 more concerns'));
-        await tester.pumpAndSettle();
+      // Tap the toggle.
+      await tester.tap(find.text('Show 2 more concerns'));
+      await tester.pumpAndSettle();
 
-        // All 6 visible now.
-        expect(find.text('Concern A'), findsOneWidget);
-        expect(find.text('Concern E'), findsOneWidget);
-        expect(find.text('Concern F'), findsOneWidget);
-        // Toggle copy flips to "Show less".
-        expect(find.text('Show less'), findsOneWidget);
-        expect(find.text('Show 2 more concerns'), findsNothing);
-      },
-    );
+      // All 6 visible now.
+      expect(find.text('Concern A'), findsOneWidget);
+      expect(find.text('Concern E'), findsOneWidget);
+      expect(find.text('Concern F'), findsOneWidget);
+      // Toggle copy flips to "Show less".
+      expect(find.text('Show less'), findsOneWidget);
+      expect(find.text('Show 2 more concerns'), findsNothing);
+    });
 
-    testWidgets(
-      'T15.1 — tap "Show less" collapses back',
-      (tester) async {
-        await _pump(tester, [
-          _penalty('Concern A'),
-          _penalty('Concern B'),
-          _penalty('Concern C'),
-          _penalty('Concern D'),
-          _penalty('Concern E'),
-        ]);
-        await tester.pumpAndSettle();
+    testWidgets('T15.1 — tap "Show less" collapses back', (tester) async {
+      await _pump(tester, [
+        _penalty('Concern A'),
+        _penalty('Concern B'),
+        _penalty('Concern C'),
+        _penalty('Concern D'),
+        _penalty('Concern E'),
+      ]);
+      await tester.pumpAndSettle();
 
-        // Expand.
-        await tester.tap(find.text('Show 1 more concern'));
-        await tester.pumpAndSettle();
-        expect(find.text('Concern E'), findsOneWidget);
-        // Collapse.
-        await tester.tap(find.text('Show less'));
-        await tester.pumpAndSettle();
-        expect(find.text('Concern E'), findsNothing);
-        expect(find.text('Show 1 more concern'), findsOneWidget);
-      },
-    );
+      // Expand.
+      await tester.tap(find.text('Show 1 more concern'));
+      await tester.pumpAndSettle();
+      expect(find.text('Concern E'), findsOneWidget);
+      // Collapse.
+      await tester.tap(find.text('Show less'));
+      await tester.pumpAndSettle();
+      expect(find.text('Concern E'), findsNothing);
+      expect(find.text('Show 1 more concern'), findsOneWidget);
+    });
 
-    testWidgets(
-      'T15.1 — 5 bonuses → "Show 1 more bonus" (singular)',
-      (tester) async {
-        await _pump(tester, [
-          _bonus('Bonus A'),
-          _bonus('Bonus B'),
-          _bonus('Bonus C'),
-          _bonus('Bonus D'),
-          _bonus('Bonus E'),
-        ]);
-        await tester.pumpAndSettle();
+    testWidgets('T15.1 — 5 bonuses → "Show 1 more bonus" (singular)', (
+      tester,
+    ) async {
+      await _pump(tester, [
+        _bonus('Bonus A'),
+        _bonus('Bonus B'),
+        _bonus('Bonus C'),
+        _bonus('Bonus D'),
+        _bonus('Bonus E'),
+      ]);
+      await tester.pumpAndSettle();
 
-        expect(find.text('Bonus A'), findsOneWidget);
-        expect(find.text('Bonus D'), findsOneWidget);
-        expect(find.text('Bonus E'), findsNothing);
-        expect(find.text('Show 1 more bonus'), findsOneWidget);
-      },
-    );
+      expect(find.text('Bonus A'), findsOneWidget);
+      expect(find.text('Bonus D'), findsOneWidget);
+      expect(find.text('Bonus E'), findsNothing);
+      expect(find.text('Show 1 more bonus'), findsOneWidget);
+    });
 
     testWidgets(
       'T15.1 — 6 bonuses → "Show 2 more bonuses" (correct plural, not "bonuss")',
@@ -365,9 +351,7 @@ void main() {
         expect(find.textContaining('flagged for safety'), findsNothing);
       });
 
-      testWidgets('only NONE/empty → guardrail blocks summary', (
-        tester,
-      ) async {
+      testWidgets('only NONE/empty → guardrail blocks summary', (tester) async {
         await _pump(
           tester,
           [_penalty('Some concern')],
@@ -405,9 +389,7 @@ void main() {
         );
       });
 
-      testWidgets('2 moderate → triggers (combined ≥ 2 path)', (
-        tester,
-      ) async {
+      testWidgets('2 moderate → triggers (combined ≥ 2 path)', (tester) async {
         await _pump(
           tester,
           [_penalty('Some concern')],
@@ -475,10 +457,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(find.text('⚖️ What to consider'), findsOneWidget);
-          expect(
-            find.textContaining('flagged for safety'),
-            findsOneWidget,
-          );
+          expect(find.textContaining('flagged for safety'), findsOneWidget);
         },
       );
     },

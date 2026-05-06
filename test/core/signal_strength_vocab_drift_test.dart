@@ -23,8 +23,8 @@ void main() {
     test('canonical 3 IDs present', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['signal_strengths'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['signal_strengths'] as List)
+          .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
       expect(ids, equals({'strong', 'moderate', 'weak'}));
@@ -33,12 +33,19 @@ void main() {
     test('full display contract populated', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['signal_strengths'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['signal_strengths'] as List)
+          .cast<Map<String, dynamic>>();
 
       const required = {
-        'id', 'name', 'short_label', 'tone',
-        'ui_color', 'ui_icon', 'action', 'notes', 'threshold_definition',
+        'id',
+        'name',
+        'short_label',
+        'tone',
+        'ui_color',
+        'ui_icon',
+        'action',
+        'notes',
+        'threshold_definition',
       };
       const tones = {'positive', 'neutral', 'info', 'warning', 'danger'};
       const colors = {'green', 'blue', 'gray', 'yellow', 'orange', 'red'};
@@ -47,8 +54,11 @@ void main() {
       for (final s in entries) {
         for (final f in required) {
           expect(s[f], isA<String>(), reason: '${s['id']}: $f not string');
-          expect((s[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${s['id']}: $f empty');
+          expect(
+            (s[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${s['id']}: $f empty',
+          );
         }
         expect(tones.contains(s['tone']), isTrue);
         expect(colors.contains(s['ui_color']), isTrue);

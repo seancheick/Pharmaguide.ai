@@ -114,11 +114,7 @@ class _LabelConfidenceCardState extends State<LabelConfidenceCard> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    size: 20,
-                    color: tierColor,
-                  ),
+                  Icon(Icons.info_outline_rounded, size: 20, color: tierColor),
                   const SizedBox(width: AppTheme.space12),
                   Expanded(
                     child: Text(
@@ -153,7 +149,8 @@ class _LabelConfidenceCardState extends State<LabelConfidenceCard> {
                     const _Row(
                       icon: Icons.help_outline_rounded,
                       title: 'Not enough verified data to score',
-                      body: 'The label data we have is too incomplete to '
+                      body:
+                          'The label data we have is too incomplete to '
                           'produce a reliable score for this product.',
                     ),
                   if (widget.mappedCoverage < 0.5)
@@ -173,29 +170,24 @@ class _LabelConfidenceCardState extends State<LabelConfidenceCard> {
                     const _Row(
                       icon: Icons.visibility_off_outlined,
                       title: 'Blend amounts not disclosed',
-                      body: 'This product lists a proprietary blend, so '
+                      body:
+                          'This product lists a proprietary blend, so '
                           'individual ingredient doses are hidden. Our '
                           'analysis cannot evaluate per-ingredient amounts.',
                     ),
-                  if (_unmappedTotal(widget.unmappedActives) >
-                      0)
+                  if (_unmappedTotal(widget.unmappedActives) > 0)
                     _Row(
                       icon: Icons.help_center_outlined,
                       title:
                           '${_unmappedTotal(widget.unmappedActives)} '
-                          '${_pluralize(
-                            _unmappedTotal(widget.unmappedActives),
-                            'ingredient',
-                            'ingredients',
-                          )} '
+                          '${_pluralize(_unmappedTotal(widget.unmappedActives), 'ingredient', 'ingredients')} '
                           'could not be mapped',
-                      body: 'These appear on the label but were not in our '
+                      body:
+                          'These appear on the label but were not in our '
                           'reference data, so they did not affect the score.',
                       detail: _unmappedNames(widget.unmappedActives),
                     ),
-                  if (_productStatusLabel(
-                          widget.productStatus) !=
-                      null)
+                  if (_productStatusLabel(widget.productStatus) != null)
                     _StatusRow(productStatus: widget.productStatus!),
                 ],
               ),

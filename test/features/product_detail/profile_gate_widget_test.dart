@@ -43,12 +43,12 @@ InteractionWarning _w({
 }
 
 Map<String, dynamic> _emptyExcludes() => const {
-      'conditions_any': <String>[],
-      'drug_classes_any': <String>[],
-      'profile_flags_any': <String>[],
-      'product_forms_any': <String>[],
-      'nutrient_forms_any': <String>[],
-    };
+  'conditions_any': <String>[],
+  'drug_classes_any': <String>[],
+  'profile_flags_any': <String>[],
+  'product_forms_any': <String>[],
+  'nutrient_forms_any': <String>[],
+};
 
 void main() {
   group('profile_gate widget — non-matching profile suppresses alert', () {
@@ -210,54 +210,56 @@ void main() {
     );
   });
 
-  group('profile_gate widget — combination gate (medication-aware escalation)',
-      () {
-    testWidgets(
-      'berberine baseline caution (diabetes only) does NOT fire avoid; '
-      'combination gate (diabetes + hypoglycemics) DOES fire avoid',
-      (tester) async {
-        final escalation = _w(
-          headline: 'Avoid with hypoglycemia meds',
-          severity: Severity.avoid,
-          conditionIds: const ['diabetes'],
-          drugClassIds: const ['hypoglycemics'],
-          profileGate: {
-            'gate_type': 'combination',
-            'requires': {
-              'conditions_any': ['diabetes'],
-              'drug_classes_any': ['hypoglycemics'],
-              'profile_flags_any': <String>[],
+  group(
+    'profile_gate widget — combination gate (medication-aware escalation)',
+    () {
+      testWidgets(
+        'berberine baseline caution (diabetes only) does NOT fire avoid; '
+        'combination gate (diabetes + hypoglycemics) DOES fire avoid',
+        (tester) async {
+          final escalation = _w(
+            headline: 'Avoid with hypoglycemia meds',
+            severity: Severity.avoid,
+            conditionIds: const ['diabetes'],
+            drugClassIds: const ['hypoglycemics'],
+            profileGate: {
+              'gate_type': 'combination',
+              'requires': {
+                'conditions_any': ['diabetes'],
+                'drug_classes_any': ['hypoglycemics'],
+                'profile_flags_any': <String>[],
+              },
+              'excludes': _emptyExcludes(),
+              'dose': null,
             },
-            'excludes': _emptyExcludes(),
-            'dose': null,
-          },
-        );
+          );
 
-        // Diabetic NOT on hypoglycemics → escalation does NOT fire.
-        expect(
-          escalation.matchesProfile(
-            userConditions: const {'diabetes'},
-            userDrugClasses: const {'metformin'},
-            userProfileFlags: const {},
-          ),
-          isFalse,
-          reason: 'AND across keys — partial match (diabetes only) must fail',
-        );
+          // Diabetic NOT on hypoglycemics → escalation does NOT fire.
+          expect(
+            escalation.matchesProfile(
+              userConditions: const {'diabetes'},
+              userDrugClasses: const {'metformin'},
+              userProfileFlags: const {},
+            ),
+            isFalse,
+            reason: 'AND across keys — partial match (diabetes only) must fail',
+          );
 
-        // Diabetic on hypoglycemics → escalation fires.
-        expect(
-          escalation.matchesProfile(
-            userConditions: const {'diabetes'},
-            userDrugClasses: const {'hypoglycemics'},
-            userProfileFlags: const {},
-          ),
-          isTrue,
-        );
+          // Diabetic on hypoglycemics → escalation fires.
+          expect(
+            escalation.matchesProfile(
+              userConditions: const {'diabetes'},
+              userDrugClasses: const {'hypoglycemics'},
+              userProfileFlags: const {},
+            ),
+            isTrue,
+          );
 
-        await tester.pumpWidget(const MaterialApp(home: SizedBox()));
-      },
-    );
-  });
+          await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+        },
+      );
+    },
+  );
 
   group('profile_gate widget — pre-v6.0 fallback path', () {
     testWidgets(

@@ -136,7 +136,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'vitamin_a': ConditionThreshold.aboveDose(
       minDose: 3000,
       doseUnit: 'IU',
-      rationale: 'WHO / NIH ODS: retinol teratogenic above 3000 IU pre-conception',
+      rationale:
+          'WHO / NIH ODS: retinol teratogenic above 3000 IU pre-conception',
     ),
     'retinol': ConditionThreshold.aboveDose(
       minDose: 3000,
@@ -184,7 +185,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'vitamin_a': ConditionThreshold.aboveDose(
       minDose: 3000,
       doseUnit: 'IU',
-      rationale: 'CDC / WHO: teratogenic above 10000 IU; warn above adequate intake',
+      rationale:
+          'CDC / WHO: teratogenic above 10000 IU; warn above adequate intake',
     ),
     'retinol': ConditionThreshold.aboveDose(
       minDose: 3000,
@@ -221,11 +223,13 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
   // multiple meta-analyses, no contraindication).
   'diabetes': {
     'vitamin_d': ConditionThreshold.positive(
-      rationale: 'PMID 28202713: improves insulin sensitivity at standard doses',
+      rationale:
+          'PMID 28202713: improves insulin sensitivity at standard doses',
     ),
     'vitamin_d3': ConditionThreshold.positive(rationale: 'same as vitamin_d'),
     'magnesium': ConditionThreshold.positive(
-      rationale: 'PMID 28150351: improves insulin sensitivity / glycemic control',
+      rationale:
+          'PMID 28150351: improves insulin sensitivity / glycemic control',
     ),
     'magnesium_glycinate': ConditionThreshold.positive(
       rationale: 'same as magnesium',
@@ -290,9 +294,7 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'cinnamon_extract': ConditionThreshold.positive(
       rationale: 'same as cinnamon',
     ),
-    'cinnamon_bark': ConditionThreshold.positive(
-      rationale: 'same as cinnamon',
-    ),
+    'cinnamon_bark': ConditionThreshold.positive(rationale: 'same as cinnamon'),
     // Pipeline ships full DSLD label form ("Cinnamon Bark Extract,
     // Dried") for some products. Canonicalizes to this key after
     // T16.2e's punctuation-strip update.
@@ -306,7 +308,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     // especially myo-inositol for PCOS-related insulin resistance
     // (2-4 g/day). Not a hypoglycemic at any typical supplemental dose.
     'inositol': ConditionThreshold.positive(
-      rationale: 'PMID 26424907: improves insulin sensitivity (myo-inositol PCOS)',
+      rationale:
+          'PMID 26424907: improves insulin sensitivity (myo-inositol PCOS)',
     ),
     'myo_inositol': ConditionThreshold.positive(rationale: 'same as inositol'),
     'd_chiro_inositol': ConditionThreshold.positive(
@@ -349,7 +352,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'potassium': ConditionThreshold.aboveDose(
       minDose: 250,
       doseUnit: 'mg',
-      rationale: 'KDIGO: hyperkalemia risk in CKD even at low supplemental doses',
+      rationale:
+          'KDIGO: hyperkalemia risk in CKD even at low supplemental doses',
     ),
     'vitamin_d': ConditionThreshold.aboveDose(
       minDose: 4000,
@@ -385,7 +389,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'ginkgo': ConditionThreshold.aboveDose(
       minDose: 120,
       doseUnit: 'mg',
-      rationale: 'PMID 17435408: standard 120 mg dose impairs platelet function',
+      rationale:
+          'PMID 17435408: standard 120 mg dose impairs platelet function',
     ),
     'garlic': ConditionThreshold.aboveDose(
       minDose: 600,
@@ -405,7 +410,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'omega_3': ConditionThreshold.aboveDose(
       minDose: 3000,
       doseUnit: 'mg',
-      rationale: 'ASA peri-operative guidance: discontinue high-dose 2 weeks pre-op',
+      rationale:
+          'ASA peri-operative guidance: discontinue high-dose 2 weeks pre-op',
     ),
     'fish_oil': ConditionThreshold.aboveDose(
       minDose: 3000,
@@ -434,10 +440,12 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'iodine': ConditionThreshold.aboveDose(
       minDose: 150,
       doseUnit: 'mcg',
-      rationale: 'NIH ODS: excess intake destabilizes both hyper- and hypo-thyroidism',
+      rationale:
+          'NIH ODS: excess intake destabilizes both hyper- and hypo-thyroidism',
     ),
     'selenium': ConditionThreshold.positive(
-      rationale: 'PMID 25038305: moderate doses benefit Hashimoto\'s; flag only above UL',
+      rationale:
+          'PMID 25038305: moderate doses benefit Hashimoto\'s; flag only above UL',
     ),
   },
 
@@ -448,7 +456,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'vitamin_b6': ConditionThreshold.aboveDose(
       minDose: 100,
       doseUnit: 'mg',
-      rationale: 'PMID 21882118: above 100 mg may interact with anticonvulsants',
+      rationale:
+          'PMID 21882118: above 100 mg may interact with anticonvulsants',
     ),
   },
 
@@ -500,9 +509,7 @@ ConditionThreshold? lookupConditionThreshold({
   // parenthetical first gives us the simpler `cinnamon_extract` form
   // that the table keys on. Only re-tried when the strip actually
   // changes the string — keeps the common-case lookup at one map hit.
-  final stripped = ingredientName
-      .replaceAll(RegExp(r'\([^)]*\)'), ' ')
-      .trim();
+  final stripped = ingredientName.replaceAll(RegExp(r'\([^)]*\)'), ' ').trim();
   if (stripped != ingredientName.trim() && stripped.isNotEmpty) {
     final canonicalStripped = canonicalizeIngredientName(stripped);
     if (canonicalStripped.isNotEmpty && canonicalStripped != canonical) {

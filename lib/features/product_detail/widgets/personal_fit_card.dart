@@ -167,9 +167,7 @@ class PersonalFitCard extends ConsumerWidget {
   /// bullets — saying "Magnesium supports your blood pressure goal"
   /// next to "Not recommended for your profile" is incoherent.
   List<String> _bulletsFor(FitDisplay fit, List<String> userConditions) {
-    if (fit is FitHidden ||
-        fit is FitNotRecommended ||
-        fit is FitIncomplete) {
+    if (fit is FitHidden || fit is FitNotRecommended || fit is FitIncomplete) {
       // For these states, bullets would either be inappropriate
       // (Hidden/NotRecommended) or premature (Incomplete profile —
       // the math hasn't run). Headline alone communicates the state.

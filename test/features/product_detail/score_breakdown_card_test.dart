@@ -75,17 +75,16 @@ void main() {
   });
 
   group('ScoreBreakdownCard — T5 header + pillar labels', () {
-    testWidgets(
-      'header reads "Why this scored {N}" when heroScore present',
-      (tester) async {
-        await tester.pumpWidget(buildTestWidget(heroScore: 84));
-        await tester.pumpAndSettle();
-        expect(find.text('Why this scored 84'), findsOneWidget);
-        // Pre-T5 headers are gone.
-        expect(find.text('Product Analysis'), findsNothing);
-        expect(find.text('Product Quality'), findsNothing);
-      },
-    );
+    testWidgets('header reads "Why this scored {N}" when heroScore present', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestWidget(heroScore: 84));
+      await tester.pumpAndSettle();
+      expect(find.text('Why this scored 84'), findsOneWidget);
+      // Pre-T5 headers are gone.
+      expect(find.text('Product Analysis'), findsNothing);
+      expect(find.text('Product Quality'), findsNothing);
+    });
 
     testWidgets(
       'header reads "Why this scored" (no number) when heroScore null',
@@ -114,10 +113,7 @@ void main() {
     ) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
-      expect(
-        find.text('Form, dosage, and bioavailability'),
-        findsOneWidget,
-      );
+      expect(find.text('Form, dosage, and bioavailability'), findsOneWidget);
       expect(
         find.text('Free from harmful ingredients and contaminants'),
         findsOneWidget,
@@ -172,16 +168,17 @@ void main() {
   });
 
   group('ScoreBreakdownCard — T14 deprecated hero continuity label', () {
-    testWidgets('"Your X breaks down as:" no longer renders even with heroScore', (
-      tester,
-    ) async {
-      // T14 — the score lives on the hero ScoreLine now; the inline
-      // continuity label was duplicate. Param kept for back-compat
-      // but the label is suppressed.
-      await tester.pumpWidget(buildTestWidget(heroScore: 82));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('breaks down as:'), findsNothing);
-    });
+    testWidgets(
+      '"Your X breaks down as:" no longer renders even with heroScore',
+      (tester) async {
+        // T14 — the score lives on the hero ScoreLine now; the inline
+        // continuity label was duplicate. Param kept for back-compat
+        // but the label is suppressed.
+        await tester.pumpWidget(buildTestWidget(heroScore: 82));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('breaks down as:'), findsNothing);
+      },
+    );
   });
 
   group('ScoreBreakdownCard — T1.4 coverage line (still in scope)', () {

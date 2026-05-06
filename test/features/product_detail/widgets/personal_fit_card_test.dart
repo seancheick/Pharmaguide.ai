@@ -58,25 +58,18 @@ Future<void> _pump(
 
 void main() {
   group('PersonalFitCard — headline per FitDisplay state', () {
-    testWidgets('FitStrongMatch with goal label → "Strong match for your X goal"', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        fit: const FitStrongMatch(),
-        topGoalLabel: 'sleep',
-      );
-      expect(find.text('Strong match for your sleep goal'), findsOneWidget);
-    });
+    testWidgets(
+      'FitStrongMatch with goal label → "Strong match for your X goal"',
+      (tester) async {
+        await _pump(tester, fit: const FitStrongMatch(), topGoalLabel: 'sleep');
+        expect(find.text('Strong match for your sleep goal'), findsOneWidget);
+      },
+    );
 
     testWidgets('FitGoodMatch with goal label → "Good match for your X goal"', (
       tester,
     ) async {
-      await _pump(
-        tester,
-        fit: const FitGoodMatch(),
-        topGoalLabel: 'energy',
-      );
+      await _pump(tester, fit: const FitGoodMatch(), topGoalLabel: 'energy');
       expect(find.text('Good match for your energy goal'), findsOneWidget);
     });
 
@@ -94,25 +87,21 @@ void main() {
       expect(find.text('Not recommended for your profile'), findsOneWidget);
     });
 
-    testWidgets(
-      'FitHidden → renders nothing (T16.1 dedup with hero banner)',
-      (tester) async {
-        // T16.1 (2026-04-30) — FitHidden fires exactly when verdict ≥
-        // avoid (see fit_display.dart:127-128). The hero card already
-        // surfaces a BlockedBanner / "Avoid — relevant to your
-        // profile" banner for those severities; PersonalFit drops to
-        // SizedBox.shrink to avoid duplicating the message.
-        await _pump(
-          tester,
-          fit: const FitHidden(verdict: Severity.avoid),
-        );
-        expect(find.text('Not recommended for your profile'), findsNothing);
-        // The card's headline icon (Icons.do_not_disturb_alt_outlined
-        // for FitHidden state) and edit pencil should NOT render.
-        expect(find.byIcon(Icons.do_not_disturb_alt_outlined), findsNothing);
-        expect(find.byIcon(Icons.edit_outlined), findsNothing);
-      },
-    );
+    testWidgets('FitHidden → renders nothing (T16.1 dedup with hero banner)', (
+      tester,
+    ) async {
+      // T16.1 (2026-04-30) — FitHidden fires exactly when verdict ≥
+      // avoid (see fit_display.dart:127-128). The hero card already
+      // surfaces a BlockedBanner / "Avoid — relevant to your
+      // profile" banner for those severities; PersonalFit drops to
+      // SizedBox.shrink to avoid duplicating the message.
+      await _pump(tester, fit: const FitHidden(verdict: Severity.avoid));
+      expect(find.text('Not recommended for your profile'), findsNothing);
+      // The card's headline icon (Icons.do_not_disturb_alt_outlined
+      // for FitHidden state) and edit pencil should NOT render.
+      expect(find.byIcon(Icons.do_not_disturb_alt_outlined), findsNothing);
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    });
 
     testWidgets('FitIncomplete → "Add your profile to personalize"', (
       tester,
@@ -155,9 +144,7 @@ void main() {
         tester,
         fit: const FitGoodMatch(),
         ingredientNames: const ['Vitamin D', 'Magnesium'],
-        profile: const ProfileState(
-          conditions: ['hypertension', 'diabetes'],
-        ),
+        profile: const ProfileState(conditions: ['hypertension', 'diabetes']),
       );
       await tester.pumpAndSettle();
       expect(find.byType(Padding), findsWidgets);
@@ -210,26 +197,23 @@ void main() {
       expect(find.text('Backed by clinical evidence'), findsOneWidget);
     });
 
-    testWidgets(
-      'FitHidden state renders nothing (T16.1 — entire card hidden, '
-      'not just bullets)',
-      (tester) async {
-        // T16.1 (2026-04-30) — pre-T16.1 this test verified bullets
-        // were suppressed for FitHidden. Now the entire card is
-        // suppressed (the hero banner already conveys the avoid/
-        // contraindicated state). Even with positive ingredient ×
-        // condition matches present, nothing renders.
-        await _pump(
-          tester,
-          fit: const FitHidden(verdict: Severity.avoid),
-          ingredientNames: const ['Magnesium'],
-          profile: const ProfileState(conditions: ['hypertension']),
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('Not recommended for your profile'), findsNothing);
-        expect(find.textContaining('supports your'), findsNothing);
-      },
-    );
+    testWidgets('FitHidden state renders nothing (T16.1 — entire card hidden, '
+        'not just bullets)', (tester) async {
+      // T16.1 (2026-04-30) — pre-T16.1 this test verified bullets
+      // were suppressed for FitHidden. Now the entire card is
+      // suppressed (the hero banner already conveys the avoid/
+      // contraindicated state). Even with positive ingredient ×
+      // condition matches present, nothing renders.
+      await _pump(
+        tester,
+        fit: const FitHidden(verdict: Severity.avoid),
+        ingredientNames: const ['Magnesium'],
+        profile: const ProfileState(conditions: ['hypertension']),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Not recommended for your profile'), findsNothing);
+      expect(find.textContaining('supports your'), findsNothing);
+    });
 
     testWidgets('FitIncomplete suppresses bullets — premature', (tester) async {
       await _pump(
@@ -262,20 +246,11 @@ void main() {
         );
         await tester.pumpAndSettle();
         // Condition-warning reasons NOT rendered.
-        expect(
-          find.textContaining('Diabetes: monitor'),
-          findsNothing,
-        );
-        expect(
-          find.textContaining('Hypertension: monitor'),
-          findsNothing,
-        );
+        expect(find.textContaining('Diabetes: monitor'), findsNothing);
+        expect(find.textContaining('Hypertension: monitor'), findsNothing);
         // Positive reasons surface.
         expect(find.text('Backed by clinical evidence'), findsOneWidget);
-        expect(
-          find.text('Supports your sleep quality goal'),
-          findsOneWidget,
-        );
+        expect(find.text('Supports your sleep quality goal'), findsOneWidget);
       },
     );
   });
@@ -293,30 +268,29 @@ void main() {
       expect(taps, 1);
     });
 
-    testWidgets(
-      'edit pencil renders for all visible fit states',
-      (tester) async {
-        // Pencil should be present whenever the card renders — it's
-        // the user's escape hatch to fix the profile data. T16.1
-        // suppresses the entire card for FitHidden (verdict ≥ avoid),
-        // so that state is excluded — the hero banner is the surface
-        // there, and the user's primary action is the in-hero CTA,
-        // not a profile edit.
-        for (final fit in [
-          const FitStrongMatch(),
-          const FitGoodMatch(),
-          const FitLimitedFit(),
-          const FitNotRecommended(),
-          const FitIncomplete(),
-        ]) {
-          await _pump(tester, fit: fit);
-          expect(
-            find.byIcon(Icons.edit_outlined),
-            findsOneWidget,
-            reason: 'Edit pencil missing for $fit',
-          );
-        }
-      },
-    );
+    testWidgets('edit pencil renders for all visible fit states', (
+      tester,
+    ) async {
+      // Pencil should be present whenever the card renders — it's
+      // the user's escape hatch to fix the profile data. T16.1
+      // suppresses the entire card for FitHidden (verdict ≥ avoid),
+      // so that state is excluded — the hero banner is the surface
+      // there, and the user's primary action is the in-hero CTA,
+      // not a profile edit.
+      for (final fit in [
+        const FitStrongMatch(),
+        const FitGoodMatch(),
+        const FitLimitedFit(),
+        const FitNotRecommended(),
+        const FitIncomplete(),
+      ]) {
+        await _pump(tester, fit: fit);
+        expect(
+          find.byIcon(Icons.edit_outlined),
+          findsOneWidget,
+          reason: 'Edit pencil missing for $fit',
+        );
+      }
+    });
   });
 }

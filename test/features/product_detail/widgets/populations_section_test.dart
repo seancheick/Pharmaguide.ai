@@ -343,29 +343,29 @@ void main() {
       },
     );
 
-    testWidgets(
-      'all populations match user → section hides entirely',
-      (tester) async {
-        // 2026-05-05 — when every population is in the user's profile,
-        // the section hides instead of rendering a confusing
-        // "(already covered for ...)" parenthetical.
-        await _pump(
-          tester,
-          warnings: [
-            _w(populationWarnings: const ['Pregnancy', 'Diabetic patients']),
-          ],
-          userConditions: {'pregnancy', 'diabetes'},
-        );
-        await tester.pumpAndSettle();
+    testWidgets('all populations match user → section hides entirely', (
+      tester,
+    ) async {
+      // 2026-05-05 — when every population is in the user's profile,
+      // the section hides instead of rendering a confusing
+      // "(already covered for ...)" parenthetical.
+      await _pump(
+        tester,
+        warnings: [
+          _w(populationWarnings: const ['Pregnancy', 'Diabetic patients']),
+        ],
+        userConditions: {'pregnancy', 'diabetes'},
+      );
+      await tester.pumpAndSettle();
 
-        expect(find.text('Extra caution if you are…'), findsNothing);
-        expect(find.textContaining('Extra caution for'), findsNothing);
-        expect(find.textContaining('already covered'), findsNothing);
-      },
-    );
+      expect(find.text('Extra caution if you are…'), findsNothing);
+      expect(find.textContaining('Extra caution for'), findsNothing);
+      expect(find.textContaining('already covered'), findsNothing);
+    });
 
-    testWidgets('age bracket dedupes a population from the main list',
-        (tester) async {
+    testWidgets('age bracket dedupes a population from the main list', (
+      tester,
+    ) async {
       await _pump(
         tester,
         warnings: [

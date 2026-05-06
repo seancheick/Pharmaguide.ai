@@ -52,8 +52,12 @@ class SynergyDetailSection extends StatelessWidget {
       return tier <= 2 && matchCount >= 2 && allAdequate;
     }).toList();
     filtered.sort((a, b) {
-      final tierA = (a['evidence_tier'] is num) ? a['evidence_tier'] as num : 99;
-      final tierB = (b['evidence_tier'] is num) ? b['evidence_tier'] as num : 99;
+      final tierA = (a['evidence_tier'] is num)
+          ? a['evidence_tier'] as num
+          : 99;
+      final tierB = (b['evidence_tier'] is num)
+          ? b['evidence_tier'] as num
+          : 99;
       final tierCmp = tierA.compareTo(tierB);
       if (tierCmp != 0) return tierCmp;
       final mcA = (a['match_count'] is num) ? a['match_count'] as num : 0;
@@ -107,8 +111,7 @@ class SynergyDetailSection extends StatelessWidget {
                   cluster['name']?.toString() ??
                   cluster['cluster_name']?.toString() ??
                   '';
-              final evidenceTier =
-                  cluster['evidence_tier']?.toString() ?? '';
+              final evidenceTier = cluster['evidence_tier']?.toString() ?? '';
               final explanation =
                   cluster['benefit_short']?.toString().isNotEmpty == true
                   ? cluster['benefit_short'].toString()
@@ -151,9 +154,7 @@ class SynergyDetailSection extends StatelessWidget {
                       Icon(
                         Icons.info_outline_rounded,
                         size: 13,
-                        color: scheme.onPrimaryContainer.withValues(
-                          alpha: 0.7,
-                        ),
+                        color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
                       ),
                     ],
                   ),

@@ -62,10 +62,10 @@ class UserProfile {
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
-        conditions: _toSet(json['conditions']),
-        drugClasses: _toSet(json['drug_classes']),
-        profileFlags: _toSet(json['profile_flags']),
-      );
+    conditions: _toSet(json['conditions']),
+    drugClasses: _toSet(json['drug_classes']),
+    profileFlags: _toSet(json['profile_flags']),
+  );
 
   static Set<String> _toSet(Object? raw) {
     if (raw is Iterable) {
@@ -90,13 +90,13 @@ class ProductContext {
   });
 
   factory ProductContext.fromJson(Map<String, dynamic> json) => ProductContext(
-        productForm: _str(json['product_form']),
-        nutrientForm: _str(json['nutrient_form']),
-        dosePerDay: json['dose_per_day'] is num
-            ? json['dose_per_day'] as num
-            : null,
-        doseUnit: _str(json['dose_unit']),
-      );
+    productForm: _str(json['product_form']),
+    nutrientForm: _str(json['nutrient_form']),
+    dosePerDay: json['dose_per_day'] is num
+        ? json['dose_per_day'] as num
+        : null,
+    doseUnit: _str(json['dose_unit']),
+  );
 
   static String? _str(Object? raw) =>
       raw is String && raw.isNotEmpty ? raw : null;
@@ -139,7 +139,8 @@ GateEvaluationResult evaluateProfileGate(
       return GateEvaluationResult(
         fires: false,
         severity: null,
-        reason: 'requires.$key not satisfied: needs any of $reqList, '
+        reason:
+            'requires.$key not satisfied: needs any of $reqList, '
             'user has ${userSet.toList()..sort()}',
       );
     }
@@ -166,7 +167,8 @@ GateEvaluationResult evaluateProfileGate(
     return GateEvaluationResult(
       fires: false,
       severity: null,
-      reason: 'excludes.product_forms_any suppressed: '
+      reason:
+          'excludes.product_forms_any suppressed: '
           'product_form="$productForm"',
     );
   }
@@ -177,7 +179,8 @@ GateEvaluationResult evaluateProfileGate(
     return GateEvaluationResult(
       fires: false,
       severity: null,
-      reason: 'excludes.nutrient_forms_any suppressed: '
+      reason:
+          'excludes.nutrient_forms_any suppressed: '
           'nutrient_form="$nutrientForm"',
     );
   }
@@ -210,14 +213,20 @@ List<String> validateProfileGate(
   final errors = <String>[];
   final gt = gate['gate_type'];
   if (gt is! String || !_allowedGateTypes.contains(gt)) {
-    errors.add('gate_type ${gt is String ? '"$gt"' : '$gt'} '
-        'not in $_allowedGateTypes');
+    errors.add(
+      'gate_type ${gt is String ? '"$gt"' : '$gt'} '
+      'not in $_allowedGateTypes',
+    );
   }
 
   final requires = _asMap(gate['requires']);
   final excludes = _asMap(gate['excludes']);
 
-  for (final k in const ['conditions_any', 'drug_classes_any', 'profile_flags_any']) {
+  for (final k in const [
+    'conditions_any',
+    'drug_classes_any',
+    'profile_flags_any',
+  ]) {
     if (!requires.containsKey(k)) {
       errors.add('requires missing key "$k"');
     } else {
@@ -247,20 +256,30 @@ List<String> validateProfileGate(
     if (_asStringList(requires[required]).isEmpty) {
       errors.add('gate_type="$gt" requires non-empty requires.$required');
     }
-    for (final k in const ['conditions_any', 'drug_classes_any', 'profile_flags_any']) {
+    for (final k in const [
+      'conditions_any',
+      'drug_classes_any',
+      'profile_flags_any',
+    ]) {
       if (k != required && _asStringList(requires[k]).isNotEmpty) {
-        errors.add('gate_type="$gt" must only populate requires.$required; '
-            'found requires.$k populated (use gate_type="combination")');
+        errors.add(
+          'gate_type="$gt" must only populate requires.$required; '
+          'found requires.$k populated (use gate_type="combination")',
+        );
       }
     }
   } else if (gt == 'combination') {
-    final populated = ['conditions_any', 'drug_classes_any', 'profile_flags_any']
-        .where((k) => _asStringList(requires[k]).isNotEmpty)
-        .length;
+    final populated = [
+      'conditions_any',
+      'drug_classes_any',
+      'profile_flags_any',
+    ].where((k) => _asStringList(requires[k]).isNotEmpty).length;
     final hasDose = gate['dose'] is Map;
     if (populated < 2 && !hasDose) {
-      errors.add('gate_type="combination" needs ≥2 populated requires keys '
-          'OR a dose block; got requires_populated=$populated dose=absent');
+      errors.add(
+        'gate_type="combination" needs ≥2 populated requires keys '
+        'OR a dose block; got requires_populated=$populated dose=absent',
+      );
     }
   } else if (gt == 'dose') {
     if (gate['dose'] is! Map) {

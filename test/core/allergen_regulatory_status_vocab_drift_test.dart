@@ -24,8 +24,10 @@ void main() {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['allergen_regulatory_statuses'] as List)
           .cast<Map<String, dynamic>>();
-      expect(entries.map((e) => e['id'] as String).toSet(),
-          equals({'fda_major', 'eu_major', 'eu_allergen'}));
+      expect(
+        entries.map((e) => e['id'] as String).toSet(),
+        equals({'fda_major', 'eu_major', 'eu_allergen'}),
+      );
     });
 
     test('all entries have required fields', () {

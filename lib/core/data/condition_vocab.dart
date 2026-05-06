@@ -60,11 +60,13 @@ class ConditionEntry {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
-      synonyms: (json['synonyms'] as List?)
+      synonyms:
+          (json['synonyms'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const [],
-      icd10: (json['icd10'] as List?)
+      icd10:
+          (json['icd10'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .map(Icd10Reference.fromJson)
               .toList(growable: false) ??

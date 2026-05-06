@@ -86,12 +86,14 @@ class FunctionalRole {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
-      regulatoryReferences: (json['regulatory_references'] as List?)
+      regulatoryReferences:
+          (json['regulatory_references'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .map(RegulatoryReference.fromJson)
               .toList(growable: false) ??
           const [],
-      examples: (json['examples'] as List?)
+      examples:
+          (json['examples'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const [],

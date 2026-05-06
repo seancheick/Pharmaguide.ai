@@ -55,8 +55,6 @@ Future<Map<String, LegalStatusEntry>> loadLegalStatusVocab() async {
   return byId;
 }
 
-void debugSetLegalStatusVocabForTesting(
-  Map<String, LegalStatusEntry>? value,
-) {
+void debugSetLegalStatusVocabForTesting(Map<String, LegalStatusEntry>? value) {
   _cache = value;
 }

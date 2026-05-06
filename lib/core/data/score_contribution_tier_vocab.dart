@@ -45,7 +45,7 @@ class ScoreContributionTierEntry {
 Map<String, ScoreContributionTierEntry>? _cache;
 
 Future<Map<String, ScoreContributionTierEntry>>
-    loadScoreContributionTierVocab() async {
+loadScoreContributionTierVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 

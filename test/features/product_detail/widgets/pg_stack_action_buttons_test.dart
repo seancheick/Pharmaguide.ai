@@ -64,25 +64,22 @@ Widget _wrap(
 
 void main() {
   group('PGStackActionButtons — conditional primary', () {
-    testWidgets(
-      'safe + not in stack → "Add to my stack" only',
-      (tester) async {
-        final coreDb = CoreDatabase.memory();
-        final userDb = UserDatabase.memory();
-        await _seedProduct(coreDb);
+    testWidgets('safe + not in stack → "Add to my stack" only', (tester) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb);
 
-        await tester.pumpWidget(_wrap(coreDb, userDb));
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(_wrap(coreDb, userDb));
+      await tester.pumpAndSettle();
 
-        expect(find.text('Add to my stack'), findsOneWidget);
-        expect(find.text('See safer alternatives'), findsNothing);
-        expect(find.text('Log dose'), findsNothing);
+      expect(find.text('Add to my stack'), findsOneWidget);
+      expect(find.text('See safer alternatives'), findsNothing);
+      expect(find.text('Log dose'), findsNothing);
 
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      },
-    );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
 
     testWidgets(
       'unsafe verdict → "See safer alternatives" replaces "Add to my stack"',
@@ -104,27 +101,26 @@ void main() {
       },
     );
 
-    testWidgets(
-      'already in stack → "In your stack" panel only',
-      (tester) async {
-        final coreDb = CoreDatabase.memory();
-        final userDb = UserDatabase.memory();
-        await _seedProduct(coreDb);
-        await _addToStack(userDb);
+    testWidgets('already in stack → "In your stack" panel only', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb);
+      await _addToStack(userDb);
 
-        await tester.pumpWidget(_wrap(coreDb, userDb));
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(_wrap(coreDb, userDb));
+      await tester.pumpAndSettle();
 
-        expect(find.text('In your stack'), findsOneWidget);
-        expect(find.text('Remove'), findsOneWidget);
-        expect(find.text('Add to my stack'), findsNothing);
-        expect(find.text('Log dose'), findsNothing);
+      expect(find.text('In your stack'), findsOneWidget);
+      expect(find.text('Remove'), findsOneWidget);
+      expect(find.text('Add to my stack'), findsNothing);
+      expect(find.text('Log dose'), findsNothing);
 
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      },
-    );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
 
     testWidgets(
       'T1A — in-stack pill is persistent (does NOT auto-collapse after 3s)',
@@ -206,32 +202,31 @@ void main() {
       },
     );
 
-    testWidgets(
-      'add flow preserved — Add button has non-null onPressed',
-      (tester) async {
-        final coreDb = CoreDatabase.memory();
-        final userDb = UserDatabase.memory();
-        await _seedProduct(coreDb);
+    testWidgets('add flow preserved — Add button has non-null onPressed', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb);
 
-        await tester.pumpWidget(_wrap(coreDb, userDb));
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(_wrap(coreDb, userDb));
+      await tester.pumpAndSettle();
 
-        final addButton = tester.widget<FilledButton>(
-          find.ancestor(
-            of: find.text('Add to my stack'),
-            matching: find.byType(FilledButton),
-          ),
-        );
-        expect(
-          addButton.onPressed,
-          isNotNull,
-          reason: '_handleAdd handler should be wired up',
-        );
+      final addButton = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Add to my stack'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(
+        addButton.onPressed,
+        isNotNull,
+        reason: '_handleAdd handler should be wired up',
+      );
 
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      },
-    );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
   });
 }

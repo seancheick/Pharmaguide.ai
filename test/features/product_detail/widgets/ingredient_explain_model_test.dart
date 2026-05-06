@@ -71,10 +71,7 @@ void main() {
             'quantity': 1.05,
             'unit': 'mg',
           },
-          ulEntry: const {
-            'standard_name': 'vitamin a',
-            'skip_ul_check': true,
-          },
+          ulEntry: const {'standard_name': 'vitamin a', 'skip_ul_check': true},
         );
         expect(out, DoseCallOut.withinLimits);
       },
@@ -82,14 +79,21 @@ void main() {
 
     test('within limits → withinLimits', () {
       final out = resolveDoseCallOut(
-        ingredient: const {'standard_name': 'magnesium', 'quantity': 200, 'unit': 'mg'},
+        ingredient: const {
+          'standard_name': 'magnesium',
+          'quantity': 200,
+          'unit': 'mg',
+        },
       );
       expect(out, DoseCallOut.withinLimits);
     });
 
     test('below_clinical_dose on ingredient → low', () {
       final out = resolveDoseCallOut(
-        ingredient: const {'standard_name': 'curcumin', 'below_clinical_dose': true},
+        ingredient: const {
+          'standard_name': 'curcumin',
+          'below_clinical_dose': true,
+        },
       );
       expect(out, DoseCallOut.low);
     });
@@ -97,7 +101,10 @@ void main() {
     test('below_clinical_dose on ul entry → low', () {
       final out = resolveDoseCallOut(
         ingredient: const {'standard_name': 'curcumin'},
-        ulEntry: const {'standard_name': 'curcumin', 'below_clinical_dose': true},
+        ulEntry: const {
+          'standard_name': 'curcumin',
+          'below_clinical_dose': true,
+        },
       );
       expect(out, DoseCallOut.low);
     });
@@ -118,45 +125,50 @@ void main() {
 
   group('buildIngredientExplain', () {
     test('uses display_label, falls back to standard_name', () {
-      final a = buildIngredientExplain(ingredient: const {
-        'display_label': 'Magnesium Bisglycinate',
-        'standard_name': 'magnesium',
-      });
+      final a = buildIngredientExplain(
+        ingredient: const {
+          'display_label': 'Magnesium Bisglycinate',
+          'standard_name': 'magnesium',
+        },
+      );
       expect(a.title, 'Magnesium Bisglycinate');
 
-      final b = buildIngredientExplain(ingredient: const {
-        'standard_name': 'magnesium',
-      });
+      final b = buildIngredientExplain(
+        ingredient: const {'standard_name': 'magnesium'},
+      );
       expect(b.title, 'magnesium');
     });
 
     test('null form → formName null', () {
-      final out = buildIngredientExplain(ingredient: const {
-        'standard_name': 'magnesium',
-      });
+      final out = buildIngredientExplain(
+        ingredient: const {'standard_name': 'magnesium'},
+      );
       expect(out.formName, isNull);
     });
 
-    test('form="bisglycinate" + bio_score=14 → excellent + glycinate copy',
-        () {
-      final out = buildIngredientExplain(ingredient: const {
-        'standard_name': 'magnesium',
-        'display_form_label': 'bisglycinate',
-        'form_status': 'known',
-        'bio_score': 14,
-      });
+    test('form="bisglycinate" + bio_score=14 → excellent + glycinate copy', () {
+      final out = buildIngredientExplain(
+        ingredient: const {
+          'standard_name': 'magnesium',
+          'display_form_label': 'bisglycinate',
+          'form_status': 'known',
+          'bio_score': 14,
+        },
+      );
       expect(out.formQuality, FormQuality.excellent);
       expect(out.formExplanation, contains('Glycinate'));
       expect(out.formExplanation, contains('chelated'));
     });
 
     test('form="oxide" + bio_score=2 → poor + oxide copy', () {
-      final out = buildIngredientExplain(ingredient: const {
-        'standard_name': 'magnesium',
-        'display_form_label': 'oxide',
-        'form_status': 'known',
-        'bio_score': 2,
-      });
+      final out = buildIngredientExplain(
+        ingredient: const {
+          'standard_name': 'magnesium',
+          'display_form_label': 'oxide',
+          'form_status': 'known',
+          'bio_score': 2,
+        },
+      );
       expect(out.formQuality, FormQuality.poor);
       expect(out.formExplanation, contains('Oxide'));
     });
@@ -210,27 +222,31 @@ void main() {
 
     test('below clinical → low dose explanation', () {
       final out = buildIngredientExplain(
-        ingredient: const {'standard_name': 'curcumin', 'below_clinical_dose': true},
+        ingredient: const {
+          'standard_name': 'curcumin',
+          'below_clinical_dose': true,
+        },
       );
       expect(out.doseCallOut, DoseCallOut.low);
       expect(out.doseExplanation, contains('below'));
     });
 
     test('display_dose_label preferred over quantity+unit', () {
-      final out = buildIngredientExplain(ingredient: const {
-        'standard_name': 'm',
-        'display_dose_label': 'Amount not disclosed',
-        'quantity': 100,
-        'unit': 'mg',
-      });
+      final out = buildIngredientExplain(
+        ingredient: const {
+          'standard_name': 'm',
+          'display_dose_label': 'Amount not disclosed',
+          'quantity': 100,
+          'unit': 'mg',
+        },
+      );
       expect(out.doseLabel, 'Amount not disclosed');
     });
 
     test('evidence_level surfaced when present', () {
-      final out = buildIngredientExplain(ingredient: const {
-        'standard_name': 'm',
-        'evidence_level': 'Strong',
-      });
+      final out = buildIngredientExplain(
+        ingredient: const {'standard_name': 'm', 'evidence_level': 'Strong'},
+      );
       expect(out.evidenceLabel, 'Strong');
     });
   });

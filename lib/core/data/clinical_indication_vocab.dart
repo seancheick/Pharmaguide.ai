@@ -47,11 +47,13 @@ class ClinicalIndicationEntry {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
-      relatedConditionIds: (json['related_condition_ids'] as List?)
+      relatedConditionIds:
+          (json['related_condition_ids'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const [],
-      examples: (json['examples'] as List?)
+      examples:
+          (json['examples'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const [],
@@ -61,7 +63,8 @@ class ClinicalIndicationEntry {
 
 Map<String, ClinicalIndicationEntry>? _cache;
 
-Future<Map<String, ClinicalIndicationEntry>> loadClinicalIndicationVocab() async {
+Future<Map<String, ClinicalIndicationEntry>>
+loadClinicalIndicationVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 

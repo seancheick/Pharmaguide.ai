@@ -36,22 +36,22 @@ void main() {
     });
 
     test('n/a → green (non-additive or non-harmful)', () {
-      expect(
-        inactiveColorRank({'severity_status': 'n/a'}),
-        InactiveTone.green,
-      );
+      expect(inactiveColorRank({'severity_status': 'n/a'}), InactiveTone.green);
     });
 
-    test('falls back to harmful_severity on cached blobs without severity_status', () {
-      // severity_level retired; harmful_severity carries the same enum.
-      expect(
-        inactiveColorRank({'harmful_severity': 'high'}),
-        InactiveTone.red,
-      );
-      expect(
-        inactiveColorRank({'harmful_severity': 'low'}),
-        InactiveTone.yellow,
-      );
-    });
+    test(
+      'falls back to harmful_severity on cached blobs without severity_status',
+      () {
+        // severity_level retired; harmful_severity carries the same enum.
+        expect(
+          inactiveColorRank({'harmful_severity': 'high'}),
+          InactiveTone.red,
+        );
+        expect(
+          inactiveColorRank({'harmful_severity': 'low'}),
+          InactiveTone.yellow,
+        );
+      },
+    );
   });
 }

@@ -57,55 +57,46 @@ void main() {
       expect(entry!.directionality, NutrientDirectionality.positive);
     });
 
-    test(
-      'T16.2b — alpha-lipoic acid + diabetes is dose-gated at 600 mg',
-      () {
-        // PureLean ships 350 mg ALA → below threshold → suppressed.
-        // Pipeline-side message itself states the trigger is
-        // "≥ 600 mg/day alongside diabetes medications".
-        final entry = lookupConditionThreshold(
-          conditionId: 'diabetes',
-          ingredientName: 'Alpha-lipoic acid',
-        );
-        expect(entry, isNotNull);
-        expect(entry!.directionality, NutrientDirectionality.neutral);
-        expect(entry.minDose, 600);
-        expect(entry.doseUnit, 'mg');
-      },
-    );
+    test('T16.2b — alpha-lipoic acid + diabetes is dose-gated at 600 mg', () {
+      // PureLean ships 350 mg ALA → below threshold → suppressed.
+      // Pipeline-side message itself states the trigger is
+      // "≥ 600 mg/day alongside diabetes medications".
+      final entry = lookupConditionThreshold(
+        conditionId: 'diabetes',
+        ingredientName: 'Alpha-lipoic acid',
+      );
+      expect(entry, isNotNull);
+      expect(entry!.directionality, NutrientDirectionality.neutral);
+      expect(entry.minDose, 600);
+      expect(entry.doseUnit, 'mg');
+    });
 
-    test(
-      'T16.2b — alpha_lipoic_acid canonical form resolves',
-      () {
-        // Pipeline may stamp the canonical underscore form directly.
-        final entry = lookupConditionThreshold(
-          conditionId: 'diabetes',
-          ingredientName: 'alpha_lipoic_acid',
-        );
-        expect(entry, isNotNull);
-        expect(entry!.minDose, 600);
-      },
-    );
+    test('T16.2b — alpha_lipoic_acid canonical form resolves', () {
+      // Pipeline may stamp the canonical underscore form directly.
+      final entry = lookupConditionThreshold(
+        conditionId: 'diabetes',
+        ingredientName: 'alpha_lipoic_acid',
+      );
+      expect(entry, isNotNull);
+      expect(entry!.minDose, 600);
+    });
 
-    test(
-      'T16.2b — vanadium + diabetes threshold expressed in mcg '
-      '(supplement-side units)',
-      () {
-        // Vanadium clinical effects: 50-200 mg pharmacologic doses.
-        // Supplements ship in mcg (1000× lower). Threshold uses mcg
-        // unit so the gate's exact-unit-match requirement doesn't
-        // fail-safe-fire at typical supplement doses. PureLean has
-        // 50 mcg → far below 50000 mcg threshold → suppressed.
-        final entry = lookupConditionThreshold(
-          conditionId: 'diabetes',
-          ingredientName: 'Vanadium',
-        );
-        expect(entry, isNotNull);
-        expect(entry!.directionality, NutrientDirectionality.neutral);
-        expect(entry.minDose, 50000);
-        expect(entry.doseUnit, 'mcg');
-      },
-    );
+    test('T16.2b — vanadium + diabetes threshold expressed in mcg '
+        '(supplement-side units)', () {
+      // Vanadium clinical effects: 50-200 mg pharmacologic doses.
+      // Supplements ship in mcg (1000× lower). Threshold uses mcg
+      // unit so the gate's exact-unit-match requirement doesn't
+      // fail-safe-fire at typical supplement doses. PureLean has
+      // 50 mcg → far below 50000 mcg threshold → suppressed.
+      final entry = lookupConditionThreshold(
+        conditionId: 'diabetes',
+        ingredientName: 'Vanadium',
+      );
+      expect(entry, isNotNull);
+      expect(entry!.directionality, NutrientDirectionality.neutral);
+      expect(entry.minDose, 50000);
+      expect(entry.doseUnit, 'mcg');
+    });
 
     test('folate + pregnancy is positive (mandatory supplement)', () {
       final entry = lookupConditionThreshold(
@@ -187,23 +178,20 @@ void main() {
       expect(entry!.directionality, NutrientDirectionality.positive);
     });
 
-    test(
-      'T16.2f — parenthetical strip fallback: '
-      'Cinnamon (Cinnamomum cassia) extract → cinnamon_extract',
-      () {
-        // PureLean Pure Pack live walkthrough: pipeline embeds latin
-        // name in parens. Direct canonical
-        // `cinnamon_cinnamomum_cassia_extract` doesn't match — the
-        // fallback strips the paren clause and re-canonicalizes to
-        // `cinnamon_extract` which DOES match.
-        final entry = lookupConditionThreshold(
-          conditionId: 'diabetes',
-          ingredientName: 'Cinnamon (Cinnamomum cassia) extract',
-        );
-        expect(entry, isNotNull);
-        expect(entry!.directionality, NutrientDirectionality.positive);
-      },
-    );
+    test('T16.2f — parenthetical strip fallback: '
+        'Cinnamon (Cinnamomum cassia) extract → cinnamon_extract', () {
+      // PureLean Pure Pack live walkthrough: pipeline embeds latin
+      // name in parens. Direct canonical
+      // `cinnamon_cinnamomum_cassia_extract` doesn't match — the
+      // fallback strips the paren clause and re-canonicalizes to
+      // `cinnamon_extract` which DOES match.
+      final entry = lookupConditionThreshold(
+        conditionId: 'diabetes',
+        ingredientName: 'Cinnamon (Cinnamomum cassia) extract',
+      );
+      expect(entry, isNotNull);
+      expect(entry!.directionality, NutrientDirectionality.positive);
+    });
 
     test('T16.2f — parenthetical fallback handles percentage descriptors', () {
       // Same fallback applies to "(95%)" / "(2.5%)" descriptors.
@@ -228,27 +216,33 @@ void main() {
   });
 
   group('lookupConditionThreshold — teratogenic-retinol gate', () {
-    test('retinol + pregnancy has neutral directionality + 3000 IU threshold', () {
-      final entry = lookupConditionThreshold(
-        conditionId: 'pregnancy',
-        ingredientName: 'Retinol',
-      );
-      expect(entry, isNotNull);
-      expect(entry!.directionality, NutrientDirectionality.neutral);
-      expect(entry.minDose, 3000);
-      expect(entry.doseUnit, 'IU');
-    });
+    test(
+      'retinol + pregnancy has neutral directionality + 3000 IU threshold',
+      () {
+        final entry = lookupConditionThreshold(
+          conditionId: 'pregnancy',
+          ingredientName: 'Retinol',
+        );
+        expect(entry, isNotNull);
+        expect(entry!.directionality, NutrientDirectionality.neutral);
+        expect(entry.minDose, 3000);
+        expect(entry.doseUnit, 'IU');
+      },
+    );
 
-    test('vitamin A + ttc has 3000 IU threshold (pre-conception teratogenic)', () {
-      final entry = lookupConditionThreshold(
-        conditionId: 'ttc',
-        ingredientName: 'Vitamin A',
-      );
-      expect(entry, isNotNull);
-      expect(entry!.directionality, NutrientDirectionality.neutral);
-      expect(entry.minDose, 3000);
-      expect(entry.doseUnit, 'IU');
-    });
+    test(
+      'vitamin A + ttc has 3000 IU threshold (pre-conception teratogenic)',
+      () {
+        final entry = lookupConditionThreshold(
+          conditionId: 'ttc',
+          ingredientName: 'Vitamin A',
+        );
+        expect(entry, isNotNull);
+        expect(entry!.directionality, NutrientDirectionality.neutral);
+        expect(entry.minDose, 3000);
+        expect(entry.doseUnit, 'IU');
+      },
+    );
   });
 
   group('lookupConditionThreshold — bleeding-disorder dose gates', () {
@@ -479,25 +473,22 @@ void main() {
       },
     );
 
-    test(
-      'duplicate ingredient forms emit only ONE bullet per condition',
-      () {
-        // Common multi-form magnesium product — `Magnesium`, `Magnesium
-        // Glycinate`, `Magnesium Citrate` all positive for hypertension.
-        // The 2-bullet card budget shouldn't be burned on one nutrient.
-        final bullets = generatePositiveProfileBullets(
-          ingredientNames: const [
-            'Magnesium',
-            'Magnesium Glycinate',
-            'Magnesium Citrate',
-          ],
-          userConditionIds: const ['hypertension'],
-        );
-        expect(bullets, hasLength(1));
-        // First-match wins → 'Magnesium' (the bare form, listed first).
-        expect(bullets.first, contains('Magnesium'));
-      },
-    );
+    test('duplicate ingredient forms emit only ONE bullet per condition', () {
+      // Common multi-form magnesium product — `Magnesium`, `Magnesium
+      // Glycinate`, `Magnesium Citrate` all positive for hypertension.
+      // The 2-bullet card budget shouldn't be burned on one nutrient.
+      final bullets = generatePositiveProfileBullets(
+        ingredientNames: const [
+          'Magnesium',
+          'Magnesium Glycinate',
+          'Magnesium Citrate',
+        ],
+        userConditionIds: const ['hypertension'],
+      );
+      expect(bullets, hasLength(1));
+      // First-match wins → 'Magnesium' (the bare form, listed first).
+      expect(bullets.first, contains('Magnesium'));
+    });
 
     test('duplicate condition entries dedup', () {
       final bullets = generatePositiveProfileBullets(
@@ -529,26 +520,32 @@ void main() {
       expect(bullets, isEmpty);
     });
 
-    test('display name resolves canonical aliases (vitamin_d3 → Vitamin D3)', () {
-      final bullets = generatePositiveProfileBullets(
-        ingredientNames: const ['vitamin_d3'],
-        userConditionIds: const ['lactation'],
-      );
-      expect(bullets, hasLength(1));
-      expect(bullets.first, 'Vitamin D3 is recommended during breastfeeding');
-    });
+    test(
+      'display name resolves canonical aliases (vitamin_d3 → Vitamin D3)',
+      () {
+        final bullets = generatePositiveProfileBullets(
+          ingredientNames: const ['vitamin_d3'],
+          userConditionIds: const ['lactation'],
+        );
+        expect(bullets, hasLength(1));
+        expect(bullets.first, 'Vitamin D3 is recommended during breastfeeding');
+      },
+    );
 
-    test('multi-word ingredient prettifies (magnesium_glycinate → Magnesium Glycinate)', () {
-      final bullets = generatePositiveProfileBullets(
-        ingredientNames: const ['magnesium_glycinate'],
-        userConditionIds: const ['diabetes'],
-      );
-      expect(bullets, hasLength(1));
-      expect(
-        bullets.first,
-        'Magnesium Glycinate supports your blood sugar goal',
-      );
-    });
+    test(
+      'multi-word ingredient prettifies (magnesium_glycinate → Magnesium Glycinate)',
+      () {
+        final bullets = generatePositiveProfileBullets(
+          ingredientNames: const ['magnesium_glycinate'],
+          userConditionIds: const ['diabetes'],
+        );
+        expect(bullets, hasLength(1));
+        expect(
+          bullets.first,
+          'Magnesium Glycinate supports your blood sugar goal',
+        );
+      },
+    );
 
     test('mixed positive and neutral product → only positives surface', () {
       // Product has Vit A (neutral for pregnancy) + Folate (positive)

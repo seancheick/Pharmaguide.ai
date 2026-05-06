@@ -30,7 +30,7 @@ class AllergenRegulatoryStatusEntry {
 Map<String, AllergenRegulatoryStatusEntry>? _cache;
 
 Future<Map<String, AllergenRegulatoryStatusEntry>>
-    loadAllergenRegulatoryStatusVocab() async {
+loadAllergenRegulatoryStatusVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 

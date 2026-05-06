@@ -22,17 +22,19 @@ void main() {
     test('canonical 3 IDs', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['match_modes'] as List).cast<Map<String, dynamic>>();
-      expect(entries.map((e) => e['id'] as String).toSet(),
-          equals({'active', 'disabled', 'historical'}));
+      final entries = (decoded['match_modes'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(
+        entries.map((e) => e['id'] as String).toSet(),
+        equals({'active', 'disabled', 'historical'}),
+      );
     });
 
     test('all entries have required fields and bool flag', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['match_modes'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['match_modes'] as List)
+          .cast<Map<String, dynamic>>();
       for (final m in entries) {
         for (final f in {'id', 'name', 'notes'}) {
           expect(m[f], isA<String>());

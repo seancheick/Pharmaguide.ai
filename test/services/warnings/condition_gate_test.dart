@@ -44,53 +44,51 @@ void main() {
         warnings: [
           _w(conditionIds: ['ttc'], ingredientName: 'Vitamin D'),
         ],
-        ingredientDoses: {
-          'vitamin_d': (value: 1000, unit: 'IU'),
-        },
+        ingredientDoses: {'vitamin_d': (value: 1000, unit: 'IU')},
       );
       expect(result, isEmpty);
     });
 
-    test('Vit D 5000 IU + TTC profile → STILL suppressed (positive ignores dose)', () {
-      // Positive directionality means "always beneficial, never warn"
-      // — dose is irrelevant.
-      final result = applyConditionThresholdGate(
-        warnings: [
-          _w(conditionIds: ['ttc'], ingredientName: 'Vitamin D'),
-        ],
-        ingredientDoses: {
-          'vitamin_d': (value: 5000, unit: 'IU'),
-        },
-      );
-      expect(result, isEmpty);
-    });
+    test(
+      'Vit D 5000 IU + TTC profile → STILL suppressed (positive ignores dose)',
+      () {
+        // Positive directionality means "always beneficial, never warn"
+        // — dose is irrelevant.
+        final result = applyConditionThresholdGate(
+          warnings: [
+            _w(conditionIds: ['ttc'], ingredientName: 'Vitamin D'),
+          ],
+          ingredientDoses: {'vitamin_d': (value: 5000, unit: 'IU')},
+        );
+        expect(result, isEmpty);
+      },
+    );
 
     test('Magnesium 200 mg + diabetes profile → suppressed (positive)', () {
       final result = applyConditionThresholdGate(
         warnings: [
           _w(conditionIds: ['diabetes'], ingredientName: 'Magnesium'),
         ],
-        ingredientDoses: {
-          'magnesium': (value: 200, unit: 'mg'),
-        },
+        ingredientDoses: {'magnesium': (value: 200, unit: 'mg')},
       );
       expect(result, isEmpty);
     });
 
-    test('Magnesium 600 mg + diabetes profile → STILL suppressed (positive)', () {
-      // Magnesium is positive for diabetes regardless of dose. UL
-      // exceedance warnings (high-dose harm) come from a different
-      // pipeline path and aren't gated here.
-      final result = applyConditionThresholdGate(
-        warnings: [
-          _w(conditionIds: ['diabetes'], ingredientName: 'Magnesium'),
-        ],
-        ingredientDoses: {
-          'magnesium': (value: 600, unit: 'mg'),
-        },
-      );
-      expect(result, isEmpty);
-    });
+    test(
+      'Magnesium 600 mg + diabetes profile → STILL suppressed (positive)',
+      () {
+        // Magnesium is positive for diabetes regardless of dose. UL
+        // exceedance warnings (high-dose harm) come from a different
+        // pipeline path and aren't gated here.
+        final result = applyConditionThresholdGate(
+          warnings: [
+            _w(conditionIds: ['diabetes'], ingredientName: 'Magnesium'),
+          ],
+          ingredientDoses: {'magnesium': (value: 600, unit: 'mg')},
+        );
+        expect(result, isEmpty);
+      },
+    );
   });
 
   group('applyConditionThresholdGate — retinol teratogenic gate', () {
@@ -99,9 +97,7 @@ void main() {
         warnings: [
           _w(conditionIds: ['pregnancy'], ingredientName: 'Vitamin A'),
         ],
-        ingredientDoses: {
-          'vitamin_a': (value: 2000, unit: 'IU'),
-        },
+        ingredientDoses: {'vitamin_a': (value: 2000, unit: 'IU')},
       );
       expect(result, isEmpty);
     });
@@ -113,29 +109,28 @@ void main() {
       );
       final result = applyConditionThresholdGate(
         warnings: [warning],
-        ingredientDoses: {
-          'vitamin_a': (value: 4000, unit: 'IU'),
-        },
+        ingredientDoses: {'vitamin_a': (value: 4000, unit: 'IU')},
       );
       expect(result, hasLength(1));
       expect(result.single, same(warning));
     });
 
-    test('Vitamin A exactly at 3000 IU + pregnancy → KEPT (boundary fires)', () {
-      // Threshold semantics: dose >= minDose fires. Boundary lives on
-      // the "fire" side so a clinical threshold isn't off-by-one.
-      final warning = _w(
-        conditionIds: ['pregnancy'],
-        ingredientName: 'Vitamin A',
-      );
-      final result = applyConditionThresholdGate(
-        warnings: [warning],
-        ingredientDoses: {
-          'vitamin_a': (value: 3000, unit: 'IU'),
-        },
-      );
-      expect(result, hasLength(1));
-    });
+    test(
+      'Vitamin A exactly at 3000 IU + pregnancy → KEPT (boundary fires)',
+      () {
+        // Threshold semantics: dose >= minDose fires. Boundary lives on
+        // the "fire" side so a clinical threshold isn't off-by-one.
+        final warning = _w(
+          conditionIds: ['pregnancy'],
+          ingredientName: 'Vitamin A',
+        );
+        final result = applyConditionThresholdGate(
+          warnings: [warning],
+          ingredientDoses: {'vitamin_a': (value: 3000, unit: 'IU')},
+        );
+        expect(result, hasLength(1));
+      },
+    );
   });
 
   group('applyConditionThresholdGate — kidney mineral overload', () {
@@ -144,9 +139,7 @@ void main() {
         warnings: [
           _w(conditionIds: ['kidney_disease'], ingredientName: 'Magnesium'),
         ],
-        ingredientDoses: {
-          'magnesium': (value: 200, unit: 'mg'),
-        },
+        ingredientDoses: {'magnesium': (value: 200, unit: 'mg')},
       );
       expect(result, isEmpty);
     });
@@ -158,9 +151,7 @@ void main() {
       );
       final result = applyConditionThresholdGate(
         warnings: [warning],
-        ingredientDoses: {
-          'magnesium': (value: 600, unit: 'mg'),
-        },
+        ingredientDoses: {'magnesium': (value: 600, unit: 'mg')},
       );
       expect(result, hasLength(1));
     });
@@ -173,14 +164,9 @@ void main() {
         // calcium/phosphate concerns). Below 4000 IU still suppressed.
         final result = applyConditionThresholdGate(
           warnings: [
-            _w(
-              conditionIds: ['kidney_disease'],
-              ingredientName: 'Vitamin D',
-            ),
+            _w(conditionIds: ['kidney_disease'], ingredientName: 'Vitamin D'),
           ],
-          ingredientDoses: {
-            'vitamin_d': (value: 1000, unit: 'IU'),
-          },
+          ingredientDoses: {'vitamin_d': (value: 1000, unit: 'IU')},
         );
         expect(result, isEmpty);
       },
@@ -191,9 +177,7 @@ void main() {
         warnings: [
           _w(conditionIds: ['kidney_disease'], ingredientName: 'Vitamin D'),
         ],
-        ingredientDoses: {
-          'vitamin_d': (value: 5000, unit: 'IU'),
-        },
+        ingredientDoses: {'vitamin_d': (value: 5000, unit: 'IU')},
       );
       expect(result, hasLength(1));
     });
@@ -205,14 +189,9 @@ void main() {
       // warning tagged with both → suppress.
       final result = applyConditionThresholdGate(
         warnings: [
-          _w(
-            conditionIds: ['ttc', 'pregnancy'],
-            ingredientName: 'Vitamin D',
-          ),
+          _w(conditionIds: ['ttc', 'pregnancy'], ingredientName: 'Vitamin D'),
         ],
-        ingredientDoses: {
-          'vitamin_d': (value: 1000, unit: 'IU'),
-        },
+        ingredientDoses: {'vitamin_d': (value: 1000, unit: 'IU')},
       );
       expect(result, isEmpty);
     });
@@ -230,9 +209,7 @@ void main() {
               ingredientName: 'Vitamin D',
             ),
           ],
-          ingredientDoses: {
-            'vitamin_d': (value: 5000, unit: 'IU'),
-          },
+          ingredientDoses: {'vitamin_d': (value: 5000, unit: 'IU')},
         );
         expect(result, hasLength(1));
       },
@@ -250,9 +227,7 @@ void main() {
               ingredientName: 'Vitamin D',
             ),
           ],
-          ingredientDoses: {
-            'vitamin_d': (value: 1000, unit: 'IU'),
-          },
+          ingredientDoses: {'vitamin_d': (value: 1000, unit: 'IU')},
         );
         expect(result, hasLength(1));
       },
@@ -276,15 +251,18 @@ void main() {
       expect(result, hasLength(1));
     });
 
-    test('warning with no ingredientName → KEPT (can\'t reason about dose)', () {
-      final result = applyConditionThresholdGate(
-        warnings: [
-          _w(conditionIds: ['ttc']), // ingredientName: null
-        ],
-        ingredientDoses: const {},
-      );
-      expect(result, hasLength(1));
-    });
+    test(
+      'warning with no ingredientName → KEPT (can\'t reason about dose)',
+      () {
+        final result = applyConditionThresholdGate(
+          warnings: [
+            _w(conditionIds: ['ttc']), // ingredientName: null
+          ],
+          ingredientDoses: const {},
+        );
+        expect(result, hasLength(1));
+      },
+    );
 
     test(
       'no table entry for (condition, ingredient) → KEPT (table is opt-in)',
@@ -295,9 +273,7 @@ void main() {
           warnings: [
             _w(conditionIds: ['ttc'], ingredientName: 'Reishi Mushroom'),
           ],
-          ingredientDoses: {
-            'reishi_mushroom': (value: 500, unit: 'mg'),
-          },
+          ingredientDoses: {'reishi_mushroom': (value: 500, unit: 'mg')},
         );
         expect(result, hasLength(1));
       },
@@ -310,10 +286,7 @@ void main() {
         // No dose data → can't compare → fail-safe fire.
         final result = applyConditionThresholdGate(
           warnings: [
-            _w(
-              conditionIds: ['pregnancy'],
-              ingredientName: 'Vitamin A',
-            ),
+            _w(conditionIds: ['pregnancy'], ingredientName: 'Vitamin A'),
           ],
           ingredientDoses: const {},
         );
@@ -328,9 +301,7 @@ void main() {
         warnings: [
           _w(conditionIds: ['pregnancy'], ingredientName: 'Vitamin A'),
         ],
-        ingredientDoses: {
-          'vitamin_a': (value: 600, unit: 'mcg'),
-        },
+        ingredientDoses: {'vitamin_a': (value: 600, unit: 'mcg')},
       );
       expect(result, hasLength(1));
     });
@@ -342,9 +313,7 @@ void main() {
         warnings: [
           _w(conditionIds: ['ttc'], ingredientName: 'Vitamin D'),
         ],
-        ingredientDoses: {
-          'vitamin_d': (value: 1000, unit: 'IU'),
-        },
+        ingredientDoses: {'vitamin_d': (value: 1000, unit: 'IU')},
       );
       expect(result, isEmpty);
     });
@@ -398,42 +367,48 @@ void main() {
       expect(cs.containsKey('diabetes'), isFalse);
     });
 
-    test('keeps condition with only positive ingredients dropped, neutral kept', () {
-      // High-dose niacin is neutral for diabetes (threshold-gated, not
-      // positive). Vit D is positive → dropped. Result: 'Niacin' is
-      // the only surviving entry, condition kept.
-      final result = gateInteractionSummary({
-        'condition_summary': {
-          'diabetes': {
-            'label': 'Diabetes',
-            'highest_severity': 'monitor',
-            'ingredients': ['Vitamin D', 'Niacin'],
-            'actions': ['Monitor glucose...'],
+    test(
+      'keeps condition with only positive ingredients dropped, neutral kept',
+      () {
+        // High-dose niacin is neutral for diabetes (threshold-gated, not
+        // positive). Vit D is positive → dropped. Result: 'Niacin' is
+        // the only surviving entry, condition kept.
+        final result = gateInteractionSummary({
+          'condition_summary': {
+            'diabetes': {
+              'label': 'Diabetes',
+              'highest_severity': 'monitor',
+              'ingredients': ['Vitamin D', 'Niacin'],
+              'actions': ['Monitor glucose...'],
+            },
           },
-        },
-      });
-      final cs = result?['condition_summary'] as Map<String, dynamic>;
-      expect(cs.containsKey('diabetes'), isTrue);
-      final diabetes = cs['diabetes'] as Map<String, dynamic>;
-      expect(diabetes['ingredients'], ['Niacin']);
-    });
+        });
+        final cs = result?['condition_summary'] as Map<String, dynamic>;
+        expect(cs.containsKey('diabetes'), isTrue);
+        final diabetes = cs['diabetes'] as Map<String, dynamic>;
+        expect(diabetes['ingredients'], ['Niacin']);
+      },
+    );
 
-    test('multi-condition Vit D + magnesium product on diabetes profile drops both', () {
-      // The exact scenario Sean caught: Vit D + Mg both positive for
-      // diabetes, condition entry should be dropped wholesale.
-      final result = gateInteractionSummary({
-        'condition_summary': {
-          'diabetes': {
-            'label': 'Diabetes',
-            'highest_severity': 'monitor',
-            'ingredients': ['Vitamin D', 'Magnesium'],
-            'actions': ['Monitor glucose...'],
+    test(
+      'multi-condition Vit D + magnesium product on diabetes profile drops both',
+      () {
+        // The exact scenario Sean caught: Vit D + Mg both positive for
+        // diabetes, condition entry should be dropped wholesale.
+        final result = gateInteractionSummary({
+          'condition_summary': {
+            'diabetes': {
+              'label': 'Diabetes',
+              'highest_severity': 'monitor',
+              'ingredients': ['Vitamin D', 'Magnesium'],
+              'actions': ['Monitor glucose...'],
+            },
           },
-        },
-      });
-      final cs = result?['condition_summary'] as Map<String, dynamic>;
-      expect(cs, isEmpty);
-    });
+        });
+        final cs = result?['condition_summary'] as Map<String, dynamic>;
+        expect(cs, isEmpty);
+      },
+    );
 
     test('preserves drug_class_summary untouched', () {
       // Drug-class summary doesn't have positive-directional nutrients;
@@ -470,26 +445,25 @@ void main() {
       });
       final cs = result?['condition_summary'] as Map<String, dynamic>;
       expect(cs.containsKey('diabetes'), isTrue);
-      expect(
-        (cs['diabetes'] as Map<String, dynamic>)['ingredients'],
-        ['Reishi Mushroom'],
-      );
+      expect((cs['diabetes'] as Map<String, dynamic>)['ingredients'], [
+        'Reishi Mushroom',
+      ]);
     });
 
-    test('condition with malformed data (no ingredients list) passes through', () {
-      // Defensive — pipeline shape variation shouldn't drop conditions
-      // we can't reason about.
-      final result = gateInteractionSummary({
-        'condition_summary': {
-          'diabetes': {
-            'label': 'Diabetes',
-            'ingredients': 'not a list',
+    test(
+      'condition with malformed data (no ingredients list) passes through',
+      () {
+        // Defensive — pipeline shape variation shouldn't drop conditions
+        // we can't reason about.
+        final result = gateInteractionSummary({
+          'condition_summary': {
+            'diabetes': {'label': 'Diabetes', 'ingredients': 'not a list'},
           },
-        },
-      });
-      final cs = result?['condition_summary'] as Map<String, dynamic>;
-      expect(cs.containsKey('diabetes'), isTrue);
-    });
+        });
+        final cs = result?['condition_summary'] as Map<String, dynamic>;
+        expect(cs.containsKey('diabetes'), isTrue);
+      },
+    );
 
     test('does NOT mutate input', () {
       final input = {
@@ -526,13 +500,14 @@ void main() {
             },
           },
         },
-        ingredientDoses: {
-          'alpha_lipoic_acid': (value: 350, unit: 'mg'),
-        },
+        ingredientDoses: {'alpha_lipoic_acid': (value: 350, unit: 'mg')},
       );
       final cs = result?['condition_summary'] as Map<String, dynamic>;
-      expect(cs.containsKey('diabetes'), isFalse,
-          reason: 'all ingredients sub-threshold → drop entire entry');
+      expect(
+        cs.containsKey('diabetes'),
+        isFalse,
+        reason: 'all ingredients sub-threshold → drop entire entry',
+      );
     });
 
     test('keeps at-threshold aboveDose ingredient (boundary fires)', () {
@@ -547,16 +522,13 @@ void main() {
             },
           },
         },
-        ingredientDoses: {
-          'alpha_lipoic_acid': (value: 600, unit: 'mg'),
-        },
+        ingredientDoses: {'alpha_lipoic_acid': (value: 600, unit: 'mg')},
       );
       final cs = result?['condition_summary'] as Map<String, dynamic>;
       expect(cs.containsKey('diabetes'), isTrue);
-      expect(
-        (cs['diabetes'] as Map<String, dynamic>)['ingredients'],
-        ['Alpha-Lipoic Acid'],
-      );
+      expect((cs['diabetes'] as Map<String, dynamic>)['ingredients'], [
+        'Alpha-Lipoic Acid',
+      ]);
     });
 
     test('keeps above-threshold aboveDose ingredient', () {
@@ -569,59 +541,62 @@ void main() {
             },
           },
         },
-        ingredientDoses: {
-          'alpha_lipoic_acid': (value: 1200, unit: 'mg'),
-        },
+        ingredientDoses: {'alpha_lipoic_acid': (value: 1200, unit: 'mg')},
       );
       final cs = result?['condition_summary'] as Map<String, dynamic>;
       expect(cs.containsKey('diabetes'), isTrue);
     });
 
-    test('PureLean reproduction — ALA 350mg + Vanadium 50mcg + Niacin 37.5mg → drop diabetes', () {
-      // The exact false positive Sean caught in the §7 surface. All three
-      // are aboveDose / sub-clinical → entry drops wholesale.
-      final result = gateInteractionSummary(
-        {
-          'condition_summary': {
-            'diabetes': {
-              'label': 'Diabetes',
-              'highest_severity': 'caution',
-              'ingredients': ['Alpha-Lipoic Acid', 'Vanadium', 'Niacin'],
+    test(
+      'PureLean reproduction — ALA 350mg + Vanadium 50mcg + Niacin 37.5mg → drop diabetes',
+      () {
+        // The exact false positive Sean caught in the §7 surface. All three
+        // are aboveDose / sub-clinical → entry drops wholesale.
+        final result = gateInteractionSummary(
+          {
+            'condition_summary': {
+              'diabetes': {
+                'label': 'Diabetes',
+                'highest_severity': 'caution',
+                'ingredients': ['Alpha-Lipoic Acid', 'Vanadium', 'Niacin'],
+              },
             },
           },
-        },
-        ingredientDoses: {
-          'alpha_lipoic_acid': (value: 350, unit: 'mg'),
-          'vanadium': (value: 50, unit: 'mcg'),
-          'niacin': (value: 37.5, unit: 'mg'),
-        },
-      );
-      final cs = result?['condition_summary'] as Map<String, dynamic>;
-      expect(cs.containsKey('diabetes'), isFalse);
-    });
+          ingredientDoses: {
+            'alpha_lipoic_acid': (value: 350, unit: 'mg'),
+            'vanadium': (value: 50, unit: 'mcg'),
+            'niacin': (value: 37.5, unit: 'mg'),
+          },
+        );
+        final cs = result?['condition_summary'] as Map<String, dynamic>;
+        expect(cs.containsKey('diabetes'), isFalse);
+      },
+    );
 
-    test('mixed sub-threshold + above-threshold — only sub-threshold drops', () {
-      final result = gateInteractionSummary(
-        {
-          'condition_summary': {
-            'diabetes': {
-              'label': 'Diabetes',
-              'ingredients': ['Alpha-Lipoic Acid', 'Niacin'],
+    test(
+      'mixed sub-threshold + above-threshold — only sub-threshold drops',
+      () {
+        final result = gateInteractionSummary(
+          {
+            'condition_summary': {
+              'diabetes': {
+                'label': 'Diabetes',
+                'ingredients': ['Alpha-Lipoic Acid', 'Niacin'],
+              },
             },
           },
-        },
-        ingredientDoses: {
-          'alpha_lipoic_acid': (value: 350, unit: 'mg'), // sub
-          'niacin': (value: 600, unit: 'mg'), // above
-        },
-      );
-      final cs = result?['condition_summary'] as Map<String, dynamic>;
-      expect(cs.containsKey('diabetes'), isTrue);
-      expect(
-        (cs['diabetes'] as Map<String, dynamic>)['ingredients'],
-        ['Niacin'],
-      );
-    });
+          ingredientDoses: {
+            'alpha_lipoic_acid': (value: 350, unit: 'mg'), // sub
+            'niacin': (value: 600, unit: 'mg'), // above
+          },
+        );
+        final cs = result?['condition_summary'] as Map<String, dynamic>;
+        expect(cs.containsKey('diabetes'), isTrue);
+        expect((cs['diabetes'] as Map<String, dynamic>)['ingredients'], [
+          'Niacin',
+        ]);
+      },
+    );
 
     test('missing dose for aboveDose entry → KEEP (fail-safe)', () {
       // Can't reason about dose → over-warn rather than miss.
@@ -651,28 +626,29 @@ void main() {
             },
           },
         },
-        ingredientDoses: {
-          'vanadium': (value: 1, unit: 'mg'),
-        },
+        ingredientDoses: {'vanadium': (value: 1, unit: 'mg')},
       );
       final cs = result?['condition_summary'] as Map<String, dynamic>;
       expect(cs.containsKey('diabetes'), isTrue);
     });
 
-    test('null ingredientDoses → behavior matches pre-T16.2e (positive-only)', () {
-      // No dose-gate input → only positive entries get filtered. Sub-
-      // threshold aboveDose entries pass through (back-compat).
-      final result = gateInteractionSummary({
-        'condition_summary': {
-          'diabetes': {
-            'label': 'Diabetes',
-            'ingredients': ['Alpha-Lipoic Acid'],
+    test(
+      'null ingredientDoses → behavior matches pre-T16.2e (positive-only)',
+      () {
+        // No dose-gate input → only positive entries get filtered. Sub-
+        // threshold aboveDose entries pass through (back-compat).
+        final result = gateInteractionSummary({
+          'condition_summary': {
+            'diabetes': {
+              'label': 'Diabetes',
+              'ingredients': ['Alpha-Lipoic Acid'],
+            },
           },
-        },
-      });
-      final cs = result?['condition_summary'] as Map<String, dynamic>;
-      expect(cs.containsKey('diabetes'), isTrue);
-    });
+        });
+        final cs = result?['condition_summary'] as Map<String, dynamic>;
+        expect(cs.containsKey('diabetes'), isTrue);
+      },
+    );
 
     test('positive ingredients still drop alongside dose-gating', () {
       // Vit D positive (drops). ALA sub-threshold (drops). Both gone →
@@ -707,9 +683,7 @@ void main() {
             },
           },
         },
-        ingredientDoses: {
-          'alpha_lipoic_acid': (value: 350, unit: 'mg'),
-        },
+        ingredientDoses: {'alpha_lipoic_acid': (value: 350, unit: 'mg')},
       );
       final cs = result?['condition_summary'] as Map<String, dynamic>;
       expect(cs.containsKey('diabetes'), isFalse);
@@ -820,33 +794,33 @@ void main() {
             'diabetes': {'highest_severity': 'monitor'},
           },
         },
-        matchedConditionIds: const ['diabetes', 'pregnancy'], // pregnancy absent
+        matchedConditionIds: const [
+          'diabetes',
+          'pregnancy',
+        ], // pregnancy absent
         matchedDrugClassIds: const [],
         fallback: 'avoid',
       );
       expect(result, equals('monitor'));
     });
 
-    test(
-      'matched ID present but no usable severity field → fallback to '
-      'parsed.highestSeverity (fail-safe over-warn)',
-      () {
-        final result = computeMatchedHighestSeverity(
-          gatedSummary: {
-            'condition_summary': {
-              'diabetes': {'ingredients': <String>[]}, // missing highest_severity
-            },
+    test('matched ID present but no usable severity field → fallback to '
+        'parsed.highestSeverity (fail-safe over-warn)', () {
+      final result = computeMatchedHighestSeverity(
+        gatedSummary: {
+          'condition_summary': {
+            'diabetes': {'ingredients': <String>[]}, // missing highest_severity
           },
-          matchedConditionIds: const ['diabetes'],
-          matchedDrugClassIds: const [],
-          fallback: 'avoid',
-        );
-        // Defensive: when we can't read a per-entry severity, fall
-        // back to the pipeline's overall — better to over-warn than
-        // miss a real avoid.
-        expect(result, equals('avoid'));
-      },
-    );
+        },
+        matchedConditionIds: const ['diabetes'],
+        matchedDrugClassIds: const [],
+        fallback: 'avoid',
+      );
+      // Defensive: when we can't read a per-entry severity, fall
+      // back to the pipeline's overall — better to over-warn than
+      // miss a real avoid.
+      expect(result, equals('avoid'));
+    });
 
     test('unknown severity string → coerced to safe (zero contribution)', () {
       final result = computeMatchedHighestSeverity(
@@ -924,7 +898,11 @@ void main() {
       final result = extractIngredientDoses({
         'ingredients': [
           {'name': 'Vitamin D3', 'dose_amount': 1000, 'dose_unit': 'IU'},
-          {'name': 'Magnesium glycinate', 'dose_amount': 200, 'dose_unit': 'mg'},
+          {
+            'name': 'Magnesium glycinate',
+            'dose_amount': 200,
+            'dose_unit': 'mg',
+          },
         ],
       });
       expect(result, hasLength(2));
@@ -954,26 +932,23 @@ void main() {
       },
     );
 
-    test(
-      'T16.2b — live `quantity` field wins over legacy `dose_amount` '
-      'when both present',
-      () {
-        // Belt-and-braces: pipeline sometimes mirrors fields during
-        // schema migrations. We prefer the live shape.
-        final result = extractIngredientDoses({
-          'ingredients': [
-            {
-              'name': 'Iodine',
-              'quantity': 100,
-              'unit': 'mcg',
-              'dose_amount': 999, // stale mirror — should be ignored
-              'dose_unit': 'IU',
-            },
-          ],
-        });
-        expect(result['iodine'], (value: 100.0, unit: 'mcg'));
-      },
-    );
+    test('T16.2b — live `quantity` field wins over legacy `dose_amount` '
+        'when both present', () {
+      // Belt-and-braces: pipeline sometimes mirrors fields during
+      // schema migrations. We prefer the live shape.
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {
+            'name': 'Iodine',
+            'quantity': 100,
+            'unit': 'mcg',
+            'dose_amount': 999, // stale mirror — should be ignored
+            'dose_unit': 'IU',
+          },
+        ],
+      });
+      expect(result['iodine'], (value: 100.0, unit: 'mcg'));
+    });
 
     test('skips entries missing dose_amount', () {
       final result = extractIngredientDoses({

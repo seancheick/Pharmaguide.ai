@@ -41,7 +41,8 @@ class AllergenPrevalenceEntry {
 
 Map<String, AllergenPrevalenceEntry>? _cache;
 
-Future<Map<String, AllergenPrevalenceEntry>> loadAllergenPrevalenceVocab() async {
+Future<Map<String, AllergenPrevalenceEntry>>
+loadAllergenPrevalenceVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 

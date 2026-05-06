@@ -287,11 +287,7 @@ class PopulationsSection extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space8),
           for (final entry in split.mainList)
-            _PopulationBullet(
-              raw: entry,
-              theme: theme,
-              scheme: scheme,
-            ),
+            _PopulationBullet(raw: entry, theme: theme, scheme: scheme),
         ],
       ),
     );

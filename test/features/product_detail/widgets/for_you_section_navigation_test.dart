@@ -34,10 +34,7 @@ class _StubProfileNotifier extends ProfileNotifier {
 /// Minimal app harness: GoRouter with two routes — `/` mounts
 /// [child] (the For You section), `/profile/setup` is a sentinel
 /// page we can detect to confirm navigation actually landed there.
-Widget _harness({
-  required Widget child,
-  ProfileState? profile,
-}) {
+Widget _harness({required Widget child, ProfileState? profile}) {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
@@ -74,35 +71,34 @@ Widget _harness({
 
 void main() {
   group('ForYouSection — edit-profile navigation (T2)', () {
-    testWidgets(
-      'empty-profile CTA navigates to /profile/setup, not /profile',
-      (tester) async {
-        // Default empty profile → renders `_ForYouEmpty` with the
-        // tappable PGCard. The unique copy "Add your profile to
-        // personalize" is our handle for tapping the affordance.
-        await tester.pumpWidget(
-          _harness(
-            child: const ForYouSection(
-              fitResult: null,
-              warnings: <InteractionWarning>[],
-              maxSeverity: Severity.safe,
-            ),
+    testWidgets('empty-profile CTA navigates to /profile/setup, not /profile', (
+      tester,
+    ) async {
+      // Default empty profile → renders `_ForYouEmpty` with the
+      // tappable PGCard. The unique copy "Add your profile to
+      // personalize" is our handle for tapping the affordance.
+      await tester.pumpWidget(
+        _harness(
+          child: const ForYouSection(
+            fitResult: null,
+            warnings: <InteractionWarning>[],
+            maxSeverity: Severity.safe,
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        expect(find.text('Add your profile to personalize'), findsOneWidget);
+      expect(find.text('Add your profile to personalize'), findsOneWidget);
 
-        await tester.tap(find.text('Add your profile to personalize'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Add your profile to personalize'));
+      await tester.pumpAndSettle();
 
-        // The fix: we MUST land on the ProfileSetup sentinel.
-        expect(find.text('SETUP_REACHED'), findsOneWidget);
-        // And we MUST NOT have landed on the SettingsScreen sentinel —
-        // that's the regression the dev review caught.
-        expect(find.text('SETTINGS_REACHED'), findsNothing);
-      },
-    );
+      // The fix: we MUST land on the ProfileSetup sentinel.
+      expect(find.text('SETUP_REACHED'), findsOneWidget);
+      // And we MUST NOT have landed on the SettingsScreen sentinel —
+      // that's the regression the dev review caught.
+      expect(find.text('SETTINGS_REACHED'), findsNothing);
+    });
 
     testWidgets(
       'loaded-profile Edit chip navigates to /profile/setup, not /profile',

@@ -28,7 +28,11 @@ void main() {
       expect(entries.length, 15);
 
       const required = {
-        'id', 'name', 'legacy_display', 'notes', 'related_user_goal_id',
+        'id',
+        'name',
+        'legacy_display',
+        'notes',
+        'related_user_goal_id',
       };
       final snakeRe = RegExp(r'^[a-z][a-z0-9_]*$');
 
@@ -48,8 +52,11 @@ void main() {
       final entries = (decoded['primary_outcomes'] as List)
           .cast<Map<String, dynamic>>();
       final legacy = entries.map((e) => e['legacy_display'] as String).toList();
-      expect(legacy.toSet().length, legacy.length,
-          reason: 'duplicate legacy_display values');
+      expect(
+        legacy.toSet().length,
+        legacy.length,
+        reason: 'duplicate legacy_display values',
+      );
     });
   });
 }

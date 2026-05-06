@@ -30,9 +30,7 @@ Future<Map<String, EfsaStatusEntry>> loadEfsaStatusVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 
-  final raw = await rootBundle.loadString(
-    'assets/data/efsa_status_vocab.json',
-  );
+  final raw = await rootBundle.loadString('assets/data/efsa_status_vocab.json');
   final decoded = jsonDecode(raw) as Map<String, dynamic>;
   final entries = (decoded['efsa_statuses'] as List?) ?? const [];
 
@@ -48,8 +46,6 @@ Future<Map<String, EfsaStatusEntry>> loadEfsaStatusVocab() async {
   return byId;
 }
 
-void debugSetEfsaStatusVocabForTesting(
-  Map<String, EfsaStatusEntry>? value,
-) {
+void debugSetEfsaStatusVocabForTesting(Map<String, EfsaStatusEntry>? value) {
   _cache = value;
 }

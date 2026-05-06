@@ -34,8 +34,8 @@ void main() {
       () {
         final raw = file.readAsStringSync();
         final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        final entries =
-            (decoded['drug_classes'] as List).cast<Map<String, dynamic>>();
+        final entries = (decoded['drug_classes'] as List)
+            .cast<Map<String, dynamic>>();
         final selectableIds = entries
             .where((e) => e['user_selectable'] == true)
             .map((e) => e['id'] as String)
@@ -84,15 +84,19 @@ void main() {
 
         final raw = file.readAsStringSync();
         final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        final entries =
-            (decoded['drug_classes'] as List).cast<Map<String, dynamic>>();
+        final entries = (decoded['drug_classes'] as List)
+            .cast<Map<String, dynamic>>();
         final byId = {for (final e in entries) e['id'] as String: e};
 
         for (final entry in expected.entries) {
           final d = byId[entry.key];
           expect(d, isNotNull, reason: 'drug_class ${entry.key} missing');
-          expect(d!['name'], entry.value,
-              reason: '${entry.key} drift: vocab=${d['name']} dart=${entry.value}');
+          expect(
+            d!['name'],
+            entry.value,
+            reason:
+                '${entry.key} drift: vocab=${d['name']} dart=${entry.value}',
+          );
         }
       },
     );
@@ -100,22 +104,38 @@ void main() {
     test('every entry has required fields populated', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['drug_classes'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['drug_classes'] as List)
+          .cast<Map<String, dynamic>>();
 
       for (final d in entries) {
         for (final f in {'id', 'name', 'notes', 'rx_status'}) {
           expect(d[f], isA<String>(), reason: '${d['id']}: $f not string');
-          expect((d[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${d['id']}: $f empty');
+          expect(
+            (d[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${d['id']}: $f empty',
+          );
         }
-        expect(d['examples'], isA<List<dynamic>>(), reason: '${d['id']}: examples not list');
-        expect((d['examples'] as List<dynamic>).isNotEmpty, isTrue,
-            reason: '${d['id']}: empty examples');
-        expect(d['user_selectable'], isA<bool>(),
-            reason: '${d['id']}: user_selectable not bool');
-        expect((d['notes'] as String).length, lessThanOrEqualTo(200),
-            reason: '${d['id']}: notes >200 chars');
+        expect(
+          d['examples'],
+          isA<List<dynamic>>(),
+          reason: '${d['id']}: examples not list',
+        );
+        expect(
+          (d['examples'] as List<dynamic>).isNotEmpty,
+          isTrue,
+          reason: '${d['id']}: empty examples',
+        );
+        expect(
+          d['user_selectable'],
+          isA<bool>(),
+          reason: '${d['id']}: user_selectable not bool',
+        );
+        expect(
+          (d['notes'] as String).length,
+          lessThanOrEqualTo(200),
+          reason: '${d['id']}: notes >200 chars',
+        );
       }
     });
 
@@ -123,12 +143,15 @@ void main() {
       const allowed = {'rx_only', 'otc', 'mixed'};
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['drug_classes'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['drug_classes'] as List)
+          .cast<Map<String, dynamic>>();
 
       for (final d in entries) {
-        expect(allowed.contains(d['rx_status']), isTrue,
-            reason: '${d['id']} rx_status=${d['rx_status']}');
+        expect(
+          allowed.contains(d['rx_status']),
+          isTrue,
+          reason: '${d['id']} rx_status=${d['rx_status']}',
+        );
       }
     });
   });

@@ -106,8 +106,9 @@ void main() {
       expect(find.textContaining('Label confidence'), findsNothing);
     });
 
-    testWidgets('low coverage → Limited tier with coverage row',
-        (tester) async {
+    testWidgets('low coverage → Limited tier with coverage row', (
+      tester,
+    ) async {
       await _pump(tester, mappedCoverage: 0.2);
       expect(find.text('Label confidence: Limited'), findsOneWidget);
       expect(find.text('Limited label data available'), findsOneWidget);
@@ -157,22 +158,27 @@ void main() {
       expect(find.textContaining('Exotic A'), findsOneWidget);
     });
 
-    testWidgets('not scored → Limited tier with not-scored row',
-        (tester) async {
+    testWidgets('not scored → Limited tier with not-scored row', (
+      tester,
+    ) async {
       await _pump(tester, isNotScored: true);
       expect(find.text('Label confidence: Limited'), findsOneWidget);
       expect(find.text('Not enough verified data to score'), findsOneWidget);
     });
 
-    testWidgets('all signals together → Limited tier with multiple rows',
-        (tester) async {
+    testWidgets('all signals together → Limited tier with multiple rows', (
+      tester,
+    ) async {
       await _pump(
         tester,
         mappedCoverage: 0.2,
         hasProprietaryBlends: true,
         isNotScored: true,
         productStatus: const {'display': 'Reformulated'},
-        unmappedActives: const {'total': 1, 'names': ['A']},
+        unmappedActives: const {
+          'total': 1,
+          'names': ['A'],
+        },
       );
       expect(find.text('Label confidence: Limited'), findsOneWidget);
       expect(find.text('Not enough verified data to score'), findsOneWidget);

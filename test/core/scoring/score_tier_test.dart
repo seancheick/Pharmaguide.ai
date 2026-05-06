@@ -129,26 +129,11 @@ void main() {
         ScoreTier.exceptional.description,
         contains('High-quality ingredients'),
       );
-      expect(
-        ScoreTier.excellent.description,
-        contains('Well-formulated'),
-      );
-      expect(
-        ScoreTier.good.description,
-        contains('Reliable option'),
-      );
-      expect(
-        ScoreTier.fair.description,
-        contains('Adequate formulation'),
-      );
-      expect(
-        ScoreTier.lowQuality.description,
-        contains('Notable concerns'),
-      );
-      expect(
-        ScoreTier.poor.description,
-        contains('Significant concerns'),
-      );
+      expect(ScoreTier.excellent.description, contains('Well-formulated'));
+      expect(ScoreTier.good.description, contains('Reliable option'));
+      expect(ScoreTier.fair.description, contains('Adequate formulation'));
+      expect(ScoreTier.lowQuality.description, contains('Notable concerns'));
+      expect(ScoreTier.poor.description, contains('Significant concerns'));
     });
 
     test('color hue ordering — green tiers brighter than orange/red', () {
@@ -162,16 +147,14 @@ void main() {
         ScoreTier.good,
       ]) {
         expect(
-          (tier.color.g * 255.0).round() >
-              (tier.color.r * 255.0).round(),
+          (tier.color.g * 255.0).round() > (tier.color.r * 255.0).round(),
           isTrue,
           reason: '${tier.name} should be green-dominant',
         );
       }
       for (final tier in [ScoreTier.lowQuality, ScoreTier.poor]) {
         expect(
-          (tier.color.r * 255.0).round() >
-              (tier.color.g * 255.0).round(),
+          (tier.color.r * 255.0).round() > (tier.color.g * 255.0).round(),
           isTrue,
           reason: '${tier.name} should be red-dominant',
         );

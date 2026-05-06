@@ -30,8 +30,8 @@ void main() {
     test('canonical 18 IDs match schema_ids.dart `goals`', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['user_goals'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['user_goals'] as List)
+          .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
       expect(
@@ -83,15 +83,18 @@ void main() {
 
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['user_goals'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['user_goals'] as List)
+          .cast<Map<String, dynamic>>();
       final byId = {for (final e in entries) e['id'] as String: e};
 
       for (final entry in expected.entries) {
         final g = byId[entry.key];
         expect(g, isNotNull, reason: 'goal ${entry.key} missing');
-        expect(g!['name'], entry.value,
-            reason: '${entry.key} drift: vocab=${g['name']} dart=${entry.value}');
+        expect(
+          g!['name'],
+          entry.value,
+          reason: '${entry.key} drift: vocab=${g['name']} dart=${entry.value}',
+        );
       }
     });
 
@@ -119,30 +122,39 @@ void main() {
 
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['user_goals'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['user_goals'] as List)
+          .cast<Map<String, dynamic>>();
       final byId = {for (final e in entries) e['id'] as String: e};
 
       for (final entry in expected.entries) {
-        expect(byId[entry.key]!['priority'], entry.value,
-            reason: '${entry.key} priority drift');
+        expect(
+          byId[entry.key]!['priority'],
+          entry.value,
+          reason: '${entry.key} priority drift',
+        );
       }
     });
 
     test('every entry has required fields populated', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['user_goals'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['user_goals'] as List)
+          .cast<Map<String, dynamic>>();
 
       for (final g in entries) {
         for (final f in {'id', 'name', 'notes', 'priority'}) {
           expect(g[f], isA<String>(), reason: '${g['id']}: $f not string');
-          expect((g[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${g['id']}: $f empty');
+          expect(
+            (g[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${g['id']}: $f empty',
+          );
         }
-        expect((g['notes'] as String).length, lessThanOrEqualTo(200),
-            reason: '${g['id']}: notes >200 chars');
+        expect(
+          (g['notes'] as String).length,
+          lessThanOrEqualTo(200),
+          reason: '${g['id']}: notes >200 chars',
+        );
       }
     });
   });

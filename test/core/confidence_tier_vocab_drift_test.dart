@@ -24,8 +24,10 @@ void main() {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['confidence_tiers'] as List)
           .cast<Map<String, dynamic>>();
-      expect(entries.map((e) => e['id'] as String).toSet(),
-          equals({'high', 'medium', 'low'}));
+      expect(
+        entries.map((e) => e['id'] as String).toSet(),
+        equals({'high', 'medium', 'low'}),
+      );
     });
 
     test('full display contract populated', () {
@@ -34,8 +36,14 @@ void main() {
       final entries = (decoded['confidence_tiers'] as List)
           .cast<Map<String, dynamic>>();
       const required = {
-        'id', 'name', 'short_label', 'tone',
-        'ui_color', 'ui_icon', 'action', 'notes',
+        'id',
+        'name',
+        'short_label',
+        'tone',
+        'ui_color',
+        'ui_icon',
+        'action',
+        'notes',
       };
       for (final c in entries) {
         for (final f in required) {

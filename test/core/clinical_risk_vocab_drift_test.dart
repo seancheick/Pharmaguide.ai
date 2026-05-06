@@ -23,30 +23,41 @@ void main() {
     test('canonical 5 IDs present', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['clinical_risks'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['clinical_risks'] as List)
+          .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
-      expect(ids,
-          equals({'critical', 'high', 'moderate', 'dose_dependent', 'low'}));
+      expect(
+        ids,
+        equals({'critical', 'high', 'moderate', 'dose_dependent', 'low'}),
+      );
     });
 
     test('full display contract populated', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['clinical_risks'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['clinical_risks'] as List)
+          .cast<Map<String, dynamic>>();
 
       const required = {
-        'id', 'name', 'short_label', 'tone',
-        'ui_color', 'ui_icon', 'action', 'notes',
+        'id',
+        'name',
+        'short_label',
+        'tone',
+        'ui_color',
+        'ui_icon',
+        'action',
+        'notes',
       };
 
       for (final r in entries) {
         for (final f in required) {
           expect(r[f], isA<String>(), reason: '${r['id']}: $f not string');
-          expect((r[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${r['id']}: $f empty');
+          expect(
+            (r[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${r['id']}: $f empty',
+          );
         }
         expect(r['severity_weight'], isA<int>());
       }
@@ -59,8 +70,8 @@ void main() {
 
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['clinical_risks'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['clinical_risks'] as List)
+          .cast<Map<String, dynamic>>();
 
       for (final r in entries) {
         expect(tones.contains(r['tone']), isTrue);

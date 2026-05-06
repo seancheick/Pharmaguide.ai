@@ -28,7 +28,8 @@ class IqmCategoryEntry {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
-      examples: (json['examples'] as List?)
+      examples:
+          (json['examples'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const [],
@@ -60,8 +61,6 @@ Future<Map<String, IqmCategoryEntry>> loadIqmCategoryVocab() async {
   return byId;
 }
 
-void debugSetIqmCategoryVocabForTesting(
-  Map<String, IqmCategoryEntry>? value,
-) {
+void debugSetIqmCategoryVocabForTesting(Map<String, IqmCategoryEntry>? value) {
   _cache = value;
 }

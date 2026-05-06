@@ -34,7 +34,8 @@ Future<Map<String, EfsaGenotoxicityEntry>> loadEfsaGenotoxicityVocab() async {
     'assets/data/efsa_genotoxicity_vocab.json',
   );
   final decoded = jsonDecode(raw) as Map<String, dynamic>;
-  final entries = (decoded['genotoxicity_classifications'] as List?) ?? const [];
+  final entries =
+      (decoded['genotoxicity_classifications'] as List?) ?? const [];
 
   final byId = <String, EfsaGenotoxicityEntry>{};
   for (final entry in entries) {

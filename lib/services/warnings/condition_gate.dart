@@ -118,8 +118,7 @@ List<InteractionWarning> applyConditionThresholdGate({
 }) {
   return warnings
       .where(
-        (w) =>
-            !_isFullyGated(warning: w, ingredientDoses: ingredientDoses),
+        (w) => !_isFullyGated(warning: w, ingredientDoses: ingredientDoses),
       )
       .toList(growable: false);
 }
@@ -192,8 +191,9 @@ Map<String, dynamic>? gateInteractionSummary(
       continue;
     }
 
-    final ingredients =
-        ingredientsRaw.map((i) => i.toString()).toList(growable: false);
+    final ingredients = ingredientsRaw
+        .map((i) => i.toString())
+        .toList(growable: false);
     final survivors = <String>[];
     for (final ing in ingredients) {
       final entry = lookupConditionThreshold(
@@ -237,16 +237,10 @@ Map<String, dynamic>? gateInteractionSummary(
     }
 
     // Keep the condition entry with the filtered ingredient list.
-    filteredConditions[conditionId] = {
-      ...data,
-      'ingredients': survivors,
-    };
+    filteredConditions[conditionId] = {...data, 'ingredients': survivors};
   }
 
-  return {
-    ...summary,
-    'condition_summary': filteredConditions,
-  };
+  return {...summary, 'condition_summary': filteredConditions};
 }
 
 /// Compute the highest severity AMONG warnings that match the user's

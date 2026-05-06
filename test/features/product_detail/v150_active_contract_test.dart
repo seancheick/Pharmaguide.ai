@@ -41,17 +41,20 @@ Map<String, dynamic> _ingredient({
 
 void main() {
   group('v1.5.0 active-row contract — display_dose_label', () {
-    test('pipeline display_dose_label preferred over quantity+unit fallback', () {
-      final explain = buildIngredientExplain(
-        ingredient: _ingredient(
-          displayDoseLabel: '1.05 mg',
-          doseStatus: 'disclosed',
-          quantity: 999, // legacy fallback — must NOT be rendered
-          unit: 'IU',
-        ),
-      );
-      expect(explain.doseLabel, '1.05 mg');
-    });
+    test(
+      'pipeline display_dose_label preferred over quantity+unit fallback',
+      () {
+        final explain = buildIngredientExplain(
+          ingredient: _ingredient(
+            displayDoseLabel: '1.05 mg',
+            doseStatus: 'disclosed',
+            quantity: 999, // legacy fallback — must NOT be rendered
+            unit: 'IU',
+          ),
+        );
+        expect(explain.doseLabel, '1.05 mg');
+      },
+    );
 
     test('dose_status="missing" → no dose label rendered', () {
       final explain = buildIngredientExplain(
@@ -79,16 +82,19 @@ void main() {
   });
 
   group('v1.5.0 active-row contract — display_form_label / form_status', () {
-    test('form_status="known" + display_form_label populated → form rendered', () {
-      final explain = buildIngredientExplain(
-        ingredient: _ingredient(
-          name: 'Vitamin A',
-          formStatus: 'known',
-          displayFormLabel: 'Retinyl Palmitate',
-        ),
-      );
-      expect(explain.formName, 'Retinyl Palmitate');
-    });
+    test(
+      'form_status="known" + display_form_label populated → form rendered',
+      () {
+        final explain = buildIngredientExplain(
+          ingredient: _ingredient(
+            name: 'Vitamin A',
+            formStatus: 'known',
+            displayFormLabel: 'Retinyl Palmitate',
+          ),
+        );
+        expect(explain.formName, 'Retinyl Palmitate');
+      },
+    );
 
     test('form_status="unknown" → formName is null (helper line hidden)', () {
       final explain = buildIngredientExplain(
@@ -98,25 +104,26 @@ void main() {
           displayFormLabel: null,
         ),
       );
-      expect(explain.formName, isNull,
-          reason: 'unknown form must NEVER produce a rendered helper — '
-              'pipeline pre-emits the explicit unknown state');
+      expect(
+        explain.formName,
+        isNull,
+        reason:
+            'unknown form must NEVER produce a rendered helper — '
+            'pipeline pre-emits the explicit unknown state',
+      );
     });
 
-    test(
-      'form_status="known" but display_form_label empty/null → still null '
-      '(defensive — pipeline contract: known implies non-empty label)',
-      () {
-        final explain = buildIngredientExplain(
-          ingredient: _ingredient(
-            name: 'Vitamin A',
-            formStatus: 'known',
-            displayFormLabel: '',
-          ),
-        );
-        expect(explain.formName, isNull);
-      },
-    );
+    test('form_status="known" but display_form_label empty/null → still null '
+        '(defensive — pipeline contract: known implies non-empty label)', () {
+      final explain = buildIngredientExplain(
+        ingredient: _ingredient(
+          name: 'Vitamin A',
+          formStatus: 'known',
+          displayFormLabel: '',
+        ),
+      );
+      expect(explain.formName, isNull);
+    });
   });
 
   group('v1.5.0 active-row contract — display_label as title', () {

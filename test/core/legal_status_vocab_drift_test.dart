@@ -23,8 +23,8 @@ void main() {
     test('canonical 10 IDs present', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['legal_statuses'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['legal_statuses'] as List)
+          .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
       expect(
@@ -47,8 +47,8 @@ void main() {
     test('all entries have required fields', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['legal_statuses'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['legal_statuses'] as List)
+          .cast<Map<String, dynamic>>();
 
       const required = {'id', 'name', 'notes', 'authority', 'implication'};
       const authorities = {'FDA', 'DEA', 'WADA', 'state', 'EU'};
@@ -56,11 +56,17 @@ void main() {
       for (final l in entries) {
         for (final f in required) {
           expect(l[f], isA<String>(), reason: '${l['id']}: $f not string');
-          expect((l[f] as String).trim().isNotEmpty, isTrue,
-              reason: '${l['id']}: $f empty');
+          expect(
+            (l[f] as String).trim().isNotEmpty,
+            isTrue,
+            reason: '${l['id']}: $f empty',
+          );
         }
-        expect(authorities.contains(l['authority']), isTrue,
-            reason: '${l['id']} authority');
+        expect(
+          authorities.contains(l['authority']),
+          isTrue,
+          reason: '${l['id']} authority',
+        );
         expect((l['notes'] as String).length, lessThanOrEqualTo(200));
       }
     });

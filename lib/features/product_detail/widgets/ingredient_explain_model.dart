@@ -143,16 +143,17 @@ IngredientExplain buildIngredientExplain({
   final name = (displayLabel != null && displayLabel.isNotEmpty)
       ? displayLabel
       : (ingredient['standard_name']?.toString() ??
-          ingredient['name']?.toString() ??
-          ingredient['raw_source_text']?.toString() ??
-          '');
+            ingredient['name']?.toString() ??
+            ingredient['raw_source_text']?.toString() ??
+            '');
 
   // v1.5.x: pipeline emits the canonical contract on every fresh blob.
   final formStatus = ingredient['form_status']?.toString();
   final displayFormLabel = ingredient['display_form_label']?.toString().trim();
-  final formName = (formStatus == 'known'
-          && displayFormLabel != null
-          && displayFormLabel.isNotEmpty)
+  final formName =
+      (formStatus == 'known' &&
+          displayFormLabel != null &&
+          displayFormLabel.isNotEmpty)
       ? displayFormLabel
       : null;
 
@@ -176,8 +177,10 @@ IngredientExplain buildIngredientExplain({
   final evidenceLabel = ingredient['evidence_level']?.toString().trim();
 
   final formQuality = resolveFormQuality(ingredient['bio_score']);
-  final doseCallOut =
-      resolveDoseCallOut(ingredient: ingredient, ulEntry: ulEntry);
+  final doseCallOut = resolveDoseCallOut(
+    ingredient: ingredient,
+    ulEntry: ulEntry,
+  );
 
   return IngredientExplain(
     title: name,

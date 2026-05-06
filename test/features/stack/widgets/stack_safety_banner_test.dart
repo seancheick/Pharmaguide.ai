@@ -97,31 +97,31 @@ void main() {
     expect(banner.body, contains('Monitor INR'));
   });
 
-  testWidgets('contraindicated severity → danger tone with "Do not use" label',
-      (
-    tester,
-  ) async {
-    final report = StackSafetyReport(
-      stackInteractions: [
-        makeInteraction(
-          severity: Severity.contraindicated,
-          agent1: 'St. John\'s Wort',
-          agent2: 'SSRI',
-          management: 'Do not combine — risk of serotonin syndrome.',
-        ),
-      ],
-    );
-    await pumpBanner(tester, report: report);
+  testWidgets(
+    'contraindicated severity → danger tone with "Do not use" label',
+    (tester) async {
+      final report = StackSafetyReport(
+        stackInteractions: [
+          makeInteraction(
+            severity: Severity.contraindicated,
+            agent1: 'St. John\'s Wort',
+            agent2: 'SSRI',
+            management: 'Do not combine — risk of serotonin syndrome.',
+          ),
+        ],
+      );
+      await pumpBanner(tester, report: report);
 
-    final banner = tester.widget<PGSeverityBanner>(
-      find.byType(PGSeverityBanner),
-    );
-    expect(banner.tone, PGBannerTone.danger);
-    // 2026-04-30 — softer-tone vocab (severity.dart): contraindicated
-    // is now "Do not use" (was "BLOCK — Do Not Use").
-    expect(banner.title, contains('Do not use'));
-    expect(banner.body, contains('serotonin syndrome'));
-  });
+      final banner = tester.widget<PGSeverityBanner>(
+        find.byType(PGSeverityBanner),
+      );
+      expect(banner.tone, PGBannerTone.danger);
+      // 2026-04-30 — softer-tone vocab (severity.dart): contraindicated
+      // is now "Do not use" (was "BLOCK — Do Not Use").
+      expect(banner.title, contains('Do not use'));
+      expect(banner.body, contains('serotonin syndrome'));
+    },
+  );
 
   testWidgets('caution-only report → caution tone', (tester) async {
     final report = StackSafetyReport(

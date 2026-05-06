@@ -89,11 +89,13 @@ List<MatchedAllergen> matchAllergens(
     );
   }
   matches.sort((a, b) {
-    final p = _presencePriority(a.presenceType)
-        .compareTo(_presencePriority(b.presenceType));
+    final p = _presencePriority(
+      a.presenceType,
+    ).compareTo(_presencePriority(b.presenceType));
     if (p != 0) return p;
-    return _severityPriority(a.severityLevel)
-        .compareTo(_severityPriority(b.severityLevel));
+    return _severityPriority(
+      a.severityLevel,
+    ).compareTo(_severityPriority(b.severityLevel));
   });
   return matches;
 }

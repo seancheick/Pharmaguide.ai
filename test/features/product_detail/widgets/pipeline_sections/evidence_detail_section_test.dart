@@ -262,9 +262,7 @@ void main() {
           tester,
           evidenceData: {
             'match_count': 1,
-            'clinical_matches': [
-              _match(evidence: 'strong', pmids: const []),
-            ],
+            'clinical_matches': [_match(evidence: 'strong', pmids: const [])],
           },
         );
         await tester.pumpAndSettle();

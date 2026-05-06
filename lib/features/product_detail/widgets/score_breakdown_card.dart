@@ -125,8 +125,7 @@ class ScoreBreakdownCard extends StatelessWidget {
           const SizedBox(height: AppTheme.space12),
           _ExpandableSectionBar(
             label: 'Safety & Purity',
-            microExplanation:
-                'Free from harmful ingredients and contaminants',
+            microExplanation: 'Free from harmful ingredients and contaminants',
             score: safetyPurity,
             max: 30,
             subData:

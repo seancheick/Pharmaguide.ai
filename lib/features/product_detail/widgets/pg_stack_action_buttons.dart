@@ -193,8 +193,7 @@ class PGStackActionButtons extends ConsumerWidget {
     // duration timer from its display state. Calling
     // `hideCurrentSnackBar()` instead lets the existing snackbar close
     // through its normal animation path so the new timer starts cleanly.
-    final messenger = ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar();
+    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
         content: const Text('Removed from stack'),

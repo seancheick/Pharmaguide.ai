@@ -80,7 +80,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   /// state changes; a stable key keeps the scroll target intact.
   final GlobalKey _alternativesKey = GlobalKey();
 
-
   // Personalized interaction warnings live in
   // `personalizedInteractionWarningsProvider` (T1B, sprint:
   // docs/sprints/product_detail_page_sprint.md). The provider watches
@@ -176,14 +175,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // T1B (sprint product_detail_page_sprint.md): personalized warnings
     // come from a Riverpod family that watches activeStackProvider, so
     // stack mutations propagate without a screen restart.
-    final personalizedWarnings = ref
+    final personalizedWarnings =
+        ref
             .watch(personalizedInteractionWarningsProvider(widget.dsldId))
             .valueOrNull ??
         const <InteractionWarning>[];
     final blobWarnings = _parseWarnings(detailBlob);
     final seenKeys = <String>{
-      for (final w in personalizedWarnings)
-        '${w.severity.name}:${w.mechanism}',
+      for (final w in personalizedWarnings) '${w.severity.name}:${w.mechanism}',
     };
     final warnings = <InteractionWarning>[
       ...personalizedWarnings,
@@ -297,11 +296,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         : const FitIncomplete();
                     final ingredientNames =
                         ((detailBlob?['ingredients'] as List?)
-                                ?.whereType<Map<String, dynamic>>()
-                                .map((e) => e['name']?.toString() ?? '')
-                                .where((n) => n.isNotEmpty)
-                                .toList(growable: false)) ??
-                            const <String>[];
+                            ?.whereType<Map<String, dynamic>>()
+                            .map((e) => e['name']?.toString() ?? '')
+                            .where((n) => n.isNotEmpty)
+                            .toList(growable: false)) ??
+                        const <String>[];
                     return PersonalFitCard(
                       fit: fitDisplay,
                       ingredientNames: ingredientNames,
@@ -889,8 +888,6 @@ List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
       )
       .toList(growable: false);
 }
-
-
 
 /// Strip noisy numeric or "Tier N" detail strings emitted by the
 /// pipeline (e.g. `score_bonuses[i].detail == "3"` for the delivery
@@ -2178,11 +2175,7 @@ class _BlendHeaderTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(
-            Icons.layers_outlined,
-            size: 14,
-            color: scheme.onSurfaceVariant,
-          ),
+          Icon(Icons.layers_outlined, size: 14, color: scheme.onSurfaceVariant),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -2253,15 +2246,16 @@ class _IngredientTile extends StatelessWidget {
     final hasKnownForm = formStatus == 'known' && formLabel.isNotEmpty;
 
     final displayLabel = ingredient['display_label']?.toString().trim();
-    final cleanName = ingredient['standard_name']?.toString().trim() ??
+    final cleanName =
+        ingredient['standard_name']?.toString().trim() ??
         ingredient['name']?.toString().trim() ??
         ingredient['raw_source_text']?.toString().trim() ??
         '';
     final name = (hasKnownForm && cleanName.isNotEmpty)
         ? cleanName
         : ((displayLabel != null && displayLabel.isNotEmpty)
-            ? displayLabel
-            : cleanName);
+              ? displayLabel
+              : cleanName);
     final isInferredFromName =
         ingredient['display_type'] == 'inferred_from_name' ||
         ingredient['provenance'] == 'product_name_fallback';
@@ -2269,7 +2263,9 @@ class _IngredientTile extends StatelessWidget {
     // Dose: trust display_dose_label (pipeline pre-formats per the
     // three-class rule "X mg" / "Amount not disclosed" / "—"). The legacy
     // quantity+unit fallback is retained ONLY for pre-v1.5.0 blobs.
-    final displayDoseLabel = ingredient['display_dose_label']?.toString().trim();
+    final displayDoseLabel = ingredient['display_dose_label']
+        ?.toString()
+        .trim();
     final doseStatus = ingredient['dose_status']?.toString();
     String doseLabel;
     if (displayDoseLabel != null && displayDoseLabel.isNotEmpty) {
@@ -2538,11 +2534,9 @@ class _IngredientMiniChip extends StatelessWidget {
   }
 }
 
-
 // _ProConTile removed in T1.6 (2026-04-29) along with its only call
 // site (_WhyThisProductSection). The colored-bullet equivalent now
 // lives as `TradeoffRow` inside `tradeoffs_section.dart`.
-
 
 // ---------------------------------------------------------------------------
 // Shimmer placeholder while detail blob loads

@@ -50,10 +50,7 @@ void main() {
         name: 'Lubricant',
         notes: 'Keeps powder from sticking during pressing.',
         regulatoryReferences: [
-          RegulatoryReference(
-            jurisdiction: 'FDA',
-            code: '21 CFR 170.3(o)(18)',
-          ),
+          RegulatoryReference(jurisdiction: 'FDA', code: '21 CFR 170.3(o)(18)'),
         ],
         examples: ['magnesium stearate', 'stearic acid'],
       ),
@@ -73,10 +70,7 @@ void main() {
 
   group('inactiveColorRank — pipeline-driven severity', () {
     test('"high" → red', () {
-      expect(
-        inactiveColorRank({'harmful_severity': 'high'}),
-        InactiveTone.red,
-      );
+      expect(inactiveColorRank({'harmful_severity': 'high'}), InactiveTone.red);
     });
 
     test('"moderate" → orange', () {
@@ -94,10 +88,7 @@ void main() {
     });
 
     test('empty string → green', () {
-      expect(
-        inactiveColorRank({'harmful_severity': ''}),
-        InactiveTone.green,
-      );
+      expect(inactiveColorRank({'harmful_severity': ''}), InactiveTone.green);
     });
 
     test('"none" → green (defensive — pipeline emits "" not "none")', () {
@@ -112,10 +103,7 @@ void main() {
     });
 
     test('case-insensitive match', () {
-      expect(
-        inactiveColorRank({'harmful_severity': 'HIGH'}),
-        InactiveTone.red,
-      );
+      expect(inactiveColorRank({'harmful_severity': 'HIGH'}), InactiveTone.red);
       expect(
         inactiveColorRank({'harmful_severity': '  Moderate  '}),
         InactiveTone.orange,
@@ -176,8 +164,7 @@ void main() {
     testWidgets('> 5 inactives → collapsed by default; tap expands', (
       tester,
     ) async {
-      final names =
-          List.generate(8, (i) => _ing(name: 'Ingredient ${i + 1}'));
+      final names = List.generate(8, (i) => _ing(name: 'Ingredient ${i + 1}'));
       await _pump(tester, inactiveIngredients: names);
       await tester.pumpAndSettle();
 
@@ -226,26 +213,23 @@ void main() {
       },
     );
 
-    testWidgets(
-      'tap row with empty functional_roles → generic fallback copy',
-      (tester) async {
-        await _pump(
-          tester,
-          inactiveIngredients: [
-            _ing(name: 'Mystery Excipient', roles: const []),
-          ],
-        );
-        await tester.pumpAndSettle();
+    testWidgets('tap row with empty functional_roles → generic fallback copy', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        inactiveIngredients: [_ing(name: 'Mystery Excipient', roles: const [])],
+      );
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Mystery Excipient'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Mystery Excipient'));
+      await tester.pumpAndSettle();
 
-        expect(
-          find.text('Inactive ingredient — added during manufacturing.'),
-          findsOneWidget,
-        );
-      },
-    );
+      expect(
+        find.text('Inactive ingredient — added during manufacturing.'),
+        findsOneWidget,
+      );
+    });
 
     testWidgets(
       'tap row with unknown role IDs → generic fallback (vocab miss)',

@@ -101,9 +101,7 @@ Widget _wrap(CoreDatabase coreDb, UserDatabase userDb, Widget child) {
   // actually renders a row (not SizedBox.shrink). Required for the
   // ordering assertions below: without a row WithYourStack collapses
   // to 0 height and shares Y with the next section.
-  const profile = ProfileState(
-    drugClasses: ['anticoagulants'],
-  );
+  const profile = ProfileState(drugClasses: ['anticoagulants']);
   return ProviderScope(
     overrides: [
       coreDatabaseProvider.overrideWithValue(coreDb),
@@ -188,8 +186,7 @@ void main() {
       expect(
         synergyY < populationsY,
         isTrue,
-        reason:
-            'Populations (§9 post-T20) must render below Synergy (§8)',
+        reason: 'Populations (§9 post-T20) must render below Synergy (§8)',
       );
 
       await tester.pumpWidget(const SizedBox.shrink());

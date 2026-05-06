@@ -88,8 +88,7 @@ class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
       ingredientDoses: widget.ingredientDoses,
     );
     final survivingConditionIds =
-        (gatedSummary?['condition_summary'] as Map<String, dynamic>?)
-            ?.keys
+        (gatedSummary?['condition_summary'] as Map<String, dynamic>?)?.keys
             .toSet();
     final filteredHintConditionIds = parsedHint == null
         ? const <String>[]
@@ -116,8 +115,7 @@ class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
     // (Allergens require a profile too, so allergens.isEmpty here.)
     if (!hasProfile && hintHasAny && !hasWarnings && !hasAllergens) {
       return _NudgeBanner(
-        onCompleteProfile: () =>
-            GoRouter.of(context).push(Routes.profileSetup),
+        onCompleteProfile: () => GoRouter.of(context).push(Routes.profileSetup),
       );
     }
 
@@ -154,8 +152,7 @@ class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
               count: count,
               expanded: expanded,
               canExpand: hasWarnings || hasAllergens,
-              onTap: () =>
-                  setState(() => _expandedOverride = !expanded),
+              onTap: () => setState(() => _expandedOverride = !expanded),
             ),
             AnimatedSize(
               duration: const Duration(milliseconds: 200),
@@ -378,10 +375,7 @@ class _AllergenRow extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
@@ -535,10 +529,7 @@ class _AlertRow extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
@@ -598,10 +589,7 @@ class _AlertRow extends StatelessWidget {
               if (hasCitations)
                 _CitationsChip(
                   count: warning.sourceUrls.length,
-                  onTap: () => _showCitationsSheet(
-                    context,
-                    warning.sourceUrls,
-                  ),
+                  onTap: () => _showCitationsSheet(context, warning.sourceUrls),
                 ),
             ],
           ),

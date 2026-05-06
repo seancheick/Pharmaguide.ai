@@ -20,10 +20,7 @@ void main() {
       final out = ProfileState.migrateLegacyAllergenIds(const [
         'ALLERGEN_SHELLFISH',
       ]);
-      expect(out.toSet(), {
-        'ALLERGEN_CRUSTACEANS',
-        'ALLERGEN_MOLLUSCS',
-      });
+      expect(out.toSet(), {'ALLERGEN_CRUSTACEANS', 'ALLERGEN_MOLLUSCS'});
     });
 
     test('expands ALLERGEN_GLUTEN to wheat + barley + rye + oats', () {

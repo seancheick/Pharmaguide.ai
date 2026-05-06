@@ -23,8 +23,8 @@ void main() {
     test('canonical 5 IDs present', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['effect_directions'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['effect_directions'] as List)
+          .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
       expect(
@@ -42,8 +42,8 @@ void main() {
     test('all entries have required fields and valid multipliers', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries =
-          (decoded['effect_directions'] as List).cast<Map<String, dynamic>>();
+      final entries = (decoded['effect_directions'] as List)
+          .cast<Map<String, dynamic>>();
 
       for (final e in entries) {
         expect(e['id'], isA<String>());
@@ -51,8 +51,11 @@ void main() {
         expect(e['notes'], isA<String>());
         expect(e['multiplier'], isA<num>());
         final m = (e['multiplier'] as num).toDouble();
-        expect(m >= 0.0 && m <= 1.0, isTrue,
-            reason: '${e['id']} multiplier=$m not in [0,1]');
+        expect(
+          m >= 0.0 && m <= 1.0,
+          isTrue,
+          reason: '${e['id']} multiplier=$m not in [0,1]',
+        );
         expect((e['notes'] as String).length, lessThanOrEqualTo(200));
       }
     });

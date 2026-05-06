@@ -83,10 +83,14 @@ void main() {
       (tester) async {
         await _pump(
           tester,
-          interactionHint: '{"has_any": true, "highest_severity": "caution",'
+          interactionHint:
+              '{"has_any": true, "highest_severity": "caution",'
               ' "condition_ids": ["diabetes"], "drug_class_ids": []}',
         );
-        expect(find.text('This product has known interactions'), findsOneWidget);
+        expect(
+          find.text('This product has known interactions'),
+          findsOneWidget,
+        );
         expect(find.text('Complete profile'), findsOneWidget);
       },
     );
@@ -97,7 +101,8 @@ void main() {
         await _pump(
           tester,
           profile: const ProfileState(conditions: ['hypertension']),
-          interactionHint: '{"has_any": true, "highest_severity": "caution",'
+          interactionHint:
+              '{"has_any": true, "highest_severity": "caution",'
               ' "condition_ids": ["diabetes"], "drug_class_ids": []}',
         );
         expect(find.text('Review before use'), findsNothing);
@@ -168,52 +173,46 @@ void main() {
   });
 
   group('ReviewBeforeUseCard — allergen rows', () {
-    testWidgets(
-      'allergen-only contains match → auto-expanded danger row',
-      (tester) async {
-        await _pump(
-          tester,
-          matchedAllergens: [_allergen(presenceType: 'contains')],
-          profile: const ProfileState(allergens: ['ALLERGEN_SOY']),
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('Review before use'), findsOneWidget);
-        expect(find.text('Contains'), findsOneWidget);
-        expect(find.text('Soy'), findsOneWidget);
-        expect(
-          find.text('Soy is listed in your allergy profile.'),
-          findsOneWidget,
-        );
-      },
-    );
+    testWidgets('allergen-only contains match → auto-expanded danger row', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        matchedAllergens: [_allergen(presenceType: 'contains')],
+        profile: const ProfileState(allergens: ['ALLERGEN_SOY']),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Review before use'), findsOneWidget);
+      expect(find.text('Contains'), findsOneWidget);
+      expect(find.text('Soy'), findsOneWidget);
+      expect(
+        find.text('Soy is listed in your allergy profile.'),
+        findsOneWidget,
+      );
+    });
 
-    testWidgets(
-      'allergen-only may_contain → caution row, collapsed',
-      (tester) async {
-        await _pump(
-          tester,
-          matchedAllergens: [
-            _allergen(
-              displayName: 'Tree nuts',
-              presenceType: 'may_contain',
-            ),
-          ],
-          profile: const ProfileState(allergens: ['ALLERGEN_TREE_NUTS']),
-        );
-        await tester.pumpAndSettle();
-        // Header rendered; body hidden until tap.
-        expect(find.text('Review before use'), findsOneWidget);
-        expect(find.text('May contain'), findsNothing);
-        await tester.tap(find.text('Review before use'));
-        await tester.pumpAndSettle();
-        expect(find.text('May contain'), findsOneWidget);
-        expect(
-          find.text(
-              'This product includes a precautionary allergen statement.'),
-          findsOneWidget,
-        );
-      },
-    );
+    testWidgets('allergen-only may_contain → caution row, collapsed', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        matchedAllergens: [
+          _allergen(displayName: 'Tree nuts', presenceType: 'may_contain'),
+        ],
+        profile: const ProfileState(allergens: ['ALLERGEN_TREE_NUTS']),
+      );
+      await tester.pumpAndSettle();
+      // Header rendered; body hidden until tap.
+      expect(find.text('Review before use'), findsOneWidget);
+      expect(find.text('May contain'), findsNothing);
+      await tester.tap(find.text('Review before use'));
+      await tester.pumpAndSettle();
+      expect(find.text('May contain'), findsOneWidget);
+      expect(
+        find.text('This product includes a precautionary allergen statement.'),
+        findsOneWidget,
+      );
+    });
 
     testWidgets(
       'allergen-only manufactured_in_facility → info row, collapsed',
@@ -231,29 +230,28 @@ void main() {
         await tester.tap(find.text('Review before use'));
         await tester.pumpAndSettle();
         expect(find.text('Facility'), findsOneWidget);
-        expect(find.text('May matter for highly sensitive users.'),
-            findsOneWidget);
+        expect(
+          find.text('May matter for highly sensitive users.'),
+          findsOneWidget,
+        );
       },
     );
 
-    testWidgets(
-      'severe contains → severe badge appears',
-      (tester) async {
-        await _pump(
-          tester,
-          matchedAllergens: [
-            _allergen(
-              displayName: 'Peanuts',
-              presenceType: 'contains',
-              severityLevel: 'high',
-            ),
-          ],
-          profile: const ProfileState(allergens: ['ALLERGEN_PEANUTS']),
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('severe'), findsOneWidget);
-      },
-    );
+    testWidgets('severe contains → severe badge appears', (tester) async {
+      await _pump(
+        tester,
+        matchedAllergens: [
+          _allergen(
+            displayName: 'Peanuts',
+            presenceType: 'contains',
+            severityLevel: 'high',
+          ),
+        ],
+        profile: const ProfileState(allergens: ['ALLERGEN_PEANUTS']),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('severe'), findsOneWidget);
+    });
 
     testWidgets(
       'caution warning + contains allergen → tone bumps to danger (auto-expanded)',

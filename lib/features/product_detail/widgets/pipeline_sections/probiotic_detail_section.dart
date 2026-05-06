@@ -93,8 +93,8 @@ class ProbioticDetailSection extends StatelessWidget {
     );
     final survivabilityLabel = hasSurvivability
         ? (survivabilityReason.isNotEmpty
-            ? _humanizeSurvivability(survivabilityReason)
-            : 'Yes')
+              ? _humanizeSurvivability(survivabilityReason)
+              : 'Yes')
         : '';
 
     final prebioticPresent = probioticDetail!.safeBool('prebiotic_present');
@@ -239,17 +239,14 @@ class _StrainRow extends StatelessWidget {
           Icon(
             isClinical ? Icons.verified_outlined : Icons.circle,
             size: isClinical ? 14 : 6,
-            color: isClinical
-                ? AppTheme.severitySafe
-                : scheme.onSurfaceVariant,
+            color: isClinical ? AppTheme.severitySafe : scheme.onSurfaceVariant,
           ),
           SizedBox(width: isClinical ? 6 : 10),
           Expanded(
             child: RichText(
               text: TextSpan(
                 style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight:
-                      isClinical ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight: isClinical ? FontWeight.w600 : FontWeight.w400,
                   fontStyle: FontStyle.italic,
                   color: scheme.onSurface,
                 ),

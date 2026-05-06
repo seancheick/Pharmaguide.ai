@@ -33,9 +33,7 @@ Future<Map<String, MatchModeEntry>> loadMatchModeVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 
-  final raw = await rootBundle.loadString(
-    'assets/data/match_mode_vocab.json',
-  );
+  final raw = await rootBundle.loadString('assets/data/match_mode_vocab.json');
   final decoded = jsonDecode(raw) as Map<String, dynamic>;
   final entries = (decoded['match_modes'] as List?) ?? const [];
 
@@ -51,8 +49,6 @@ Future<Map<String, MatchModeEntry>> loadMatchModeVocab() async {
   return byId;
 }
 
-void debugSetMatchModeVocabForTesting(
-  Map<String, MatchModeEntry>? value,
-) {
+void debugSetMatchModeVocabForTesting(Map<String, MatchModeEntry>? value) {
   _cache = value;
 }
