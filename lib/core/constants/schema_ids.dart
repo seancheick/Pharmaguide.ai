@@ -26,7 +26,7 @@ abstract final class SchemaIds {
   static const conditionLabels = {
     'pregnancy': 'Pregnancy',
     'lactation': 'Breastfeeding',
-    'ttc': 'Trying to Conceive',
+    'ttc': 'TTC (Trying to Conceive)',
     'surgery_scheduled': 'Upcoming Surgery',
     'hypertension': 'High Blood Pressure',
     'heart_disease': 'Heart Disease',
@@ -38,6 +38,35 @@ abstract final class SchemaIds {
     'autoimmune': 'Autoimmune Condition',
     'seizure_disorder': 'Epilepsy/Seizures',
     'high_cholesterol': 'High Cholesterol',
+  };
+
+  /// v6.0 profile flags — additive to [conditions]. The pipeline's
+  /// `clinical_risk_taxonomy.json::profile_flags[]` contract has 7 flag
+  /// IDs total. Four of them (`pregnant`, `breastfeeding`,
+  /// `trying_to_conceive`, `surgery_scheduled`) are derived from the
+  /// existing condition IDs at evaluator time
+  /// (see ProfileState.evaluatorProfileFlags); the remaining 3 are
+  /// distinct history/transient states and live as their own selectable
+  /// flags here:
+  ///   post_op_recovery     — currently in post-operative recovery (vs.
+  ///                          surgery_scheduled = pre-op)
+  ///   hypoglycemia_history — past low-blood-sugar events; escalates
+  ///                          diabetes-medication interaction severity
+  ///                          (e.g., berberine baseline caution → avoid)
+  ///   bleeding_history     — past bleeding events / family history;
+  ///                          distinct from `bleeding_disorders` condition
+  ///                          (which is an active diagnosis). Escalates
+  ///                          antiplatelet/anticoagulant interactions.
+  static const profileFlags = [
+    'post_op_recovery',
+    'hypoglycemia_history',
+    'bleeding_history',
+  ];
+
+  static const profileFlagLabels = {
+    'post_op_recovery': 'Post-Op Recovery',
+    'hypoglycemia_history': 'Hypoglycemia History',
+    'bleeding_history': 'Bleeding History',
   };
 
   static const drugClasses = [

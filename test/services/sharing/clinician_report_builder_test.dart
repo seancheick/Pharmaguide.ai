@@ -38,6 +38,7 @@ UserProfile _profile({
   String conditions = '[]',
   String drugClasses = '[]',
   String allergens = '[]',
+  String profileFlags = '[]',
 }) {
   final ts = DateTime.utc(2026, 4, 29, 12);
   return UserProfile(
@@ -49,6 +50,7 @@ UserProfile _profile({
     conditions: conditions,
     drugClasses: drugClasses,
     allergens: allergens,
+    profileFlags: profileFlags,
     createdAt: ts,
     lastUpdated: ts,
   );

@@ -8,6 +8,7 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_interaction_card.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// A single interaction warning entry parsed from the detail blob.
@@ -143,6 +144,19 @@ class InteractionWarning {
   /// ingredient-specific (e.g., manufacturer trust violations).
   final String? ingredientName;
 
+  /// v6.0 `profile_gate` — deterministic predicate the evaluator runs
+  /// against (user_profile, product_context) to decide whether this
+  /// alert should fire. Replaces the inferred set-intersection over
+  /// [conditionIds] / [drugClassIds] when present. Null on pre-v6.0
+  /// blobs (legacy intersection logic still applies as fallback in
+  /// [matchesProfile]).
+  ///
+  /// See `lib/services/warnings/profile_gate_evaluator.dart` for the
+  /// Dart reference impl, kept in lockstep with
+  /// `dsld_clean/scripts/profile_gate_evaluator.py` via the shared
+  /// drift-contract fixture (`test/fixtures/profile_gate/`).
+  final Map<String, dynamic>? profileGate;
+
   /// Display-ready headline — prefers authored [alertHeadline] over
   /// the derived [title]. Use this in render code.
   String get displayHeadline => alertHeadline ?? title;
@@ -177,6 +191,7 @@ class InteractionWarning {
     this.supplementContext,
     this.identifiers,
     this.ingredientName,
+    this.profileGate,
   });
 
   /// Parse from raw JSON map (from detail blob `warnings` list).
@@ -242,6 +257,11 @@ class InteractionWarning {
         ? Map<String, dynamic>.from(rawIdentifiers)
         : null;
 
+    final rawProfileGate = json['profile_gate'];
+    final profileGate = rawProfileGate is Map<String, dynamic>
+        ? Map<String, dynamic>.from(rawProfileGate)
+        : null;
+
     return InteractionWarning(
       severity: Severity.fromString(json['severity']?.toString() ?? 'safe'),
       severityContextual: sevContextual,
@@ -277,6 +297,7 @@ class InteractionWarning {
       supplementContext: json['supplement_context']?.toString(),
       identifiers: identifiers,
       ingredientName: json['ingredient_name']?.toString(),
+      profileGate: profileGate,
     );
   }
 
@@ -304,17 +325,45 @@ class InteractionWarning {
 
   /// Does this warning match the given user profile?
   ///
-  /// A profile match means the pipeline rule applies to this user —
-  /// their declared conditions or drug classes intersect the rule's
-  /// trigger tags. Used by the profile-gated filter on the product
-  /// detail screen.
+  /// **Primary path (v6.0+)**: when [profileGate] is non-null, delegates
+  /// to [evaluateProfileGate] from
+  /// `lib/services/warnings/profile_gate_evaluator.dart` — the canonical
+  /// evaluator that mirrors the Python reference. This honors `excludes`
+  /// blocks (topical aloe, β-carotene, culinary turmeric) and per-rule
+  /// gate semantics that the legacy intersection logic cannot express.
+  ///
+  /// **Fallback path (pre-v6.0 cached blobs)**: legacy set-intersection
+  /// over [conditionIds] / [drugClassIds]. This branch is preserved for
+  /// blobs cached before the v1.6.0 catalog DB rolled out and exists
+  /// purely for backward compatibility — fresh blobs always carry
+  /// [profileGate].
   bool matchesProfile({
     required Set<String> userConditions,
     required Set<String> userDrugClasses,
+    Set<String> userProfileFlags = const <String>{},
+    String? productForm,
+    String? nutrientForm,
+    num? dosePerDay,
   }) {
-    // FLTR-1 — check every tag in the plural arrays, not just the
-    // first. A warning with condition_ids: ['pregnancy', 'lactation']
-    // must match a user carrying either one.
+    if (profileGate != null) {
+      final result = evaluateProfileGate(
+        profileGate,
+        UserProfile(
+          conditions: userConditions,
+          drugClasses: userDrugClasses,
+          profileFlags: userProfileFlags,
+        ),
+        ProductContext(
+          productForm: productForm,
+          nutrientForm: nutrientForm,
+          dosePerDay: dosePerDay,
+        ),
+      );
+      return result.fires;
+    }
+    // FLTR-1 legacy fallback — pre-v6.0 blob without profile_gate.
+    // Set intersection over plural arrays. Removable once the v1.6.0
+    // catalog DB has fully replaced cached pre-v6.0 detail blobs.
     if (conditionIds.any(userConditions.contains)) return true;
     if (drugClassIds.any(userDrugClasses.contains)) return true;
     return false;
@@ -431,11 +480,19 @@ class InteractionWarningsList extends StatefulWidget {
   /// 'anticoagulants'}). Same split contract as [userConditions].
   final Set<String> userDrugClasses;
 
+  /// v6.0 — user's declared profile flags (post_op_recovery,
+  /// hypoglycemia_history, bleeding_history) plus the derived
+  /// reproductive flags (pregnant, breastfeeding, trying_to_conceive,
+  /// surgery_scheduled — derived by [ProfileState.evaluatorProfileFlags]
+  /// from the corresponding condition IDs).
+  final Set<String> userProfileFlags;
+
   const InteractionWarningsList({
     super.key,
     required this.warnings,
     this.userConditions = const {},
     this.userDrugClasses = const {},
+    this.userProfileFlags = const {},
   });
 
   static List<InteractionWarning> sortBySeverity(
@@ -476,6 +533,7 @@ class InteractionWarningsList extends StatefulWidget {
     List<InteractionWarning> loud, {
     required Set<String> userConditions,
     required Set<String> userDrugClasses,
+    Set<String> userProfileFlags = const <String>{},
   }) {
     final applies = <InteractionWarning>[];
     final other = <InteractionWarning>[];
@@ -483,6 +541,7 @@ class InteractionWarningsList extends StatefulWidget {
       if (w.matchesProfile(
         userConditions: userConditions,
         userDrugClasses: userDrugClasses,
+        userProfileFlags: userProfileFlags,
       )) {
         applies.add(w);
       } else {
@@ -626,6 +685,7 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
       loud,
       userConditions: widget.userConditions,
       userDrugClasses: widget.userDrugClasses,
+      userProfileFlags: widget.userProfileFlags,
     );
 
     return Column(

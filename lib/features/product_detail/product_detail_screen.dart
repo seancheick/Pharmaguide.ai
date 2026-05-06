@@ -197,6 +197,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       warnings: warnings,
       userConditions: profile.conditions.toSet(),
       userDrugClasses: profile.drugClasses.toSet(),
+      userProfileFlags: profile.evaluatorProfileFlags,
     );
     // Pipeline nests this under proprietary_blend_detail
     final blendDetail =
@@ -823,6 +824,7 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
   required List<InteractionWarning> warnings,
   required Set<String> userConditions,
   required Set<String> userDrugClasses,
+  Set<String> userProfileFlags = const <String>{},
 }) {
   final combinedWarnings = [..._synthesizeUlWarnings(detailBlob), ...warnings];
 
@@ -843,6 +845,7 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
         if (w.matchesProfile(
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
+          userProfileFlags: userProfileFlags,
         )) {
           return true;
         }
@@ -1717,6 +1720,8 @@ class DetailSection extends ConsumerWidget {
     final profile = ref.watch(profileProvider);
     final userConditions = profile.conditions.toSet();
     final userDrugClasses = profile.drugClasses.toSet();
+    // v6.0 — derived + explicit profile flags for the gate evaluator.
+    final userProfileFlags = profile.evaluatorProfileFlags;
 
     if (detailBlob == null) {
       return Padding(
@@ -1788,6 +1793,7 @@ class DetailSection extends ConsumerWidget {
       warnings: warnings,
       userConditions: userConditions,
       userDrugClasses: userDrugClasses,
+      userProfileFlags: userProfileFlags,
     );
     // T16 — `visibleInactives` / `hiddenInactivesCount` removed.
     // The 8-chip cap + "+N more" pill logic now lives inside
@@ -2282,6 +2288,11 @@ class _IngredientTile extends StatelessWidget {
       ingredient: ingredient,
       ulEntry: ulEntry,
     );
+    // v1.5.0 contract — pipeline emits `is_safety_concern` true only for
+    // moderate/high/critical hazards. Distinct from `bio_score` (form
+    // quality is orthogonal to safety): a high-quality magnesium glycinate
+    // can still trigger a kidney-disease safety_concern.
+    final isSafetyConcern = ingredient['is_safety_concern'] == true;
 
     void openSheet() {
       showIngredientExplainSheet(
@@ -2343,10 +2354,14 @@ class _IngredientTile extends StatelessWidget {
                     ),
                   ),
                 ],
-                // Chips row — Form chip + Dose chip (when applicable).
+                // Chips row — Form chip + Dose chip + Safety-concern chip
+                // (when applicable). is_safety_concern is the v1.5.0
+                // canonical hazard flag, distinct from bio_score's form
+                // quality.
                 if (formQuality != FormQuality.unknown ||
                     doseCallOut != DoseCallOut.withinLimits ||
-                    isInferredFromName) ...[
+                    isInferredFromName ||
+                    isSafetyConcern) ...[
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
@@ -2357,6 +2372,12 @@ class _IngredientTile extends StatelessWidget {
                         _FormChip(quality: formQuality, onTap: openSheet),
                       if (doseCallOut != DoseCallOut.withinLimits)
                         _DoseChip(callOut: doseCallOut, onTap: openSheet),
+                      if (isSafetyConcern)
+                        _IngredientMiniChip(
+                          label: 'Safety concern',
+                          icon: Icons.warning_amber_rounded,
+                          color: scheme.error,
+                        ),
                       if (isInferredFromName)
                         const _IngredientMiniChip(
                           label: 'Inferred from label',

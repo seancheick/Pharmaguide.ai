@@ -15,6 +15,15 @@ class UserProfiles extends Table {
       .withDefault(const Constant('[]'))(); // JSON array
   TextColumn get allergens =>
       text().withDefault(const Constant('[]'))(); // JSON array
+  /// v6.0 profile flags — additive to conditions[]. Stores transient
+  /// or history-flag IDs that the v6.0 profile_gate evaluates against
+  /// (post_op_recovery, hypoglycemia_history, bleeding_history). The
+  /// existing pregnant/breastfeeding/ttc/surgery_scheduled flags are
+  /// derived from `conditions[]` for backward compatibility — Flutter
+  /// maps them into the evaluator's profile_flags set internally.
+  TextColumn get profileFlags => text()
+      .named('profile_flags')
+      .withDefault(const Constant('[]'))(); // JSON array
   DateTimeColumn get createdAt =>
       dateTime().named('created_at').withDefault(currentDateAndTime)();
   DateTimeColumn get lastUpdated =>

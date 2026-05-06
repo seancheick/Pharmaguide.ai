@@ -31,7 +31,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -54,6 +54,14 @@ class UserDatabase extends _$UserDatabase {
         // buggy cache, and fresh installs created the table at v4
         // with no rows to clear.
         await customStatement('DELETE FROM product_image_cache');
+      }
+      if (from < 5) {
+        // v5: add profile_flags column to user_profile for v6.0
+        // profile_gate evaluation (post_op_recovery, hypoglycemia_history,
+        // bleeding_history). Defaults to empty JSON array; existing
+        // pregnant/breastfeeding/ttc/surgery_scheduled are still derived
+        // from conditions[] for backward compatibility.
+        await m.addColumn(userProfiles, userProfiles.profileFlags);
       }
     },
   );

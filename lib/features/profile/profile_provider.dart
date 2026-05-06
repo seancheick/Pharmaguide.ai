@@ -15,6 +15,16 @@ class ProfileState {
   final List<String> drugClasses;
   final List<String> allergens;
 
+  /// v6.0 profile flags — additive to [conditions]. Stores the
+  /// transient/history flag IDs that the v6.0 profile_gate evaluator
+  /// requires: `post_op_recovery`, `hypoglycemia_history`,
+  /// `bleeding_history`. The reproductive/perioperative flags
+  /// (`pregnant`, `breastfeeding`, `trying_to_conceive`,
+  /// `surgery_scheduled`) are derived from [conditions] in
+  /// [evaluatorProfileFlags]; these three are NEW state captured
+  /// only here.
+  final List<String> profileFlags;
+
   const ProfileState({
     this.nickname,
     this.ageBracket,
@@ -23,6 +33,7 @@ class ProfileState {
     this.conditions = const [],
     this.drugClasses = const [],
     this.allergens = const [],
+    this.profileFlags = const [],
   });
 
   ProfileState copyWith({
@@ -33,6 +44,7 @@ class ProfileState {
     List<String>? conditions,
     List<String>? drugClasses,
     List<String>? allergens,
+    List<String>? profileFlags,
   }) {
     return ProfileState(
       nickname: nickname ?? this.nickname,
@@ -42,7 +54,34 @@ class ProfileState {
       conditions: conditions ?? this.conditions,
       drugClasses: drugClasses ?? this.drugClasses,
       allergens: allergens ?? this.allergens,
+      profileFlags: profileFlags ?? this.profileFlags,
     );
+  }
+
+  /// Profile-flag set for the v6.0 evaluator. Combines [profileFlags]
+  /// (history flags) with derived flags from [conditions]:
+  ///   conditions: 'pregnancy'         → 'pregnant'
+  ///   conditions: 'lactation'         → 'breastfeeding'
+  ///   conditions: 'ttc'               → 'trying_to_conceive'
+  ///   conditions: 'surgery_scheduled' → 'surgery_scheduled'
+  ///
+  /// Single source of truth for the evaluator's `profile_flags_any`
+  /// requires/excludes axis. Mirrors the migration mapping in
+  /// `dsld_clean/scripts/tools/migrate_to_profile_gate.py`
+  /// (`PROFILE_FLAG_CONDITION_MAP`).
+  Set<String> get evaluatorProfileFlags {
+    const conditionToFlag = <String, String>{
+      'pregnancy': 'pregnant',
+      'lactation': 'breastfeeding',
+      'ttc': 'trying_to_conceive',
+      'surgery_scheduled': 'surgery_scheduled',
+    };
+    final out = <String>{...profileFlags};
+    for (final c in conditions) {
+      final flag = conditionToFlag[c.toLowerCase()];
+      if (flag != null) out.add(flag);
+    }
+    return out;
   }
 
   /// Profile completeness as 0-100.
@@ -76,6 +115,7 @@ class ProfileState {
       conditions: Value(jsonEncode(conditions)),
       drugClasses: Value(jsonEncode(drugClasses)),
       allergens: Value(jsonEncode(allergens)),
+      profileFlags: Value(jsonEncode(profileFlags)),
       lastUpdated: Value(DateTime.now()),
     );
   }
@@ -90,6 +130,7 @@ class ProfileState {
       conditions: _decodeList(row.conditions),
       drugClasses: _decodeList(row.drugClasses),
       allergens: migrateLegacyAllergenIds(_decodeList(row.allergens)),
+      profileFlags: _decodeList(row.profileFlags),
     );
   }
 
@@ -178,7 +219,8 @@ class ProfileState {
           _listEq.equals(goals, other.goals) &&
           _listEq.equals(conditions, other.conditions) &&
           _listEq.equals(drugClasses, other.drugClasses) &&
-          _listEq.equals(allergens, other.allergens);
+          _listEq.equals(allergens, other.allergens) &&
+          _listEq.equals(profileFlags, other.profileFlags);
 
   @override
   int get hashCode => Object.hash(
@@ -189,6 +231,7 @@ class ProfileState {
     _listEq.hash(conditions),
     _listEq.hash(drugClasses),
     _listEq.hash(allergens),
+    _listEq.hash(profileFlags),
   );
 }
 

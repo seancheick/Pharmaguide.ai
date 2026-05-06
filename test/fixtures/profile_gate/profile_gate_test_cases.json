@@ -1,0 +1,267 @@
+{
+  "_metadata": {
+    "description": "Shared evaluator fixture for v6.0 profile_gate. Python (scripts/profile_gate_evaluator.py) and Dart (Flutter alert-rendering layer) MUST both produce the same fires/severity output for every case below. Drift between the two implementations is the failure this fixture catches.",
+    "schema_version": "1.0.0",
+    "evaluator_contract_version": "6.0",
+    "last_updated": "2026-05-05",
+    "case_count": 18,
+    "see_also": [
+      "scripts/INTERACTION_RULE_SCHEMA_V6_ADR.md",
+      "scripts/profile_gate_evaluator.py"
+    ]
+  },
+  "test_cases": [
+    {
+      "name": "condition_gate_diabetes_match",
+      "description": "Diabetic user matches condition gate",
+      "gate": {
+        "gate_type": "condition",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "condition_gate_diabetes_no_match",
+      "description": "Hypertensive user (no diabetes) does NOT match diabetes gate",
+      "gate": {
+        "gate_type": "condition",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": ["hypertension"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "profile_flag_gate_pregnant_match",
+      "description": "Pregnant user matches pregnancy gate",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "profile_flag_gate_ttc_does_not_fire_pregnancy_only_rule",
+      "description": "TTC user does NOT match a pregnancy-only gate (TTC is a separate flag)",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["trying_to_conceive"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "profile_flag_gate_pregnancy_lactation_union_pregnant_user",
+      "description": "Pregnancy/lactation union gate fires for pregnant user",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant", "breastfeeding"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "profile_flag_gate_pregnancy_lactation_union_breastfeeding_user",
+      "description": "Pregnancy/lactation union gate fires for breastfeeding user",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant", "breastfeeding"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["breastfeeding"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "drug_class_gate_anticoagulant_match",
+      "description": "Patient on anticoagulant matches anticoagulants gate",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "combination_gate_diabetes_and_hypoglycemics_both_match",
+      "description": "Diabetic on insulin matches combination gate (AND across keys)",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": ["hypoglycemics"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": ["hypoglycemics"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "combination_gate_diabetes_only_does_not_match",
+      "description": "Diabetic NOT on hypoglycemics — combination gate requires BOTH; only diabetes is met",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": ["hypoglycemics"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": ["metformin"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "excludes_product_form_topical_aloe_suppressed",
+      "description": "Pregnant user using topical-only aloe — pregnancy gate suppressed by product_form exclusion",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": ["topical_only"], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": "topical_only", "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "excludes_product_form_oral_aloe_fires",
+      "description": "Pregnant user using oral aloe — pregnancy gate fires (topical_only excluded does NOT match capsule)",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": ["topical_only"], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": "capsule", "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "excludes_nutrient_form_beta_carotene_suppressed",
+      "description": "Pregnant user using beta_carotene product — vitamin A pregnancy gate suppressed",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": ["beta_carotene", "mixed_carotenoids"]},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": "beta_carotene", "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "excludes_nutrient_form_retinol_fires",
+      "description": "Pregnant user using retinol — vitamin A pregnancy gate fires (beta_carotene excluded does NOT match retinol)",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": ["beta_carotene", "mixed_carotenoids"]},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": "retinol", "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "dose_block_threshold_met_escalates_severity",
+      "description": "Diabetic on 1500mg/day berberine matches dose ≥1500mg → avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 1500, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1500, "dose_unit": "mg"},
+      "base_severity": "caution",
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "dose_block_threshold_not_met_uses_lower_severity",
+      "description": "Diabetic on 500mg/day berberine — below threshold → caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 1500, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 500, "dose_unit": "mg"},
+      "base_severity": "caution",
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "empty_user_profile_with_required_gate_does_not_fire",
+      "description": "User with no conditions/drugs/flags should not match any gate that requires something",
+      "gate": {
+        "gate_type": "condition",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "or_within_list_any_one_matches",
+      "description": "User has anticoagulants only; gate requires anticoagulants OR antiplatelets — fires",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants", "antiplatelets"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "and_across_keys_combination_partial_match",
+      "description": "Combination gate needs diabetes AND anticoagulants; user has only diabetes — does NOT fire",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": false, "severity": null}
+    }
+  ]
+}
