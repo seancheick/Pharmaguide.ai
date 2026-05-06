@@ -76,6 +76,7 @@ abstract final class SchemaIds {
     'antihypertensives',
     'hypoglycemics_high_risk',
     'hypoglycemics_lower_risk',
+    'hypoglycemics_unknown',
     'thyroid_medications',
     'sedatives',
     'immunosuppressants',
@@ -95,6 +96,8 @@ abstract final class SchemaIds {
         'Insulin, Sulfonylureas, Meglitinides',
     'hypoglycemics_lower_risk':
         'Metformin, GLP-1 RAs, SGLT2i, DPP-4i',
+    'hypoglycemics_unknown':
+        'Diabetes medication (tap to specify)',
     'thyroid_medications': 'Thyroid medication',
     'sedatives': 'Sedatives / Sleep medication',
     'immunosuppressants': 'Immunosuppressants',

@@ -210,14 +210,18 @@ class ProfileState {
   /// One-shot migration for the v6.1.0 hypoglycemics split.
   ///
   /// Users who selected the broad "hypoglycemics" before the split get
-  /// auto-mapped to "hypoglycemics_high_risk" (conservative — assumes the
-  /// higher-risk subclass). The profile-setup screen will prompt them to
-  /// refine on next visit since SchemaIds.drugClasses now shows both options.
+  /// mapped to "hypoglycemics_unknown" (honest uncertainty — middle-ground
+  /// caution severity). The profile-setup screen shows all three options so
+  /// users can refine to high_risk or lower_risk for more accurate warnings.
+  ///
+  /// Also normalizes IDs with trim + lowercase since the taxonomy uses
+  /// lowercase canonical IDs.
   static List<String> _migrateLegacyDrugClasses(List<String> stored) {
-    if (!stored.contains('hypoglycemics')) return stored;
-    final out = stored.where((id) => id != 'hypoglycemics').toList();
-    if (!out.contains('hypoglycemics_high_risk')) {
-      out.add('hypoglycemics_high_risk');
+    final normalized = stored.map((id) => id.trim().toLowerCase()).toList();
+    if (!normalized.contains('hypoglycemics')) return normalized;
+    final out = normalized.where((id) => id != 'hypoglycemics').toList();
+    if (!out.contains('hypoglycemics_unknown')) {
+      out.add('hypoglycemics_unknown');
     }
     return out;
   }
