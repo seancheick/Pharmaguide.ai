@@ -159,6 +159,35 @@ Estimated effort: ~7 hours (3h pipeline + 4h Flutter + tests).
 
 ---
 
+## Future Backlog — Post-v1.6.0 / v6.1 (cross-repo)
+
+Tracked here so they don't get lost between sprints. None are launch-blocking for v1.6.0; pull into a sprint when prioritized.
+
+- [ ] **Hypoglycemics drug-class split (pipeline + Flutter).** Today the `hypoglycemics` drug-class gate fires for every glucose-lowering drug; clinical risk varies sharply. Split into:
+  - High-risk subclass: `insulin`, `sulfonylureas`, `meglitinides` (real hypoglycemia risk → existing `caution`/`avoid` severity holds)
+  - Lower-risk subclass: `metformin`, `glp1_receptor_agonists`, `sglt2_inhibitors`, `dpp4_inhibitors` (rebalance severity downward; many current `caution` warnings should drop to `info` or be suppressed)
+  - Pipeline: extend `clinical_risk_taxonomy.json` drug-class vocab; re-author the ~12 affected rules in `ingredient_interaction_rules.json` to target the new subclasses; update `INTERACTION_RULE_AUTHORING_SOP.md`.
+  - Flutter: schema_ids drug-class catalog + medications-step UI to expose the new buckets; profile migration (auto-map existing `hypoglycemics` selections to the high-risk bucket; nudge user to refine).
+  - Estimated effort: ~6h (3h rule re-authoring + clinical pass, 2h Flutter, 1h tests).
+
+- [ ] **Cross-product dose summation (Flutter stack-aware).** Today profile_gate `dose` evaluates per-product. A user stacking three caffeine products at 80 mg each silently bypasses the 200 mg/day caffeine ceiling. Build a stack-aware dose aggregator:
+  - New `lib/services/stack/stack_dose_summer.dart` walking active stack items, summing dose-per-day per `nutrient_form` (caffeine, niacin, vitamin A, etc.)
+  - Wire into `StackIntelligenceEngine` so it can fire stack-level alerts independent of any single product's gates.
+  - First targets: caffeine (200 mg/day), vitamin A (3000 mcg RAE), niacin (35 mg), iron (45 mg) — pull thresholds from `rda_optimal_uls.json` ULs.
+  - Estimated effort: ~5h.
+
+- [ ] **Structural pregnancy/lactation split (pipeline).** Today the pipeline emits a single combined `pregnancy_lactation` block because Flutter currently shows one combined toggle. When Flutter splits the toggle (separate Pregnancy / Breastfeeding switches), refactor `condition_rules` to two separate entries with independent `profile_gate.requires.profile_flags_any: ['pregnant']` vs `['breastfeeding']`. Migration: run `migrate_to_profile_gate.py --split-pl`. Coordinate the cut with the Flutter toggle change so both ship in the same release.
+  - Estimated effort: ~3h pipeline + 2h Flutter UI + tests.
+
+- [ ] **v6.1 cleanup — remove legacy `matchesProfile` fallback (Flutter).** ~30 days after v1.6.0 ships and we've confirmed every cached detail blob in the wild has rotated to v1.6.0 with `profile_gate` populated, delete the set-intersection fallback path inside `InteractionWarning.matchesProfile()` (search for `TODO(v6.1)` markers in `lib/features/product_detail/widgets/interaction_warnings.dart`). Also delete the corresponding fallback branch + tests in `profile_gate_summary_filter.dart` callers.
+  - Pre-condition: `import_catalog_artifact.sh` should drop `1.3.1` / `1.3.2` / `1.4.0` / `1.5.0` from `APP_SUPPORTED_SCHEMAS` at the same time so we can never re-bind to a pre-gate catalog.
+  - Estimated effort: ~1h.
+
+- [ ] **Phase 1.5 — clinical review of 16 entries new since reviewer's 5.2.0 snapshot (pipeline).** Tracked in `dsld_clean/scripts/audits/interaction_rules/diabetes_review_v53/RECONCILIATION.md`. Entries: `ADD_HORDENINE`, `BANNED_BITTER_ORANGE`, `BANNED_PENNYROYAL`, `BANNED_TANSY`, `ADD_TYRAMINE_RICH_EXTRACT`, `bupleurum_root`, `ginkgo_biloba_leaf`, `white_mulberry`, `bromelain`, `holy_basil`, `l_carnitine`, `l_tryptophan`, `maca`, `phenylethylamine`, `same`, `sodium`. Same SOP as the diabetes batch: PMID/CUI verification, severity justification, ban_context audit. Each rule's headline + mechanism rewritten if needed.
+  - Estimated effort: ~8h (clinical review pace = ~30 min/entry).
+
+---
+
 **Sprint 27.17: Supabase placeholder startup guard** — ✅ DONE (2026-04-26)
 Status: DONE
 
