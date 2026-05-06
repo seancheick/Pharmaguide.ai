@@ -142,7 +142,9 @@ _InactiveSeverityCount _countInactiveSeverity(
       // chip-list directly without escalating the summary.
       continue;
     }
-    final raw = ing['severity_level'];
+    // Stale-blob fallback — see inactive_color.dart for rationale.
+    // severity_level retired; harmful_severity carries the same enum.
+    final raw = ing['harmful_severity'];
     final sev = raw is String ? raw.trim().toLowerCase() : '';
     if (sev == 'high') {
       high++;

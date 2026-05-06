@@ -14,7 +14,7 @@ Map<String, dynamic> _ing({
 }) {
   return {
     'name': name,
-    'severity_level': severity,
+    'harmful_severity': severity,
     'functional_roles': roles,
   };
 }
@@ -74,35 +74,35 @@ void main() {
   group('inactiveColorRank — pipeline-driven severity', () {
     test('"high" → red', () {
       expect(
-        inactiveColorRank({'severity_level': 'high'}),
+        inactiveColorRank({'harmful_severity': 'high'}),
         InactiveTone.red,
       );
     });
 
     test('"moderate" → orange', () {
       expect(
-        inactiveColorRank({'severity_level': 'moderate'}),
+        inactiveColorRank({'harmful_severity': 'moderate'}),
         InactiveTone.orange,
       );
     });
 
     test('"low" → yellow', () {
       expect(
-        inactiveColorRank({'severity_level': 'low'}),
+        inactiveColorRank({'harmful_severity': 'low'}),
         InactiveTone.yellow,
       );
     });
 
     test('empty string → green', () {
       expect(
-        inactiveColorRank({'severity_level': ''}),
+        inactiveColorRank({'harmful_severity': ''}),
         InactiveTone.green,
       );
     });
 
     test('"none" → green (defensive — pipeline emits "" not "none")', () {
       expect(
-        inactiveColorRank({'severity_level': 'none'}),
+        inactiveColorRank({'harmful_severity': 'none'}),
         InactiveTone.green,
       );
     });
@@ -113,17 +113,17 @@ void main() {
 
     test('case-insensitive match', () {
       expect(
-        inactiveColorRank({'severity_level': 'HIGH'}),
+        inactiveColorRank({'harmful_severity': 'HIGH'}),
         InactiveTone.red,
       );
       expect(
-        inactiveColorRank({'severity_level': '  Moderate  '}),
+        inactiveColorRank({'harmful_severity': '  Moderate  '}),
         InactiveTone.orange,
       );
     });
 
     test('non-string severity → green (defensive)', () {
-      expect(inactiveColorRank({'severity_level': 5}), InactiveTone.green);
+      expect(inactiveColorRank({'harmful_severity': 5}), InactiveTone.green);
     });
   });
 
@@ -213,7 +213,10 @@ void main() {
         // Sheet header — ingredient name appears once in row, once
         // in modal.
         expect(find.text('Magnesium Stearate'), findsNWidgets(2));
-        // Both roles render with their vocab content.
+        // T4D — inactive row's role helper line comma-joins matched
+        // role names ("Lubricant, Anti-caking agent"). Modal renders
+        // each role's name as its own section heading.
+        expect(find.text('Lubricant, Anti-caking agent'), findsOneWidget);
         expect(find.text('Lubricant'), findsOneWidget);
         expect(
           find.text('Keeps powder from sticking during pressing.'),

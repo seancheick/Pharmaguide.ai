@@ -37,8 +37,11 @@ InactiveTone inactiveColorRank(Map<String, dynamic> inactive) {
         return InactiveTone.green;
     }
   }
-  // Legacy fallback — pre-v1.5.0 severity_level mapping.
-  final raw = inactive['severity_level'];
+  // Stale-blob fallback — pipeline retired severity_level in favor of
+  // severity_status. harmful_severity (the same low/moderate/high enum)
+  // is the surviving raw signal, kept on the inactive row, so cached
+  // blobs without severity_status can still color via this read.
+  final raw = inactive['harmful_severity'];
   final sev = raw is String ? raw.trim().toLowerCase() : '';
   switch (sev) {
     case 'high':

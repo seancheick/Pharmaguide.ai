@@ -45,7 +45,7 @@ Future<void> _pump(
 }
 
 Map<String, dynamic> _ing(String severity) =>
-    {'name': 'Ing', 'severity_level': severity};
+    {'name': 'Ing', 'harmful_severity': severity};
 
 void main() {
   group('collapseHarmfulAdditives — pure helper (T15)', () {

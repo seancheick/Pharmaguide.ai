@@ -43,14 +43,14 @@ void main() {
       );
     });
 
-    test('falls back to legacy severity_level on stale blobs', () {
-      // No severity_status (pre-v1.5.0 build) — must still render.
+    test('falls back to harmful_severity on cached blobs without severity_status', () {
+      // severity_level retired; harmful_severity carries the same enum.
       expect(
-        inactiveColorRank({'severity_level': 'high'}),
+        inactiveColorRank({'harmful_severity': 'high'}),
         InactiveTone.red,
       );
       expect(
-        inactiveColorRank({'severity_level': 'low'}),
+        inactiveColorRank({'harmful_severity': 'low'}),
         InactiveTone.yellow,
       );
     });
