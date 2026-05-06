@@ -73,31 +73,34 @@ class _FitScoreSheet extends StatelessWidget {
 
               // Internal signals
               Text(
-                'Signals considered',
+                'What we considered',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: AppTheme.space12),
               _ScoreRow(
-                label: 'Dosage match',
-                description: 'How close dosing is to your age/sex RDA',
+                label: 'Dose fit',
+                description:
+                    'Compares the listed dose with available intake guidance',
                 score: result.e1,
                 maxScore: 7,
                 icon: Icons.medication_liquid_rounded,
               ),
               const SizedBox(height: AppTheme.space8),
               _ScoreRow(
-                label: 'Goal alignment',
-                description: 'Matches your selected health goals',
+                label: 'Goal match',
+                description:
+                    'Checks whether ingredients align with your selected goals',
                 score: result.e2a,
                 maxScore: 2,
                 icon: Icons.flag_outlined,
               ),
               const SizedBox(height: AppTheme.space8),
               _ScoreRow(
-                label: 'Age appropriateness',
-                description: 'Nutrient needs for your age bracket',
+                label: 'Age fit',
+                description:
+                    'Considers age-related intake needs where guidance exists',
                 score: result.e2b,
                 maxScore: 3,
                 icon: Icons.cake_outlined,
@@ -105,7 +108,8 @@ class _FitScoreSheet extends StatelessWidget {
               const SizedBox(height: AppTheme.space8),
               _ScoreRow(
                 label: 'Medical compatibility',
-                description: 'Conditions + medications you have on file',
+                description:
+                    'Checks your saved conditions, medications, and profile flags',
                 score: result.e2c,
                 maxScore: 8,
                 icon: Icons.medical_information_outlined,
@@ -154,7 +158,7 @@ class _FitScoreSheet extends StatelessWidget {
                             ),
                             const SizedBox(height: AppTheme.space2),
                             Text(
-                              'Complete your profile for a fully personalized score.',
+                              'Complete your profile for a more accurate personal-fit assessment.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
@@ -176,8 +180,8 @@ class _FitScoreSheet extends StatelessWidget {
 
               // Privacy note
               Text(
-                'Personal fit is computed fresh every time from your current profile. '
-                'It is never stored on our servers.',
+                'Personal fit is calculated from your current profile and '
+                'does not change the product\u2019s core quality score.',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                   height: 1.5,
@@ -290,7 +294,14 @@ class _ScoreRow extends StatelessWidget {
     required this.icon,
   });
 
-  Color _colorFor(double pct, ColorScheme scheme) {
+  static String _qualitativeLabel(double pct) {
+    if (pct >= 0.85) return 'Strong';
+    if (pct >= 0.5) return 'Good';
+    if (pct >= 0.25) return 'Limited';
+    return 'Low';
+  }
+
+  static Color _colorFor(double pct, ColorScheme scheme) {
     if (pct >= 0.85) return AppTheme.severitySafe;
     if (pct >= 0.5) return scheme.primary;
     if (pct >= 0.25) return AppTheme.severityCaution;
@@ -303,6 +314,7 @@ class _ScoreRow extends StatelessWidget {
     final scheme = theme.colorScheme;
     final pct = maxScore > 0 ? (score / maxScore).clamp(0.0, 1.0) : 0.0;
     final color = _colorFor(pct, scheme);
+    final qualLabel = _qualitativeLabel(pct);
 
     return PGCard(
       variant: PGCardVariant.recessed,
@@ -334,13 +346,11 @@ class _ScoreRow extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${score.toStringAsFixed(1)} / ${maxScore.toStringAsFixed(0)}',
-                      style: AppTheme.numeric(
-                        theme.textTheme.labelSmall!.copyWith(
-                          fontSize: 11.5,
-                          color: color,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      qualLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: 11.5,
+                        color: color,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
