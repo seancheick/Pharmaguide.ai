@@ -23,6 +23,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
+import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
@@ -137,6 +138,10 @@ final fitScoreForProductProvider = FutureProvider.family
       final interactionSummary = _extractInteractionSummary(blob);
       final productClusters = extractFitProductClusters(blob);
       final productGoalMatches = _extractGoalMatches(product);
+      // v6.0 — parse warnings carrying profile_gate so Fit Score can
+      // suppress condition/drug-class penalties whose underlying gates
+      // don't fire (e.g., topical-only aloe under pregnancy).
+      final warnings = _extractWarnings(blob);
 
       return service.calculate(
         nutrients: nutrients,
@@ -150,6 +155,11 @@ final fitScoreForProductProvider = FutureProvider.family
         userConditions: profile.conditions,
         userDrugClasses: profile.drugClasses,
         mappedCoverage: product.mappedCoverage ?? 0.0,
+        warnings: warnings,
+        userProfileFlags: profile.evaluatorProfileFlags,
+        // Per-product context — extracting from blob is best-effort;
+        // missing values fall back to global gating without
+        // product/nutrient form excludes.
       );
     });
 
@@ -180,6 +190,25 @@ Map<String, dynamic> _extractInteractionSummary(Map<String, dynamic> blob) {
     return Map<String, dynamic>.from(raw);
   }
   return const {};
+}
+
+/// v6.0 — parse `warnings[]` from the detail blob into typed
+/// [InteractionWarning] entries. Each carries `profileGate` (when the
+/// catalog DB is v1.6.0+); pre-v6.0 cached blobs return warnings without
+/// gates, which falls back to legacy condition_ids intersection inside
+/// matchesProfile.
+List<InteractionWarning> _extractWarnings(Map<String, dynamic> blob) {
+  final raw = blob['warnings'];
+  if (raw is! List) return const <InteractionWarning>[];
+  final out = <InteractionWarning>[];
+  for (final entry in raw) {
+    if (entry is Map<String, dynamic>) {
+      out.add(InteractionWarning.fromJson(entry));
+    } else if (entry is Map) {
+      out.add(InteractionWarning.fromJson(Map<String, dynamic>.from(entry)));
+    }
+  }
+  return out;
 }
 
 List<String> extractFitProductClusters(Map<String, dynamic> blob) {

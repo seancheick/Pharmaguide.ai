@@ -1,10 +1,13 @@
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
+import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
 
 class FitScoreService {
   final E1DosageCalculator e1;
@@ -31,7 +34,36 @@ class FitScoreService {
     List<String> userConditions = const [],
     List<String> userDrugClasses = const [],
     double mappedCoverage = 1.0,
+    // v6.0 profile_gate inputs — when [warnings] is non-empty, the
+    // condition_summary / drug_class_summary are filtered against each
+    // warning's profile_gate before any penalty is computed. Keeps Fit
+    // Score consistent with the product detail screen, which suppresses
+    // alerts via the same evaluator.
+    //
+    // When [warnings] is empty (legacy callers / pre-v6.0 cached blobs),
+    // the unfiltered aggregation is used — preserving prior behavior.
+    List<InteractionWarning> warnings = const [],
+    Set<String> userProfileFlags = const <String>{},
+    String? productForm,
+    String? nutrientForm,
+    num? dosePerDay,
   }) {
+    // Apply v6.0 profile_gate filtering once, at the entry point. Both
+    // _RelevantMatch (assessment) and E2c (penalty) consume the gated
+    // summary so they never disagree about which conditions fire.
+    final gatedSummary = warnings.isEmpty
+        ? interactionSummary
+        : _applyProfileGateFilter(
+            interactionSummary: interactionSummary,
+            warnings: warnings,
+            userConditions: userConditions,
+            userDrugClasses: userDrugClasses,
+            userProfileFlags: userProfileFlags,
+            productForm: productForm,
+            nutrientForm: nutrientForm,
+            dosePerDay: dosePerDay,
+          );
+
     final e1Score = e1.calculate(
       nutrients: nutrients,
       ageBracket: ageBracket,
@@ -52,7 +84,7 @@ class FitScoreService {
       ageBracket: ageBracket,
     );
     final e2cScore = e2c.calculate(
-      interactionSummary: interactionSummary,
+      interactionSummary: gatedSummary,
       userConditions: userConditions,
       userDrugClasses: userDrugClasses,
     );
@@ -76,7 +108,7 @@ class FitScoreService {
       e1Score: e1Score,
       e2aScore: e2aScore,
       e2bScore: e2bScore,
-      interactionSummary: interactionSummary,
+      interactionSummary: gatedSummary,
       userConditions: userConditions,
       userDrugClasses: userDrugClasses,
       missingFields: missingFields,
@@ -98,6 +130,61 @@ class FitScoreService {
       maxRelevantSeverity: assessment.maxRelevantSeverity,
       mappedCoverage: mappedCoverage,
     );
+  }
+
+  /// v6.0 — apply profile_gate filtering to the interaction_summary roll-up.
+  ///
+  /// Walks every condition_summary / drug_class_summary entry, keeps it
+  /// only if at least one warning tagged with that condition/drug-class
+  /// fires for the active user profile + product context. Reuses the
+  /// shared evaluator at services/warnings/profile_gate_evaluator.dart —
+  /// no duplicate gate logic.
+  Map<String, dynamic> _applyProfileGateFilter({
+    required Map<String, dynamic> interactionSummary,
+    required List<InteractionWarning> warnings,
+    required List<String> userConditions,
+    required List<String> userDrugClasses,
+    required Set<String> userProfileFlags,
+    String? productForm,
+    String? nutrientForm,
+    num? dosePerDay,
+  }) {
+    final userProfile = UserProfile(
+      conditions: userConditions.toSet(),
+      drugClasses: userDrugClasses.toSet(),
+      profileFlags: userProfileFlags,
+    );
+    final productContext = ProductContext(
+      productForm: productForm,
+      nutrientForm: nutrientForm,
+      dosePerDay: dosePerDay,
+    );
+
+    final rawCond = interactionSummary['condition_summary'];
+    final rawDrug = interactionSummary['drug_class_summary'];
+
+    final gatedCondition = filterConditionSummaryByProfileGate(
+      conditionSummary: rawCond is Map
+          ? Map<String, dynamic>.from(rawCond)
+          : const <String, dynamic>{},
+      warnings: warnings,
+      userProfile: userProfile,
+      productContext: productContext,
+    );
+    final gatedDrug = filterDrugClassSummaryByProfileGate(
+      drugClassSummary: rawDrug is Map
+          ? Map<String, dynamic>.from(rawDrug)
+          : const <String, dynamic>{},
+      warnings: warnings,
+      userProfile: userProfile,
+      productContext: productContext,
+    );
+
+    return {
+      ...interactionSummary,
+      'condition_summary': gatedCondition,
+      'drug_class_summary': gatedDrug,
+    };
   }
 
   double _maxPossible(
