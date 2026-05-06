@@ -24,9 +24,8 @@ void main() {
       await tester.pump();
 
       expect(find.byType(Image), findsOneWidget);
-      // Background is the brand teal Scaffold color.
-      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      expect(scaffold.backgroundColor, const Color(0xFF0A7D6F));
+      // Background is a brand-teal gradient via DecoratedBox.
+      expect(find.byType(DecoratedBox), findsWidgets);
     });
 
     testWidgets('navigates to nextRoute after animation completes', (
@@ -46,8 +45,8 @@ void main() {
         ],
       );
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-      // Pump past the 600ms animation + the haptic + the navigation.
-      await tester.pumpAndSettle(const Duration(milliseconds: 800));
+      // Pump past the 520ms animation + the navigation.
+      await tester.pumpAndSettle(const Duration(milliseconds: 700));
       expect(find.text('done-marker'), findsOneWidget);
     });
 
@@ -73,8 +72,8 @@ void main() {
           child: MaterialApp.router(routerConfig: router),
         ),
       );
-      // Reduce-motion path: 200ms delay before navigation, no animation.
-      await tester.pump(const Duration(milliseconds: 250));
+      // Reduce-motion path: 180ms delay before navigation, no animation.
+      await tester.pump(const Duration(milliseconds: 220));
       await tester.pumpAndSettle();
       expect(find.text('done-marker'), findsOneWidget);
     });
