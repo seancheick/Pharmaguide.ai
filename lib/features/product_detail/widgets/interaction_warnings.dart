@@ -401,7 +401,23 @@ class InteractionWarning {
     final drugClasses = [...drugClassIds]..sort();
     final headline = displayHeadline.trim().toLowerCase();
     final body = displayBody.trim().toLowerCase();
-    return '${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body';
+    // v6.1: include a stable profile_gate signature so clinically distinct
+    // gated rules (e.g. hypoglycemics_high_risk vs lower_risk with different
+    // severities) are not collapsed before evaluation.
+    var gateKey = '';
+    if (profileGate != null) {
+      final gateType = profileGate!['gate_type']?.toString() ?? '';
+      final requires = profileGate!['requires'];
+      final parts = <String>[];
+      if (requires is Map) {
+        for (final v in requires.values) {
+          if (v is List) parts.addAll(v.map((e) => e.toString()));
+        }
+      }
+      parts.sort();
+      gateKey = '$gateType:${parts.join(',')}';
+    }
+    return '${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body|$gateKey';
   }
 
   /// Collapse duplicate warnings into a single entry per [_dedupeKey],
@@ -677,7 +693,9 @@ class _InteractionWarningsListState extends State<InteractionWarningsList> {
     // single combined list so unprofiled surfaces (tests, preview
     // pages) don't collapse everything into "Other" and hide it.
     final hasProfile =
-        widget.userConditions.isNotEmpty || widget.userDrugClasses.isNotEmpty;
+        widget.userConditions.isNotEmpty ||
+        widget.userDrugClasses.isNotEmpty ||
+        widget.userProfileFlags.isNotEmpty;
 
     if (!hasProfile) {
       // Existing pre-FLTR-18 rendering: one section, all loud cards,
