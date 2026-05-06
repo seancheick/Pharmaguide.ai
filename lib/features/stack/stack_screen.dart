@@ -297,10 +297,13 @@ class _StackSummaryCard extends ConsumerWidget {
       },
     );
 
-    // Keep the ring here for the fuller Stack view; Home uses the status label
-    // more prominently. If still loading, show a shimmering ring with
-    // "Analyzing stack…".
-    final score = safetyScore?.score.toDouble();
+    // Stack tab is the FULL view (home card is the summary). The tier
+    // status comes from the SAME StackIntelligenceEngine + StackSafetyScorer
+    // pair the home card uses, so the user sees one verdict in two places.
+    // The numeric 0-100 score has been removed from this view (per UX
+    // direction 2026-05-05) — internal score signals still drive the tier
+    // computation but are not surfaced here. Stack tab can show MORE
+    // detail (counts, alerts, breakdown) but never a different verdict.
     final intelligence =
         (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
         ? const StackIntelligenceEngine().diagnose(
@@ -322,23 +325,24 @@ class _StackSummaryCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row — title + tier pill, identical pattern to the
+          // home card so the user sees the SAME verdict on both
+          // surfaces. Numeric 0-100 ring removed (2026-05-05) — internal
+          // score still drives tier computation but is not surfaced
+          // here. Stack tab can show MORE detail below the header but
+          // never a different tier.
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Stack health score (safety score) — mirrors homepage.
-              PGScoreRing(score: score, size: 56, strokeWidth: 4),
-              const SizedBox(width: AppTheme.space12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isAnalyzing
-                          ? 'Analyzing stack\u2026'
-                          : status != null
-                          ? status.label
-                          : 'No data yet',
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      'Stack Health',
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: AppTheme.space2),
@@ -348,13 +352,38 @@ class _StackSummaryCard extends ConsumerWidget {
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
-                    // (Status label intentionally not repeated here — the
-                    // healthLabel.label already renders as the card title
-                    // above. Repeating it as 'Status: ...' was visible
-                    // duplication.)
                   ],
                 ),
               ),
+              const SizedBox(width: AppTheme.space12),
+              Builder(builder: (context) {
+                final tone = status?.color ?? scheme.primary;
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.space12,
+                    vertical: AppTheme.space8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: 0.1),
+                    borderRadius:
+                        BorderRadius.circular(AppTheme.radiusFull),
+                    border: Border.all(
+                      color: tone.withValues(alpha: 0.2),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    isAnalyzing
+                        ? 'Analyzing'
+                        : status?.label ?? 'No data yet',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: tone,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                );
+              }),
             ],
           ),
           const SizedBox(height: AppTheme.space12),
