@@ -87,12 +87,8 @@ class FormAbsorptionSection extends StatelessWidget {
                 ing['name']?.toString() ??
                 ing['standard_name']?.toString() ??
                 '';
-            // v1.5.0 contract — prefer display_form_label, fall back to
-            // legacy `form` for stale blobs. See FINAL_EXPORT_SCHEMA_V1.md.
-            final form = (ing['display_form_label']?.toString().trim()
-                    ?? '').isNotEmpty
-                ? ing['display_form_label']!.toString().trim()
-                : (ing['form']?.toString() ?? '');
+            // v1.5.x: pipeline emits display_form_label on every fresh blob.
+            final form = ing['display_form_label']?.toString() ?? '';
             final score = (ing['bio_score'] as num).toDouble();
             final fillPct = (score / maxScore).clamp(0.0, 1.0);
             final color = _bioColor(score);

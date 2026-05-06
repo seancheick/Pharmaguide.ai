@@ -2240,17 +2240,11 @@ class _IngredientTile extends StatelessWidget {
     //   display_dose_label  pre-formatted dose string
     //   dose_status         'disclosed' | 'not_disclosed_blend' | 'missing'
     //   is_safety_concern   true only for moderate/high/critical hazards
-    // Legacy `form` field is read as a fallback for blobs built before
-    // the v1.5.0 refactor; it will be removed once all consumers migrate.
+    // v1.5.x: pipeline emits the canonical contract on every fresh
+    // blob — display_form_label / form_status drive the helper line.
     final formStatus = ingredient['form_status']?.toString();
-    final displayFormLabel = ingredient['display_form_label']?.toString().trim();
-    final legacyForm = ingredient['form']?.toString().trim() ?? '';
-    final formLabel = (displayFormLabel != null && displayFormLabel.isNotEmpty)
-        ? displayFormLabel
-        : legacyForm;
-    final hasKnownForm = formStatus != null
-        ? formStatus == 'known'
-        : formLabel.isNotEmpty;
+    final formLabel = ingredient['display_form_label']?.toString().trim() ?? '';
+    final hasKnownForm = formStatus == 'known' && formLabel.isNotEmpty;
 
     final displayLabel = ingredient['display_label']?.toString().trim();
     final cleanName = ingredient['standard_name']?.toString().trim() ??

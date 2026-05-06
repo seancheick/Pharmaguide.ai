@@ -147,19 +147,13 @@ IngredientExplain buildIngredientExplain({
           ingredient['raw_source_text']?.toString() ??
           '');
 
-  // v1.5.0 contract — prefer display_form_label + form_status; fall back
-  // to legacy `form` for stale blobs. See FINAL_EXPORT_SCHEMA_V1.md.
+  // v1.5.x: pipeline emits the canonical contract on every fresh blob.
   final formStatus = ingredient['form_status']?.toString();
   final displayFormLabel = ingredient['display_form_label']?.toString().trim();
-  final legacyForm = ingredient['form']?.toString().trim();
-  final formCandidate = (displayFormLabel != null && displayFormLabel.isNotEmpty)
+  final formName = (formStatus == 'known'
+          && displayFormLabel != null
+          && displayFormLabel.isNotEmpty)
       ? displayFormLabel
-      : legacyForm;
-  final hasKnownForm = formStatus != null
-      ? formStatus == 'known'
-      : (formCandidate != null && formCandidate.isNotEmpty);
-  final formName = (hasKnownForm && formCandidate != null && formCandidate.isNotEmpty)
-      ? formCandidate
       : null;
 
   // v1.5.0 contract — display_dose_label is the canonical pre-formatted
