@@ -149,7 +149,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             sliver: SliverToBoxAdapter(
               child: Text(
-                'Check supplement quality, safety, and fit in seconds.',
+                'Scan a label or search by name to see quality, safety, and personal-fit notes.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
