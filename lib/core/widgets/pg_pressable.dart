@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 
 /// Apple-style press feedback wrapper.
@@ -51,6 +53,13 @@ class PGPressable extends StatefulWidget {
   /// very frequent taps (e.g. keyboard rows) to avoid haptic fatigue.
   final bool haptic;
 
+  /// Border radius of the keyboard-focus ring. Defaults to
+  /// `AppTheme.radiusLarge` (matches `PGCard`). Pass a custom value when
+  /// wrapping a non-card-shaped child (e.g. a pill chip → `radiusFull`).
+  /// The ring only paints under keyboard / screen-reader focus, so
+  /// touch-only sessions never see it — safe to leave on the default.
+  final BorderRadius? focusBorderRadius;
+
   const PGPressable({
     super.key,
     required this.child,
@@ -58,6 +67,7 @@ class PGPressable extends StatefulWidget {
     this.onLongPress,
     this.pressedScale = 0.96,
     this.haptic = true,
+    this.focusBorderRadius,
   });
 
   @override
@@ -66,6 +76,7 @@ class PGPressable extends StatefulWidget {
 
 class _PGPressableState extends State<PGPressable> {
   bool _pressed = false;
+  bool _focused = false;
 
   void _setPressed(bool v) {
     if (_pressed != v && mounted) {
@@ -73,7 +84,19 @@ class _PGPressableState extends State<PGPressable> {
     }
   }
 
+  void _setFocused(bool v) {
+    if (_focused != v && mounted) {
+      setState(() => _focused = v);
+    }
+  }
+
   bool get _isInteractive => widget.onTap != null || widget.onLongPress != null;
+
+  void _activate() {
+    if (widget.onTap == null) return;
+    if (widget.haptic) PGHaptics.press(context);
+    widget.onTap!();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,19 +119,70 @@ class _PGPressableState extends State<PGPressable> {
       return scaled;
     }
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _setPressed(true),
-      onTapCancel: () => _setPressed(false),
-      onTapUp: (_) => _setPressed(false),
-      onTap: widget.onTap == null
-          ? null
-          : () {
-              if (widget.haptic) PGHaptics.press(context);
-              widget.onTap!();
-            },
-      onLongPress: widget.onLongPress,
-      child: scaled,
+    final scheme = Theme.of(context).colorScheme;
+    final ringRadius =
+        widget.focusBorderRadius ??
+        BorderRadius.circular(AppTheme.radiusLarge);
+
+    // Focus ring overlay — paints only under keyboard / screen-reader
+    // focus (gated by `onShowFocusHighlight`), so iPad-with-keyboard, web,
+    // and accessibility users get a visible focus indicator while
+    // touch-only sessions stay clean. `Positioned.fill` + `IgnorePointer`
+    // means the ring overlays the child's bounds without affecting layout
+    // or stealing hits. Uses `DecoratedBox` (not `Container`) so callers
+    // that introspect their own widget trees in tests aren't tripped up
+    // by an extra `Container` in the descendants.
+    final visual = Stack(
+      children: [
+        scaled,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              duration: AppMotion.fast,
+              curve: AppMotion.standard,
+              opacity: _focused ? 1.0 : 0.0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: ringRadius,
+                  border: Border.all(
+                    color: scheme.primary.withValues(
+                      alpha: AppTheme.focusRingOpacity,
+                    ),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return FocusableActionDetector(
+      enabled: _isInteractive,
+      onShowFocusHighlight: _setFocused,
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+      },
+      actions: <Type, Action<Intent>>{
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            _activate();
+            return null;
+          },
+        ),
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _setPressed(true),
+        onTapCancel: () => _setPressed(false),
+        onTapUp: (_) => _setPressed(false),
+        onTap: widget.onTap == null ? null : _activate,
+        onLongPress: widget.onLongPress,
+        child: visual,
+      ),
     );
   }
 }
