@@ -208,9 +208,15 @@ GoRouter _buildRouter({
         path: '${Routes.product}/:dsldId',
         pageBuilder: (context, state) {
           final dsldId = state.pathParameters['dsldId'] ?? '';
+          // Optional `?section=interactions|ingredients|alternatives` deep
+          // link — scrolls to that anchor on first paint. Validation lives
+          // in the screen (unknown values fall through cleanly).
+          final section = state.uri.queryParameters['section'];
           return _platformPage(
             state,
-            catalogRoute(ProductDetailScreen(dsldId: dsldId)),
+            catalogRoute(
+              ProductDetailScreen(dsldId: dsldId, initialSection: section),
+            ),
           );
         },
       ),

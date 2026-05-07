@@ -62,7 +62,16 @@ import 'package:url_launcher/url_launcher.dart';
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String dsldId;
 
-  const ProductDetailScreen({super.key, required this.dsldId});
+  /// Optional anchor for `?section=` deep links. Accepts `'interactions'`,
+  /// `'ingredients'`, or `'alternatives'`. Unknown values fall through —
+  /// the screen lands at the top as if no section were specified.
+  final String? initialSection;
+
+  const ProductDetailScreen({
+    super.key,
+    required this.dsldId,
+    this.initialSection,
+  });
 
   @override
   ConsumerState<ProductDetailScreen> createState() =>
@@ -80,6 +89,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   /// state changes; a stable key keeps the scroll target intact.
   final GlobalKey _alternativesKey = GlobalKey();
 
+  /// Anchors the ReviewBeforeUseCard sliver for `?section=interactions`.
+  final GlobalKey _interactionsKey = GlobalKey();
+
+  /// Anchors the DeepDiveSection sliver for `?section=ingredients`.
+  final GlobalKey _ingredientsKey = GlobalKey();
+
+  /// Set true once a `?section=` scroll has fired (or been given up on),
+  /// to keep the post-frame retry loop one-shot.
+  bool _didScrollToInitialSection = false;
+  int _scrollAttempts = 0;
+
   // Personalized interaction warnings live in
   // `personalizedInteractionWarningsProvider` (T1B, sprint:
   // docs/sprints/product_detail_page_sprint.md). The provider watches
@@ -90,6 +110,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   void initState() {
     super.initState();
     _loadProduct();
+    if (widget.initialSection != null) {
+      _scheduleSectionScroll();
+    }
   }
 
   // T17 (2026-04-30) — `_stackEntry` field + `_loadStackEntry` removed
@@ -323,6 +346,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // ----------------------------------------------------------------
           if (!isBlocked)
             SliverToBoxAdapter(
+              key: _interactionsKey,
               child: ReviewBeforeUseCard(
                 warnings: guardedWarnings,
                 interactionHint: interactionHint,
@@ -475,6 +499,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // ----------------------------------------------------------------
           if (!blobLoading && !blobError)
             SliverToBoxAdapter(
+              key: _ingredientsKey,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppTheme.space20,
@@ -646,6 +671,48 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     } on Exception {
       // No-op — the user is no worse off than the deferred-key case.
     }
+  }
+
+  /// Scrolls to the section named in [widget.initialSection] after the
+  /// matching sliver has been laid out. Re-arms itself on each frame
+  /// until the target context is available, then bails. Gives up after
+  /// ~30 frames so a section that never renders (e.g. blob errored,
+  /// `?section=interactions` on a blocked product) doesn't keep the
+  /// post-frame loop alive forever.
+  void _scheduleSectionScroll() {
+    if (_didScrollToInitialSection) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _didScrollToInitialSection) return;
+      final ctx = _keyForInitialSection()?.currentContext;
+      if (ctx != null) {
+        _didScrollToInitialSection = true;
+        try {
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            alignment: 0.1,
+          );
+        } on Exception {
+          // No-op — same rationale as `_handleSeeAlternatives`.
+        }
+        return;
+      }
+      if (++_scrollAttempts >= 30) {
+        _didScrollToInitialSection = true;
+        return;
+      }
+      _scheduleSectionScroll();
+    });
+  }
+
+  GlobalKey? _keyForInitialSection() {
+    return switch (widget.initialSection) {
+      'interactions' => _interactionsKey,
+      'ingredients' => _ingredientsKey,
+      'alternatives' => _alternativesKey,
+      _ => null,
+    };
   }
 
   // T8 (2026-04-29) — removed `_handleLogDose` placeholder method.
