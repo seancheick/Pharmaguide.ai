@@ -192,11 +192,323 @@ Tracked here so they don't get lost between sprints. None are launch-blocking fo
   - black_seed_oil: dose threshold for thymoquinone extracts (~2h)
   - stinging_nettle: same dose pattern (~1h)
 
-- [ ] **Future profile flags (not blocking launch):**
-  - Heart subconditions: `coronary_artery_disease`, `prior_mi`, `heart_failure`, `arrhythmia`, `long_qt` — enables precise cardiac severity escalation
-  - `severely_immunocompromised` drug-class escalators: chemo, biologics, transplant immunosuppressants
-  - CKD stage/eGFR flags: `ckd_stage_3`, `ckd_stage_4_5`, `dialysis` — enables dose-aware magnesium/potassium gating
-  - Thyroid levothyroxine timing rules: calcium, iron, magnesium, fiber 4-hour separation — high practical value for thyroid users
+---
+
+## Condition Expansion Roadmap — v2.0+ (cross-repo)
+
+### Phase A: Heart Disease Subconditions
+
+**Why:** The current `heart_disease` gate is too broad — coronary artery disease, heart failure, and arrhythmia have completely different supplement risk profiles. L-arginine is dangerous post-MI but fine for general heart disease. Potassium is critical with ACEi/ARB but irrelevant for valve disease.
+
+**Pipeline — add to `clinical_risk_taxonomy.json` conditions[]:**
+- [ ] `coronary_artery_disease` — label: "Coronary Artery Disease (CAD)"
+- [ ] `prior_mi` — label: "Prior Heart Attack"
+- [ ] `heart_failure` — label: "Heart Failure"
+- [ ] `arrhythmia` — label: "Heart Rhythm Disorder"
+- [ ] `atrial_fibrillation` — label: "Atrial Fibrillation (AFib)"
+- [ ] `long_qt` — label: "Long QT Syndrome"
+
+**Pipeline — re-author these interaction rules with subcondition gates:**
+- [ ] L-arginine: `avoid` for `prior_mi` / `recent_mi` (JAMA VINTAGE-MI trial PMID 16391217); `caution` for broad `heart_disease`
+- [ ] Potassium: escalate to `avoid` when `heart_failure` + drug_class `ace_inhibitors` / `arbs` / `aldosterone_antagonists`
+- [ ] Licorice: escalate to `avoid` when `arrhythmia` / `long_qt` / `heart_failure` (hypokalemia → arrhythmia risk)
+- [ ] Omega-3: add `atrial_fibrillation` gate with `monitor` severity (high-dose EPA/DHA AFib signal)
+- [ ] Icariin: gate on `nitrates` / `pde5_inhibitors` drug_class, not generic `heart_disease`
+- [ ] CoQ10: keep `informational` for broad gate, but add positive `heart_failure` informational note
+- [ ] Hawthorn: `monitor` for `heart_failure` specifically (has HF study data); `informational` for broad gate
+
+**Flutter — profile UI changes:**
+- [ ] Add subcondition checkboxes under "Heart Disease" in profile setup (expandable section)
+- [ ] `schema_ids.dart`: add condition IDs + user-friendly labels
+- [ ] Profile migration: existing `heart_disease` users keep broad gate; new users can refine
+- [ ] `evaluatorProfileFlags` or conditions list carries subconditions through to `matchesProfile`
+
+**Estimated effort:** ~8h pipeline (re-authoring + clinical verification) + ~4h Flutter
+
+---
+
+### Phase B: Autoimmune Subconditions + Immunocompromised Drug-Class Escalators
+
+**Why:** A user with Hashimoto's should NOT see the same immune-herb warnings as a user on chemo. The `severely_immunocompromised` flag was added (2026-05-06) but needs drug-class escalator gates to fire automatically when a user's medication implies immunocompromise.
+
+**Pipeline — add autoimmune subconditions to taxonomy:**
+- [ ] `lupus` — label: "Lupus (SLE)"
+- [ ] `rheumatoid_arthritis` — label: "Rheumatoid Arthritis"
+- [ ] `multiple_sclerosis` — label: "Multiple Sclerosis (MS)"
+- [ ] `ibd` — label: "Inflammatory Bowel Disease (Crohn's / UC)"
+- [ ] `hashimotos` — label: "Hashimoto's Thyroiditis"
+- [ ] `psoriasis` — label: "Psoriasis / Psoriatic Arthritis"
+- [ ] `celiac` — label: "Celiac Disease"
+
+**Pipeline — add immunosuppressive drug-class gates:**
+- [ ] `chemotherapy` — drug_class for chemo agents
+- [ ] `biologics` — TNF inhibitors, IL inhibitors (Humira, Enbrel, Remicade, etc.)
+- [ ] `dmards` — methotrexate, azathioprine, mycophenolate (conventional disease-modifying)
+- [ ] `high_dose_corticosteroids` — prednisone >20mg/day chronic
+- [ ] `transplant_immunosuppressants` — tacrolimus, cyclosporine, sirolimus
+
+**Pipeline — re-author rules:**
+- [ ] Probiotics: currently gated on `severely_immunocompromised` profile flag. Add automatic escalation when user has `chemotherapy` / `transplant_immunosuppressants` / `biologics` drug classes → flag fires without user manually toggling it
+- [ ] Echinacea: `avoid` when `transplant_immunosuppressants` / `biologics` / `dmards`; keep `caution` for broad autoimmune
+- [ ] Astragalus: same escalation pattern as echinacea
+- [ ] St. John's wort: `contraindicated` with `transplant_immunosuppressants` (CYP3A4 induction → transplant rejection)
+
+**Flutter:**
+- [ ] Add autoimmune subconditions to profile setup (expandable section under "Autoimmune Condition")
+- [ ] Add immunosuppressive drug classes to `schema_ids.dart` drugClasses list with user-friendly labels
+- [ ] Auto-derive `severely_immunocompromised` flag in `evaluatorProfileFlags` when user has chemo/transplant/biologic drug classes selected (same pattern as pregnancy → pregnant flag)
+
+**Estimated effort:** ~6h pipeline + ~4h Flutter
+
+---
+
+### Phase C: Kidney Disease Staging
+
+**Why:** Magnesium `avoid` is correct for CKD stage 4-5 / dialysis but over-warns for CKD stage 1-2. Potassium hyperkalemia risk scales with eGFR decline. Creatine's lab-interpretation concern is more relevant with declining function.
+
+**Pipeline — add CKD subconditions:**
+- [ ] `ckd_stage_1_2` — label: "Early Kidney Disease (Stage 1-2)"
+- [ ] `ckd_stage_3` — label: "Moderate Kidney Disease (Stage 3)"
+- [ ] `ckd_stage_4_5` — label: "Advanced Kidney Disease (Stage 4-5)"
+- [ ] `dialysis` — label: "On Dialysis"
+- [ ] `kidney_transplant` — label: "Kidney Transplant Recipient"
+- [ ] `kidney_stones` — label: "Kidney Stones"
+- [ ] `abnormal_potassium_history` — profile flag, hematologic category
+
+**Pipeline — re-author rules:**
+- [ ] Magnesium: `informational` for stage 1-2, `caution` for stage 3, `avoid` for stage 4-5 / dialysis
+- [ ] Potassium: `monitor` for stage 1-2, `caution` for stage 3, `avoid` for stage 4-5 / dialysis + ACEi/ARB/MRA
+- [ ] Creatine: `informational` for stage 1-2 (lab note only), `caution` for stage 3+
+- [ ] Propylene glycol: `monitor` for stage 1-3, `caution` for stage 4-5 (accumulation risk scales with function)
+
+**Flutter:**
+- [ ] Add CKD stage picker to profile setup (radio buttons under "Kidney Disease")
+- [ ] Optional: eGFR text field for advanced users (maps to stage automatically)
+
+**Estimated effort:** ~4h pipeline + ~3h Flutter
+
+---
+
+### Phase D: Liver Disease Subconditions
+
+**Why:** A user with mild fatty liver has different risks than a user with cirrhosis or Wilson's disease. CBD/kava `avoid` is correct for cirrhosis but may be over-warning for early-stage NAFLD.
+
+**Pipeline — add liver subconditions:**
+- [ ] `cirrhosis` — label: "Cirrhosis"
+- [ ] `hepatitis` — label: "Hepatitis (A/B/C)"
+- [ ] `fatty_liver` — label: "Fatty Liver Disease (NAFLD/NASH)"
+- [ ] `cholestasis` — label: "Cholestasis / Bile Duct Disease"
+- [ ] `wilsons_disease` — label: "Wilson's Disease"
+- [ ] `hemochromatosis` — label: "Hemochromatosis (Iron Overload)"
+- [ ] `elevated_liver_enzymes` — label: "Elevated Liver Enzymes"
+- [ ] `liver_transplant` — label: "Liver Transplant Recipient"
+
+**Pipeline — re-author rules:**
+- [ ] Copper: escalate to `avoid` for `wilsons_disease` (copper accumulation is the core disease mechanism)
+- [ ] Iron: escalate to `avoid` for `hemochromatosis`
+- [ ] CBD/kava/green tea extract/black cohosh: keep `avoid` for `cirrhosis` / `elevated_liver_enzymes`; downgrade to `caution` for `fatty_liver`
+- [ ] Milk thistle: `informational` for all; add note that evidence varies by liver condition
+- [ ] Vitamin A: escalate for `cirrhosis` / `cholestasis` (impaired retinol metabolism)
+
+**Estimated effort:** ~5h pipeline + ~3h Flutter
+
+---
+
+### Phase E: Thyroid Subconditions + Levothyroxine Timing Rules
+
+**Why:** Ashwagandha raising thyroid hormones matters for Graves/hyperthyroid but may actually be desired by some hypothyroid users (under clinician supervision). The most practical thyroid rules (calcium/iron/fiber timing with levothyroxine) are completely missing.
+
+**Pipeline — add thyroid subconditions:**
+- [ ] `hypothyroid` — label: "Hypothyroidism / Hashimoto's"
+- [ ] `hyperthyroid` — label: "Hyperthyroidism / Graves' Disease"
+- [ ] `thyroid_nodules` — label: "Thyroid Nodules"
+- [ ] `thyroid_cancer_history` — label: "Thyroid Cancer History"
+
+**Pipeline — add high-value levothyroxine timing rules (NEW rules, not rewrites):**
+- [ ] Calcium + levothyroxine: `caution` — "Separate by 4 hours. Calcium binds levothyroxine and reduces absorption."
+- [ ] Iron + levothyroxine: `caution` — "Separate by 4 hours. Iron reduces levothyroxine absorption."
+- [ ] Magnesium + levothyroxine: `caution` — "Separate by 4 hours. Magnesium may reduce levothyroxine absorption."
+- [ ] Fiber/psyllium + levothyroxine: `monitor` — "High fiber may delay levothyroxine absorption. Consider timing separation."
+- [ ] Kelp/bladderwrack: `caution` for all thyroid — "Contains variable iodine; can disrupt thyroid control."
+- [ ] Thyroid glandular extracts: `avoid` — "Unregulated thyroid hormone content; can cause thyrotoxicosis."
+- [ ] Gate all timing rules on `drug_classes_any: ["thyroid_medications"]`
+
+**Pipeline — re-author existing rules:**
+- [ ] Ashwagandha: escalate to `avoid` for `hyperthyroid` / `graves`; keep `caution` for broad
+- [ ] Iodine: `avoid` for `hyperthyroid`; `caution` for `hypothyroid` (dose-dependent)
+- [ ] Acetyl-L-carnitine: `informational` for `hypothyroid`; `caution` for `hyperthyroid` (may reduce thyroid hormone effects)
+
+**Estimated effort:** ~6h pipeline + ~3h Flutter
+
+---
+
+### Phase F: New Condition Categories (cancer, anxiety/depression, gout, osteoporosis, digestive, anemia)
+
+**Why:** These are large user populations with real supplement interaction risks that PharmaGuide doesn't cover yet. Cancer is the highest-stakes gap.
+
+#### F.1: Cancer / Active Cancer Treatment
+
+**Pipeline — add conditions + flags:**
+- [ ] `active_cancer` — condition in taxonomy
+- [ ] `cancer_treatment` — profile flag (immune category) — auto-derived from chemo/biologics/immunotherapy drug classes
+
+**Pipeline — add drug classes:**
+- [ ] `chemotherapy` (if not added in Phase B)
+- [ ] `immunotherapy` — checkpoint inhibitors (Keytruda, Opdivo, etc.)
+- [ ] `radiation_sensitizers` — drugs used alongside radiation
+
+**Pipeline — author NEW interaction rules (high-priority set):**
+- [ ] Echinacea + cancer_treatment: `avoid` — "Immune-stimulating herbs may interfere with immunotherapy or transplant protocols."
+- [ ] Astragalus + cancer_treatment: `avoid` — same rationale
+- [ ] St. John's wort + chemotherapy: `contraindicated` — "CYP3A4 induction can reduce chemo drug levels (irinotecan, imatinib, docetaxel, etc.)"
+- [ ] High-dose antioxidants (vitamin C >1g, vitamin E >400IU, selenium >200mcg) + cancer_treatment: `caution` — "Some oncologists restrict high-dose antioxidants during chemo/radiation due to theoretical interference with treatment-induced oxidative stress. Evidence is mixed — discuss with oncologist."
+- [ ] Green tea extract + cancer_treatment: `caution` — liver + CYP interactions during hepatotoxic chemo
+- [ ] Turmeric/curcumin + chemotherapy: `monitor` — "May affect drug metabolism; some oncologists use it adjunctively, others restrict."
+- [ ] Probiotics + cancer_treatment: gate on `severely_immunocompromised` (already done) — works automatically when chemo drug class triggers the flag
+- [ ] Grapefruit-related compounds + chemotherapy: `avoid` — CYP3A4 inhibition
+- [ ] Folic acid + methotrexate: special rule — "Folic acid is often co-prescribed with methotrexate to reduce side effects, but timing and dose matter. Follow oncologist guidance exactly."
+
+**Flutter:**
+- [ ] Add "Cancer / Active Treatment" condition to profile setup
+- [ ] Add chemo/immunotherapy drug classes
+- [ ] Auto-derive `cancer_treatment` flag from drug classes
+
+**Estimated effort:** ~10h pipeline (clinical authoring is complex) + ~3h Flutter
+
+#### F.2: Anxiety / Depression
+
+**Pipeline — add condition:**
+- [ ] `anxiety_depression` — label: "Anxiety or Depression"
+
+**Pipeline — author rules (most already exist as drug_class rules for SSRIs/SNRIs/MAOIs — this adds condition-level gates):**
+- [ ] 5-HTP + anxiety_depression: `caution` — "Serotonin precursor. If you take an antidepressant, combining 5-HTP raises serotonin syndrome risk."
+- [ ] St. John's wort + anxiety_depression: `caution` — "Can interact with many psychiatric medications via CYP induction and serotonergic activity."
+- [ ] SAMe + anxiety_depression: `monitor` — "Has antidepressant properties. Combining with prescribed antidepressants may potentiate serotonergic effects."
+- [ ] Kava + anxiety_depression: `caution` — "CNS depressant effects overlap with sedative/anxiolytic medications."
+- [ ] L-tryptophan + anxiety_depression: `caution` — "Serotonin precursor — same risk as 5-HTP with serotonergic medications."
+- [ ] Valerian + anxiety_depression: `monitor` — "May potentiate sedative medications."
+
+**Estimated effort:** ~4h pipeline + ~2h Flutter
+
+#### F.3: Gout
+
+**Pipeline — add condition:**
+- [ ] `gout` — label: "Gout"
+
+**Pipeline — author rules:**
+- [ ] Niacin + gout: `caution` — "High-dose niacin can raise uric acid levels and may trigger gout flares."
+- [ ] Vitamin C + gout: `informational` — "Moderate-dose vitamin C may modestly lower uric acid. Not a replacement for urate-lowering therapy."
+- [ ] Aspirin/salicylate-containing supplements + gout: `monitor` — "Low-dose aspirin can raise uric acid; high-dose lowers it. Discuss with clinician."
+- [ ] Fructose-containing supplements + gout: `monitor` — "High fructose intake is associated with higher uric acid."
+
+**Estimated effort:** ~3h pipeline + ~1h Flutter
+
+#### F.4: Osteoporosis
+
+**Pipeline — add condition:**
+- [ ] `osteoporosis` — label: "Osteoporosis / Bone Health"
+
+**Pipeline — author rules:**
+- [ ] Calcium + osteoporosis: `informational` — "Calcium is commonly recommended, but dose/timing/form matter. Supplemental calcium + vitamin D is standard; discuss with clinician."
+- [ ] Vitamin D + osteoporosis: `informational` — "Vitamin D supports calcium absorption. Lab-guided dosing recommended."
+- [ ] Vitamin K + osteoporosis: `informational` — "Vitamin K2 is studied for bone health. If on warfarin, keep intake consistent."
+- [ ] Calcium + bisphosphonates: `caution` drug_class rule — "Separate calcium from bisphosphonate by at least 30-60 minutes. Calcium reduces bisphosphonate absorption."
+- [ ] Magnesium + osteoporosis: `informational` — "Magnesium supports bone metabolism."
+- [ ] Caffeine + osteoporosis: `monitor` — "Very high caffeine intake may modestly reduce calcium absorption."
+
+**Estimated effort:** ~3h pipeline + ~1h Flutter
+
+#### F.5: Digestive Disorders (IBS / GERD / IBD)
+
+**Pipeline — add conditions:**
+- [ ] `ibs` — label: "Irritable Bowel Syndrome (IBS)"
+- [ ] `gerd` — label: "GERD / Acid Reflux"
+- [ ] `ibd` — label: "Inflammatory Bowel Disease" (also in autoimmune Phase B)
+
+**Pipeline — author rules:**
+- [ ] Peppermint oil + gerd: `caution` — "Peppermint oil can relax the lower esophageal sphincter and worsen reflux. Enteric-coated capsules may reduce this."
+- [ ] Fiber/psyllium + ibs: `monitor` — "Fiber can help or worsen IBS depending on type and dose. Start low, increase slowly."
+- [ ] Probiotics + ibs: `informational` — "Some probiotic strains have IBS evidence, but strain and dose specificity matter."
+- [ ] Probiotics + ibd: `monitor` — "Evidence varies by IBD type (UC vs Crohn's) and probiotic strain."
+- [ ] Iron + gerd: `caution` — "Oral iron can worsen GI symptoms. Consider timing, form (ferrous bisglycinate may be gentler), or IV iron."
+- [ ] Licorice (DGL) + gerd: `informational` — "DGL licorice is sometimes used for GI support. Unlike regular licorice, DGL should not affect blood pressure."
+
+**Estimated effort:** ~5h pipeline + ~2h Flutter
+
+#### F.6: Anemia / Iron Deficiency
+
+**Pipeline — add condition:**
+- [ ] `anemia` — label: "Anemia / Iron Deficiency"
+
+**Pipeline — author rules:**
+- [ ] Iron + anemia: `informational` — "Iron supplementation is standard treatment. Form, dose, and timing affect absorption and side effects."
+- [ ] Vitamin C + anemia: `informational` — "Vitamin C taken with iron enhances absorption."
+- [ ] Calcium + iron absorption: `monitor` — "Calcium can reduce iron absorption. Separate by 2+ hours."
+- [ ] Tea/coffee + iron absorption: `monitor` — "Tannins and polyphenols in tea/coffee reduce non-heme iron absorption. Separate by 1+ hour."
+- [ ] Antacids + iron: `caution` drug_class rule — "PPIs and H2 blockers reduce stomach acid needed for iron absorption."
+
+**Estimated effort:** ~3h pipeline + ~1h Flutter
+
+---
+
+### Phase G: Profile Flag Enhancements
+
+**Flags to add to `clinical_risk_taxonomy.json` profile_flags[] and Flutter `schema_ids.dart`:**
+
+- [ ] `cancer_treatment` — immune category — auto-derived from chemo/immunotherapy/biologic drug classes in `evaluatorProfileFlags`
+- [ ] `organ_transplant` — immune category — gates transplant-specific drug interaction rules
+- [ ] `abnormal_potassium_history` — hematologic category — escalates potassium rules
+- [ ] `elderly_over_75` — metabolic category — dose-sensitivity for sedatives, fall risk with BP-lowering, reduced clearance
+
+**Flutter — auto-derivation in `profile_provider.dart` `evaluatorProfileFlags`:**
+```dart
+const drugClassToFlag = {
+  'chemotherapy': 'cancer_treatment',
+  'immunotherapy': 'cancer_treatment',
+  'biologics': 'cancer_treatment',
+  'transplant_immunosuppressants': 'organ_transplant',
+};
+```
+Same pattern as existing `conditionToFlag` map for pregnancy/breastfeeding/TTC.
+
+---
+
+### Phase H: Practical Medication-Timing Rules (high user value, low clinical complexity)
+
+These are the most common "when do I take this?" questions from supplement users. They don't need subconditions — they fire on drug_class gates.
+
+**Pipeline — author NEW drug_class interaction rules:**
+- [ ] Calcium + thyroid_medications: `caution` — "Separate by 4 hours to avoid reduced levothyroxine absorption."
+- [ ] Iron + thyroid_medications: `caution` — "Separate by 4 hours."
+- [ ] Magnesium + thyroid_medications: `caution` — "Separate by 4 hours."
+- [ ] Fiber + thyroid_medications: `monitor` — "High fiber may delay absorption."
+- [ ] Calcium + bisphosphonates: `caution` — "Separate by 30-60 minutes."
+- [ ] Calcium + tetracycline/quinolone antibiotics: `caution` — "Separate by 2+ hours."
+- [ ] Iron + antacids/PPIs: `caution` — "Reduced stomach acid impairs iron absorption."
+- [ ] Probiotics + antibiotics: `informational` — "Take 2+ hours apart. Probiotics during/after antibiotics may help restore gut flora."
+
+**Pipeline — add drug classes to `drug_class_vocab.json` if needed:**
+- [ ] `bisphosphonates` — Fosamax, Actonel, Boniva (rule-only, not user-selectable initially)
+- [ ] `antibiotics` — broad class for timing rules (rule-only)
+- [ ] `ppis` — omeprazole, pantoprazole, lansoprazole (rule-only)
+
+**Estimated effort:** ~4h pipeline + ~1h Flutter (drug classes may already be covered by existing categories)
+
+---
+
+### Implementation Priority Order
+
+```
+1. Phase H — Medication timing rules (highest user value, lowest complexity)
+2. Phase E — Thyroid subconditions + levothyroxine timing (high practical value)
+3. Phase A — Heart subconditions (L-arginine post-MI is a safety gap)
+4. Phase F.1 — Cancer (highest stakes gap)
+5. Phase C — Kidney staging (magnesium/potassium dose safety)
+6. Phase B — Autoimmune + immunosuppressive escalators
+7. Phase D — Liver subconditions
+8. Phase F.2-F.6 — Anxiety, gout, osteoporosis, digestive, anemia
+9. Phase G — Profile flag enhancements
+```
 
 ---
 
@@ -2499,3 +2811,60 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [ ] Fix markdownlint warnings in `docs/INTERACTION_DB_SPEC.md` (cosmetic)
 - [ ] About section — wire real ToS/privacy URLs + `url_launcher` + `StoreReview` for rate/share (UI shell exists, all no-ops)
 - [ ] V1.4+ Commerce (Track E) — deferred until V1.2 trust ships
+
+---
+
+## Marketing Website — Parallel Initiative (in flight, 2026-05-07 → present)
+
+> [!info] Repo: `/Users/seancheick/PharmaGuide Website` · Vercel: `pharmaguide-website.vercel.app` · GitHub: `seancheick/PharmaGuideWebsite` · Stack: Next.js 16 · React 19 · Tailwind v3 · Framer Motion 11 · Geist + Newsreader fonts
+
+### Status: V1 marketing site live with 8 routes, full analytics + email, axe-clean.
+
+| Track | Description | Sprints | Status |
+|---|---|---|---|
+| **W1** — Foundation | Design system, tokens, hero, infrastructure strip, problem section, how-it-works, interaction ladder, real-life moments, your-fit, final CTA, dark teal footer, back-to-top, programmatic favicon → real bitmap logo, OG image | 1 → 12 | ✅ Done |
+| **W2** — Polish + accuracy | Carousel mobile expansion + edge-margin fix, ladder mobile-active state, Problem section text-balance, evidence levels matched to in-app schema (Established/Probable/Moderate/Limited/Theoretical replacing fictional A/B/C/D), tier 5 "No known issue" → "Informational" matching app | 13 → 18 | ✅ Done |
+| **W3** — `/faq` page | Single-column accordion, Q01–Q11 numbered eyebrows, Framer height animation, FAQPage + Breadcrumb + WebPage JSON-LD, ISR 5d, voice-rules-applied copy, "Stay in the loop" newsletter CTA replacing the old strip | 19 | ✅ Done |
+| **W4** — Email backend | Resend SDK + React Email installed. `subscribe()` helper (idempotent, server-only). `joinBetaWaitlist` + `subscribeToNewsletter` server actions. Branded BetaWelcomeEmail + NewsletterWelcomeEmail templates. FinalCTA + NewsletterCTA wired to real backend. Domain verification + audience IDs in env. | 20 | ✅ Done — domain verification by Sean |
+| **W5** — Legal pages | Shared `<LegalPage>` component (sticky desktop TOC + mobile collapsible + scroll-spy via IntersectionObserver). `/privacy` (13 sections), `/terms` (14 sections, medical disclaimer prominent at #3), `/hipaa` (7 sections, honest framing), `/accessibility` (6 sections, WCAG 2.2 AA target). All emit Article + Breadcrumb JSON-LD. | 21 | ✅ Done |
+| **W6** — `/methodology` | Premium custom layout (NOT LegalPage). 6 sections with custom visuals: 3 trust pillars · 4 source cards (FDA/NIH/PUB/PRO) · 5-step vertical timeline · 2-card advisory team (Dr. Pham L. PharmD + Miriam D. NP) · AI does/does NOT split · IS/IS NOT scope split. Article + HowTo + Breadcrumb JSON-LD. | 22 | ✅ Done |
+| **W7** — `/features` | 6-pillar showcase with custom SVG illustrations: **Medication Depletion** (hero illustration: med card → arrow → depleted nutrient cards) · Stack Intelligence (5-node animated network) · Ingredient & Quality Transparency (parsed supplement-facts panel with decomposed proprietary blend) · Personal Fit (profile chips → adapted recs) · Nutrient Accumulation (4-row UL meter with over/under coloring) · Recall & Safety (FDA/FAERS alert stack). External authority deep links per pillar (FDA, NIH ODS, DSLD, FAERS, PubMed, Cochrane, NCCIH, DailyMed). SoftwareApplication + ItemList + Breadcrumb JSON-LD. | 23 | ✅ Done |
+| **W8** — Homepage broadening | Hero eyebrow shifted "On-device supplement safety" → "The supplement & medication co-pilot." Subhead rewritten to name interactions, depletions, dose accumulation, recalls, ingredient quality. New BeyondInteractions section (6 capability cards → /features deep-dives) between Ladder and Real-Life Moments. | 24 | ✅ Done |
+| **W9** — A11y + SEO + Analytics | axe-core audit on all key pages: 0 violations post-fix (was 3). FinalCTA aside→div, FAQ h3→h2, LegalPage TOC aside→nav, 7 page-titles fixed (template duplication). GSC + Bing + Yandex verification meta-tag scaffolding via env vars. Organization JSON-LD logo path fixed. `.env.example` + `docs/09-search-console-setup.md` published. | 25 | ✅ Done |
+| **W10** — DNS migration to Vercel | Cut over `pharmaguide.io` from Hostinger to Vercel-routed (preserve email MX). Verify GSC + Bing on apex domain. | 26 | ⏳ Sean (DNS owner) |
+| **W11** — `/blog` hub | Blog hub page + post template + first 2-3 seed posts | 27 | 🎯 Up next |
+
+### Routes live (post-deploy)
+
+| Route | Priority in sitemap | JSON-LD | Status |
+|---|---|---|---|
+| `/` | 1.0 | Organization + Website | ✅ |
+| `/features` | 0.95 | SoftwareApplication + ItemList + Breadcrumb | ✅ |
+| `/methodology` | 0.9 | Article + HowTo + Breadcrumb | ✅ |
+| `/faq` | 0.7 | FAQPage + WebPage + Breadcrumb | ✅ |
+| `/privacy` | 0.5 | PrivacyPolicy + Breadcrumb | ✅ |
+| `/terms` | 0.5 | TermsOfService + Breadcrumb | ✅ |
+| `/hipaa` | 0.4 | Article + Breadcrumb | ✅ |
+| `/accessibility` | 0.4 | Article + Breadcrumb | ✅ |
+| `/blog` | tbd | Blog + ItemList | 🎯 next |
+| `/blog/[slug]` | tbd | Article | 🎯 next |
+| `/about` | tbd | AboutPage | 📋 backlog |
+| `/healthcare-pros` | tbd | Service | 📋 2026 |
+
+### Brand + tech foundation
+
+- Design tokens in CSS variables (single source of truth, consumed by Tailwind config)
+- Geist Sans (UI) + Newsreader (italic-serif punchline rhythm) + Geist Mono (eyebrows + data)
+- Severity tokens match in-app: contraindicated · avoid · caution · monitor · informational
+- Evidence levels match in-app: Established · Probable · Moderate · Limited · Theoretical
+- Real PharmaGuide logo wired as favicon (32 / 180 / 192 / 512 PNG sizes)
+- Privacy-first analytics: Vercel Analytics + Vercel Speed Insights + GA4 + Microsoft Clarity
+- Resend email backend: 2 audiences (beta-waitlist + newsletter), branded React Email welcome templates
+
+### Owed back to Sean (Marketing Website)
+
+- [ ] **DNS migration: Hostinger → Vercel for pharmaguide.io.** See "DNS migration" section in this tracker (added 2026-05-08).
+- [ ] **Resend domain verification** — DNS records for DKIM/SPF/DMARC need to be added at the registrar before transactional emails will deliver from `hello@pharmaguide.io` instead of the test sandbox.
+- [ ] **GSC + Bing verification tokens** — paste into `.env` + Vercel env, redeploy, verify, submit `sitemap.xml`. Step-by-step in `docs/09-search-console-setup.md`.
+- [ ] **`/blog` hub + first 2-3 seed posts** — see "Blog hub" plan below.
+
