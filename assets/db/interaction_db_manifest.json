@@ -1,7 +1,7 @@
 {
-  "built_at": "2026-05-07T10:00:11Z",
-  "checksum": "sha256:bffaa4fb65e846d773c37fb94596dab122781cc95863da1c1ce6e8b8ae85d317",
-  "checksum_sha256": "bffaa4fb65e846d773c37fb94596dab122781cc95863da1c1ce6e8b8ae85d317",
+  "built_at": "2026-05-08T08:02:51Z",
+  "checksum": "sha256:9338aa6929150732a95d8b39cc72fee0b471f7a25629e887a942f37378ea315a",
+  "checksum_sha256": "9338aa6929150732a95d8b39cc72fee0b471f7a25629e887a942f37378ea315a",
   "db_version": "1.0.0",
   "integrity": {
     "integrity_check": "ok",
@@ -10,7 +10,7 @@
   "interaction_db_version": "1.0.0",
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "release_staged_at": "2026-05-07T10:00:11Z",
+  "release_staged_at": "2026-05-08T08:02:52Z",
   "schema_version": "1.0.0",
   "source_drafts_count": 136,
   "source_suppai_count": 30101,
