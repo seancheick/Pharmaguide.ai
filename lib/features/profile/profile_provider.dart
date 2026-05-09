@@ -297,7 +297,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   /// Toggle a group of canonical allergen IDs all-or-nothing.
   ///
   /// Used by user-facing grouped chips like "Shellfish"
-  /// (CRUSTACEANS + MOLLUSCS) and "Gluten / wheat"
+  /// (CRUSTACEANS + MOLLUSCS) and "Gluten-free"
   /// (WHEAT + BARLEY + RYE + OATS). Selected when every member is
   /// present; tapping clears all members. Tapping an unselected (or
   /// partially selected) chip adds every missing member.

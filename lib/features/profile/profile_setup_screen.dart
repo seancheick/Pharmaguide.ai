@@ -541,8 +541,14 @@ class _AllergensStep extends ConsumerWidget {
 
   /// User-facing chips. Each chip stores one or more canonical allergen IDs
   /// from `scripts/data/allergens.json` (the pipeline source of truth).
-  /// Grouped chips ("Shellfish", "Gluten / wheat") store multiple IDs so
+  /// Grouped chips ("Shellfish", "Gluten-free") store multiple IDs so
   /// the matcher fires on any constituent grain or shellfish kind.
+  ///
+  /// "Gluten-free" matches the hero chip vocabulary the user already
+  /// sees on product detail pages — the cognitive loop closes between
+  /// "I want gluten-free" (profile) and "this is gluten-free"
+  /// (product). Stored IDs still cover all four grains (wheat, barley,
+  /// rye, oats) so a celiac user catches every constituent.
   ///
   /// Sensitivities the pipeline cannot detect today (corn, yeast, gelatin,
   /// latex-fruit, nightshade, salicylate) are intentionally omitted —
@@ -560,7 +566,7 @@ class _AllergensStep extends ConsumerWidget {
     _AllergenChipDef('Peanuts', ['ALLERGEN_PEANUTS']),
     _AllergenChipDef('Soy', ['ALLERGEN_SOY']),
     _AllergenChipDef('Sesame', ['ALLERGEN_SESAME']),
-    _AllergenChipDef('Gluten / wheat', [
+    _AllergenChipDef('Gluten-free', [
       'ALLERGEN_WHEAT',
       'ALLERGEN_BARLEY',
       'ALLERGEN_RYE',

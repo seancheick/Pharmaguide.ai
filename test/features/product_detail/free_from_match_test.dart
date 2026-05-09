@@ -148,6 +148,121 @@ void main() {
     });
   });
 
+  // ---------------------------------------------------------------------
+  // Real-supplement smoke trace. Each fixture below is a verbatim row
+  // from `assets/db/pharmaguide_core.db` (catalog v2026.05.08.080214).
+  // Locks the matcher behavior against products users will actually
+  // encounter — so a future schema change in the pipeline can't drift
+  // the rendering silently.
+  //
+  // Recapture command (paste output into the fixtures if the catalog
+  // refreshes):
+  //   sqlite3 assets/db/pharmaguide_core.db \
+  //     "SELECT dsld_id, brand_name, product_name,
+  //             is_gluten_free, is_dairy_free, is_soy_free
+  //      FROM products_core WHERE dsld_id IN (302660, 336315, 245269)"
+  // ---------------------------------------------------------------------
+  group('real-supplement smoke trace', () {
+    test(
+      "Doctor's Best Fully Active B Complex (302660) — all three claims",
+      () {
+        // is_gluten_free=1, is_dairy_free=1, is_soy_free=1.
+        final claims = matchFreeFromClaims(
+          userAllergenIds: const {
+            'ALLERGEN_WHEAT',
+            'ALLERGEN_MILK',
+            'ALLERGEN_SOY',
+          },
+          isGlutenFree: 1,
+          isDairyFree: 1,
+          isSoyFree: 1,
+        );
+        expect(
+          claims.map((c) => '${c.concern}:${c.status.name}').toList(),
+          ['gluten:certified', 'dairy:certified', 'soy:certified'],
+          reason:
+              'A user with all 3 concerns scanning this product should '
+              'see "Allergen check passed" + 3 green Verified rows.',
+        );
+      },
+    );
+
+    test(
+      'Thorne A.M. (336315) — gluten-free certified, dairy/soy not claimed',
+      () {
+        // is_gluten_free=1, is_dairy_free=0, is_soy_free=0.
+        // notClaimed (=0) is filtered out by the card so dairy/soy rows
+        // simply don't appear; only the gluten claim renders.
+        final claims = matchFreeFromClaims(
+          userAllergenIds: const {
+            'ALLERGEN_WHEAT',
+            'ALLERGEN_MILK',
+            'ALLERGEN_SOY',
+          },
+          isGlutenFree: 1,
+          isDairyFree: 0,
+          isSoyFree: 0,
+        );
+        expect(claims.length, 3, reason: 'all three concerns evaluated');
+        expect(claims[0].concern, 'gluten');
+        expect(claims[0].status, FreeFromStatus.certified);
+        expect(claims[1].concern, 'dairy');
+        expect(claims[1].status, FreeFromStatus.notClaimed);
+        expect(claims[2].concern, 'soy');
+        expect(claims[2].status, FreeFromStatus.notClaimed);
+        // Card filters notClaimed → renders ONE Verified row for gluten,
+        // header reads "1 allergen claim verified".
+      },
+    );
+
+    test(
+      'Thorne Multi-Vitamin Elite A.M. (245269) — no free-from claims at all',
+      () {
+        // is_gluten_free=0, is_dairy_free=0, is_soy_free=0.
+        final claims = matchFreeFromClaims(
+          userAllergenIds: const {
+            'ALLERGEN_WHEAT',
+            'ALLERGEN_MILK',
+            'ALLERGEN_SOY',
+          },
+          isGlutenFree: 0,
+          isDairyFree: 0,
+          isSoyFree: 0,
+        );
+        // All three are notClaimed — the card filters every row out and,
+        // absent any other warnings, hides entirely. The user gets no
+        // false reassurance, which is correct: the label doesn't claim
+        // free-from for this product, so we won't either.
+        expect(
+          claims.every((c) => c.status == FreeFromStatus.notClaimed),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'user with no relevant allergens scanning a 3x-certified product '
+      '→ no claims emitted (free-from is personalized)',
+      () {
+        // Same Doctor's Best B Complex, but the user only flagged eggs.
+        final claims = matchFreeFromClaims(
+          userAllergenIds: const {'ALLERGEN_EGGS'},
+          isGlutenFree: 1,
+          isDairyFree: 1,
+          isSoyFree: 1,
+        );
+        expect(
+          claims,
+          isEmpty,
+          reason:
+              'The hero chips still show generic "Gluten-Free / Dairy-'
+              'Free / Soy-Free" badges, but the personalized card stays '
+              "silent — user doesn't have those concerns.",
+        );
+      },
+    );
+  });
+
   group('findFreeFromConflicts', () {
     test('no contains matches → no conflicts even with claims', () {
       final conflicts = findFreeFromConflicts(
