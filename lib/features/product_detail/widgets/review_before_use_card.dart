@@ -27,6 +27,7 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
+import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
@@ -54,6 +55,19 @@ class ReviewBeforeUseCard extends ConsumerStatefulWidget {
   /// list for this product.
   final List<MatchedAllergen> matchedAllergens;
 
+  /// Result of [matchFreeFromClaims] — affirmative free-from rows
+  /// keyed to user concerns. The card will render even when this is
+  /// the ONLY input that fires (so users with the gluten allergen on a
+  /// gluten-free product still get a personalized confirmation).
+  final List<FreeFromClaim> freeFromClaims;
+
+  /// Result of [findFreeFromConflicts] — concern keys (e.g. `gluten`)
+  /// where the matcher reports a `contains` row AND the corresponding
+  /// `is_*_free` flag is `1`. When non-empty, a "label disagreement"
+  /// footer renders inside the card so users know to read the actual
+  /// label rather than have us silently pick a side.
+  final List<String> freeFromConflicts;
+
   const ReviewBeforeUseCard({
     super.key,
     required this.warnings,
@@ -61,6 +75,8 @@ class ReviewBeforeUseCard extends ConsumerStatefulWidget {
     this.interactionSummary,
     this.ingredientDoses,
     this.matchedAllergens = const [],
+    this.freeFromClaims = const [],
+    this.freeFromConflicts = const [],
   });
 
   @override
@@ -111,6 +127,19 @@ class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
     final hasWarnings = widget.warnings.isNotEmpty;
     final hasAllergens = widget.matchedAllergens.isNotEmpty;
 
+    // Free-from claims relevant to the user's selected allergens.
+    // Filter out `notClaimed` (status == 0) since absence-of-claim is
+    // just absence — only `certified` (1) and `unknown` (null) carry
+    // signal worth showing.
+    final renderableClaims = widget.freeFromClaims
+        .where((c) => c.status != FreeFromStatus.notClaimed)
+        .toList(growable: false);
+    final hasFreeFromCertified = renderableClaims.any(
+      (c) => c.status == FreeFromStatus.certified,
+    );
+    final hasFreeFromClaims = renderableClaims.isNotEmpty;
+    final hasFreeFromConflicts = widget.freeFromConflicts.isNotEmpty;
+
     // No profile + product has interactions → neutral nudge mode.
     // (Allergens require a profile too, so allergens.isEmpty here.)
     if (!hasProfile && hintHasAny && !hasWarnings && !hasAllergens) {
@@ -119,18 +148,37 @@ class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
       );
     }
 
-    // Nothing to show.
-    if (!hasWarnings && !hasAllergens && !hasInteractionContext) {
+    // Nothing to show — including no free-from signal worth surfacing.
+    if (!hasWarnings &&
+        !hasAllergens &&
+        !hasInteractionContext &&
+        !hasFreeFromClaims) {
       return const SizedBox.shrink();
     }
 
-    // Compute card tone from highest severity across all three inputs.
-    final tone = _computeTone(
-      warnings: widget.warnings,
-      allergens: widget.matchedAllergens,
-    );
+    // "Only affirmatives" mode: free-from claims fire but no warnings,
+    // allergen matches, or interaction context. Card flips to a calm
+    // success/neutral tone with adapted copy — the user gets explicit
+    // personalized confirmation that the gluten/dairy/soy claim on the
+    // hero chip applies to their profile, not just to the product
+    // generically.
+    final hasOnlyAffirmatives =
+        !hasWarnings && !hasAllergens && !hasInteractionContext;
 
-    final autoExpand = tone == PGBannerTone.danger;
+    // Compute card tone. Affirmatives stay positive; mixed/negative
+    // states flow through the existing severity walk so a `contains`
+    // allergen still bumps to danger even with a free-from claim
+    // (the conflict-footer surfaces the disagreement).
+    final tone = hasOnlyAffirmatives
+        ? (hasFreeFromCertified ? PGBannerTone.success : PGBannerTone.neutral)
+        : _computeTone(
+            warnings: widget.warnings,
+            allergens: widget.matchedAllergens,
+          );
+
+    // Auto-expand on danger (existing) AND on affirmatives so the
+    // user actually sees the personalized confirmation without a tap.
+    final autoExpand = tone == PGBannerTone.danger || hasOnlyAffirmatives;
     final expanded = _expandedOverride ?? autoExpand;
     final count = widget.warnings.length + widget.matchedAllergens.length;
 
@@ -151,7 +199,13 @@ class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
               tone: tone,
               count: count,
               expanded: expanded,
-              canExpand: hasWarnings || hasAllergens,
+              canExpand: hasWarnings || hasAllergens || hasFreeFromClaims,
+              affirmativeMode: hasOnlyAffirmatives,
+              affirmativeCertifiedCount: hasOnlyAffirmatives
+                  ? renderableClaims
+                        .where((c) => c.status == FreeFromStatus.certified)
+                        .length
+                  : 0,
               onTap: () => setState(() => _expandedOverride = !expanded),
             ),
             AnimatedSize(
@@ -163,9 +217,14 @@ class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
                       matchedAllergens: widget.matchedAllergens,
                       matchedConditions: matchedConditions,
                       matchedDrugClasses: matchedDrugClasses,
+                      freeFromClaims: renderableClaims,
+                      freeFromConflicts: widget.freeFromConflicts,
+                      hasOnlyAffirmatives: hasOnlyAffirmatives,
                     )
                   : const SizedBox(width: double.infinity),
             ),
+            if (hasFreeFromConflicts && !expanded)
+              const _ConflictFooter.collapsed(),
           ],
         ),
       ),
@@ -182,6 +241,8 @@ class _Header extends StatelessWidget {
   final int count;
   final bool expanded;
   final bool canExpand;
+  final bool affirmativeMode;
+  final int affirmativeCertifiedCount;
   final VoidCallback onTap;
 
   const _Header({
@@ -190,6 +251,8 @@ class _Header extends StatelessWidget {
     required this.expanded,
     required this.canExpand,
     required this.onTap,
+    this.affirmativeMode = false,
+    this.affirmativeCertifiedCount = 0,
   });
 
   @override
@@ -212,7 +275,11 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Review before use',
+                  affirmativeMode
+                      ? (affirmativeCertifiedCount > 0
+                            ? 'Allergen check passed'
+                            : 'Allergen check')
+                      : 'Review before use',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurface,
@@ -223,6 +290,16 @@ class _Header extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     _countCopy(count),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ] else if (affirmativeMode) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    affirmativeCertifiedCount > 0
+                        ? _affirmativeCopy(affirmativeCertifiedCount)
+                        : 'No verified free-from claims for your profile',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
@@ -255,6 +332,11 @@ class _Header extends StatelessWidget {
     if (count == 1) return '1 thing to review before use';
     return '$count things to review before use';
   }
+
+  static String _affirmativeCopy(int count) {
+    if (count == 1) return '1 allergen claim verified';
+    return '$count allergen claims verified';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -266,12 +348,18 @@ class _ExpandedBody extends StatelessWidget {
   final List<MatchedAllergen> matchedAllergens;
   final List<String> matchedConditions;
   final List<String> matchedDrugClasses;
+  final List<FreeFromClaim> freeFromClaims;
+  final List<String> freeFromConflicts;
+  final bool hasOnlyAffirmatives;
 
   const _ExpandedBody({
     required this.warnings,
     required this.matchedAllergens,
     required this.matchedConditions,
     required this.matchedDrugClasses,
+    this.freeFromClaims = const [],
+    this.freeFromConflicts = const [],
+    this.hasOnlyAffirmatives = false,
   });
 
   @override
@@ -281,6 +369,10 @@ class _ExpandedBody extends StatelessWidget {
 
     final hasContextLine =
         matchedConditions.isNotEmpty || matchedDrugClasses.isNotEmpty;
+    final hasWarnings = warnings.isNotEmpty;
+    final hasAllergens = matchedAllergens.isNotEmpty;
+    final hasFreeFrom = freeFromClaims.isNotEmpty;
+    final hasConflicts = freeFromConflicts.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -302,18 +394,44 @@ class _ExpandedBody extends StatelessWidget {
           for (final m in matchedAllergens) _AllergenRow(match: m),
           // Condition / drug-class match context line.
           if (hasContextLine) ...[
-            if (matchedAllergens.isNotEmpty)
-              const SizedBox(height: AppTheme.space8),
+            if (hasAllergens) const SizedBox(height: AppTheme.space8),
             _ContextLine(
               matchedConditions: matchedConditions,
               matchedDrugClasses: matchedDrugClasses,
             ),
-            if (warnings.isNotEmpty) const SizedBox(height: AppTheme.space12),
-          ] else if (matchedAllergens.isNotEmpty && warnings.isNotEmpty) ...[
+            if (hasWarnings) const SizedBox(height: AppTheme.space12),
+          ] else if (hasAllergens && hasWarnings) ...[
             const SizedBox(height: AppTheme.space8),
           ],
           // Alert rows — sorted by severity desc.
           for (final w in _sortedBySeverity(warnings)) _AlertRow(warning: w),
+          // Free-from claim rows. In affirmative-only mode, render
+          // without a divider (the body is already short). When mixed
+          // with warnings/allergens, separate them visually so the
+          // positives don't look conflated with the action items.
+          if (hasFreeFrom) ...[
+            if (hasOnlyAffirmatives)
+              const SizedBox.shrink()
+            else ...[
+              if (hasWarnings || hasAllergens || hasContextLine)
+                const SizedBox(height: AppTheme.space12),
+              Divider(
+                height: 1,
+                thickness: 0.6,
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: AppTheme.space12),
+            ],
+            for (final c in freeFromClaims) _FreeFromRow(claim: c),
+          ],
+          // Label-disagreement footer when matcher fires `contains` AND
+          // the corresponding `is_*_free` flag is `1`. Rare, but medical-
+          // grade demands surfacing pipeline contradictions, not papering
+          // over them.
+          if (hasConflicts) ...[
+            const SizedBox(height: AppTheme.space4),
+            _ConflictFooter(concerns: freeFromConflicts),
+          ],
         ],
       ),
     );
@@ -447,6 +565,202 @@ class _AllergenRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Single free-from row — green check + label for `certified` claims,
+/// indigo question + label for `unknown`. Rendered inside the expanded
+/// body of [ReviewBeforeUseCard] when the user has the corresponding
+/// allergen in their profile and the product carries (or lacks) the
+/// matching `is_*_free` flag.
+class _FreeFromRow extends StatelessWidget {
+  final FreeFromClaim claim;
+
+  const _FreeFromRow({required this.claim});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final certified = claim.status == FreeFromStatus.certified;
+    final accent = certified
+        ? AppTheme.severitySafe
+        : AppTheme.insufficientData;
+    final icon = certified
+        ? Icons.check_circle_rounded
+        : Icons.help_outline_rounded;
+    final tagLabel = certified ? 'Verified' : 'Unverified';
+    final body = certified
+        ? '${claim.label} — matches your allergen profile.'
+        : 'We couldn\'t verify ${claim.label.toLowerCase()} status.';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: accent),
+          const SizedBox(width: AppTheme.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        tagLabel,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space8),
+                    Expanded(
+                      child: Text(
+                        claim.label,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Label-disagreement footer. Renders when [findFreeFromConflicts]
+/// reports any concern in disagreement (matcher said "contains X" AND
+/// product flagged `is_X_free = 1`). Two presentations:
+///
+///   * Default — full row with icon + body, used inside the expanded
+///     body of the card.
+///   * `.collapsed()` — compact one-liner, used below the header when
+///     the card is collapsed so the user still sees the warning before
+///     they tap to expand.
+class _ConflictFooter extends StatelessWidget {
+  final List<String> concerns;
+  final bool compact;
+
+  const _ConflictFooter({required this.concerns}) : compact = false;
+
+  const _ConflictFooter.collapsed()
+    : concerns = const [],
+      compact = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    const color = AppTheme.severityCaution;
+
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space16,
+          0,
+          AppTheme.space16,
+          AppTheme.space12,
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, size: 14, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Label disagreement detected',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final concernLabels = concerns.map(_humanConcern).join(', ');
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space12,
+        vertical: AppTheme.space8,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        border: Border.all(color: color.withValues(alpha: 0.18), width: 0.8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 16, color: color),
+          const SizedBox(width: AppTheme.space8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Conflicting label evidence',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'The product is marked $concernLabels-free but our '
+                  'allergen scan also flagged $concernLabels. Please '
+                  'read the actual label.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _humanConcern(String concern) {
+    switch (concern) {
+      case 'gluten':
+        return 'gluten';
+      case 'dairy':
+        return 'dairy';
+      case 'soy':
+        return 'soy';
+      default:
+        return concern;
+    }
   }
 }
 

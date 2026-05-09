@@ -36,6 +36,7 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_m
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
+import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/widgets/review_before_use_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/personal_fit_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
@@ -347,16 +348,47 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           if (!isBlocked)
             SliverToBoxAdapter(
               key: _interactionsKey,
-              child: ReviewBeforeUseCard(
-                warnings: guardedWarnings,
-                interactionHint: interactionHint,
-                interactionSummary:
-                    detailBlob?['interaction_summary'] as Map<String, dynamic>?,
-                ingredientDoses: ingredientDoses,
-                matchedAllergens: matchAllergens(
-                  profile.allergens,
-                  detailBlob?['allergens'] as List<dynamic>?,
-                ),
+              child: Builder(
+                builder: (_) {
+                  // Compute allergen + free-from inputs once. The free-
+                  // from matcher only fires for concerns the user has
+                  // actually selected; the conflict detector pairs the
+                  // matcher's `contains` rows against the same product's
+                  // `is_*_free=1` flags so label disagreements surface
+                  // instead of being silently picked over.
+                  final matchedAllergens = matchAllergens(
+                    profile.allergens,
+                    detailBlob?['allergens'] as List<dynamic>?,
+                  );
+                  final userAllergenSet = profile.allergens.toSet();
+                  final freeFromClaims = matchFreeFromClaims(
+                    userAllergenIds: userAllergenSet,
+                    isGlutenFree: _product?.isGlutenFree,
+                    isDairyFree: _product?.isDairyFree,
+                    isSoyFree: _product?.isSoyFree,
+                  );
+                  final containsIds = matchedAllergens
+                      .where((m) => m.presenceType == 'contains')
+                      .map((m) => m.id)
+                      .toSet();
+                  final freeFromConflicts = findFreeFromConflicts(
+                    matchedContainsAllergenIds: containsIds,
+                    isGlutenFree: _product?.isGlutenFree,
+                    isDairyFree: _product?.isDairyFree,
+                    isSoyFree: _product?.isSoyFree,
+                  );
+                  return ReviewBeforeUseCard(
+                    warnings: guardedWarnings,
+                    interactionHint: interactionHint,
+                    interactionSummary:
+                        detailBlob?['interaction_summary']
+                            as Map<String, dynamic>?,
+                    ingredientDoses: ingredientDoses,
+                    matchedAllergens: matchedAllergens,
+                    freeFromClaims: freeFromClaims,
+                    freeFromConflicts: freeFromConflicts,
+                  );
+                },
               ),
             ),
 

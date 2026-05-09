@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
+import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/review_before_use_card.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -50,6 +51,8 @@ Future<void> _pump(
   String interactionHint = '',
   Map<String, dynamic>? interactionSummary,
   List<MatchedAllergen> matchedAllergens = const [],
+  List<FreeFromClaim> freeFromClaims = const [],
+  List<String> freeFromConflicts = const [],
   ProfileState profile = const ProfileState(),
 }) {
   return tester.pumpWidget(
@@ -64,6 +67,8 @@ Future<void> _pump(
             interactionHint: interactionHint,
             interactionSummary: interactionSummary,
             matchedAllergens: matchedAllergens,
+            freeFromClaims: freeFromClaims,
+            freeFromConflicts: freeFromConflicts,
           ),
         ),
       ),
@@ -303,5 +308,199 @@ void main() {
       );
       expect(find.text('3 things to review before use'), findsOneWidget);
     });
+
+    testWidgets(
+      'free-from claims do NOT increment the count (action items only)',
+      (tester) async {
+        await _pump(
+          tester,
+          warnings: [_w(severity: Severity.caution, title: 'C')],
+          freeFromClaims: const [
+            FreeFromClaim(
+              label: 'Gluten-free',
+              concern: 'gluten',
+              status: FreeFromStatus.certified,
+            ),
+          ],
+          profile: const ProfileState(
+            conditions: ['anything'],
+            allergens: ['ALLERGEN_WHEAT'],
+          ),
+        );
+        expect(find.text('1 thing to review before use'), findsOneWidget);
+      },
+    );
+  });
+
+  group('ReviewBeforeUseCard — free-from claims', () {
+    testWidgets(
+      'certified-only → success-tone card with affirmative copy and verified row',
+      (tester) async {
+        await _pump(
+          tester,
+          freeFromClaims: const [
+            FreeFromClaim(
+              label: 'Gluten-free',
+              concern: 'gluten',
+              status: FreeFromStatus.certified,
+            ),
+          ],
+          profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Allergen check passed'), findsOneWidget);
+        expect(find.text('1 allergen claim verified'), findsOneWidget);
+        // Auto-expanded body
+        expect(find.text('Verified'), findsOneWidget);
+        expect(
+          find.text('Gluten-free — matches your allergen profile.'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('multi-concern certified → "claims" plural', (tester) async {
+      await _pump(
+        tester,
+        freeFromClaims: const [
+          FreeFromClaim(
+            label: 'Gluten-free',
+            concern: 'gluten',
+            status: FreeFromStatus.certified,
+          ),
+          FreeFromClaim(
+            label: 'Dairy-free',
+            concern: 'dairy',
+            status: FreeFromStatus.certified,
+          ),
+        ],
+        profile: const ProfileState(
+          allergens: ['ALLERGEN_WHEAT', 'ALLERGEN_MILK'],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('2 allergen claims verified'), findsOneWidget);
+    });
+
+    testWidgets(
+      'unknown-only → neutral card with honest-unknown row, no positive tag',
+      (tester) async {
+        await _pump(
+          tester,
+          freeFromClaims: const [
+            FreeFromClaim(
+              label: 'Gluten-free',
+              concern: 'gluten',
+              status: FreeFromStatus.unknown,
+            ),
+          ],
+          profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Allergen check'), findsOneWidget);
+        expect(find.text('Unverified'), findsOneWidget);
+        expect(
+          find.text("We couldn't verify gluten-free status."),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'notClaimed status is filtered out — card hides when only notClaimed',
+      (tester) async {
+        await _pump(
+          tester,
+          freeFromClaims: const [
+            FreeFromClaim(
+              label: 'Gluten-free',
+              concern: 'gluten',
+              status: FreeFromStatus.notClaimed,
+            ),
+          ],
+          profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
+        );
+        // Card hides — notClaimed is treated as absence-of-claim, no signal.
+        expect(find.text('Allergen check'), findsNothing);
+        expect(find.text('Allergen check passed'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'mixed: warning + free-from certified → both visible, count is action only',
+      (tester) async {
+        await _pump(
+          tester,
+          warnings: [
+            _w(severity: Severity.contraindicated, title: 'X-warn'),
+          ],
+          freeFromClaims: const [
+            FreeFromClaim(
+              label: 'Soy-free',
+              concern: 'soy',
+              status: FreeFromStatus.certified,
+            ),
+          ],
+          profile: const ProfileState(
+            conditions: ['anything'],
+            allergens: ['ALLERGEN_SOY'],
+          ),
+        );
+        await tester.pumpAndSettle();
+        // Action-item header (not affirmative)
+        expect(find.text('Review before use'), findsOneWidget);
+        expect(find.text('1 thing to review before use'), findsOneWidget);
+        // Both surfaces visible — warning row + free-from row
+        expect(find.text('X-warn'), findsOneWidget);
+        expect(find.text('Verified'), findsOneWidget);
+      },
+    );
+  });
+
+  group('ReviewBeforeUseCard — conflict footer', () {
+    testWidgets(
+      'matcher contains + matching free-from flag → conflict footer renders',
+      (tester) async {
+        await _pump(
+          tester,
+          matchedAllergens: [
+            _allergen(
+              id: 'ALLERGEN_WHEAT',
+              displayName: 'Wheat',
+              presenceType: 'contains',
+            ),
+          ],
+          freeFromConflicts: const ['gluten'],
+          profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
+        );
+        await tester.pumpAndSettle();
+        // Auto-expands on `contains` → expanded conflict block visible
+        expect(find.text('Conflicting label evidence'), findsOneWidget);
+        expect(
+          find.textContaining('marked gluten-free but our allergen scan'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'collapsed card with conflict → compact disagreement line shows below header',
+      (tester) async {
+        // Caution-only warning keeps card collapsed — conflict footer
+        // should still surface so the user sees the disagreement signal.
+        await _pump(
+          tester,
+          warnings: [_w(severity: Severity.caution, title: 'C-warn')],
+          freeFromConflicts: const ['gluten'],
+          profile: const ProfileState(
+            conditions: ['anything'],
+            allergens: ['ALLERGEN_WHEAT'],
+          ),
+        );
+        // Card is collapsed (caution doesn't auto-expand)
+        expect(find.text('C-warn'), findsNothing);
+        expect(find.text('Label disagreement detected'), findsOneWidget);
+      },
+    );
   });
 }

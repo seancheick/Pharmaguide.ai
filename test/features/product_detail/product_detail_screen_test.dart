@@ -69,6 +69,65 @@ void main() {
   // `test/features/product_detail/widgets/score_line_test.dart`.
 
   testWidgets(
+    'hero renders Gluten-Free / Dairy-Free / Soy-Free chips when product '
+    'flags are 1 and skips them when flags are null',
+    (tester) async {
+      // Locks the wiring between the pipeline-emitted free-from columns
+      // (`is_gluten_free` etc.) and the hero "trust chips" so a future
+      // refactor of `_buildAllTags()` can't silently drop the rendering.
+      final dietaryDb = _FakeCoreDatabase(
+        const ProductsCoreData(
+          dsldId: 'TEST_DETAIL_DIETARY_001',
+          productName: 'Free-From Blend',
+          productStatus: 'active',
+          score100Equivalent: 70.0,
+          grade: 'B',
+          verdict: 'TRUSTED',
+          mappedCoverage: 0.9,
+          primaryCategory: 'blend',
+          exportVersion: 'test',
+          exportedAt: '2026-04-26T00:00:00Z',
+          isGlutenFree: 1,
+          isDairyFree: 1,
+          // Soy-free intentionally null — assert it does NOT render.
+          isSoyFree: null,
+        ),
+      );
+      final dietaryUserDb = UserDatabase.memory();
+      await dietaryUserDb.cacheDetail(
+        'TEST_DETAIL_DIETARY_001',
+        jsonEncode(<String, Object>{'warnings': <Object>[]}),
+        null,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(dietaryDb),
+            userDatabaseProvider.overrideWithValue(dietaryUserDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            fitScoreServiceProvider.overrideWith((ref) async {
+              throw UnimplementedError('No FitScore in test');
+            }),
+          ],
+          child: const MaterialApp(
+            home: ProductDetailScreen(dsldId: 'TEST_DETAIL_DIETARY_001'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Gluten-Free'), findsOneWidget);
+      expect(find.text('Dairy-Free'), findsOneWidget);
+      expect(find.text('Soy-Free'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+  testWidgets(
     'T1.1 hero does NOT render the inline "Why this score" reasoning row '
     '(reasoning lives in T1.6 Tradeoffs section now)',
     (tester) async {
