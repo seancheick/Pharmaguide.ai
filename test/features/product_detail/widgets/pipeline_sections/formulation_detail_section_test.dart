@@ -1,7 +1,81 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_sections/formulation_detail_section.dart';
 
 void main() {
+  group('FormulationDetailSection — pipeline contract', () {
+    testWidgets(
+      'demoted_absorption_enhancers from blob renders the bioavailability '
+      'aid chip section (Sprint E1.23 follow-up 2026-05-09)',
+      (tester) async {
+        // Mirrors the pipeline emission shape after build_final_db.py
+        // promotes `ingredient_quality_data.demoted_absorption_enhancers`
+        // into the detail blob. Locks the producer/consumer contract.
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: FormulationDetailSection(
+                formulationDetail: <String, dynamic>{
+                  'delivery_form': 'Capsule',
+                  'delivery_tier': 'standard',
+                },
+                ingredientQualityData: <String, dynamic>{
+                  'demoted_absorption_enhancers': [
+                    {'name': 'BioPerine', 'quantity': 5.0, 'unit': 'mg'},
+                  ],
+                },
+              ),
+            ),
+          ),
+        );
+        expect(find.text('Includes bioavailability aid'), findsOneWidget);
+        expect(find.textContaining('BioPerine'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'plural copy when multiple aids present',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: FormulationDetailSection(
+                formulationDetail: <String, dynamic>{
+                  'delivery_form': 'Tablet',
+                },
+                ingredientQualityData: <String, dynamic>{
+                  'demoted_absorption_enhancers': [
+                    {'name': 'BioPerine', 'quantity': 5.0, 'unit': 'mg'},
+                    {'name': 'Lecithin', 'quantity': 50.0, 'unit': 'mg'},
+                  ],
+                },
+              ),
+            ),
+          ),
+        );
+        expect(find.text('Includes bioavailability aids'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'null ingredientQualityData → no aid section, no crash',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: FormulationDetailSection(
+                formulationDetail: <String, dynamic>{
+                  'delivery_form': 'Liquid',
+                },
+              ),
+            ),
+          ),
+        );
+        expect(find.textContaining('bioavailability'), findsNothing);
+      },
+    );
+  });
+
   group('extractIngredientNames (T0.3)', () {
     test('current pipeline shape: list of maps with `name` field', () {
       final raw = [
