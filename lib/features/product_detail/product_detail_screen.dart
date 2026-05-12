@@ -528,8 +528,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // Deep dive — collapsible section for detailed analysis.
           // Keeps the scroll depth manageable while making all data
           // accessible on demand (Oura-style progressive disclosure).
+          //
+          // Suppressed for blocked products. The deep-dive subsections
+          // (certification, evidence, formulation, probiotic, manufacturer,
+          // nutrition) are mostly N/A or empty when a product is BLOCKED —
+          // the safety surface up top carries the only information that
+          // matters. An empty expandable "Show details" reads as broken UI
+          // rather than progressive disclosure, so we hide the entry point.
           // ----------------------------------------------------------------
-          if (!blobLoading && !blobError)
+          if (!blobLoading && !blobError && !isBlocked)
             SliverToBoxAdapter(
               key: _ingredientsKey,
               child: Padding(
@@ -1594,6 +1601,27 @@ class _HeroTrustChipOutline extends StatelessWidget {
 // surface and adds FDA source links inline.
 // ---------------------------------------------------------------------------
 
+/// Map the pipeline's coarse `blocking_reason` enum (today only ever
+/// `banned_ingredient` per the catalog inventory) to user-facing copy.
+/// Falls back to a sentence-case version of the raw token so a future
+/// pipeline-side new code never leaks raw to the UI.
+String _humanizeBlockingReason(String code) {
+  switch (code.trim().toLowerCase()) {
+    case 'banned_ingredient':
+      // Mirrors the BLOCKED verdict's notes from verdict_vocab.json:
+      // "Product contains a banned, recalled, or otherwise prohibited
+      // substance."
+      return 'Contains a banned, recalled, or otherwise prohibited substance.';
+    case '':
+      return '';
+  }
+  // Defensive default — convert snake_case to "Snake case" so any
+  // future enum value still reads as English rather than a raw token.
+  final spaced = code.replaceAll('_', ' ').trim();
+  if (spaced.isEmpty) return '';
+  return spaced[0].toUpperCase() + spaced.substring(1);
+}
+
 class _BlockedBanner extends StatelessWidget {
   final String verdict;
   final String blockingReason;
@@ -1619,25 +1647,60 @@ class _BlockedBanner extends StatelessWidget {
     final safetyWarning = bannedSubstanceDetail?['safety_warning']
         ?.toString()
         .trim();
-    final reasonText = oneLiner != null && oneLiner.isNotEmpty
-        ? oneLiner
-        : blockingReason.isNotEmpty
-        ? blockingReason
-        : 'This product is flagged as unsafe.';
+
+    // Body copy. Three tiers, in order of richness:
+    //   1. Pipeline-emitted one-liner — the authored layperson sentence
+    //      ("This is a sympathomimetic stimulant the FDA has flagged ...")
+    //   2. Substance-specific phrasing when we know the substance name
+    //      but no authored one-liner is present.
+    //   3. Humanized blocking_reason enum — last-resort fallback that
+    //      replaces the raw token "banned_ingredient" with prose.
+    final String reasonBody;
+    if (oneLiner != null && oneLiner.isNotEmpty) {
+      reasonBody = oneLiner;
+    } else if (substanceName != null && substanceName.isNotEmpty) {
+      // Brand-attributed phrasing per Sean's 2026-05 product-tone
+      // guidelines — uses the consistent "Reason:" prefix shared with
+      // the enum-fallback case, and surfaces PharmaGuide as the agent
+      // making the recommendation rather than implying a generic
+      // "this product is not recommended" voice-from-nowhere.
+      reasonBody =
+          'Reason: Contains $substanceName, which PharmaGuide flags as not recommended.';
+    } else {
+      final humanized = _humanizeBlockingReason(blockingReason);
+      reasonBody = humanized.isNotEmpty
+          ? 'Reason: $humanized'
+          : 'PharmaGuide flagged this product on safety grounds.';
+    }
     final fdaLinks = _extractFdaLinks(topWarnings);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Title is calm and decisive — "PharmaGuide does not recommend
+        // this product." Per the 2026-05 product-tone guidelines (Sean):
+        // avoid imperative "DO NOT USE" / "BLOCKED" headlines that read
+        // as the app shouting at the user. The verdict-color tone
+        // (danger red) already carries the urgency.
+        //
+        // Implementation note: PGSeverityBanner uppercases the title at
+        // render time on some surfaces — the literal we pass is sentence
+        // case so the on-screen result stays human.
         PGSeverityBanner(
           tone: PGBannerTone.danger,
-          title: verdict.toUpperCase(),
-          body: reasonText,
+          title: 'PharmaGuide does not recommend this product',
+          body: reasonBody,
         ),
-        if (substanceName != null && substanceName.isNotEmpty) ...[
+        if (substanceName != null &&
+            substanceName.isNotEmpty &&
+            (oneLiner == null || oneLiner.isEmpty)) ...[
+          // Surface the substance name explicitly when it isn't already
+          // baked into the body. (When `oneLiner` exists it usually
+          // mentions the substance by name in prose, so a separate row
+          // would be redundant.)
           const SizedBox(height: AppTheme.space12),
           Text(
-            'Banned ingredient detected: $substanceName',
+            'Ingredient: $substanceName',
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -1654,32 +1717,11 @@ class _BlockedBanner extends StatelessWidget {
             ),
           ),
         ],
-        const SizedBox(height: AppTheme.space12),
-        Container(
-          padding: const EdgeInsets.all(AppTheme.space12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.do_not_disturb_on_outlined,
-                color: AppTheme.severityContraindicated,
-                size: 18,
-              ),
-              const SizedBox(width: AppTheme.space8),
-              Expanded(
-                child: Text(
-                  'Do not use this product',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Bottom imperative ("Do not use this product") was removed in
+        // 2026-05 per the product-tone update. The danger-tone banner +
+        // calm "PharmaGuide does not recommend this product" headline
+        // already conveys the recommendation; the redundant callout
+        // pushed the screen into yelling-at-the-user territory.
         if (fdaLinks.isNotEmpty) ...[
           const SizedBox(height: AppTheme.space8),
           Padding(
