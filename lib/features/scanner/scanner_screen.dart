@@ -25,9 +25,25 @@ class ScannerScreen extends ConsumerStatefulWidget {
 }
 
 class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+  // Only product barcodes are accepted; QR/marketing codes are
+  // intentionally ignored. Without this filter mobile_scanner triggers
+  // onDetect for every barcode the camera sees — including the
+  // marketing QR codes printed on the back of many supplement bottles —
+  // which would produce a confusing "Product not found / UPC:
+  // http://..." sheet for users who pointed at the wrong side of the
+  // package. Restricting to UPC-A / UPC-E / EAN-13 / EAN-8 means the
+  // camera silently passes over non-product symbologies; the user
+  // sees nothing happen until they aim at the actual UPC, which
+  // matches their expectation of "scan the barcode".
   final _scannerController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
+    formats: const [
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+    ],
   );
   bool _hasScanned = false;
   bool _isLookingUp = false;
