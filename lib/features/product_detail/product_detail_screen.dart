@@ -2684,7 +2684,12 @@ class _DetailErrorBanner extends StatelessWidget {
     return PGEmptyState(
       icon: Icons.cloud_off_outlined,
       title: 'Could not load details',
-      description: 'Pull to refresh, or try again once you have connectivity.',
+      // Copy intentionally does NOT mention pull-to-refresh. Product
+      // detail does not implement pull-to-refresh — the screen runs
+      // off the local catalog DB plus a 24-h detail-blob cache that
+      // the screen reloads itself. The Retry button below is the
+      // real (and only) recovery affordance.
+      description: 'Tap retry once you have connectivity.',
       actionLabel: 'Retry',
       onAction: onRetry,
       variant: PGEmptyStateVariant.offline,
