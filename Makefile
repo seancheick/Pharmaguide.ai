@@ -5,6 +5,15 @@
 include .env
 export
 
+# Force UTF-8 for every tool we shell out to. CocoaPods (Ruby) crashes
+# with `Encoding::CompatibilityError: ASCII-8BIT` when the project path
+# contains non-ASCII characters or spaces (this repo's path has a space:
+# "PharmaGuide ai/"). Setting LANG/LC_ALL here means every make target
+# — including the ones that invoke `pod install` transitively via
+# Flutter — picks the right encoding without per-shell tricks.
+export LANG := en_US.UTF-8
+export LC_ALL := en_US.UTF-8
+
 FLUTTER := $(HOME)/Development/flutter/bin/flutter
 
 DART_DEFINES := \
@@ -65,6 +74,16 @@ gen: ## Regenerate Drift + JSON code
 .PHONY: gen-watch
 gen-watch: ## Watch and regenerate on change
 	dart run build_runner watch --delete-conflicting-outputs
+
+# ─── iOS native (CocoaPods) ───────────────────────────────────────────────────
+
+.PHONY: pod-install
+pod-install: ## Reinstall iOS CocoaPods (use after iOS plugin upgrades)
+	cd ios && pod install --repo-update
+
+.PHONY: ios-clean
+ios-clean: ## Wipe iOS Pods + lockfile (forces fresh install on next build)
+	rm -rf ios/Pods ios/Podfile.lock
 
 # ─── Supabase ─────────────────────────────────────────────────────────────────
 
