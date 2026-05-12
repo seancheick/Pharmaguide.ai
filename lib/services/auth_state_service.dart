@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 
 /// Represents the current authentication state.
