@@ -109,67 +109,89 @@ class _PermissionPromptScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.space24),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                ),
-                child: Icon(
-                  Icons.qr_code_scanner_rounded,
-                  size: 40,
-                  color: scheme.onPrimaryContainer,
+        child: LayoutBuilder(
+          // SingleChildScrollView + IntrinsicHeight + minHeight pattern keeps
+          // the Spacer-based layout looking right on tall portrait screens
+          // (Spacers absorb extra space, content stays centered) while
+          // gracefully scrolling on short viewports — e.g. landscape on the
+          // iPhone where this Column overflowed by 12px on iOS 26.5 because
+          // fixed content (icon + title + body + 2 buttons) summed to more
+          // than the ~352px landscape safe-area height.
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.space24,
+                    ),
+                    child: Column(
+                      children: [
+                        const Spacer(flex: 2),
+                        Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusFull,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.qr_code_scanner_rounded,
+                            size: 40,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space24),
+                        Text(
+                          'Scan supplements instantly',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppTheme.space12),
+                        Text(
+                          'PharmaGuide uses your camera to scan barcodes and '
+                          'product labels.\n\n'
+                          'Photos are only used when you choose to submit a product.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const Spacer(flex: 3),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: FilledButton.icon(
+                            onPressed: onAllow,
+                            icon: const Icon(Icons.camera_alt_rounded),
+                            label: const Text('Allow Camera Access'),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: onManualEntry,
+                            icon: const Icon(Icons.keyboard_rounded),
+                            label: const Text('Enter code manually'),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space24),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: AppTheme.space24),
-              Text(
-                'Scan supplements instantly',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppTheme.space12),
-              Text(
-                'PharmaGuide uses your camera to scan barcodes and '
-                'product labels.\n\n'
-                'Photos are only used when you choose to submit a product.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const Spacer(flex: 3),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton.icon(
-                  onPressed: onAllow,
-                  icon: const Icon(Icons.camera_alt_rounded),
-                  label: const Text('Allow Camera Access'),
-                ),
-              ),
-              const SizedBox(height: AppTheme.space12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: onManualEntry,
-                  icon: const Icon(Icons.keyboard_rounded),
-                  label: const Text('Enter code manually'),
-                ),
-              ),
-              const SizedBox(height: AppTheme.space24),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -192,67 +214,86 @@ class _PermissionDeniedScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.space24),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                ),
-                child: Icon(
-                  Icons.videocam_off_rounded,
-                  size: 40,
-                  color: scheme.onErrorContainer,
+        // Same SingleChildScrollView + IntrinsicHeight wrap as the prompt
+        // screen above — same Spacer-based layout, same landscape overflow
+        // risk on iPhones. Fixed symmetrically so both permission states
+        // behave the same way.
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.space24,
+                    ),
+                    child: Column(
+                      children: [
+                        const Spacer(flex: 2),
+                        Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: scheme.errorContainer,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusFull,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.videocam_off_rounded,
+                            size: 40,
+                            color: scheme.onErrorContainer,
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space24),
+                        Text(
+                          'Camera access is off',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppTheme.space12),
+                        Text(
+                          'You can still enter a barcode manually or enable '
+                          'camera access in Settings.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const Spacer(flex: 3),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: FilledButton.icon(
+                            onPressed: () =>
+                                launchUrl(Uri.parse('app-settings:')),
+                            icon: const Icon(Icons.settings_rounded),
+                            label: const Text('Open Settings'),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: onManualEntry,
+                            icon: const Icon(Icons.keyboard_rounded),
+                            label: const Text('Enter code manually'),
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.space24),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: AppTheme.space24),
-              Text(
-                'Camera access is off',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppTheme.space12),
-              Text(
-                'You can still enter a barcode manually or enable '
-                'camera access in Settings.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const Spacer(flex: 3),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton.icon(
-                  onPressed: () =>
-                      launchUrl(Uri.parse('app-settings:')),
-                  icon: const Icon(Icons.settings_rounded),
-                  label: const Text('Open Settings'),
-                ),
-              ),
-              const SizedBox(height: AppTheme.space12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: onManualEntry,
-                  icon: const Icon(Icons.keyboard_rounded),
-                  label: const Text('Enter code manually'),
-                ),
-              ),
-              const SizedBox(height: AppTheme.space24),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

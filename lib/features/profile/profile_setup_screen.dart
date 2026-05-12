@@ -48,7 +48,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         curve: AppMotion.standard,
       );
     } else {
-      _save();
+      await _save();
     }
   }
 
@@ -61,8 +61,16 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
   }
 
-  void _save() {
-    ref.read(profileProvider.notifier).saveToDb();
+  Future<void> _save() async {
+    // Await the drift write before navigating. Without await, the function
+    // returned immediately, GoRouter navigated, and the rebuilt home screen
+    // could outrun the persistence Future. In-memory state still showed the
+    // nickname (read from the same Notifier), but on cold relaunch
+    // `loadFromDb` found no row — the unawaited write had been racing the
+    // navigation and sometimes lost. `unawaited_futures` lint did not catch
+    // this because the surrounding function was `void`, not `async`.
+    await ref.read(profileProvider.notifier).saveToDb();
+    if (!mounted) return;
     GoRouter.of(context).go(Routes.home);
   }
 
@@ -255,11 +263,38 @@ class _StepHeader extends StatelessWidget {
 // Step 1: Basic Info (nickname + age + sex)
 // ---------------------------------------------------------------------------
 
-class _BasicInfoStep extends ConsumerWidget {
+class _BasicInfoStep extends ConsumerStatefulWidget {
   const _BasicInfoStep();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BasicInfoStep> createState() => _BasicInfoStepState();
+}
+
+class _BasicInfoStepState extends ConsumerState<_BasicInfoStep> {
+  late final TextEditingController _nicknameController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill nickname from the loaded profile. Without this the
+    // TextField starts empty every time the user opens Edit Profile,
+    // even though loadFromDb has already populated profile.nickname.
+    // The home greeting reads profile.nickname directly so it shows
+    // the correct value — but the TextField has no auto-sync from
+    // external state, hence the controller.
+    _nicknameController = TextEditingController(
+      text: ref.read(profileProvider).nickname ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider);
     final notifier = ref.read(profileProvider.notifier);
     final theme = Theme.of(context);
@@ -276,6 +311,7 @@ class _BasicInfoStep extends ConsumerWidget {
           ),
           const SizedBox(height: AppTheme.space16),
           TextField(
+            controller: _nicknameController,
             decoration: const InputDecoration(
               hintText: 'Nickname (optional)',
               prefixIcon: Icon(Icons.person_outline_rounded),
