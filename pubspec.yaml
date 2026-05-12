@@ -22,7 +22,7 @@ environment:
   sdk: ^3.8.1
 
 dependencies:
-  sentry_flutter: ^9.18.0
+  sentry_flutter: ^9.20.0
   flutter:
     sdk: flutter
   # State management
