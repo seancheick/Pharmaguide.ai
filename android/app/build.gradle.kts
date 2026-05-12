@@ -24,6 +24,9 @@ android {
         applicationId = "com.pharmaguide.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // mobile_scanner 7.1.3+ requires API 23 (Android 6.0). The
+        // package raised its floor from 21 to 23 in 7.1.3 because Google
+        // MLKit's barcode scanner stopped supporting API 21/22.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

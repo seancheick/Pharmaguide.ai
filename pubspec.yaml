@@ -38,7 +38,7 @@ dependencies:
   # Supabase
   supabase_flutter: ^2.5.0
   # Barcode scanning
-  mobile_scanner: ^5.1.0
+  mobile_scanner: ^7.2.0
   # Sharing
   share_plus: ^12.0.2
   # Connectivity
