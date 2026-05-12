@@ -7,8 +7,8 @@ import 'package:pharmaguide/data/database/tables/products_core_table.dart';
 part 'core_database.g.dart';
 
 /// READ-ONLY database backed by the pre-built `pharmaguide_core.db` file
-/// downloaded from Supabase. Contains 180K+ product rows across 91 columns
-/// (v1.4.0 schema — adds hazard_flags, key_ingredient_tags, image_thumbnail_url).
+/// downloaded from Supabase. Contains 180K+ product rows across 92 columns
+/// (v1.6.x schema — adds ingredients_text for searchable ingredient FTS).
 @DriftDatabase(tables: [ProductsCore])
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
@@ -65,6 +65,11 @@ class CoreDatabase extends _$CoreDatabase {
       'calories_per_serving REAL',
       'net_contents_quantity REAL',
       'net_contents_unit TEXT',
+      // v1.6.x (2026-05-12): searchable ingredient text — defensive
+      // backfill for older bundled catalogs that predate the v92 schema.
+      // A fresh-built v1.6.x DB ships this column already; this is here
+      // only for in-place upgrades where the user is on an old snapshot.
+      'ingredients_text TEXT',
     ];
 
     for (final col in columns) {
@@ -230,10 +235,13 @@ class CoreDatabase extends _$CoreDatabase {
 
   /// Text search using FTS5 full-text index (porter stemming, ranked).
   ///
-  /// The pipeline builds a `products_fts` virtual table over product_name
-  /// and brand_name. This gives instant ranked results and eliminates
-  /// duplicate UPC rows that LIKE would return. Falls back to LIKE if the
-  /// FTS table is missing (older catalog snapshots).
+  /// The pipeline builds a `products_fts` virtual table over product_name,
+  /// brand_name, and (v1.6.x onward) ingredients_text. This gives instant
+  /// ranked results, eliminates duplicate UPC rows that LIKE would return,
+  /// AND lets users find products by ingredient name (e.g. "Capsimax"
+  /// matches Capsiplex / Phen-Phenom products that list it as an active
+  /// even when the product name doesn't). Falls back to LIKE if the FTS
+  /// table is missing (older catalog snapshots).
   Future<List<ProductsCoreData>> searchProducts(
     String query, {
     int limit = 50,
@@ -273,19 +281,27 @@ class CoreDatabase extends _$CoreDatabase {
       return rows.map((row) => productsCore.map(row.data)).toList();
     } on Exception {
       // FTS table missing or query syntax error — fall back to LIKE.
+      // v1.6.x: include ingredients_text in the OR so the Capsimax /
+      // by-ingredient search still works when FTS is absent. Uses
+      // customSelect with raw SQL so the fallback doesn't depend on a
+      // freshly-regenerated `.g.dart` from build_runner — older Drift
+      // codegen snapshots that don't yet expose ingredientsText as a
+      // typed column still load the bundle.
       final pattern = '%$trimmed%';
-      return (select(productsCore)
-            ..where(
-              (t) => t.productName.like(pattern) | t.brandName.like(pattern),
-            )
-            ..orderBy([
-              (t) => OrderingTerm(
-                expression: t.scoreQuality80,
-                mode: OrderingMode.desc,
-              ),
-            ])
-            ..limit(limit))
-          .get();
+      final rows = await customSelect(
+        'SELECT * FROM products_core '
+        'WHERE product_name LIKE ? OR brand_name LIKE ? OR ingredients_text LIKE ? '
+        'ORDER BY COALESCE(score_quality_80, 0) DESC '
+        'LIMIT ?',
+        variables: [
+          Variable.withString(pattern),
+          Variable.withString(pattern),
+          Variable.withString(pattern),
+          Variable.withInt(limit),
+        ],
+        readsFrom: {productsCore},
+      ).get();
+      return rows.map((row) => productsCore.map(row.data)).toList();
     }
   }
 

@@ -1,6 +1,11 @@
 import 'package:drift/drift.dart';
 
-/// Products core table — 90 columns matching pipeline export schema v1.3.2.
+/// Products core table — 91 typed columns matching pipeline export schema
+/// v1.3.2+. The pipeline DB also ships an additional `ingredients_text`
+/// column (v1.6.x, 2026-05-12; column 92) indexed by `products_fts` for
+/// ingredient-name search — it's read via raw SQL in core_database.dart
+/// rather than declared here, so the `.g.dart` doesn't need build_runner
+/// regen alongside pipeline schema bumps.
 /// This table is READ-ONLY in the app (populated by pipeline via Supabase).
 ///
 /// v1.3.1 added (2026-04): net_contents_quantity, net_contents_unit
@@ -167,6 +172,14 @@ class ProductsCore extends Table {
       integer().named('contains_nootropics').nullable()();
   TextColumn get keyIngredientTags =>
       text().named('key_ingredient_tags').nullable()();
+
+  // NOTE (v1.6.x, 2026-05-12): the pipeline DB also carries a column
+  // `ingredients_text` (aggregated active + inactive ingredient display
+  // names) at position 92, indexed by `products_fts` for ingredient-name
+  // search. It's intentionally NOT declared here as a typed Drift column
+  // so the `.g.dart` doesn't need build_runner regen alongside pipeline
+  // schema bumps. The FTS5 MATCH path picks it up automatically; the LIKE
+  // fallback in core_database.dart reads it via raw customSelect SQL.
 
   // v1.3.0: Goal Matching
   TextColumn get goalMatches => text().named('goal_matches').nullable()();
