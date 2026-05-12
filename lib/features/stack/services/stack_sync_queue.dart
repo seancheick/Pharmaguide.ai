@@ -314,8 +314,8 @@ final stackSyncListenerProvider = Provider<void>((ref) {
     prev,
     next,
   ) {
-    final prevStatus = prev?.valueOrNull;
-    final nextStatus = next.valueOrNull;
+    final prevStatus = prev?.value;
+    final nextStatus = next.value;
     if (nextStatus == ConnectionStatus.online &&
         prevStatus != ConnectionStatus.online) {
       tryPush();

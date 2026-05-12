@@ -202,7 +202,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final personalizedWarnings =
         ref
             .watch(personalizedInteractionWarningsProvider(widget.dsldId))
-            .valueOrNull ??
+            .value ??
         const <InteractionWarning>[];
     final blobWarnings = _parseWarnings(detailBlob);
     final seenKeys = <String>{
