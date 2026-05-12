@@ -346,8 +346,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('BLOCKED'), findsOneWidget);
-      expect(find.text('Do not use this product'), findsOneWidget);
+      // Banner title is the calm, decisive copy locked in 2026-05.
+      // Both BLOCKED and UNSAFE produce the same headline; the
+      // verdict-color tone (danger red) carries the urgency.
+      expect(
+        find.text('PharmaGuide does not recommend this product'),
+        findsOneWidget,
+      );
       // Full banned-ingredient name rendered without truncation
       // (via the blockingReason fallback since no blob is cached).
       expect(find.textContaining('Norethandriol'), findsOneWidget);
@@ -473,7 +478,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('UNSAFE'), findsOneWidget);
+      // Same calm banner copy as BLOCKED (see test above for rationale).
+      expect(
+        find.text('PharmaGuide does not recommend this product'),
+        findsOneWidget,
+      );
       expect(find.text('Add to my stack'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
