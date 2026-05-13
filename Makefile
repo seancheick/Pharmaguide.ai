@@ -99,6 +99,15 @@ verify-supabase: ## Verify Supabase anon key is valid
 		echo "✗ Supabase check failed (HTTP $$STATUS)"; exit 1; \
 	fi
 
+.PHONY: verify-bundle
+verify-bundle: ## Verify bundled DB matches Supabase storage (P4 release-safety)
+	@$(FLUTTER) pub run scripts/verify_bundle.dart \
+		--manifest assets/db/export_manifest.json \
+		--db assets/db/pharmaguide_core.db \
+		--supabase-url "$(SUPABASE_URL)" \
+		--anon-key "$(SUPABASE_ANON_KEY)" \
+		--sample-size 20
+
 # ─── Help ─────────────────────────────────────────────────────────────────────
 
 .PHONY: help

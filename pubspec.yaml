@@ -67,6 +67,12 @@ dev_dependencies:
   mockito: ^5.4.0
   flutter_native_splash: ^2.4.0
   flutter_launcher_icons: ^0.14.0
+  # P4 (release-safety verify-bundle) — used by scripts/verify_bundle.dart
+  # to compute SHA256, query the bundled SQLite catalog, and parse CLI args.
+  # http is already in `dependencies`. test/ uses flutter_test.
+  sqlite3: ^2.0.0
+  crypto: ^3.0.0
+  args: ^2.4.0
 
 flutter_native_splash:
   color: "#0A7D6F"
