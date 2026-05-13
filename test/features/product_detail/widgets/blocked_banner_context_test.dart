@@ -80,24 +80,38 @@ void main() {
       expect(note, isNotNull);
       // The dangerous distinction from the 2026-04-16 lesson: an
       // adulterant-class banned ingredient must NOT read as "stop
-      // your prescription." Pin the phrasing so future copy edits
-      // can't accidentally remove the "keep taking it" reassurance.
+      // your prescription." Pin the load-bearing reassurance that
+      // mirrors Dr Pham's per-substance "Does not affect prescribed
+      // [drug]" clause (see Meloxicam, Metformin entries in
+      // banned_recalled_ingredients.json).
       expect(note, contains('prescription medication'));
-      expect(note, contains('keep taking it'));
+      expect(note, contains('Does not affect this drug when prescribed'));
       expect(note, contains('supplement'));
+      // Action language matches Dr Pham's voice: "Stop the supplement"
+      // (not "avoid", not "do not use this supplement").
+      expect(note, contains('Stop the supplement'));
     });
 
-    test('watchlist → regulatory-review note', () {
+    test('watchlist → regulatory-watchlist note', () {
       final note = contextNoteFor('watchlist');
       expect(note, isNotNull);
-      expect(note, contains('regulatory review'));
+      // Mirrors her watchlist phrasings (Anatabine, Orange B, Citrus
+      // Red 2): "on a regulatory watchlist" + "associated with
+      // labeling concerns" + "talk to your doctor".
+      expect(note, contains('watchlist'));
+      expect(note, contains('labeling'));
+      expect(note, contains('Talk to your doctor'));
     });
 
     test('export_restricted → region-restriction note', () {
       final note = contextNoteFor('export_restricted');
       expect(note, isNotNull);
-      expect(note, contains('restricted'));
-      expect(note, contains('region'));
+      // Mirrors her export_restricted entries (7-Keto DHEA, DHEA):
+      // names the asymmetry (restricted abroad, sold in US) +
+      // "Consult your doctor before use".
+      expect(note, contains('Restricted'));
+      expect(note, contains('US'));
+      expect(note, contains('Consult your doctor before use'));
     });
 
     test('substance → null (no extra row, default tone)', () {
