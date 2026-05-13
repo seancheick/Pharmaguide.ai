@@ -13,6 +13,7 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
+import 'package:pharmaguide/features/product_detail/widgets/blocked_banner_context.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_line.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -1647,6 +1648,24 @@ class _BlockedBanner extends StatelessWidget {
     final safetyWarning = bannedSubstanceDetail?['safety_warning']
         ?.toString()
         .trim();
+    // Sprint C (2026-05-13) — additional context fields the pipeline
+    // now forwards through banned_substance_detail. All optional; we
+    // render only when present so the blocked surface for legacy
+    // products carrying only the 3-field bsd is visually unchanged.
+    final banContext = bannedSubstanceDetail?['ban_context']
+        ?.toString()
+        .trim();
+    final detailText = bannedSubstanceDetail?['detail']?.toString().trim();
+    final regulatoryLine = buildRegulatoryLine(
+      bannedSubstanceDetail?['regulatory_date_label']?.toString(),
+      bannedSubstanceDetail?['date']?.toString(),
+    );
+    final bsdSourceUrls = (bannedSubstanceDetail?['source_urls'] as List?)
+        ?.whereType<String>()
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .toList(growable: false);
+    final contextNote = contextNoteFor(banContext);
 
     // Body copy. Three tiers, in order of richness:
     //   1. Pipeline-emitted one-liner — the authored layperson sentence
@@ -1672,7 +1691,15 @@ class _BlockedBanner extends StatelessWidget {
           ? 'Reason: $humanized'
           : 'PharmaGuide flagged this product on safety grounds.';
     }
-    final fdaLinks = _extractFdaLinks(topWarnings);
+    // Sprint C — citation links. Prefer bsd.source_urls (the specific
+    // citation set for THIS banned substance) over top_warnings
+    // source_urls (which mixes across all the product's warnings).
+    // Falls back to the topWarnings extractor when bsd doesn't carry
+    // source_urls so existing FDA recall notices on multi-warning
+    // products still surface.
+    final fdaLinks = (bsdSourceUrls != null && bsdSourceUrls.isNotEmpty)
+        ? bsdSourceUrls
+        : _extractFdaLinks(topWarnings);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1691,6 +1718,21 @@ class _BlockedBanner extends StatelessWidget {
           title: 'PharmaGuide does not recommend this product',
           body: reasonBody,
         ),
+        if (regulatoryLine != null) ...[
+          // Sprint C — regulatory date line ("FDA ban effective ·
+          // Sep 7, 2016"). Renders just below the headline so users
+          // see the regulatory anchor before the longer safety prose.
+          // Suppressed entirely when the pipeline omits the label.
+          const SizedBox(height: AppTheme.space8),
+          Text(
+            regulatoryLine,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppTheme.severityContraindicated,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
         if (substanceName != null &&
             substanceName.isNotEmpty &&
             (oneLiner == null || oneLiner.isEmpty)) ...[
@@ -1711,6 +1753,37 @@ class _BlockedBanner extends StatelessWidget {
           const SizedBox(height: AppTheme.space8),
           Text(
             safetyWarning,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+        ],
+        if (contextNote != null) ...[
+          // Sprint C — ban_context branch. Substance-vs-adulterant is
+          // the dangerous distinction (per the 2026-04-16 status-overload
+          // lesson): a clinician-prescribed medication that happens to
+          // appear adulterating supplements must NOT read as "stop your
+          // medication." Italic, quieter weight so it reads as context
+          // rather than as a competing headline.
+          const SizedBox(height: AppTheme.space8),
+          Text(
+            contextNote,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+              height: 1.45,
+            ),
+          ),
+        ],
+        if (detailText != null && detailText.isNotEmpty) ...[
+          // Sprint C — mechanism / FDA-story paragraph from the pipeline
+          // warning's `detail` field. A quieter follow-up section so
+          // users who want depth (mechanism of harm, regulatory history)
+          // can read it without it competing with the one-liner.
+          const SizedBox(height: AppTheme.space12),
+          Text(
+            detailText,
             style: theme.textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               height: 1.45,
@@ -1798,6 +1871,7 @@ class _BlockedBanner extends StatelessWidget {
     }
     return links;
   }
+
 }
 
 // ---------------------------------------------------------------------------
