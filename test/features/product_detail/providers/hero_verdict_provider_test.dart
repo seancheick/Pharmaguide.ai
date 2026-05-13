@@ -189,7 +189,10 @@ void main() {
           {'severity': 'avoid', 'with': 'metformin'},
         ],
       );
-      expect((out as HeroVerdictAvoid).headline, 'Avoid with metformin');
+      // Voice rule per feedback_copy_voice.md — clinical advisory,
+      // no "Avoid"/"Do not take" imperatives. Use caution + the
+      // danger-tone banner color does the urgency lift.
+      expect((out as HeroVerdictAvoid).headline, 'Use caution with metformin');
     });
 
     test('headline composes correctly for Contraindicated + agent', () {
@@ -200,7 +203,12 @@ void main() {
           {'severity': 'contraindicated', 'with': 'warfarin'},
         ],
       );
-      expect((out as HeroVerdictAvoid).headline, 'Do not take with warfarin');
+      // contraindicated is the stronger tier — "Not recommended"
+      // reads as a firm clinical judgment without imperative shout.
+      expect(
+        (out as HeroVerdictAvoid).headline,
+        'Not recommended with warfarin',
+      );
     });
 
     test('headline degrades gracefully when agent is absent', () {
@@ -211,7 +219,48 @@ void main() {
           {'severity': 'avoid', 'mechanism': 'opaque'},
         ],
       );
-      expect((out as HeroVerdictAvoid).headline, 'Avoid for your stack');
+      expect(
+        (out as HeroVerdictAvoid).headline,
+        'Use caution for your stack',
+      );
+    });
+
+    test('headline degrades gracefully for contraindicated + no agent', () {
+      final out = computeHeroVerdict(
+        productVerdict: 'GOOD',
+        blockingReason: '',
+        topWarnings: const [
+          {'severity': 'contraindicated', 'mechanism': 'opaque'},
+        ],
+      );
+      expect(
+        (out as HeroVerdictAvoid).headline,
+        'Not recommended for your stack',
+      );
+    });
+
+    test('hero headlines never use "Stop"/"Avoid"/"Do not" imperatives', () {
+      // Voice-rule guard — feedback_copy_voice.md. Any future change
+      // that reintroduces those verbs into the Flutter-derived
+      // headline path fails loudly here. Covers both tiers + both
+      // agent-present and agent-absent paths.
+      const probes = [
+        {'severity': 'contraindicated', 'with': 'warfarin'},
+        {'severity': 'avoid', 'with': 'metformin'},
+        {'severity': 'contraindicated', 'mechanism': 'opaque'},
+        {'severity': 'avoid', 'mechanism': 'opaque'},
+      ];
+      for (final w in probes) {
+        final out = computeHeroVerdict(
+          productVerdict: 'GOOD',
+          blockingReason: '',
+          topWarnings: [w],
+        );
+        final headline = (out as HeroVerdictAvoid).headline;
+        expect(headline, isNot(contains('Stop')));
+        expect(headline, isNot(contains('Avoid')));
+        expect(headline, isNot(contains('Do not')));
+      }
     });
   });
 

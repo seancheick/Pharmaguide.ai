@@ -47,7 +47,8 @@ final class HeroVerdictBlocked extends HeroVerdict {
 /// Product is otherwise valid but the user's stack has an
 /// Avoid- or Contraindicated-tier interaction with it. Render a
 /// danger-tone banner whose headline is the [headline] string —
-/// "Avoid with metformin" / "Do not take with warfarin" / etc.
+/// "Use caution with metformin" / "Not recommended with warfarin"
+/// / etc.
 final class HeroVerdictAvoid extends HeroVerdict {
   /// Either [Severity.avoid] or [Severity.contraindicated].
   final Severity severity;
@@ -55,7 +56,8 @@ final class HeroVerdictAvoid extends HeroVerdict {
   /// Best-effort name of the offending medication / supplement /
   /// condition (e.g. "metformin"). Null when the warning shape
   /// didn't surface a clear agent name; in that case [headline]
-  /// degrades to "Avoid for your stack" / "Do not take" copy.
+  /// degrades to "Use caution for your stack" / "Not recommended
+  /// for your stack" copy.
   final String? offendingAgent;
 
   const HeroVerdictAvoid({required this.severity, this.offendingAgent})
@@ -67,8 +69,22 @@ final class HeroVerdictAvoid extends HeroVerdict {
 
   /// Banner headline, composed from severity + agent. Public so the
   /// hero widget can render it directly without re-deriving.
+  ///
+  /// Voice — PharmaGuide brand voice per pharmaguide.io: clinical
+  /// precision without alarm. The danger-tone banner color already
+  /// carries the urgency; the headline copy is calm advisory.
+  ///
+  ///   - `contraindicated` → "Not recommended" (strongest tier,
+  ///     stack-side conflict, banner-red)
+  ///   - `avoid`           → "Use caution"     (next tier down,
+  ///     banner-red but copy is hedged)
+  ///
+  /// Voice rule per feedback_copy_voice.md: no "Stop", "Avoid",
+  /// "Don't take" imperatives in Flutter-derived strings.
   String get headline {
-    final base = severity == Severity.contraindicated ? 'Do not take' : 'Avoid';
+    final base = severity == Severity.contraindicated
+        ? 'Not recommended'
+        : 'Use caution';
     if (offendingAgent != null && offendingAgent!.trim().isNotEmpty) {
       return '$base with ${offendingAgent!.trim()}';
     }

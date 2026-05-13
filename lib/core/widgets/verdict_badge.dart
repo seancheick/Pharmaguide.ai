@@ -14,8 +14,9 @@ bool isBlockedVerdict(String? verdict) {
 /// Returns true when a verdict string is BLOCKED or legacy UNSAFE — i.e.
 /// unsafe to add to a supplement stack under any circumstances.
 /// Drives the FLTR-16 stack-add guard (domain + UI), which is
-/// stricter than the BlockedProductView override: we still show
-/// detail for UNSAFE products but never let them be tracked.
+/// stricter than the BLOCKED renderer override (`_BlockedBanner` in
+/// product_detail_screen.dart): we still show detail for UNSAFE
+/// products but never let them be tracked.
 bool isUnsafeVerdict(String? verdict) {
   final v = (verdict ?? '').trim().toUpperCase();
   return v == 'BLOCKED' || v == 'UNSAFE';

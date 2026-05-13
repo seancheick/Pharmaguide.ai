@@ -32,15 +32,16 @@ String? buildRegulatoryLine(String? rawLabel, String? rawDate) {
 
 /// Branch user-facing context on the pipeline's `ban_context` enum.
 ///
-/// Voice — calm advisory, matching the PharmaGuide tone established by
-/// the 2026-05 product-tone update ("PharmaGuide does not recommend
-/// this product", "PharmaGuide flags this on safety grounds"):
+/// Voice — PharmaGuide brand voice per pharmaguide.io: conversational
+/// yet authoritative, direct without alarm, clinical precision over
+/// fear language. Knowledgeable peer-advisor with clinician backing.
 ///
 ///   - NO imperatives ("Stop", "Avoid", "Don't use", "Discontinue").
-///   - NO emergency verbs; the danger-tone banner already carries the
-///     recommendation. Additional shouting reads as the app yelling.
-///   - Conversational doctor-oriented phrasings: "Worth a conversation
-///     with your doctor before considering this product."
+///   - NO emergency verbs; the danger-tone banner ("PharmaGuide does
+///     not recommend this product") already carries the recommendation.
+///   - Clinical precision: "active regulatory monitoring", "documented
+///     labeling concerns", "lot-specific recall", "provider input".
+///   - Frame negatives as actionable next steps, not absolutes.
 ///
 /// Dr Pham's per-substance entries in banned_recalled_ingredients.json
 /// DO use "Stop" / "Avoid" — but those flow through the bsd
@@ -57,31 +58,41 @@ String? buildRegulatoryLine(String? rawLabel, String? rawDate) {
 /// the load-bearing reassurance: the drug itself is fine when
 /// prescribed; the supplement is the concern.
 ///
-/// The four enum values mirror banned_recalled_ingredients.json:
+/// The five enum values mirror assets/data/ban_context_vocab.json
+/// (and pipeline scripts/data/banned_recalled_ingredients.json
+/// `ban_context` field — live mix: substance=95, adulterant=29,
+/// watchlist=12, contamination_recall=9, export_restricted=1):
+///
 ///   - `substance`                 → no extra note (default tone)
 ///   - `adulterant_in_supplements` → "your prescription is separate"
 ///                                   reassurance
-///   - `watchlist`                 → "labeling concerns under review"
-///   - `export_restricted`         → "restricted abroad, sold in US"
+///   - `contamination_recall`      → "lot-specific recall, not the
+///                                   substance itself"
+///   - `watchlist`                 → "active regulatory monitoring"
+///   - `export_restricted`         → "restricted abroad, legal in US"
 ///
 /// Returns null for `substance`, null/absent input, or any unknown
 /// value so callers safely skip rendering an empty row.
 String? contextNoteFor(String? banContext) {
   switch (banContext?.trim().toLowerCase()) {
     case 'adulterant_in_supplements':
-      return 'This is a prescription medication that has been found '
-          'undeclared in some supplements. A conversation with your '
-          'doctor is the right next step. If this drug has been '
-          'prescribed for you, your prescription is separate from the '
-          'concern about this supplement.';
+      return 'A prescription medication that has appeared undeclared '
+          'in some supplements. The concern is with the supplement, '
+          'not the prescription. Discuss with your provider before '
+          'continuing.';
+    case 'contamination_recall':
+      return 'A lot-specific recall driven by a contamination issue '
+          'in certain product batches — not by the substance itself. '
+          'Verify the lot number with the manufacturer or your '
+          'provider before continuing.';
     case 'watchlist':
-      return 'This ingredient sits on a regulatory watchlist where '
-          'labeling concerns are under review. Worth a conversation '
-          'with your doctor before considering this product.';
+      return 'Under active regulatory monitoring with documented '
+          'labeling concerns. Provider input is recommended before '
+          'considering this product.';
     case 'export_restricted':
-      return 'This ingredient is restricted as a supplement in some '
-          'countries while still being sold in the US. Worth a '
-          'conversation with your doctor before considering this product.';
+      return 'Restricted as a supplement in some countries while '
+          'remaining legal in the US. Provider input is recommended '
+          'before considering this product.';
     default:
       return null;
   }
