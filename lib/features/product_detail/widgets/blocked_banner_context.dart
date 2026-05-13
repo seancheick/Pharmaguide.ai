@@ -76,25 +76,30 @@ String? buildRegulatoryLine(String? rawLabel, String? rawDate) {
 String? contextNoteFor(String? banContext) {
   switch (banContext?.trim().toLowerCase()) {
     case 'adulterant_in_supplements':
-      return 'This is a prescription medication that has been found '
-          'undeclared in some supplements. A conversation with your '
-          'doctor is the right next step. If this drug has been '
-          'prescribed for you, your prescription is separate from the '
-          'concern about this supplement.';
+      // ~163 chars — mobile-readable. Keeps the load-bearing
+      // reassurance ("your prescription is separate") in a single
+      // tight sentence so users on a phone scan it in one breath.
+      return 'A prescription drug found undeclared in some '
+          'supplements. If this drug is prescribed to you, your '
+          'prescription is separate. Worth a conversation with '
+          'your doctor.';
     case 'contamination_recall':
-      return 'This recall was driven by a contamination issue in '
-          'specific product batches — not by the substance itself. '
-          'Verifying the lot number with the manufacturer or your '
-          'provider is the right next step.';
+      // ~141 chars. Keeps the lot-specific distinction (this isn't
+      // a substance-wide ban) + the actionable next step.
+      return 'A lot-specific recall — the contamination is in '
+          'certain batches, not the substance itself. Worth '
+          'checking the lot number with the manufacturer.';
     case 'watchlist':
-      return 'This ingredient sits on a regulatory watchlist where '
-          'labeling concerns are under review. Worth a conversation '
-          'with your doctor before considering this product.';
+      // ~101 chars. Drops the "considering this product" tail —
+      // implied by context (user is on a blocked-product screen).
+      return 'On a regulatory watchlist with labeling concerns '
+          'under review. Worth a conversation with your doctor.';
     case 'export_restricted':
-      return 'This ingredient is restricted as a supplement in some '
-          'countries while still being sold in the US. Worth a '
-          'conversation with your doctor before considering this '
-          'product.';
+      // ~111 chars. Keeps the user-relevant asymmetry (restricted
+      // abroad, legal in US) in one tight sentence.
+      return 'Restricted as a supplement in some countries while '
+          'still legal in the US. Worth a conversation with your '
+          'doctor.';
     default:
       return null;
   }
