@@ -78,18 +78,21 @@ void main() {
     test('adulterant_in_supplements → prescription-medication note', () {
       final note = contextNoteFor('adulterant_in_supplements');
       expect(note, isNotNull);
-      // Carries the load-bearing reassurance: a clinician-prescribed
-      // medication that happens to appear undisclosed in supplements
-      // must NOT read as "stop your medication." Pin the phrasing
-      // ("the concern is with the supplement, not the prescription")
-      // so future copy edits can't accidentally drop the reassurance.
+      // Load-bearing reassurance: a clinician-prescribed medication
+      // that happens to appear undisclosed in supplements must NOT
+      // read as "stop your medication." Pin the phrasing ("your
+      // prescription is separate from the concern about this
+      // supplement") so future copy edits can't accidentally drop it.
       expect(note, contains('prescription medication'));
-      expect(note, contains('not the prescription'));
+      expect(note, contains('your prescription is separate'));
       expect(note, contains('supplement'));
-      // PharmaGuide brand voice — clinical precision, no imperatives.
-      // "Discuss with your provider" reads as actionable advice, not
-      // alarm. See feedback_copy_voice.md.
-      expect(note, contains('Discuss with your provider'));
+      // Voice — conversational PharmaGuide tone, no imperatives.
+      // "A conversation with your doctor is the right next step" is
+      // the approved phrasing for the strong/load-bearing close.
+      expect(
+        note,
+        contains('A conversation with your doctor is the right next step'),
+      );
       expect(note, isNot(contains('Stop ')));
       expect(note, isNot(contains('Avoid')));
       expect(note, isNot(contains('Do not')));
@@ -102,23 +105,25 @@ void main() {
       // substance-wide. Users with the same substance in a different
       // (clean) product shouldn't read "Do not use this ingredient."
       // The actionable next step is verifying the lot number.
-      expect(note, contains('lot-specific recall'));
+      expect(note, contains('contamination issue'));
+      expect(note, contains('specific product batches'));
       expect(note, contains('not by the substance itself'));
       expect(note, contains('lot number'));
       expect(note, contains('manufacturer or your provider'));
+      // Voice — matches adulterant's "is the right next step" close.
+      expect(note, contains('is the right next step'));
       expect(note, isNot(contains('Stop ')));
       expect(note, isNot(contains('Avoid')));
+      expect(note, isNot(contains('Do not')));
     });
 
-    test('watchlist → regulatory-monitoring note', () {
+    test('watchlist → regulatory-watchlist note', () {
       final note = contextNoteFor('watchlist');
       expect(note, isNotNull);
-      // PharmaGuide brand voice from pharmaguide.io — clinical
-      // precision: "active regulatory monitoring", "documented labeling
-      // concerns", "provider input is recommended".
-      expect(note, contains('active regulatory monitoring'));
+      expect(note, contains('regulatory watchlist'));
       expect(note, contains('labeling concerns'));
-      expect(note, contains('Provider input is recommended'));
+      // Voice — approved softer close for non-urgent flags.
+      expect(note, contains('Worth a conversation with your doctor'));
       expect(note, isNot(contains('Stop')));
       expect(note, isNot(contains('Avoid')));
     });
@@ -126,11 +131,11 @@ void main() {
     test('export_restricted → region-restriction note', () {
       final note = contextNoteFor('export_restricted');
       expect(note, isNotNull);
-      // Names the asymmetry (restricted as a supplement abroad, still
-      // legal in US) — the asymmetry is the user-relevant fact.
-      expect(note, contains('Restricted'));
-      expect(note, contains('remaining legal in the US'));
-      expect(note, contains('Provider input is recommended'));
+      // Names the asymmetry — the user-relevant fact.
+      expect(note, contains('restricted as a supplement'));
+      expect(note, contains('still being sold in the US'));
+      // Voice — same approved softer close as watchlist.
+      expect(note, contains('Worth a conversation with your doctor'));
       expect(note, isNot(contains('Stop')));
       expect(note, isNot(contains('Avoid')));
     });

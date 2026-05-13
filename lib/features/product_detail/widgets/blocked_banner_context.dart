@@ -76,23 +76,25 @@ String? buildRegulatoryLine(String? rawLabel, String? rawDate) {
 String? contextNoteFor(String? banContext) {
   switch (banContext?.trim().toLowerCase()) {
     case 'adulterant_in_supplements':
-      return 'A prescription medication that has appeared undeclared '
-          'in some supplements. The concern is with the supplement, '
-          'not the prescription. Discuss with your provider before '
-          'continuing.';
+      return 'This is a prescription medication that has been found '
+          'undeclared in some supplements. A conversation with your '
+          'doctor is the right next step. If this drug has been '
+          'prescribed for you, your prescription is separate from the '
+          'concern about this supplement.';
     case 'contamination_recall':
-      return 'A lot-specific recall driven by a contamination issue '
-          'in certain product batches — not by the substance itself. '
-          'Verify the lot number with the manufacturer or your '
-          'provider before continuing.';
+      return 'This recall was driven by a contamination issue in '
+          'specific product batches — not by the substance itself. '
+          'Verifying the lot number with the manufacturer or your '
+          'provider is the right next step.';
     case 'watchlist':
-      return 'Under active regulatory monitoring with documented '
-          'labeling concerns. Provider input is recommended before '
-          'considering this product.';
+      return 'This ingredient sits on a regulatory watchlist where '
+          'labeling concerns are under review. Worth a conversation '
+          'with your doctor before considering this product.';
     case 'export_restricted':
-      return 'Restricted as a supplement in some countries while '
-          'remaining legal in the US. Provider input is recommended '
-          'before considering this product.';
+      return 'This ingredient is restricted as a supplement in some '
+          'countries while still being sold in the US. Worth a '
+          'conversation with your doctor before considering this '
+          'product.';
     default:
       return null;
   }

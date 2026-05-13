@@ -195,11 +195,7 @@ class _DepletionItemState extends State<_DepletionItem> {
   String _fallbackPartial() {
     final d = widget.depletion;
     final n = d.nutrientName.isEmpty ? 'this nutrient' : d.nutrientName;
-    // Voice — PharmaGuide brand voice per feedback_copy_voice.md.
-    // Clinical advisory, no "Worth a quick conversation" softness.
-    // "Discuss with your provider" is the canonical actionable close.
-    return "You're taking some $n — your medication may gradually "
-        "require a higher intake. Discuss with your provider.";
+    return "You're taking some $n — your medication may warrant a higher dose over time. Worth a quick conversation with your doctor.";
   }
 
   @override
