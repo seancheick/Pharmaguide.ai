@@ -32,46 +32,56 @@ String? buildRegulatoryLine(String? rawLabel, String? rawDate) {
 
 /// Branch user-facing context on the pipeline's `ban_context` enum.
 ///
-/// Voice matches the authored entries in
-/// scripts/data/banned_recalled_ingredients.json (Dr Pham): short,
-/// declarative, calm. "Stop", "Talk to your doctor", "Consult your
-/// doctor" — informational, not alarming. The phrasings here are
-/// the generic counterparts of her per-substance per-ban_context
-/// idioms (see Meloxicam, Metformin → "Does not affect prescribed
-/// [drug]"; 7-Keto DHEA, DHEA → "Restricted as a supplement
-/// ingredient in [countries]…"; Anatabine, Orange B → "Associated
-/// with labeling… should be avoided").
+/// Voice — calm advisory, matching the PharmaGuide tone established by
+/// the 2026-05 product-tone update ("PharmaGuide does not recommend
+/// this product", "PharmaGuide flags this on safety grounds"):
+///
+///   - NO imperatives ("Stop", "Avoid", "Don't use", "Discontinue").
+///   - NO emergency verbs; the danger-tone banner already carries the
+///     recommendation. Additional shouting reads as the app yelling.
+///   - Conversational doctor-oriented phrasings: "Worth a conversation
+///     with your doctor before considering this product."
+///
+/// Dr Pham's per-substance entries in banned_recalled_ingredients.json
+/// DO use "Stop" / "Avoid" — but those flow through the bsd
+/// `safety_warning_one_liner` / `safety_warning` fields verbatim. This
+/// helper is the Flutter UI's surrounding context note, which uses
+/// the PharmaGuide voice rather than mirroring authored imperatives.
 ///
 /// Per the 2026-04-16 lesson on status overload (knowledge/lessons-
 /// learned.md), conflating `substance` (the molecule itself is
 /// controlled) with `adulterant_in_supplements` (a legitimate
 /// prescription drug found undisclosed in supplements) is the
-/// dangerous failure mode — a clinician-prescribed medication that
-/// appears in this category must NOT read as "stop your medication."
-/// The adulterant note carries the load-bearing reassurance: the
-/// drug itself is fine when prescribed; the supplement is the issue.
+/// dangerous failure mode — a clinician-prescribed medication must
+/// NOT read as "stop your medication." The adulterant note carries
+/// the load-bearing reassurance: the drug itself is fine when
+/// prescribed; the supplement is the concern.
 ///
 /// The four enum values mirror banned_recalled_ingredients.json:
 ///   - `substance`                 → no extra note (default tone)
-///   - `adulterant_in_supplements` → "Does not affect this drug when
-///                                   prescribed for you" reassurance
-///   - `watchlist`                 → "associated with labeling concerns"
-///   - `export_restricted`         → "Restricted abroad, still sold US"
+///   - `adulterant_in_supplements` → "your prescription is separate"
+///                                   reassurance
+///   - `watchlist`                 → "labeling concerns under review"
+///   - `export_restricted`         → "restricted abroad, sold in US"
 ///
 /// Returns null for `substance`, null/absent input, or any unknown
 /// value so callers safely skip rendering an empty row.
 String? contextNoteFor(String? banContext) {
   switch (banContext?.trim().toLowerCase()) {
     case 'adulterant_in_supplements':
-      return 'A prescription medication found undeclared in some '
-          'supplements. Stop the supplement and talk to your doctor. '
-          'Does not affect this drug when prescribed for you.';
+      return 'This is a prescription medication that has been found '
+          'undeclared in some supplements. A conversation with your '
+          'doctor is the right next step. If this drug has been '
+          'prescribed for you, your prescription is separate from the '
+          'concern about this supplement.';
     case 'watchlist':
-      return 'On a regulatory watchlist — associated with labeling '
-          'concerns. Talk to your doctor before use.';
+      return 'This ingredient sits on a regulatory watchlist where '
+          'labeling concerns are under review. Worth a conversation '
+          'with your doctor before considering this product.';
     case 'export_restricted':
-      return 'Restricted as a supplement ingredient in some countries '
-          'while still sold in the US. Consult your doctor before use.';
+      return 'This ingredient is restricted as a supplement in some '
+          'countries while still being sold in the US. Worth a '
+          'conversation with your doctor before considering this product.';
     default:
       return null;
   }

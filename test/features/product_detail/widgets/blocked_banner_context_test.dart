@@ -78,40 +78,45 @@ void main() {
     test('adulterant_in_supplements → prescription-medication note', () {
       final note = contextNoteFor('adulterant_in_supplements');
       expect(note, isNotNull);
-      // The dangerous distinction from the 2026-04-16 lesson: an
-      // adulterant-class banned ingredient must NOT read as "stop
-      // your prescription." Pin the load-bearing reassurance that
-      // mirrors Dr Pham's per-substance "Does not affect prescribed
-      // [drug]" clause (see Meloxicam, Metformin entries in
-      // banned_recalled_ingredients.json).
+      // Carries the load-bearing reassurance: a clinician-prescribed
+      // medication that happens to appear undisclosed in supplements
+      // must NOT read as "stop your medication." Pin the calm phrasing
+      // ("your prescription is separate from the concern about this
+      // supplement") so future copy edits can't accidentally drop it.
       expect(note, contains('prescription medication'));
-      expect(note, contains('Does not affect this drug when prescribed'));
+      expect(note, contains('your prescription is separate'));
       expect(note, contains('supplement'));
-      // Action language matches Dr Pham's voice: "Stop the supplement"
-      // (not "avoid", not "do not use this supplement").
-      expect(note, contains('Stop the supplement'));
+      // Action language matches the PharmaGuide voice — calm advisory,
+      // no imperatives. "A conversation with your doctor" instead of
+      // "Stop the supplement" or "Avoid". See feedback_copy_voice.md.
+      expect(note, contains('conversation with your doctor'));
+      expect(note, isNot(contains('Stop ')));
+      expect(note, isNot(contains('Avoid')));
     });
 
     test('watchlist → regulatory-watchlist note', () {
       final note = contextNoteFor('watchlist');
       expect(note, isNotNull);
-      // Mirrors her watchlist phrasings (Anatabine, Orange B, Citrus
-      // Red 2): "on a regulatory watchlist" + "associated with
-      // labeling concerns" + "talk to your doctor".
       expect(note, contains('watchlist'));
       expect(note, contains('labeling'));
-      expect(note, contains('Talk to your doctor'));
+      // Calm advisory voice — "Worth a conversation with your doctor"
+      // (not "Talk to your doctor", not "Stop", not "Avoid").
+      expect(note, contains('Worth a conversation with your doctor'));
+      expect(note, isNot(contains('Stop')));
+      expect(note, isNot(contains('Avoid')));
     });
 
     test('export_restricted → region-restriction note', () {
       final note = contextNoteFor('export_restricted');
       expect(note, isNotNull);
-      // Mirrors her export_restricted entries (7-Keto DHEA, DHEA):
-      // names the asymmetry (restricted abroad, sold in US) +
-      // "Consult your doctor before use".
-      expect(note, contains('Restricted'));
+      // Names the asymmetry (restricted as a supplement abroad, still
+      // sold in US) — the asymmetry is the user-relevant fact.
+      expect(note, contains('restricted'));
       expect(note, contains('US'));
-      expect(note, contains('Consult your doctor before use'));
+      // Calm advisory close — "Worth a conversation with your doctor".
+      expect(note, contains('Worth a conversation with your doctor'));
+      expect(note, isNot(contains('Stop')));
+      expect(note, isNot(contains('Avoid')));
     });
 
     test('substance → null (no extra row, default tone)', () {
