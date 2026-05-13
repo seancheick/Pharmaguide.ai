@@ -1,0 +1,85 @@
+name: Verify Bundle
+
+# Independent second-line defense against the 2026-05-12 failure mode
+# (ADR-0001 P4). Runs the consumer-side bundle verifier
+# (scripts/verify_bundle.dart) against real Supabase storage on any PR
+# that modifies the bundled catalog.
+#
+# Setup required before this workflow can run:
+#   - SUPABASE_URL repo secret
+#   - SUPABASE_ANON_KEY repo secret
+# The anon key is the public app key — it's stored as a secret to keep
+# it out of workflow logs, not because it's secret per se. If either
+# secret is missing the job fails fast with a clear message.
+#
+# Manual trigger (workflow_dispatch) is supported so operators can
+# verify the live bundle on demand without opening a PR.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'assets/db/**'
+      - 'scripts/verify_bundle.dart'
+      - '.github/workflows/verify-bundle.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/db/**'
+  workflow_dispatch:
+    inputs:
+      sample_size:
+        description: 'Number of products to sample'
+        required: false
+        default: '20'
+
+concurrency:
+  group: verify-bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-bundle:
+    name: Bundle ↔ Supabase storage alignment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # The bundled catalog DB ships via Git LFS. Without lfs:true we'd
+      # only get the LFS pointer text and the SHA256 verification would
+      # fail on every run — exactly the test that proves the verifier
+      # is doing something useful, but not what we want from CI.
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Fail fast if Supabase secrets are missing
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY repo secrets are required"
+            echo "Add them at: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+      - name: Verify bundle against Supabase storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SAMPLE_SIZE: ${{ github.event.inputs.sample_size || '20' }}
+        run: |
+          dart run scripts/verify_bundle.dart \
+            --manifest assets/db/export_manifest.json \
+            --db assets/db/pharmaguide_core.db \
+            --supabase-url "$SUPABASE_URL" \
+            --anon-key "$SUPABASE_ANON_KEY" \
+            --sample-size "$SAMPLE_SIZE"
