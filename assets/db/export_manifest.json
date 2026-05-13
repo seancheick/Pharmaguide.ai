@@ -1,10 +1,10 @@
 {
-  "checksum": "sha256:e0e1e68ed56132bba53af8b367fdd9ff061c2d7ca499a34d1222a99d647e2870",
-  "checksum_sha256": "e0e1e68ed56132bba53af8b367fdd9ff061c2d7ca499a34d1222a99d647e2870",
-  "db_version": "2026.05.13.155020",
-  "detail_blob_count": 8331,
-  "detail_blob_unique_count": 8331,
-  "detail_index_checksum": "sha256:43ef64c96ec304b37e6dd9c441ef6ccaf430eb46bc4741a40cb9ecd3453359ef",
+  "checksum": "sha256:b611e4d2882b4450a97391eb7f5535a87a5e257c7b5f7ed21a13f07eca256f57",
+  "checksum_sha256": "b611e4d2882b4450a97391eb7f5535a87a5e257c7b5f7ed21a13f07eca256f57",
+  "db_version": "2026.05.13.162119",
+  "detail_blob_count": 8350,
+  "detail_blob_unique_count": 8350,
+  "detail_index_checksum": "sha256:feb494932a536e64fa82361993d3a05a5068981d73e5158a396f4ff4cbb4b1c3",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -664,123 +664,34 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-05-13T15:50:20.320393+00:00",
+  "generated_at": "2026-05-13T16:21:19.855578+00:00",
   "integrity": {
     "contract_failures": 128,
-    "coverage_pct": 60.61,
+    "coverage_pct": 60.74,
     "enriched_input_count": 13746,
     "enriched_only_count": 0,
     "error_count": 0,
     "excluded_by_gate_count": 164,
-    "exported_count": 8331,
+    "exported_count": 8350,
     "has_banned_substance": 115,
     "has_recalled_ingredient": 0,
     "scored_input_count": 13746,
     "scored_only_count": 0,
     "scoring_config_checksum": "sha256:caf3ce38b5a4a72a6811b74f82a86c76febf3be46a900ee58d2f3a3814218b7d",
-    "skipped_count": 186,
+    "skipped_count": 164,
     "strict_mode": false,
-    "total_skipped": 186,
+    "total_skipped": 164,
     "verdict_blocked": 88,
     "verdict_not_scored": 128,
     "verdict_unsafe": 0,
-    "warning_count": 22
+    "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 8331,
-  "release_staged_at": "2026-05-13T15:50:20Z",
+  "product_count": 8350,
+  "release_staged_at": "2026-05-13T16:21:20Z",
   "schema_version": "1.6.0",
   "scoring_config_checksum": "sha256:caf3ce38b5a4a72a6811b74f82a86c76febf3be46a900ee58d2f3a3814218b7d",
   "scoring_version": "3.4.0",
-  "warnings": [
-    {
-      "dsld_id": "1631",
-      "error": "[1631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "1632",
-      "error": "[1632] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "1633",
-      "error": "[1633] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "18370",
-      "error": "[18370] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "18375",
-      "error": "[18375] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "19471",
-      "error": "[19471] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "213540",
-      "error": "[213540] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "213550",
-      "error": "[213550] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "223600",
-      "error": "[223600] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "224631",
-      "error": "[224631] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "27275",
-      "error": "[27275] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "27307",
-      "error": "[27307] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "315314",
-      "error": "[315314] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "316107",
-      "error": "[316107] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "317643",
-      "error": "[317643] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "321926",
-      "error": "[321926] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "3671",
-      "error": "[3671] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "42298",
-      "error": "[42298] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "67304",
-      "error": "[67304] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "74440",
-      "error": "[74440] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "74456",
-      "error": "[74456] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    },
-    {
-      "dsld_id": "78720",
-      "error": "[78720] critical-mode warning (type='harmful_additive') carries condition-specific copy in 'detail': 'kidney disease' — rewrite as profile-agnostic or set display_mode_default=\"suppress\" (Sprint E1.1.2)."
-    }
-  ]
+  "warnings": []
 }
