@@ -42,6 +42,18 @@ jobs:
     name: Bundle ↔ Supabase storage alignment
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Skip on Dependabot PRs. GitHub deliberately withholds repo
+    # secrets from dependabot[bot] PRs to prevent secret leakage
+    # via malicious dependency updates — so SUPABASE_URL /
+    # SUPABASE_ANON_KEY are unavailable and the "Fail fast if
+    # Supabase secrets are missing" step would always fail.
+    # Dependabot PRs that touch this workflow file (e.g. an
+    # actions/checkout bump) match the path filter above, then
+    # the job 100% fails. Dep updates can't change the bundle
+    # anyway; the regular CI workflow validates the bump on its
+    # own. Re-run via workflow_dispatch after merging if the bump
+    # touched anything bundle-adjacent. Added in PR 9 iteration.
+    if: github.actor != 'dependabot[bot]'
 
     steps:
       # The bundled catalog DB ships via Git LFS. Without lfs:true we'd
