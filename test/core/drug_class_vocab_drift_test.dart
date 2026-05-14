@@ -72,34 +72,32 @@ void main() {
       },
     );
 
-    test(
-      'rule-only `hypoglycemics` entry preserved for pipeline compat',
-      () {
-        // The v6.1.0 split SPLIT the user-facing drug class but the
-        // pipeline interaction rules
-        // (scripts/data/ingredient_interaction_rules.json) still emit
-        // 'hypoglycemics' as drug_class_rules[].drug_class_id. The
-        // Flutter compat mapping in interaction_warnings.dart line ~371
-        // maps user-profile splits back to the old ID for rule lookup.
-        // The vocab entry stays in the asset (with user_selectable=false)
-        // so the interaction-warning display can resolve label/notes.
-        final raw = file.readAsStringSync();
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        final entries = (decoded['drug_classes'] as List)
-            .cast<Map<String, dynamic>>();
-        final hypo = entries.firstWhere(
-          (e) => e['id'] == 'hypoglycemics',
-          orElse: () => <String, dynamic>{},
-        );
-        expect(
-          hypo,
-          isNotEmpty,
-          reason: 'rule-only hypoglycemics entry deleted — pipeline '
-              'interaction rules will break their lookup',
-        );
-        expect(hypo['user_selectable'], false);
-      },
-    );
+    test('rule-only `hypoglycemics` entry preserved for pipeline compat', () {
+      // The v6.1.0 split SPLIT the user-facing drug class but the
+      // pipeline interaction rules
+      // (scripts/data/ingredient_interaction_rules.json) still emit
+      // 'hypoglycemics' as drug_class_rules[].drug_class_id. The
+      // Flutter compat mapping in interaction_warnings.dart line ~371
+      // maps user-profile splits back to the old ID for rule lookup.
+      // The vocab entry stays in the asset (with user_selectable=false)
+      // so the interaction-warning display can resolve label/notes.
+      final raw = file.readAsStringSync();
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final entries = (decoded['drug_classes'] as List)
+          .cast<Map<String, dynamic>>();
+      final hypo = entries.firstWhere(
+        (e) => e['id'] == 'hypoglycemics',
+        orElse: () => <String, dynamic>{},
+      );
+      expect(
+        hypo,
+        isNotEmpty,
+        reason:
+            'rule-only hypoglycemics entry deleted — pipeline '
+            'interaction rules will break their lookup',
+      );
+      expect(hypo['user_selectable'], false);
+    });
 
     test(
       'vocab `name` matches schema_ids.dart `drugClassLabels` for selectable subset',

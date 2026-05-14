@@ -121,8 +121,7 @@ class _PGPressableState extends State<PGPressable> {
 
     final scheme = Theme.of(context).colorScheme;
     final ringRadius =
-        widget.focusBorderRadius ??
-        BorderRadius.circular(AppTheme.radiusLarge);
+        widget.focusBorderRadius ?? BorderRadius.circular(AppTheme.radiusLarge);
 
     // Focus ring overlay — paints only under keyboard / screen-reader
     // focus (gated by `onShowFocusHighlight`), so iPad-with-keyboard, web,

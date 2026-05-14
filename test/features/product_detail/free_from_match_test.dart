@@ -240,27 +240,24 @@ void main() {
       },
     );
 
-    test(
-      'user with no relevant allergens scanning a 3x-certified product '
-      '→ no claims emitted (free-from is personalized)',
-      () {
-        // Same Doctor's Best B Complex, but the user only flagged eggs.
-        final claims = matchFreeFromClaims(
-          userAllergenIds: const {'ALLERGEN_EGGS'},
-          isGlutenFree: 1,
-          isDairyFree: 1,
-          isSoyFree: 1,
-        );
-        expect(
-          claims,
-          isEmpty,
-          reason:
-              'The hero chips still show generic "Gluten-Free / Dairy-'
-              'Free / Soy-Free" badges, but the personalized card stays '
-              "silent — user doesn't have those concerns.",
-        );
-      },
-    );
+    test('user with no relevant allergens scanning a 3x-certified product '
+        '→ no claims emitted (free-from is personalized)', () {
+      // Same Doctor's Best B Complex, but the user only flagged eggs.
+      final claims = matchFreeFromClaims(
+        userAllergenIds: const {'ALLERGEN_EGGS'},
+        isGlutenFree: 1,
+        isDairyFree: 1,
+        isSoyFree: 1,
+      );
+      expect(
+        claims,
+        isEmpty,
+        reason:
+            'The hero chips still show generic "Gluten-Free / Dairy-'
+            'Free / Soy-Free" badges, but the personalized card stays '
+            "silent — user doesn't have those concerns.",
+      );
+    });
   });
 
   group('findFreeFromConflicts', () {

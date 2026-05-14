@@ -85,7 +85,6 @@ class ProfileState {
     return out;
   }
 
-
   /// Convert to Drift companion for DB persistence.
   UserProfilesCompanion toCompanion() {
     return UserProfilesCompanion(

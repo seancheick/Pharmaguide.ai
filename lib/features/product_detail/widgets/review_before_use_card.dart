@@ -669,9 +669,7 @@ class _ConflictFooter extends StatelessWidget {
 
   const _ConflictFooter({required this.concerns}) : compact = false;
 
-  const _ConflictFooter.collapsed()
-    : concerns = const [],
-      compact = true;
+  const _ConflictFooter.collapsed() : concerns = const [], compact = true;
 
   @override
   Widget build(BuildContext context) {

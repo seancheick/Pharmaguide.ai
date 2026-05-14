@@ -219,10 +219,7 @@ void main() {
           {'severity': 'avoid', 'mechanism': 'opaque'},
         ],
       );
-      expect(
-        (out as HeroVerdictAvoid).headline,
-        'Use caution for your stack',
-      );
+      expect((out as HeroVerdictAvoid).headline, 'Use caution for your stack');
     });
 
     test('headline degrades gracefully for contraindicated + no agent', () {

@@ -32,10 +32,7 @@ void main() {
         buildRegulatoryLine('FDA ban effective', null),
         'FDA ban effective',
       );
-      expect(
-        buildRegulatoryLine('FDA ban effective', ''),
-        'FDA ban effective',
-      );
+      expect(buildRegulatoryLine('FDA ban effective', ''), 'FDA ban effective');
       expect(
         buildRegulatoryLine('FDA ban effective', '   '),
         'FDA ban effective',

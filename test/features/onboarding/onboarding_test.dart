@@ -14,8 +14,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Page 1: value preview with mini product card
-      expect(find.text('Scan a supplement.\nUnderstand the risk.'),
-          findsOneWidget);
+      expect(
+        find.text('Scan a supplement.\nUnderstand the risk.'),
+        findsOneWidget,
+      );
       expect(find.text('Magnesium Glycinate'), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
@@ -29,8 +31,9 @@ void main() {
       expect(dots, findsNWidgets(4));
     });
 
-    testWidgets('tapping Continue advances to profile value page',
-        (tester) async {
+    testWidgets('tapping Continue advances to profile value page', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -41,8 +44,7 @@ void main() {
       expect(find.text('Applies to you'), findsOneWidget);
     });
 
-    testWidgets('page 3 shows goal chips with max 2 selection',
-        (tester) async {
+    testWidgets('page 3 shows goal chips with max 2 selection', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -53,7 +55,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-          find.text('What are you checking\nsupplements for?'), findsOneWidget);
+        find.text('What are you checking\nsupplements for?'),
+        findsOneWidget,
+      );
       expect(find.text('Energy'), findsOneWidget);
       expect(find.text('Sleep'), findsOneWidget);
       expect(find.text('Heart health'), findsOneWidget);

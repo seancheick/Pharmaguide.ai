@@ -64,10 +64,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: _animationDuration,
-    );
+    _ctrl = AnimationController(vsync: this, duration: _animationDuration);
     // Subtle settle — logo never disappears, just refines into place.
     _scale = Tween<double>(
       begin: 0.96,

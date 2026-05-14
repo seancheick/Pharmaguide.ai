@@ -158,7 +158,6 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-
         // Stack health — premium Oura-style card
         // ----------------------------------------------------------------
         if (showExpandedSections) ...[

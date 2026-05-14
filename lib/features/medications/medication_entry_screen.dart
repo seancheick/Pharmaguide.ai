@@ -172,10 +172,12 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
 
     setState(() {
       _selectedClasses = classesResult;
-      _selectedGenericRxcui =
-          genericsResult.isNotEmpty ? genericsResult.first : null;
-      _ingredientRxcuis =
-          genericsResult.length > 1 ? genericsResult : const <String>[];
+      _selectedGenericRxcui = genericsResult.isNotEmpty
+          ? genericsResult.first
+          : null;
+      _ingredientRxcuis = genericsResult.length > 1
+          ? genericsResult
+          : const <String>[];
       _resolvingClasses = false;
     });
   }
@@ -197,8 +199,9 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
   /// Look up the user-friendly label from SchemaIds.drugClassLabels,
   /// falling back to a humanized version of the slug.
   static String _friendlyClassLabel(String classId) {
-    final stripped =
-        classId.startsWith('class:') ? classId.substring(6) : classId;
+    final stripped = classId.startsWith('class:')
+        ? classId.substring(6)
+        : classId;
     return SchemaIds.drugClassLabels[stripped] ?? _humanizeSlug(stripped);
   }
 
@@ -272,9 +275,7 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add a medication'),
-      ),
+      appBar: AppBar(title: const Text('Add a medication')),
       body: SafeArea(
         child: Column(
           children: [

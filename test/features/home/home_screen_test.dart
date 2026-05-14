@@ -77,7 +77,6 @@ void main() {
       await userDb.close();
     });
 
-
     testWidgets('shows first-launch variant when stack and history are empty', (
       tester,
     ) async {
@@ -89,7 +88,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        find.text('Scan a label or search by name to see quality, safety, and personal-fit notes.'),
+        find.text(
+          'Scan a label or search by name to see quality, safety, and personal-fit notes.',
+        ),
         findsOneWidget,
       );
       expect(find.text('Stack Health'), findsNothing);
@@ -195,7 +196,9 @@ void main() {
 
       expect(find.text('Safe to take together?'), findsOneWidget);
       expect(
-        find.text('Scan a label or search by name to see quality, safety, and personal-fit notes.'),
+        find.text(
+          'Scan a label or search by name to see quality, safety, and personal-fit notes.',
+        ),
         findsNothing,
       );
 
@@ -236,7 +239,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150));
 
       expect(
-        find.text('Scan a label or search by name to see quality, safety, and personal-fit notes.'),
+        find.text(
+          'Scan a label or search by name to see quality, safety, and personal-fit notes.',
+        ),
         findsNothing,
       );
       expect(find.text('Recent scans'), findsOneWidget);

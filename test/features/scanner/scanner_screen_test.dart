@@ -35,10 +35,7 @@ void main() {
       expect(find.text('Submit Product'), findsOneWidget);
       expect(find.text('Search by name'), findsOneWidget);
       expect(find.text('Scan again'), findsOneWidget);
-      expect(
-        find.textContaining('submit the label'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('submit the label'), findsOneWidget);
     });
   });
 }

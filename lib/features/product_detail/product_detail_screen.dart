@@ -1652,9 +1652,7 @@ class _BlockedBanner extends StatelessWidget {
     // now forwards through banned_substance_detail. All optional; we
     // render only when present so the blocked surface for legacy
     // products carrying only the 3-field bsd is visually unchanged.
-    final banContext = bannedSubstanceDetail?['ban_context']
-        ?.toString()
-        .trim();
+    final banContext = bannedSubstanceDetail?['ban_context']?.toString().trim();
     final detailText = bannedSubstanceDetail?['detail']?.toString().trim();
     final regulatoryLine = buildRegulatoryLine(
       bannedSubstanceDetail?['regulatory_date_label']?.toString(),
@@ -1871,7 +1869,6 @@ class _BlockedBanner extends StatelessWidget {
     }
     return links;
   }
-
 }
 
 // ---------------------------------------------------------------------------

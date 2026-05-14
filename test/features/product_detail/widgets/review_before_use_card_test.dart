@@ -431,9 +431,7 @@ void main() {
       (tester) async {
         await _pump(
           tester,
-          warnings: [
-            _w(severity: Severity.contraindicated, title: 'X-warn'),
-          ],
+          warnings: [_w(severity: Severity.contraindicated, title: 'X-warn')],
           freeFromClaims: const [
             FreeFromClaim(
               label: 'Soy-free',

@@ -163,36 +163,39 @@ void main() {
       expect(notifier.state.nickname, 'NoDB');
     });
 
-    test('cold-relaunch round-trip — save on one notifier, load on a fresh one', () async {
-      // Regression test for fix/profile-save-race: simulates the exact
-      // scenario the user hit on iOS. The original bug was that
-      // profile_setup_screen._save() fire-and-forgot saveToDb() then
-      // navigated immediately. The Future could race the cold relaunch
-      // and lose data — in-memory state showed the nickname during the
-      // session but a fresh notifier built from the same DB after relaunch
-      // found no row.
-      //
-      // This test proves the persistence chain itself is sound: an
-      // awaited saveToDb on notifier A is durable enough that a fresh
-      // notifier B built against the same DB reads it back. If this
-      // breaks, the bug is in the provider/DB layer. If this passes but
-      // users still report lost nicknames after relaunch, the bug is at
-      // a call site that's not awaiting saveToDb.
-      final notifierA = ProfileNotifier(db);
-      notifierA.setNickname('ColdRelaunch');
-      notifierA.setAgeBracket('19-30');
-      notifierA.toggleGoal('GOAL_SLEEP_QUALITY');
-      await notifierA.saveToDb();
+    test(
+      'cold-relaunch round-trip — save on one notifier, load on a fresh one',
+      () async {
+        // Regression test for fix/profile-save-race: simulates the exact
+        // scenario the user hit on iOS. The original bug was that
+        // profile_setup_screen._save() fire-and-forgot saveToDb() then
+        // navigated immediately. The Future could race the cold relaunch
+        // and lose data — in-memory state showed the nickname during the
+        // session but a fresh notifier built from the same DB after relaunch
+        // found no row.
+        //
+        // This test proves the persistence chain itself is sound: an
+        // awaited saveToDb on notifier A is durable enough that a fresh
+        // notifier B built against the same DB reads it back. If this
+        // breaks, the bug is in the provider/DB layer. If this passes but
+        // users still report lost nicknames after relaunch, the bug is at
+        // a call site that's not awaiting saveToDb.
+        final notifierA = ProfileNotifier(db);
+        notifierA.setNickname('ColdRelaunch');
+        notifierA.setAgeBracket('19-30');
+        notifierA.toggleGoal('GOAL_SLEEP_QUALITY');
+        await notifierA.saveToDb();
 
-      // Simulate cold relaunch: brand-new notifier instance reading the
-      // same on-disk DB. This is what `final profileProvider = ...`
-      // does on app start when the user reopens.
-      final notifierB = ProfileNotifier(db);
-      await notifierB.loadFromDb();
+        // Simulate cold relaunch: brand-new notifier instance reading the
+        // same on-disk DB. This is what `final profileProvider = ...`
+        // does on app start when the user reopens.
+        final notifierB = ProfileNotifier(db);
+        await notifierB.loadFromDb();
 
-      expect(notifierB.state.nickname, 'ColdRelaunch');
-      expect(notifierB.state.ageBracket, '19-30');
-      expect(notifierB.state.goals, ['GOAL_SLEEP_QUALITY']);
-    });
+        expect(notifierB.state.nickname, 'ColdRelaunch');
+        expect(notifierB.state.ageBracket, '19-30');
+        expect(notifierB.state.goals, ['GOAL_SLEEP_QUALITY']);
+      },
+    );
   });
 }

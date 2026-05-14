@@ -214,13 +214,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 // compact viewports (e.g. 600px test frames).
                 Flexible(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 250, maxHeight: 250),
+                    constraints: const BoxConstraints(
+                      maxWidth: 250,
+                      maxHeight: 250,
+                    ),
                     child: AspectRatio(
                       aspectRatio: 1,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white70, width: 2),
-                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusLarge,
+                          ),
                         ),
                       ),
                     ),
@@ -259,8 +264,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           ),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.white54),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           onPressed: _openManualBarcodeSheet,
                         ),
@@ -279,11 +283,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           ),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.white54),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          onPressed: () =>
-                              context.push(Routes.medicationEntry),
+                          onPressed: () => context.push(Routes.medicationEntry),
                         ),
                       ),
                     ],
@@ -452,9 +454,7 @@ class ScannerNotFoundSheet extends StatelessWidget {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text(
-                      'Product submission coming soon.',
-                    ),
+                    content: Text('Product submission coming soon.'),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );

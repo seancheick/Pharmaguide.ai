@@ -33,47 +33,39 @@ void main() {
       },
     );
 
-    testWidgets(
-      'plural copy when multiple aids present',
-      (tester) async {
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: Scaffold(
-              body: FormulationDetailSection(
-                formulationDetail: <String, dynamic>{
-                  'delivery_form': 'Tablet',
-                },
-                ingredientQualityData: <String, dynamic>{
-                  'demoted_absorption_enhancers': [
-                    {'name': 'BioPerine', 'quantity': 5.0, 'unit': 'mg'},
-                    {'name': 'Lecithin', 'quantity': 50.0, 'unit': 'mg'},
-                  ],
-                },
-              ),
+    testWidgets('plural copy when multiple aids present', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: FormulationDetailSection(
+              formulationDetail: <String, dynamic>{'delivery_form': 'Tablet'},
+              ingredientQualityData: <String, dynamic>{
+                'demoted_absorption_enhancers': [
+                  {'name': 'BioPerine', 'quantity': 5.0, 'unit': 'mg'},
+                  {'name': 'Lecithin', 'quantity': 50.0, 'unit': 'mg'},
+                ],
+              },
             ),
           ),
-        );
-        expect(find.text('Includes bioavailability aids'), findsOneWidget);
-      },
-    );
+        ),
+      );
+      expect(find.text('Includes bioavailability aids'), findsOneWidget);
+    });
 
-    testWidgets(
-      'null ingredientQualityData → no aid section, no crash',
-      (tester) async {
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: Scaffold(
-              body: FormulationDetailSection(
-                formulationDetail: <String, dynamic>{
-                  'delivery_form': 'Liquid',
-                },
-              ),
+    testWidgets('null ingredientQualityData → no aid section, no crash', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: FormulationDetailSection(
+              formulationDetail: <String, dynamic>{'delivery_form': 'Liquid'},
             ),
           ),
-        );
-        expect(find.textContaining('bioavailability'), findsNothing);
-      },
-    );
+        ),
+      );
+      expect(find.textContaining('bioavailability'), findsNothing);
+    });
   });
 
   group('extractIngredientNames (T0.3)', () {

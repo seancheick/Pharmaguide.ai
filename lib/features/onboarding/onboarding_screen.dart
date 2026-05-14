@@ -58,9 +58,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _finish() async {
     // Persist selected goals if any
     if (_selectedGoals.isNotEmpty) {
-      ref.read(profileProvider.notifier).setGoals(
-            _selectedGoals.toList(),
-          );
+      ref.read(profileProvider.notifier).setGoals(_selectedGoals.toList());
     }
     await OnboardingPrefs.markSeen();
     if (!mounted) return;
@@ -69,9 +67,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _finishWithProfileSetup() async {
     if (_selectedGoals.isNotEmpty) {
-      ref.read(profileProvider.notifier).setGoals(
-            _selectedGoals.toList(),
-          );
+      ref.read(profileProvider.notifier).setGoals(_selectedGoals.toList());
     }
     await OnboardingPrefs.markSeen();
     if (!mounted) return;
@@ -141,9 +137,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     selectedGoals: _selectedGoals,
                     onToggle: _toggleGoal,
                   ),
-                  _TrustPage(
-                    onSetupProfile: _finishWithProfileSetup,
-                  ),
+                  _TrustPage(onSetupProfile: _finishWithProfileSetup),
                 ],
               ),
             ),
@@ -238,8 +232,9 @@ class _ValuePreviewPage extends StatelessWidget {
                       height: 44,
                       decoration: BoxDecoration(
                         color: AppTheme.severitySafe.withValues(alpha: 0.12),
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                       ),
                       child: Center(
                         child: Text(
@@ -475,9 +470,7 @@ class _GoalSelectionPage extends StatelessWidget {
                 selectedColor: scheme.primary.withValues(alpha: 0.14),
                 checkmarkColor: scheme.primary,
                 side: BorderSide(
-                  color: selected
-                      ? scheme.primary
-                      : scheme.outlineVariant,
+                  color: selected ? scheme.primary : scheme.outlineVariant,
                 ),
                 labelStyle: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
