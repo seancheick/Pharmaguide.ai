@@ -139,6 +139,16 @@ class V2Gallery extends StatelessWidget {
                 subtitle: 'Glass-card reveal · cycle 5 severity tiers',
                 routePath: '/dev/v2/scanner',
               ),
+              _PrototypeLink(
+                label: 'Stack',
+                subtitle: '3 pill tabs · supplement + med badges',
+                routePath: '/dev/v2/stack',
+              ),
+              _PrototypeLink(
+                label: 'Stack (empty)',
+                subtitle: 'Empty-state craft with PGEmptyState',
+                routePath: '/dev/v2/stack?empty=1',
+              ),
             ],
           ),
           _Section(

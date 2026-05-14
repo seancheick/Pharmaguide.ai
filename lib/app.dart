@@ -26,6 +26,7 @@ import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
+import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
 /// "catalog updated" snackbar from outside the widget tree when the OTA
@@ -212,6 +213,16 @@ GoRouter _buildRouter({
           state,
           const ScannerV2PreviewScreen(),
         ),
+      ),
+      // v2 Stack preview — 3 pill tabs (Stack / Nutrient Analysis /
+      // Saved). Fixture data. `?empty=1` previews the empty-stack state
+      // with the PGEmptyState craft.
+      GoRoute(
+        path: '/dev/v2/stack',
+        pageBuilder: (_, state) {
+          final empty = state.uri.queryParameters['empty'] == '1';
+          return _platformPage(state, StackV2Screen(emptyStack: empty));
+        },
       ),
       // v2 splash preview — `autoNavigate: false` so it doesn't redirect
       // out of the gallery after the entrance animation completes.
