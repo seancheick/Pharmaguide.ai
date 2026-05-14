@@ -42,7 +42,7 @@ dependencies:
   # Sharing
   share_plus: ^12.0.2
   # Connectivity
-  connectivity_plus: ^6.0.0
+  connectivity_plus: ^7.1.1
   # Local storage (guest scan limits)
   shared_preferences: ^2.3.0
   # Utilities
