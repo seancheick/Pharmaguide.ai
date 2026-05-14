@@ -16,6 +16,7 @@ import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
+import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
@@ -178,6 +179,15 @@ GoRouter _buildRouter({
       GoRoute(
         path: '/dev/v2',
         builder: (_, __) => const V2Gallery(),
+      ),
+      GoRoute(
+        path: '/dev/v2/product-detail/:id',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          ProductDetailV2Screen(
+            fixtureId: state.pathParameters['id'] ?? 'normal',
+          ),
+        ),
       ),
       GoRoute(
         path: Routes.splashIntro,

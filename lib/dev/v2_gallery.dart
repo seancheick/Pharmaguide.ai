@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_score_chip.dart';
+import 'package:pharmaguide/core/components/pg_score_ring.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
+import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_fixtures.dart';
 
 /// v2 component gallery — debug-only route at `/dev/v2`.
 ///
@@ -75,7 +79,107 @@ class V2Gallery extends StatelessWidget {
               _ShadowChip('lg', V2Shadows.lg),
             ],
           ),
+          _Section(
+            title: 'Score visualizations',
+            children: [
+              Text(
+                'Two takes — pick per surface. Ring for emotional moments '
+                '(post-scan reveal). Chip for clinical surfaces where '
+                'verdict should anchor (Product Detail, Stack, Recents).',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              for (final s in const [88.0, 74.0, 52.0, 32.0])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: V2Spacing.space16),
+                  child: Container(
+                    padding: const EdgeInsets.all(V2Spacing.space16),
+                    decoration: BoxDecoration(
+                      color: V2Colors.surface,
+                      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                      border: Border.all(color: V2Colors.outline),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        PGScoreRing(score: s, size: 80, caption: 'PG Score'),
+                        PGScoreChip(score: s),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          _Section(
+            title: 'Product Detail prototypes',
+            children: [
+              for (final f in ProductDetailFixtures.all)
+                _PrototypeLink(
+                  label: f.id,
+                  subtitle: f.productName,
+                  routePath: '/dev/v2/product-detail/${f.id}',
+                ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _PrototypeLink extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final String routePath;
+
+  const _PrototypeLink({
+    required this.label,
+    required this.subtitle,
+    required this.routePath,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+      child: Material(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: InkWell(
+          onTap: () => context.go(routePath),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.all(V2Spacing.space16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label.toUpperCase(),
+                        style: V2Typography.eyebrow(color: V2Colors.accent),
+                      ),
+                      const SizedBox(height: V2Spacing.space4),
+                      Text(
+                        subtitle,
+                        style: V2Typography.body(color: V2Colors.fg),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: V2Colors.fgMuted),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
