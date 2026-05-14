@@ -149,6 +149,16 @@ class V2Gallery extends StatelessWidget {
                 subtitle: 'Empty-state craft with PGEmptyState',
                 routePath: '/dev/v2/stack?empty=1',
               ),
+              _PrototypeLink(
+                label: 'Settings',
+                subtitle: 'Avatar hero · hairline groups · calm controls',
+                routePath: '/dev/v2/settings',
+              ),
+              _PrototypeLink(
+                label: 'Settings (signed-in)',
+                subtitle: 'Signed-in account variant',
+                routePath: '/dev/v2/settings?signedIn=1',
+              ),
             ],
           ),
           _Section(

@@ -21,6 +21,7 @@ import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
+import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
 import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
@@ -222,6 +223,15 @@ GoRouter _buildRouter({
         pageBuilder: (_, state) {
           final empty = state.uri.queryParameters['empty'] == '1';
           return _platformPage(state, StackV2Screen(emptyStack: empty));
+        },
+      ),
+      // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
+      // hero into the signed-in variant.
+      GoRoute(
+        path: '/dev/v2/settings',
+        pageBuilder: (_, state) {
+          final signedIn = state.uri.queryParameters['signedIn'] == '1';
+          return _platformPage(state, SettingsV2Screen(signedIn: signedIn));
         },
       ),
       // v2 splash preview — `autoNavigate: false` so it doesn't redirect
