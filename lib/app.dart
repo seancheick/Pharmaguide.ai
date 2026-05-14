@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
+import 'package:pharmaguide/features/shell/v2/app_shell_v2_preview.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
@@ -235,6 +236,14 @@ GoRouter _buildRouter({
           state,
           const ScannerV2PreviewScreen(),
         ),
+      ),
+      // v2 full app shell preview — interactive floating-pill nav with
+      // working tab switching across all 5 destinations. The most useful
+      // route for end-to-end design review.
+      GoRoute(
+        path: '/dev/v2/app',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const AppShellV2Preview()),
       ),
       // v2 Stack preview — 3 pill tabs (Stack / Nutrient Analysis /
       // Saved). Fixture data. `?empty=1` previews the empty-stack state

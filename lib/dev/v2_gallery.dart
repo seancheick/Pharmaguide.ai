@@ -130,6 +130,11 @@ class V2Gallery extends StatelessWidget {
             title: 'Main screens',
             children: [
               _PrototypeLink(
+                label: 'App shell · floating nav',
+                subtitle: 'Tap-through preview of the v2 nav bar',
+                routePath: '/dev/v2/app',
+              ),
+              _PrototypeLink(
                 label: 'Home',
                 subtitle: 'Halo hero · metric cards · editorial rhythm',
                 routePath: '/dev/v2/home',
