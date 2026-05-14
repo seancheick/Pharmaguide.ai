@@ -82,50 +82,65 @@ class PGFloatingNavBar extends StatelessWidget {
       child: RepaintBoundary(
         child: SizedBox(
           height: _barHeight,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                  child: Container(
-                    height: _barHeight,
-                    decoration: BoxDecoration(
-                      color: V2Colors.surface.withValues(alpha: 0.92),
-                      borderRadius:
-                          BorderRadius.circular(V2Spacing.radiusPill),
-                      border: Border.all(color: V2Colors.outline),
-                      boxShadow: V2Shadows.lg,
-                    ),
-                    child: Row(
-                      children: [
-                        for (var i = 0; i < destinations.length; i++)
-                          Expanded(
-                            child: _NavSlot(
-                              destination: destinations[i],
-                              selected: i == currentIndex,
-                              onTap: () => onChanged(i),
-                            ),
+          // LayoutBuilder wraps the Stack so any Positioned children
+          // (the raised scan slot) sit DIRECTLY under the Stack —
+          // nesting Positioned inside a LayoutBuilder inside a Stack
+          // tripped Flutter's ParentDataWidget assertion in Phase 6.5.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final slotWidth = constraints.maxWidth / destinations.length;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(V2Spacing.radiusPill),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: Container(
+                        height: _barHeight,
+                        decoration: BoxDecoration(
+                          color: V2Colors.surface.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(
+                            V2Spacing.radiusPill,
                           ),
-                      ],
+                          border: Border.all(color: V2Colors.outline),
+                          boxShadow: V2Shadows.lg,
+                        ),
+                        child: Row(
+                          children: [
+                            for (var i = 0; i < destinations.length; i++)
+                              Expanded(
+                                child: _NavSlot(
+                                  destination: destinations[i],
+                                  selected: i == currentIndex,
+                                  onTap: () => onChanged(i),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              // Raised slot — find the raised destination and render it
-              // as an overlay so it overlaps the pill's top edge.
-              for (var i = 0; i < destinations.length; i++)
-                if (destinations[i].raised)
-                  _RaisedSlot(
-                    index: i,
-                    total: destinations.length,
-                    icon: destinations[i].icon,
-                    label: destinations[i].label,
-                    selected: i == currentIndex,
-                    onTap: () => onChanged(i),
-                  ),
-            ],
+                  // Raised slot(s) — positioned overlays. Direct child
+                  // of Stack now.
+                  for (var i = 0; i < destinations.length; i++)
+                    if (destinations[i].raised)
+                      Positioned(
+                        left: slotWidth * i +
+                            (slotWidth - _RaisedSlot._size) / 2,
+                        top: -_RaisedSlot._topOverlap,
+                        width: _RaisedSlot._size,
+                        height: _RaisedSlot._size,
+                        child: _RaisedSlot(
+                          icon: destinations[i].icon,
+                          selected: i == currentIndex,
+                          onTap: () => onChanged(i),
+                        ),
+                      ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -198,21 +213,17 @@ class _NavSlot extends StatelessWidget {
 }
 
 /// Raised accent circle that overlaps the top of the pill by ~14pt.
-/// Positioned absolutely via LayoutBuilder math so it lands centered in
-/// its slot regardless of how many siblings exist.
+///
+/// Positioning is handled by the parent (PGFloatingNavBar) — this widget
+/// just renders the circle content so it can be wrapped in a
+/// `Positioned` that's a *direct* child of the Stack.
 class _RaisedSlot extends StatelessWidget {
-  final int index;
-  final int total;
   final IconData icon;
-  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   const _RaisedSlot({
-    required this.index,
-    required this.total,
     required this.icon,
-    required this.label,
     required this.selected,
     required this.onTap,
   });
@@ -222,39 +233,25 @@ class _RaisedSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final slotWidth = constraints.maxWidth / total;
-        final leftEdge = slotWidth * index + (slotWidth - _size) / 2;
-
-        return Positioned(
-          left: leftEdge,
-          top: -_topOverlap,
-          width: _size,
-          height: _size,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: AnimatedContainer(
-              duration: V2Motion.fast,
-              curve: V2Motion.smooth,
-              decoration: BoxDecoration(
-                color: V2Colors.accent,
-                shape: BoxShape.circle,
-                boxShadow:
-                    selected ? V2Shadows.accentGlow : V2Shadows.md,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  width: 1,
-                ),
-              ),
-              child: Center(
-                child: Icon(icon, size: 26, color: Colors.white),
-              ),
-            ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: V2Motion.fast,
+        curve: V2Motion.smooth,
+        decoration: BoxDecoration(
+          color: V2Colors.accent,
+          shape: BoxShape.circle,
+          boxShadow: selected ? V2Shadows.accentGlow : V2Shadows.md,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.06),
+            width: 1,
           ),
-        );
-      },
+        ),
+        child: Center(
+          child: Icon(icon, size: 26, color: Colors.white),
+        ),
+      ),
     );
   }
 }
