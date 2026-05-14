@@ -134,6 +134,11 @@ class V2Gallery extends StatelessWidget {
                 subtitle: 'Halo hero · metric cards · editorial rhythm',
                 routePath: '/dev/v2/home',
               ),
+              _PrototypeLink(
+                label: 'Scanner verdict',
+                subtitle: 'Glass-card reveal · cycle 5 severity tiers',
+                routePath: '/dev/v2/scanner',
+              ),
             ],
           ),
           _Section(

@@ -15,6 +15,7 @@ import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
+import 'package:pharmaguide/features/scanner/v2/scanner_v2_preview_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
@@ -200,6 +201,16 @@ GoRouter _buildRouter({
         pageBuilder: (_, state) => _platformPage(
           state,
           const HomeV2Screen(),
+        ),
+      ),
+      // v2 Scanner verdict reveal preview — mocks the camera surface and
+      // cycles through all 5 severity tiers via trigger chips so the new
+      // PGVerdictReveal can be inspected without a real scan.
+      GoRoute(
+        path: '/dev/v2/scanner',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          const ScannerV2PreviewScreen(),
         ),
       ),
       // v2 splash preview — `autoNavigate: false` so it doesn't redirect
