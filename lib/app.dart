@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
+import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
@@ -189,6 +190,16 @@ GoRouter _buildRouter({
           ProductDetailV2Screen(
             fixtureId: state.pathParameters['id'] ?? 'normal',
           ),
+        ),
+      ),
+      // v2 Home preview — uses fixture-style data so it renders without
+      // catalog providers. Production swap happens at Phase 8 when v2
+      // becomes the default theme.
+      GoRoute(
+        path: '/dev/v2/home',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          const HomeV2Screen(),
         ),
       ),
       // v2 splash preview — `autoNavigate: false` so it doesn't redirect

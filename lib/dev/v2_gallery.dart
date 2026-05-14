@@ -126,6 +126,16 @@ class V2Gallery extends StatelessWidget {
               ),
             ],
           ),
+          const _Section(
+            title: 'Main screens',
+            children: [
+              _PrototypeLink(
+                label: 'Home',
+                subtitle: 'Halo hero · metric cards · editorial rhythm',
+                routePath: '/dev/v2/home',
+              ),
+            ],
+          ),
           _Section(
             title: 'Product Detail prototypes',
             children: [
