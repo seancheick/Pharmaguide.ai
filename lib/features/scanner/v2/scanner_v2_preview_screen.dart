@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_severity_badge.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -95,7 +96,10 @@ class _ScannerV2PreviewScreenState extends State<ScannerV2PreviewScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF0E1011), Color(0xFF1B1F22)],
+                colors: [
+                  V2Colors.cameraOverlayTop,
+                  V2Colors.cameraOverlayBottom,
+                ],
               ),
             ),
           ),

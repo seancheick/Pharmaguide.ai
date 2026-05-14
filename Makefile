@@ -55,6 +55,10 @@ run-v2-ios: ## v2 gallery on iOS simulator
 run-v2-android: ## v2 gallery on Android emulator
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d android
 
+.PHONY: v2-audit
+v2-audit: ## Run the v2 design-system governance audit (hex / serif / TextStyle)
+	@bash scripts/v2_audit.sh
+
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios

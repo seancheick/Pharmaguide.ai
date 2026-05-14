@@ -43,12 +43,14 @@ abstract final class V2Theme {
       surface: surface,
       onSurface: fg,
       surfaceContainerLowest: bg,
-      surfaceContainerLow: isDark ? const Color(0xFF13161A) : V2Colors.surface,
+      surfaceContainerLow:
+          isDark ? V2Colors.surfaceContainerLowDark : V2Colors.surface,
       surfaceContainer: surface,
-      surfaceContainerHigh: isDark ? const Color(0xFF1B1F22) : bg,
+      surfaceContainerHigh:
+          isDark ? V2Colors.surfaceContainerHighDark : bg,
       surfaceContainerHighest: isDark
-          ? const Color(0xFF22272A)
-          : const Color(0xFFEFEDE8),
+          ? V2Colors.surfaceContainerHighestDark
+          : V2Colors.surfaceContainerHighest,
       onSurfaceVariant: fgMuted,
       outline: outline,
       outlineVariant: outline,
