@@ -81,6 +81,20 @@ String? normalizePharmaGuideDeepLink(Uri uri) {
   return '$normalizedPath$query';
 }
 
+/// Optional override for [GoRouter.initialLocation] used by the
+/// screenshot capture script. When empty (the default in every
+/// production build) the router falls back to its normal splash →
+/// onboarding/home path. Setting this via:
+///
+///   flutter run --dart-define=SCREENSHOT_ROUTE=/product/abc123
+///
+/// jumps straight to the named route on launch so the capture script
+/// doesn't have to script bottom-nav taps.
+const String _screenshotRoute = String.fromEnvironment(
+  'SCREENSHOT_ROUTE',
+  defaultValue: '',
+);
+
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
 /// "catalog updated" snackbar from outside the widget tree when the OTA
 /// in-session swap completes (T0.6). Defining it here keeps the
@@ -386,8 +400,14 @@ GoRouter _buildRouter({
   // `make run-v2` (or `flutter run --dart-define=DEV_ROUTE=/dev/v2`) lands
   // straight in the v2 gallery for design review. Production builds
   // leave DEV_ROUTE empty and behave normally.
+  //
+  // SCREENSHOT_ROUTE is a lower-priority automation override used by the
+  // marketing screenshot capture script to jump directly to a production
+  // screen without bypassing explicit DEV_ROUTE previews.
   final String initialLocation = _devRoute.isNotEmpty
       ? _devRoute
+      : _screenshotRoute.isNotEmpty
+      ? _screenshotRoute
       : '${Routes.splashIntro}?next='
             '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
 

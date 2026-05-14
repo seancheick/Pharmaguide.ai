@@ -180,6 +180,10 @@ verify-supabase: ## Verify Supabase anon key is valid
 		echo "✗ Supabase check failed (HTTP $$STATUS)"; exit 1; \
 	fi
 
+.PHONY: screenshots
+screenshots: ## Capture marketing screenshots from iOS simulator (Mac only)
+	@./scripts/capture_screenshots.sh
+
 .PHONY: verify-bundle
 verify-bundle: ## Verify bundled DB matches Supabase storage (P4 release-safety)
 	@$(FLUTTER) pub run scripts/verify_bundle.dart \
