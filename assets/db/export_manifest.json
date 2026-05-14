@@ -1,26 +1,14 @@
 {
-  "checksum": "sha256:b611e4d2882b4450a97391eb7f5535a87a5e257c7b5f7ed21a13f07eca256f57",
-  "checksum_sha256": "b611e4d2882b4450a97391eb7f5535a87a5e257c7b5f7ed21a13f07eca256f57",
-  "db_version": "2026.05.13.162119",
-  "detail_blob_count": 8350,
-  "detail_blob_unique_count": 8350,
-  "detail_index_checksum": "sha256:feb494932a536e64fa82361993d3a05a5068981d73e5158a396f4ff4cbb4b1c3",
+  "checksum": "sha256:bbb8e11ab1bc1e82525a926b97e4405398edba130e363448b20e58c127708a1e",
+  "checksum_sha256": "bbb8e11ab1bc1e82525a926b97e4405398edba130e363448b20e58c127708a1e",
+  "db_version": "2026.05.14.191432",
+  "detail_blob_count": 8416,
+  "detail_blob_unique_count": 8416,
+  "detail_index_checksum": "sha256:75a1ac63314a0d3a399f5d67990f2ae1d8b811764f500c09a9fdc7ad001d176f",
   "errors": [],
   "excluded_by_gate": [
     {
-      "dsld_id": "1056",
-      "error": "[1056] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "11587",
-      "error": "[11587] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
       "dsld_id": "11588",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "1256",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -28,31 +16,7 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "16013",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16015",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16040",
-      "error": "[16040] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "16202",
-      "error": "[16202] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
       "dsld_id": "17794",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "178677",
-      "error": "[178677] raw DSLD disclosed 3 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "182260",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -60,59 +24,19 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "182777",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "182795",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "182853",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "183980",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "184252",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "18441",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "18479",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "187568",
+      "dsld_id": "203283",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "187577",
+      "dsld_id": "203354",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "203057",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "203103",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "20529",
-      "error": "[20529] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=1, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "209969",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "210019",
+      "dsld_id": "209444",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -128,119 +52,11 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "219246",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "219550",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "219554",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "219646",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "219734",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "219735",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "220056",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "222998",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223002",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223006",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223046",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223119",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223127",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223146",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223150",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223536",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "2247",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "224785",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "2248",
-      "error": "[2248] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
       "dsld_id": "229109",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "231262",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "242312",
-      "error": "[242312] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "243676",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "243713",
-      "error": "[243713] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "24440",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "24460",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "24461",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "246330",
-      "error": "[246330] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "25167",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -252,123 +68,7 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "26289",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "26321",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "268245",
-      "error": "[268245] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "268365",
-      "error": "[268365] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "268390",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "268524",
-      "error": "[268524] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "268533",
-      "error": "[268533] raw DSLD disclosed 2 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "268535",
-      "error": "[268535] raw DSLD disclosed 3 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "268537",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "268569",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270263",
-      "error": "[270263] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=9, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "270397",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270400",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270607",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270617",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270619",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270621",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "27191",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "277659",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293931",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "294055",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "295499",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "295505",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "298029",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "299909",
-      "error": "[299909] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "299952",
-      "error": "[299952] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "299953",
-      "error": "[299953] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "302653",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "302702",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "304444",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -376,111 +76,15 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "306207",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306352",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306374",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "307785",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "307786",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "31034",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "31141",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "311677",
-      "error": "[311677] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=6, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "311678",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "315692",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "326246",
-      "error": "[326246] raw DSLD disclosed 2 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "326247",
-      "error": "[326247] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "326258",
-      "error": "[326258] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "326266",
-      "error": "[326266] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "326267",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "326282",
-      "error": "[326282] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "326298",
-      "error": "[326298] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "327403",
-      "error": "[327403] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
     },
     {
       "dsld_id": "328814",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "328828",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "329092",
-      "error": "[329092] raw DSLD disclosed 1 real inactive(s) but blob emits 0. Filter regression — inspect enhanced_normalizer._process_other_ingredients_enhanced (Sprint E1.2.4)."
-    },
-    {
-      "dsld_id": "33511",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "33527",
-      "error": "[33527] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
       "dsld_id": "33529",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "33585",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "33628",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "35474",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -497,10 +101,6 @@
     },
     {
       "dsld_id": "42327",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "43425",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -524,43 +124,11 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "60033",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "60034",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "62130",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "63569",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "64074",
-      "error": "[64074] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
       "dsld_id": "65938",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "66730",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "66781",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "67310",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "69281",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -572,28 +140,8 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "70049",
-      "error": "[70049] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "70057",
-      "error": "[70057] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "70623",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "74725",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "74771",
-      "error": "[74771] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "74774",
-      "error": "[74774] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=3, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "74811",
@@ -602,10 +150,6 @@
     {
       "dsld_id": "74814",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "75188",
-      "error": "[75188] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=5, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
     },
     {
       "dsld_id": "75189",
@@ -620,22 +164,6 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "75291",
-      "error": "[75291] all raw actives reclassified as inactive — likely cleaner classifier bug. raw_actives=4, blob_actives=0, drop_reasons=['DROPPED_AS_INACTIVE']. Investigate enhanced_normalizer._is_nutrition_fact for this product's category/group combo."
-    },
-    {
-      "dsld_id": "77240",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "77257",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "78309",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "78355",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
@@ -644,52 +172,36 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "81834",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "81877",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "81902",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "83090",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "855",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-05-13T16:21:19.855578+00:00",
+  "generated_at": "2026-05-14T19:14:32.292672+00:00",
   "integrity": {
-    "contract_failures": 128,
-    "coverage_pct": 60.74,
+    "contract_failures": 42,
+    "coverage_pct": 61.23,
     "enriched_input_count": 13746,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 164,
-    "exported_count": 8350,
-    "has_banned_substance": 115,
+    "excluded_by_gate_count": 42,
+    "exported_count": 8416,
+    "has_banned_substance": 119,
     "has_recalled_ingredient": 0,
     "scored_input_count": 13746,
     "scored_only_count": 0,
     "scoring_config_checksum": "sha256:caf3ce38b5a4a72a6811b74f82a86c76febf3be46a900ee58d2f3a3814218b7d",
-    "skipped_count": 164,
+    "skipped_count": 42,
     "strict_mode": false,
-    "total_skipped": 164,
-    "verdict_blocked": 88,
-    "verdict_not_scored": 128,
+    "total_skipped": 42,
+    "verdict_blocked": 92,
+    "verdict_not_scored": 42,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 8350,
-  "release_staged_at": "2026-05-13T16:21:20Z",
+  "product_count": 8416,
+  "release_staged_at": "2026-05-14T19:14:32Z",
   "schema_version": "1.6.0",
   "scoring_config_checksum": "sha256:caf3ce38b5a4a72a6811b74f82a86c76febf3be46a900ee58d2f3a3814218b7d",
   "scoring_version": "3.4.0",
