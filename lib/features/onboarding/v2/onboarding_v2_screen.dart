@@ -87,13 +87,23 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
 
   Future<void> _celebrationComplete({bool toProfileSetup = false}) async {
     if (!widget.autoFinish) {
-      // Reset for repeated preview viewing in the gallery.
+      // Reset for repeated preview viewing in the gallery. setState
+      // schedules the PageView to be rebuilt; the controller is only
+      // attached after the next frame, so defer jumpToPage to a
+      // post-frame callback to avoid the
+      // "PageController is not attached to a PageView" assertion that
+      // fires when jumpToPage runs while _celebrating is still true.
       if (!mounted) return;
       setState(() {
         _celebrating = false;
         _currentPage = 0;
       });
-      _pageController.jumpToPage(0);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(0);
+        }
+      });
       return;
     }
     if (_selectedGoals.isNotEmpty) {
