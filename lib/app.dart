@@ -29,6 +29,20 @@ import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 
+/// Optional override for [GoRouter.initialLocation]. Set via:
+///
+///     flutter run --dart-define=DEV_ROUTE=/dev/v2
+///     make run-v2     # alias for the gallery
+///
+/// When non-empty the router skips the splash → onboarding/home flow and
+/// launches straight at the named route. Designed for v2 gallery
+/// previews; ignored on release builds (the default empty value means
+/// the normal launch path applies).
+const String _devRoute = String.fromEnvironment(
+  'DEV_ROUTE',
+  defaultValue: '',
+);
+
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
 /// "catalog updated" snackbar from outside the widget tree when the OTA
 /// in-session swap completes (T0.6). Defining it here keeps the
@@ -138,13 +152,20 @@ GoRouter _buildRouter({
     );
   }
 
+  // DEV_ROUTE dart-define short-circuits the normal launch path so
+  // `make run-v2` (or `flutter run --dart-define=DEV_ROUTE=/dev/v2`) lands
+  // straight in the v2 gallery for design review. Production builds
+  // leave DEV_ROUTE empty and behave normally.
+  final String initialLocation = _devRoute.isNotEmpty
+      ? _devRoute
+      : '${Routes.splashIntro}?next='
+          '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
+
   return GoRouter(
     // Fresh installs start at onboarding; returning users go straight to
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.
-    initialLocation:
-        '${Routes.splashIntro}?next='
-        '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}',
+    initialLocation: initialLocation,
     routes: [
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),

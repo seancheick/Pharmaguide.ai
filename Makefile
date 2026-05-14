@@ -38,6 +38,23 @@ run-ios: ## Run on iOS simulator
 run-android: ## Run on Android emulator
 	$(FLUTTER) run $(DART_DEFINES) -d android
 
+# ─── v2 design system previews ────────────────────────────────────────────────
+# DEV_ROUTE skips the splash → onboarding/home flow and launches directly
+# at the named route. Useful for reviewing v2 prototypes during the
+# design/v2-mobile-polish branch.
+
+.PHONY: run-v2
+run-v2: ## Boot straight into the v2 component gallery
+	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2
+
+.PHONY: run-v2-ios
+run-v2-ios: ## v2 gallery on iOS simulator
+	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d iPhone
+
+.PHONY: run-v2-android
+run-v2-android: ## v2 gallery on Android emulator
+	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d android
+
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios
