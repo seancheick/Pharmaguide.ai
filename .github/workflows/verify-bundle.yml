@@ -60,7 +60,7 @@ jobs:
       # only get the LFS pointer text and the SHA256 verification would
       # fail on every run — exactly the test that proves the verifier
       # is doing something useful, but not what we want from CI.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           lfs: true
 
