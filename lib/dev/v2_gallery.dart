@@ -111,6 +111,21 @@ class V2Gallery extends StatelessWidget {
                 ),
             ],
           ),
+          const _Section(
+            title: 'First-impression moments',
+            children: [
+              _PrototypeLink(
+                label: 'Splash',
+                subtitle: 'Editorial brand-moment entrance',
+                routePath: '/dev/v2/splash',
+              ),
+              _PrototypeLink(
+                label: 'Onboarding',
+                subtitle: '4-step intro with serif headlines + celebration',
+                routePath: '/dev/v2/onboarding',
+              ),
+            ],
+          ),
           _Section(
             title: 'Product Detail prototypes',
             children: [

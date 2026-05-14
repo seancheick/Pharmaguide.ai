@@ -20,6 +20,8 @@ import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
+import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
+import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
@@ -187,6 +189,25 @@ GoRouter _buildRouter({
           ProductDetailV2Screen(
             fixtureId: state.pathParameters['id'] ?? 'normal',
           ),
+        ),
+      ),
+      // v2 splash preview — `autoNavigate: false` so it doesn't redirect
+      // out of the gallery after the entrance animation completes.
+      GoRoute(
+        path: '/dev/v2/splash',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          const AnimatedSplashV2Screen(autoNavigate: false),
+        ),
+      ),
+      // v2 onboarding preview — `autoFinish: false` so completing the
+      // flow loops back to step 1 rather than persisting prefs +
+      // navigating home.
+      GoRoute(
+        path: '/dev/v2/onboarding',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          const OnboardingV2Screen(autoFinish: false),
         ),
       ),
       GoRoute(
