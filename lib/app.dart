@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/dev/v2_gallery.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
@@ -119,6 +121,7 @@ GoRouter _buildRouter({
   required bool hasSeenOnboarding,
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
+  bool useV2Theme = false,
 }) {
   Widget catalogRoute(Widget child) {
     if (catalogAvailable) return child;
@@ -166,6 +169,16 @@ GoRouter _buildRouter({
       // iOS swipe-back-from-edge (Apple HIG default for stack navigation).
       // Onboarding intentionally stays Material — it's a linear flow and
       // swipe-back would let users escape it before completing.
+      // ---------------------------------------------------------------
+      // Debug-only v2 design system gallery. Reachable via
+      // `context.go('/dev/v2')`; not registered in the app shell so it
+      // never appears in the nav bar. Will be removed (or moved behind
+      // a debug-settings toggle) before v2 ships to production.
+      // ---------------------------------------------------------------
+      GoRoute(
+        path: '/dev/v2',
+        builder: (_, __) => const V2Gallery(),
+      ),
       GoRoute(
         path: Routes.splashIntro,
         builder: (_, state) {
@@ -303,12 +316,22 @@ class PharmaGuideApp extends StatelessWidget {
   final VoidCallback? onRetryCatalogLoad;
   final bool hasSeenOnboarding;
 
+  /// Experimental v2 design system toggle. While `false` (default),
+  /// production `AppTheme` ships. When `true`, the app boots against
+  /// `V2Theme` and the `/dev/v2` gallery reflects live tokens.
+  ///
+  /// Wire to a debug flag during the `design/v2-mobile-polish` branch;
+  /// flip the default to `true` only when Phase 8 sign-off is complete
+  /// (see `.claude/plans/your-original-prompt-communicates-streamed-liskov.md`).
+  final bool useV2Theme;
+
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
     this.catalogUnavailableReason,
     this.onRetryCatalogLoad,
     this.hasSeenOnboarding = true,
+    this.useV2Theme = false,
   });
 
   @override
@@ -317,14 +340,15 @@ class PharmaGuideApp extends StatelessWidget {
       title: 'PharmaGuide',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: useV2Theme ? V2Theme.light : AppTheme.light,
+      darkTheme: useV2Theme ? V2Theme.dark : AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: _buildRouter(
         catalogAvailable: catalogAvailable,
         hasSeenOnboarding: hasSeenOnboarding,
         catalogUnavailableReason: catalogUnavailableReason,
         onRetryCatalogLoad: onRetryCatalogLoad,
+        useV2Theme: useV2Theme,
       ),
       // Global Dynamic Type clamp.
       //

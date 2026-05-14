@@ -54,6 +54,7 @@ dependencies:
   shimmer: ^3.0.0
   # URL launching (clinical citations, FDA links)
   url_launcher: ^6.2.0
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.1
