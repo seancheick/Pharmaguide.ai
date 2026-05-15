@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
 
 /// v2 component gallery — debug-only route at `/dev/v2`.
@@ -61,6 +62,31 @@ class V2Gallery extends StatelessWidget {
               _ShadowChip('sm', V2Shadows.sm),
               _ShadowChip('md', V2Shadows.md),
               _ShadowChip('lg', V2Shadows.lg),
+            ],
+          ),
+          _Section(
+            title: 'Score line · production parity',
+            children: [
+              Text(
+                'Mirror of lib/features/product_detail/widgets/score_line.dart. '
+                'Uses ScoreTier directly — locked colors + labels + descriptions.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              for (final s in const [95, 84, 75, 65, 55, 30])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: V2Spacing.space16),
+                  child: Container(
+                    padding: const EdgeInsets.all(V2Spacing.space16),
+                    decoration: BoxDecoration(
+                      color: V2Colors.surface,
+                      borderRadius:
+                          BorderRadius.circular(V2Spacing.radiusCard),
+                      border: Border.all(color: V2Colors.outline),
+                    ),
+                    child: PGScoreLine(score: s),
+                  ),
+                ),
             ],
           ),
           const _Section(
