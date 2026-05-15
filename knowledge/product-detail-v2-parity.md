@@ -207,7 +207,7 @@ row:
 | Analytics | Edit-pencil tap |
 | A11y | Fit verdict color paired with icon + label (no color-only signaling) |
 | Golden | FitStrongMatch / FitGoodMatch / FitLimitedFit / FitNotRecommended / FitHidden (→ SizedBox.shrink dedup) / FitIncomplete |
-| **Status** | **wired** — pending live-device verification on a non-blocked product with real fit score (G11 clean product or stack-aligned product) |
+| **Status** | **verified** — FitIncomplete path live (Thorne MediPro 65844, empty profile); other FitDisplay branches statically parity-checked via verbatim helper ports and exhaustive sealed-class switch. Future live goldens: FitIncomplete, StrongMatch, GoodMatch, LimitedFit, NotRecommended, FitHidden (→ SizedBox.shrink dedup against hero banner). |
 
 #### S3. ReviewBeforeUse
 
@@ -506,8 +506,8 @@ row:
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| **verified** | 3 (S1, S1.5, S1.6 — live blocked-product flow) |
-| **wired** | 5 (S0, S0.5, S0.9, S2, S17 — pending live verification on non-blocked product) |
+| **verified** | 4 (S1, S1.5, S1.6 blocked flow; S2 PersonalFit FitIncomplete + static-parity) |
+| **wired** | 4 (S0, S0.5, S0.9, S17 — pending live verification on non-blocked product) |
 | **placeholder** | 13 |
 | total | 21 |
 
