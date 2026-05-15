@@ -501,14 +501,14 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7c.2 boundary)
+## Completion tally (Phase 11.7c.4 boundary)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
 | **verified** | 4 (S1, S1.5, S1.6 blocked flow; S2 PersonalFit FitIncomplete + static-parity) |
-| **wired** | 4 (S0, S0.5, S0.9, S17 — pending live verification on non-blocked product) |
-| **placeholder** | 13 |
+| **wired** | 6 (S0, S0.5, S0.9, S3 ReviewBeforeUse, S4 LabelConfidence, S17 — pending live verification on non-blocked product) |
+| **placeholder** | 11 |
 | total | 21 |
 
 ---
@@ -518,6 +518,136 @@ row:
 - A section's **`Status`** moves from `placeholder` → `wired` when its adapter file exists and renders real data clean against analyze.
 - It moves `wired` → `verified` only after live-device QA across every listed golden scenario.
 - It moves `verified` → `accepted` only after Sean signs off.
-- **No section adapter file may grow past ~250 lines.** If mapping logic balloons, split into a sibling `<name>_helpers.dart` and keep the section file orchestration-only.
+- **Section adapter files target ~250 lines.** Slight overruns are acceptable when the structure is clean (helpers = pure logic, section = composition). Split into a sibling `<name>_helpers.dart` once mapping logic balloons past readable.
 - **The connected screen stays orchestration-only.** No inline gates, no inline pipelines, no inline mapping. All three live in their module homes.
 - Update this doc with every adapter commit — the parity row must be touched whenever the implementation changes.
+
+---
+
+# Appendix: Scanner v2 — Two-Stage Flow (Future Phase 11.8)
+
+**Status:** PLANNED. Do NOT implement until Product Detail v2 is parity-complete AND swapped into the production `/product/:dsldId` route after Phase 11.7g.
+
+**The key architectural decision:** Stage 2 IS `ProductDetailV2ConnectedScreen`. Not a scanner-specific second product page. There is exactly one product page in the app.
+
+## Two-stage render model
+
+```
+Barcode scan
+   ↓
+Stage 1: Instant Scan Peek Card
+   (renders < 200ms from pharmaguide_core.db, offline, no network)
+   ↓ tap / swipe-up
+Stage 2: Product Detail v2 (existing route push)
+```
+
+## Stage 1 — Instant Scan Card
+
+**Purpose:** decision in under 2 seconds.
+
+**Data contract — Stage 1 may use ONLY:**
+- `CoreDatabase.findByUpc()` (already local + offline)
+- No Supabase call
+- No detail blob requirement
+- No AI
+- No loading spinner before the first verdict
+- No network gate of any kind
+
+**Content:**
+- Product image or designed placeholder
+- Product name
+- Brand
+- PG Score / quality tier
+- Top verdict
+- Top warning IF serious — never hidden behind tap
+- "No flags on this product" (no profile) / "No high-risk conflicts for your profile" (profile complete) / "Complete profile for full check" (profile partial)
+- Primary CTA: **"Review product"** → `context.push('/product/:dsldId')`
+- Secondary CTA: "Add to Stack" only with safety-aware confirmation (defer most stack-add decisions to Stage 2's sticky CTA)
+- Clear offline state if offline
+
+**Three verdict states — not two:**
+1. **Blocked / unsafe** → danger tone, FDA flag if present, "PharmaGuide does not recommend" headline
+2. **Scored** → quality tier + score + top warning OR honest "no high-risk conflicts" copy
+3. **NOT_SCORED** → quiet caveat tone, "Limited label data — open for details." Not a failure state. Not a fake score.
+
+**Interaction:**
+- Tap → `context.push('/product/:dsldId')`
+- Swipe up → same push
+- Spring animation ~280ms
+- Hero animation (`Hero(tag: 'product-image-$dsldId')`) on shared product image element
+- Haptic ONLY on contraindicated/blocked → one `HapticFeedback.mediumImpact()`. Never on clean scans. Never on caution. Never on success.
+
+**Offline behavior:**
+- Product in `pharmaguide_core.db` → Stage 1 renders identically offline
+- Product not found → "Not in our database yet" + non-promised offer: "Submit label" / "Take photos of Supplement Facts panel + bottle front" / "Add manually later" (no fake timeline)
+- Generic errors are forbidden
+
+## Stage 2 — Full Product Sheet
+
+**Stage 2 is `ProductDetailV2ConnectedScreen(dsldId: ...)` — the existing route.** No scanner-specific surface. No duplicate widgets. No "scanner mode" variant.
+
+**Stale-while-revalidate rules:**
+- Render cached blob immediately
+- Fetch fresh blob in background
+- Fresh blob has HIGHER-severity warning → quiet "Updated" pill + scroll-to-new behavior. Never silently downgrade safety content.
+- Fresh blob is identical or lower-severity → swap quietly, no announcement.
+- Never silently change high-severity content while the user is actively reading.
+
+**Cancellation discipline:**
+- Each scan generates a request token
+- Blob fetch is cancelable
+- Currently-displayed `dsldId` is source of truth
+- Late-arriving blob for a stale scan never replaces current content
+
+## Architecture sketch
+
+```
+ScannerV2Screen (orchestration only)
+  ├─ CameraPreview (existing barcode logic, untouched)
+  ├─ PGScanResultPeekSheet (Stage 1, DraggableScrollableSheet @ ~38%)
+  │    ├─ Hero(tag: 'product-image-$dsldId')
+  │    ├─ Compact verdict block (worstSeverityOf + computeFitDisplay reuse)
+  │    ├─ Top-warning row (single line if serious)
+  │    ├─ Primary CTA: "Review product" → context.push('/product/:dsldId')
+  │    └─ Secondary: "Add to stack" (safety-aware confirm on blocked/danger)
+  │
+  └─ on push → ProductDetailV2ConnectedScreen (Stage 2, reused as-is)
+```
+
+**Files to add (when 11.8 starts):**
+- `lib/features/scanner/v2/scanner_v2_screen.dart` — orchestration only
+- `lib/core/components/pg_scan_result_card.dart` — compact verdict
+- `lib/features/scanner/v2/scan_request_token.dart` — cancellation discipline
+
+**Files to reuse unchanged:**
+- `ProductDetailV2ConnectedScreen` (the entire screen)
+- `composeGuardedWarnings`, `computeFitDisplay`, `worstSeverityOf`
+- `PGHaptics` (severity-aware; we just call less)
+
+## Anti-goals (read before any Scanner v2 commit)
+
+- ❌ Loading spinner before initial verdict
+- ❌ Network-required scan result
+- ❌ Hiding safety signals behind a tap
+- ❌ Generic error states ("Something went wrong")
+- ❌ Celebration animations on clean scans (medical tool, not a game)
+- ❌ Vibration for every scan
+- ❌ Stage 2 being a re-implementation of Product Detail
+- ❌ Stage 1 being a stripped-down hero (it's a peek, not a hero)
+
+## Definition of Done
+
+- p95 scan-to-card-render < 300ms on Pixel 5a
+- Stage 1 verifiable offline (airplane mode + scan a known-blocked product → blocked banner appears)
+- Stage 2 = literal Product Detail v2 route, no parallel surface
+- A11y QA passes with VoiceOver on real iPhone (must read "Scan result. <product>. <verdict>. <top warning>. Double-tap for full report.")
+- Cancellation: scan A → immediately scan B → A's blob never replaces B's content
+- Telemetry: `scan_to_card_render_ms`, `scan_to_full_sheet_ms`, `scan_to_blob_resolved_ms` (p50/p95/p99 each), alert when p95 > 300ms
+
+## Sequence (locked)
+
+1. Finish Product Detail v2 parity (Phases 11.7c–11.7f)
+2. Swap Product Detail v2 into production `/product/:dsldId` route (Phase 11.7g)
+3. Then implement Scanner v2 two-stage flow (Phase 11.8)
+
+This ordering is non-negotiable. Building Stage 1 against a still-mutating Stage 2 means rework. After 11.7g, Scanner v2 becomes "wire scanner to push the new route + add a peek card on top." Much smaller scope.
