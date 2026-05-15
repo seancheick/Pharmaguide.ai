@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/home/widgets/home_stack_health.dart';
+import 'package:pharmaguide/features/home/widgets/home_recent_scans.dart';
+import 'package:pharmaguide/features/home/widgets/home_quick_check_cta.dart';
+import 'package:pharmaguide/features/home/widgets/home_citation_strip.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
-import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -106,7 +109,11 @@ class HomeV2Screen extends StatelessWidget {
               sliver: SliverToBoxAdapter(child: _ScanCta()),
             ),
 
-            // 4. Stack Health — one card, no numeric score.
+            // 4. Stack Health — legacy production widget. Full
+            // StackIntelligenceEngine wiring (recall-aware tier,
+            // counts, top-issue callout, CTA). Per Sean 2026-05-15:
+            // preserve clinical surfaces, replace with v2 mirror in
+            // a later pass.
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 V2Spacing.space24,
@@ -114,16 +121,11 @@ class HomeV2Screen extends StatelessWidget {
                 V2Spacing.space24,
                 0,
               ),
-              sliver: SliverToBoxAdapter(child: _StackHealthCard()),
+              sliver: SliverToBoxAdapter(child: HomeStackHealthWidget()),
             ),
 
-            // 5. Recent scans — horizontal carousel.
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(0, V2Spacing.space32, 0, 0),
-              sliver: SliverToBoxAdapter(child: _RecentScansSection()),
-            ),
-
-            // 6. Quick Check — single-row CTA.
+            // 5. Recent scans — legacy production carousel with real
+            // _recentScansProvider data + Show-all bottom sheet.
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 V2Spacing.space24,
@@ -131,10 +133,23 @@ class HomeV2Screen extends StatelessWidget {
                 V2Spacing.space24,
                 0,
               ),
-              sliver: SliverToBoxAdapter(child: _QuickCheckCta()),
+              sliver: SliverToBoxAdapter(child: HomeRecentScansSection()),
             ),
 
-            // 7. Trust footer.
+            // 6. Quick Check — legacy production "Safe to take
+            // together?" tile that opens the real quick-check screen.
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                V2Spacing.space24,
+                V2Spacing.space24,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(child: HomeQuickCheckCta()),
+            ),
+
+            // 7. Trust footer — legacy HomeCitationStrip reads the
+            // real catalog manifest (product count + build date).
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 V2Spacing.space24,
@@ -142,11 +157,7 @@ class HomeV2Screen extends StatelessWidget {
                 V2Spacing.space24,
                 V2Spacing.space8,
               ),
-              sliver: SliverToBoxAdapter(
-                child: PGTransparencyFooter(
-                  freshnessLabel: 'Catalog updated 3 days ago',
-                ),
-              ),
+              sliver: SliverToBoxAdapter(child: HomeCitationStrip()),
             ),
 
             // 8. Bottom spacer for the frosted nav bar overlap.
@@ -414,6 +425,12 @@ class _ScanCta extends StatelessWidget {
 // footer. Fixture uses the "Optimal · no major interactions" state.
 // =============================================================================
 
+// Scaffold for the v2 Stack-Health card mirror. Currently unused —
+// Routes.home renders the legacy HomeStackHealthWidget instead, which
+// has full StackIntelligenceEngine wiring. Kept here so the v2 visual
+// mirror is ready to drop in once the intelligence tier is wired
+// through this typed surface in a later pass.
+// ignore: unused_element
 class _StackHealthCard extends ConsumerWidget {
   const _StackHealthCard();
 
@@ -681,6 +698,10 @@ class _MicroMetric extends StatelessWidget {
 // (production behavior, not built in the visual mirror).
 // =============================================================================
 
+// Scaffold for the v2 Recent-scans carousel mirror — currently unused.
+// Routes.home renders the legacy HomeRecentScansSection which sources
+// real scan history. Kept here for the future v2 wiring pass.
+// ignore: unused_element
 class _RecentScansSection extends StatelessWidget {
   const _RecentScansSection();
 
@@ -843,6 +864,10 @@ class _RecentScanCard extends StatelessWidget {
 // HomeQuickCheckCta. Caution-tinted compare-arrows icon.
 // =============================================================================
 
+// Scaffold for the v2 Quick-Check tile mirror — currently unused.
+// Routes.home renders the legacy HomeQuickCheckCta which opens the
+// real /quick-check route. Kept for the future v2 wiring pass.
+// ignore: unused_element
 class _QuickCheckCta extends StatelessWidget {
   const _QuickCheckCta();
 
