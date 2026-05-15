@@ -3,7 +3,10 @@ import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -245,7 +248,7 @@ class _SearchLauncher extends StatelessWidget {
 // Mirrors HomeHeroSection.greetingFor() bands and date format.
 // =============================================================================
 
-class _HeroGreeting extends StatelessWidget {
+class _HeroGreeting extends ConsumerWidget {
   const _HeroGreeting();
 
   static const _days = [
@@ -280,7 +283,14 @@ class _HeroGreeting extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Phase 11.1: read profileProvider for the real nickname; fall
+    // back to "Sean" so the gallery preview keeps showing the polished
+    // editorial state when no profile is loaded.
+    final nickname = ref.watch(profileProvider).nickname;
+    final displayName = (nickname != null && nickname.isNotEmpty)
+        ? nickname
+        : 'Sean';
     final now = DateTime.now();
     final dateLabel =
         '${_days[now.weekday - 1]}  ·  ${_months[now.month - 1]} ${now.day}';
@@ -293,7 +303,7 @@ class _HeroGreeting extends StatelessWidget {
         ),
         const SizedBox(height: V2Spacing.space12),
         Text(
-          '${_greetingFor(now.hour)}, Sean.',
+          '${_greetingFor(now.hour)}, $displayName.',
           style: V2Typography.displayXs(color: V2Colors.fg),
         ),
         const SizedBox(height: V2Spacing.space4),
@@ -404,13 +414,33 @@ class _ScanCta extends StatelessWidget {
 // footer. Fixture uses the "Optimal · no major interactions" state.
 // =============================================================================
 
-class _StackHealthCard extends StatelessWidget {
+class _StackHealthCard extends ConsumerWidget {
   const _StackHealthCard();
 
   @override
-  Widget build(BuildContext context) {
-    // Fixture state: optimal stack (3 supplements, 1 medication, 0 issues).
-    // Production reads from stackSafetyReportProvider + StackIntelligenceEngine.
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Phase 11.1: real supplement/medication counts from
+    // activeStackProvider. The status tier (Optimal/Concerning/etc.)
+    // is wired via StackIntelligenceEngine in Phase 11.1b — for now
+    // the surface stays at the "Optimal · no major interactions"
+    // fixture tone so the gallery review state is preserved on
+    // empty-stack accounts.
+    final stackAsync = ref.watch(activeStackProvider);
+    final stack = stackAsync.asData?.value ?? const [];
+    final supplementCount = stack
+        .where((e) => e.type == 'supplement')
+        .length;
+    final medicationCount = stack
+        .where((e) => e.type == 'medication')
+        .length;
+    final hasRealData = stack.isNotEmpty;
+    final supplementLabel = hasRealData ? supplementCount : 3;
+    final medicationLabel = hasRealData ? medicationCount : 1;
+    final contextLine = hasRealData
+        ? '$supplementCount supplement${supplementCount == 1 ? '' : 's'}'
+            ' · $medicationCount medication'
+            '${medicationCount == 1 ? '' : 's'}'
+        : '3 supplements · 1 medication';
     const tone = V2Colors.safe;
 
     return Material(
@@ -467,7 +497,7 @@ class _StackHealthCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '3 supplements · 1 medication',
+                                contextLine,
                                 style: V2Typography.bodySm(
                                   color: V2Colors.fgMuted,
                                 ),
@@ -557,21 +587,23 @@ class _StackHealthCard extends StatelessWidget {
                     top: BorderSide(color: V2Colors.outline, width: 0.5),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     _MicroMetric(
                       icon: Icons.medication_outlined,
-                      label: '3 supplements',
+                      label: '$supplementLabel supplement'
+                          '${supplementLabel == 1 ? '' : 's'}',
                       color: V2Colors.accent,
                     ),
-                    SizedBox(width: V2Spacing.space16),
+                    const SizedBox(width: V2Spacing.space16),
                     _MicroMetric(
                       icon: Icons.local_pharmacy_outlined,
-                      label: '1 medication',
+                      label: '$medicationLabel medication'
+                          '${medicationLabel == 1 ? '' : 's'}',
                       color: V2Colors.fgMuted,
                     ),
-                    SizedBox(width: V2Spacing.space16),
-                    _MicroMetric(
+                    const SizedBox(width: V2Spacing.space16),
+                    const _MicroMetric(
                       icon: Icons.check_circle_outline,
                       label: 'No conflicts',
                       color: V2Colors.safe,

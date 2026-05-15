@@ -11,7 +11,6 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
-import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
@@ -185,7 +184,16 @@ GoRouter _buildRouter({
         routes: [
           GoRoute(
             path: Routes.home,
-            builder: (_, __) => catalogRoute(const HomeScreen()),
+            // Phase 11.1 — production Home tab now renders the v2 home
+            // screen. The hero greeting reads profileProvider for the
+            // real nickname; the Stack Health card reads
+            // activeStackProvider for live supplement/medication
+            // counts (status tier wires up next pass with the
+            // intelligence engine). Other sections still use the
+            // fixture copy until their providers attach in subsequent
+            // commits — graceful degradation rather than empty/broken
+            // surfaces.
+            builder: (_, __) => catalogRoute(const HomeV2Screen()),
           ),
           GoRoute(
             path: Routes.scan,
