@@ -370,9 +370,15 @@ class _ScanCta extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Check safety & interactions instantly',
+                      // Locked to one line — Sean 2026-05-15. Shrunk
+                      // from bodySm (14pt) to 12pt with ellipsis so it
+                      // never wraps under the gradient tile's fixed
+                      // 56pt icon + chevron real-estate.
                       style: V2Typography.bodySm(
                         color: Colors.white.withValues(alpha: 0.82),
-                      ),
+                      ).copyWith(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -414,11 +420,24 @@ class _StackHealthCard extends StatelessWidget {
         onTap: () {},
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Container(
+          // Modernization (Sean 2026-05-15): replace the flat white
+          // surface with a subtle vertical gradient — top stays clean
+          // white, bottom fades to a 5% safe-tinted wash. Gives the
+          // card a "healthy state" warmth without changing structure.
+          // Softer layered shadow via V2Shadows.md so the card lifts
+          // off the cream bg more deliberately.
           decoration: BoxDecoration(
-            color: V2Colors.surface,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                V2Colors.surface,
+                Color.lerp(V2Colors.surface, tone, 0.05)!,
+              ],
+            ),
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             border: Border.all(color: V2Colors.outline),
-            boxShadow: V2Shadows.sm,
+            boxShadow: V2Shadows.md,
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -471,9 +490,25 @@ class _StackHealthCard extends StatelessWidget {
                               width: 0.8,
                             ),
                           ),
-                          child: Text(
-                            'Optimal',
-                            style: V2Typography.label(color: tone),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Small filled status dot — reads as a
+                              // live indicator (not just a label tag).
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: tone,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: V2Spacing.space8),
+                              Text(
+                                'Optimal',
+                                style: V2Typography.label(color: tone),
+                              ),
+                            ],
                           ),
                         ),
                       ],

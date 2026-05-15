@@ -34,40 +34,54 @@ class PGTransparencyFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Centered footer: sources render as a single inline "NIH ODS · PubMed
-    // · FDA" line (Sean's call 2026-05-15 — never wrap to multiple rows),
-    // freshness sits below in a quieter tone, then the locked disclaimer
-    // sits centered and capped to two lines.
+    // Compact one-row sources strip + disclaimer beneath. Mirrors the
+    // production PGCitationStrip layout: verified glyph + "Data sources"
+    // label + inline source list on a single row (with freshness on the
+    // right), then the educational disclaimer below. Sean's call
+    // 2026-05-15 — the previous stacked variant ate too much vertical
+    // space at the bottom of every screen.
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
-        vertical: V2Spacing.space16,
+        vertical: V2Spacing.space12,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const PGEyebrow('Data sources', textAlign: TextAlign.center),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            sources.join(' · '),
-            style: V2Typography.caption(color: V2Colors.fgMuted),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          // Top row: icon + "DATA SOURCES" eyebrow + sources inline +
+          // freshness label aligned right. All on one line.
+          Row(
+            children: [
+              const Icon(
+                Icons.verified_outlined,
+                size: 13,
+                color: V2Colors.accent,
+              ),
+              const SizedBox(width: V2Spacing.space4),
+              const PGEyebrow('Data sources'),
+              const SizedBox(width: V2Spacing.space8),
+              Expanded(
+                child: Text(
+                  sources.join(' · '),
+                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (freshnessLabel != null) ...[
+                const SizedBox(width: V2Spacing.space8),
+                Text(
+                  freshnessLabel!,
+                  style: V2Typography.caption(color: V2Colors.fgSubtle),
+                ),
+              ],
+            ],
           ),
-          if (freshnessLabel != null) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              freshnessLabel!,
-              style: V2Typography.caption(color: V2Colors.fgSubtle),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          const SizedBox(height: V2Spacing.space16),
+          const SizedBox(height: V2Spacing.space8),
           Text(
             disclaimer,
             style: V2Typography.caption(color: V2Colors.fgSubtle),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
