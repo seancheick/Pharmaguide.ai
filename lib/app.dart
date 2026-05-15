@@ -25,6 +25,7 @@ import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
+import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
@@ -269,6 +270,14 @@ GoRouter _buildRouter({
         path: '/dev/v2/home',
         pageBuilder: (_, state) =>
             _platformPage(state, const HomeV2Preview()),
+      ),
+      // v2 Scanner — Phase 10.1 visual mirror with PGVerdictReveal
+      // demo chips for each severity tier. Camera surrogate stands in
+      // for MobileScanner in the gallery preview.
+      GoRoute(
+        path: '/dev/v2/scan',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ScannerV2Preview()),
       ),
       GoRoute(
         path: Routes.splashIntro,

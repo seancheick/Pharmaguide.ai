@@ -732,6 +732,12 @@ class V2Gallery extends StatelessWidget {
                     'retinted nav bar',
                 routePath: '/dev/v2/home',
               ),
+              _PrototypeLink(
+                label: 'Scanner',
+                subtitle:
+                    'Camera frame + verdict reveal (5-tier demo chips)',
+                routePath: '/dev/v2/scan',
+              ),
             ],
           ),
           const _Section(
