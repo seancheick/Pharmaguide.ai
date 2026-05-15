@@ -49,10 +49,14 @@ import 'package:pharmaguide/features/product_detail/providers/fit_score_provider
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/v2/scroll_anchors.dart';
+import 'package:pharmaguide/features/product_detail/allergen_match.dart';
+import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
@@ -177,11 +181,28 @@ class _ProductDetailV2ConnectedState
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
 
     // -------------------------------------------------------------
+    // LabelConfidence signal probe — checked here so we can gate the
+    // section sliver the same way production does (line 403).
+    // -------------------------------------------------------------
+    final labelConfidenceHasSignal = labelConfidenceHasAnySignal(
+      mappedCoverage: mappedCoverage,
+      hasProprietaryBlends: hasProprietaryBlends,
+      isNotScored: isNotScored,
+      productStatus: detailBlob?['product_status'] as Map<String, dynamic>?,
+      unmappedActives:
+          detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
+    );
+
+    // -------------------------------------------------------------
     // Gate booleans (see gating.dart)
     // -------------------------------------------------------------
     final showPersonalFit = shouldShowPersonalFit(isBlocked: isBlocked);
     final showReviewBeforeUse =
         shouldShowReviewBeforeUse(isBlocked: isBlocked);
+    final showLabelConfidence = shouldShowLabelConfidence(
+      isBlocked: isBlocked,
+      hasAnySignal: labelConfidenceHasSignal,
+    );
     final showScoreBreakdown = shouldShowScoreBreakdown(
       isBlocked: isBlocked,
       isNotScored: isNotScored,
@@ -191,6 +212,34 @@ class _ProductDetailV2ConnectedState
       blobLoading: blobLoading,
       blobError: blobError,
     );
+
+    // -------------------------------------------------------------
+    // Allergen + free-from match (used by ReviewBeforeUse adapter).
+    // Computed unconditionally so the no-structured-allergens check
+    // is reusable by the legacy AllergenSummaryBanner fallback (S0.9).
+    // -------------------------------------------------------------
+    final matchedAllergens = matchAllergens(
+      profile.allergens,
+      detailBlob?['allergens'] as List<dynamic>?,
+    );
+    final userAllergenSet = profile.allergens.toSet();
+    final freeFromClaims = matchFreeFromClaims(
+      userAllergenIds: userAllergenSet,
+      isGlutenFree: _product?.isGlutenFree,
+      isDairyFree: _product?.isDairyFree,
+      isSoyFree: _product?.isSoyFree,
+    );
+    final containsAllergenIds = matchedAllergens
+        .where((m) => m.presenceType == 'contains')
+        .map((m) => m.id)
+        .toSet();
+    final freeFromConflicts = findFreeFromConflicts(
+      matchedContainsAllergenIds: containsAllergenIds,
+      isGlutenFree: _product?.isGlutenFree,
+      isDairyFree: _product?.isDairyFree,
+      isSoyFree: _product?.isSoyFree,
+    );
+    final interactionHint = _product?.interactionSummaryHint ?? '';
 
     // -------------------------------------------------------------
     // Hero `bottomBanner` slot — blocked-product banner (11.7c.1).
@@ -281,29 +330,38 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 3. ReviewBeforeUse (PLACEHOLDER, 11.7c) -----
+                  // ---- 3. ReviewBeforeUse (WIRED, 11.7c.3) ---------
                   if (showReviewBeforeUse) ...[
-                    _SectionPlaceholder(
+                    KeyedSubtree(
                       key: _anchors.interactionsKey,
-                      label: 'ReviewBeforeUse',
-                      detail:
-                          'guardedWarnings: ${guardedWarnings.length} · '
-                          'worst=${worstSeverityOf(guardedWarnings).label}',
+                      child: ReviewBeforeUseSection(
+                        warnings: guardedWarnings,
+                        interactionHint: interactionHint,
+                        interactionSummary: detailBlob?['interaction_summary']
+                            as Map<String, dynamic>?,
+                        ingredientDoses: ingredientDoses,
+                        matchedAllergens: matchedAllergens,
+                        freeFromClaims: freeFromClaims,
+                        freeFromConflicts: freeFromConflicts,
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 4. LabelConfidence (PLACEHOLDER, 11.7c) -----
+                  // ---- 4. LabelConfidence (WIRED, 11.7c.4) ---------
                   // PRODUCTION ORDER: LabelConfidence sits BEFORE
                   // ScoreBreakdown so the low-coverage caveat sets
                   // expectation before the score it caveats.
-                  if (!isBlocked) ...[
-                    _SectionPlaceholder(
-                      label: 'LabelConfidence',
-                      detail:
-                          'coverage=${(mappedCoverage * 100).toStringAsFixed(0)}% · '
-                          'propBlends=$hasProprietaryBlends · '
-                          'notScored=$isNotScored',
+                  if (showLabelConfidence) ...[
+                    buildLabelConfidenceSection(
+                      context: context,
+                      mappedCoverage: mappedCoverage,
+                      hasProprietaryBlends: hasProprietaryBlends,
+                      isNotScored: isNotScored,
+                      productStatus: detailBlob?['product_status']
+                          as Map<String, dynamic>?,
+                      unmappedActives: detailBlob?['unmapped_actives']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

@@ -214,36 +214,36 @@ row:
 | Field | Value |
 |---|---|
 | Production | `ReviewBeforeUseCard` (line 381) |
-| V2 | **11.7c.3: NEW `v2/sections/review_before_use_section.dart`** → `PGReviewBeforeUseCard` |
+| V2 | **11.7c.3: NEW `v2/sections/review_before_use_section.dart` + `review_before_use_helpers.dart`** → `PGReviewBeforeUseCard` |
 | Source | `guardedWarnings` (from `composeGuardedWarnings`) + `matchAllergens(profile.allergens, blob['allergens'])` + `matchFreeFromClaims(...)` + `findFreeFromConflicts(...)` + `interactionHint` + `interactionSummary` blob field + `ingredientDoses` |
 | Gate | `shouldShowReviewBeforeUse({isBlocked})` = `!isBlocked` |
 | Loading | Warnings empty during loading → renders without rows until populated |
-| Empty | No warnings + no allergen conflicts → card renders compactly OR hides (verify production) |
+| Empty | No warnings + no allergen + no interaction-context + no free-from claims → `SizedBox.shrink()` (matches production line 152) |
 | Blocked | Section suppressed entirely |
 | Anchor | `_anchors.interactionsKey` (deep-link target `?section=interactions`) |
-| CTA | Row tap opens `SafetyCheckSheet` modal |
-| Analytics | Row tap analytics |
-| A11y | Danger tone paired with icon + "Caution" prefix; auto-expand-on-danger respects reduced-motion |
-| Golden | G7 allergen conflict, G10 multiple warnings, 1-row clean state |
-| **Status** | **placeholder** |
+| CTA | Row tap on warning with citations → `PGModal.bottomSheet` listing source URLs (verbatim port of production's `_showCitationsSheet`); no-profile nudge → `Routes.profileSetup`; conflict footer is informational, no tap |
+| Analytics | (deferred — no analytics fire in v2 yet; matches production) |
+| A11y | Danger tone paired with icon + colored text + caption; `startExpanded: true` when danger so users see warnings without a tap |
+| Golden | G7 allergen conflict, G10 multiple warnings, 1-row clean state, no-profile nudge state |
+| **Status** | **wired** — verbatim helper ports of production's `_parseHint` / `_computeTone` / `_allergenTone` / `_severityColor` / `_countCopy` / `_affirmativeCopy` / `_humanLabel` / `_humanConcern`. Row composition flattens production's chip layout into v2's `(headline, caption, rowTone, onTap)` model — mechanism + management + evidence + citation count packed into caption; citations tap surfaces same bottom sheet. Auto-expand-on-danger preserved. No-profile nudge preserved as standalone v2 cream card with `PGPillButton(secondary)` → `Routes.profileSetup`. Awaits live verify-alone (warnings + allergens + free-from + nudge + danger states). |
 
 #### S4. LabelConfidence
 
 | Field | Value |
 |---|---|
 | Production | `LabelConfidenceCard` (line 414) |
-| V2 | **11.7c.4: NEW `v2/sections/label_confidence_section.dart`** → `PGLabelConfidenceCard` |
+| V2 | **11.7c.4: NEW `v2/sections/label_confidence_section.dart` + `label_confidence_helpers.dart`** → `PGLabelConfidenceCard` |
 | Source | 5 signals: `mappedCoverage`, `hasProprietaryBlends`, `isNotScored`, `blob['product_status']`, `blob['unmapped_actives']` |
-| Gate | `shouldShowLabelConfidence({isBlocked, hasAnySignal})` — caller computes `LabelConfidenceCard.hasAnySignal(...)` |
+| Gate | `shouldShowLabelConfidence({isBlocked, hasAnySignal})` — connected screen calls `labelConfidenceHasAnySignal(...)` (port of production's static fn) and passes the boolean |
 | Loading | Wait for blob; signals depend on blob fields |
-| Empty | No signal fires → section suppressed |
+| Empty | No signal fires → `shouldShowLabelConfidence` returns false → section suppressed |
 | Blocked | Section suppressed |
 | Anchor | N/A |
-| CTA | Proprietary blends tap → opens disclosure (verify production) |
+| CTA | Tap on productStatus row → `PGModal.bottomSheet` with same explanation copy production renders (verbatim port of `_ProductStatusExplanationSheet._bodyCopy`) |
 | Analytics | none |
-| A11y | Caveat copy reads informational, not alarming |
-| Golden | G8 low coverage, G9 proprietary blend, G6 not-scored |
-| **Status** | **placeholder** |
+| A11y | Caveat copy reads informational, not alarming. Tier note tier → muted grey icon; partial/limited → caution amber icon (never red) |
+| Golden | G8 low coverage, G9 proprietary blend, G6 not-scored, G discontinued-only (note tier) |
+| **Status** | **wired** — verbatim helper ports of production's `_Tier` / `_computeTier` / `_tierLabel` / `_headerPrefix` / `_unmappedTotal` / `_productStatusLabel` / `_unmappedNames` / `_pluralize`. Row order preserved (isNotScored → coverage → blends → unmapped → productStatus). All row copy strings verbatim from production lines 148–191. Status-explanation sheet copy verbatim from production lines 407–428. Awaits live verify-alone (low-coverage product, proprietary-blend product, NOT_SCORED product, discontinued product). |
 
 **Order note (MNR-7):** LabelConfidence MUST render before ScoreBreakdown. The v2 fixture had these reversed; v2 connected restores production order.
 
