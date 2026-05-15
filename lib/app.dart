@@ -18,6 +18,7 @@ import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
+import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
@@ -276,6 +277,28 @@ GoRouter _buildRouter({
         path: '/dev/v2/product-detail',
         pageBuilder: (_, state) =>
             _platformPage(state, const ProductDetailV2Screen()),
+      ),
+      // Phase 11.7b — Product Detail V2 *Connected*. Same components as
+      // the fixture screen above, but driven by a real `dsldId` and the
+      // production provider stack (coreDatabaseProvider, detailBlob,
+      // personalizedInteractionWarnings, profileProvider, fitScore).
+      // Section bodies fill in across 11.7c–11.7f; 11.7g flips the
+      // production /product/:dsldId route over once stakeholder review
+      // passes. Until then this lives behind a parallel route so
+      // production stays on the legacy screen.
+      GoRoute(
+        path: '/dev/v2/product/:dsldId',
+        pageBuilder: (_, state) {
+          final dsldId = state.pathParameters['dsldId']!;
+          final section = state.uri.queryParameters['section'];
+          return _platformPage(
+            state,
+            ProductDetailV2ConnectedScreen(
+              dsldId: dsldId,
+              initialSection: section,
+            ),
+          );
+        },
       ),
       // v2 Auth Invitation — sits between onboarding completion and
       // home. Phase 9.0 ships the visual mirror only; Supabase wiring
