@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 /// Canonical nav bar total height used by [PGFrostedNavBar]. Modal bottom
 /// sheets should add this to their bottom padding when the app is using
@@ -44,12 +45,22 @@ class PGFrostedNavBar extends StatelessWidget {
   final List<NavigationDestination> destinations;
   final double blurSigma;
 
+  /// When true, resolves surface / outline / accent through [V2Colors]
+  /// directly instead of the active theme's `colorScheme`. Lets v2
+  /// preview routes show the v2 nav-bar tone even when the global
+  /// theme is still legacy `AppTheme`. Production paths leave this
+  /// false so nothing changes for the live app until Phase 8 sign-off
+  /// flips `useV2Theme` globally — at which point the theme path
+  /// produces the same colors and this flag becomes redundant.
+  final bool useV2Tones;
+
   const PGFrostedNavBar({
     super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.destinations,
     this.blurSigma = 22,
+    this.useV2Tones = false,
   });
 
   @override
@@ -58,14 +69,27 @@ class PGFrostedNavBar extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
+    final Color surface;
+    final Color outline;
+    final Color indicator;
+    if (useV2Tones) {
+      surface = isDark ? V2Colors.surfaceDark : V2Colors.surface;
+      outline = isDark ? V2Colors.outlineDark : V2Colors.outline;
+      indicator = V2Colors.accent.withValues(alpha: isDark ? 0.18 : 0.12);
+    } else {
+      surface = scheme.surface;
+      outline = scheme.outlineVariant;
+      indicator = scheme.primary.withValues(alpha: isDark ? 0.18 : 0.12);
+    }
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: scheme.surface.withValues(alpha: isDark ? 0.72 : 0.78),
+            color: surface.withValues(alpha: isDark ? 0.72 : 0.78),
             border: Border(
-              top: BorderSide(color: scheme.outlineVariant, width: 0.5),
+              top: BorderSide(color: outline, width: 0.5),
             ),
           ),
           child: NavigationBar(
@@ -76,9 +100,7 @@ class PGFrostedNavBar extends StatelessWidget {
             surfaceTintColor: Colors.transparent,
             shadowColor: Colors.transparent,
             elevation: 0,
-            indicatorColor: scheme.primary.withValues(
-              alpha: isDark ? 0.18 : 0.12,
-            ),
+            indicatorColor: indicator,
           ),
         ),
       ),

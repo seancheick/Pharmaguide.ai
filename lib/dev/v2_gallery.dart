@@ -716,7 +716,7 @@ class V2Gallery extends StatelessWidget {
             ],
           ),
           const _Section(
-            title: 'Flagship screens — Phase 8.1',
+            title: 'Flagship screens',
             children: [
               _PrototypeLink(
                 label: 'Product Detail',
@@ -724,6 +724,13 @@ class V2Gallery extends StatelessWidget {
                     'Full v2 product detail page · 17 sections, '
                     'production scroll order',
                 routePath: '/dev/v2/product-detail',
+              ),
+              _PrototypeLink(
+                label: 'Home',
+                subtitle:
+                    'Greeting · scan CTA · stack health · recent scans · '
+                    'retinted nav bar',
+                routePath: '/dev/v2/home',
               ),
             ],
           ),
