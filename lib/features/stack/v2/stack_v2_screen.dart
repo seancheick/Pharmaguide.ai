@@ -3,6 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/models/stack_intelligence.dart';
+import 'package:pharmaguide/core/models/synergy_result.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
+import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
@@ -387,9 +393,11 @@ class _StackSummaryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Phase 11.2: live supplement + medication counts. Status tier
-    // stays "Optimal" until the intelligence engine wires in
-    // Phase 11.x — same incremental rollout as Home.
+    // Phase 11.x: live supplement + medication counts AND real
+    // StackIntelligenceEngine tier verdict. Same source of truth as
+    // the legacy Home Stack Health card so the user sees ONE verdict
+    // across both surfaces (no drift). Sean's safety rule: real
+    // clinical surfaces here, never a hardcoded "Optimal".
     final stack = ref.watch(activeStackProvider).asData?.value ?? const [];
     final supplementCount =
         stack.where((e) => e.type == 'supplement').length;
@@ -398,7 +406,63 @@ class _StackSummaryCard extends ConsumerWidget {
     final hasRealData = stack.isNotEmpty;
     final liveSupplementCount = hasRealData ? supplementCount : 3;
     final liveMedicationCount = hasRealData ? medicationCount : 1;
-    const tone = V2Colors.safe;
+
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    final synergyAsync = ref.watch(synergyReportProvider);
+    final recallAsync = ref.watch(recalledIngredientsReportProvider);
+    final safetyScore = reportAsync.whenOrNull(
+      data: (report) {
+        final allIssues = <InteractionResult>[
+          ...report.medicationPairInteractions,
+          ...report.medicationInteractions,
+          ...report.stackInteractions,
+          ...report.categoryWarnings,
+        ];
+        final synergies = synergyAsync.whenOrNull(
+              data: (synergyReport) => synergyReport.matches
+                  .map(
+                    (m) => SynergyResult(
+                      ingredient1: m.matchedIngredients.isNotEmpty
+                          ? m.matchedIngredients.first
+                          : m.clusterId,
+                      ingredient2: m.matchedIngredients.length > 1
+                          ? m.matchedIngredients[1]
+                          : m.clusterName,
+                      description: m.mechanism,
+                      evidenceLevel: EvidenceLevel.established,
+                      bonus: m.bonusPoints,
+                    ),
+                  )
+                  .toList(),
+            ) ??
+            const <SynergyResult>[];
+        return const StackSafetyScorer().compute(
+          issues: allIssues,
+          synergies: synergies,
+        );
+      },
+    );
+    final intelligence =
+        (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
+            ? const StackIntelligenceEngine().diagnose(
+                stackSize: stack.length,
+                safetyReport: reportAsync.value!,
+                recalledReport: recallAsync.value!,
+                synergyReport: synergyAsync.value!,
+                qualityScore: safetyScore?.score,
+              )
+            : null;
+    final status = intelligence?.tier.healthLabel;
+    final isAnalyzing = reportAsync.isLoading ||
+        synergyAsync.isLoading ||
+        recallAsync.isLoading;
+    // Tone: real status color when intelligence is loaded; v2 safe
+    // green during analyzing or no-data states.
+    final Color tone = status?.color ?? V2Colors.safe;
+    final statusLabel = isAnalyzing
+        ? 'Analyzing'
+        : status?.label ?? 'No data yet';
+    final insightLine = _describeSummary(intelligence);
 
     return Container(
       decoration: BoxDecoration(
@@ -431,7 +495,7 @@ class _StackSummaryCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'No major safety issues detected right now.',
+                      insightLine,
                       style: V2Typography.bodySm(color: V2Colors.fgMuted),
                     ),
                   ],
@@ -458,14 +522,14 @@ class _StackSummaryCard extends ConsumerWidget {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: tone,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: V2Spacing.space8),
                     Text(
-                      'Optimal',
+                      statusLabel,
                       style: V2Typography.label(color: tone),
                     ),
                   ],
@@ -492,6 +556,60 @@ class _StackSummaryCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Human-readable insight line under "Stack Health". Mirrors
+/// production `_StackSummaryCard._describeSummary` verbatim so the
+/// user sees the same copy on Home and on the Stack tab.
+String _describeSummary(StackIntelligence? intelligence) {
+  if (intelligence == null) {
+    return 'Reviewing interactions, recall alerts, and nutrient overlap.';
+  }
+  switch (intelligence.tier) {
+    case StackTier.unsafe:
+      if (intelligence.hasBannedIngredient) {
+        return 'Banned ingredient found — review immediately.';
+      }
+      if (intelligence.hasRecalledIngredient) {
+        return 'Recalled ingredient found — review immediately.';
+      }
+      if (intelligence.hasContraindicatedInteraction) {
+        return 'Contraindicated interaction found — review immediately.';
+      }
+      return 'High-risk issue found — review immediately.';
+    case StackTier.concerning:
+      if (intelligence.interactionCount > 0 &&
+          intelligence.nutrientWarningCount > 0) {
+        return '${intelligence.interactionCount} interaction'
+            '${intelligence.interactionCount == 1 ? '' : 's'} and '
+            '${intelligence.nutrientWarningCount} nutrient warning'
+            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
+      }
+      if (intelligence.interactionCount > 0) {
+        return '${intelligence.interactionCount} interaction'
+            '${intelligence.interactionCount == 1 ? '' : 's'} need review.';
+      }
+      if (intelligence.nutrientWarningCount > 0) {
+        return '${intelligence.nutrientWarningCount} nutrient warning'
+            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
+      }
+      return 'Important issues found — review this stack.';
+    case StackTier.decent:
+      if (intelligence.interactionCount > 0) {
+        return '${intelligence.interactionCount} interaction'
+            '${intelligence.interactionCount == 1 ? '' : 's'} worth reviewing.';
+      }
+      if (intelligence.nutrientWarningCount > 0) {
+        return '${intelligence.nutrientWarningCount} nutrient warning'
+            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} worth reviewing.';
+      }
+      return 'Some concerns are worth reviewing.';
+    case StackTier.solid:
+    case StackTier.optimized:
+      return 'No major safety issues detected right now.';
+    case StackTier.incomplete:
+      return 'Add more information to diagnose this stack.';
   }
 }
 
