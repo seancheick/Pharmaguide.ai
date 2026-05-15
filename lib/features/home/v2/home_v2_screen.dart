@@ -12,7 +12,6 @@ import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_section_header.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
-import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -76,19 +75,28 @@ class HomeV2Screen extends StatelessWidget {
               parent: AlwaysScrollableScrollPhysics(),
             ),
             slivers: [
-              // 0. iOS pull-to-refresh sliver. Sits above the pinned
-              // header to absorb the bouncing-physics overscroll —
-              // without this, BouncingScrollPhysics can push the pinned
-              // header into a "layoutExtent > paintExtent" state on
-              // the first frame after launch. Mirror of the production
-              // home_screen.dart structure.
+              // 0. iOS pull-to-refresh sliver.
               if (Platform.isIOS)
                 const CupertinoSliverRefreshControl(),
 
-              // 1. Pinned search row.
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SearchHeaderDelegate(topPadding: mq.padding.top),
+              // 1. Search row — non-pinned for the visual mirror. The
+              // production scroll-chrome-fading behavior (where
+              // PGFrostedHeader fades in once content scrolls past)
+              // re-wires in the Phase-8 sweep; the custom delegate
+              // here was throwing SliverGeometry layout errors on
+              // certain heights, so we dropped it for stability. The
+              // search row scrolls away naturally with the content
+              // instead of pinning.
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: mq.padding.top + V2Spacing.space12,
+                    left: V2Spacing.space24,
+                    right: V2Spacing.space24,
+                    bottom: V2Spacing.space12,
+                  ),
+                  child: const _SearchLauncher(),
+                ),
               ),
 
               // 1.5. Quick-filter category chips. Horizontal scrollable
@@ -237,69 +245,9 @@ class HomeV2Screen extends StatelessWidget {
 }
 
 // =============================================================================
-// Pinned search header — visual mirror of production's
-// _PinnedSearchHeaderDelegate. Full scroll-progress chrome fading
-// preserves in production; here we render the static end state.
+// Search launcher row. Non-pinned in the visual mirror — the
+// production scroll-chrome-fading rewires in the Phase-8 sweep.
 // =============================================================================
-
-class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double topPadding;
-
-  static const double _verticalPadding = 12;
-  static const double _launcherHeight = 52;
-
-  _SearchHeaderDelegate({required this.topPadding});
-
-  double get _height => topPadding + _verticalPadding * 2 + _launcherHeight;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    // Simple binary: at scroll 0, transparent surface (just hairline at
-    // bottom). Once scrolled, cream surface @ 95% opacity + hairline.
-    // No BackdropFilter at this preview level — keeps the perf
-    // guardrail count to one blur surface per viewport (the nav bar).
-    final scrolled = overlapsContent;
-    return AnimatedContainer(
-      duration: V2Motion.base,
-      curve: V2Motion.smooth,
-      decoration: BoxDecoration(
-        color: scrolled
-            ? V2Colors.bg.withValues(alpha: 0.95)
-            : Colors.transparent,
-        border: Border(
-          bottom: BorderSide(
-            color: scrolled ? V2Colors.outline : Colors.transparent,
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(
-          top: topPadding + _verticalPadding,
-          left: V2Spacing.space24,
-          right: V2Spacing.space24,
-          bottom: _verticalPadding,
-        ),
-        child: const _SearchLauncher(),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _SearchHeaderDelegate oldDelegate) {
-    return oldDelegate.topPadding != topPadding;
-  }
-}
 
 class _SearchLauncher extends StatelessWidget {
   const _SearchLauncher();
