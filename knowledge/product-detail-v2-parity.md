@@ -153,7 +153,7 @@ row:
 | Analytics | none |
 | A11y | Product name + brand + score Semantics labels |
 | Golden | G1 long name, G3 missing image, G4 low-quality, G5 blocked → BlockedBanner |
-| **Status** | **wired** — Hero composes `heroBottomBanner` from S1.5 adapter when `isBlocked` is true |
+| **Status** | **verified** — live side-by-side vs production /product/16012 (Thorne Vinpocetine, BLOCKED): image-fallback ✅, trust chips ✅, name + brand + dosing ✅, `heroBottomBanner` composition ✅. Long-name (G1), 20+ingredients (G2), low-quality image (G4) goldens pending — not blockers for blocked-banner ship. |
 
 #### S1.5 Hero BlockedBanner (slotted into Hero `bottomBanner`)
 
@@ -171,7 +171,7 @@ row:
 | Analytics | none (FDA-link tap is external nav) |
 | A11y | Danger tone paired with icon (PGSeverityBanner ships its own danger icon); FDA links underlined + `Icons.open_in_new_rounded` indicator + ellipsis on long URLs |
 | Golden | G5 NSF banned product; substance-with-oneLiner / substance-without-oneLiner / no-substance fallback all three body tiers covered by `resolveBlockedReasonBody` |
-| **Status** | **wired** — pending live-device verification on a richer BLOCKED product (G5) with BSD source_urls / regulatory_date / substance_name |
+| **Status** | **verified** (sparse-BSD path) — live side-by-side vs production /product/16012 confirmed identical reason copy, suppression behavior, sticky CTA swap, calm tone. Sean approved reason body OUTSIDE the danger banner card (better v2 pacing, banner stays compact, reason breathes on cream surface). Richer paths — FDA sources block, regulatory date line, substance-name row — remain pending on a future test product whose BSD carries those fields. |
 
 #### S1.6 "No additional details available." fallback (null-blob)
 
@@ -189,7 +189,7 @@ row:
 | Analytics | none |
 | A11y | Plain quiet text in `V2Typography.bodySm(V2Colors.fgMuted)` — readable, honest |
 | Golden | G5 Thorne Vinpocetine (live-verified — production also shows this for the same dsldId) |
-| **Status** | **wired** (added 11.7c.1 follow-up after side-by-side production diff revealed gap) |
+| **Status** | **verified** — live side-by-side confirmed identical "No additional details available." copy + placement (between BetterAlternatives and TransparencyFooter) vs production rendering same line via DetailSection when detailBlob==null. |
 
 #### S2. PersonalFit
 
@@ -501,13 +501,13 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7c.1 boundary, post-side-by-side fix)
+## Completion tally (Phase 11.7c.1 boundary, post-live-verification)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| verified | 0 |
-| **wired** | 7 (S0, S0.5, S0.9, S1, S1.5, S1.6, S17) |
+| **verified** | 3 (S1, S1.5, S1.6 — live side-by-side blocked-product flow) |
+| **wired** | 4 (S0, S0.5, S0.9, S17 — pending live verification on non-blocked product) |
 | **placeholder** | 14 |
 | total | 21 |
 
