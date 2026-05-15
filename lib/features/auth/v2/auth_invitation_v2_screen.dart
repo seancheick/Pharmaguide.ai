@@ -75,14 +75,25 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: V2Motion.slower, // 640ms full entrance
+      // 960ms full entrance — slower than the previous 640ms so the
+      // reveal-one-by-one reads more clearly (Sean's call 2026-05-15:
+      // "i assume you'll have a nice element reveal on that page one
+      // by one"). Each individual element animates 60% of total =
+      // 576ms, which feels deliberate but not slow.
+      duration: V2Motion.slowest,
     )..forward();
 
     _heartbeat = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      // 2200ms one-way × 2 (reverse) = 4.4s full cycle. A slow,
+      // ambient breath — slower than a resting pulse so it never
+      // reads as anxious.
+      duration: const Duration(milliseconds: 2200),
     );
-    _heartbeatScale = Tween<double>(begin: 1.0, end: 1.045).animate(
+    // Scale peak bumped from 4.5% to 8% — at 56pt the previous delta
+    // (~2.5px) was sub-perceptible. 8% gives ~4.5px peak which reads
+    // as a calm breath without dominating.
+    _heartbeatScale = Tween<double>(begin: 1.0, end: 1.08).animate(
       CurvedAnimation(parent: _heartbeat, curve: Curves.easeInOutSine),
     );
     // Defer starting the heartbeat until the stagger entrance has had
@@ -103,11 +114,13 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
   }
 
   /// 80ms-stagger entrance — mirrors the onboarding _StepShell so the
-  /// transition from final celebration → auth feels continuous.
+  /// transition from final celebration → auth feels continuous. Lift
+  /// distance bumped from 16 → 22 to make the reveal-one-by-one read
+  /// more clearly on the live build.
   ({double opacity, double lift}) _stagger(double delayFraction) {
     final t = ((_ctrl.value - delayFraction) / 0.6).clamp(0.0, 1.0);
     final eased = V2Motion.decelerate.transform(t);
-    return (opacity: eased, lift: 16 * (1 - eased));
+    return (opacity: eased, lift: 22 * (1 - eased));
   }
 
   void _noopOrCall(VoidCallback? cb) {
@@ -317,7 +330,10 @@ class _Subhead extends StatelessWidget {
         'PharmaGuide works best when your supplements, medications, '
         'and profile stay connected. Sign in to keep your stack and '
         'safety checks in sync across devices.',
-        style: V2Typography.bodyXl(color: V2Colors.fgMuted),
+        // Stepped down from bodyXl (18pt) → body (16pt) per Sean
+        // 2026-05-15 — 18pt felt slightly oversized against the
+        // serif headline above.
+        style: V2Typography.body(color: V2Colors.fgMuted),
         textAlign: TextAlign.center,
       ),
     );
