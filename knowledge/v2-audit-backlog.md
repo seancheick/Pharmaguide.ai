@@ -14,12 +14,55 @@ Same logic, same flows, same enums, same providers. Just the v2 voice.
 
 - [x] Home (Phase 11.1, partial — status tier wires next)
 - [x] Settings / Profile (Phase 11.0)
-- [ ] Stack — wiring in progress (Phase 11.2)
+- [x] Stack (Phase 11.2, partial — see Phase 11 known gaps below)
 - [ ] Scanner — wiring next (Phase 11.3)
 - [ ] Product Detail — wiring next (Phase 11.4)
 - [x] Auth invitation — fully wired
 - [x] Splash v2 — gallery only, production still legacy
 - [x] Onboarding v2 — gallery only, production still legacy
+
+## Phase 11 known feature gaps (must close before TestFlight)
+
+The route swaps in 11.0–11.2 dropped some conditional production
+surfaces that aren't yet mirrored in v2. These are SILENT regressions
+for users in the "Optimal" state, but real risks for users with
+warnings / recalls / nudges. Close before flipping useV2Theme on for
+production.
+
+### Home v2 (Routes.home) — missing vs HomeScreen
+- [ ] iOS CupertinoSliverRefreshControl pull-to-refresh
+- [ ] Android RefreshIndicator wrap
+- [ ] isFirstLaunchHomeProvider gate (first-launch UI subset)
+- [ ] showExpandedSections conditional rendering
+- [ ] HomeCitationStrip with real catalog count + last-updated
+      timestamp (currently uses locked PGTransparencyFooter)
+- [ ] Real Recent scans data from `_recentScansProvider`
+      (currently fixture)
+
+### Stack v2 (Routes.stack) — missing vs StackScreen
+- [ ] _RecallAlertSlot — danger banner for recalled ingredients
+      ★ HIGH PRIORITY: this is a safety surface
+- [ ] _StackSafetyBannerSlot — aggregated safety warnings
+      ★ HIGH PRIORITY: safety surface
+- [ ] _ProfileNudgeSlot — "complete your profile" gentle nudge
+- [ ] _TimingAdviceSlot — timing optimization advice
+- [ ] _DepletionSlot — nutrient depletion by medications
+- [ ] NutrientAccumulationPanel (production version with real data;
+      v2 Nutrients tab uses fixture)
+- [ ] _StackEmptyView (production empty state — calmer "Build your
+      stack" CTA; v2 falls back to fixture items when empty)
+- [ ] PGFrostedAppBar scroll-fade behavior (v2 uses plain AppBar
+      currently)
+- [ ] Pull-to-refresh (production has RefreshIndicator wrap)
+- [ ] StackIntelligenceEngine status tier (currently hardcoded
+      "Optimal")
+
+### Settings v2 (Routes.profile) — missing vs SettingsScreen
+- [ ] Email caption uses real Supabase user.email (currently
+      "sean@example.com" fixture)
+- [ ] _PrivacyDashboardSheet
+- [ ] Real theme picker, real notifications toggle, real analytics
+      toggle wiring
 
 ## Production paths still on legacy styling
 
