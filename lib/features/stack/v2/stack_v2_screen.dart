@@ -3,30 +3,28 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/components/pg_segmented_control.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 
-/// v2 Stack screen — faithful visual mirror of `stack_screen.dart`.
+/// v2 Stack screen — visual mirror of `stack_screen.dart` with three
+/// sub-tabs via [PGSegmentedControl]:
 ///
-/// Production composition preserved:
-///   - Two pinned tabs: Stack | Wishlist
-///   - Stack tab: Stack Health summary card (status tier, NO numeric
-///     score per production rule 2026-05-05) → "Your supplements"
-///     section header (subtitle: "Swipe left to remove") → list of
-///     supplement / medication cards (Dismissible end-to-start →
-///     delete with Undo snackbar)
-///   - Wishlist tab: empty-state card with a soft "Save for later" CTA
+///   Stack | Nutrients | Wishlist
 ///
-/// Production-only slots not mirrored at the visual level (Phase-8
-/// wiring brings them back):
-///   - _RecallAlertSlot / _StackSafetyBannerSlot — conditional;
-///     stay hidden in the all-clear fixture
-///   - _ProfileNudgeSlot / _TimingAdviceSlot / _DepletionSlot — same
-///   - NutrientAccumulationPanel — same
-class StackV2Screen extends StatelessWidget {
+/// Production currently ships two tabs (Stack / Wishlist) with a
+/// nutrient panel embedded in the Stack scroll. Sean 2026-05-15:
+/// split nutrients out into its own segment so each tab does one
+/// clean job. Production wiring keeps the same providers; only the
+/// container changes.
+///
+/// Segmented control sits below the app bar with a sliding pill
+/// highlighter and 280ms emphasized transitions.
+class StackV2Screen extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int>? onDestinationSelected;
   final bool showNavBar;
@@ -39,6 +37,13 @@ class StackV2Screen extends StatelessWidget {
   });
 
   @override
+  State<StackV2Screen> createState() => _StackV2ScreenState();
+}
+
+class _StackV2ScreenState extends State<StackV2Screen> {
+  int _segment = 0;
+
+  @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -47,50 +52,76 @@ class StackV2Screen extends StatelessWidget {
         systemNavigationBarColor: V2Colors.bg,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          backgroundColor: V2Colors.bg,
-          extendBody: true,
-          appBar: const _StackAppBar(),
-          body: const TabBarView(
-            children: [_StackTab(), _WishlistTab()],
-          ),
-          bottomNavigationBar: showNavBar
-              ? PGFrostedNavBar(
-                  useV2Tones: true,
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onDestinationSelected ?? (_) {},
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home_rounded),
-                      label: 'Home',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.layers_outlined),
-                      selectedIcon: Icon(Icons.layers_rounded),
-                      label: 'Stack',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.qr_code_scanner_outlined),
-                      selectedIcon: Icon(Icons.qr_code_scanner_rounded),
-                      label: 'Scan',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.auto_awesome_outlined),
-                      selectedIcon: Icon(Icons.auto_awesome_rounded),
-                      label: 'Chat',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.person_outline_rounded),
-                      selectedIcon: Icon(Icons.person_rounded),
-                      label: 'Profile',
-                    ),
-                  ],
-                )
-              : null,
+      child: Scaffold(
+        backgroundColor: V2Colors.bg,
+        extendBody: true,
+        appBar: _StackAppBar(
+          segment: _segment,
+          onSegmentChanged: (i) => setState(() => _segment = i),
         ),
+        body: AnimatedSwitcher(
+          duration: V2Motion.base,
+          switchInCurve: V2Motion.emphasized,
+          switchOutCurve: V2Motion.smooth,
+          transitionBuilder: (child, animation) {
+            // Fade + tiny lift so the panes feel like they slide in,
+            // not just hard-cut. Stays within the perf budget — no
+            // gradient/blur animation.
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.02),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey(_segment),
+            child: switch (_segment) {
+              0 => const _StackTab(),
+              1 => const _NutrientsTab(),
+              _ => const _WishlistTab(),
+            },
+          ),
+        ),
+        bottomNavigationBar: widget.showNavBar
+            ? PGFrostedNavBar(
+                useV2Tones: true,
+                selectedIndex: widget.selectedIndex,
+                onDestinationSelected:
+                    widget.onDestinationSelected ?? (_) {},
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.layers_outlined),
+                    selectedIcon: Icon(Icons.layers_rounded),
+                    label: 'Stack',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.qr_code_scanner_outlined),
+                    selectedIcon: Icon(Icons.qr_code_scanner_rounded),
+                    label: 'Scan',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.auto_awesome_outlined),
+                    selectedIcon: Icon(Icons.auto_awesome_rounded),
+                    label: 'Chat',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(Icons.person_rounded),
+                    label: 'Profile',
+                  ),
+                ],
+              )
+            : null,
       ),
     );
   }
@@ -98,14 +129,21 @@ class StackV2Screen extends StatelessWidget {
 
 // =============================================================================
 // App bar — "My stack" title + add-medication + share-clinician trailing.
-// Pinned TabBar lives under the bar.
+// Segmented control sits in the bar's bottom slot.
 // =============================================================================
 
 class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _StackAppBar();
+  final int segment;
+  final ValueChanged<int> onSegmentChanged;
+
+  const _StackAppBar({
+    required this.segment,
+    required this.onSegmentChanged,
+  });
 
   @override
-  Size get preferredSize => const Size.fromHeight(108); // bar + tab strip
+  // 56pt AppBar default + 16 gap + 44 segmented control + 16 gap = 132
+  Size get preferredSize => const Size.fromHeight(132);
 
   @override
   Widget build(BuildContext context) {
@@ -134,26 +172,18 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
         const SizedBox(width: V2Spacing.space8),
       ],
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: Container(
-          color: V2Colors.bg,
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
-          child: TabBar(
-            labelColor: V2Colors.accent,
-            unselectedLabelColor: V2Colors.fgMuted,
-            indicatorColor: V2Colors.accent,
-            indicatorSize: TabBarIndicatorSize.label,
-            dividerColor: Colors.transparent,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelStyle: V2Typography.titleSm(color: V2Colors.accent),
-            unselectedLabelStyle:
-                V2Typography.bodyMedium(color: V2Colors.fgMuted),
-            tabs: const [
-              Tab(text: 'Stack'),
-              Tab(text: 'Wishlist'),
-            ],
+        preferredSize: const Size.fromHeight(76),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space16,
+            V2Spacing.space24,
+            V2Spacing.space16,
+          ),
+          child: PGSegmentedControl(
+            segments: const ['Stack', 'Nutrients', 'Wishlist'],
+            selectedIndex: segment,
+            onChanged: onSegmentChanged,
           ),
         ),
       ),
@@ -207,7 +237,7 @@ class _StackTab extends StatelessWidget {
         parent: BouncingScrollPhysics(),
       ),
       padding: EdgeInsets.only(
-        top: V2Spacing.space16,
+        top: V2Spacing.space8,
         bottom: MediaQuery.of(context).padding.bottom +
             kPGNavBarHeight +
             V2Spacing.space24,
@@ -254,9 +284,7 @@ class _StackTab extends StatelessWidget {
 }
 
 // =============================================================================
-// Stack Summary card — Stack Health title + status pill, optional
-// issue-count line, supplement / medication count chips. Numeric
-// 0-100 score removed per production rule 2026-05-05.
+// Stack Summary card.
 // =============================================================================
 
 class _StackSummaryCard extends StatelessWidget {
@@ -264,9 +292,6 @@ class _StackSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Fixture: Optimal stack (3 supplements + 1 medication, 0 issues).
-    // Production reads from stackSafetyReportProvider + intelligence
-    // engine; same all-clear tier.
     const tone = V2Colors.safe;
 
     return Container(
@@ -419,8 +444,7 @@ class _CountChip extends StatelessWidget {
 }
 
 // =============================================================================
-// Stack item — Dismissible row card. Supplements show a compact
-// PGScoreLine; medications show a pharmacy glyph.
+// Stack item row.
 // =============================================================================
 
 class _StackEntry {
@@ -572,8 +596,204 @@ class _ItemLeadingGlyph extends StatelessWidget {
 }
 
 // =============================================================================
-// Wishlist tab — calm empty state. Production currently ships an
-// empty-state stub here; mirror the same intent.
+// Nutrients tab — list of nutrient rows showing % RDA / UL coverage.
+// Mirror of the production NutrientAccumulationPanel intent: most
+// clinically relevant first (UL warnings before RDA tracking).
+// =============================================================================
+
+class _NutrientsTab extends StatelessWidget {
+  const _NutrientsTab();
+
+  // Fixture ordered by clinical priority: UL-flagged first, then RDA-
+  // tracked descending by %.
+  static const _rows = <_NutrientStatus>[
+    _NutrientStatus(
+      name: 'Vitamin A',
+      detail: '120% of UL',
+      percent: 1.20,
+      tier: _NutrientTier.warning,
+    ),
+    _NutrientStatus(
+      name: 'Iron',
+      detail: '85% of UL',
+      percent: 0.85,
+      tier: _NutrientTier.monitor,
+    ),
+    _NutrientStatus(
+      name: 'Magnesium',
+      detail: '94% of RDA',
+      percent: 0.94,
+      tier: _NutrientTier.normal,
+    ),
+    _NutrientStatus(
+      name: 'Vitamin D',
+      detail: '78% of RDA',
+      percent: 0.78,
+      tier: _NutrientTier.normal,
+    ),
+    _NutrientStatus(
+      name: 'Omega-3 (EPA + DHA)',
+      detail: '65% of AI',
+      percent: 0.65,
+      tier: _NutrientTier.normal,
+    ),
+    _NutrientStatus(
+      name: 'Vitamin B12',
+      detail: '320% of RDA',
+      percent: 1.0,
+      tier: _NutrientTier.normal,
+    ),
+    _NutrientStatus(
+      name: 'Zinc',
+      detail: '48% of RDA',
+      percent: 0.48,
+      tier: _NutrientTier.normal,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: EdgeInsets.only(
+        top: V2Spacing.space8,
+        bottom: MediaQuery.of(context).padding.bottom +
+            kPGNavBarHeight +
+            V2Spacing.space24,
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Daily nutrient coverage',
+                style: V2Typography.titleSm(color: V2Colors.fg),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Totals across your stack vs. RDA / UL benchmarks.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: V2Colors.surface,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.sm,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < _rows.length; i++)
+                  _NutrientRow(
+                    status: _rows[i],
+                    isLast: i == _rows.length - 1,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+enum _NutrientTier { normal, monitor, warning }
+
+class _NutrientStatus {
+  final String name;
+  final String detail;
+
+  /// Visual progress 0..1 (1.0 = filled). Display percent shown in detail.
+  final double percent;
+  final _NutrientTier tier;
+
+  const _NutrientStatus({
+    required this.name,
+    required this.detail,
+    required this.percent,
+    required this.tier,
+  });
+}
+
+class _NutrientRow extends StatelessWidget {
+  final _NutrientStatus status;
+  final bool isLast;
+
+  const _NutrientRow({required this.status, this.isLast = false});
+
+  Color get _tone => switch (status.tier) {
+        _NutrientTier.warning => V2Colors.caution,
+        _NutrientTier.monitor => V2Colors.monitor,
+        _NutrientTier.normal => V2Colors.accent,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final clampedPercent = status.percent.clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isLast ? Colors.transparent : V2Colors.outline,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  status.name,
+                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                ),
+              ),
+              const SizedBox(width: V2Spacing.space8),
+              Text(
+                status.detail,
+                style: V2Typography.caption(color: _tone)
+                    .copyWith(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            child: SizedBox(
+              height: 6,
+              child: Stack(
+                children: [
+                  Container(color: V2Colors.outline),
+                  FractionallySizedBox(
+                    widthFactor: clampedPercent,
+                    child: Container(color: _tone),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Wishlist tab — calm empty state.
 // =============================================================================
 
 class _WishlistTab extends StatelessWidget {
