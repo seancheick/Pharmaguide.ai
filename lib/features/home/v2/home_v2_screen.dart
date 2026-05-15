@@ -4,12 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/components/pg_halo_background.dart';
-import 'package:pharmaguide/core/components/pg_metric_card.dart';
-import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
-import 'package:pharmaguide/core/components/pg_section_header.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -17,29 +12,32 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 
-/// v2 Home — visual mirror of `home_screen.dart`.
+/// v2 Home — faithful visual mirror of `home_screen.dart`.
 ///
-/// Phase 10.0 — fixture-driven, no provider wiring. Production swap
-/// (later phase) keeps the same composition; only the data adapters
-/// change. Sliver order mirrors production exactly:
+/// Phase 10.0 rebuild (2026-05-15): the earlier pass invented patterns
+/// that don't exist in production (avatar chip, scan streak, category
+/// chips, "Suggested next" card, 2-card stack health row, numeric
+/// stack score, vertical recent-scans list). Sean called the
+/// foundational rule of v2: visual reskin only, never redesign.
 ///
-///   1. Pinned search row (simplified — full PGFrostedHeader scroll-
-///      chrome behavior preserves in production, this is the visual
-///      surface)
-///   2. Hero greeting (eyebrow + serif greeting + tagline)
-///   3. Primary Scan CTA
-///   4. Stack health + last fit (PGMetricRow)
-///   5. Recent scans (PGSectionHeader + 3 PGScoreLine rows)
-///   6. Quick check CTA (secondary pill)
-///   7. PGTransparencyFooter
-///   8. Spacer for the frosted nav bar
+/// This rebuild mirrors production exactly:
+///   1. iOS pull-to-refresh sliver
+///   2. Search field — static, opens /search
+///   3. Hero greeting — date label + "Good morning, Sean." + tagline
+///      "Know what you take."
+///   4. Scan CTA — single row, accent gradient
+///   5. Stack Health — ONE card: header + status pill, insight band,
+///      micro-metrics row (supplements · medications · interactions),
+///      "View stack →" footer. NO numeric score.
+///   6. Recent scans — section header + HORIZONTAL carousel of 156pt
+///      cards (image + score line + name + brand + time-ago)
+///   7. Quick Check — "Safe to take together?" single-row card with
+///      caution-tinted compare-arrows icon
+///   8. PGTransparencyFooter
 ///
-/// The shell scaffold uses `extendBody: true` so content flows under
-/// the nav bar — same setup as production's _AppShell.
+/// Nav bar at the bottom: PGFrostedNavBar with `useV2Tones: true` and
+/// Scan centered (Home / Stack / Scan / Chat / Profile).
 class HomeV2Screen extends StatelessWidget {
-  /// Optional handler for nav-destination taps. Gallery preview wires
-  /// these to a toast or pop-to-gallery; production wires them to the
-  /// real router shell.
   final ValueChanged<int>? onDestinationSelected;
   final int selectedIndex;
 
@@ -61,156 +59,108 @@ class HomeV2Screen extends StatelessWidget {
       ),
       child: Scaffold(
         backgroundColor: V2Colors.bg,
-        // `extendBody` lets the frosted nav blur pick up the scrolling
-        // content behind it — mirror of the production shell.
         extendBody: true,
-        body: PGHaloBackground(
-          // Hero halo: centered slightly above the greeting, very low
-          // intensity so it never competes with content readability.
-          origin: const Alignment(0, -0.85),
-          radius: 1.1,
-          intensity: 0.045,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            slivers: [
-              // 0. iOS pull-to-refresh sliver.
-              if (Platform.isIOS)
-                const CupertinoSliverRefreshControl(),
+        body: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            // iOS pull-to-refresh — absorbs bouncing-physics overscroll.
+            if (Platform.isIOS) const CupertinoSliverRefreshControl(),
 
-              // 1. Search row — non-pinned for the visual mirror. The
-              // production scroll-chrome-fading behavior (where
-              // PGFrostedHeader fades in once content scrolls past)
-              // re-wires in the Phase-8 sweep; the custom delegate
-              // here was throwing SliverGeometry layout errors on
-              // certain heights, so we dropped it for stability. The
-              // search row scrolls away naturally with the content
-              // instead of pinning.
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    top: mq.padding.top + V2Spacing.space12,
-                    left: V2Spacing.space24,
-                    right: V2Spacing.space24,
-                    bottom: V2Spacing.space12,
-                  ),
-                  child: const _SearchLauncher(),
-                ),
-              ),
-
-              // 1.5. Quick-filter category chips. Horizontal scrollable
-              // row that scrolls away naturally with the page (not
-              // pinned) — keeps the search header lean while still
-              // giving instant triage entry to the top categories.
-              const SliverToBoxAdapter(child: _CategoryChipsRow()),
-
-              // 2. Hero greeting.
-              const SliverPadding(
+            // 1. Search field — static placeholder, opens /search.
+            SliverToBoxAdapter(
+              child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   V2Spacing.space24,
-                  V2Spacing.space16,
-                  V2Spacing.space24,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: _HeroGreeting()),
-              ),
-
-              // 3. Primary Scan CTA.
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  V2Spacing.space24,
-                  V2Spacing.space24,
-                  V2Spacing.space24,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: _ScanCta()),
-              ),
-
-              // 4. Stack health row (2-up metric cards).
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  V2Spacing.space24,
-                  V2Spacing.space32,
-                  V2Spacing.space24,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: _StackHealthRow()),
-              ),
-
-              // 5. Suggested next — a single recommendation card based
-              // on the user's stack + goals. Driven by the production
-              // recommender in a later wiring pass; fixture surfaces
-              // it here so reviewers can see the slot.
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  V2Spacing.space24,
-                  V2Spacing.space32,
-                  V2Spacing.space24,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: _SuggestedNextCard()),
-              ),
-
-              // 6. Recent scans section.
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  V2Spacing.space24,
-                  V2Spacing.space32,
-                  V2Spacing.space24,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: _RecentScansSection()),
-              ),
-
-              // 6. Quick check CTA — secondary action.
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  V2Spacing.space24,
-                  V2Spacing.space24,
-                  V2Spacing.space24,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(child: _QuickCheckCta()),
-              ),
-
-              // 7. Trust footer.
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  V2Spacing.space24,
-                  V2Spacing.space32,
+                  mq.padding.top + V2Spacing.space12,
                   V2Spacing.space24,
                   V2Spacing.space8,
                 ),
-                sliver: SliverToBoxAdapter(
-                  child: PGTransparencyFooter(
-                    freshnessLabel: 'Catalog updated 3 days ago',
-                  ),
-                ),
+                child: const _SearchLauncher(),
               ),
+            ),
 
-              // 8. Spacer for the frosted nav bar overlap.
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: mq.padding.bottom + kPGNavBarHeight + V2Spacing.space8,
+            // 2. Hero greeting.
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                V2Spacing.space16,
+                V2Spacing.space24,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(child: _HeroGreeting()),
+            ),
+
+            // 3. Scan CTA.
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                V2Spacing.space24,
+                V2Spacing.space24,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(child: _ScanCta()),
+            ),
+
+            // 4. Stack Health — one card, no numeric score.
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                V2Spacing.space32,
+                V2Spacing.space24,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(child: _StackHealthCard()),
+            ),
+
+            // 5. Recent scans — horizontal carousel.
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(0, V2Spacing.space32, 0, 0),
+              sliver: SliverToBoxAdapter(child: _RecentScansSection()),
+            ),
+
+            // 6. Quick Check — single-row CTA.
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                V2Spacing.space24,
+                V2Spacing.space24,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(child: _QuickCheckCta()),
+            ),
+
+            // 7. Trust footer.
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                V2Spacing.space32,
+                V2Spacing.space24,
+                V2Spacing.space8,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: PGTransparencyFooter(
+                  freshnessLabel: 'Catalog updated 3 days ago',
                 ),
               ),
-            ],
-          ),
+            ),
+
+            // 8. Bottom spacer for the frosted nav bar overlap.
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height:
+                    mq.padding.bottom + kPGNavBarHeight + V2Spacing.space8,
+              ),
+            ),
+          ],
         ),
         bottomNavigationBar: PGFrostedNavBar(
-          // useV2Tones makes the bar resolve through V2Colors directly
-          // — the v2 retint Sean asked for in 10.0. Production keeps
-          // this false until the global theme flips.
           useV2Tones: true,
           selectedIndex: selectedIndex,
-          onDestinationSelected:
-              onDestinationSelected ?? (_) {},
-          // v2 order: Home / Stack / Scan / Chat / Profile.
-          // Scan sits at the centerpoint (index 2 of 5) — visual anchor
-          // for the primary action since we no longer ship a floating
-          // scan pill. Production AppShell keeps its legacy order
-          // until the Phase-8 wiring sweep flips it globally.
+          onDestinationSelected: onDestinationSelected ?? (_) {},
+          // v2 order: Home / Stack / Scan / Chat / Profile — Scan at
+          // index 2 (visual centerpoint of the flat nav).
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
@@ -245,8 +195,7 @@ class HomeV2Screen extends StatelessWidget {
 }
 
 // =============================================================================
-// Search launcher row. Non-pinned in the visual mirror — the
-// production scroll-chrome-fading rewires in the Phase-8 sweep.
+// Search launcher row — non-pinned visual mirror of HomeSearchLauncher.
 // =============================================================================
 
 class _SearchLauncher extends StatelessWidget {
@@ -277,17 +226,12 @@ class _SearchLauncher extends StatelessWidget {
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Text(
-                  'Search a supplement or medication',
+                  'Search supplements',
                   style: V2Typography.body(color: V2Colors.fgMuted),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(
-                Icons.tune_rounded,
-                size: 20,
-                color: V2Colors.fgMuted,
-              ),
             ],
           ),
         ),
@@ -297,309 +241,74 @@ class _SearchLauncher extends StatelessWidget {
 }
 
 // =============================================================================
-// Hero greeting — eyebrow + serif greeting + body tagline. Fixture
-// uses "Sean" — production reads `profile.nickname`.
+// Hero greeting — date label + greeting + "Know what you take." tagline.
+// Mirrors HomeHeroSection.greetingFor() bands and date format.
 // =============================================================================
 
 class _HeroGreeting extends StatelessWidget {
   const _HeroGreeting();
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Top row: date eyebrow + profile avatar chip on the right.
-        // Avatar opens the profile tab — quick affordance for editing
-        // goals / nickname / health context without diving through
-        // settings.
-        Row(
-          children: [
-            const Expanded(child: PGEyebrow('Thursday · May 15')),
-            _ProfileAvatar(initials: 'S', onTap: () {}),
-          ],
-        ),
-        const SizedBox(height: V2Spacing.space8),
-        Text(
-          'Good morning, Sean.',
-          style: V2Typography.displayXs(color: V2Colors.fg),
-        ),
-        const SizedBox(height: V2Spacing.space8),
-        Text(
-          'Three scans in your stack this week. One worth a closer look.',
-          style: V2Typography.body(color: V2Colors.fgMuted),
-        ),
-        const SizedBox(height: V2Spacing.space12),
-        // Engagement stat capsule — small, factual. Production wiring
-        // pulls the streak/count from user_data.db; here we surface
-        // fixture values to show the slot exists. Mono caps keep it
-        // squarely in the metadata register, not promotional.
-        const _StatCapsule(
-          icon: Icons.local_fire_department_outlined,
-          label: 'DAY 7 SCAN STREAK',
-        ),
-      ],
-    );
-  }
-}
-
-/// Small circular avatar chip — initials on accent-tint, hairline
-/// outline. Tappable for quick profile entry.
-class _ProfileAvatar extends StatelessWidget {
-  final String initials;
-  final VoidCallback onTap;
-
-  const _ProfileAvatar({required this.initials, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: V2Colors.accentTint,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: V2Colors.accent.withValues(alpha: 0.25),
-              width: 0.7,
-            ),
-          ),
-          child: Text(
-            initials,
-            style: V2Typography.label(color: V2Colors.accent),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Mono-caps capsule used for the hero stat callout (scan streak,
-/// goal progress, etc.). Outline-only — never tinted heavily, never
-/// promotional.
-class _StatCapsule extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _StatCapsule({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: V2Spacing.space12,
-        vertical: V2Spacing.space4,
-      ),
-      decoration: BoxDecoration(
-        color: V2Colors.surface,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        border: Border.all(color: V2Colors.outline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: V2Colors.accent),
-          const SizedBox(width: V2Spacing.space8),
-          Text(
-            label,
-            style: V2Typography.overline(color: V2Colors.fgMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Primary Scan CTA — the one gradient surface on the screen.
-// Accent-strong → accent diagonal, scan-rounded icon, pill button vibe
-// but full-width tile so it feels like the singular action.
-// =============================================================================
-
-// =============================================================================
-// Category quick-filter chips. Horizontal scrollable row of accent-
-// tinted pills that route to the search screen pre-filtered by
-// category. Scrolls naturally with the page (not pinned).
-// =============================================================================
-
-class _CategoryChipsRow extends StatelessWidget {
-  const _CategoryChipsRow();
-
-  static const _categories = <(IconData, String)>[
-    (Icons.spa_outlined, 'Multivitamin'),
-    (Icons.water_drop_outlined, 'Omega'),
-    (Icons.bedtime_outlined, 'Sleep'),
-    (Icons.fitness_center_outlined, 'Energy'),
-    (Icons.shield_outlined, 'Immune'),
-    (Icons.psychology_outlined, 'Focus'),
+  static const _days = [
+    'MONDAY',
+    'TUESDAY',
+    'WEDNESDAY',
+    'THURSDAY',
+    'FRIDAY',
+    'SATURDAY',
+    'SUNDAY',
+  ];
+  static const _months = [
+    'JANUARY',
+    'FEBRUARY',
+    'MARCH',
+    'APRIL',
+    'MAY',
+    'JUNE',
+    'JULY',
+    'AUGUST',
+    'SEPTEMBER',
+    'OCTOBER',
+    'NOVEMBER',
+    'DECEMBER',
   ];
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(
-          V2Spacing.space24,
-          V2Spacing.space12,
-          V2Spacing.space24,
-          V2Spacing.space4,
-        ),
-        itemCount: _categories.length,
-        separatorBuilder: (_, __) =>
-            const SizedBox(width: V2Spacing.space8),
-        itemBuilder: (context, i) {
-          final (icon, label) = _categories[i];
-          return _CategoryChip(icon: icon, label: label, onTap: () {});
-        },
-      ),
-    );
+  String _greetingFor(int hour) {
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Hello there';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
   }
-}
-
-class _CategoryChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _CategoryChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: V2Colors.surface,
-      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: V2Spacing.space16,
-            vertical: V2Spacing.space8,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(color: V2Colors.outline),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: V2Colors.accent),
-              const SizedBox(width: V2Spacing.space8),
-              Text(
-                label,
-                style: V2Typography.label(color: V2Colors.fg),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Suggested next — a single "based on your stack + goals" card that
-// drives discovery without feeling promotional. Production will wire
-// the actual recommender; fixture surfaces the slot.
-// =============================================================================
-
-class _SuggestedNextCard extends StatelessWidget {
-  const _SuggestedNextCard();
-
-  @override
-  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final dateLabel =
+        '${_days[now.weekday - 1]}  ·  ${_months[now.month - 1]} ${now.day}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PGEyebrow('Suggested next'),
+        Text(
+          dateLabel,
+          style: V2Typography.eyebrow(color: V2Colors.accent),
+        ),
         const SizedBox(height: V2Spacing.space12),
-        Material(
-          color: V2Colors.surface,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          child: InkWell(
-            onTap: () {},
-            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            child: Container(
-              padding: const EdgeInsets.all(V2Spacing.space16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                border: Border.all(color: V2Colors.outline),
-                boxShadow: V2Shadows.sm,
-              ),
-              child: Row(
-                children: [
-                  // Thumbnail placeholder (production: ProductImage).
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: V2Colors.accentTint,
-                      borderRadius:
-                          BorderRadius.circular(V2Spacing.radiusCard),
-                    ),
-                    child: const Icon(
-                      Icons.medication_outlined,
-                      color: V2Colors.accent,
-                      size: 26,
-                    ),
-                  ),
-                  const SizedBox(width: V2Spacing.space16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Thorne',
-                          style:
-                              V2Typography.caption(color: V2Colors.fgMuted),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Magnesium Bisglycinate',
-                          style: V2Typography.bodySm(color: V2Colors.fg)
-                              .copyWith(fontWeight: FontWeight.w500),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: V2Spacing.space4),
-                        Text(
-                          'Pairs with your sleep goal · scored 91',
-                          style:
-                              V2Typography.bodySm(color: V2Colors.fgMuted),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: V2Spacing.space8),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: V2Colors.fgMuted,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
+        Text(
+          '${_greetingFor(now.hour)}, Sean.',
+          style: V2Typography.displayXs(color: V2Colors.fg),
+        ),
+        const SizedBox(height: V2Spacing.space4),
+        Text(
+          'Know what you take.',
+          style: V2Typography.body(color: V2Colors.fgMuted),
         ),
       ],
     );
   }
 }
+
+// =============================================================================
+// Scan CTA — single row, accent gradient. Production HomeScanCta.
+// =============================================================================
 
 class _ScanCta extends StatelessWidget {
   const _ScanCta();
@@ -613,96 +322,66 @@ class _ScanCta extends StatelessWidget {
         onTap: () {},
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Container(
-          padding: const EdgeInsets.all(V2Spacing.space24),
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space24,
+            V2Spacing.space16,
+            V2Spacing.space24,
+          ),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [V2Colors.accentStrong, V2Colors.accent],
+              colors: [V2Colors.accent, V2Colors.accentStrong],
             ),
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             boxShadow: V2Shadows.md,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              // Top row: "last scan" pill — gives the CTA a tiny data
-              // detail signal ("you came back 2h after your last scan")
-              // without competing with the primary action below.
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: V2Spacing.space8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius:
-                          BorderRadius.circular(V2Spacing.radiusPill),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 12,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'LAST SCAN · 2H AGO',
-                          style: V2Typography.overline(
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
-                    ),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius:
+                      BorderRadius.circular(V2Spacing.radiusCard),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    width: 0.8,
                   ),
-                ],
+                ),
+                child: const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
-              const SizedBox(height: V2Spacing.space16),
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius:
-                          BorderRadius.circular(V2Spacing.radiusCard),
+              const SizedBox(width: V2Spacing.space16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Scan a supplement',
+                      style: V2Typography.titleSm(color: Colors.white),
                     ),
-                    child: const Icon(
-                      Icons.qr_code_scanner_rounded,
-                      color: Colors.white,
-                      size: 26,
+                    const SizedBox(height: 2),
+                    Text(
+                      'Check safety & interactions instantly',
+                      style: V2Typography.bodySm(
+                        color: Colors.white.withValues(alpha: 0.82),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: V2Spacing.space16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Scan a supplement',
-                          style: V2Typography.titleSm(color: Colors.white),
-                        ),
-                        const SizedBox(height: V2Spacing.space4),
-                        Text(
-                          'Get an instant PG Score + safety read',
-                          style: V2Typography.bodySm(
-                            color: Colors.white.withValues(alpha: 0.85),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: V2Spacing.space8),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 22,
+                color: Colors.white.withValues(alpha: 0.88),
               ),
             ],
           ),
@@ -713,61 +392,28 @@ class _ScanCta extends StatelessWidget {
 }
 
 // =============================================================================
-// Stack health row — two PGMetricCards side by side.
+// Stack Health — single card, no numeric score. Mirrors
+// HomeStackHealthWidget's populated state: header + status pill,
+// one-line tinted insight band, micro-metrics row, "View stack →"
+// footer. Fixture uses the "Optimal · no major interactions" state.
 // =============================================================================
 
-class _StackHealthRow extends StatelessWidget {
-  const _StackHealthRow();
+class _StackHealthCard extends StatelessWidget {
+  const _StackHealthCard();
 
   @override
   Widget build(BuildContext context) {
-    return PGMetricRow(
-      cards: [
-        PGMetricCard(
-          label: 'Stack health',
-          value: '86',
-          caption: 'out of 100',
-          delta: '+4 this week',
-          trend: PGMetricTrend.up,
-          onTap: () {},
-        ),
-        PGMetricCard(
-          label: 'Last fit score',
-          value: '82',
-          caption: 'Omega-3 · today',
-          delta: 'Good match',
-          onTap: () {},
-        ),
-      ],
-    );
-  }
-}
+    // Fixture state: optimal stack (3 supplements, 1 medication, 0 issues).
+    // Production reads from stackSafetyReportProvider + StackIntelligenceEngine.
+    const tone = V2Colors.safe;
 
-// =============================================================================
-// Recent scans section — section header + 3 score-line rows.
-// =============================================================================
-
-class _RecentScansSection extends StatelessWidget {
-  const _RecentScansSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        PGSectionHeader(
-          eyebrow: 'Recent activity',
-          title: 'Your last scans',
-          trailing: GestureDetector(
-            onTap: () {},
-            child: Text(
-              'View all',
-              style: V2Typography.label(color: V2Colors.accent),
-            ),
-          ),
-        ),
-        const SizedBox(height: V2Spacing.space16),
-        Container(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: Container(
           decoration: BoxDecoration(
             color: V2Colors.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -775,188 +421,186 @@ class _RecentScansSection extends StatelessWidget {
             boxShadow: V2Shadows.sm,
           ),
           clipBehavior: Clip.antiAlias,
-          child: const Column(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _RecentScanRow(
-                brand: 'Nordic Naturals',
-                name: 'Ultimate Omega 2X',
-                score: 84,
-                timestamp: 'Today, 2:14 PM',
+              // Header + status pill + insight band.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  V2Spacing.space24,
+                  V2Spacing.space24,
+                  V2Spacing.space24,
+                  V2Spacing.space16,
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Stack Health',
+                                style:
+                                    V2Typography.titleSm(color: V2Colors.fg),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '3 supplements · 1 medication',
+                                style: V2Typography.bodySm(
+                                  color: V2Colors.fgMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: V2Spacing.space12,
+                            vertical: V2Spacing.space4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: tone.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(
+                              V2Spacing.radiusPill,
+                            ),
+                            border: Border.all(
+                              color: tone.withValues(alpha: 0.20),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            'Optimal',
+                            style: V2Typography.label(color: tone),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: V2Spacing.space12,
+                        vertical: V2Spacing.space8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tone.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_outline,
+                            size: 14,
+                            color: tone,
+                          ),
+                          const SizedBox(width: V2Spacing.space8),
+                          Expanded(
+                            child: Text(
+                              'No major interactions detected',
+                              style: V2Typography.caption(color: tone)
+                                  .copyWith(fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              _RecentScanRow(
-                brand: 'Thorne',
-                name: 'Basic Nutrients 2/Day',
-                score: 91,
-                timestamp: 'Yesterday',
+              // Micro-metrics row — supplements · medications · conflicts.
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: V2Spacing.space24,
+                  vertical: V2Spacing.space12,
+                ),
+                decoration: const BoxDecoration(
+                  color: V2Colors.bg,
+                  border: Border(
+                    top: BorderSide(color: V2Colors.outline, width: 0.5),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    _MicroMetric(
+                      icon: Icons.medication_outlined,
+                      label: '3 supplements',
+                      color: V2Colors.accent,
+                    ),
+                    SizedBox(width: V2Spacing.space16),
+                    _MicroMetric(
+                      icon: Icons.local_pharmacy_outlined,
+                      label: '1 medication',
+                      color: V2Colors.fgMuted,
+                    ),
+                    SizedBox(width: V2Spacing.space16),
+                    _MicroMetric(
+                      icon: Icons.check_circle_outline,
+                      label: 'No conflicts',
+                      color: V2Colors.safe,
+                    ),
+                  ],
+                ),
               ),
-              _RecentScanRow(
-                brand: 'NOW Foods',
-                name: 'L-Theanine 200mg',
-                score: 72,
-                timestamp: 'Mon',
-              ),
-              _RecentScanRow(
-                brand: 'Pure Encapsulations',
-                name: 'Magnesium Glycinate',
-                score: 88,
-                timestamp: 'Sun',
-                isLast: true,
+              // CTA footer.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  V2Spacing.space24,
+                  V2Spacing.space12,
+                  V2Spacing.space24,
+                  V2Spacing.space16,
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'View stack',
+                      style: V2Typography.label(color: V2Colors.accent),
+                    ),
+                    const SizedBox(width: V2Spacing.space4),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: V2Colors.accent,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _RecentScanRow extends StatelessWidget {
-  final String brand;
-  final String name;
-  final int score;
-  final String timestamp;
-  final bool isLast;
+class _MicroMetric extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
 
-  const _RecentScanRow({
-    required this.brand,
-    required this.name,
-    required this.score,
-    required this.timestamp,
-    this.isLast = false,
+  const _MicroMetric({
+    required this.icon,
+    required this.label,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.all(V2Spacing.space16),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isLast ? Colors.transparent : V2Colors.outline,
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: V2Colors.accentTint,
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              ),
-              child: const Icon(
-                Icons.medication_outlined,
-                color: V2Colors.accent,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: V2Spacing.space12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          brand,
-                          style:
-                              V2Typography.caption(color: V2Colors.fgMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: V2Spacing.space8),
-                      Text(
-                        timestamp,
-                        style:
-                            V2Typography.caption(color: V2Colors.fgSubtle),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    name,
-                    style: V2Typography.bodySm(color: V2Colors.fg).copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: V2Spacing.space4),
-                  PGScoreLine(score: score, compact: true),
-                ],
-              ),
-            ),
-            const SizedBox(width: V2Spacing.space8),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: V2Colors.fgMuted,
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Quick Check CTA — secondary action. Pill button + body explanation
-// in a calm bordered tile.
-// =============================================================================
-
-class _QuickCheckCta extends StatelessWidget {
-  const _QuickCheckCta();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(V2Spacing.space24),
-      decoration: BoxDecoration(
-        color: V2Colors.surface,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Expanded(
+      child: Row(
         children: [
-          const PGEyebrow('Quick check'),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            'Cross-check two things you\'re taking — without scanning '
-            'either one.',
-            style: V2Typography.body(color: V2Colors.fg),
-          ),
-          const SizedBox(height: V2Spacing.space12),
-          // Example chip — anchors the action with a concrete pairing
-          // so users see what "quick check" actually does at a glance.
-          // Tap routes to the quick-check screen pre-filled.
-          Wrap(
-            spacing: V2Spacing.space8,
-            runSpacing: V2Spacing.space8,
-            children: [
-              _ExamplePairChip(
-                label: 'Omega-3 · Warfarin',
-                onTap: () {},
-              ),
-              _ExamplePairChip(
-                label: 'Vitamin K · Blood thinner',
-                onTap: () {},
-              ),
-            ],
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          PGPillButton(
-            label: 'Start a quick check',
-            icon: Icons.bolt_outlined,
-            variant: PGPillVariant.secondary,
-            onPressed: () {},
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: V2Spacing.space4),
+          Flexible(
+            child: Text(
+              label,
+              style: V2Typography.caption(color: V2Colors.fgMuted)
+                  .copyWith(fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -964,36 +608,161 @@ class _QuickCheckCta extends StatelessWidget {
   }
 }
 
-class _ExamplePairChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
+// =============================================================================
+// Recent scans — section header + horizontal carousel of 156pt cards.
+// Mirrors HomeRecentScansSection. "Show all" opens a list bottom sheet
+// (production behavior, not built in the visual mirror).
+// =============================================================================
 
-  const _ExamplePairChip({required this.label, required this.onTap});
+class _RecentScansSection extends StatelessWidget {
+  const _RecentScansSection();
+
+  static const _fixture = <(String, String, int, String)>[
+    ('Nordic Naturals', 'Ultimate Omega 2X', 84, '2h ago'),
+    ('Thorne', 'Basic Nutrients 2/Day', 91, 'Yesterday'),
+    ('NOW Foods', 'L-Theanine 200mg', 72, '3d ago'),
+    ('Pure Encapsulations', 'Magnesium Glycinate', 88, '5d ago'),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: V2Colors.accentTint,
-      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: V2Spacing.space12,
-            vertical: V2Spacing.space4,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Recent scans',
+                      style: V2Typography.titleSm(color: V2Colors.fg),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Your last checked products',
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () {},
+                child: Text(
+                  'Show all',
+                  style: V2Typography.label(color: V2Colors.accent),
+                ),
+              ),
+            ],
           ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(
-              color: V2Colors.accent.withValues(alpha: 0.22),
-              width: 0.7,
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: V2Spacing.space24,
             ),
+            itemCount: _fixture.length,
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: V2Spacing.space12),
+            itemBuilder: (context, i) {
+              final (brand, name, score, time) = _fixture[i];
+              return _RecentScanCard(
+                brand: brand,
+                name: name,
+                score: score,
+                time: time,
+              );
+            },
           ),
-          child: Text(
-            label,
-            style: V2Typography.caption(color: V2Colors.accent).copyWith(
-              fontWeight: FontWeight.w500,
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentScanCard extends StatelessWidget {
+  final String brand;
+  final String name;
+  final int score;
+  final String time;
+
+  const _RecentScanCard({
+    required this.brand,
+    required this.name,
+    required this.score,
+    required this.time,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 156,
+      child: Material(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.all(V2Spacing.space12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Product image placeholder (production: ProductImage).
+                Center(
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: V2Colors.accentTint,
+                      borderRadius:
+                          BorderRadius.circular(V2Spacing.radiusCard),
+                    ),
+                    child: const Icon(
+                      Icons.medication_outlined,
+                      color: V2Colors.accent,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                // Compact score line (in lieu of PGScoreRing — keeps
+                // tone alignment with the rest of v2 product surfaces).
+                Center(child: PGScoreLine(score: score, compact: true)),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  name,
+                  style: V2Typography.bodySm(color: V2Colors.fg).copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  brand,
+                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Spacer(),
+                Text(
+                  time,
+                  style: V2Typography.caption(color: V2Colors.fgSubtle),
+                ),
+              ],
             ),
           ),
         ),
@@ -1003,9 +772,77 @@ class _ExamplePairChip extends StatelessWidget {
 }
 
 // =============================================================================
-// Preview wrapper for /dev/v2/home — wires nav-bar destination taps to
-// toasts so reviewers can verify tap targets without leaving the
-// gallery preview.
+// Quick Check — "Safe to take together?" single-row card. Mirrors
+// HomeQuickCheckCta. Caution-tinted compare-arrows icon.
+// =============================================================================
+
+class _QuickCheckCta extends StatelessWidget {
+  const _QuickCheckCta();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: V2Colors.surface,
+      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: Container(
+          padding: const EdgeInsets.all(V2Spacing.space16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            border: Border.all(color: V2Colors.outline),
+            boxShadow: V2Shadows.sm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: V2Colors.caution.withValues(alpha: 0.12),
+                  borderRadius:
+                      BorderRadius.circular(V2Spacing.radiusCard),
+                ),
+                child: const Icon(
+                  Icons.compare_arrows_rounded,
+                  color: V2Colors.caution,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: V2Spacing.space12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Safe to take together?',
+                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Check two supplements or medications',
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: V2Colors.fgMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Preview wrapper for /dev/v2/home — toasts on nav-bar taps and
+// provides a floating close chip to return to the gallery.
 // =============================================================================
 
 class HomeV2Preview extends StatefulWidget {
@@ -1045,7 +882,6 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
           selectedIndex: _index,
           onDestinationSelected: _onTap,
         ),
-        // Floating back chip — gallery preview only.
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,
           right: 8,
