@@ -22,7 +22,9 @@ DART_DEFINES := \
 	--dart-define=GEMINI_API_KEY=$(GEMINI_API_KEY) \
 	--dart-define=SENTRY_DSN=$(SENTRY_DSN) \
 	--dart-define=SENTRY_ENVIRONMENT=$(SENTRY_ENVIRONMENT) \
-	--dart-define=SENTRY_RELEASE=$(SENTRY_RELEASE)
+	--dart-define=SENTRY_RELEASE=$(SENTRY_RELEASE) \
+	--dart-define=GOOGLE_WEB_CLIENT_ID=$(GOOGLE_WEB_CLIENT_ID) \
+	--dart-define=GOOGLE_IOS_CLIENT_ID=$(GOOGLE_IOS_CLIENT_ID)
 
 # ─── Development ──────────────────────────────────────────────────────────────
 

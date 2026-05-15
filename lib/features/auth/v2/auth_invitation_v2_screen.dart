@@ -7,6 +7,7 @@ import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -544,20 +545,57 @@ class _SkipFooter extends StatelessWidget {
 // Dev preview wrapper — pops back into the gallery when callbacks fire.
 // =============================================================================
 
-/// Wrapper used by the `/dev/v2/auth` route so the back button + button
-/// taps return to the gallery instead of trying to navigate home (which
-/// would require auth state we don't have in preview).
-class AuthInvitationV2Preview extends StatelessWidget {
+/// Wrapper used by the `/dev/v2/auth` route. Apple + Google buttons
+/// hit the real PGAuthService; email opens the magic-link sheet;
+/// the global `_AuthEventListener` in app.dart surfaces the
+/// signedIn snackbar on success.
+class AuthInvitationV2Preview extends StatefulWidget {
   const AuthInvitationV2Preview({super.key});
 
-  void _toast(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label tapped — visual mirror only (Phase 9.0)'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1400),
-      ),
-    );
+  @override
+  State<AuthInvitationV2Preview> createState() =>
+      _AuthInvitationV2PreviewState();
+}
+
+class _AuthInvitationV2PreviewState extends State<AuthInvitationV2Preview> {
+  final _auth = PGAuthService();
+  bool _busy = false;
+
+  Future<void> _runProvider(
+    Future<PGAuthResult> Function() callable,
+    String label,
+  ) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final result = await callable();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final messenger = ScaffoldMessenger.of(context);
+    switch (result) {
+      case PGAuthSuccess _:
+        // Global _AuthEventListener will fire the "Signed in as ..."
+        // snackbar — nothing to show here.
+        break;
+      case PGAuthHandoffToBrowser _:
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Continuing with $label in your browser…'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      case PGAuthCancelled _:
+        // Silent — user backed out, no noise.
+        break;
+      case PGAuthError(:final message):
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+    }
   }
 
   @override
@@ -565,9 +603,9 @@ class AuthInvitationV2Preview extends StatelessWidget {
     return Stack(
       children: [
         AuthInvitationV2Screen(
-          onApple: () => _toast(context, 'Apple'),
-          onGoogle: () => _toast(context, 'Google'),
-          // Email is real now — opens the magic-link sheet that calls
+          onApple: () => _runProvider(_auth.signInWithApple, 'Apple'),
+          onGoogle: () => _runProvider(_auth.signInWithGoogle, 'Google'),
+          // Email is real — opens the magic-link sheet that calls
           // supabase.auth.signInWithOtp() with the pharmaguide://
           // redirect URL. Phase 9.1.
           onEmail: () => showMagicLinkSheet(context),
