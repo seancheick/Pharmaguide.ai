@@ -179,6 +179,7 @@ ALLOW_SERIF_PATHS=(
   "lib/dev/v2_gallery.dart"
   "lib/features/splash/v2/"
   "lib/features/onboarding/v2/"
+  "lib/features/auth/v2/"
   "lib/features/home/v2/"
   "lib/features/settings/v2/"
   "lib/features/scanner/v2/"

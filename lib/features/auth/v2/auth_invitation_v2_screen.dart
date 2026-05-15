@@ -1,0 +1,531 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_eyebrow.dart';
+import 'package:pharmaguide/core/components/pg_halo_background.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+
+/// v2 Auth Invitation — the calm sign-in page that sits between
+/// onboarding completion and the home screen.
+///
+/// Visual mirror only (Phase 9.0). All button callbacks are stubs; the
+/// actual Supabase wiring (magic link → Apple → Google) lands in
+/// Phase 9.1–9.3 once this screen feels right next to the onboarding
+/// celebration.
+///
+/// Editorial direction (per Sean, 2026-05-15):
+/// - DO NOT use the word "beta" anywhere on this screen
+/// - Pricing badge reads "Free during early access"
+/// - Apple button first on iOS, Google first on Android (HIG)
+/// - Magic link for email — no password, no forgot-password flow
+/// - "Skip for now" stays visible and non-punitive
+/// - Guest note explains the limitation without scolding
+///
+/// Tone: continuation of onboarding, not a paywall. A user who skips
+/// should feel like they made a reasonable choice, not like they
+/// dodged a wall.
+class AuthInvitationV2Screen extends StatefulWidget {
+  /// Callback when the user taps Continue with Apple. Phase 9.0 leaves
+  /// this null (visual mirror); Phase 9.2 wires the real provider.
+  final VoidCallback? onApple;
+
+  /// Callback when the user taps Continue with Google. Phase 9.3 wires
+  /// the real provider.
+  final VoidCallback? onGoogle;
+
+  /// Callback when the user taps Continue with Email — routes to the
+  /// magic-link entry sheet. Phase 9.1 wires the real round trip.
+  final VoidCallback? onEmail;
+
+  /// Callback when the user taps Skip for now. Production: marks the
+  /// session as guest, preserves onboarding completion, navigates home.
+  final VoidCallback? onSkip;
+
+  const AuthInvitationV2Screen({
+    super.key,
+    this.onApple,
+    this.onGoogle,
+    this.onEmail,
+    this.onSkip,
+  });
+
+  @override
+  State<AuthInvitationV2Screen> createState() => _AuthInvitationV2ScreenState();
+}
+
+class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: V2Motion.slower, // 640ms full entrance
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  /// 80ms-stagger entrance — mirrors the onboarding _StepShell so the
+  /// transition from final celebration → auth feels continuous.
+  ({double opacity, double lift}) _stagger(double delayFraction) {
+    final t = ((_ctrl.value - delayFraction) / 0.6).clamp(0.0, 1.0);
+    final eased = V2Motion.decelerate.transform(t);
+    return (opacity: eased, lift: 16 * (1 - eased));
+  }
+
+  void _noopOrCall(VoidCallback? cb) {
+    // Visual-mirror behavior: callbacks may be null in the gallery; if
+    // wired, just delegate. Production replaces these stubs with real
+    // navigation in Phase 9.1+.
+    cb?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: V2Colors.bg,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: V2Colors.bg,
+        body: PGHaloBackground(
+          // Halo origin matches splash for emotional continuity — the
+          // user has just seen the same soft accent glow on the
+          // celebration screen.
+          origin: const Alignment(0, -0.7),
+          radius: 1.0,
+          intensity: 0.05,
+          child: SafeArea(
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) {
+                final mark = _stagger(0.0);
+                final headline = _stagger(0.10);
+                final subhead = _stagger(0.20);
+                final buttons = _stagger(0.32);
+                final skip = _stagger(0.44);
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: V2Spacing.space24,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const SizedBox(height: V2Spacing.space48),
+                                _Faded(
+                                  opacity: mark.opacity,
+                                  lift: mark.lift,
+                                  child: const _BrandMark(),
+                                ),
+                                const SizedBox(height: V2Spacing.space32),
+                                _Faded(
+                                  opacity: headline.opacity,
+                                  lift: headline.lift,
+                                  child: const _Headline(),
+                                ),
+                                const SizedBox(height: V2Spacing.space16),
+                                _Faded(
+                                  opacity: subhead.opacity,
+                                  lift: subhead.lift,
+                                  child: const _Subhead(),
+                                ),
+                                const Spacer(),
+                                _Faded(
+                                  opacity: buttons.opacity,
+                                  lift: buttons.lift,
+                                  child: _AuthButtonStack(
+                                    onApple: () =>
+                                        _noopOrCall(widget.onApple),
+                                    onGoogle: () =>
+                                        _noopOrCall(widget.onGoogle),
+                                    onEmail: () =>
+                                        _noopOrCall(widget.onEmail),
+                                  ),
+                                ),
+                                const SizedBox(height: V2Spacing.space24),
+                                _Faded(
+                                  opacity: skip.opacity,
+                                  lift: skip.lift,
+                                  child: _SkipFooter(
+                                    onSkip: () => _noopOrCall(widget.onSkip),
+                                  ),
+                                ),
+                                const SizedBox(height: V2Spacing.space24),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Internal pieces — kept private so the screen reads top-down.
+// =============================================================================
+
+/// Wraps a child in an opacity + lift transform — the shared stagger
+/// primitive used for every entrance element on this screen.
+class _Faded extends StatelessWidget {
+  final double opacity;
+  final double lift;
+  final Widget child;
+  const _Faded({
+    required this.opacity,
+    required this.lift,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: opacity,
+      child: Transform.translate(
+        offset: Offset(0, lift),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Small centered logo + wordmark — the user just saw a larger version
+/// on splash, this is a quieter callback. 56pt mark sits comfortably
+/// without dominating the headline below.
+class _BrandMark extends StatelessWidget {
+  const _BrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/images/splash_logo.png',
+          width: 56,
+          height: 56,
+          filterQuality: FilterQuality.high,
+        ),
+        const SizedBox(height: V2Spacing.space8),
+        const PGEyebrow('PharmaGuide'),
+      ],
+    );
+  }
+}
+
+/// Serif headline — the only Newsreader on this screen (anti-goal rule:
+/// serif belongs on first-impression moments, not on every screen).
+class _Headline extends StatelessWidget {
+  const _Headline();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Save your stack before\nyour first scan.',
+      style: V2Typography.displayXs(color: V2Colors.fg),
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
+/// Geist Sans subhead. Locked copy — mirrors what Sean signed off on.
+class _Subhead extends StatelessWidget {
+  const _Subhead();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
+      child: Text(
+        'PharmaGuide works best when your supplements, medications, '
+        'and profile stay connected. Sign in to keep your stack and '
+        'safety checks in sync across devices.',
+        style: V2Typography.bodyXl(color: V2Colors.fgMuted),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+/// Vertically stacked Apple / Google / Email buttons + the
+/// "Free during early access" pricing badge above them.
+///
+/// Order: Apple first on iOS (HIG requirement — Sign in with Apple
+/// must be at least as prominent as competing providers), Google
+/// first on Android.
+class _AuthButtonStack extends StatelessWidget {
+  final VoidCallback onApple;
+  final VoidCallback onGoogle;
+  final VoidCallback onEmail;
+
+  const _AuthButtonStack({
+    required this.onApple,
+    required this.onGoogle,
+    required this.onEmail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final appleFirst = Platform.isIOS;
+
+    final apple = _AuthButton(
+      label: 'Continue with Apple',
+      icon: Icons.apple_rounded,
+      style: _AuthButtonStyle.appleDark,
+      onPressed: onApple,
+    );
+    final google = _AuthButton(
+      label: 'Continue with Google',
+      icon: Icons.g_mobiledata_rounded,
+      style: _AuthButtonStyle.googleLight,
+      onPressed: onGoogle,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _EarlyAccessBadge(),
+        const SizedBox(height: V2Spacing.space16),
+        if (appleFirst) ...[
+          apple,
+          const SizedBox(height: V2Spacing.space12),
+          google,
+        ] else ...[
+          google,
+          const SizedBox(height: V2Spacing.space12),
+          apple,
+        ],
+        const SizedBox(height: V2Spacing.space12),
+        // Email uses the v2 PGPillButton primary variant — it's
+        // intentionally less brand-loud than the SSO providers but
+        // still feels first-class. Magic link, no password.
+        PGPillButton(
+          label: 'Continue with email',
+          icon: Icons.mail_outline_rounded,
+          variant: PGPillVariant.secondary,
+          expand: true,
+          onPressed: onEmail,
+        ),
+      ],
+    );
+  }
+}
+
+/// Mono-caps pricing chip. Sean's call (2026-05-15): drop "beta" — say
+/// "early access" instead. The badge tells users the price may change
+/// later without implying the product is incomplete.
+class _EarlyAccessBadge extends StatelessWidget {
+  const _EarlyAccessBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: V2Spacing.space12,
+          vertical: V2Spacing.space4,
+        ),
+        decoration: BoxDecoration(
+          color: V2Colors.accentTint,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+          border: Border.all(
+            color: V2Colors.accent.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Text(
+          'FREE DURING EARLY ACCESS',
+          style: V2Typography.overline(color: V2Colors.accent),
+        ),
+      ),
+    );
+  }
+}
+
+/// Provider-styled auth button — Apple and Google have specific brand
+/// requirements (black-on-white or white-on-black for Apple; white
+/// surface with the multi-color G for Google). We honor the spirit
+/// here in v2 tones; HIG-compliant SDK widgets replace these in
+/// Phase 9.2 / 9.3.
+enum _AuthButtonStyle { appleDark, googleLight }
+
+class _AuthButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final _AuthButtonStyle style;
+  final VoidCallback onPressed;
+
+  const _AuthButton({
+    required this.label,
+    required this.icon,
+    required this.style,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isApple = style == _AuthButtonStyle.appleDark;
+    final bg = isApple ? V2Colors.fg : V2Colors.surface;
+    final fg = isApple ? V2Colors.surface : V2Colors.fg;
+    final borderColor = isApple
+        ? Colors.transparent
+        : V2Colors.outline;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(
+            horizontal: V2Spacing.space24,
+          ),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 22, color: fg),
+              const SizedBox(width: V2Spacing.space12),
+              Text(label, style: V2Typography.label(color: fg)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Quiet skip link + guest limitation note. Non-punitive copy — the
+/// user is told what they trade away in guest mode without being
+/// scolded.
+class _SkipFooter extends StatelessWidget {
+  final VoidCallback onSkip;
+  const _SkipFooter({required this.onSkip});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onSkip,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: V2Spacing.space8,
+              horizontal: V2Spacing.space16,
+            ),
+            child: Text(
+              'Skip for now',
+              style: V2Typography.label(color: V2Colors.accent),
+            ),
+          ),
+        ),
+        const SizedBox(height: V2Spacing.space8),
+        Text(
+          "Skip for now if you'd rather try first. Guest mode caps "
+          "daily scans and won't sync across devices.",
+          style: V2Typography.bodySm(color: V2Colors.fgSubtle),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// Dev preview wrapper — pops back into the gallery when callbacks fire.
+// =============================================================================
+
+/// Wrapper used by the `/dev/v2/auth` route so the back button + button
+/// taps return to the gallery instead of trying to navigate home (which
+/// would require auth state we don't have in preview).
+class AuthInvitationV2Preview extends StatelessWidget {
+  const AuthInvitationV2Preview({super.key});
+
+  void _toast(BuildContext context, String label) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label tapped — visual mirror only (Phase 9.0)'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 1400),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        AuthInvitationV2Screen(
+          onApple: () => _toast(context, 'Apple'),
+          onGoogle: () => _toast(context, 'Google'),
+          onEmail: () => _toast(context, 'Email'),
+          onSkip: () => context.go('/dev/v2'),
+        ),
+        // Floating back button — gallery preview only. Production
+        // doesn't show a back button on this screen (it sits in the
+        // onboarding → home root-replacement flow).
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          left: 8,
+          child: Material(
+            color: V2Colors.surface,
+            shape: const CircleBorder(),
+            elevation: 0,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => context.go('/dev/v2'),
+              child: const Padding(
+                padding: EdgeInsets.all(V2Spacing.space8),
+                child: Icon(
+                  Icons.arrow_back_rounded,
+                  color: V2Colors.fg,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

@@ -691,6 +691,13 @@ class V2Gallery extends StatelessWidget {
                 subtitle: '4-step intro with serif headlines + celebration',
                 routePath: '/dev/v2/onboarding',
               ),
+              _PrototypeLink(
+                label: 'Auth invitation',
+                subtitle:
+                    'Sign-in handoff after onboarding · magic link · '
+                    'Apple · Google · skip',
+                routePath: '/dev/v2/auth',
+              ),
             ],
           ),
           const _Section(

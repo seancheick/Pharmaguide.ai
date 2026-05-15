@@ -23,6 +23,7 @@ import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
 import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
+import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
@@ -248,6 +249,16 @@ GoRouter _buildRouter({
         path: '/dev/v2/product-detail',
         pageBuilder: (_, state) =>
             _platformPage(state, const ProductDetailV2Screen()),
+      ),
+      // v2 Auth Invitation — sits between onboarding completion and
+      // home. Phase 9.0 ships the visual mirror only; Supabase wiring
+      // (magic link → Apple → Google) lands in Phase 9.1–9.3.
+      // Preview wrapper toasts on each button so reviewers can verify
+      // the tap targets without leaving the gallery.
+      GoRoute(
+        path: '/dev/v2/auth',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const AuthInvitationV2Preview()),
       ),
       GoRoute(
         path: Routes.splashIntro,
