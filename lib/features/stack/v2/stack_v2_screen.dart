@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
-import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
@@ -13,6 +12,13 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
+import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
+import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
 
 /// v2 Stack screen — visual mirror of `stack_screen.dart` with three
 /// sub-tabs via [PGSegmentedControl]:
@@ -259,41 +265,57 @@ class _StackTab extends ConsumerWidget {
         : realItems;
     final isShowingFixture = items == _fixtureItems;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: EdgeInsets.only(
-        top: V2Spacing.space8,
-        bottom: MediaQuery.of(context).padding.bottom +
-            kPGNavBarHeight +
-            V2Spacing.space24,
-      ),
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-          child: _StackSummaryCard(),
+    // RefreshIndicator wraps the list so pull-to-refresh re-fires
+    // activeStackProvider. Matches production behavior.
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(activeStackProvider);
+        await ref.read(activeStackProvider.future);
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
-        const SizedBox(height: V2Spacing.space24),
-        Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Your supplements',
-                style: V2Typography.titleSm(color: V2Colors.fg),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Swipe left to remove',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
-              ),
-            ],
+        padding: EdgeInsets.only(
+          top: V2Spacing.space8,
+          bottom: MediaQuery.of(context).padding.bottom +
+              kPGNavBarHeight +
+              V2Spacing.space24,
+        ),
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+            child: _StackSummaryCard(),
           ),
-        ),
-        const SizedBox(height: V2Spacing.space12),
+          // Production safety + intelligence surfaces — each collapses
+          // to SizedBox.shrink when there's nothing to surface, so
+          // these silently disappear on a clean stack. Kept as the
+          // production widgets per Sean's directive ("temporary visual
+          // inconsistency acceptable, loss of clinical functionality
+          // is not"). v2 mirrors of each land in subsequent passes.
+          _LegacyRecallAlertSlot(stack: stackAsync.asData?.value ?? const []),
+          const _LegacyStackSafetyBannerSlot(),
+          const _LegacyProfileNudgeSlot(),
+          const SizedBox(height: V2Spacing.space24),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your supplements',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Swipe left to remove',
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: V2Spacing.space12),
         ...items.map(
           (e) => Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -346,7 +368,12 @@ class _StackTab extends ConsumerWidget {
             ),
           ),
         ),
-      ],
+        // Timing + depletion advice — same conditional behavior as
+        // the safety slots above (collapse when nothing to show).
+        const _LegacyTimingAdviceSlot(),
+        const _LegacyDepletionSlot(),
+        ],
+      ),
     );
   }
 }
@@ -687,11 +714,12 @@ class _ItemLeadingGlyph extends StatelessWidget {
 // clinically relevant first (UL warnings before RDA tracking).
 // =============================================================================
 
-class _NutrientsTab extends StatelessWidget {
+class _NutrientsTab extends ConsumerWidget {
   const _NutrientsTab();
 
   // Fixture ordered by clinical priority: UL-flagged first, then RDA-
-  // tracked descending by %.
+  // tracked descending by %. Used when the user has no real stack
+  // so the design preview state still renders.
   static const _rows = <_NutrientStatus>[
     _NutrientStatus(
       name: 'Vitamin A',
@@ -738,7 +766,16 @@ class _NutrientsTab extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Production behavior: when there's a real stack, render the
+    // legacy NutrientAccumulationPanel which sources live data from
+    // stackNutrientStatusesProvider. v2 fixture rows only render
+    // when no real stack is present (for design preview). Sean
+    // 2026-05-15: preserve production functionality first, polish
+    // the legacy widget into a v2 mirror in a later pass.
+    final hasRealStack =
+        (ref.watch(activeStackProvider).asData?.value ?? const []).isNotEmpty;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
@@ -768,6 +805,18 @@ class _NutrientsTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: V2Spacing.space12),
+        // Real production panel — only renders when the user actually
+        // has a stack. Audit-backlog: replace with a v2 mirror later.
+        if (hasRealStack)
+          const Padding(
+            padding:
+                EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+            child: NutrientAccumulationPanel(),
+          ),
+        if (hasRealStack) const SizedBox(height: V2Spacing.space16),
+        // Fixture preview rows — only when there's no real stack, so
+        // the gallery review state still feels populated.
+        if (!hasRealStack)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
           child: Container(
@@ -977,6 +1026,155 @@ class _StackV2PreviewState extends State<StackV2Preview> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// =============================================================================
+// Legacy production slot widgets — copied from stack_screen.dart so the
+// v2 Stack route preserves the same safety + intelligence surfaces
+// (recall alerts, safety banner, profile nudge, timing advice,
+// depletion). Visual style is still legacy here; v2 mirrors land in
+// subsequent passes and replace these. Sean 2026-05-15: clinical
+// functionality stays alive even while the visual reskin progresses.
+// =============================================================================
+
+class _LegacyRecallAlertSlot extends ConsumerWidget {
+  const _LegacyRecallAlertSlot({required this.stack});
+  // ignore: unused_element
+  final List<dynamic> stack;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportAsync = ref.watch(recalledIngredientsReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (report.isEmpty) return const SizedBox.shrink();
+        final ordered = report.orderedViolations;
+        final primary = ordered.first;
+        final names =
+            ordered.map((v) => v.productName).toList(growable: false);
+        final body = ordered.length == 1
+            ? primary.bannerMessage
+            : '${ordered.length} products need review. '
+                '${primary.bannerMessage} Plus ${ordered.length - 1} '
+                'more: ${names.skip(1).join(", ")}.';
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            0,
+          ),
+          child: PGSeverityBanner(
+            tone: PGBannerTone.danger,
+            title: 'Recall Alert',
+            body: body,
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _LegacyStackSafetyBannerSlot extends ConsumerWidget {
+  const _LegacyStackSafetyBannerSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (report.isEmpty) return const SizedBox.shrink();
+        return StackSafetyBanner(
+          report: report,
+          margin: kStackSafetyBannerMargin,
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _LegacyProfileNudgeSlot extends ConsumerWidget {
+  const _LegacyProfileNudgeSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+    final hasProfile =
+        profile.conditions.isNotEmpty || profile.drugClasses.isNotEmpty;
+    if (hasProfile) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space12,
+        V2Spacing.space24,
+        0,
+      ),
+      child: PGSeverityBanner(
+        tone: PGBannerTone.neutral,
+        title: 'Personalize your stack',
+        body:
+            'Add your health conditions and medications to see warnings '
+            'that actually apply to you.',
+        actionLabel: 'Complete profile',
+        onAction: () => GoRouter.of(context).push(Routes.profileSetup),
+      ),
+    );
+  }
+}
+
+class _LegacyTimingAdviceSlot extends ConsumerWidget {
+  const _LegacyTimingAdviceSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (!report.hasTimingAdvice) return const SizedBox.shrink();
+        return TimingAdviceCard(
+          optimizations: report.timingOptimizations,
+          margin: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            0,
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _LegacyDepletionSlot extends ConsumerWidget {
+  const _LegacyDepletionSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final depletionAsync = ref.watch(depletionReportProvider);
+    return depletionAsync.when(
+      data: (depletions) {
+        if (depletions.isEmpty) return const SizedBox.shrink();
+        return DepletionCheckerCard(
+          depletions: depletions,
+          margin: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            0,
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
