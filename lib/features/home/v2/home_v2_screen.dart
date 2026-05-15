@@ -52,10 +52,17 @@ class HomeV2Screen extends StatelessWidget {
   final ValueChanged<int>? onDestinationSelected;
   final int selectedIndex;
 
+  /// When false, the v2 home screen doesn't paint its own bottom
+  /// nav bar — used inside the production AppShell which already
+  /// paints one. Default true for the /dev/v2/home gallery preview
+  /// where there's no shell.
+  final bool showNavBar;
+
   const HomeV2Screen({
     super.key,
     this.selectedIndex = 0,
     this.onDestinationSelected,
+    this.showNavBar = true,
   });
 
   @override
@@ -174,7 +181,9 @@ class HomeV2Screen extends StatelessWidget {
             ),
           ],
         ),
-        bottomNavigationBar: PGFrostedNavBar(
+        bottomNavigationBar: !showNavBar
+            ? null
+            : PGFrostedNavBar(
           useV2Tones: true,
           selectedIndex: selectedIndex,
           onDestinationSelected: onDestinationSelected ?? (_) {},
