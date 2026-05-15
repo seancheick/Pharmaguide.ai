@@ -1,53 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 
-/// v2 Scanner — faithful visual mirror of `scanner_screen.dart`.
+/// v2 Scanner — visual mirror of `scanner_screen.dart` with simplified
+/// 2-tone verdict flash + amber not-found overlay.
 ///
-/// Production composition preserved:
-///   1. Camera feed background (here: cameraOverlay solid black —
-///      MobileScanner can't preview in the gallery)
-///   2. Top bar: "Scan Product" title (white) + flash toggle
-///   3. Center: 250pt scan-frame with v2 corner brackets
-///   4. Below frame: "Center the barcode in the frame" + tagline
-///   5. Bottom: two outlined buttons — "Enter code manually" + "Add
-///      medication"
-///   6. PGVerdictReveal overlay on barcode detection (v2 enhancement
-///      of production's _showFlash overlay — celebration motion for
-///      safe verdicts, decelerate for caution+, layered haptics)
+/// Layout:
+///   - Camera feed background (gallery preview: dark gradient surrogate)
+///   - SafeArea(bottom: false) → status bar inset only; we own bottom
+///     spacing explicitly so the nav-bar overlap is exact
+///   - Top bar (anchored top)
+///   - Scan frame + tagline (centered, slightly above viewport center)
+///   - "Enter code manually" + "Add medication" buttons (anchored
+///     bottom, sitting just above the frosted nav bar)
 ///
-/// Production wiring (Phase 8.x): swap the dark placeholder for
-/// MobileScanner + onDetect callback; verdict resolution maps the
-/// existing scanner_logic verdict types to PGVerdictKind.
+/// Overlays (mutually exclusive):
+///   - PGVerdictReveal: 2 states only — success (green) for safe/
+///     monitor, attention (amber) for everything else. Decision
+///     tier lives on the product page.
+///   - PGScanNotFound: light amber screen with retry + manual-entry
+///     CTAs when the scan doesn't match the catalog.
 class ScannerV2Screen extends StatefulWidget {
-  /// When non-null, the verdict reveal renders immediately — used by
-  /// the gallery preview to demo each tier without hitting the real
-  /// scan flow.
+  /// When non-null, the verdict flash renders immediately.
   final PGVerdictKind? demoVerdict;
 
-  /// Callback when the verdict reveal auto-dismisses or is tapped.
+  /// When true, renders the "not found" overlay instead.
+  final bool showNotFound;
+
   final VoidCallback? onVerdictDismiss;
+  final VoidCallback? onNotFoundDismiss;
+  final VoidCallback? onRetryScan;
+  final VoidCallback? onManualEntry;
+  final VoidCallback? onAddMedication;
 
-  /// Hides the nav bar (preview wrapper passes false; production
-  /// ShellRoute keeps it visible).
+  /// Optional tap target on the scan frame — gallery preview wires
+  /// this to a demo cycle; production leaves it null.
+  final VoidCallback? onFrameTap;
+
   final bool showNavBar;
-
-  /// Tab index for the nav bar — defaults to Scan (index 2 in v2
-  /// order: Home / Stack / Scan / Chat / Profile).
   final int selectedIndex;
-
-  /// Optional handler for nav-destination taps.
   final ValueChanged<int>? onDestinationSelected;
 
   const ScannerV2Screen({
     super.key,
     this.demoVerdict,
+    this.showNotFound = false,
     this.onVerdictDismiss,
+    this.onNotFoundDismiss,
+    this.onRetryScan,
+    this.onManualEntry,
+    this.onAddMedication,
+    this.onFrameTap,
     this.showNavBar = true,
     this.selectedIndex = 2,
     this.onDestinationSelected,
@@ -62,6 +71,12 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
 
   @override
   Widget build(BuildContext context) {
+    // Bottom buttons sit just above the frosted nav bar. kPGNavBarHeight
+    // already accounts for the home-indicator inset (~88pt total).
+    // SafeArea(bottom: false) means we don't double-count that inset.
+    final bottomActionsPad = (widget.showNavBar ? kPGNavBarHeight : 0) +
+        V2Spacing.space12;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -75,19 +90,14 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // Camera feed surrogate. Production wires MobileScanner here;
-            // the gallery preview shows a calm dark-gradient placeholder
-            // so reviewers can see the chrome composition.
             const _CameraSurrogate(),
-            // Scanner overlay — top bar anchored top, frame + tagline
-            // centered, action buttons anchored bottom. Stack-based
-            // layout (instead of Column + Spacers) so the bottom row
-            // is truly locked to the bottom edge regardless of
-            // viewport height.
             SafeArea(
+              // SafeArea handles status-bar inset at the top only. Bottom
+              // spacing is owned by the bottomActionsPad above so it
+              // matches the actual nav-bar overlap exactly.
+              bottom: false,
               child: Stack(
                 children: [
-                  // Top bar pinned to top.
                   Align(
                     alignment: Alignment.topCenter,
                     child: _TopBar(
@@ -96,15 +106,14 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
                           setState(() => _flashOn = !_flashOn),
                     ),
                   ),
-                  // Scan frame + tagline centered (slightly above
-                  // viewport center so the bottom actions and frame
-                  // breathe).
+                  // Frame + tagline centered, slightly above viewport
+                  // center for visual balance with the bottom anchor.
                   Align(
-                    alignment: const Alignment(0, -0.15),
+                    alignment: const Alignment(0, -0.20),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const _ScanFrame(),
+                        _ScanFrame(onTap: widget.onFrameTap),
                         const SizedBox(height: V2Spacing.space24),
                         Text(
                           'Center the barcode in the frame',
@@ -127,8 +136,8 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
                       ],
                     ),
                   ),
-                  // Bottom buttons truly anchored — padding-bottom
-                  // accounts for the nav bar overlap (when present).
+                  // Bottom buttons anchored above the nav bar with a
+                  // single small visual gap.
                   Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
@@ -136,24 +145,33 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
                         V2Spacing.space24,
                         V2Spacing.space16,
                         V2Spacing.space24,
-                        V2Spacing.space16 +
-                            (widget.showNavBar ? kPGNavBarHeight : 0),
+                        bottomActionsPad,
                       ),
-                      child: const _BottomActions(),
+                      child: _BottomActions(
+                        onManualEntry: widget.onManualEntry,
+                        onAddMedication: widget.onAddMedication,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            // Verdict reveal — Phase 10.1 enhancement of the legacy
-            // _showFlash overlay. Stripped to just the icon flash per
-            // Sean: "no messages — just the checkmark animation. The
-            // rest of the info happens on the product page."
-            if (widget.demoVerdict != null)
+            // Verdict flash — 2-tone (success/attention), brief, no
+            // copy. Auto-dismisses after 900ms.
+            if (widget.demoVerdict != null && !widget.showNotFound)
               PGVerdictReveal(
                 key: ValueKey(widget.demoVerdict),
                 kind: widget.demoVerdict!,
                 onDismiss: widget.onVerdictDismiss,
+              ),
+            // Not-found overlay — light amber screen with retry +
+            // manual entry CTAs.
+            if (widget.showNotFound)
+              PGScanNotFound(
+                scannedCode: '0123456789',
+                onRetry: widget.onRetryScan ?? () {},
+                onManualEntry: widget.onManualEntry ?? () {},
+                onClose: widget.onNotFoundDismiss ?? () {},
               ),
           ],
         ),
@@ -195,11 +213,10 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
       ),
     );
   }
-
 }
 
 // =============================================================================
-// Camera surrogate — vertical gradient that suggests a viewfinder.
+// Camera surrogate.
 // =============================================================================
 
 class _CameraSurrogate extends StatelessWidget {
@@ -223,7 +240,7 @@ class _CameraSurrogate extends StatelessWidget {
 }
 
 // =============================================================================
-// Top bar — "Scan Product" title + flash toggle.
+// Top bar.
 // =============================================================================
 
 class _TopBar extends StatelessWidget {
@@ -288,16 +305,17 @@ class _FlashChip extends StatelessWidget {
 }
 
 // =============================================================================
-// Scan frame — 250pt square with white corner brackets, no full border.
-// More iOS-Wallet-QR-feel than the production white-border rectangle.
+// Scan frame with corner brackets. Tap-target wired through onTap so
+// the preview can trigger demo states.
 // =============================================================================
 
 class _ScanFrame extends StatelessWidget {
-  const _ScanFrame();
+  final VoidCallback? onTap;
+  const _ScanFrame({this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    final frame = SizedBox(
       width: 250,
       height: 250,
       child: Stack(
@@ -305,6 +323,12 @@ class _ScanFrame extends StatelessWidget {
           for (final corner in _Corner.values) _CornerBracket(corner: corner),
         ],
       ),
+    );
+    if (onTap == null) return frame;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: frame,
     );
   }
 }
@@ -402,12 +426,14 @@ class _CornerPainter extends CustomPainter {
 }
 
 // =============================================================================
-// Bottom actions — Enter code manually + Add medication. Mirror of
-// production's stacked OutlinedButton.icon pair.
+// Bottom actions.
 // =============================================================================
 
 class _BottomActions extends StatelessWidget {
-  const _BottomActions();
+  final VoidCallback? onManualEntry;
+  final VoidCallback? onAddMedication;
+
+  const _BottomActions({this.onManualEntry, this.onAddMedication});
 
   @override
   Widget build(BuildContext context) {
@@ -417,13 +443,13 @@ class _BottomActions extends StatelessWidget {
         _OutlineAction(
           icon: Icons.keyboard_rounded,
           label: 'Enter code manually',
-          onTap: () {},
+          onTap: onManualEntry ?? () {},
         ),
         const SizedBox(height: V2Spacing.space8),
         _OutlineAction(
           icon: Icons.medication_outlined,
           label: 'Add medication',
-          onTap: () {},
+          onTap: onAddMedication ?? () {},
         ),
       ],
     );
@@ -477,8 +503,11 @@ class _OutlineAction extends StatelessWidget {
 }
 
 // =============================================================================
-// Preview wrapper — adds a row of "Demo verdict" chips at the top so
-// reviewers can see each tier without wiring real camera detection.
+// Preview wrapper. Tapping the scan frame cycles through demo states:
+//   tap 1 → success flash
+//   tap 2 → attention flash
+//   tap 3 → not-found overlay
+//   tap 4 → clear (back to live frame)
 // =============================================================================
 
 class ScannerV2Preview extends StatefulWidget {
@@ -488,25 +517,42 @@ class ScannerV2Preview extends StatefulWidget {
   State<ScannerV2Preview> createState() => _ScannerV2PreviewState();
 }
 
+enum _DemoState { idle, success, attention, notFound }
+
 class _ScannerV2PreviewState extends State<ScannerV2Preview> {
-  PGVerdictKind? _demo;
-  int _navIndex = 2; // Scan tab
+  _DemoState _demo = _DemoState.idle;
+  int _navIndex = 2;
 
-  void _fire(PGVerdictKind kind) {
-    setState(() => _demo = kind);
+  void _cycle() {
+    setState(() {
+      _demo = switch (_demo) {
+        _DemoState.idle => _DemoState.success,
+        _DemoState.success => _DemoState.attention,
+        _DemoState.attention => _DemoState.notFound,
+        _DemoState.notFound => _DemoState.idle,
+      };
+    });
   }
 
-  void _clear() {
-    setState(() => _demo = null);
-  }
+  void _clear() => setState(() => _demo = _DemoState.idle);
 
   @override
   Widget build(BuildContext context) {
+    final demoVerdict = switch (_demo) {
+      _DemoState.success => PGVerdictKind.success,
+      _DemoState.attention => PGVerdictKind.attention,
+      _DemoState.idle || _DemoState.notFound => null,
+    };
+
     return Stack(
       children: [
         ScannerV2Screen(
-          demoVerdict: _demo,
+          demoVerdict: demoVerdict,
+          showNotFound: _demo == _DemoState.notFound,
           onVerdictDismiss: _clear,
+          onNotFoundDismiss: _clear,
+          onRetryScan: _clear,
+          onFrameTap: _cycle,
           selectedIndex: _navIndex,
           onDestinationSelected: (i) => setState(() => _navIndex = i),
         ),
@@ -532,83 +578,23 @@ class _ScannerV2PreviewState extends State<ScannerV2Preview> {
             ),
           ),
         ),
-        // Demo verdict chips — sit just under the top bar.
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 64,
-          left: V2Spacing.space24,
-          right: V2Spacing.space24,
-          child: IgnorePointer(
-            ignoring: _demo != null,
-            child: AnimatedOpacity(
-              opacity: _demo == null ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 180),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _DemoChip(
-                      label: 'Safe',
-                      onTap: () => _fire(PGVerdictKind.safe),
-                    ),
-                    const SizedBox(width: V2Spacing.space8),
-                    _DemoChip(
-                      label: 'Monitor',
-                      onTap: () => _fire(PGVerdictKind.monitor),
-                    ),
-                    const SizedBox(width: V2Spacing.space8),
-                    _DemoChip(
-                      label: 'Caution',
-                      onTap: () => _fire(PGVerdictKind.caution),
-                    ),
-                    const SizedBox(width: V2Spacing.space8),
-                    _DemoChip(
-                      label: 'Avoid',
-                      onTap: () => _fire(PGVerdictKind.avoid),
-                    ),
-                    const SizedBox(width: V2Spacing.space8),
-                    _DemoChip(
-                      label: 'Contraindicated',
-                      onTap: () => _fire(PGVerdictKind.contraindicated),
-                    ),
-                  ],
+        // Single hint line — only visible in the idle preview state.
+        if (_demo == _DemoState.idle)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 56,
+            left: V2Spacing.space24,
+            right: V2Spacing.space24,
+            child: IgnorePointer(
+              child: Text(
+                'Preview · tap the frame to cycle scan states',
+                textAlign: TextAlign.center,
+                style: V2Typography.caption(
+                  color: Colors.white.withValues(alpha: 0.55),
                 ),
               ),
             ),
           ),
-        ),
       ],
-    );
-  }
-}
-
-class _DemoChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _DemoChip({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.18),
-      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: V2Spacing.space12,
-            vertical: V2Spacing.space8,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.30),
-              width: 0.8,
-            ),
-          ),
-          child: Text(label, style: V2Typography.label(color: Colors.white)),
-        ),
-      ),
     );
   }
 }

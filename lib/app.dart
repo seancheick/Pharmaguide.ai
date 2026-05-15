@@ -26,6 +26,7 @@ import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
+import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
@@ -278,6 +279,18 @@ GoRouter _buildRouter({
         path: '/dev/v2/scan',
         pageBuilder: (_, state) =>
             _platformPage(state, const ScannerV2Preview()),
+      ),
+      // v2 camera permission gate — first-ask + denied states.
+      // ?denied=1 flips into the denied variant.
+      GoRoute(
+        path: '/dev/v2/scan/permission',
+        pageBuilder: (_, state) {
+          final denied = state.uri.queryParameters['denied'] == '1';
+          return _platformPage(
+            state,
+            CameraPermissionV2Preview(denied: denied),
+          );
+        },
       ),
       GoRoute(
         path: Routes.splashIntro,

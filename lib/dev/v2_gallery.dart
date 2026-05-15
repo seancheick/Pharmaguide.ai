@@ -735,8 +735,20 @@ class V2Gallery extends StatelessWidget {
               _PrototypeLink(
                 label: 'Scanner',
                 subtitle:
-                    'Camera frame + verdict reveal (5-tier demo chips)',
+                    'Camera frame · 2-tone verdict flash · not-found '
+                    'amber overlay (tap frame to cycle)',
                 routePath: '/dev/v2/scan',
+              ),
+              _PrototypeLink(
+                label: 'Camera permission',
+                subtitle:
+                    'Pre-prompt — benefit-first ask before the OS dialog',
+                routePath: '/dev/v2/scan/permission',
+              ),
+              _PrototypeLink(
+                label: 'Camera permission (denied)',
+                subtitle: 'Denied state — Settings + manual fallback',
+                routePath: '/dev/v2/scan/permission?denied=1',
               ),
             ],
           ),
