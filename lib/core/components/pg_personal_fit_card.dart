@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -72,6 +73,14 @@ class PGPersonalFitCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // v2 editorial eyebrow — anchors the card as a personalization
+          // section. Production renders the card with no label (icon +
+          // headline carry the identity). v2 adds the mono-caps eyebrow
+          // for consistency with the Review Before Use card title and
+          // the website's editorial pattern. Pure visual addition — no
+          // semantic change.
+          const PGEyebrow('Your fit'),
+          const SizedBox(height: V2Spacing.space8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
