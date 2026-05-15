@@ -82,10 +82,15 @@ class PGScoreBreakdownCard extends StatelessWidget {
   /// 0..1 — drives the coverage line at the bottom. Null hides the line.
   final double? mappedCoverage;
 
+  /// Top-line PG Score (0..100) shown in the card title. Production:
+  /// "Why this scored 84". Null → "Why this score".
+  final int? heroScore;
+
   const PGScoreBreakdownCard({
     super.key,
     required this.pillars,
     this.mappedCoverage,
+    this.heroScore,
   });
 
   @override
@@ -101,8 +106,23 @@ class PGScoreBreakdownCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Card title — mirrors production
+          // score_breakdown_card.dart:77-84 ("Why this scored {N}").
+          // Drives the user's mental anchor for the pillars below.
+          Text(
+            heroScore != null
+                ? 'Why this scored $heroScore'
+                : 'Why this score',
+            style: V2Typography.titleSm(color: V2Colors.fg),
+          ),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            'Tap any pillar to see what drives it.',
+            style: V2Typography.caption(color: V2Colors.fgMuted),
+          ),
+          const SizedBox(height: V2Spacing.space16),
           for (var i = 0; i < pillars.length; i++) ...[
-            if (i > 0) const SizedBox(height: V2Spacing.space16),
+            if (i > 0) const SizedBox(height: V2Spacing.space12),
             _PGPillarRow(pillar: pillars[i]),
           ],
           if (mappedCoverage != null) ...[
@@ -121,9 +141,16 @@ class PGScoreBreakdownCard extends StatelessWidget {
   }
 }
 
-class _PGPillarRow extends StatelessWidget {
+class _PGPillarRow extends StatefulWidget {
   final PGPillar pillar;
   const _PGPillarRow({required this.pillar});
+
+  @override
+  State<_PGPillarRow> createState() => _PGPillarRowState();
+}
+
+class _PGPillarRowState extends State<_PGPillarRow> {
+  bool _expanded = false;
 
   /// **v2 deliberate departure from production's 6-tier ScoreTier.**
   ///
@@ -153,31 +180,64 @@ class _PGPillarRow extends StatelessWidget {
     return (rawScore / max * 10).round().clamp(0, 10);
   }
 
+  /// Whether this pillar has anything to reveal on tap — a micro-
+  /// explanation OR at least one badge. Pillars with neither stay
+  /// inert (no chevron, no tap effect).
+  bool get _hasExpansion {
+    final p = widget.pillar;
+    return (p.microExplanation != null && p.microExplanation!.isNotEmpty) ||
+        p.badges.isNotEmpty;
+  }
+
+  void _toggle() {
+    if (!_hasExpansion) return;
+    setState(() => _expanded = !_expanded);
+    widget.pillar.onTap?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final score = pillar.score;
-    final max = pillar.max;
+    final p = widget.pillar;
+    final score = p.score;
+    final max = p.max;
     final hasScore = score != null;
     final fill = hasScore ? (score / max).clamp(0.0, 1.0) : 0.0;
     final tone = _toneFor(score, max);
 
-    final row = Padding(
+    final compact = Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Compact row: label + tiny chevron + score, then bar.
+          // microExplanation + badges are hidden behind tap-to-expand
+          // (Sean: "more compact than that because before I used to tap
+          // each section to open and read what's in it").
           Row(
             children: [
-              Expanded(
+              Flexible(
                 child: Text(
-                  pillar.label,
+                  p.label,
                   style: V2Typography.bodyMedium(color: V2Colors.fg),
                 ),
               ),
+              if (_hasExpansion) ...[
+                const SizedBox(width: 4),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: const Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: V2Colors.fgMuted,
+                  ),
+                ),
+              ],
+              const Spacer(),
               if (hasScore)
                 Text(
                   '${_displayScore(score, max)}/10',
-                  style: V2Typography.monoData(color: V2Colors.fgMuted),
+                  style: V2Typography.monoData(color: tone),
                 )
               else
                 Text(
@@ -193,9 +253,7 @@ class _PGPillarRow extends StatelessWidget {
               height: 6,
               child: Stack(
                 children: [
-                  // Track — outline alpha for a quiet base.
                   Container(color: V2Colors.outline.withValues(alpha: 0.45)),
-                  // Fill.
                   FractionallySizedBox(
                     widthFactor: fill,
                     child: Container(color: tone),
@@ -204,39 +262,56 @@ class _PGPillarRow extends StatelessWidget {
               ),
             ),
           ),
-          if (pillar.microExplanation != null) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              pillar.microExplanation!,
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+          // Expanded reveal — microExplanation + badges. AnimatedCrossFade
+          // matches production's _ExpandableSectionBar pattern.
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            sizeCurve: Curves.easeOutCubic,
+            crossFadeState: _expanded && _hasExpansion
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: V2Spacing.space8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (p.microExplanation != null) ...[
+                    Text(
+                      p.microExplanation!,
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    ),
+                  ],
+                  if (p.badges.isNotEmpty) ...[
+                    const SizedBox(height: V2Spacing.space8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final b in p.badges)
+                          _PillarBadgeChip(badge: b),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ],
-          if (pillar.badges.isNotEmpty) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final b in pillar.badges) _PillarBadgeChip(badge: b),
-              ],
-            ),
-          ],
+          ),
         ],
       ),
     );
 
-    if (pillar.onTap == null) return row;
+    if (!_hasExpansion) return compact;
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
-        onTap: pillar.onTap,
+        onTap: _toggle,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        child: row,
+        child: compact,
       ),
     );
   }
-
 }
 
 class _PillarBadgeChip extends StatelessWidget {

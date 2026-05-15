@@ -303,6 +303,7 @@ class V2Gallery extends StatelessWidget {
               const SizedBox(height: V2Spacing.space16),
               // 1. Score Breakdown — 4 pillar bars
               PGScoreBreakdownCard(
+                heroScore: 84,
                 pillars: [
                   PGPillar(
                     label: 'Ingredient Quality',
