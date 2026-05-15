@@ -272,6 +272,14 @@ class _TrustChip extends StatelessWidget {
   Widget build(BuildContext context) {
     // Certifications use accent (calmer than scoreExcellent on cream bg);
     // dietary tags use scoreExcellent green. Same intent as production.
+    //
+    // Verified-by-a-third-party certifications also carry a small
+    // `verified_rounded` icon (Sean's call 2026-05-15) — the icon's
+    // "blue check" semantic is meaningful here because something
+    // external actually inspected and confirmed it. Dietary claims
+    // (gluten free / vegan etc.) stay text-only — those are usually
+    // self-declared by the manufacturer, and adding a check there
+    // would imply independent verification we can't promise.
     final tone = isCertification ? V2Colors.accent : V2Colors.safe;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -279,13 +287,22 @@ class _TrustChip extends StatelessWidget {
         border: Border.all(color: tone.withValues(alpha: 0.55), width: 0.7),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
-      child: Text(
-        label,
-        style: V2Typography.caption(color: tone).copyWith(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          letterSpacing: -0.05,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isCertification) ...[
+            Icon(Icons.verified_rounded, size: 11, color: tone),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: V2Typography.caption(color: tone).copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.05,
+            ),
+          ),
+        ],
       ),
     );
   }

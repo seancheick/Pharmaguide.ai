@@ -28,45 +28,46 @@ class PGTransparencyFooter extends StatelessWidget {
     this.freshnessLabel,
     this.sources = const ['NIH ODS', 'PubMed', 'FDA'],
     this.disclaimer =
-        'PharmaGuide is for informational purposes only. Talk to your '
-        'doctor before making changes to your medications or supplement '
-        'stack.',
+        'PharmaGuide is for informational purposes only — talk to your '
+        'doctor before changing your stack.',
   });
 
   @override
   Widget build(BuildContext context) {
+    // Centered footer: sources render as a single inline "NIH ODS · PubMed
+    // · FDA" line (Sean's call 2026-05-15 — never wrap to multiple rows),
+    // freshness sits below in a quieter tone, then the locked disclaimer
+    // sits centered and capped to two lines.
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
         vertical: V2Spacing.space16,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const PGEyebrow('Data sources'),
+          const PGEyebrow('Data sources', textAlign: TextAlign.center),
           const SizedBox(height: V2Spacing.space8),
-          Wrap(
-            spacing: V2Spacing.space12,
-            runSpacing: V2Spacing.space4,
-            children: [
-              for (final s in sources)
-                Text(
-                  s,
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
-                ),
-            ],
+          Text(
+            sources.join(' · '),
+            style: V2Typography.caption(color: V2Colors.fgMuted),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           if (freshnessLabel != null) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
               freshnessLabel!,
               style: V2Typography.caption(color: V2Colors.fgSubtle),
+              textAlign: TextAlign.center,
             ),
           ],
           const SizedBox(height: V2Spacing.space16),
           Text(
             disclaimer,
             style: V2Typography.caption(color: V2Colors.fgSubtle),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

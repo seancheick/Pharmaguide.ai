@@ -60,8 +60,15 @@ class AuthInvitationV2Screen extends StatefulWidget {
 }
 
 class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _ctrl;
+
+  /// Slow, organic heartbeat on the brand mark. ~3.6s per cycle —
+  /// matches a calm resting human pulse, slowed slightly so it reads
+  /// as ambient breath, not anxious. Skipped when the OS has
+  /// reduce-motion enabled.
+  late final AnimationController _heartbeat;
+  late final Animation<double> _heartbeatScale;
 
   @override
   void initState() {
@@ -70,11 +77,28 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
       vsync: this,
       duration: V2Motion.slower, // 640ms full entrance
     )..forward();
+
+    _heartbeat = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _heartbeatScale = Tween<double>(begin: 1.0, end: 1.045).animate(
+      CurvedAnimation(parent: _heartbeat, curve: Curves.easeInOutSine),
+    );
+    // Defer starting the heartbeat until the stagger entrance has had
+    // a moment to settle — otherwise the mark grows while it's still
+    // fading in, which reads as nervous, not calm.
+    _ctrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        _heartbeat.repeat(reverse: true);
+      }
+    });
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _heartbeat.dispose();
     super.dispose();
   }
 
@@ -141,7 +165,7 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
                                 _Faded(
                                   opacity: mark.opacity,
                                   lift: mark.lift,
-                                  child: const _BrandMark(),
+                                  child: _BrandMark(pulse: _heartbeatScale),
                                 ),
                                 const SizedBox(height: V2Spacing.space32),
                                 _Faded(
@@ -225,20 +249,40 @@ class _Faded extends StatelessWidget {
 /// Small centered logo + wordmark — the user just saw a larger version
 /// on splash, this is a quieter callback. 56pt mark sits comfortably
 /// without dominating the headline below.
+///
+/// The logo carries a slow ambient heartbeat (~3.6s cycle, 4.5% scale
+/// peak) driven by [pulse] — Sean's call 2026-05-15 to give the
+/// screen a calmer, breathing quality. Skipped automatically when the
+/// OS reports reduce-motion.
 class _BrandMark extends StatelessWidget {
-  const _BrandMark();
+  final Animation<double> pulse;
+  const _BrandMark({required this.pulse});
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    final logo = Image.asset(
+      'assets/images/splash_logo.png',
+      width: 56,
+      height: 56,
+      filterQuality: FilterQuality.high,
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          'assets/images/splash_logo.png',
-          width: 56,
-          height: 56,
-          filterQuality: FilterQuality.high,
-        ),
+        if (reduceMotion)
+          logo
+        else
+          AnimatedBuilder(
+            animation: pulse,
+            builder: (context, child) => Transform.scale(
+              scale: pulse.value,
+              child: child,
+            ),
+            child: logo,
+          ),
         const SizedBox(height: V2Spacing.space8),
         const PGEyebrow('PharmaGuide'),
       ],

@@ -125,56 +125,80 @@ class _PGInteractionWarningsState extends State<PGInteractionWarnings> {
   }
 
   Widget _buildGeneric() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () =>
-                setState(() => _genericExpanded = !_genericExpanded),
-            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _SubSectionHeader(
-                    eyebrow: 'Other precautions',
-                    count: widget.generic.length,
-                    tone: V2Colors.fgMuted,
-                  ),
+    // "Other precautions" wraps in its own outlined card so the
+    // toggle header and (collapsible) warning rows read as one unit
+    // belonging to interaction warnings — never to the next scroll
+    // section. Mirrors the PGIngredientsCard "Other ingredients"
+    // dropdown pattern (Sean's call 2026-05-15: the toggle was
+    // floating above the Label Confidence card and looked
+    // mis-attached).
+    return Container(
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+        boxShadow: V2Shadows.sm,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () =>
+                  setState(() => _genericExpanded = !_genericExpanded),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _SubSectionHeader(
+                        eyebrow: 'Other precautions',
+                        count: widget.generic.length,
+                        tone: V2Colors.fgMuted,
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _genericExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        size: 22,
+                        color: V2Colors.fgMuted,
+                      ),
+                    ),
+                  ],
                 ),
-                AnimatedRotation(
-                  turns: _genericExpanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 180),
-                  child: const Icon(
-                    Icons.expand_more_rounded,
-                    size: 22,
-                    color: V2Colors.fgMuted,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-        AnimatedSize(
-          duration: V2Motion.base,
-          curve: V2Motion.smooth,
-          alignment: Alignment.topCenter,
-          child: _genericExpanded
-              ? Padding(
-                  padding: const EdgeInsets.only(top: V2Spacing.space8),
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < widget.generic.length; i++) ...[
-                        if (i > 0) const SizedBox(height: V2Spacing.space8),
-                        PGWarningCard(warning: widget.generic[i]),
+          AnimatedSize(
+            duration: V2Motion.base,
+            curve: V2Motion.smooth,
+            alignment: Alignment.topCenter,
+            child: _genericExpanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      V2Spacing.space12,
+                      0,
+                      V2Spacing.space12,
+                      V2Spacing.space12,
+                    ),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < widget.generic.length; i++) ...[
+                          if (i > 0)
+                            const SizedBox(height: V2Spacing.space8),
+                          PGWarningCard(warning: widget.generic[i]),
+                        ],
                       ],
-                    ],
-                  ),
-                )
-              : const SizedBox(width: double.infinity),
-        ),
-      ],
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
     );
   }
 }
