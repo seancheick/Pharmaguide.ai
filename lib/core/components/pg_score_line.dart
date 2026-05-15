@@ -85,10 +85,18 @@ class PGScoreLine extends StatelessWidget {
               ),
             ),
             const SizedBox(width: V2Spacing.space8),
-            Text(
-              tier.label,
-              style: V2Typography.bodyMedium(color: tier.color).copyWith(
-                fontSize: headlineSize,
+            // Tier label wraps in Flexible + ellipsis so the row
+            // can survive tight column widths (e.g. 130pt slot
+            // in Home's Recent-scans carousel). Long labels like
+            // "Exceptional" overflow otherwise.
+            Flexible(
+              child: Text(
+                tier.label,
+                style: V2Typography.bodyMedium(color: tier.color).copyWith(
+                  fontSize: headlineSize,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
