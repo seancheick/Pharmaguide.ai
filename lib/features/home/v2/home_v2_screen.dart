@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -73,6 +76,15 @@ class HomeV2Screen extends StatelessWidget {
               parent: AlwaysScrollableScrollPhysics(),
             ),
             slivers: [
+              // 0. iOS pull-to-refresh sliver. Sits above the pinned
+              // header to absorb the bouncing-physics overscroll —
+              // without this, BouncingScrollPhysics can push the pinned
+              // header into a "layoutExtent > paintExtent" state on
+              // the first frame after launch. Mirror of the production
+              // home_screen.dart structure.
+              if (Platform.isIOS)
+                const CupertinoSliverRefreshControl(),
+
               // 1. Pinned search row.
               SliverPersistentHeader(
                 pinned: true,
