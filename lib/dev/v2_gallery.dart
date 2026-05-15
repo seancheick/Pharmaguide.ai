@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/components/pg_ingredients_card.dart';
+import 'package:pharmaguide/core/components/pg_personal_fit_card.dart';
+import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
+import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
 /// v2 component gallery — debug-only route at `/dev/v2`.
 ///
@@ -198,6 +202,64 @@ class V2Gallery extends StatelessWidget {
               ),
             ],
           ),
+          _Section(
+            title: 'Product Detail top sections (Phase 8.1.3)',
+            children: [
+              Text(
+                'Hero + Personal Fit + Review Before Use, stacked in '
+                'production scroll order. Same data shape, v2 surface + '
+                'typography.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              // Hero
+              const PGHeroSection(
+                imageWidget: _DemoProductImage(),
+                productName: 'High-Potency Triple-Strength Marine Omega-3',
+                brandName: 'Nordic Naturals',
+                servingsLabel: '60 Softgels',
+                dosingSummary: '2 softgels daily with food',
+                trustTags: [
+                  PGTrustTag(label: 'IFOS Certified', isCertification: true),
+                  PGTrustTag(label: 'Non-GMO', isCertification: false),
+                  PGTrustTag(label: 'Gluten Free', isCertification: false),
+                ],
+                score: 84,
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // Personal Fit
+              PGPersonalFitCard(
+                fit: const FitGoodMatch(),
+                headline: 'Good match for your heart-health goal',
+                bullets: const [
+                  'Omega-3 supports your cardiovascular goal',
+                  'No conflicts with your current medications',
+                ],
+                onEditProfile: () {},
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // Review Before Use — caution example
+              PGReviewBeforeUseCard(
+                tone: PGReviewTone.caution,
+                title: 'Review before use',
+                body: '2 things to check with your prescriber.',
+                rows: [
+                  PGReviewRow(
+                    headline: 'May extend bleeding time',
+                    caption: 'Caution with warfarin / rivaroxaban',
+                    onTap: () {},
+                  ),
+                  PGReviewRow(
+                    headline: 'Contains fish (anchovy, sardine)',
+                    caption: 'Allergen · matched from your profile',
+                    rowTone: PGReviewTone.danger,
+                    onTap: () {},
+                  ),
+                ],
+                startExpanded: true,
+              ),
+            ],
+          ),
           const _Section(
             title: 'First-impression moments',
             children: [
@@ -338,6 +400,29 @@ class _Section extends StatelessWidget {
           const SizedBox(height: V2Spacing.space12),
           ...children,
         ],
+      ),
+    );
+  }
+}
+
+/// Placeholder product image for the gallery hero preview — solid
+/// accent-tint square with a pill icon. Production passes a real
+/// [ProductImage] widget here.
+class _DemoProductImage extends StatelessWidget {
+  const _DemoProductImage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: V2Colors.accentTint,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      child: const Icon(
+        Icons.medication_outlined,
+        size: 40,
+        color: V2Colors.accent,
       ),
     );
   }
