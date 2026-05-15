@@ -5,12 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
@@ -462,7 +462,7 @@ class _StackSummaryCard extends ConsumerWidget {
     final statusLabel = isAnalyzing
         ? 'Analyzing'
         : status?.label ?? 'No data yet';
-    final insightLine = _describeSummary(intelligence);
+    final insightLine = describeStackSummary(intelligence);
 
     return Container(
       decoration: BoxDecoration(
@@ -556,60 +556,6 @@ class _StackSummaryCard extends ConsumerWidget {
         ],
       ),
     );
-  }
-}
-
-/// Human-readable insight line under "Stack Health". Mirrors
-/// production `_StackSummaryCard._describeSummary` verbatim so the
-/// user sees the same copy on Home and on the Stack tab.
-String _describeSummary(StackIntelligence? intelligence) {
-  if (intelligence == null) {
-    return 'Reviewing interactions, recall alerts, and nutrient overlap.';
-  }
-  switch (intelligence.tier) {
-    case StackTier.unsafe:
-      if (intelligence.hasBannedIngredient) {
-        return 'Banned ingredient found — review immediately.';
-      }
-      if (intelligence.hasRecalledIngredient) {
-        return 'Recalled ingredient found — review immediately.';
-      }
-      if (intelligence.hasContraindicatedInteraction) {
-        return 'Contraindicated interaction found — review immediately.';
-      }
-      return 'High-risk issue found — review immediately.';
-    case StackTier.concerning:
-      if (intelligence.interactionCount > 0 &&
-          intelligence.nutrientWarningCount > 0) {
-        return '${intelligence.interactionCount} interaction'
-            '${intelligence.interactionCount == 1 ? '' : 's'} and '
-            '${intelligence.nutrientWarningCount} nutrient warning'
-            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
-      }
-      if (intelligence.interactionCount > 0) {
-        return '${intelligence.interactionCount} interaction'
-            '${intelligence.interactionCount == 1 ? '' : 's'} need review.';
-      }
-      if (intelligence.nutrientWarningCount > 0) {
-        return '${intelligence.nutrientWarningCount} nutrient warning'
-            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
-      }
-      return 'Important issues found — review this stack.';
-    case StackTier.decent:
-      if (intelligence.interactionCount > 0) {
-        return '${intelligence.interactionCount} interaction'
-            '${intelligence.interactionCount == 1 ? '' : 's'} worth reviewing.';
-      }
-      if (intelligence.nutrientWarningCount > 0) {
-        return '${intelligence.nutrientWarningCount} nutrient warning'
-            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} worth reviewing.';
-      }
-      return 'Some concerns are worth reviewing.';
-    case StackTier.solid:
-    case StackTier.optimized:
-      return 'No major safety issues detected right now.';
-    case StackTier.incomplete:
-      return 'Add more information to diagnose this stack.';
   }
 }
 

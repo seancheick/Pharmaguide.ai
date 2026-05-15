@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/models/synergy_result.dart';
+import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
-import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
-import 'package:pharmaguide/features/home/widgets/home_stack_health.dart';
+import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/home/widgets/home_recent_scans.dart';
 import 'package:pharmaguide/features/home/widgets/home_quick_check_cta.dart';
 import 'package:pharmaguide/features/home/widgets/home_citation_strip.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
+import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -109,11 +114,11 @@ class HomeV2Screen extends StatelessWidget {
               sliver: SliverToBoxAdapter(child: _ScanCta()),
             ),
 
-            // 4. Stack Health — legacy production widget. Full
-            // StackIntelligenceEngine wiring (recall-aware tier,
-            // counts, top-issue callout, CTA). Per Sean 2026-05-15:
-            // preserve clinical surfaces, replace with v2 mirror in
-            // a later pass.
+            // 4. Stack Health — v2 mirror, provider-wired in
+            // Phase 11.5. Reads StackIntelligenceEngine for the real
+            // tier verdict; identical source-of-truth to the
+            // Stack-tab summary card so the user sees one verdict
+            // across both surfaces.
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 V2Spacing.space24,
@@ -121,7 +126,7 @@ class HomeV2Screen extends StatelessWidget {
                 V2Spacing.space24,
                 0,
               ),
-              sliver: SliverToBoxAdapter(child: HomeStackHealthWidget()),
+              sliver: SliverToBoxAdapter(child: _StackHealthCard()),
             ),
 
             // 5. Recent scans — legacy production carousel with real
@@ -425,25 +430,16 @@ class _ScanCta extends StatelessWidget {
 // footer. Fixture uses the "Optimal · no major interactions" state.
 // =============================================================================
 
-// Scaffold for the v2 Stack-Health card mirror. Currently unused —
-// Routes.home renders the legacy HomeStackHealthWidget instead, which
-// has full StackIntelligenceEngine wiring. Kept here so the v2 visual
-// mirror is ready to drop in once the intelligence tier is wired
-// through this typed surface in a later pass.
-// ignore: unused_element
+/// v2 Home Stack-Health card. Phase 11.5: now provider-wired to the
+/// real StackIntelligenceEngine, mirroring the Stack-tab summary
+/// card. Same source of truth as the production
+/// HomeStackHealthWidget — same tier verdict on both surfaces.
 class _StackHealthCard extends ConsumerWidget {
   const _StackHealthCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Phase 11.1: real supplement/medication counts from
-    // activeStackProvider. The status tier (Optimal/Concerning/etc.)
-    // is wired via StackIntelligenceEngine in Phase 11.1b — for now
-    // the surface stays at the "Optimal · no major interactions"
-    // fixture tone so the gallery review state is preserved on
-    // empty-stack accounts.
-    final stackAsync = ref.watch(activeStackProvider);
-    final stack = stackAsync.asData?.value ?? const [];
+    final stack = ref.watch(activeStackProvider).asData?.value ?? const [];
     final supplementCount = stack
         .where((e) => e.type == 'supplement')
         .length;
@@ -458,7 +454,65 @@ class _StackHealthCard extends ConsumerWidget {
             ' · $medicationCount medication'
             '${medicationCount == 1 ? '' : 's'}'
         : '3 supplements · 1 medication';
-    const tone = V2Colors.safe;
+
+    // Real intelligence tier — identical wire-up to Stack v2's
+    // _StackSummaryCard so the user sees one verdict everywhere.
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    final synergyAsync = ref.watch(synergyReportProvider);
+    final recallAsync = ref.watch(recalledIngredientsReportProvider);
+    final safetyScore = reportAsync.whenOrNull(
+      data: (report) {
+        final allIssues = <InteractionResult>[
+          ...report.medicationPairInteractions,
+          ...report.medicationInteractions,
+          ...report.stackInteractions,
+          ...report.categoryWarnings,
+        ];
+        final synergies = synergyAsync.whenOrNull(
+              data: (synergyReport) => synergyReport.matches
+                  .map(
+                    (m) => SynergyResult(
+                      ingredient1: m.matchedIngredients.isNotEmpty
+                          ? m.matchedIngredients.first
+                          : m.clusterId,
+                      ingredient2: m.matchedIngredients.length > 1
+                          ? m.matchedIngredients[1]
+                          : m.clusterName,
+                      description: m.mechanism,
+                      evidenceLevel: EvidenceLevel.established,
+                      bonus: m.bonusPoints,
+                    ),
+                  )
+                  .toList(),
+            ) ??
+            const <SynergyResult>[];
+        return const StackSafetyScorer().compute(
+          issues: allIssues,
+          synergies: synergies,
+        );
+      },
+    );
+    final intelligence =
+        (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
+            ? const StackIntelligenceEngine().diagnose(
+                stackSize: stack.length,
+                safetyReport: reportAsync.value!,
+                recalledReport: recallAsync.value!,
+                synergyReport: synergyAsync.value!,
+                qualityScore: safetyScore?.score,
+              )
+            : null;
+    final status = intelligence?.tier.healthLabel;
+    final isAnalyzing = reportAsync.isLoading ||
+        synergyAsync.isLoading ||
+        recallAsync.isLoading;
+    final Color tone = status?.color ?? V2Colors.safe;
+    final statusLabel = isAnalyzing
+        ? 'Analyzing'
+        : status?.label ?? 'No data yet';
+    final insightLine = hasRealData
+        ? describeStackSummary(intelligence)
+        : contextLine; // Empty stack: keep the fixture line for design preview.
 
     return Material(
       color: Colors.transparent,
@@ -513,6 +567,11 @@ class _StackHealthCard extends ConsumerWidget {
                                     V2Typography.titleSm(color: V2Colors.fg),
                               ),
                               const SizedBox(height: 2),
+                              // Header subline = supplement/medication
+                              // count context, matching production's
+                              // _StackSummaryCard pattern. The long
+                              // diagnostic insight goes in the tinted
+                              // band below the header.
                               Text(
                                 contextLine,
                                 style: V2Typography.bodySm(
@@ -545,14 +604,14 @@ class _StackHealthCard extends ConsumerWidget {
                               Container(
                                 width: 6,
                                 height: 6,
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                   color: tone,
                                   shape: BoxShape.circle,
                                 ),
                               ),
                               const SizedBox(width: V2Spacing.space8),
                               Text(
-                                'Optimal',
+                                statusLabel,
                                 style: V2Typography.label(color: tone),
                               ),
                             ],
@@ -573,15 +632,22 @@ class _StackHealthCard extends ConsumerWidget {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.check_circle_outline,
+                          Icon(
+                            // Icon mirrors intelligence severity: warning
+                            // when the stack tier flags issues, check
+                            // when the stack is solid/optimized.
+                            (status?.label.contains('Unsafe') ?? false) ||
+                                    (status?.label.contains('Concerning') ??
+                                        false)
+                                ? Icons.warning_amber_rounded
+                                : Icons.check_circle_outline,
                             size: 14,
                             color: tone,
                           ),
                           const SizedBox(width: V2Spacing.space8),
                           Expanded(
                             child: Text(
-                              'No major interactions detected',
+                              insightLine,
                               style: V2Typography.caption(color: tone)
                                   .copyWith(fontWeight: FontWeight.w500),
                             ),
