@@ -21,8 +21,8 @@ import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
-import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
+import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
 import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
 import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
@@ -198,7 +198,12 @@ GoRouter _buildRouter({
           GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
           GoRoute(
             path: Routes.profile,
-            builder: (_, __) => const SettingsScreen(),
+            // Phase 11.0 — production Profile tab now renders the v2
+            // settings screen wired to real providers (profileProvider,
+            // activeStackProvider, recent-scans count, Supabase auth).
+            // Legacy SettingsScreen import kept for now; remove in
+            // Phase 11.5 when all routes are swapped.
+            builder: (_, __) => const SettingsV2Connected(),
           ),
         ],
       ),
