@@ -91,6 +91,12 @@ class HomeV2Screen extends StatelessWidget {
                 delegate: _SearchHeaderDelegate(topPadding: mq.padding.top),
               ),
 
+              // 1.5. Quick-filter category chips. Horizontal scrollable
+              // row that scrolls away naturally with the page (not
+              // pinned) — keeps the search header lean while still
+              // giving instant triage entry to the top categories.
+              const SliverToBoxAdapter(child: _CategoryChipsRow()),
+
               // 2. Hero greeting.
               const SliverPadding(
                 padding: EdgeInsets.fromLTRB(
@@ -124,7 +130,21 @@ class HomeV2Screen extends StatelessWidget {
                 sliver: SliverToBoxAdapter(child: _StackHealthRow()),
               ),
 
-              // 5. Recent scans section.
+              // 5. Suggested next — a single recommendation card based
+              // on the user's stack + goals. Driven by the production
+              // recommender in a later wiring pass; fixture surfaces
+              // it here so reviewers can see the slot.
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  V2Spacing.space24,
+                  V2Spacing.space32,
+                  V2Spacing.space24,
+                  0,
+                ),
+                sliver: SliverToBoxAdapter(child: _SuggestedNextCard()),
+              ),
+
+              // 6. Recent scans section.
               const SliverPadding(
                 padding: EdgeInsets.fromLTRB(
                   V2Spacing.space24,
@@ -341,7 +361,16 @@ class _HeroGreeting extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PGEyebrow('Thursday · May 15'),
+        // Top row: date eyebrow + profile avatar chip on the right.
+        // Avatar opens the profile tab — quick affordance for editing
+        // goals / nickname / health context without diving through
+        // settings.
+        Row(
+          children: [
+            const Expanded(child: PGEyebrow('Thursday · May 15')),
+            _ProfileAvatar(initials: 'S', onTap: () {}),
+          ],
+        ),
         const SizedBox(height: V2Spacing.space8),
         Text(
           'Good morning, Sean.',
@@ -352,7 +381,89 @@ class _HeroGreeting extends StatelessWidget {
           'Three scans in your stack this week. One worth a closer look.',
           style: V2Typography.body(color: V2Colors.fgMuted),
         ),
+        const SizedBox(height: V2Spacing.space12),
+        // Engagement stat capsule — small, factual. Production wiring
+        // pulls the streak/count from user_data.db; here we surface
+        // fixture values to show the slot exists. Mono caps keep it
+        // squarely in the metadata register, not promotional.
+        const _StatCapsule(
+          icon: Icons.local_fire_department_outlined,
+          label: 'DAY 7 SCAN STREAK',
+        ),
       ],
+    );
+  }
+}
+
+/// Small circular avatar chip — initials on accent-tint, hairline
+/// outline. Tappable for quick profile entry.
+class _ProfileAvatar extends StatelessWidget {
+  final String initials;
+  final VoidCallback onTap;
+
+  const _ProfileAvatar({required this.initials, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: V2Colors.accentTint,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: V2Colors.accent.withValues(alpha: 0.25),
+              width: 0.7,
+            ),
+          ),
+          child: Text(
+            initials,
+            style: V2Typography.label(color: V2Colors.accent),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Mono-caps capsule used for the hero stat callout (scan streak,
+/// goal progress, etc.). Outline-only — never tinted heavily, never
+/// promotional.
+class _StatCapsule extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _StatCapsule({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: V2Spacing.space12,
+        vertical: V2Spacing.space4,
+      ),
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: V2Colors.accent),
+          const SizedBox(width: V2Spacing.space8),
+          Text(
+            label,
+            style: V2Typography.overline(color: V2Colors.fgMuted),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -362,6 +473,185 @@ class _HeroGreeting extends StatelessWidget {
 // Accent-strong → accent diagonal, scan-rounded icon, pill button vibe
 // but full-width tile so it feels like the singular action.
 // =============================================================================
+
+// =============================================================================
+// Category quick-filter chips. Horizontal scrollable row of accent-
+// tinted pills that route to the search screen pre-filtered by
+// category. Scrolls naturally with the page (not pinned).
+// =============================================================================
+
+class _CategoryChipsRow extends StatelessWidget {
+  const _CategoryChipsRow();
+
+  static const _categories = <(IconData, String)>[
+    (Icons.spa_outlined, 'Multivitamin'),
+    (Icons.water_drop_outlined, 'Omega'),
+    (Icons.bedtime_outlined, 'Sleep'),
+    (Icons.fitness_center_outlined, 'Energy'),
+    (Icons.shield_outlined, 'Immune'),
+    (Icons.psychology_outlined, 'Focus'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space12,
+          V2Spacing.space24,
+          V2Spacing.space4,
+        ),
+        itemCount: _categories.length,
+        separatorBuilder: (_, __) =>
+            const SizedBox(width: V2Spacing.space8),
+        itemBuilder: (context, i) {
+          final (icon, label) = _categories[i];
+          return _CategoryChip(icon: icon, label: label, onTap: () {});
+        },
+      ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: V2Colors.surface,
+      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: V2Spacing.space16,
+            vertical: V2Spacing.space8,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            border: Border.all(color: V2Colors.outline),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: V2Colors.accent),
+              const SizedBox(width: V2Spacing.space8),
+              Text(
+                label,
+                style: V2Typography.label(color: V2Colors.fg),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Suggested next — a single "based on your stack + goals" card that
+// drives discovery without feeling promotional. Production will wire
+// the actual recommender; fixture surfaces the slot.
+// =============================================================================
+
+class _SuggestedNextCard extends StatelessWidget {
+  const _SuggestedNextCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PGEyebrow('Suggested next'),
+        const SizedBox(height: V2Spacing.space12),
+        Material(
+          color: V2Colors.surface,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: InkWell(
+            onTap: () {},
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            child: Container(
+              padding: const EdgeInsets.all(V2Spacing.space16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              child: Row(
+                children: [
+                  // Thumbnail placeholder (production: ProductImage).
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: V2Colors.accentTint,
+                      borderRadius:
+                          BorderRadius.circular(V2Spacing.radiusCard),
+                    ),
+                    child: const Icon(
+                      Icons.medication_outlined,
+                      color: V2Colors.accent,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: V2Spacing.space16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Thorne',
+                          style:
+                              V2Typography.caption(color: V2Colors.fgMuted),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Magnesium Bisglycinate',
+                          style: V2Typography.bodySm(color: V2Colors.fg)
+                              .copyWith(fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: V2Spacing.space4),
+                        Text(
+                          'Pairs with your sleep goal · scored 91',
+                          style:
+                              V2Typography.bodySm(color: V2Colors.fgMuted),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: V2Spacing.space8),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: V2Colors.fgMuted,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _ScanCta extends StatelessWidget {
   const _ScanCta();
