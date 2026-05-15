@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
+import 'package:pharmaguide/core/components/pg_certification_section.dart';
+import 'package:pharmaguide/core/components/pg_evidence_section.dart';
+import 'package:pharmaguide/core/components/pg_formulation_section.dart';
+import 'package:pharmaguide/core/components/pg_heavy_metal_warning.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/components/pg_ingredients_card.dart';
 import 'package:pharmaguide/core/components/pg_interaction_warnings.dart';
 import 'package:pharmaguide/core/components/pg_label_confidence_card.dart';
+import 'package:pharmaguide/core/components/pg_manufacturer_violations_section.dart';
+import 'package:pharmaguide/core/components/pg_nutrition_panel.dart';
 import 'package:pharmaguide/core/components/pg_personal_fit_card.dart';
+import 'package:pharmaguide/core/components/pg_populations_section.dart';
+import 'package:pharmaguide/core/components/pg_probiotic_section.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/components/pg_tradeoffs_section.dart';
+import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
@@ -427,6 +438,243 @@ class V2Gallery extends StatelessWidget {
                     detail: 'astaxanthin (1.2 mg) · sea-buckthorn oil (50 mg)',
                   ),
                 ],
+              ),
+            ],
+          ),
+          _Section(
+            title: 'Product Detail bottom sections (Phase 8.1.5)',
+            children: [
+              Text(
+                'The remaining 11 sliver positions — same data shape '
+                'as production, v2 surface + typography.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              // 1. Tradeoffs (Pros / What to consider)
+              const PGTradeoffsSection(
+                pros: [
+                  PGTradeoff(
+                    headline: 'IFOS-certified omega-3',
+                    caption: 'Tested for purity',
+                    points: 4,
+                  ),
+                  PGTradeoff(
+                    headline: 'Vitamin K2 added for cardio synergy',
+                    caption: 'Moderate evidence',
+                    points: 2,
+                  ),
+                ],
+                considerations: [
+                  PGTradeoff(
+                    headline: 'Higher dose than RDA',
+                    caption: 'Monitor with prescriber',
+                    points: -2,
+                  ),
+                  PGTradeoff(
+                    headline: 'Contains soy lecithin',
+                    caption: 'Common allergen',
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 2. Populations to watch
+              PGPopulationsSection(
+                callouts: [
+                  PGPopulationCallout(
+                    icon: Icons.pregnant_woman_rounded,
+                    label: 'Pregnancy & lactation',
+                    body:
+                        'Vitamin A retinyl form can be teratogenic at '
+                        'high doses. Choose beta-carotene during these '
+                        'life stages.',
+                    onTap: () {},
+                  ),
+                  PGPopulationCallout(
+                    icon: Icons.bloodtype_outlined,
+                    label: 'Kidney disease',
+                    body: 'High vitamin D increases calcium load on '
+                        'kidneys with reduced GFR.',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 3. Nutrition Panel
+              const PGNutritionPanel(
+                caloriesPerServing: 10,
+                servingSize: '2 softgels',
+                facts: [
+                  PGNutritionFact(
+                    label: 'Total Fat',
+                    value: '1 g',
+                    dailyValue: '1%',
+                    isHeadline: true,
+                  ),
+                  PGNutritionFact(
+                    label: 'EPA',
+                    value: '650 mg',
+                    dailyValue: '—',
+                  ),
+                  PGNutritionFact(
+                    label: 'DHA',
+                    value: '450 mg',
+                    dailyValue: '—',
+                  ),
+                  PGNutritionFact(
+                    label: 'Vitamin D3',
+                    value: '1000 IU',
+                    dailyValue: '125%',
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 4. Certifications
+              const PGCertificationSection(
+                certifications: [
+                  PGCertification(
+                    label: 'IFOS — 5-star purity',
+                    verified: true,
+                    caption: 'Tested for 200+ contaminants',
+                  ),
+                  PGCertification(
+                    label: 'Non-GMO Project Verified',
+                    verified: true,
+                  ),
+                  PGCertification(
+                    label: 'USP Verified',
+                    verified: false,
+                    caption: 'Not enrolled in this program',
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 5. Clinical evidence
+              PGEvidenceSection(
+                tier: PGEvidenceTier.strong,
+                totalStudies: 12,
+                hasMetaAnalysis: true,
+                citations: [
+                  PGCitation(
+                    pmid: '34567890',
+                    title:
+                        'Omega-3 supplementation and cardiovascular '
+                        'outcomes: a 2023 meta-analysis',
+                    year: '2023',
+                    onTap: () {},
+                  ),
+                  PGCitation(
+                    pmid: '32123456',
+                    title:
+                        'EPA + DHA effects on triglycerides in adults '
+                        'with metabolic syndrome',
+                    year: '2021',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 6. Heavy metal risk
+              PGHeavyMetalWarning(
+                metals: const ['Mercury (trace)', 'Lead (trace)'],
+                note:
+                    'Within FDA action limits. Concentrations '
+                    'detected during IFOS testing.',
+                onTap: () {},
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 7. Formulation
+              const PGFormulationSection(
+                form: 'Triglyceride softgel',
+                formTierLabel: 'Premium',
+                absorptionEnhancers: [
+                  'Phospholipid carrier',
+                  'Vitamin E (antioxidant)',
+                ],
+                botanicals: ['Rosemary extract'],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 8. Probiotic detail (typically conditional — this
+              // product would not normally show this, but rendering
+              // here so reviewers can see the section design)
+              const PGProbioticSection(
+                totalCfuLabel: '12 billion CFU',
+                totalStrainCount: 5,
+                hasSurvivabilityCoating: true,
+                survivabilityReason: 'Delayed-release capsule',
+                prebioticPresent: true,
+                prebioticName: 'Inulin',
+                strains: [
+                  PGStrain(
+                    name: 'L. acidophilus LA-5',
+                    cfuLabel: '5 billion CFU',
+                    evidence: 'ESTABLISHED',
+                    isClinical: true,
+                  ),
+                  PGStrain(
+                    name: 'B. lactis BB-12',
+                    cfuLabel: '4 billion CFU',
+                    evidence: 'MODERATE',
+                    isClinical: true,
+                  ),
+                  PGStrain(
+                    name: 'S. thermophilus',
+                    cfuLabel: '3 billion CFU',
+                    evidence: 'LIMITED',
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 9. Manufacturer violations
+              PGManufacturerViolationsSection(
+                violations: [
+                  PGViolation(
+                    severity: PGReviewTone.danger,
+                    type: 'GMP non-compliance',
+                    date: 'Mar 2023',
+                    trustSummary:
+                        'FDA cited the facility for failing 5 of 9 '
+                        'core GMP requirements during a routine '
+                        'inspection. Most concerns centered on '
+                        'documentation gaps.',
+                    onTap: () {},
+                  ),
+                  PGViolation(
+                    severity: PGReviewTone.caution,
+                    type: 'Label inaccuracy',
+                    date: 'Aug 2021',
+                    trustSummary:
+                        'Tested EPA content was 18% below label claim.',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 10. Better alternatives
+              PGBetterAlternatives(
+                body:
+                    'Higher-scoring options in this category with '
+                    'better fit for your profile.',
+                alternatives: [
+                  PGAlternative(
+                    dsldId: 'alt-1',
+                    brand: 'Carlson Labs',
+                    name: 'Norwegian Omega-3 Fish Oil',
+                    score: 92,
+                    onTap: () {},
+                  ),
+                  PGAlternative(
+                    dsldId: 'alt-2',
+                    brand: 'NOW Foods',
+                    name: 'Ultra Omega-3 with Vitamin D',
+                    score: 87,
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 11. Transparency footer
+              const PGTransparencyFooter(
+                freshnessLabel: 'Catalog updated 3 days ago',
               ),
             ],
           ),
