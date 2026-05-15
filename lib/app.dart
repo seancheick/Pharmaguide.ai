@@ -27,6 +27,7 @@ import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
+import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
 
@@ -291,6 +292,15 @@ GoRouter _buildRouter({
             CameraPermissionV2Preview(denied: denied),
           );
         },
+      ),
+      // v2 Stack — Phase 10.2 visual mirror of stack_screen.dart.
+      // Two pinned tabs (Stack / Wishlist), summary card with status
+      // tier (no numeric score), supplement + medication list with
+      // swipe-to-remove.
+      GoRoute(
+        path: '/dev/v2/stack',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const StackV2Preview()),
       ),
       GoRoute(
         path: Routes.splashIntro,

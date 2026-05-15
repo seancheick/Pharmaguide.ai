@@ -750,6 +750,13 @@ class V2Gallery extends StatelessWidget {
                 subtitle: 'Denied state — Settings + manual fallback',
                 routePath: '/dev/v2/scan/permission?denied=1',
               ),
+              _PrototypeLink(
+                label: 'Stack',
+                subtitle:
+                    'My stack · Wishlist tabs · summary card with status '
+                    'tier · swipe-to-remove items',
+                routePath: '/dev/v2/stack',
+              ),
             ],
           ),
           const _Section(
