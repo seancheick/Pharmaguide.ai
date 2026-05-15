@@ -79,58 +79,80 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
             // the gallery preview shows a calm dark-gradient placeholder
             // so reviewers can see the chrome composition.
             const _CameraSurrogate(),
-            // Scanner overlay (top bar + frame + bottom buttons).
+            // Scanner overlay — top bar anchored top, frame + tagline
+            // centered, action buttons anchored bottom. Stack-based
+            // layout (instead of Column + Spacers) so the bottom row
+            // is truly locked to the bottom edge regardless of
+            // viewport height.
             SafeArea(
-              child: Column(
+              child: Stack(
                 children: [
-                  _TopBar(
-                    flashOn: _flashOn,
-                    onToggleFlash: () =>
-                        setState(() => _flashOn = !_flashOn),
-                  ),
-                  const Spacer(),
-                  const _ScanFrame(),
-                  const SizedBox(height: V2Spacing.space24),
-                  Text(
-                    'Center the barcode in the frame',
-                    style: V2Typography.bodyMedium(color: Colors.white),
-                  ),
-                  const SizedBox(height: V2Spacing.space8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: V2Spacing.space32,
+                  // Top bar pinned to top.
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: _TopBar(
+                      flashOn: _flashOn,
+                      onToggleFlash: () =>
+                          setState(() => _flashOn = !_flashOn),
                     ),
-                    child: Text(
-                      "We'll match it against your on-device catalog.",
-                      textAlign: TextAlign.center,
-                      style: V2Typography.bodySm(
-                        color: Colors.white.withValues(alpha: 0.72),
+                  ),
+                  // Scan frame + tagline centered (slightly above
+                  // viewport center so the bottom actions and frame
+                  // breathe).
+                  Align(
+                    alignment: const Alignment(0, -0.15),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const _ScanFrame(),
+                        const SizedBox(height: V2Spacing.space24),
+                        Text(
+                          'Center the barcode in the frame',
+                          style:
+                              V2Typography.bodyMedium(color: Colors.white),
+                        ),
+                        const SizedBox(height: V2Spacing.space8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: V2Spacing.space32,
+                          ),
+                          child: Text(
+                            "We'll match it against your on-device catalog.",
+                            textAlign: TextAlign.center,
+                            style: V2Typography.bodySm(
+                              color: Colors.white.withValues(alpha: 0.72),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bottom buttons truly anchored — padding-bottom
+                  // accounts for the nav bar overlap (when present).
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        V2Spacing.space24,
+                        V2Spacing.space16,
+                        V2Spacing.space24,
+                        V2Spacing.space16 +
+                            (widget.showNavBar ? kPGNavBarHeight : 0),
                       ),
+                      child: const _BottomActions(),
                     ),
-                  ),
-                  const Spacer(),
-                  // Bottom buttons + extra room for the nav bar overlap.
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      V2Spacing.space24,
-                      V2Spacing.space16,
-                      V2Spacing.space24,
-                      V2Spacing.space16 +
-                          (widget.showNavBar ? kPGNavBarHeight : 0),
-                    ),
-                    child: const _BottomActions(),
                   ),
                 ],
               ),
             ),
             // Verdict reveal — Phase 10.1 enhancement of the legacy
-            // _showFlash overlay.
+            // _showFlash overlay. Stripped to just the icon flash per
+            // Sean: "no messages — just the checkmark animation. The
+            // rest of the info happens on the product page."
             if (widget.demoVerdict != null)
               PGVerdictReveal(
                 key: ValueKey(widget.demoVerdict),
                 kind: widget.demoVerdict!,
-                label: _labelFor(widget.demoVerdict!),
-                subline: _sublineFor(widget.demoVerdict!),
                 onDismiss: widget.onVerdictDismiss,
               ),
           ],
@@ -174,26 +196,6 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
     );
   }
 
-  static String _labelFor(PGVerdictKind kind) => switch (kind) {
-        PGVerdictKind.safe => 'Looks safe for you',
-        PGVerdictKind.monitor => 'Worth knowing',
-        PGVerdictKind.caution => 'Use with caution',
-        PGVerdictKind.avoid => 'Better to avoid',
-        PGVerdictKind.contraindicated => 'Do not take with your meds',
-      };
-
-  static String? _sublineFor(PGVerdictKind kind) => switch (kind) {
-        PGVerdictKind.safe =>
-          'No conflicts with your stack — score 84.',
-        PGVerdictKind.monitor =>
-          'Within limits, but worth a check-in if you take it daily.',
-        PGVerdictKind.caution =>
-          'Talk to your doctor before adding this to your stack.',
-        PGVerdictKind.avoid =>
-          'Conflicts with a higher-priority item in your stack.',
-        PGVerdictKind.contraindicated =>
-          'Major interaction with your blood thinner.',
-      };
 }
 
 // =============================================================================

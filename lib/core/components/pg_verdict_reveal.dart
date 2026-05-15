@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
-import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
-import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// Tier driving the verdict reveal's color, icon, copy, motion, and
 /// haptic. Maps 1:1 to the severity vocabulary used elsewhere — caller
@@ -12,38 +10,34 @@ enum PGVerdictKind { safe, monitor, caution, avoid, contraindicated }
 
 /// v2 enhancement of `scanner_screen.dart`'s `_showFlash` overlay.
 ///
-/// Renders a severity-tinted full-screen overlay with:
-/// - Blurless solid tinted bg + radial accent halo behind the icon
-///   (one blur surface per viewport rule preserved — the halo is a
-///   static gradient, not a backdrop filter)
-/// - Large icon at the visual center
-/// - Verdict label + optional subline
+/// Renders a brief severity-tinted "we got it" flash:
+/// - Solid tinted overlay (no text content) — just the icon
+/// - White radial halo behind the icon (static gradient, no blur)
 /// - Entrance motion that celebrates safe verdicts (scale spring 1.0
 ///   → 1.08 → 1.0) and decelerates caution+ ones (no scale, calm
-///   fade-up). Sean's plan: "Caution+ verdicts deceleration, not
-///   celebration."
+///   fade-up)
 /// - Layered haptic: light tap for safe, medium for caution, heavy
-///   triple-pulse for avoid/contraindicated
+///   triple-pulse for contraindicated
 ///
-/// Stays on screen until tapped or [onDismiss] elapses (default
-/// 1400ms). The host screen layers this above the camera feed via a
-/// Stack + IgnorePointer/AnimatedOpacity pattern.
+/// Sean 2026-05-15: no verbose label or subline — the rest of the
+/// info (product name, score, interactions) lives on the product
+/// detail page that opens immediately after. This is the "found it"
+/// moment, nothing more.
+///
+/// Stays on screen until tapped or [autoDismissAfter] elapses (default
+/// 900ms). Host screen layers above the camera via Stack.
 class PGVerdictReveal extends StatefulWidget {
   final PGVerdictKind kind;
-  final String label;
-  final String? subline;
 
   /// Auto-dismiss delay. Null keeps it on-screen until manually
-  /// dismissed (tap or external setState).
+  /// dismissed.
   final Duration? autoDismissAfter;
   final VoidCallback? onDismiss;
 
   const PGVerdictReveal({
     super.key,
     required this.kind,
-    required this.label,
-    this.subline,
-    this.autoDismissAfter = const Duration(milliseconds: 1400),
+    this.autoDismissAfter = const Duration(milliseconds: 900),
     this.onDismiss,
   });
 
@@ -159,7 +153,9 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
                   ),
                 ),
               ),
-              // Icon + label block.
+              // Icon-only "found it" flash. No label, no subline —
+              // product info lives on the detail page that opens
+              // right after dismiss.
               Center(
                 child: Opacity(
                   opacity: eased,
@@ -170,29 +166,7 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(_icon, color: Colors.white, size: 96),
-                          const SizedBox(height: V2Spacing.space16),
-                          Text(
-                            widget.label,
-                            textAlign: TextAlign.center,
-                            style: V2Typography.displayXs(color: Colors.white),
-                          ),
-                          if (widget.subline != null) ...[
-                            const SizedBox(height: V2Spacing.space8),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: V2Spacing.space32,
-                              ),
-                              child: Text(
-                                widget.subline!,
-                                textAlign: TextAlign.center,
-                                style: V2Typography.body(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.85),
-                                ),
-                              ),
-                            ),
-                          ],
+                          Icon(_icon, color: Colors.white, size: 120),
                         ],
                       ),
                     ),
