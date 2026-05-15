@@ -675,44 +675,86 @@ class _ScanCta extends StatelessWidget {
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             boxShadow: V2Shadows.md,
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                ),
-                child: const Icon(
-                  Icons.qr_code_scanner_rounded,
-                  color: Colors.white,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: V2Spacing.space16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Scan a supplement',
-                      style: V2Typography.titleSm(color: Colors.white),
+              // Top row: "last scan" pill — gives the CTA a tiny data
+              // detail signal ("you came back 2h after your last scan")
+              // without competing with the primary action below.
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: V2Spacing.space8,
+                      vertical: 3,
                     ),
-                    const SizedBox(height: V2Spacing.space4),
-                    Text(
-                      'Get an instant PG Score + safety read',
-                      style: V2Typography.bodySm(
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius:
+                          BorderRadius.circular(V2Spacing.radiusPill),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 12,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'LAST SCAN · 2H AGO',
+                          style: V2Typography.overline(
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                color: Colors.white,
-                size: 22,
+              const SizedBox(height: V2Spacing.space16),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius:
+                          BorderRadius.circular(V2Spacing.radiusCard),
+                    ),
+                    child: const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: V2Spacing.space16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Scan a supplement',
+                          style: V2Typography.titleSm(color: Colors.white),
+                        ),
+                        const SizedBox(height: V2Spacing.space4),
+                        Text(
+                          'Get an instant PG Score + safety read',
+                          style: V2Typography.bodySm(
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ],
               ),
             ],
           ),
@@ -791,16 +833,25 @@ class _RecentScansSection extends StatelessWidget {
                 brand: 'Nordic Naturals',
                 name: 'Ultimate Omega 2X',
                 score: 84,
+                timestamp: 'Today, 2:14 PM',
               ),
               _RecentScanRow(
                 brand: 'Thorne',
                 name: 'Basic Nutrients 2/Day',
                 score: 91,
+                timestamp: 'Yesterday',
               ),
               _RecentScanRow(
                 brand: 'NOW Foods',
                 name: 'L-Theanine 200mg',
                 score: 72,
+                timestamp: 'Mon',
+              ),
+              _RecentScanRow(
+                brand: 'Pure Encapsulations',
+                name: 'Magnesium Glycinate',
+                score: 88,
+                timestamp: 'Sun',
                 isLast: true,
               ),
             ],
@@ -815,12 +866,14 @@ class _RecentScanRow extends StatelessWidget {
   final String brand;
   final String name;
   final int score;
+  final String timestamp;
   final bool isLast;
 
   const _RecentScanRow({
     required this.brand,
     required this.name,
     required this.score,
+    required this.timestamp,
     this.isLast = false,
   });
 
@@ -859,9 +912,24 @@ class _RecentScanRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    brand,
-                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          brand,
+                          style:
+                              V2Typography.caption(color: V2Colors.fgMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: V2Spacing.space8),
+                      Text(
+                        timestamp,
+                        style:
+                            V2Typography.caption(color: V2Colors.fgSubtle),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -913,8 +981,27 @@ class _QuickCheckCta extends StatelessWidget {
           const PGEyebrow('Quick check'),
           const SizedBox(height: V2Spacing.space8),
           Text(
-            'Type a supplement + medication to see if they conflict.',
+            'Cross-check two things you\'re taking — without scanning '
+            'either one.',
             style: V2Typography.body(color: V2Colors.fg),
+          ),
+          const SizedBox(height: V2Spacing.space12),
+          // Example chip — anchors the action with a concrete pairing
+          // so users see what "quick check" actually does at a glance.
+          // Tap routes to the quick-check screen pre-filled.
+          Wrap(
+            spacing: V2Spacing.space8,
+            runSpacing: V2Spacing.space8,
+            children: [
+              _ExamplePairChip(
+                label: 'Omega-3 · Warfarin',
+                onTap: () {},
+              ),
+              _ExamplePairChip(
+                label: 'Vitamin K · Blood thinner',
+                onTap: () {},
+              ),
+            ],
           ),
           const SizedBox(height: V2Spacing.space16),
           PGPillButton(
@@ -924,6 +1011,44 @@ class _QuickCheckCta extends StatelessWidget {
             onPressed: () {},
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ExamplePairChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _ExamplePairChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: V2Colors.accentTint,
+      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: V2Spacing.space12,
+            vertical: V2Spacing.space4,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            border: Border.all(
+              color: V2Colors.accent.withValues(alpha: 0.22),
+              width: 0.7,
+            ),
+          ),
+          child: Text(
+            label,
+            style: V2Typography.caption(color: V2Colors.accent).copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
       ),
     );
   }
