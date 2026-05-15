@@ -36,22 +36,28 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/product_detail/product_detail_screen.dart'
+    show topGoalLabelFromFit;
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/v2/scroll_anchors.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 
@@ -240,12 +246,37 @@ class _ProductDetailV2ConnectedState
                   ),
                   const SizedBox(height: V2Spacing.space12),
 
-                  // ---- 2. PersonalFit (PLACEHOLDER, 11.7c) ---------
+                  // ---- 2. PersonalFit (WIRED, 11.7c.2) -------------
+                  // Lazy-watch via Consumer so fitScoreForProductProvider
+                  // only fires when the section actually renders (mirrors
+                  // production line 311's inner Consumer pattern).
                   if (showPersonalFit) ...[
-                    const _SectionPlaceholder(
-                      label: 'PersonalFit',
-                      detail:
-                          'fitScoreForProductProvider → PGPersonalFitCard',
+                    Consumer(
+                      builder: (context, innerRef, _) {
+                        final fitAsync = innerRef.watch(
+                          fitScoreForProductProvider(widget.dsldId),
+                        );
+                        final fitResult = fitAsync.asData?.value;
+                        final fitDisplay = fitResult != null
+                            ? computeFitDisplay(
+                                verdict: worstSeverityOf(guardedWarnings),
+                                fitResult: fitResult,
+                              )
+                            : const FitIncomplete();
+                        return buildPersonalFitSection(
+                          fit: fitDisplay,
+                          topGoalLabel: topGoalLabelFromFit(fitResult),
+                          fitReasons: fitResult?.reasons ?? const [],
+                          ingredientNames: ingredientNamesFromBlob(
+                            detailBlob,
+                          ),
+                          userConditions: profile.conditions.toList(
+                            growable: false,
+                          ),
+                          onEditProfile: () =>
+                              context.push(Routes.profileSetup),
+                        );
+                      },
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

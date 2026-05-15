@@ -196,8 +196,8 @@ row:
 | Field | Value |
 |---|---|
 | Production | `PersonalFitCard` (line 310) wrapped in `Consumer` |
-| V2 | **11.7c.2: NEW `v2/sections/personal_fit_section.dart`** → `PGPersonalFitCard` |
-| Source | `fitScoreForProductProvider(dsldId)` → `FitScoreResult` + `computeFitDisplay(verdict, fitResult)` + ingredient names from `blob['ingredients']` + `topGoalLabelFromFit(fitResult)` |
+| V2 | `buildPersonalFitSection(...)` in `v2/sections/personal_fit_section.dart` (composition + `ingredientNamesFromBlob` helper) + `v2/sections/personal_fit_helpers.dart` (pure logic — `personalFitHeadline`, `personalFitBullets`, `cleanFitReason`, `_isConditionWarningReason`, `_conditionLabelPrefixes` verbatim port) → `PGPersonalFitCard` |
+| Source | `fitScoreForProductProvider(dsldId)` (lazy via inner `Consumer`) → `FitScoreResult` + `computeFitDisplay(verdict: worstSeverityOf(guardedWarnings), fitResult: ...)` + `ingredientNamesFromBlob(detailBlob)` + `topGoalLabelFromFit(fitResult)` + `profile.conditions`. `generatePositiveProfileBullets()` consumed verbatim from production. |
 | Gate | `shouldShowPersonalFit({isBlocked})` = `!isBlocked` |
 | Loading | fitAsync `loading` → `FitIncomplete()` placeholder |
 | Empty | No fitResult / no ingredients → `FitIncomplete()` |
@@ -206,8 +206,8 @@ row:
 | CTA | `onEditProfile` → `push(Routes.profileSetup)` |
 | Analytics | Edit-pencil tap |
 | A11y | Fit verdict color paired with icon + label (no color-only signaling) |
-| Golden | FitGoodMatch / FitOK / FitLimitedFit / FitNotRecommended / FitIncomplete |
-| **Status** | **placeholder** |
+| Golden | FitStrongMatch / FitGoodMatch / FitLimitedFit / FitNotRecommended / FitHidden (→ SizedBox.shrink dedup) / FitIncomplete |
+| **Status** | **wired** — pending live-device verification on a non-blocked product with real fit score (G11 clean product or stack-aligned product) |
 
 #### S3. ReviewBeforeUse
 
@@ -501,14 +501,14 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7c.1 boundary, post-live-verification)
+## Completion tally (Phase 11.7c.2 boundary)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| **verified** | 3 (S1, S1.5, S1.6 — live side-by-side blocked-product flow) |
-| **wired** | 4 (S0, S0.5, S0.9, S17 — pending live verification on non-blocked product) |
-| **placeholder** | 14 |
+| **verified** | 3 (S1, S1.5, S1.6 — live blocked-product flow) |
+| **wired** | 5 (S0, S0.5, S0.9, S2, S17 — pending live verification on non-blocked product) |
+| **placeholder** | 13 |
 | total | 21 |
 
 ---
