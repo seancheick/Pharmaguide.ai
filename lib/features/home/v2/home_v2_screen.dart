@@ -178,6 +178,11 @@ class HomeV2Screen extends StatelessWidget {
           selectedIndex: selectedIndex,
           onDestinationSelected:
               onDestinationSelected ?? (_) {},
+          // v2 order: Home / Stack / Scan / Chat / Profile.
+          // Scan sits at the centerpoint (index 2 of 5) — visual anchor
+          // for the primary action since we no longer ship a floating
+          // scan pill. Production AppShell keeps its legacy order
+          // until the Phase-8 wiring sweep flips it globally.
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
@@ -185,14 +190,14 @@ class HomeV2Screen extends StatelessWidget {
               label: 'Home',
             ),
             NavigationDestination(
-              icon: Icon(Icons.qr_code_scanner_outlined),
-              selectedIcon: Icon(Icons.qr_code_scanner_rounded),
-              label: 'Scan',
-            ),
-            NavigationDestination(
               icon: Icon(Icons.layers_outlined),
               selectedIcon: Icon(Icons.layers_rounded),
               label: 'Stack',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.qr_code_scanner_outlined),
+              selectedIcon: Icon(Icons.qr_code_scanner_rounded),
+              label: 'Scan',
             ),
             NavigationDestination(
               icon: Icon(Icons.auto_awesome_outlined),
@@ -652,10 +657,11 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
 
   void _onTap(int i) {
     setState(() => _index = i);
+    // Order matches HomeV2Screen.destinations — Scan sits at index 2.
     final destination = const [
       'Home',
-      'Scan',
       'Stack',
+      'Scan',
       'Chat',
       'Profile',
     ][i];

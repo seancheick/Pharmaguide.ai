@@ -82,25 +82,55 @@ class PGFrostedNavBar extends StatelessWidget {
       indicator = scheme.primary.withValues(alpha: isDark ? 0.18 : 0.12);
     }
 
+    // Surface opacity tuned per useV2Tones — on the cream v2 bg the
+    // legacy 0.78 opacity made the bar look like a flat surface
+    // (white-on-cream had nothing to refract). 0.62 lets content
+    // behind actually show through the blur and reads as real glass.
+    // Production tone keeps 0.78 so the legacy app is untouched.
+    final surfaceAlpha = useV2Tones
+        ? (isDark ? 0.56 : 0.62)
+        : (isDark ? 0.72 : 0.78);
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: surface.withValues(alpha: isDark ? 0.72 : 0.78),
+            color: surface.withValues(alpha: surfaceAlpha),
             border: Border(
               top: BorderSide(color: outline, width: 0.5),
             ),
           ),
-          child: NavigationBar(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: onDestinationSelected,
-            destinations: destinations,
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            elevation: 0,
-            indicatorColor: indicator,
+          child: Stack(
+            children: [
+              NavigationBar(
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onDestinationSelected,
+                destinations: destinations,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                elevation: 0,
+                indicatorColor: indicator,
+              ),
+              // 1px top highlight — sits just below the hairline outline,
+              // gives the "lit edge" feel that real glass has when light
+              // catches the top surface (iOS pattern). Only rendered for
+              // the v2 tone so legacy production paths stay unchanged.
+              if (useV2Tones)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      color: (isDark ? Colors.white : Colors.white)
+                          .withValues(alpha: isDark ? 0.04 : 0.55),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
