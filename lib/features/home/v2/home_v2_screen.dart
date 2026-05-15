@@ -17,6 +17,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -797,11 +798,12 @@ class _RecentScansSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scansAsync = ref.watch(_v2RecentScansProvider);
     final realScans = scansAsync.asData?.value;
-    // Empty real data → hide the section (matches production behavior
-    // — no scans means no carousel). Loading → show fixture so the
-    // first frame doesn't flash empty.
+    // Empty real data → render the v2 empty state with a "Scan your
+    // first supplement" CTA. Matches production's _buildEmptyState
+    // contract — never silently hide a section the user might expect.
+    // Loading → fixture data so the first frame doesn't flash empty.
     if (realScans != null && realScans.isEmpty) {
-      return const SizedBox.shrink();
+      return const _RecentScansEmptyState();
     }
     final scans = (realScans == null || realScans.isEmpty)
         ? _fixture
@@ -854,6 +856,99 @@ class _RecentScansSection extends ConsumerWidget {
                 time: time,
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// v2 empty state for the Recent scans section. Calm "Nothing scanned
+/// yet" prompt + outlined "Scan your first supplement" pill button
+/// that routes to /scan. Mirrors the production
+/// `_buildEmptyState` intent — never silently hide the section.
+class _RecentScansEmptyState extends StatelessWidget {
+  const _RecentScansEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Recent scans',
+                style: V2Typography.titleSm(color: V2Colors.fg),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Your last checked products',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(
+              V2Spacing.space24,
+              V2Spacing.space24,
+              V2Spacing.space24,
+              V2Spacing.space24,
+            ),
+            decoration: BoxDecoration(
+              color: V2Colors.surface,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: V2Colors.accentTint,
+                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                    border: Border.all(
+                      color: V2Colors.accent.withValues(alpha: 0.22),
+                      width: 0.7,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    size: 24,
+                    color: V2Colors.accent,
+                  ),
+                ),
+                const SizedBox(height: V2Spacing.space12),
+                Text(
+                  'Nothing scanned yet',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                ),
+                const SizedBox(height: V2Spacing.space4),
+                Text(
+                  'Your last 10 scanned supplements will appear here.',
+                  textAlign: TextAlign.center,
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                ),
+                const SizedBox(height: V2Spacing.space16),
+                PGPillButton(
+                  label: 'Scan your first supplement',
+                  icon: Icons.qr_code_scanner_rounded,
+                  variant: PGPillVariant.secondary,
+                  onPressed: () => GoRouter.of(context).go(Routes.scan),
+                ),
+              ],
+            ),
           ),
         ),
       ],
