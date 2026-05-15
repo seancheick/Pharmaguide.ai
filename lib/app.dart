@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
@@ -491,9 +494,84 @@ class PharmaGuideApp extends StatelessWidget {
         );
         return MediaQuery(
           data: mq.copyWith(textScaler: clamped),
-          child: child!,
+          // _AuthEventListener wraps the router so a successful magic
+          // link return (Supabase emits signedIn after the deep-link
+          // handler completes the OTP exchange) produces a visible
+          // event. Phase 9.1 surfaces it as a snackbar; Phase 9.4
+          // swaps that for an actual routerGo(home) + guest-stack
+          // merge.
+          child: _AuthEventListener(child: child!),
         );
       },
     );
   }
+}
+
+/// Listens to supabase.auth.onAuthStateChange and surfaces signed-in
+/// / signed-out events via the global scaffold messenger. This is the
+/// hook the deep-link round trip lands on after the user taps a
+/// magic-link email — the supabase_flutter SDK auto-handles the
+/// `pharmaguide://auth/callback` URL when the platform configs are
+/// registered.
+class _AuthEventListener extends StatefulWidget {
+  final Widget child;
+  const _AuthEventListener({required this.child});
+
+  @override
+  State<_AuthEventListener> createState() => _AuthEventListenerState();
+}
+
+class _AuthEventListenerState extends State<_AuthEventListener> {
+  StreamSubscription<dynamic>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _sub = supabase.auth.onAuthStateChange.listen(_onAuth);
+    } on Object catch (_) {
+      // Supabase wasn't initialized (placeholder mode) — silent.
+    }
+  }
+
+  void _onAuth(dynamic data) {
+    if (data is! AuthState) return;
+    if (!mounted) return;
+    final messenger = scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    switch (data.event) {
+      case AuthChangeEvent.signedIn:
+      case AuthChangeEvent.tokenRefreshed
+          when data.session?.user.lastSignInAt != null:
+        final email = data.session?.user.email ?? 'your account';
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Signed in as $email'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      case AuthChangeEvent.signedOut:
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Signed out'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      default:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

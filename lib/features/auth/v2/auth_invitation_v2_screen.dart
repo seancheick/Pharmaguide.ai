@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -566,7 +567,10 @@ class AuthInvitationV2Preview extends StatelessWidget {
         AuthInvitationV2Screen(
           onApple: () => _toast(context, 'Apple'),
           onGoogle: () => _toast(context, 'Google'),
-          onEmail: () => _toast(context, 'Email'),
+          // Email is real now — opens the magic-link sheet that calls
+          // supabase.auth.signInWithOtp() with the pharmaguide://
+          // redirect URL. Phase 9.1.
+          onEmail: () => showMagicLinkSheet(context),
           onSkip: () => context.go('/dev/v2'),
         ),
         // Floating back button — gallery preview only. Production
