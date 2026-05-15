@@ -195,13 +195,18 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
                       isSending: _state == _SheetState.sending,
                       errorMessage: _errorMessage,
                       onChanged: () {
-                        // Clear error state once the user edits.
-                        if (_state == _SheetState.error) {
-                          setState(() {
+                        // Always rebuild so the "Send magic link" button
+                        // can flip from disabled → enabled as the user
+                        // types a valid address (parent owns isValid;
+                        // without a setState here the button stays
+                        // greyed out until something else triggers a
+                        // rebuild). Also clears the error state on edit.
+                        setState(() {
+                          if (_state == _SheetState.error) {
                             _state = _SheetState.editing;
                             _errorMessage = null;
-                          });
-                        }
+                          }
+                        });
                       },
                       onSubmit: _send,
                     ),
