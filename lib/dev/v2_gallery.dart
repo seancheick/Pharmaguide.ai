@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/components/pg_certification_section.dart';
@@ -760,14 +763,9 @@ class V2Gallery extends StatelessWidget {
             ],
           ),
           const _Section(
-            title: 'In progress — Phase 8.2+',
+            title: 'Auth tools',
             children: [
-              _GalleryNote(
-                text:
-                    'Home, Scanner, Stack v2 are being rebuilt as visual '
-                    'mirrors of production widgets. Routes will return '
-                    'here as each lands.',
-              ),
+              _SignOutButton(),
             ],
           ),
         ],
@@ -786,6 +784,9 @@ class _PrototypeLink extends StatelessWidget {
     required this.subtitle,
     required this.routePath,
   });
+
+  // (See _SignOutButton at the bottom of this file for the gallery's
+  // auth-testing affordance.)
 
   @override
   Widget build(BuildContext context) {
@@ -833,22 +834,6 @@ class _PrototypeLink extends StatelessWidget {
   }
 }
 
-class _GalleryNote extends StatelessWidget {
-  final String text;
-  const _GalleryNote({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(V2Spacing.space16),
-      decoration: BoxDecoration(
-        color: V2Colors.accentTint.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-      ),
-      child: Text(text, style: V2Typography.bodySm(color: V2Colors.fg)),
-    );
-  }
-}
 
 class _Section extends StatelessWidget {
   final String title;
@@ -942,6 +927,127 @@ class _ShadowChip extends StatelessWidget {
           boxShadow: shadow,
         ),
         child: Text(label, style: V2Typography.body()),
+      ),
+    );
+  }
+}
+
+/// Gallery-only affordance to flip back to the signed-out state for
+/// testing the auth round-trip. Only enabled when there's a current
+/// session — otherwise the tile shows "Not signed in" and stays
+/// muted. Tapping it fires supabase.auth.signOut() which trips the
+/// global _AuthEventListener → "Signed out" snackbar.
+class _SignOutButton extends StatefulWidget {
+  const _SignOutButton();
+
+  @override
+  State<_SignOutButton> createState() => _SignOutButtonState();
+}
+
+class _SignOutButtonState extends State<_SignOutButton> {
+  StreamSubscription<dynamic>? _sub;
+  String? _currentEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _currentEmail = Supabase.instance.client.auth.currentUser?.email;
+      _sub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+        if (!mounted) return;
+        setState(() {
+          _currentEmail =
+              Supabase.instance.client.auth.currentUser?.email;
+        });
+      });
+    } on Object catch (_) {
+      // Placeholder build — no auth available.
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } on Object catch (_) {
+      // _AuthEventListener doesn't fire on local-only sign-out
+      // failures; surface inline so the tester knows.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not sign out — try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final signedIn = _currentEmail != null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+      child: Material(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: InkWell(
+          onTap: signedIn ? _signOut : null,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.all(V2Spacing.space16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  signedIn
+                      ? Icons.logout_rounded
+                      : Icons.person_outline_rounded,
+                  color: signedIn ? V2Colors.accent : V2Colors.fgMuted,
+                  size: 20,
+                ),
+                const SizedBox(width: V2Spacing.space12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        signedIn ? 'SIGN OUT' : 'NOT SIGNED IN',
+                        style: V2Typography.eyebrow(
+                          color: signedIn
+                              ? V2Colors.accent
+                              : V2Colors.fgMuted,
+                        ),
+                      ),
+                      const SizedBox(height: V2Spacing.space4),
+                      Text(
+                        signedIn
+                            ? _currentEmail!
+                            : 'Sign in via the Auth invitation screen.',
+                        style: V2Typography.body(color: V2Colors.fg),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (signedIn)
+                  const Icon(
+                    Icons.chevron_right,
+                    color: V2Colors.fgMuted,
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

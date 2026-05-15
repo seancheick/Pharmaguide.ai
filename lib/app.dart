@@ -142,6 +142,12 @@ Page<dynamic> _platformPage(GoRouterState state, Widget child) {
       : MaterialPage<void>(key: state.pageKey, child: child);
 }
 
+/// Single-instance app router. Created on first `_buildRouter` call and
+/// memoized so the global `_AuthEventListener` can call `.go(...)` after
+/// the auth round-trip lands (magic link return / Apple / Google native
+/// flows). MaterialApp.router rebuilding doesn't create a new router.
+GoRouter? _appRouter;
+
 GoRouter _buildRouter({
   required bool catalogAvailable,
   required bool hasSeenOnboarding,
@@ -149,6 +155,8 @@ GoRouter _buildRouter({
   VoidCallback? onRetryCatalogLoad,
   bool useV2Theme = false,
 }) {
+  if (_appRouter != null) return _appRouter!;
+
   Widget catalogRoute(Widget child) {
     if (catalogAvailable) return child;
     return CatalogUnavailableScreen(
@@ -166,7 +174,7 @@ GoRouter _buildRouter({
       : '${Routes.splashIntro}?next='
           '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
 
-  return GoRouter(
+  final router = GoRouter(
     // Fresh installs start at onboarding; returning users go straight to
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.
@@ -361,6 +369,8 @@ GoRouter _buildRouter({
       ),
     ],
   );
+  _appRouter = router;
+  return router;
 }
 
 class _AppShell extends StatelessWidget {
@@ -552,6 +562,27 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
             duration: const Duration(seconds: 2),
           ),
         );
+        // Route to home so the post-auth landing feels complete.
+        // Preview routes (the v2 gallery) land at /dev/v2/home; the
+        // legacy production root replaces this with Routes.home when
+        // the Phase-8 wiring sweep flips the global useV2Theme. Only
+        // route when the listener fires from an auth path — bail if
+        // we're already on a home-adjacent route to avoid a flicker
+        // from token-refresh events that happen on a live home.
+        final router = _appRouter;
+        if (router != null) {
+          final loc = router.routerDelegate.currentConfiguration.uri.path;
+          final onAuthPath = loc.startsWith('/dev/v2/auth') ||
+              loc == Routes.splashIntro ||
+              loc == Routes.onboarding;
+          if (onAuthPath) {
+            // Honor the dev-route override: if the gallery is the
+            // active root (DEV_ROUTE=/dev/v2) land at the v2 home
+            // preview; otherwise the production root.
+            final isPreview = _devRoute.isNotEmpty;
+            router.go(isPreview ? '/dev/v2/home' : Routes.home);
+          }
+        }
       case AuthChangeEvent.signedOut:
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
