@@ -174,7 +174,9 @@ class _CausalBullet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top: 6, right: V2Spacing.space8),
+          // 5pt top inset aligns the bullet with the cap-height of the
+          // smaller 14pt body text.
+          padding: const EdgeInsets.only(top: 5, right: V2Spacing.space8),
           child: Container(
             width: 4,
             height: 4,
@@ -186,8 +188,12 @@ class _CausalBullet extends StatelessWidget {
         ),
         Expanded(
           child: Text(
+            // 14pt (bodySm) — Sean's feedback: 16pt body wrapped to two
+            // lines on a short bullet. 14pt fits typical causal bullets
+            // ("Magnesium supports your sleep goal") on a single line
+            // without sacrificing legibility.
             text,
-            style: V2Typography.body(color: V2Colors.fg),
+            style: V2Typography.bodySm(color: V2Colors.fg),
           ),
         ),
       ],
