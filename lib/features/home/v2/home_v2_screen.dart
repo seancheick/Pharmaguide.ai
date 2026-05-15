@@ -5,15 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/widgets/home_recent_scans.dart';
-import 'package:pharmaguide/features/home/widgets/home_quick_check_cta.dart';
-import 'package:pharmaguide/features/home/widgets/home_citation_strip.dart';
+import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
@@ -157,11 +158,12 @@ class HomeV2Screen extends StatelessWidget {
                 V2Spacing.space24,
                 0,
               ),
-              sliver: SliverToBoxAdapter(child: HomeQuickCheckCta()),
+              sliver: SliverToBoxAdapter(child: _QuickCheckCta()),
             ),
 
-            // 7. Trust footer — legacy HomeCitationStrip reads the
-            // real catalog manifest (product count + build date).
+            // 7. Trust footer — v2 mirror reading the catalog manifest
+            // for the real "Catalog updated <date>" freshness label.
+            // Phase 11.5 replacement for the legacy HomeCitationStrip.
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 V2Spacing.space24,
@@ -169,7 +171,7 @@ class HomeV2Screen extends StatelessWidget {
                 V2Spacing.space24,
                 V2Spacing.space8,
               ),
-              sliver: SliverToBoxAdapter(child: HomeCitationStrip()),
+              sliver: SliverToBoxAdapter(child: _CitationStrip()),
             ),
 
             // 8. Bottom spacer for the frosted nav bar overlap.
@@ -939,10 +941,9 @@ class _RecentScanCard extends StatelessWidget {
 // HomeQuickCheckCta. Caution-tinted compare-arrows icon.
 // =============================================================================
 
-// Scaffold for the v2 Quick-Check tile mirror — currently unused.
-// Routes.home renders the legacy HomeQuickCheckCta which opens the
-// real /quick-check route. Kept for the future v2 wiring pass.
-// ignore: unused_element
+/// v2 Quick-Check tile. Phase 11.5: now provider-aware in the sense
+/// that tap routes to the real /quick-check screen — same behavior
+/// as the legacy HomeQuickCheckCta. Production functionality preserved.
 class _QuickCheckCta extends StatelessWidget {
   const _QuickCheckCta();
 
@@ -952,7 +953,7 @@ class _QuickCheckCta extends StatelessWidget {
       color: V2Colors.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
-        onTap: () {},
+        onTap: () => GoRouter.of(context).push(Routes.quickCheck),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Container(
           padding: const EdgeInsets.all(V2Spacing.space16),
@@ -1072,5 +1073,34 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
         ),
       ],
     );
+  }
+}
+
+// =============================================================================
+// v2 Citation strip — reads catalogInfoProvider for the real
+// "Catalog updated <date>" freshness label. Phase 11.5 replacement
+// for legacy HomeCitationStrip. Uses PGTransparencyFooter so the
+// disclaimer + sources strip stays consistent with Product Detail.
+// =============================================================================
+
+class _CitationStrip extends ConsumerWidget {
+  const _CitationStrip();
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  static String _formatDate(DateTime d) =>
+      'Updated ${_months[d.month - 1]} ${d.day}, ${d.year}';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalogAsync = ref.watch(catalogInfoProvider);
+    final info = catalogAsync.asData?.value;
+    final freshness = info?.buildDate != null
+        ? _formatDate(info!.buildDate!)
+        : null;
+    return PGTransparencyFooter(freshnessLabel: freshness);
   }
 }
