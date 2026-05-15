@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -126,13 +125,32 @@ class _PGPillarRow extends StatelessWidget {
   final PGPillar pillar;
   const _PGPillarRow({required this.pillar});
 
-  /// Map pillar raw fraction to a v2 tier color. Reuses the existing
-  /// [tierForScore] on a normalized 0–100 scale so colors stay in sync
-  /// with PGScoreLine and the rest of v2.
+  /// **v2 deliberate departure from production's 6-tier ScoreTier.**
+  ///
+  /// Production maps pillar bars through the full 6-tier palette
+  /// (Exceptional / Excellent / Good / Fair / Low Quality / Poor —
+  /// down to deep red #DC2626 at the bottom). Sean's call: pillars are
+  /// QUALITY signals, not SAFETY signals. A 3/10 transparency score
+  /// isn't dangerous, it's just lower-quality — rendering it in red
+  /// reads as alarm. v2 pillar bars use a 2-tone green palette only:
+  ///   - ≥5/10 (≥50% of max): AppTheme.scoreExcellent (#22A06B solid)
+  ///   - <5/10: AppTheme.scoreGood (#65A30D lighter lime)
+  /// Both calm, both positive — "strong" vs "room to grow", never alarming.
+  ///
+  /// The hero PGScoreLine still uses the full 6-tier ScoreTier because
+  /// that's the top-line clinical verdict. This calming applies ONLY to
+  /// the diagnostic-detail pillar bars.
   Color _toneFor(double? rawScore, int max) {
     if (rawScore == null) return V2Colors.fgSubtle;
-    final normalized = (rawScore / max * 100).round();
-    return tierForScore(normalized).color;
+    final fraction = (rawScore / max).clamp(0.0, 1.0);
+    return fraction >= 0.5 ? AppTheme.scoreExcellent : AppTheme.scoreGood;
+  }
+
+  /// Normalize pillar raw score to a 0–10 display scale (Sean: users
+  /// don't think in engineering scales of 25/30/20/5 — same number out
+  /// of 10 across every pillar reads cleanly and comparably).
+  int _displayScore(double rawScore, int max) {
+    return (rawScore / max * 10).round().clamp(0, 10);
   }
 
   @override
@@ -158,7 +176,7 @@ class _PGPillarRow extends StatelessWidget {
               ),
               if (hasScore)
                 Text(
-                  '${_fmt(score)}/$max',
+                  '${_displayScore(score, max)}/10',
                   style: V2Typography.monoData(color: V2Colors.fgMuted),
                 )
               else
@@ -219,10 +237,6 @@ class _PGPillarRow extends StatelessWidget {
     );
   }
 
-  String _fmt(double n) {
-    if (n == n.roundToDouble()) return n.toInt().toString();
-    return n.toStringAsFixed(1);
-  }
 }
 
 class _PillarBadgeChip extends StatelessWidget {

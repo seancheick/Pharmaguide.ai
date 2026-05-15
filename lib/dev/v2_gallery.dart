@@ -326,10 +326,13 @@ class V2Gallery extends StatelessWidget {
                     ],
                     onTap: () {},
                   ),
+                  // Intentionally below-5 to demo the lighter-green
+                  // "<5" tone (a realistic case for many supplements
+                  // with limited clinical evidence).
                   PGPillar(
                     label: 'Evidence & Research',
                     microExplanation: 'Clinical support behind ingredients',
-                    score: 14,
+                    score: 8,
                     max: 20,
                     onTap: () {},
                   ),
