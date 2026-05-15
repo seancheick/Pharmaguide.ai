@@ -82,25 +82,54 @@ class PGFrostedNavBar extends StatelessWidget {
       indicator = scheme.primary.withValues(alpha: isDark ? 0.18 : 0.12);
     }
 
-    // Surface opacity tuned per useV2Tones — on the cream v2 bg the
-    // legacy 0.78 opacity made the bar look like a flat surface
-    // (white-on-cream had nothing to refract). 0.62 lets content
-    // behind actually show through the blur and reads as real glass.
-    // Production tone keeps 0.78 so the legacy app is untouched.
-    final surfaceAlpha = useV2Tones
-        ? (isDark ? 0.56 : 0.62)
-        : (isDark ? 0.72 : 0.78);
+    // v2 glass tone — the legacy "white@0.78 on cream" approach made
+    // the bar look like a flat panel because V2Colors.surface (#FFFFFF)
+    // and V2Colors.bg (#FAF9F6) are only 1.5% apart, so the blur has
+    // nothing to refract between them. Fix: tint the surface with a
+    // small amount of foreground (cool/neutral) so the bar reads as
+    // a visually distinct material against the warm cream bg, then
+    // apply a vertical opacity gradient (more transparent at top,
+    // more solid at bottom) so the bar has internal depth instead
+    // of a single flat alpha. Production tone (useV2Tones: false)
+    // keeps the legacy single-color decoration — byte-identical.
+    final Decoration decoration;
+    if (useV2Tones) {
+      // Subtle cool tint — 8% blend of fg into surface gives the bar a
+      // neutral-cool hue that contrasts noticeably against the warm
+      // cream bg without looking gray.
+      final tinted =
+          Color.lerp(surface, V2Colors.fg, isDark ? 0.0 : 0.08)!;
+      decoration = BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            // Top: more transparent so the blur of content behind
+            // shows through, sells the "light passes through" feel.
+            tinted.withValues(alpha: isDark ? 0.40 : 0.48),
+            // Bottom: more solid so labels stay perfectly legible
+            // against any content beneath.
+            tinted.withValues(alpha: isDark ? 0.70 : 0.78),
+          ],
+        ),
+        border: Border(
+          top: BorderSide(color: outline, width: 0.5),
+        ),
+      );
+    } else {
+      decoration = BoxDecoration(
+        color: surface.withValues(alpha: isDark ? 0.72 : 0.78),
+        border: Border(
+          top: BorderSide(color: outline, width: 0.5),
+        ),
+      );
+    }
 
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
         child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: surface.withValues(alpha: surfaceAlpha),
-            border: Border(
-              top: BorderSide(color: outline, width: 0.5),
-            ),
-          ),
+          decoration: decoration,
           child: Stack(
             children: [
               NavigationBar(
@@ -113,10 +142,10 @@ class PGFrostedNavBar extends StatelessWidget {
                 elevation: 0,
                 indicatorColor: indicator,
               ),
-              // 1px top highlight — sits just below the hairline outline,
-              // gives the "lit edge" feel that real glass has when light
-              // catches the top surface (iOS pattern). Only rendered for
-              // the v2 tone so legacy production paths stay unchanged.
+              // 1px top highlight — the "lit edge" iOS gets when light
+              // catches the top surface of glass. Bumped from 0.55 →
+              // 0.85 so it actually reads on cream. Sits just under
+              // the hairline outline.
               if (useV2Tones)
                 Positioned(
                   top: 0,
@@ -125,8 +154,9 @@ class PGFrostedNavBar extends StatelessWidget {
                   child: IgnorePointer(
                     child: Container(
                       height: 1,
-                      color: (isDark ? Colors.white : Colors.white)
-                          .withValues(alpha: isDark ? 0.04 : 0.55),
+                      color: Colors.white.withValues(
+                        alpha: isDark ? 0.08 : 0.85,
+                      ),
                     ),
                   ),
                 ),
