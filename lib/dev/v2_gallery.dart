@@ -238,7 +238,11 @@ class V2Gallery extends StatelessWidget {
                 onEditProfile: () {},
               ),
               const SizedBox(height: V2Spacing.space12),
-              // Review Before Use — caution example
+              // Review Before Use — auto-expanded because one row is
+              // danger-tier (the fish allergen match). Banner tone stays
+              // caution; the row inside still renders danger-tinted —
+              // mirrors production "allergen match always bumps row to
+              // danger even inside a calmer card" rule.
               PGReviewBeforeUseCard(
                 tone: PGReviewTone.caution,
                 title: 'Review before use',
@@ -256,7 +260,30 @@ class V2Gallery extends StatelessWidget {
                     onTap: () {},
                   ),
                 ],
-                startExpanded: true,
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // Review Before Use — clean state. No danger rows, so the
+              // card auto-collapses to banner-only; tap the chevron to
+              // reveal the rows. Mirrors production's "calm by default,
+              // expand on demand" behavior for non-danger findings.
+              PGReviewBeforeUseCard(
+                tone: PGReviewTone.safe,
+                title: 'Looks safe for you',
+                body: 'No conflicts with your medications or conditions.',
+                rows: [
+                  PGReviewRow(
+                    headline: 'Gluten-free claim verified',
+                    caption: 'Matches your dietary preference',
+                    rowTone: PGReviewTone.safe,
+                    onTap: () {},
+                  ),
+                  PGReviewRow(
+                    headline: 'No interactions with your stack',
+                    caption: 'Cross-checked against 6 supplements',
+                    rowTone: PGReviewTone.safe,
+                    onTap: () {},
+                  ),
+                ],
               ),
             ],
           ),

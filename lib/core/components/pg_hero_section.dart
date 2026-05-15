@@ -182,19 +182,53 @@ class _Subtitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parts = <String>[];
-    if (brand.trim().isNotEmpty) parts.add(brand);
-    if (servings != null && servings!.isNotEmpty) parts.add(servings!);
-    if (dose != null && dose!.isNotEmpty) parts.add(dose!);
-    if (parts.isEmpty) return const SizedBox.shrink();
+    final hasBrand = brand.trim().isNotEmpty;
+    final hasServings = servings != null && servings!.isNotEmpty;
+    final hasDose = dose != null && dose!.isNotEmpty;
+    if (!hasBrand && !hasServings && !hasDose) {
+      return const SizedBox.shrink();
+    }
 
-    return Text(
-      parts.join(' · '),
-      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+    // Brand renders at medium weight (V2 caps at 500 — that's the
+    // emphasis tier). Servings + dose stay at 400 muted. The result:
+    // identity-first, metadata-second hierarchy.
+    final spans = <InlineSpan>[];
+    if (hasBrand) {
+      spans.add(TextSpan(
+        text: brand,
+        style: V2Typography.bodyMedium(color: V2Colors.fg),
+      ));
+    }
+    if (hasServings) {
+      if (spans.isNotEmpty) {
+        spans.add(_dotSpan());
+      }
+      spans.add(TextSpan(
+        text: servings!,
+        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+      ));
+    }
+    if (hasDose) {
+      if (spans.isNotEmpty) {
+        spans.add(_dotSpan());
+      }
+      spans.add(TextSpan(
+        text: dose!,
+        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+      ));
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
   }
+
+  TextSpan _dotSpan() => TextSpan(
+        text: ' · ',
+        style: V2Typography.bodySm(color: V2Colors.fgSubtle),
+      );
 }
 
 /// Trust tag — outline pill, primary tone for certifications, green

@@ -130,19 +130,32 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
   @override
   void initState() {
     super.initState();
-    _expanded = widget.startExpanded ||
-        widget.rows.length <= widget.collapseThreshold;
+    _expanded = _shouldAutoExpand();
+  }
+
+  /// Auto-expand rules — match production behavior:
+  /// 1. Caller forced startExpanded=true → expanded
+  /// 2. At least one row is danger-tier → expanded (you can't bury a
+  ///    contraindication / allergen match behind a chevron)
+  /// 3. Row count ≤ collapseThreshold → expanded (short lists feel
+  ///    weird hidden)
+  /// 4. Otherwise → collapsed; banner shows alone with a chevron
+  bool _shouldAutoExpand() {
+    if (widget.rows.isEmpty) return false;
+    if (widget.startExpanded) return true;
+    final hasDanger = widget.rows.any(
+      (r) => (r.rowTone ?? widget.tone) == PGReviewTone.danger,
+    );
+    if (hasDanger) return true;
+    return widget.rows.length <= widget.collapseThreshold;
   }
 
   @override
   Widget build(BuildContext context) {
     final tone = widget.tone.tint;
     final rows = widget.rows;
-    final overflow = rows.length - widget.collapseThreshold;
-    final canCollapse = !_expanded && rows.length > widget.collapseThreshold;
-    final visible = canCollapse
-        ? rows.take(widget.collapseThreshold).toList(growable: false)
-        : rows;
+    final hasRows = rows.isNotEmpty;
+    final isInteractive = hasRows; // banner is tappable when rows exist
 
     return Container(
       decoration: BoxDecoration(
@@ -151,118 +164,117 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
         border: Border.all(color: V2Colors.outline),
         boxShadow: V2Shadows.sm,
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Tone-tinted banner header (3pt left accent strip — matches
-          // PGSeverityBanner pattern from lib/core/widgets/
-          // pg_severity_banner.dart).
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 3,
-                  decoration: BoxDecoration(
-                    color: tone,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(V2Spacing.radiusCard),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(V2Spacing.space16),
-                    decoration: BoxDecoration(
-                      color: tone.withValues(alpha: 0.06),
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(V2Spacing.radiusCard),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(widget.tone.icon, size: 20, color: tone),
-                        const SizedBox(width: V2Spacing.space8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+          // Tone-tinted banner header (3pt left accent strip). Whole
+          // banner is tappable when there are rows to expand — chevron
+          // on the trailing edge animates state.
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isInteractive
+                  ? () => setState(() => _expanded = !_expanded)
+                  : null,
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(width: 3, color: tone),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(V2Spacing.space16),
+                        color: tone.withValues(alpha: 0.06),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(widget.tone.icon, size: 20, color: tone),
+                            const SizedBox(width: V2Spacing.space8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      widget.title,
-                                      style: V2Typography.titleSm(
-                                        color: V2Colors.fg,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          widget.title,
+                                          style: V2Typography.titleSm(
+                                            color: V2Colors.fg,
+                                          ),
+                                        ),
+                                      ),
+                                      if (hasRows)
+                                        _CountBadge(
+                                          count: rows.length,
+                                          tone: tone,
+                                        ),
+                                    ],
+                                  ),
+                                  if (widget.body != null) ...[
+                                    const SizedBox(
+                                      height: V2Spacing.space4,
+                                    ),
+                                    Text(
+                                      widget.body!,
+                                      style: V2Typography.bodySm(
+                                        color: V2Colors.fgMuted,
                                       ),
                                     ),
-                                  ),
-                                  if (rows.isNotEmpty)
-                                    _CountBadge(
-                                      count: rows.length,
-                                      tone: tone,
-                                    ),
+                                  ],
                                 ],
                               ),
-                              if (widget.body != null) ...[
-                                const SizedBox(height: V2Spacing.space4),
-                                Text(
-                                  widget.body!,
-                                  style: V2Typography.bodySm(
-                                    color: V2Colors.fgMuted,
-                                  ),
+                            ),
+                            if (isInteractive) ...[
+                              const SizedBox(width: V2Spacing.space8),
+                              AnimatedRotation(
+                                turns: _expanded ? 0.5 : 0,
+                                duration:
+                                    const Duration(milliseconds: 180),
+                                child: Icon(
+                                  Icons.expand_more_rounded,
+                                  size: 22,
+                                  color: tone,
                                 ),
-                              ],
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (rows.isNotEmpty) ...[
-            const Divider(
-              color: V2Colors.outline,
-              height: 1,
-              thickness: 0.5,
-            ),
-            ...[
-              for (var i = 0; i < visible.length; i++)
-                _ReviewRowTile(
-                  row: visible[i],
-                  fallbackTone: widget.tone,
-                  isLast: i == visible.length - 1 && !canCollapse,
-                ),
-            ],
-            if (canCollapse)
-              InkWell(
-                onTap: () => setState(() => _expanded = true),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: V2Spacing.space16,
-                    vertical: V2Spacing.space12,
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'View $overflow more',
-                        style: V2Typography.label(color: V2Colors.accent),
-                      ),
-                      const Spacer(),
-                      const Icon(
-                        Icons.expand_more_rounded,
-                        size: 20,
-                        color: V2Colors.accent,
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
-          ],
+            ),
+          ),
+          // Rows pane — animates open/closed. AnimatedSize handles the
+          // height transition; the inner column renders all rows when
+          // expanded (no "view more" sub-collapse — production behavior
+          // is all-or-nothing once you tap to expand).
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: hasRows && _expanded
+                ? Column(
+                    children: [
+                      const Divider(
+                        color: V2Colors.outline,
+                        height: 1,
+                        thickness: 0.5,
+                      ),
+                      for (var i = 0; i < rows.length; i++)
+                        _ReviewRowTile(
+                          row: rows[i],
+                          fallbackTone: widget.tone,
+                          isLast: i == rows.length - 1,
+                        ),
+                    ],
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
         ],
       ),
     );

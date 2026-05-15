@@ -80,7 +80,14 @@ class PGPersonalFitCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   headline,
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  // 18pt (bodyXl) — drop from titleSm (20pt) per Sean's
+                  // feedback: 20pt was too loud with the icon + edit
+                  // pencil eating horizontal room. 18pt lets the 2-line
+                  // wrap actually breathe.
+                  style: V2Typography.bodyXl(color: V2Colors.fg).copyWith(
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
