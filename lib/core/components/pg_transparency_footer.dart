@@ -34,12 +34,13 @@ class PGTransparencyFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Compact one-row sources strip + disclaimer beneath. Mirrors the
-    // production PGCitationStrip layout: verified glyph + "Data sources"
-    // label + inline source list on a single row (with freshness on the
-    // right), then the educational disclaimer below. Sean's call
-    // 2026-05-15 — the previous stacked variant ate too much vertical
-    // space at the bottom of every screen.
+    // Three stacked lines (Sean 2026-05-15):
+    //   1. icon + "DATA SOURCES" eyebrow + sources inline (no ellipsis
+    //      — they need to fully fit)
+    //   2. Catalog freshness on its own quieter line
+    //   3. Disclaimer
+    // The previous one-row variant put sources, eyebrow, AND freshness
+    // on the same line which forced truncation on narrow widths.
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
@@ -49,8 +50,8 @@ class PGTransparencyFooter extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top row: icon + "DATA SOURCES" eyebrow + sources inline +
-          // freshness label aligned right. All on one line.
+          // Row 1 — sources line. Eyebrow first, then sources fill the
+          // remaining width without truncation.
           Row(
             children: [
               const Icon(
@@ -66,18 +67,22 @@ class PGTransparencyFooter extends StatelessWidget {
                   sources.join(' · '),
                   style: V2Typography.caption(color: V2Colors.fgMuted),
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (freshnessLabel != null) ...[
-                const SizedBox(width: V2Spacing.space8),
-                Text(
-                  freshnessLabel!,
-                  style: V2Typography.caption(color: V2Colors.fgSubtle),
-                ),
-              ],
             ],
           ),
+          if (freshnessLabel != null) ...[
+            const SizedBox(height: V2Spacing.space4),
+            Padding(
+              // Indent matches the icon + gap so the freshness aligns
+              // visually under the eyebrow text.
+              padding: const EdgeInsets.only(left: 17),
+              child: Text(
+                freshnessLabel!,
+                style: V2Typography.caption(color: V2Colors.fgSubtle),
+              ),
+            ),
+          ],
           const SizedBox(height: V2Spacing.space8),
           Text(
             disclaimer,
