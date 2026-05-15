@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// Severity levels for [PGSeverityBanner] — independent from the clinical
 /// `Severity` enum because banners can also surface neutral info/warning
@@ -45,6 +48,13 @@ class PGSeverityBanner extends StatelessWidget {
   final VoidCallback? onAction;
   final EdgeInsetsGeometry margin;
 
+  /// When true, the banner resolves through V2Colors + V2Typography
+  /// instead of legacy AppTheme + theme.textTheme. Callers in the
+  /// v2 surfaces flip this so the banner stays cohesive with the
+  /// cream bg and Geist Sans 500 hierarchy. Default false keeps
+  /// every legacy call site byte-identical until Phase 11.6.
+  final bool useV2Tones;
+
   const PGSeverityBanner({
     super.key,
     required this.tone,
@@ -53,9 +63,36 @@ class PGSeverityBanner extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.margin = EdgeInsets.zero,
+    this.useV2Tones = false,
   });
 
   ({Color accent, IconData icon}) _style() {
+    if (useV2Tones) {
+      switch (tone) {
+        case PGBannerTone.info:
+          return (accent: V2Colors.accent, icon: Icons.info_outline_rounded);
+        case PGBannerTone.caution:
+          return (
+            accent: V2Colors.caution,
+            icon: Icons.warning_amber_rounded,
+          );
+        case PGBannerTone.danger:
+          return (
+            accent: V2Colors.contraindicated,
+            icon: Icons.block_rounded,
+          );
+        case PGBannerTone.success:
+          return (
+            accent: V2Colors.safe,
+            icon: Icons.check_circle_outline_rounded,
+          );
+        case PGBannerTone.neutral:
+          return (
+            accent: V2Colors.fgMuted,
+            icon: Icons.help_outline_rounded,
+          );
+      }
+    }
     switch (tone) {
       case PGBannerTone.info:
         return (accent: AppTheme.info, icon: Icons.info_outline_rounded);
@@ -90,12 +127,18 @@ class PGSeverityBanner extends StatelessWidget {
     final style = _style();
     final tint = style.accent.withValues(alpha: isDark ? 0.14 : 0.06);
 
+    final surfaceColor = useV2Tones ? V2Colors.surface : scheme.surfaceContainer;
+    final outlineColor = useV2Tones ? V2Colors.outline : scheme.outlineVariant;
+    final mutedColor = useV2Tones ? V2Colors.fgMuted : scheme.onSurfaceVariant;
+
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: scheme.outlineVariant, width: 0.8),
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(
+          useV2Tones ? V2Spacing.radiusCard : AppTheme.radiusLarge,
+        ),
+        border: Border.all(color: outlineColor, width: 0.8),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -138,19 +181,23 @@ class PGSeverityBanner extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          height: 1.35,
-                        ),
+                        style: useV2Tones
+                            ? V2Typography.titleSm(color: V2Colors.fg)
+                            : theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                height: 1.35,
+                              ),
                       ),
                       if (body != null && body!.isNotEmpty) ...[
                         const SizedBox(height: AppTheme.space4),
                         Text(
                           body!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.45,
-                          ),
+                          style: useV2Tones
+                              ? V2Typography.bodySm(color: mutedColor)
+                              : theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  height: 1.45,
+                                ),
                         ),
                       ],
                       if (actionLabel != null && onAction != null) ...[
@@ -170,10 +217,12 @@ class PGSeverityBanner extends StatelessWidget {
                               children: [
                                 Text(
                                   actionLabel!,
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    fontSize: 13,
-                                    color: style.accent,
-                                  ),
+                                  style: useV2Tones
+                                      ? V2Typography.label(color: style.accent)
+                                      : theme.textTheme.labelLarge?.copyWith(
+                                          fontSize: 13,
+                                          color: style.accent,
+                                        ),
                                 ),
                                 const SizedBox(width: AppTheme.space2),
                                 Icon(

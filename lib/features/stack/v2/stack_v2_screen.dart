@@ -1134,6 +1134,7 @@ class _LegacyRecallAlertSlot extends ConsumerWidget {
             tone: PGBannerTone.danger,
             title: 'Recall Alert',
             body: body,
+            useV2Tones: true,
           ),
         );
       },
@@ -1155,6 +1156,7 @@ class _LegacyStackSafetyBannerSlot extends ConsumerWidget {
         return StackSafetyBanner(
           report: report,
           margin: kStackSafetyBannerMargin,
+          useV2Tones: true,
         );
       },
       loading: () => const SizedBox.shrink(),
@@ -1188,6 +1190,7 @@ class _LegacyProfileNudgeSlot extends ConsumerWidget {
             'that actually apply to you.',
         actionLabel: 'Complete profile',
         onAction: () => GoRouter.of(context).push(Routes.profileSetup),
+        useV2Tones: true,
       ),
     );
   }

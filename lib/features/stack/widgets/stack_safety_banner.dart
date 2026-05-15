@@ -43,6 +43,7 @@ class StackSafetyBanner extends StatelessWidget {
     required this.report,
     this.onTap,
     this.margin = EdgeInsets.zero,
+    this.useV2Tones = false,
   });
 
   /// Safety report driving the banner. Build once per stack mutation
@@ -59,6 +60,10 @@ class StackSafetyBanner extends StatelessWidget {
   /// contract so the caller can match the surrounding layout without
   /// wrapping in another [Padding].
   final EdgeInsetsGeometry margin;
+
+  /// Forwarded to PGSeverityBanner — v2 surfaces flip this on so the
+  /// banner uses V2Colors + Geist Sans + the cream surface tone.
+  final bool useV2Tones;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +84,7 @@ class StackSafetyBanner extends StatelessWidget {
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,
+      useV2Tones: useV2Tones,
     );
   }
 
