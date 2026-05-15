@@ -12,8 +12,8 @@ import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/features/home/widgets/home_recent_scans.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
@@ -146,7 +146,7 @@ class HomeV2Screen extends StatelessWidget {
                 V2Spacing.space24,
                 0,
               ),
-              sliver: SliverToBoxAdapter(child: HomeRecentScansSection()),
+              sliver: SliverToBoxAdapter(child: _RecentScansSection()),
             ),
 
             // 6. Quick Check — legacy production "Safe to take
@@ -775,22 +775,37 @@ class _MicroMetric extends StatelessWidget {
 // (production behavior, not built in the visual mirror).
 // =============================================================================
 
-// Scaffold for the v2 Recent-scans carousel mirror — currently unused.
-// Routes.home renders the legacy HomeRecentScansSection which sources
-// real scan history. Kept here for the future v2 wiring pass.
-// ignore: unused_element
-class _RecentScansSection extends StatelessWidget {
+/// v2 Recent scans carousel. Phase 11.5d: now provider-wired —
+/// reads user_scan_history + core DB and renders real cards. Tap on
+/// a card pushes /product/{dsldId}. When no scans exist the section
+/// hides entirely (matches production HomeRecentScansSection's
+/// empty branch via the parent's conditional render — here we
+/// collapse to SizedBox.shrink for the same effect). Fixture data
+/// only shows when the provider hasn't resolved yet so the gallery
+/// preview keeps its polished state.
+class _RecentScansSection extends ConsumerWidget {
   const _RecentScansSection();
 
-  static const _fixture = <(String, String, int, String)>[
-    ('Nordic Naturals', 'Ultimate Omega 2X', 84, '2h ago'),
-    ('Thorne', 'Basic Nutrients 2/Day', 91, 'Yesterday'),
-    ('NOW Foods', 'L-Theanine 200mg', 72, '3d ago'),
-    ('Pure Encapsulations', 'Magnesium Glycinate', 88, '5d ago'),
+  static const _fixture = <(String?, String, String, int, String)>[
+    (null, 'Nordic Naturals', 'Ultimate Omega 2X', 84, '2h ago'),
+    (null, 'Thorne', 'Basic Nutrients 2/Day', 91, 'Yesterday'),
+    (null, 'NOW Foods', 'L-Theanine 200mg', 72, '3d ago'),
+    (null, 'Pure Encapsulations', 'Magnesium Glycinate', 88, '5d ago'),
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scansAsync = ref.watch(_v2RecentScansProvider);
+    final realScans = scansAsync.asData?.value;
+    // Empty real data → hide the section (matches production behavior
+    // — no scans means no carousel). Loading → show fixture so the
+    // first frame doesn't flash empty.
+    if (realScans != null && realScans.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final scans = (realScans == null || realScans.isEmpty)
+        ? _fixture
+        : realScans;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -815,13 +830,6 @@ class _RecentScansSection extends StatelessWidget {
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: () {},
-                child: Text(
-                  'Show all',
-                  style: V2Typography.label(color: V2Colors.accent),
-                ),
-              ),
             ],
           ),
         ),
@@ -833,12 +841,13 @@ class _RecentScansSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(
               horizontal: V2Spacing.space24,
             ),
-            itemCount: _fixture.length,
+            itemCount: scans.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(width: V2Spacing.space12),
             itemBuilder: (context, i) {
-              final (brand, name, score, time) = _fixture[i];
+              final (dsldId, brand, name, score, time) = scans[i];
               return _RecentScanCard(
+                dsldId: dsldId,
                 brand: brand,
                 name: name,
                 score: score,
@@ -853,12 +862,14 @@ class _RecentScansSection extends StatelessWidget {
 }
 
 class _RecentScanCard extends StatelessWidget {
+  final String? dsldId;
   final String brand;
   final String name;
   final int score;
   final String time;
 
   const _RecentScanCard({
+    required this.dsldId,
     required this.brand,
     required this.name,
     required this.score,
@@ -873,7 +884,9 @@ class _RecentScanCard extends StatelessWidget {
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
-          onTap: () {},
+          onTap: dsldId == null
+              ? null
+              : () => GoRouter.of(context).push('/product/$dsldId'),
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Container(
             padding: const EdgeInsets.all(V2Spacing.space12),
@@ -1104,3 +1117,31 @@ class _CitationStrip extends ConsumerWidget {
     return PGTransparencyFooter(freshnessLabel: freshness);
   }
 }
+
+// =============================================================================
+// v2 Recent-scans provider — joins user_scan_history with the core
+// catalog and returns ready-to-render tuples for the carousel cards.
+// Same shape the v2 _RecentScanCard takes: (dsldId, brand, name,
+// score, time). Auto-disposes when the home screen unmounts so the
+// scan list refreshes when the user returns from a scanner round.
+// =============================================================================
+
+final _v2RecentScansProvider = FutureProvider.autoDispose<
+    List<(String?, String, String, int, String)>>((ref) async {
+  final userDb = ref.watch(userDatabaseProvider);
+  final coreDb = ref.watch(coreDatabaseProvider);
+  final history = await userDb.getRecentScans(limit: 10);
+  final results = <(String?, String, String, int, String)>[];
+  for (final scan in history) {
+    final product = await coreDb.findById(scan.dsldId);
+    if (product == null) continue;
+    results.add((
+      product.dsldId,
+      product.brandName ?? '',
+      product.productName,
+      (product.score100Equivalent ?? 0).round(),
+      relativeTime(scan.scannedAt),
+    ));
+  }
+  return results;
+});
