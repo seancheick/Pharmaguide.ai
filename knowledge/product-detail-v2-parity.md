@@ -171,7 +171,25 @@ row:
 | Analytics | none (FDA-link tap is external nav) |
 | A11y | Danger tone paired with icon (PGSeverityBanner ships its own danger icon); FDA links underlined + `Icons.open_in_new_rounded` indicator + ellipsis on long URLs |
 | Golden | G5 NSF banned product; substance-with-oneLiner / substance-without-oneLiner / no-substance fallback all three body tiers covered by `resolveBlockedReasonBody` |
-| **Status** | **wired** — pending live-device verification on a real BLOCKED product (G5) |
+| **Status** | **wired** — pending live-device verification on a richer BLOCKED product (G5) with BSD source_urls / regulatory_date / substance_name |
+
+#### S1.6 "No additional details available." fallback (null-blob)
+
+| Field | Value |
+|---|---|
+| Production | Rendered inline by `DetailSection.build()` line 1935 when `detailBlob == null` |
+| V2 | Inline conditional in `product_detail_v2_connected.dart` between S16 and S17, gated `!blobLoading && !blobError && detailBlob == null` |
+| Source | `detailBlobProvider.value` (null branch) |
+| Gate | `!blobLoading && !blobError && detailBlob == null` (blob resolved AND no data) |
+| Loading | N/A — only renders when loading has finished |
+| Empty | This IS the empty state |
+| Blocked | Renders on blocked products too (parity: production also renders here regardless of blocked status) |
+| Anchor | N/A |
+| CTA | N/A |
+| Analytics | none |
+| A11y | Plain quiet text in `V2Typography.bodySm(V2Colors.fgMuted)` — readable, honest |
+| Golden | G5 Thorne Vinpocetine (live-verified — production also shows this for the same dsldId) |
+| **Status** | **wired** (added 11.7c.1 follow-up after side-by-side production diff revealed gap) |
 
 #### S2. PersonalFit
 
@@ -483,15 +501,15 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7c.1 boundary)
+## Completion tally (Phase 11.7c.1 boundary, post-side-by-side fix)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
 | verified | 0 |
-| **wired** | 6 (S0, S0.5, S0.9, S1, S1.5, S17) |
+| **wired** | 7 (S0, S0.5, S0.9, S1, S1.5, S1.6, S17) |
 | **placeholder** | 14 |
-| total | 20 |
+| total | 21 |
 
 ---
 

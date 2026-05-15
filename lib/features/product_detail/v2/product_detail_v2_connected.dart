@@ -404,6 +404,25 @@ class _ProductDetailV2ConnectedState
                   ),
                   const SizedBox(height: V2Spacing.space12),
 
+                  // ---- "No additional details available." fallback -
+                  // Mirrors production DetailSection.build() line 1935:
+                  // when blob resolved but is null, surface a quiet
+                  // honest line so users understand the data state
+                  // (rather than wondering whether content failed to
+                  // load). Renders for blocked + non-blocked alike.
+                  if (!blobLoading && !blobError && detailBlob == null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: V2Spacing.space16,
+                      ),
+                      child: Text(
+                        'No additional details available.',
+                        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // ---- 17. TransparencyFooter (WIRED) --------------
                   const PGTransparencyFooter(),
                 ],
