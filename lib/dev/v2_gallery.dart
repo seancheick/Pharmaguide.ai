@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/components/pg_score_chip.dart';
-import 'package:pharmaguide/core/components/pg_score_ring.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
-import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_fixtures.dart';
 
 /// v2 component gallery — debug-only route at `/dev/v2`.
 ///
-/// This page exists to preview v2 design tokens and components as they're
-/// built. It is NOT part of the production navigation. Reach it during
-/// development via `context.go('/dev/v2')`.
+/// Phase 8.1.0 cleanup (2026-05-14): retired the Product Detail / Home /
+/// Scanner / Stack / floating-shell prototypes that were built on
+/// misbuilt primitives. Mirror-based rebuilds in Phase 8.1.1+ will
+/// re-register their links here as they land.
 class V2Gallery extends StatelessWidget {
   const V2Gallery({super.key});
 
@@ -58,57 +56,11 @@ class V2Gallery extends StatelessWidget {
             ],
           ),
           const _Section(
-            title: 'Severity tiers',
-            children: [
-              _SeverityRow(
-                'Contraindicated',
-                V2Colors.contraindicated,
-                V2Colors.contraindicatedTint,
-              ),
-              _SeverityRow('Avoid', V2Colors.avoid, V2Colors.avoidTint),
-              _SeverityRow('Caution', V2Colors.caution, V2Colors.cautionTint),
-              _SeverityRow('Monitor', V2Colors.monitor, V2Colors.monitorTint),
-              _SeverityRow('Safe', V2Colors.safe, V2Colors.safeTint),
-            ],
-          ),
-          const _Section(
             title: 'Shadows',
             children: [
               _ShadowChip('sm', V2Shadows.sm),
               _ShadowChip('md', V2Shadows.md),
               _ShadowChip('lg', V2Shadows.lg),
-            ],
-          ),
-          _Section(
-            title: 'Score visualizations',
-            children: [
-              Text(
-                'Two takes — pick per surface. Ring for emotional moments '
-                '(post-scan reveal). Chip for clinical surfaces where '
-                'verdict should anchor (Product Detail, Stack, Recents).',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
-              ),
-              const SizedBox(height: V2Spacing.space16),
-              for (final s in const [88.0, 74.0, 52.0, 32.0])
-                Padding(
-                  padding: const EdgeInsets.only(bottom: V2Spacing.space16),
-                  child: Container(
-                    padding: const EdgeInsets.all(V2Spacing.space16),
-                    decoration: BoxDecoration(
-                      color: V2Colors.surface,
-                      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                      border: Border.all(color: V2Colors.outline),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        PGScoreRing(score: s, size: 80, caption: 'PG Score'),
-                        PGScoreChip(score: s),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
           const _Section(
@@ -127,33 +79,8 @@ class V2Gallery extends StatelessWidget {
             ],
           ),
           const _Section(
-            title: 'Main screens',
+            title: 'Settings',
             children: [
-              _PrototypeLink(
-                label: 'App shell · floating nav',
-                subtitle: 'Tap-through preview of the v2 nav bar',
-                routePath: '/dev/v2/app',
-              ),
-              _PrototypeLink(
-                label: 'Home',
-                subtitle: 'Halo hero · metric cards · editorial rhythm',
-                routePath: '/dev/v2/home',
-              ),
-              _PrototypeLink(
-                label: 'Scanner verdict',
-                subtitle: 'Glass-card reveal · cycle 5 severity tiers',
-                routePath: '/dev/v2/scanner',
-              ),
-              _PrototypeLink(
-                label: 'Stack',
-                subtitle: '3 pill tabs · supplement + med badges',
-                routePath: '/dev/v2/stack',
-              ),
-              _PrototypeLink(
-                label: 'Stack (empty)',
-                subtitle: 'Empty-state craft with PGEmptyState',
-                routePath: '/dev/v2/stack?empty=1',
-              ),
               _PrototypeLink(
                 label: 'Settings',
                 subtitle: 'Avatar hero · hairline groups · calm controls',
@@ -166,15 +93,15 @@ class V2Gallery extends StatelessWidget {
               ),
             ],
           ),
-          _Section(
-            title: 'Product Detail prototypes',
+          const _Section(
+            title: 'In progress — Phase 8.1',
             children: [
-              for (final f in ProductDetailFixtures.all)
-                _PrototypeLink(
-                  label: f.id,
-                  subtitle: f.productName,
-                  routePath: '/dev/v2/product-detail/${f.id}',
-                ),
+              _GalleryNote(
+                text:
+                    'Product Detail, Home, Scanner, Stack v2 are being '
+                    'rebuilt as visual mirrors of production widgets. '
+                    'Routes will return here as each lands.',
+              ),
             ],
           ),
         ],
@@ -240,6 +167,23 @@ class _PrototypeLink extends StatelessWidget {
   }
 }
 
+class _GalleryNote extends StatelessWidget {
+  final String text;
+  const _GalleryNote({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      decoration: BoxDecoration(
+        color: V2Colors.accentTint.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+      ),
+      child: Text(text, style: V2Typography.bodySm(color: V2Colors.fg)),
+    );
+  }
+}
+
 class _Section extends StatelessWidget {
   final String title;
   final List<Widget> children;
@@ -287,44 +231,6 @@ class _ColorSwatch extends StatelessWidget {
           const SizedBox(width: V2Spacing.space16),
           Text(name, style: V2Typography.body()),
         ],
-      ),
-    );
-  }
-}
-
-class _SeverityRow extends StatelessWidget {
-  final String label;
-  final Color color;
-  final Color tint;
-  const _SeverityRow(this.label, this.color, this.tint);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: V2Spacing.space8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: V2Spacing.space12,
-          vertical: V2Spacing.space8,
-        ),
-        decoration: BoxDecoration(
-          color: tint,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: V2Spacing.space8),
-            Text(label, style: V2Typography.bodyMedium(color: color)),
-          ],
-        ),
       ),
     );
   }

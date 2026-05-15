@@ -9,17 +9,13 @@ import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
-import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
-import 'package:pharmaguide/features/shell/v2/app_shell_v2_preview.dart';
 import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
-import 'package:pharmaguide/features/scanner/v2/scanner_v2_preview_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
-import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
@@ -28,7 +24,6 @@ import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
-import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 
 /// Optional override for [GoRouter.initialLocation]. Set via:
 ///
@@ -208,55 +203,15 @@ GoRouter _buildRouter({
         path: '/dev/v2',
         builder: (_, __) => const V2Gallery(),
       ),
-      GoRoute(
-        path: '/dev/v2/product-detail/:id',
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          ProductDetailV2Screen(
-            fixtureId: state.pathParameters['id'] ?? 'normal',
-          ),
-        ),
-      ),
-      // v2 Home preview — uses fixture-style data so it renders without
-      // catalog providers. Production swap happens at Phase 8 when v2
-      // becomes the default theme.
-      GoRoute(
-        path: '/dev/v2/home',
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          const HomeV2Screen(),
-        ),
-      ),
-      // v2 Scanner verdict reveal preview — mocks the camera surface and
-      // cycles through all 5 severity tiers via trigger chips so the new
-      // PGVerdictReveal can be inspected without a real scan.
-      GoRoute(
-        path: '/dev/v2/scanner',
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          const ScannerV2PreviewScreen(),
-        ),
-      ),
-      // v2 full app shell preview — interactive floating-pill nav with
-      // working tab switching across all 5 destinations. The most useful
-      // route for end-to-end design review.
-      GoRoute(
-        path: '/dev/v2/app',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const AppShellV2Preview()),
-      ),
-      // v2 Stack preview — 3 pill tabs (Stack / Nutrient Analysis /
-      // Saved). Fixture data. `?empty=1` previews the empty-stack state
-      // with the PGEmptyState craft.
-      GoRoute(
-        path: '/dev/v2/stack',
-        pageBuilder: (_, state) {
-          final empty = state.uri.queryParameters['empty'] == '1';
-          return _platformPage(state, StackV2Screen(emptyStack: empty));
-        },
-      ),
       // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
       // hero into the signed-in variant.
+      //
+      // Phase 8.1.0 cleanup (2026-05-14): Product Detail / Home / Scanner /
+      // Stack / floating-shell preview routes were retired. Those v2
+      // screens were built on misbuilt primitives (PGScoreRing,
+      // PGSeverityBadge, chip-based ingredients, floating nav) that
+      // didn't mirror production patterns. Mirror-based rebuilds land
+      // in Phase 8.1.1+ and re-register their routes there.
       GoRoute(
         path: '/dev/v2/settings',
         pageBuilder: (_, state) {

@@ -7,8 +7,7 @@ import 'package:pharmaguide/core/components/pg_goal_chip.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_progress_dots.dart';
-import 'package:pharmaguide/core/components/pg_score_chip.dart';
-import 'package:pharmaguide/core/components/pg_severity_badge.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
@@ -395,30 +394,50 @@ class _MiniProductPreview extends StatelessWidget {
         border: Border.all(color: V2Colors.outline),
         boxShadow: V2Shadows.sm,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const PGEyebrow('Thorne'),
-                const SizedBox(height: V2Spacing.space4),
-                Text(
-                  'Magnesium Glycinate',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
-                ),
-                const SizedBox(height: V2Spacing.space12),
-                const PGSeverityBadge(
-                  severity: PGSeverity.safe,
-                  evidence: 'ESTABLISHED',
-                ),
-              ],
-            ),
+          const PGEyebrow('Thorne'),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            'Magnesium Glycinate',
+            style: V2Typography.titleSm(color: V2Colors.fg),
           ),
-          const SizedBox(width: V2Spacing.space16),
-          const PGScoreChip(score: 86),
+          const SizedBox(height: V2Spacing.space12),
+          // Mirrors production ScoreLine: dot + score + tier label.
+          const _ScoreLineDemo(score: 86),
         ],
       ),
+    );
+  }
+}
+
+/// Mini ScoreLine for the onboarding preview. Mirrors the production
+/// `lib/features/product_detail/widgets/score_line.dart` pattern: tier
+/// color dot + `86/100` + tier label, sized down to fit a preview card.
+class _ScoreLineDemo extends StatelessWidget {
+  final int score;
+  const _ScoreLineDemo({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final tier = tierForScore(score);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: tier.color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: V2Spacing.space8),
+        Text(
+          '$score/100',
+          style: V2Typography.bodyMedium(color: V2Colors.fg),
+        ),
+        const SizedBox(width: V2Spacing.space8),
+        Text(tier.label, style: V2Typography.bodyMedium(color: tier.color)),
+      ],
     );
   }
 }
@@ -463,10 +482,10 @@ class _AppliesToYouPreview extends StatelessWidget {
             'May affect your blood-thinner medication.',
             style: V2Typography.bodyXl(color: V2Colors.fg),
           ),
-          const SizedBox(height: V2Spacing.space12),
-          const PGSeverityBadge(
-            severity: PGSeverity.caution,
-            evidence: 'MODERATE',
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'Moderate evidence · worth a check',
+            style: V2Typography.caption(color: V2Colors.caution),
           ),
         ],
       ),
