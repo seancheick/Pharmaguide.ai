@@ -183,16 +183,12 @@ GoRouter _buildRouter({
         routes: [
           GoRoute(
             path: Routes.home,
-            // Phase 11.1 — production Home tab now renders the v2 home
-            // screen. The hero greeting reads profileProvider for the
-            // real nickname; the Stack Health card reads
-            // activeStackProvider for live supplement/medication
-            // counts (status tier wires up next pass with the
-            // intelligence engine). Other sections still use the
-            // fixture copy until their providers attach in subsequent
-            // commits — graceful degradation rather than empty/broken
-            // surfaces.
-            builder: (_, __) => catalogRoute(const HomeV2Screen()),
+            // Phase 11.1 — production Home tab renders the v2 home
+            // screen inside the production shell. showNavBar:false
+            // because the shell already paints the frosted nav bar
+            // — without this we'd stack two of them.
+            builder: (_, __) =>
+                catalogRoute(const HomeV2Screen(showNavBar: false)),
           ),
           GoRoute(
             path: Routes.scan,
@@ -201,13 +197,10 @@ GoRouter _buildRouter({
           GoRoute(
             path: Routes.stack,
             // Phase 11.2 — production Stack tab renders the v2 screen
-            // wired to activeStackProvider (real supplement +
-            // medication list with swipe-to-remove + Undo) and to
-            // stackActionsProvider for the remove / restore round
-            // trip. Status tier in the summary card still uses the
-            // "Optimal" fixture until the StackIntelligenceEngine
-            // wires in Phase 11.x.
-            builder: (_, __) => catalogRoute(const StackV2Screen()),
+            // inside the production shell. showNavBar:false because
+            // the shell already paints the frosted nav bar.
+            builder: (_, __) =>
+                catalogRoute(const StackV2Screen(showNavBar: false)),
           ),
           GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
           GoRoute(
@@ -431,6 +424,9 @@ class _AppShell extends StatelessWidget {
       extendBody: true,
       body: child,
       bottomNavigationBar: PGFrostedNavBar(
+        // Phase 11.5 — production shell uses the v2 nav tone since
+        // production Home / Stack / Profile now render v2 widgets.
+        useV2Tones: true,
         selectedIndex: _selectedIndex(context),
         onDestinationSelected: (i) => _onDestinationSelected(context, i),
         destinations: const [
