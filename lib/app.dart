@@ -31,7 +31,6 @@ import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
-import 'package:pharmaguide/features/stack/stack_screen.dart';
 
 /// Optional override for [GoRouter.initialLocation]. Set via:
 ///
@@ -201,7 +200,14 @@ GoRouter _buildRouter({
           ),
           GoRoute(
             path: Routes.stack,
-            builder: (_, __) => catalogRoute(const StackScreen()),
+            // Phase 11.2 — production Stack tab renders the v2 screen
+            // wired to activeStackProvider (real supplement +
+            // medication list with swipe-to-remove + Undo) and to
+            // stackActionsProvider for the remove / restore round
+            // trip. Status tier in the summary card still uses the
+            // "Optimal" fixture until the StackIntelligenceEngine
+            // wires in Phase 11.x.
+            builder: (_, __) => catalogRoute(const StackV2Screen()),
           ),
           GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
           GoRoute(

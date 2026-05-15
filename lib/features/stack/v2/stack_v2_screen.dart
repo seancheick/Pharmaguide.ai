@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
@@ -195,11 +198,15 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
 // Stack tab — summary card + supplements list.
 // =============================================================================
 
-class _StackTab extends StatelessWidget {
+class _StackTab extends ConsumerWidget {
   const _StackTab();
 
-  static const _items = <_StackEntry>[
+  /// Fixture used only when no real stack rows have loaded (cold cache
+  /// + zero-state during the first frame). Production rows replace
+  /// these once activeStackProvider resolves.
+  static const _fixtureItems = <_StackEntry>[
     _StackEntry(
+      id: 'fixture-1',
       name: 'Ultimate Omega 2X with Vitamin D3 + K2',
       brand: 'Nordic Naturals',
       score: 84,
@@ -207,6 +214,7 @@ class _StackTab extends StatelessWidget {
       frequency: 'with food',
     ),
     _StackEntry(
+      id: 'fixture-2',
       name: 'Basic Nutrients 2/Day',
       brand: 'Thorne',
       score: 91,
@@ -214,6 +222,7 @@ class _StackTab extends StatelessWidget {
       frequency: 'morning',
     ),
     _StackEntry(
+      id: 'fixture-3',
       name: 'L-Theanine 200mg',
       brand: 'NOW Foods',
       score: 72,
@@ -221,6 +230,7 @@ class _StackTab extends StatelessWidget {
       frequency: 'as needed',
     ),
     _StackEntry(
+      id: 'fixture-4',
       name: 'Atorvastatin 20mg',
       brand: null,
       score: null,
@@ -231,7 +241,24 @@ class _StackTab extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stackAsync = ref.watch(activeStackProvider);
+    final realItems = stackAsync.asData?.value
+        .map((row) => _StackEntry(
+              id: row.id,
+              name: row.name,
+              brand: null, // production resolves brand via core DB
+              score: null, // ditto for score
+              dosage: row.dosage,
+              frequency: row.frequency,
+              isMedication: row.type == 'medication',
+            ))
+        .toList();
+    final items = (realItems == null || realItems.isEmpty)
+        ? _fixtureItems
+        : realItems;
+    final isShowingFixture = items == _fixtureItems;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
@@ -267,7 +294,7 @@ class _StackTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: V2Spacing.space12),
-        ..._items.map(
+        ...items.map(
           (e) => Padding(
             padding: const EdgeInsets.fromLTRB(
               V2Spacing.space24,
@@ -275,7 +302,48 @@ class _StackTab extends StatelessWidget {
               V2Spacing.space24,
               V2Spacing.space12,
             ),
-            child: _StackItemRow(entry: e),
+            child: _StackItemRow(
+              entry: e,
+              // Fixture items can't be removed (no provider row to
+              // delete). Real rows wire to stackActionsProvider.
+              onRemoved: isShowingFixture
+                  ? null
+                  : () async {
+                      final actions = ref.read(stackActionsProvider);
+                      try {
+                        await actions.remove(e.id);
+                      } on Exception {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Could not remove.'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      if (!context.mounted) return;
+                      final messenger = ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar();
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Removed ${e.name}'),
+                          duration: const Duration(seconds: 4),
+                          behavior: SnackBarBehavior.floating,
+                          action: SnackBarAction(
+                            label: 'Undo',
+                            onPressed: () async {
+                              try {
+                                await actions.restore(e.id);
+                              } on Exception {
+                                // silent
+                              }
+                            },
+                          ),
+                        ),
+                      );
+                    },
+            ),
           ),
         ),
       ],
@@ -287,11 +355,22 @@ class _StackTab extends StatelessWidget {
 // Stack Summary card.
 // =============================================================================
 
-class _StackSummaryCard extends StatelessWidget {
+class _StackSummaryCard extends ConsumerWidget {
   const _StackSummaryCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Phase 11.2: live supplement + medication counts. Status tier
+    // stays "Optimal" until the intelligence engine wires in
+    // Phase 11.x — same incremental rollout as Home.
+    final stack = ref.watch(activeStackProvider).asData?.value ?? const [];
+    final supplementCount =
+        stack.where((e) => e.type == 'supplement').length;
+    final medicationCount =
+        stack.where((e) => e.type == 'medication').length;
+    final hasRealData = stack.isNotEmpty;
+    final liveSupplementCount = hasRealData ? supplementCount : 3;
+    final liveMedicationCount = hasRealData ? medicationCount : 1;
     const tone = V2Colors.safe;
 
     return Container(
@@ -368,18 +447,18 @@ class _StackSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: V2Spacing.space16),
-          const Row(
+          Row(
             children: [
               _CountChip(
                 icon: Icons.medication_outlined,
                 label: 'Supplements',
-                count: 3,
+                count: liveSupplementCount,
               ),
-              SizedBox(width: V2Spacing.space8),
+              const SizedBox(width: V2Spacing.space8),
               _CountChip(
                 icon: Icons.local_pharmacy_outlined,
                 label: 'Medications',
-                count: 1,
+                count: liveMedicationCount,
               ),
             ],
           ),
@@ -448,6 +527,11 @@ class _CountChip extends StatelessWidget {
 // =============================================================================
 
 class _StackEntry {
+  /// Stable id used as the Dismissible key AND as the
+  /// stackActionsProvider remove/restore handle. Fixture rows pass
+  /// synthetic ids like "fixture-1" — the parent suppresses dismiss
+  /// for those.
+  final String id;
   final String name;
   final String? brand;
   final int? score;
@@ -456,6 +540,7 @@ class _StackEntry {
   final bool isMedication;
 
   const _StackEntry({
+    required this.id,
     required this.name,
     required this.brand,
     required this.score,
@@ -467,13 +552,22 @@ class _StackEntry {
 
 class _StackItemRow extends StatelessWidget {
   final _StackEntry entry;
-  const _StackItemRow({required this.entry});
+
+  /// Callback fired after the user swipe-dismisses. Production
+  /// version calls stackActionsProvider.remove() + shows an Undo
+  /// snackbar. Null on fixture rows so the dismiss is rejected
+  /// before the row leaves the list.
+  final Future<void> Function()? onRemoved;
+
+  const _StackItemRow({required this.entry, this.onRemoved});
 
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: ValueKey('stack_${entry.name}'),
-      direction: DismissDirection.endToStart,
+      key: ValueKey('stack_${entry.id}'),
+      direction: onRemoved != null
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: V2Spacing.space24),
@@ -487,15 +581,7 @@ class _StackItemRow extends StatelessWidget {
           size: 22,
         ),
       ),
-      onDismissed: (_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Removed ${entry.name}'),
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(label: 'Undo', onPressed: () {}),
-          ),
-        );
-      },
+      onDismissed: (_) => onRemoved?.call(),
       child: Material(
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
