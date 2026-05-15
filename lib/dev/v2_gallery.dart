@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/components/pg_ingredients_card.dart';
+import 'package:pharmaguide/core/components/pg_interaction_warnings.dart';
+import 'package:pharmaguide/core/components/pg_label_confidence_card.dart';
 import 'package:pharmaguide/core/components/pg_personal_fit_card.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
+import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
@@ -282,6 +286,141 @@ class V2Gallery extends StatelessWidget {
                     caption: 'Cross-checked against 6 supplements',
                     rowTone: PGReviewTone.safe,
                     onTap: () {},
+                  ),
+                ],
+              ),
+            ],
+          ),
+          _Section(
+            title: 'Product Detail mid sections (Phase 8.1.4)',
+            children: [
+              Text(
+                'Score Breakdown · Interaction Warnings · Label '
+                'Confidence — the next 3 sliver positions on production '
+                'scroll. Same data shape, v2 surface + typography.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              // 1. Score Breakdown — 4 pillar bars
+              PGScoreBreakdownCard(
+                pillars: [
+                  PGPillar(
+                    label: 'Ingredient Quality',
+                    microExplanation: 'Form, dosage, and bioavailability',
+                    score: 22,
+                    max: 25,
+                    onTap: () {},
+                  ),
+                  PGPillar(
+                    label: 'Safety & Purity',
+                    microExplanation:
+                        'Free from harmful ingredients and contaminants',
+                    score: 26,
+                    max: 30,
+                    badges: const [
+                      PGPillarBadge(
+                        icon: Icons.verified_outlined,
+                        label: 'Third-party tested',
+                        color: AppTheme.severitySafe,
+                      ),
+                    ],
+                    onTap: () {},
+                  ),
+                  PGPillar(
+                    label: 'Evidence & Research',
+                    microExplanation: 'Clinical support behind ingredients',
+                    score: 14,
+                    max: 20,
+                    onTap: () {},
+                  ),
+                  PGPillar(
+                    label: 'Transparency & Verification',
+                    microExplanation: 'Label clarity and independent testing',
+                    score: 4,
+                    max: 5,
+                    badges: const [
+                      PGPillarBadge(
+                        icon: Icons.factory_outlined,
+                        label: 'Trusted manufacturer',
+                        color: AppTheme.severitySafe,
+                      ),
+                    ],
+                    onTap: () {},
+                  ),
+                ],
+                mappedCoverage: 0.78,
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 2. Interaction Warnings — personalized + generic
+              PGInteractionWarnings(
+                personalized: [
+                  PGWarning(
+                    severity: PGWarningSeverity.danger,
+                    evidence: PGEvidenceLevel.established,
+                    title:
+                        'Major interaction with your blood thinner',
+                    mechanism:
+                        'Omega-3 fatty acids inhibit platelet aggregation '
+                        'and can extend bleeding time. Combined with '
+                        'warfarin or rivaroxaban, this raises the risk of '
+                        'bleeding events — especially at doses above 3g '
+                        'EPA + DHA per day.',
+                    management:
+                        'Discuss with your prescriber before adding. They '
+                        'may want to monitor INR more frequently or adjust '
+                        'your warfarin dose.',
+                    sourceCount: 7,
+                    onShowSources: () {},
+                  ),
+                  PGWarning(
+                    severity: PGWarningSeverity.caution,
+                    evidence: PGEvidenceLevel.moderate,
+                    title: 'High-dose vitamin D + your kidney condition',
+                    mechanism:
+                        'High vitamin D intake increases calcium '
+                        'absorption, which can stress kidneys in patients '
+                        'with reduced glomerular filtration.',
+                    management: 'Stay under 2000 IU/day. Monitor serum '
+                        'calcium with your nephrologist.',
+                    sourceCount: 4,
+                    onShowSources: () {},
+                  ),
+                ],
+                generic: [
+                  PGWarning(
+                    severity: PGWarningSeverity.safe,
+                    evidence: PGEvidenceLevel.theoretical,
+                    title: 'May reduce iron absorption when taken together',
+                    mechanism:
+                        'Some studies suggest omega-3 may slightly reduce '
+                        'non-heme iron absorption.',
+                    management: 'Take iron supplements 2 hours apart.',
+                    sourceCount: 2,
+                    onShowSources: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              // 3. Label Confidence — calm caveat block
+              PGLabelConfidenceCard(
+                header: 'Limited data — partial coverage',
+                items: [
+                  PGLabelConfidenceItem(
+                    icon: Icons.layers_outlined,
+                    title: 'Contains a proprietary blend',
+                    body:
+                        'Per-ingredient amounts inside the blend aren\'t '
+                        'disclosed by the manufacturer. The blend\'s total '
+                        'is shown above.',
+                    onTap: () {},
+                  ),
+                  const PGLabelConfidenceItem(
+                    icon: Icons.help_outline_rounded,
+                    title: '2 active ingredients aren\'t in our database',
+                    body:
+                        'Those ingredients couldn\'t be scored. The PG '
+                        'Score above is based on the 5 that we recognize.',
+                    detail: 'astaxanthin (1.2 mg) · sea-buckthorn oil (50 mg)',
                   ),
                 ],
               ),
