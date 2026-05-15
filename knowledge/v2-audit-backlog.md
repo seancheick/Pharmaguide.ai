@@ -116,6 +116,14 @@ These need v2 swaps before the polish pass closes. Order rough:
 - [ ] Catalog unavailable screen (`app.dart` → `CatalogUnavailableScreen`)
 - [ ] Various PGShimmerBox usages embedded in legacy widgets
 
+### Deferred — bigger card widgets (low visibility, not safety-critical)
+- [ ] `features/stack/widgets/timing_advice_card.dart` — only renders
+      when stack has timing optimizations; not safety-critical.
+      Retint via `useV2Tones` flag (same pattern as PGSeverityBanner).
+- [ ] `features/stack/widgets/depletion_checker_card.dart` — only
+      renders when medications cause nutrient depletions. Same
+      retint pattern.
+
 ### Smaller components still on legacy
 - [ ] `core/widgets/pg_frosted_app_bar.dart` — frosted bar used by
       Stack screen, scroll-fade good but tone needs v2 tinted
