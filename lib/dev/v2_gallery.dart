@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
+import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
+import 'package:pharmaguide/core/components/pg_ingredients_card.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
+import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
+import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
 
 /// v2 component gallery — debug-only route at `/dev/v2`.
 ///
@@ -87,6 +92,110 @@ class V2Gallery extends StatelessWidget {
                     child: PGScoreLine(score: s),
                   ),
                 ),
+            ],
+          ),
+          _Section(
+            title: 'Ingredients · production parity',
+            children: [
+              Text(
+                'Mirror of `_IngredientTile` (active) + `_InactiveRow` + '
+                '`IngredientsCard`. Same chip semantics, same auto-expand '
+                '(≤5), same hairline rhythm.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              const PGIngredientsCard(
+                activeContent: PGActiveIngredientsSection(
+                  tiles: [
+                    PGActiveIngredientTile(
+                      ingredient: PGActiveIngredient(
+                        name: 'Magnesium Bisglycinate',
+                        dose: '200 mg',
+                        formLabel: 'Bisglycinate',
+                        formQuality: FormQuality.excellent,
+                        doseCallOut: DoseCallOut.withinLimits,
+                      ),
+                    ),
+                    PGActiveIngredientTile(
+                      ingredient: PGActiveIngredient(
+                        name: 'Vitamin D3 (Cholecalciferol)',
+                        dose: '1000 IU',
+                        formLabel: 'Cholecalciferol',
+                        formQuality: FormQuality.good,
+                      ),
+                    ),
+                    PGActiveIngredientTile(
+                      ingredient: PGActiveIngredient(
+                        name: 'Magnesium Oxide',
+                        dose: '400 mg',
+                        formLabel: 'Oxide',
+                        formQuality: FormQuality.poor,
+                        doseCallOut: DoseCallOut.high,
+                      ),
+                    ),
+                    PGActiveIngredientTile(
+                      ingredient: PGActiveIngredient(
+                        name: 'Vitamin B12',
+                        dose: '500 mcg',
+                        formLabel: 'Cyanocobalamin',
+                        formQuality: FormQuality.fair,
+                        doseCallOut: DoseCallOut.low,
+                      ),
+                    ),
+                    PGActiveIngredientTile(
+                      ingredient: PGActiveIngredient(
+                        name: 'Proprietary Energy Blend',
+                        dose: 'Amount not disclosed',
+                        doseCallOut: DoseCallOut.notDisclosed,
+                        isInferredFromLabel: true,
+                      ),
+                    ),
+                    PGActiveIngredientTile(
+                      ingredient: PGActiveIngredient(
+                        name: 'Yohimbine HCl',
+                        dose: '20 mg',
+                        formLabel: 'Hydrochloride',
+                        formQuality: FormQuality.good,
+                        doseCallOut: DoseCallOut.high,
+                        isSafetyConcern: true,
+                      ),
+                      showBottomDivider: false,
+                    ),
+                  ],
+                ),
+                inactiveIngredients: [
+                  PGInactiveIngredient(
+                    name: 'Hypromellose',
+                    tone: InactiveTone.green,
+                    roleHelper: 'Capsule shell',
+                  ),
+                  PGInactiveIngredient(
+                    name: 'Microcrystalline cellulose',
+                    tone: InactiveTone.green,
+                    roleHelper: 'Bulking agent',
+                  ),
+                  PGInactiveIngredient(
+                    name: 'Magnesium stearate',
+                    tone: InactiveTone.yellow,
+                    roleHelper: 'Flow agent · low concern',
+                  ),
+                  PGInactiveIngredient(
+                    name: 'Titanium dioxide',
+                    tone: InactiveTone.orange,
+                    roleHelper: 'Colorant · flagged (EU banned)',
+                  ),
+                  PGInactiveIngredient(
+                    name: 'Red 40 (Allura Red)',
+                    tone: InactiveTone.red,
+                    roleHelper: 'Synthetic colorant',
+                  ),
+                  PGInactiveIngredient(
+                    name: 'Silicon dioxide',
+                    tone: InactiveTone.yellow,
+                    roleHelper: 'Anti-caking',
+                  ),
+                ],
+              ),
             ],
           ),
           const _Section(
