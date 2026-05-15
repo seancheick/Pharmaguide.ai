@@ -45,7 +45,7 @@ class PGBetterAlternatives extends StatelessWidget {
   const PGBetterAlternatives({
     super.key,
     required this.alternatives,
-    this.title = 'Worth considering',
+    this.title = 'Better alternatives',
     this.body,
   });
 
@@ -88,6 +88,10 @@ class _AlternativeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Compact card: 48pt thumbnail, sans 14pt product name, compact
+    // PGScoreLine (14pt score, no tier description). Tighter than the
+    // production "Worth considering" cards — Sean's call: alternatives
+    // are scannable list items, not full product previews.
     final card = Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
@@ -98,16 +102,16 @@ class _AlternativeCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 56pt image slot — falls back to a soft accent-tint tile.
           SizedBox(
-            width: 56,
-            height: 56,
+            width: 48,
+            height: 48,
             child: alt.imageWidget ?? _AlternativePlaceholder(),
           ),
           const SizedBox(width: V2Spacing.space12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   alt.brand,
@@ -116,12 +120,14 @@ class _AlternativeCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   alt.name,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodySm(color: V2Colors.fg).copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: V2Spacing.space8),
-                PGScoreLine(score: alt.score),
+                const SizedBox(height: V2Spacing.space4),
+                PGScoreLine(score: alt.score, compact: true),
               ],
             ),
           ),
@@ -129,7 +135,7 @@ class _AlternativeCard extends StatelessWidget {
             const SizedBox(width: V2Spacing.space8),
             const Icon(
               Icons.chevron_right_rounded,
-              size: 18,
+              size: 16,
               color: V2Colors.fgMuted,
             ),
           ],

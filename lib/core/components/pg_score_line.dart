@@ -35,11 +35,18 @@ class PGScoreLine extends StatelessWidget {
   /// production exactly.
   final double dotSize;
 
+  /// Compact mode for list / alternative cards. Drops the score +
+  /// tier label from 18pt → 14pt and hides the description line so
+  /// the line fits a single tight row. Hero usage keeps the default
+  /// expansive layout.
+  final bool compact;
+
   const PGScoreLine({
     super.key,
     required this.score,
     this.descriptionOverride,
     this.dotSize = 10,
+    this.compact = false,
   });
 
   @override
@@ -48,6 +55,8 @@ class PGScoreLine extends StatelessWidget {
     // Production displays the score AS-GIVEN even if out of range — keeps
     // a "105/100" UI as a clear data-quality signal. Mirror that.
     final displayScore = score;
+    final headlineSize = compact ? 14.0 : 18.0;
+    final dot = compact ? 8.0 : dotSize;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,8 +66,8 @@ class PGScoreLine extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              width: dotSize,
-              height: dotSize,
+              width: dot,
+              height: dot,
               decoration: BoxDecoration(
                 color: tier.color,
                 shape: BoxShape.circle,
@@ -71,7 +80,7 @@ class PGScoreLine extends StatelessWidget {
             Text(
               '$displayScore/100',
               style: V2Typography.bodyMedium(color: V2Colors.fg).copyWith(
-                fontSize: 18,
+                fontSize: headlineSize,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -79,16 +88,18 @@ class PGScoreLine extends StatelessWidget {
             Text(
               tier.label,
               style: V2Typography.bodyMedium(color: tier.color).copyWith(
-                fontSize: 18,
+                fontSize: headlineSize,
               ),
             ),
           ],
         ),
-        const SizedBox(height: V2Spacing.space4),
-        Text(
-          descriptionOverride ?? tier.description,
-          style: V2Typography.bodySm(color: V2Colors.fgMuted),
-        ),
+        if (!compact) ...[
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            descriptionOverride ?? tier.description,
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          ),
+        ],
       ],
     );
   }
