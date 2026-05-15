@@ -75,25 +75,27 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      // 960ms full entrance — slower than the previous 640ms so the
-      // reveal-one-by-one reads more clearly (Sean's call 2026-05-15:
-      // "i assume you'll have a nice element reveal on that page one
-      // by one"). Each individual element animates 60% of total =
-      // 576ms, which feels deliberate but not slow.
-      duration: V2Motion.slowest,
+      // 1400ms total entrance — with the per-element window dropped
+      // to 0.20, elements now reveal sequentially with only a tiny
+      // overlap, so the user sees: mark → headline → subhead →
+      // buttons → skip in a clear cascade rather than a single
+      // blended fade-up. Sean's call 2026-05-15: "one section
+      // staggering at a time, smooth entrance one by one."
+      duration: const Duration(milliseconds: 1400),
     )..forward();
 
     _heartbeat = AnimationController(
       vsync: this,
-      // 2200ms one-way × 2 (reverse) = 4.4s full cycle. A slow,
-      // ambient breath — slower than a resting pulse so it never
-      // reads as anxious.
-      duration: const Duration(milliseconds: 2200),
+      // 1500ms one-way × 2 (reverse) = 3.0s full cycle. Faster than
+      // the previous 4.4s so the motion is clearly perceptible
+      // without becoming anxious — sits between a calm breath and
+      // a resting pulse.
+      duration: const Duration(milliseconds: 1500),
     );
-    // Scale peak bumped from 4.5% to 8% — at 56pt the previous delta
-    // (~2.5px) was sub-perceptible. 8% gives ~4.5px peak which reads
-    // as a calm breath without dominating.
-    _heartbeatScale = Tween<double>(begin: 1.0, end: 1.08).animate(
+    // Scale peak bumped 8% → 12% (1.12). At 56pt that's ~6.7px peak
+    // movement, which is comfortably above the perceptual threshold.
+    // Stays under 1.15 so the mark never feels like it's straining.
+    _heartbeatScale = Tween<double>(begin: 1.0, end: 1.12).animate(
       CurvedAnimation(parent: _heartbeat, curve: Curves.easeInOutSine),
     );
     // Defer starting the heartbeat until the stagger entrance has had
@@ -113,14 +115,17 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
     super.dispose();
   }
 
-  /// 80ms-stagger entrance — mirrors the onboarding _StepShell so the
-  /// transition from final celebration → auth feels continuous. Lift
-  /// distance bumped from 16 → 22 to make the reveal-one-by-one read
-  /// more clearly on the live build.
+  /// Sequential stagger. Each element animates over 20% of the
+  /// 1400ms total (= 280ms per element) starting at its
+  /// [delayFraction]. Adjacent elements are spaced 0.18 apart, so
+  /// the next element starts as the previous one is nearly done —
+  /// a clear cascade with just enough overlap to feel smooth.
+  ///
+  /// Lift bumped 22 → 28 so the entrance motion is unmistakable.
   ({double opacity, double lift}) _stagger(double delayFraction) {
-    final t = ((_ctrl.value - delayFraction) / 0.6).clamp(0.0, 1.0);
+    final t = ((_ctrl.value - delayFraction) / 0.20).clamp(0.0, 1.0);
     final eased = V2Motion.decelerate.transform(t);
-    return (opacity: eased, lift: 22 * (1 - eased));
+    return (opacity: eased, lift: 28 * (1 - eased));
   }
 
   void _noopOrCall(VoidCallback? cb) {
@@ -152,11 +157,14 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
             child: AnimatedBuilder(
               animation: _ctrl,
               builder: (context, _) {
+                // Delays spaced 0.18 apart so each element starts as
+                // the previous one is just finishing — sequential
+                // cascade, not blended fade-up.
                 final mark = _stagger(0.0);
-                final headline = _stagger(0.10);
-                final subhead = _stagger(0.20);
-                final buttons = _stagger(0.32);
-                final skip = _stagger(0.44);
+                final headline = _stagger(0.18);
+                final subhead = _stagger(0.36);
+                final buttons = _stagger(0.54);
+                final skip = _stagger(0.72);
 
                 return LayoutBuilder(
                   builder: (context, constraints) {
