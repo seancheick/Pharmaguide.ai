@@ -45,6 +45,8 @@ import 'package:pharmaguide/features/product_detail/providers/detail_blob_provid
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/v2/scroll_anchors.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_helpers.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
@@ -184,6 +186,24 @@ class _ProductDetailV2ConnectedState
       blobError: blobError,
     );
 
+    // -------------------------------------------------------------
+    // Hero `bottomBanner` slot — blocked-product banner (11.7c.1).
+    // Null when the product is not blocked; the Hero collapses the
+    // slot to zero height in that case. When blocked, this slot
+    // replaces the production header's standalone BlockedBanner
+    // sliver, keeping the banner visually anchored to the hero card.
+    // -------------------------------------------------------------
+    final heroBottomBanner = isBlocked
+        ? buildBlockedBannerSection(
+            verdict: _product?.verdict ?? '',
+            blockingReason: _product?.blockingReason ?? '',
+            topWarnings: parseTopWarnings(_product),
+            bannedSubstanceDetail:
+                detailBlob?['banned_substance_detail']
+                    as Map<String, dynamic>?,
+          )
+        : null;
+
     final mq = MediaQuery.of(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -216,7 +236,7 @@ class _ProductDetailV2ConnectedState
                     isBlocked: isBlocked,
                     isNotScored: isNotScored,
                     trustTags: trustTags,
-                    // bottomBanner: 11.7c slots BlockedBanner here.
+                    bottomBanner: heroBottomBanner,
                   ),
                   const SizedBox(height: V2Spacing.space12),
 

@@ -153,25 +153,25 @@ row:
 | Analytics | none |
 | A11y | Product name + brand + score Semantics labels |
 | Golden | G1 long name, G3 missing image, G4 low-quality, G5 blocked → BlockedBanner |
-| **Status** | **wired** (without blocked banner) — Hero blocked-state pending 11.7c.1 |
+| **Status** | **wired** — Hero composes `heroBottomBanner` from S1.5 adapter when `isBlocked` is true |
 
 #### S1.5 Hero BlockedBanner (slotted into Hero `bottomBanner`)
 
 | Field | Value |
 |---|---|
 | Production | `_BlockedBanner` (line 1626) — appears inside `_HeaderSection` when verdict is unsafe |
-| V2 | **11.7c.1: NEW `v2/sections/blocked_banner_section.dart`** |
-| Source | `parseTopWarnings(_product)` (JSON-decode of `_product.topWarnings`) + `detailBlob['banned_substance_detail']` |
-| Gate | `isBlocked` is true |
-| Loading | Reads blob; if blob loading → no banned-substance detail yet, only topWarnings |
-| Empty | If both topWarnings empty and no banned-substance detail → render minimal "Use with caution" banner OR suppress (verify production behavior) |
-| Blocked | This IS the blocked behavior — it replaces hero subtitle |
+| V2 | `buildBlockedBannerSection(...)` in `v2/sections/blocked_banner_section.dart` (composition) + `v2/sections/blocked_banner_helpers.dart` (pure logic) |
+| Source | `parseTopWarnings(_product)` (JSON-decode of `_product.topWarnings`) + `detailBlob['banned_substance_detail']` + `_product.verdict` + `_product.blockingReason`. Helpers: `buildRegulatoryLine`, `contextNoteFor` (imported from production `widgets/blocked_banner_context.dart`), `resolveBlockedReasonBody`, `chooseFdaLinks`, `humanizeBlockingReason` (verbatim port). |
+| Gate | `isBlocked` is true (caller passes null otherwise → Hero renders no bottomBanner) |
+| Loading | Reads blob; if blob loading → only `topWarnings` from product row render. The PGSeverityBanner + reason body fire from row data; banned-substance detail rows appear once blob lands. |
+| Empty | If no banned-substance detail AND no top warnings → still shows PGSeverityBanner + 3rd-tier humanized reason body ("PharmaGuide flagged this product on safety grounds.") |
+| Blocked | This IS the blocked behavior — it replaces hero subtitle. Hero `subtitle` (servings + dosing) hidden by PGHeroSection internally when `bottomBanner` non-null. |
 | Anchor | N/A |
-| CTA | FDA reference link tap → `url_launcher.launchUrl` (verify production) |
-| Analytics | none |
-| A11y | "Banned substance" severity must be ≥1 dimension beyond color (icon + label prefix) |
-| Golden | G5 NSF banned product, mixed topWarnings list |
-| **Status** | **placeholder** (not yet started) |
+| CTA | FDA reference link tap → `launchUrl(uri, mode: LaunchMode.externalApplication)` (matches production) |
+| Analytics | none (FDA-link tap is external nav) |
+| A11y | Danger tone paired with icon (PGSeverityBanner ships its own danger icon); FDA links underlined + `Icons.open_in_new_rounded` indicator + ellipsis on long URLs |
+| Golden | G5 NSF banned product; substance-with-oneLiner / substance-without-oneLiner / no-substance fallback all three body tiers covered by `resolveBlockedReasonBody` |
+| **Status** | **wired** — pending live-device verification on a real BLOCKED product (G5) |
 
 #### S2. PersonalFit
 
@@ -483,14 +483,14 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7b.1 boundary)
+## Completion tally (Phase 11.7c.1 boundary)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
 | verified | 0 |
-| **wired** | 4 (S0, S0.5, S0.9, S17 — plus S1 Hero minus blocked banner) |
-| **placeholder** | 16 |
+| **wired** | 6 (S0, S0.5, S0.9, S1, S1.5, S17) |
+| **placeholder** | 14 |
 | total | 20 |
 
 ---
