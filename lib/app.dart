@@ -16,6 +16,7 @@ import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
+import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
@@ -237,6 +238,16 @@ GoRouter _buildRouter({
           state,
           const OnboardingV2Screen(autoFinish: false),
         ),
+      ),
+      // v2 Product Detail flagship — composes every Phase 8.1.1–8.1.5
+      // mirror against fixture data so reviewers can see the full
+      // scroll story end-to-end. Production wiring (later phase)
+      // swaps the fixtures for provider data while reusing the same
+      // components.
+      GoRoute(
+        path: '/dev/v2/product-detail',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProductDetailV2Screen()),
       ),
       GoRoute(
         path: Routes.splashIntro,

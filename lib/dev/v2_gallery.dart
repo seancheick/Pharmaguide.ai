@@ -709,13 +709,25 @@ class V2Gallery extends StatelessWidget {
             ],
           ),
           const _Section(
-            title: 'In progress — Phase 8.1',
+            title: 'Flagship screens — Phase 8.1',
+            children: [
+              _PrototypeLink(
+                label: 'Product Detail',
+                subtitle:
+                    'Full v2 product detail page · 17 sections, '
+                    'production scroll order',
+                routePath: '/dev/v2/product-detail',
+              ),
+            ],
+          ),
+          const _Section(
+            title: 'In progress — Phase 8.2+',
             children: [
               _GalleryNote(
                 text:
-                    'Product Detail, Home, Scanner, Stack v2 are being '
-                    'rebuilt as visual mirrors of production widgets. '
-                    'Routes will return here as each lands.',
+                    'Home, Scanner, Stack v2 are being rebuilt as visual '
+                    'mirrors of production widgets. Routes will return '
+                    'here as each lands.',
               ),
             ],
           ),
