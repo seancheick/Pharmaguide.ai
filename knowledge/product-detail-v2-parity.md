@@ -287,55 +287,55 @@ row:
 
 | Field | Value |
 |---|---|
-| Production | `TradeoffsSection` inside `DetailSection` |
+| Production | `TradeoffsSection` inside `DetailSection` (line 2101) |
 | V2 | **11.7d.3: NEW `v2/sections/tradeoffs_section.dart`** → `PGTradeoffsSection` |
-| Source | `blob['tradeoffs_section']` → pros + considerations arrays |
-| Gate | `shouldShowDeepDive` |
+| Source | `blob['score_bonuses']` (→ pros) + `blob['score_penalties']` (→ considerations). Each entry: `label || reason` → headline; `sanitizeWhyDetail(detail || description)` → caption. |
+| Gate | `shouldShowDeepDive` + at least one bonus or penalty after sanitization |
 | Loading | Wait for blob |
-| Empty | Both lists empty → section suppressed |
-| Blocked | Section suppressed |
+| Empty | Both lists empty (or all entries filtered as blank-label / noise) → section suppressed |
+| Blocked | Section suppressed via `showDeepDive` |
 | Anchor | N/A |
-| CTA | none |
+| CTA | none (matches production) |
 | Analytics | none |
-| A11y | Pros + considerations labeled |
+| A11y | Two-column "What's good / What to consider" layout; columns hide when empty so a pros-only product still feels intentional |
 | Golden | Pros-only, considerations-only, both, neither (suppressed) |
-| **Status** | **placeholder** |
+| **Status** | **wired** — suppression path active when blob is null/empty (dev sim's blob fetch returns null for all test products → S7 correctly hides, matches production behavior on same dsldIds). Verbatim port of production's `_extractWhyItems` field resolution + `sanitizeWhyDetail` filter (publicly exposed from `product_detail_screen.dart`). **Deferred to S7.next-iteration:** (a) inactive-severity summary bullet ("N ingredients flagged for safety — review the list"), (b) T15 collapse of "Harmful additive X" → "Additives: X, Y, Z", (c) per-side cap (4 max) + "and N more" overflow toggle. These are polish atop the basic mapping; first pass surfaces the full sanitized lists. Tile-render verification awaits a blob-populated product. |
 
 #### S8. Populations
 
 | Field | Value |
 |---|---|
-| Production | `PopulationsSection` inside `DetailSection` |
+| Production | `PopulationsSection` inside `DetailSection` (line 2155) |
 | V2 | **11.7d.4: NEW `v2/sections/populations_section.dart`** → `PGPopulationsSection` |
-| Source | `blob['condition_summary']` filtered to user profile conditions |
-| Gate | `shouldShowDeepDive` + non-empty callouts after profile filter |
-| Loading | Wait for blob |
-| Empty | No callouts → section suppressed |
-| Blocked | Section suppressed |
+| Source | `aggregatePopulations(guardedWarnings)` → `splitPopulations(..., userConditions, userDrugClasses, ageBracket)`. Each remaining population string is split at em-dash / en-dash / " - " into label + body. |
+| Gate | `shouldShowDeepDive` + `split.mainList` non-empty after profile dedupe |
+| Loading | Wait for warnings + profile |
+| Empty | `aggregatePopulations` empty OR `mainList` empty after dedupe → section suppressed |
+| Blocked | Section suppressed via `showDeepDive` |
 | Anchor | N/A |
-| CTA | Callout tap → detail (route TBD) |
-| Analytics | Callout-tap |
-| A11y | Population label paired with icon |
-| Golden | Pregnancy, blood thinner, multiple, none (suppressed) |
-| **Status** | **placeholder** |
+| CTA | Callout tap deferred (production doesn't render tap target either) |
+| Analytics | none |
+| A11y | Caution-tinted icon + label + body; each callout reads as a single bullet |
+| Golden | Pregnancy, blood thinner, multiple, all-covered (suppressed), none (suppressed) |
+| **Status** | **wired** — suppression path active (dev sim has no warnings populated for test products → S8 correctly hides). Verbatim port of production's `aggregatePopulations` + `splitPopulations` helpers (publicly exposed). Header "Extra caution if you are…" verbatim from production line 279. Em-dash split (`"Children — immature gut barrier"` → label `"Children"`, body `"immature gut barrier"`) verbatim from production's `_splitAtDash`. Privacy-aware: user signals (conditions / drug classes / age bracket) are filtered OUT of `mainList` by `splitPopulations` — they're already personalized surfaces upstream in ReviewBeforeUseCard. "Already covered" parenthetical dropped (matches production's 2026-05-05 behavior — Sean's call: silence in ReviewBeforeUseCard is sufficient signal). **Deferred to S8.next-iteration:** per-population icon mapping (pregnancy → `pregnant_woman`, kidney → `bloodtype`, etc.). Production renders plain bullets without per-population icons; v2 PGPopulationCallout requires an icon, so we default to `Icons.groups_outlined` (matches production's section header icon). Population-aware icon resolution would surface a richer visual without changing semantics. |
 
 #### S9. Nutrition
 
 | Field | Value |
 |---|---|
-| Production | `NutritionPanel` inside `DeepDiveSection` |
+| Production | `NutritionPanel` inside `DeepDiveSection` (line 3010) |
 | V2 | **11.7d.5: NEW `v2/sections/nutrition_section.dart`** → `PGNutritionPanel` |
-| Source | `_product.caloriesPerServing` + `blob['nutrition_detail']` |
-| Gate | `shouldShowDeepDive` + non-null nutrition data |
+| Source | `_product.caloriesPerServing` (Drift column, canonical) + `blob['nutrition_detail']` (fallback for calories; primary source for macros). Macros: `total_fat_g`, `total_carbohydrates_g`, `dietary_fiber_g`, `protein_g`. |
+| Gate | `shouldShowDeepDive` + at least one row has data (calories OR any macro) |
 | Loading | Wait for blob |
-| Empty | No calories + no facts → section suppressed |
-| Blocked | Section suppressed |
+| Empty | No calories AND no macros → section suppressed |
+| Blocked | Section suppressed via `showDeepDive` |
 | Anchor | N/A |
 | CTA | none |
 | Analytics | none |
-| A11y | Facts table labeled; daily-value % readable |
-| Golden | Full nutrition, partial, none (suppressed) |
-| **Status** | **placeholder** |
+| A11y | "Nutrition Facts" title (FDA-standard vocabulary); each row label + value pair reads naturally |
+| Golden | Full nutrition, calories-only, partial macros, none (suppressed) |
+| **Status** | **wired** — suppression path active when neither calories column nor `nutrition_detail` blob has data. Verbatim port of production's `_readNumber` + `_formatGrams` formatters (whole-number when integer, one decimal otherwise). FDA nutrition-label row order preserved verbatim: Calories → Total Fat → Total Carbs → Dietary Fiber → Protein. Each row only renders when its blob value is non-null (matches production's "missing macro doesn't pretend to be 0g" rule). Title "Nutrition Facts" verbatim from production line 157. **Deferred to S9.next-iteration:** (a) %DV column (production NutritionPanel doesn't render %DV either, so this matches behavior — PGNutritionFact supports `dailyValue` if we later expose it from the pipeline), (b) vitamins/minerals (Sodium, Potassium, etc.) — production currently omits these per FDA-style simplification. |
 
 #### S10. Certifications
 
@@ -501,14 +501,14 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7d.2 boundary)
+## Completion tally (Phase 11.7d.5 boundary — editorial sections batch)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse + privacy correction, S4 LabelConfidence, S5 ScoreBreakdown) |
-| **wired** | 5 (S0, S0.5, S0.9, S6 Ingredients, S17 — suppression paths live; tile-render verification awaits a blob-populated product) |
-| **placeholder** | 9 |
+| **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse + privacy correction, S4 LabelConfidence, S5 ScoreBreakdown + alignment fix) |
+| **wired** | 8 (S0, S0.5, S0.9, S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S17 — suppression paths live; tile-render verification awaits a blob-populated product) |
+| **placeholder** | 6 |
 | total | 21 |
 
 **Dev sim blob limitation:** the iPhone simulator's Supabase blob fetch returns null for every test product in this session (confirmed via production parity — both `/product/65844` and `/product/15712` render "No additional details available." on the production route). All blob-dependent sections (S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S10–S15) will reach their first live tile-render verification when a product whose blob has been populated (cached locally OR fetched successfully from Supabase) flows through the screen. Until then, parity is guaranteed by verbatim helper ports + suppression-path live verification.

@@ -57,8 +57,11 @@ import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dar
 import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
@@ -417,30 +420,29 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 7. Tradeoffs (PLACEHOLDER, 11.7d) -----------
+                  // ---- 7. Tradeoffs (WIRED, 11.7d.3) ---------------
                   if (showDeepDive) ...[
-                    const _SectionPlaceholder(
-                      label: 'Tradeoffs',
-                      detail: 'tradeoffs_section blob',
+                    buildTradeoffsSection(detailBlob: detailBlob),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- 8. Populations (WIRED, 11.7d.4) -------------
+                  if (showDeepDive) ...[
+                    buildPopulationsSection(
+                      warnings: guardedWarnings,
+                      userConditions: profile.conditions.toSet(),
+                      userDrugClasses: profile.drugClasses.toSet(),
+                      ageBracket: profile.ageBracket,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 8. Populations (PLACEHOLDER, 11.7d) ---------
+                  // ---- 9. Nutrition (WIRED, 11.7d.5) ---------------
                   if (showDeepDive) ...[
-                    const _SectionPlaceholder(
-                      label: 'Populations',
-                      detail: 'condition_summary + drug_classes',
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 9. Nutrition (PLACEHOLDER, 11.7d) -----------
-                  if (showDeepDive) ...[
-                    _SectionPlaceholder(
-                      label: 'Nutrition',
-                      detail:
-                          'cal/serving=${_product?.caloriesPerServing ?? "—"}',
+                    buildNutritionSection(
+                      caloriesPerServing: _product?.caloriesPerServing,
+                      nutritionDetail: detailBlob?['nutrition_detail']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
