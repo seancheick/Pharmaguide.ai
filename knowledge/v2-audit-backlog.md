@@ -150,3 +150,80 @@ discovered along the way.
 
 Anything checked off can move to a separate "Done" section if useful,
 or just deleted — git history preserves the audit trail.
+
+---
+
+## Product-logic bugs (separate track — NOT v2 styling)
+
+These are recommendation/scoring/logic issues that need their own
+dedicated fix sprint. They were surfaced during v2 wiring but DO NOT
+block route swap — they exist in production already and v2 renders
+the same (faithful) output.
+
+### [ ] Better Alternatives — recommendation relevance
+
+**Severity:** Medium (trust-eroding; can recommend wrong-category
+products with unrelated ingredients, undermining the "Higher quality
+alternatives" promise).
+
+**Symptom (Sean 2026-05-15):** Better Alternatives sometimes
+surfaces products from the wrong category or with unrelated
+ingredients. Feels unreliable.
+
+**Current behavior:** `CoreDatabase.findAlternatives(category,
+minScore=0.8*currentScore, excludeDsldId, limit=N)` —
+`primary_category` exact match + higher `scoreQuality80` + sort by
+score desc. That's it. No active-ingredient overlap check, no
+intent/use-case alignment, no formulation-safety filter, no
+fit-score awareness.
+
+**Root cause:** `primary_category` in `pharmaguide_core.db` is too
+coarse — a "Multivitamin" category includes products with very
+different active-ingredient profiles. Sort-by-score-only also
+ignores why the current product was downgraded, so the recommended
+"better" alternative may share the same flaw at higher cosmetic score.
+
+**Should prioritize (in order):**
+1. **Same category** (primary_category exact — already doing this)
+2. **Same intent / use case** — derive from active ingredients or
+   product tags (e.g. "sleep support", "post-workout recovery",
+   "iron deficiency"). Could lean on the goal-cluster mapping the
+   FitScore engine already produces.
+3. **Same key active ingredients** — overlap on the actives the
+   user is actually shopping for (Magnesium → magnesium products,
+   not generic multis that happen to contain it).
+4. **Cleaner score/profile fit** — currently only score is filtered;
+   should also prefer products whose FitDisplay is better for the
+   active profile (FitStrongMatch / FitGoodMatch). Means
+   alternative lookup needs to be fit-score-aware, not score-only.
+5. **Safer formulation** — prefer products without proprietary
+   blends, without unmapped actives, with third-party testing, in
+   bioavailable forms (formulation pillar score).
+
+**Affects:**
+- `lib/data/database/core_database.dart` lines 308–334 —
+  `findAlternatives` query needs new join/filter logic, OR a
+  layered scoring fn on top of category match.
+- `lib/features/product_detail/widgets/better_alternatives.dart` —
+  production widget; v2 reuses the same DB query so the fix lands
+  identically in both.
+- May need a new column or sidecar table for active-ingredient
+  fingerprint / goal-cluster tag.
+
+**NOT a v2 visual issue** — both prod and v2 render the same
+`findAlternatives` output. v2 wiring (S16 BetterAlternatives) is
+faithful to production behavior including this flaw. The fix
+belongs in a dedicated product-logic sprint, separate from v2
+adapter work.
+
+**Approach when scheduled:**
+- Spec the new ranking signal stack (category > intent > active
+  overlap > fit > formulation safety) with worked examples (a few
+  products users have reported feel wrong).
+- Add a goal-cluster column or compute it on the fly.
+- Refactor `findAlternatives` to a two-stage pipeline:
+  candidate generation (category + active overlap) → ranking
+  (fit, formulation, safety, score).
+- Add golden tests pinning the top-N for representative products
+  so the next regression catches itself.
+- Coordinate with FitScore engine — same fit math should drive both.
