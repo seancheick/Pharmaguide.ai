@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
@@ -59,6 +60,44 @@ class ProfileState {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // "None" sentinel helpers — Phase 11.7L.B.6.
+  //
+  // The v2 ProfileSetup distinguishes "user hasn't decided yet" (empty
+  // list) from "user explicitly opted out" (list contains the sentinel
+  // ID from `SchemaIds.noneSentinels`). These getters surface that
+  // distinction to UI without exposing the sentinel string.
+  //
+  // Important: `goals`, `conditions`, etc. ARE the raw lists with
+  // sentinels included when set. Consumers that talk to the matcher
+  // should call `goalsForEvaluator` / `conditionsForEvaluator` /
+  // `drugClassesForEvaluator` / `allergensForEvaluator` to get the
+  // sentinel-stripped view. The legacy ProfileSetup screen never
+  // produces sentinels, so its rows continue to work unchanged.
+  // ---------------------------------------------------------------------------
+  bool get hasGoalNone => goals.contains(SchemaIds.goalNone);
+  bool get hasConditionNone => conditions.contains(SchemaIds.conditionNone);
+  bool get hasDrugClassNone => drugClasses.contains(SchemaIds.drugClassNone);
+  bool get hasAllergenNone => allergens.contains(SchemaIds.allergenNone);
+
+  /// Sentinel-stripped goals list — safe to hand to the evaluator /
+  /// recommender. Use this anywhere the matcher would otherwise see
+  /// `GOAL_NONE` and fail a taxonomy lookup.
+  List<String> get goalsForEvaluator =>
+      goals.where((g) => g != SchemaIds.goalNone).toList(growable: false);
+
+  List<String> get conditionsForEvaluator => conditions
+      .where((c) => c != SchemaIds.conditionNone)
+      .toList(growable: false);
+
+  List<String> get drugClassesForEvaluator => drugClasses
+      .where((d) => d != SchemaIds.drugClassNone)
+      .toList(growable: false);
+
+  List<String> get allergensForEvaluator => allergens
+      .where((a) => a != SchemaIds.allergenNone)
+      .toList(growable: false);
+
   /// Profile-flag set for the v6.0 evaluator. Combines [profileFlags]
   /// (history flags) with derived flags from [conditions]:
   ///   conditions: 'pregnancy'         → 'pregnant'
@@ -78,7 +117,7 @@ class ProfileState {
       'surgery_scheduled': 'surgery_scheduled',
     };
     final out = <String>{...profileFlags};
-    for (final c in conditions) {
+    for (final c in conditionsForEvaluator) {
       final flag = conditionToFlag[c.toLowerCase()];
       if (flag != null) out.add(flag);
     }
@@ -176,6 +215,13 @@ class ProfileState {
 
     final out = <String>{};
     for (final id in stored) {
+      // Phase 11.7L.B.6 — preserve the v2 None sentinel verbatim. It's
+      // not a pipeline-canonical allergen and would otherwise be
+      // silently dropped by the `supported` filter below.
+      if (id == SchemaIds.allergenNone) {
+        out.add(id);
+        continue;
+      }
       final renamed = renames[id] ?? id;
       final expanded = groupExpansions[renamed];
       if (expanded != null) {
@@ -198,7 +244,12 @@ class ProfileState {
   /// Also normalizes IDs with trim + lowercase since the taxonomy uses
   /// lowercase canonical IDs.
   static List<String> _migrateLegacyDrugClasses(List<String> stored) {
-    final normalized = stored.map((id) => id.trim().toLowerCase()).toList();
+    // Phase 11.7L.B.6 — preserve the v2 None sentinel verbatim. The
+    // `.toLowerCase()` below would otherwise rewrite `DRUG_CLASS_NONE`
+    // → `drug_class_none`, breaking the sentinel string match.
+    final normalized = stored
+        .map((id) => id == SchemaIds.drugClassNone ? id : id.trim().toLowerCase())
+        .toList();
     if (!normalized.contains('hypoglycemics')) return normalized;
     final out = normalized.where((id) => id != 'hypoglycemics').toList();
     if (!out.contains('hypoglycemics_unknown')) {
@@ -255,7 +306,12 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       state = state.copyWith(allergens: value);
 
   void toggleGoal(String goalId) {
-    final current = List<String>.from(state.goals);
+    // Strip the None sentinel as a side-effect of picking a real ID —
+    // the two are mutually exclusive (see `setGoalsWithNone`). Note we
+    // also count goals BEFORE the sentinel strip so a user opting out
+    // of None still gets to pick up to 2 fresh goals.
+    final current = List<String>.from(state.goals)
+      ..removeWhere((g) => g == SchemaIds.goalNone);
     if (current.contains(goalId)) {
       current.remove(goalId);
     } else if (current.length < 2) {
@@ -265,7 +321,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 
   void toggleCondition(String conditionId) {
-    final current = List<String>.from(state.conditions);
+    final current = List<String>.from(state.conditions)
+      ..removeWhere((c) => c == SchemaIds.conditionNone);
     if (current.contains(conditionId)) {
       current.remove(conditionId);
     } else {
@@ -275,7 +332,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 
   void toggleDrugClass(String drugClassId) {
-    final current = List<String>.from(state.drugClasses);
+    final current = List<String>.from(state.drugClasses)
+      ..removeWhere((d) => d == SchemaIds.drugClassNone);
     if (current.contains(drugClassId)) {
       current.remove(drugClassId);
     } else {
@@ -285,13 +343,71 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 
   void toggleAllergen(String allergenId) {
-    final current = List<String>.from(state.allergens);
+    final current = List<String>.from(state.allergens)
+      ..removeWhere((a) => a == SchemaIds.allergenNone);
     if (current.contains(allergenId)) {
       current.remove(allergenId);
     } else {
       current.add(allergenId);
     }
     state = state.copyWith(allergens: current);
+  }
+
+  // ---------------------------------------------------------------------------
+  // "None" sentinel setters — Phase 11.7L.B.6.
+  //
+  // Each `set...WithNone` accepts the resolved (selected, noneSelected)
+  // pair from a `PGSelectionSheet` Save callback and writes the
+  // appropriate canonical list. Mutual exclusion is enforced here so
+  // call sites don't have to think about it:
+  //   noneSelected=true  → list = [<sentinel>] (clears any real picks)
+  //   noneSelected=false → list = selected.toList() (drops any sentinel)
+  // The pre-existing `toggle*` methods (toggleGoal, toggleCondition,
+  // toggleDrugClass, toggleAllergen, toggleAllergenGroup) keep their
+  // legacy single-tap semantics for backward compat, but each one now
+  // strips the sentinel when adding a real ID so the two paths agree
+  // on the invariant "sentinel and real IDs never co-exist."
+  // ---------------------------------------------------------------------------
+  void setGoalsWithNone({
+    required Set<String> selected,
+    required bool noneSelected,
+  }) {
+    state = state.copyWith(
+      goals: noneSelected ? [SchemaIds.goalNone] : selected.toList(),
+    );
+  }
+
+  void setConditionsWithNone({
+    required Set<String> selected,
+    required bool noneSelected,
+  }) {
+    state = state.copyWith(
+      conditions: noneSelected
+          ? [SchemaIds.conditionNone]
+          : selected.toList(),
+    );
+  }
+
+  void setDrugClassesWithNone({
+    required Set<String> selected,
+    required bool noneSelected,
+  }) {
+    state = state.copyWith(
+      drugClasses: noneSelected
+          ? [SchemaIds.drugClassNone]
+          : selected.toList(),
+    );
+  }
+
+  void setAllergensWithNone({
+    required Set<String> selected,
+    required bool noneSelected,
+  }) {
+    state = state.copyWith(
+      allergens: noneSelected
+          ? [SchemaIds.allergenNone]
+          : selected.toList(),
+    );
   }
 
   /// Toggle a group of canonical allergen IDs all-or-nothing.
@@ -303,7 +419,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   /// partially selected) chip adds every missing member.
   void toggleAllergenGroup(List<String> allergenIds) {
     if (allergenIds.isEmpty) return;
-    final current = List<String>.from(state.allergens);
+    final current = List<String>.from(state.allergens)
+      ..removeWhere((a) => a == SchemaIds.allergenNone);
     final allPresent = allergenIds.every(current.contains);
     if (allPresent) {
       current.removeWhere(allergenIds.contains);

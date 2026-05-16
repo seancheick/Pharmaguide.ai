@@ -6,7 +6,6 @@ import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
-import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// v2 animated splash — editorial brand moment.
 ///
@@ -15,11 +14,16 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// - Subtle radial halo above the logo, very low intensity.
 /// - Logo at refined size with no drop-shadow (the warm bg already
 ///   gives it presence — shadows on cream read as a Material 3 demo).
-/// - Below the logo: serif positioning tagline ("Calm clinical
-///   intelligence.") in Newsreader 24pt — the website's voice.
-/// - Below the tagline: mono-caps wordmark + thin accent underline.
-/// - Sequential reveal: logo → tagline → wordmark, each ~80ms apart,
-///   each fading in over 420ms with a slight upward lift.
+/// - Below the logo: mono-caps wordmark + thin accent underline.
+/// - Sequential reveal: logo → wordmark, ~80ms apart, each fading
+///   in over 420ms with a slight upward lift.
+///
+/// Phase 11.7L.B.6 — Sean 2026-05-16: dropped the "Calm clinical
+/// intelligence." Newsreader tagline. The serif positioning line
+/// over-explained the brand on a screen the user sees for ~900ms;
+/// the wordmark + animated underline carry the brand moment on
+/// their own. Stagger collapses from 3 steps to 2 — no other
+/// timing change so the perceived pace stays consistent.
 ///
 /// Reduce-motion (accessibility) suppresses the staggered reveal and
 /// shows the final composed state after a brief brand-impression delay.
@@ -57,10 +61,11 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
   bool _reduceMotionChecked = false;
 
   /// Stagger steps as a fraction of the controller's total duration.
-  /// Each step begins fading in at its t0 fraction.
+  /// Each step begins fading in at its t0 fraction. Two-step reveal
+  /// after the tagline drop — logo lands first, then the wordmark
+  /// settles in below.
   static const _step0Logo = 0.05;
-  static const _step1Tagline = 0.30;
-  static const _step2Wordmark = 0.55;
+  static const _step1Wordmark = 0.40;
 
   /// Fade duration as a fraction of the controller's total.
   static const _fadeFraction = 0.35;
@@ -142,8 +147,7 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
             animation: _ctrl,
             builder: (context, _) {
               final logo = _stepValues(_step0Logo);
-              final tagline = _stepValues(_step1Tagline);
-              final wordmark = _stepValues(_step2Wordmark);
+              final wordmark = _stepValues(_step1Wordmark);
 
               return Center(
                 child: Column(
@@ -163,23 +167,6 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space32),
-                    Opacity(
-                      opacity: tagline.opacity,
-                      child: Transform.translate(
-                        offset: Offset(0, tagline.lift),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: V2Spacing.space32,
-                          ),
-                          child: Text(
-                            'Calm clinical intelligence.',
-                            style: V2Typography.displayXs(color: V2Colors.fg),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space24),
                     Opacity(
                       opacity: wordmark.opacity,
                       child: Transform.translate(

@@ -84,26 +84,18 @@ class SettingsV2Screen extends StatelessWidget {
             PGSettingsGroup(
               eyebrow: 'Health profile',
               children: [
-                // Phase 11.7j.6 — Sean 2026-05-16: was an empty
-                // onTap. Wires to the multi-step profile editor
-                // (ProfileSetupScreen) which already supports age,
-                // goals, conditions, medications, and allergens.
-                // Phase 11.10 will design a v2 mirror of that
-                // screen; the legacy screen handles the data path
-                // correctly today.
+                // Phase 11.7L.B.6 — Sean 2026-05-16: dropped the
+                // standalone "Allergens" tile. Allergies are health
+                // context and live inside the profile editor next
+                // to conditions + medications, not as a disconnected
+                // setting. The Edit profile entry point reaches the
+                // unified editor where every health-context group
+                // (goals, conditions, allergies, medications) is one
+                // tap away.
                 PGSettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Edit profile',
-                  caption: 'Age, goals, conditions, medications',
-                  onTap: () => context.push(Routes.profileSetup),
-                ),
-                PGSettingsTile(
-                  icon: Icons.medication_outlined,
-                  title: 'Allergens',
-                  caption: 'None set',
-                  // Allergens live within the profile setup flow;
-                  // route to the same screen — user can scroll to
-                  // the allergens section.
+                  caption: 'Goals, conditions, allergies, medications',
                   onTap: () => context.push(Routes.profileSetup),
                 ),
               ],

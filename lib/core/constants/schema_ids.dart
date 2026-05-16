@@ -6,6 +6,36 @@ abstract final class SchemaIds {
 
   static const sexOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
+  // ---------------------------------------------------------------------------
+  // "None" sentinels — Phase 11.7L.B.6.
+  //
+  // Each canonical list (goals/conditions/drugClasses/allergens) accepts a
+  // single sentinel ID that means "the user EXPLICITLY chose nothing"
+  // (distinct from "the user hasn't touched this surface yet" — an empty
+  // list). The sentinels never match a pipeline-side IngredientFact or
+  // allergen alias, so they're inert in the matcher; the UI reads them
+  // via the `has<...>None` helpers on `ProfileState` to show explicit
+  // "No specific goal right now" / "No known allergies" affordances.
+  //
+  // Mutual exclusion is enforced in `ProfileNotifier`'s toggle methods:
+  // setting the sentinel clears the rest of the list, and toggling any
+  // real ID clears the sentinel. Persisted as part of the existing
+  // list columns — no drift migration required.
+  // ---------------------------------------------------------------------------
+  static const goalNone = 'GOAL_NONE';
+  static const conditionNone = 'CONDITION_NONE';
+  static const drugClassNone = 'DRUG_CLASS_NONE';
+  static const allergenNone = 'ALLERGEN_NONE';
+
+  /// All four sentinel IDs — useful for filter helpers (e.g. "drop
+  /// sentinels before sending the list to the evaluator").
+  static const Set<String> noneSentinels = {
+    goalNone,
+    conditionNone,
+    drugClassNone,
+    allergenNone,
+  };
+
   static const conditions = [
     'pregnancy',
     'lactation',
@@ -148,6 +178,58 @@ abstract final class SchemaIds {
     'GOAL_PRENATAL_PREGNANCY': 'Prenatal/Pregnancy Support',
     'GOAL_HORMONAL_BALANCE': 'Hormonal Balance',
     'GOAL_EYE_VISION_HEALTH': 'Eye & Vision Health',
+  };
+
+  // ---------------------------------------------------------------------------
+  // Canonical allergen IDs — source of truth is
+  // `dsld_clean/scripts/data/allergens.json`. Promoted to SchemaIds in
+  // Phase 11.7L.B.6 so the v2 ProfileSetup sheet can list every
+  // canonical allergen individually (the legacy screen curated them
+  // into 13 chips, hiding 4 IDs under group toggles — see
+  // `migrateLegacyAllergenIds` for the previous expansion logic).
+  //
+  // Order is "common → less common" for chip render order. Keep in
+  // lockstep with the `supported` Set in
+  // `ProfileState.migrateLegacyAllergenIds`.
+  // ---------------------------------------------------------------------------
+  static const allergens = [
+    'ALLERGEN_MILK',
+    'ALLERGEN_EGGS',
+    'ALLERGEN_FISH',
+    'ALLERGEN_CRUSTACEANS',
+    'ALLERGEN_MOLLUSCS',
+    'ALLERGEN_TREE_NUTS',
+    'ALLERGEN_PEANUTS',
+    'ALLERGEN_WHEAT',
+    'ALLERGEN_BARLEY',
+    'ALLERGEN_RYE',
+    'ALLERGEN_OATS',
+    'ALLERGEN_SOY',
+    'ALLERGEN_SESAME',
+    'ALLERGEN_SULFITES',
+    'ALLERGEN_CELERY',
+    'ALLERGEN_MUSTARD',
+    'ALLERGEN_LUPIN',
+  ];
+
+  static const allergenLabels = {
+    'ALLERGEN_MILK': 'Milk / Dairy',
+    'ALLERGEN_EGGS': 'Eggs',
+    'ALLERGEN_FISH': 'Fish',
+    'ALLERGEN_CRUSTACEANS': 'Crustaceans (crab, shrimp, lobster)',
+    'ALLERGEN_MOLLUSCS': 'Molluscs (clams, mussels, oysters)',
+    'ALLERGEN_TREE_NUTS': 'Tree nuts',
+    'ALLERGEN_PEANUTS': 'Peanuts',
+    'ALLERGEN_WHEAT': 'Wheat',
+    'ALLERGEN_BARLEY': 'Barley',
+    'ALLERGEN_RYE': 'Rye',
+    'ALLERGEN_OATS': 'Oats',
+    'ALLERGEN_SOY': 'Soy',
+    'ALLERGEN_SESAME': 'Sesame',
+    'ALLERGEN_SULFITES': 'Sulfites',
+    'ALLERGEN_CELERY': 'Celery',
+    'ALLERGEN_MUSTARD': 'Mustard',
+    'ALLERGEN_LUPIN': 'Lupin',
   };
 
   static const goalPriorities = {
