@@ -620,6 +620,145 @@ void main() {
   });
 
   // ===========================================================================
+  // userGoals personalization tiebreaker — Phase 11.7L freeze-safe.
+  //
+  // The ranker accepts an optional `userGoals: Set<String>?` and prefers
+  // candidates whose `goal_matches` overlap with the user's saved goals.
+  // When `userGoals` is null/empty, the tiebreaker falls back to the
+  // product-to-product `goal_matches` Jaccard (no personalization).
+  // These tests pin both branches.
+  // ===========================================================================
+
+  group('userGoals tiebreaker', () {
+    test(
+        'when user has goals, candidate matching those goals beats one '
+        'that does not — even at the same tier + same score',
+        () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Magnesium Glycinate',
+        supplementType: 'targeted',
+        primaryCategory: 'mineral',
+        scoreQuality80: 30,
+        keyIngredientTags: '["magnesium","glycinate"]',
+      );
+      // Both candidates are same tier (same supplement_type + family
+      // overlap), same score → ranker would tie-break on the next
+      // criterion. Without user goals, the tie is broken by score
+      // (same here) → mapped_coverage → brand_trust. With user
+      // goals, the goal-Jaccard tiebreaker must outrank those.
+      final goalAligned = _product(
+        dsldId: 'aligned',
+        name: 'Magnesium Calm',
+        supplementType: 'targeted',
+        primaryCategory: 'mineral',
+        scoreQuality80: 60,
+        keyIngredientTags: '["magnesium","glycinate"]',
+        goalMatches: '["GOAL_SLEEP_QUALITY","GOAL_REDUCE_STRESS_ANXIETY"]',
+      );
+      final goalMismatched = _product(
+        dsldId: 'mismatched',
+        name: 'Magnesium Boost',
+        supplementType: 'targeted',
+        primaryCategory: 'mineral',
+        scoreQuality80: 60,
+        keyIngredientTags: '["magnesium","glycinate"]',
+        goalMatches: '["GOAL_MUSCLE_GROWTH_RECOVERY"]',
+        // Slight tiebreaker edge if userGoals is ignored — higher
+        // brand_trust would normally win the tiebreaker after score.
+        scoreBrandTrust: 9.0,
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [goalMismatched, goalAligned],
+        userGoals: {'GOAL_SLEEP_QUALITY', 'GOAL_IMMUNE_SUPPORT'},
+      );
+      expect(result.first.dsldId, equals('aligned'),
+          reason:
+              "Goal-aligned candidate must outrank the higher-brand-trust "
+              'mismatch when userGoals are present — that is the whole '
+              'point of the personalization hook.');
+    });
+
+    test(
+        'when userGoals is null, ranker falls back to product-to-product '
+        'goal Jaccard (no personalization, no crash)',
+        () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Sleep Multi',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        scoreQuality80: 30,
+        goalMatches: '["GOAL_SLEEP_QUALITY"]',
+      );
+      // Candidate that shares the current product's goal_matches.
+      final sharesGoal = _product(
+        dsldId: 'shares',
+        name: 'Sleep Support Multi',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        scoreQuality80: 60,
+        goalMatches: '["GOAL_SLEEP_QUALITY"]',
+      );
+      // Candidate that doesn't share goal_matches but has a brand-trust
+      // edge that would otherwise be the tiebreaker.
+      final noShared = _product(
+        dsldId: 'no-shared',
+        name: 'Daily Multi',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        scoreQuality80: 60,
+        goalMatches: '["GOAL_INCREASE_ENERGY"]',
+        scoreBrandTrust: 9.0,
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [noShared, sharesGoal],
+        // userGoals deliberately omitted — fallback path.
+      );
+      expect(result.first.dsldId, equals('shares'),
+          reason:
+              'With userGoals null, the product-to-product '
+              'goal-match Jaccard takes over as the tiebreaker. Shares '
+              'a goal with current → outranks the higher-brand-trust '
+              'no-overlap candidate.');
+    });
+
+    test(
+        'empty userGoals set is treated like null (defensive — same as '
+        'a user who has not picked any goals yet)',
+        () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'B-Complex',
+        supplementType: 'targeted',
+        primaryCategory: 'b-complex',
+        scoreQuality80: 30,
+      );
+      final candidate = _product(
+        dsldId: 'cand',
+        name: 'B-Complex Plus',
+        supplementType: 'targeted',
+        primaryCategory: 'b-complex',
+        scoreQuality80: 60,
+      );
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [candidate],
+        userGoals: const <String>{},
+      );
+      expect(result.map((p) => p.dsldId), equals(['cand']),
+          reason:
+              "An empty userGoals set must not blow up or starve the "
+              'result list — the personalization tiebreaker just goes '
+              'neutral.');
+    });
+  });
+
+  // ===========================================================================
   // Limit + empty pool
   // ===========================================================================
 
