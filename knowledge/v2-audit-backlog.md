@@ -15,11 +15,11 @@ Same logic, same flows, same enums, same providers. Just the v2 voice.
 - [x] Home (Phase 11.1, partial — status tier wires next)
 - [x] Settings / Profile (Phase 11.0)
 - [x] Stack (Phase 11.2, partial — see Phase 11 known gaps below)
-- [ ] Scanner — wiring next (Phase 11.3)
-- [ ] Product Detail — wiring next (Phase 11.4)
-- [x] Auth invitation — fully wired
-- [x] Splash v2 — gallery only, production still legacy
-- [x] Onboarding v2 — gallery only, production still legacy
+- [ ] Scanner — Phase 11.8 (BLOCKED on Product Detail v2 TestFlight pass)
+- [x] Product Detail — Phase 11.7 wired (toggle-gated; TestFlight cycle pending)
+- [x] Auth invitation — fully wired + production route added (Phase 11.7i, 8e5f7da)
+- [x] Splash v2 — production route swapped (Phase 11.7i, 8e5f7da)
+- [x] Onboarding v2 — production route swapped (Phase 11.7i, 8e5f7da)
 
 ## Phase 11 known feature gaps (must close before TestFlight)
 
@@ -79,10 +79,10 @@ These need v2 swaps before the polish pass closes. Order rough:
 ### Onboarding-adjacent
 - [ ] `features/profile/profile_setup_screen.dart` — multi-step
       profile creation (legacy SegmentedButton + Material chips)
-- [ ] `features/onboarding/onboarding_screen.dart` (legacy) — swap
-      with v2 version from `features/onboarding/v2/`
-- [ ] `features/splash/animated_splash_screen.dart` (legacy) — swap
-      with v2 version
+- [x] `features/onboarding/onboarding_screen.dart` (legacy) — swapped
+      Phase 11.7i (8e5f7da); production route now serves OnboardingV2Screen
+- [x] `features/splash/animated_splash_screen.dart` (legacy) — swapped
+      Phase 11.7i (8e5f7da); production route now serves AnimatedSplashV2Screen
 
 ### Scanner-adjacent
 - [ ] `features/scanner/camera_permission_gate.dart` — legacy gate
