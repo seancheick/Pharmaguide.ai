@@ -44,7 +44,13 @@ class OnboardingV2Screen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
-  final _pageController = PageController();
+  // **Sentry fix — 3× PageController not attached / page_view.dart:189.**
+  // The controller can't be `final` because we recreate it on the
+  // gallery-replay path (see `_celebrationComplete`). When the
+  // celebration scaffold replaces the PageView, the controller detaches;
+  // remounting the original instance leaves stale `_PagePosition` state
+  // that triggers `positions.isNotEmpty` assertions on the next layout.
+  PageController _pageController = PageController();
   int _currentPage = 0;
   bool _celebrating = false;
   final _selectedGoals = <String>{};
@@ -86,22 +92,25 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
 
   Future<void> _celebrationComplete({bool toProfileSetup = false}) async {
     if (!widget.autoFinish) {
-      // Reset for repeated preview viewing in the gallery. setState
-      // schedules the PageView to be rebuilt; the controller is only
-      // attached after the next frame, so defer jumpToPage to a
-      // post-frame callback to avoid the
-      // "PageController is not attached to a PageView" assertion that
-      // fires when jumpToPage runs while _celebrating is still true.
+      // Reset for repeated preview viewing in the gallery. The old
+      // controller had its `_PagePosition` detached when the celebration
+      // scaffold replaced the PageView — reusing it on remount triggers
+      // the page_view.dart:189 `positions.isNotEmpty` assertion. Dispose
+      // and replace with a fresh controller so the next PageView mount
+      // starts at page 0 with clean internal state.
       if (!mounted) return;
+      final oldController = _pageController;
       setState(() {
+        _pageController = PageController();
         _celebrating = false;
         _currentPage = 0;
       });
+      // Dispose the old controller after the rebuild that swaps it out
+      // commits, so the in-flight PageView (which still references the
+      // old controller for one frame) doesn't try to read a disposed
+      // ChangeNotifier.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (_pageController.hasClients) {
-          _pageController.jumpToPage(0);
-        }
+        oldController.dispose();
       });
       return;
     }

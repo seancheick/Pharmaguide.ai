@@ -1141,6 +1141,14 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
   int _index = 0;
 
   void _onTap(int i) {
+    // **Sentry fix — 15× `Looking up a deactivated widget's ancestor`.**
+    // Capture the messenger reference BEFORE setState so the
+    // InheritedWidget lookup happens on a guaranteed-mounted context
+    // (setState can deactivate this element if GoRouter is mid-transition
+    // away from the dev gallery). The `mounted` guard catches the
+    // remaining race where the tap fires after the gallery has popped.
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _index = i);
     // Order matches HomeV2Screen.destinations — Scan sits at index 2.
     final destination = const [
@@ -1150,7 +1158,7 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
       'Chat',
       'Profile',
     ][i];
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text('$destination tapped — preview only (Phase 10.0)'),
         behavior: SnackBarBehavior.floating,

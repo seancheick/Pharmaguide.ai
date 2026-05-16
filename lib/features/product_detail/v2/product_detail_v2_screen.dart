@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/components/pg_certification_section.dart';
@@ -88,7 +89,16 @@ class ProductDetailV2Screen extends StatelessWidget {
                   Icons.arrow_back_rounded,
                   color: V2Colors.fg,
                 ),
-                onPressed: () => context.pop(),
+                // **Sentry fix — 21× `GoError: There is nothing to pop`.**
+                // Dev gallery deep links land here without a stack;
+                // fall back to home instead of throwing.
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go(Routes.home);
+                  }
+                },
               ),
               actions: [
                 IconButton(

@@ -602,7 +602,17 @@ class _ProductDetailV2ConnectedState
       snap: true,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
-        onPressed: () => context.pop(),
+        // **Sentry fix — 21× `GoError: There is nothing to pop`.**
+        // Deep links / scan-flow / push notifications can land users
+        // here without anything on the navigation stack. Fall back to
+        // the home shell instead of letting GoRouter throw.
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go(Routes.home);
+          }
+        },
       ),
       actions: [
         if (_product != null)

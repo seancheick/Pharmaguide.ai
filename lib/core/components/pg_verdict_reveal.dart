@@ -98,23 +98,33 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
         builder: (context, _) {
           final t = _ctrl.value;
           final curve = _isCelebration ? V2Motion.spring : V2Motion.decelerate;
-          final eased = curve.transform(t);
+          // **Sentry fix — 58× AssertionError 'opacity >= 0.0 && opacity
+          // <= 1.0'.** V2Motion.spring is `Cubic(0.34, 1.56, 0.64, 1)` —
+          // the 1.56 control point produces a brief overshoot above 1.0
+          // for celebration verdicts, which Opacity rejects. Clamp the
+          // eased value before any Opacity consumer reads it. Scale +
+          // lift consumers don't have a bounds constraint, so they use
+          // the unclamped easedRaw (the spring overshoot adds the
+          // pleasant pop on the icon).
+          final easedRaw = curve.transform(t);
+          final eased = easedRaw.clamp(0.0, 1.0);
+          final tClamped = t.clamp(0.0, 1.0);
           final scale = _isCelebration
-              ? 0.92 + (eased * 0.16)
-              : 0.96 + (eased * 0.04);
-          final lift = (1 - eased) * 14;
+              ? 0.92 + (easedRaw * 0.16)
+              : 0.96 + (easedRaw * 0.04);
+          final lift = (1 - easedRaw) * 14;
 
           return Stack(
             fit: StackFit.expand,
             children: [
               Opacity(
-                opacity: t,
+                opacity: tClamped,
                 child: ColoredBox(color: _tone.withValues(alpha: 0.92)),
               ),
               // Radial white halo behind the icon for the "moment of
               // truth" glow. Static gradient — no BackdropFilter.
               Opacity(
-                opacity: t,
+                opacity: tClamped,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
