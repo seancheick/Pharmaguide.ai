@@ -91,7 +91,15 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/images/app_icon.png
-  adaptive_icon_background: "#0A7D6F"
+  # Phase 11.7L.A — Sean 2026-05-16 cream icon background.
+  # The splash brand mark is now the app icon source. iOS rejects
+  # icons with transparency (auto-fills with black), so flatten onto
+  # the V2 cream surface (#FAF9F6) to match the splash + launch
+  # screen. Android adaptive icon background also switched to cream
+  # so the home-screen treatment reads consistent across platforms.
+  background_color_ios: "#FAF9F6"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FAF9F6"
   adaptive_icon_foreground: assets/images/app_icon_foreground.png
 
 flutter:
