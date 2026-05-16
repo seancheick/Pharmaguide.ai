@@ -501,17 +501,18 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7f boundary — legacy fallbacks wired)
+## Completion tally (Phase 11.7g.1 boundary — targeted live verification)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse + privacy correction, S4 LabelConfidence, S5 ScoreBreakdown + alignment fix) |
-| **wired** | 16 (S0, S0.5, S0.9, S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S10 Certifications, S11 Evidence, S12 HeavyMetal, S13 Formulation, S14 Probiotic, S15 ManufacturerViolations, S16 BetterAlternatives, S17 TransparencyFooter + catalog freshness, S18 AllergenSummaryBanner — suppression paths live; tile-render verification awaits a blob-populated product) |
+| **verified live (tile-render)** | 14 (S1, S1.5, S2 FitIncomplete, S3 nudge + warning row, S4 note tier, S5, S6 active + inactive count, S7, S9, S10, S11 tier, S13 botanicals, S14 strains+prebiotic, S17 freshness) |
+| **suppression-only verified live** | 5 (S8, S12, S15, S16 null-cat suppression, S18) — verbatim helper ports cover static parity |
+| **wired but no live env coverage** | 0 |
 | **placeholder** | 0 |
-| total | 21 (S20 Synergy intentionally deferred — production widget exists but isn't in v2 scope yet) |
+| total | 19 unique sections + S1.6 null-blob fallback + S0/S0.5/S0.9 chrome = 21 rows in doc |
 
-**🎉 PHASE 11.7 ADAPTER WORK COMPLETE.** All 18 sections wired. Connected screen contains zero placeholders (helper class deleted). Next phase: 11.7g route swap after stakeholder live review.
+**🎉 PHASE 11.7 ADAPTER WORK COMPLETE + STRONG LIVE VERIFICATION.** All 18 mid-page sections wired. Phase 11.7g.1 (2026-05-16, iPhone 17 sim w/ Supabase blob populated for test products 178767 + 65844 + 16012) significantly expanded live coverage — see `knowledge/product-detail-v2-route-swap-readiness.md` for the route-swap readiness report. Awaiting Sean's approval before flipping production route in `app.dart`.
 
 **Dev sim blob limitation:** the iPhone simulator's Supabase blob fetch returns null for every test product in this session (confirmed via production parity — both `/product/65844` and `/product/15712` render "No additional details available." on the production route). All blob-dependent sections (S6–S15) will reach their first live tile-render verification when a product whose blob has been populated (cached locally OR fetched successfully from Supabase) flows through the screen. Until then, parity is guaranteed by verbatim helper ports + suppression-path live verification.
 
