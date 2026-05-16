@@ -51,14 +51,21 @@ import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/v2/scroll_anchors.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/better_alternatives_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/certifications_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/formulation_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/heavy_metal_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/manufacturer_violations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/populations_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
@@ -447,75 +454,78 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 10. Certifications (PLACEHOLDER, 11.7e) -----
+                  // ---- 10. Certifications (WIRED, 11.7e) -----------
                   if (showDeepDive) ...[
-                    const _SectionPlaceholder(
-                      label: 'Certifications',
-                      detail: 'certification_detail blob',
+                    buildCertificationsSection(
+                      certificationDetail: detailBlob?['certification_detail']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 11. Evidence (PLACEHOLDER, 11.7e) -----------
+                  // ---- 11. Evidence (WIRED, 11.7e) -----------------
                   if (showDeepDive) ...[
-                    const _SectionPlaceholder(
-                      label: 'Evidence',
-                      detail: 'evidence_data blob',
+                    buildEvidenceSection(
+                      evidenceData: detailBlob?['evidence_data']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 12. HeavyMetal (PLACEHOLDER, 11.7e) ---------
+                  // ---- 12. HeavyMetal (WIRED, 11.7e) ---------------
                   if (showDeepDive) ...[
-                    _SectionPlaceholder(
-                      label: 'HeavyMetal',
-                      detail: (detailBlob?['heavy_metal_detail'] != null)
-                          ? 'present'
-                          : 'absent — section hides in 11.7e',
+                    buildHeavyMetalSection(
+                      heavyMetalDetail: detailBlob?['heavy_metal_detail']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 13. Formulation (PLACEHOLDER, 11.7e) --------
+                  // ---- 13. Formulation (WIRED, 11.7e) --------------
                   if (showDeepDive) ...[
-                    const _SectionPlaceholder(
-                      label: 'Formulation',
-                      detail: 'formulation_detail blob',
+                    buildFormulationSection(
+                      formulationDetail: detailBlob?['formulation_detail']
+                          as Map<String, dynamic>?,
+                      ingredientQualityData:
+                          detailBlob?['ingredient_quality_data']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 14. Probiotic (PLACEHOLDER, 11.7e) ----------
+                  // ---- 14. Probiotic (WIRED, 11.7e) ----------------
                   if (showDeepDive) ...[
-                    _SectionPlaceholder(
-                      label: 'Probiotic',
-                      detail: (detailBlob?['probiotic_detail'] != null)
-                          ? 'present'
-                          : 'absent — section hides in 11.7e',
+                    buildProbioticSection(
+                      probioticDetail: detailBlob?['probiotic_detail']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 15. ManufacturerViolations (PLACEHOLDER) ----
+                  // ---- 15. ManufacturerViolations (WIRED, 11.7e) ---
                   if (showDeepDive) ...[
-                    const _SectionPlaceholder(
-                      label: 'ManufacturerViolations',
-                      detail: 'manufacturer_detail blob',
+                    buildManufacturerViolationsSection(
+                      manufacturerDetail: detailBlob?['manufacturer_detail']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 16. BetterAlternatives (PLACEHOLDER, 11.7e) -
-                  // Shell renders the anchor unconditionally so the
-                  // _alternativesKey is layoutable for the sticky CTA's
-                  // ensureVisible call. The real gate
-                  // (shouldShowBetterAlternatives) wires in 11.7e.
-                  _SectionPlaceholder(
+                  // ---- 16. BetterAlternatives (WIRED, 11.7e) -------
+                  // Anchor wraps the section so the sticky CTA's
+                  // ensureVisible call still lands on layoutable content
+                  // when the section hides (SizedBox.shrink keeps the
+                  // GlobalKey attached).
+                  KeyedSubtree(
                     key: _anchors.alternativesKey,
-                    label: 'BetterAlternatives',
-                    detail:
-                        'gate: isBlocked=$isBlocked · score=$score100 · '
-                        'fit=pending',
+                    child: BetterAlternativesSection(
+                      currentDsldId: widget.dsldId,
+                      isBlocked: isBlocked,
+                      isNotScored: isNotScored,
+                      score100: score100,
+                      category: _product?.primaryCategory,
+                      guardedWarnings: guardedWarnings,
+                    ),
                   ),
                   const SizedBox(height: V2Spacing.space12),
 
@@ -593,66 +603,7 @@ class _ProductDetailV2ConnectedState
 
 }
 
-// =====================================================================
-// _SectionPlaceholder — transient cards used by every unwired section
-// in the 11.7b shell. Each placeholder shows the section name + a
-// one-line diagnostic of the data its adapter WILL render in 11.7c–
-// 11.7e. Deleted along with this comment block once every section
-// adapter is wired.
-// =====================================================================
-
-class _SectionPlaceholder extends StatelessWidget {
-  final String label;
-  final String? detail;
-
-  const _SectionPlaceholder({super.key, required this.label, this.detail});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        V2Spacing.space16,
-        V2Spacing.space12,
-        V2Spacing.space16,
-        V2Spacing.space12,
-      ),
-      decoration: BoxDecoration(
-        color: V2Colors.surface,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline, width: 0.6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: V2Spacing.space8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'WIRING',
-                  style: V2Typography.eyebrow(color: V2Colors.accent),
-                ),
-              ),
-              const SizedBox(width: V2Spacing.space8),
-              Text(label, style: V2Typography.titleSm(color: V2Colors.fg)),
-            ],
-          ),
-          if (detail != null) ...[
-            const SizedBox(height: V2Spacing.space4),
-            Text(
-              detail!,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
+// All sections wired (Phase 11.7e completed). The _SectionPlaceholder
+// shell-helper has been deleted — its job (rendering "WIRING <name>"
+// diagnostic cards) is done. Future placeholder cards should live in
+// their own section file as a deferred-state widget, not a global helper.

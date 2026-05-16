@@ -353,7 +353,7 @@ row:
 | Analytics | none |
 | A11y | Verified vs. not-verified must be more than color |
 | Golden | Multiple verified, mix, not-enrolled, none |
-| **Status** | **placeholder** |
+| **Status** | **wired** — `buildCertificationsSection` maps 4 standard boolean checks (gmp / purity_verified / heavy_metal_tested / label_accuracy_verified) → PGCertification rows when true; defensively extracts `third_party_programs.programs[]` (string OR `{name, verified}` map shapes) into additional rows with "Third-party verified" caption. Section auto-suppresses when no positive checks AND no programs (matches production's hide-when-none rule). |
 
 #### S11. Evidence
 
@@ -371,7 +371,7 @@ row:
 | Analytics | Citation-tap |
 | A11y | Tier labels readable ("ESTABLISHED" / "MODERATE" / "LIMITED") |
 | Golden | Strong, moderate, limited, theoretical, none |
-| **Status** | **placeholder** |
+| **Status** | **wired** — `buildEvidenceSection` reuses verbatim production helpers (`evidenceTier`, `evidenceTotalStudies`, `evidenceHasMetaQuality`) — no duplication. Filters PMID-less `clinical_matches` rows (matches production lines 109-111). Dedupes PMIDs across ingredients into a single citation list; each row tap opens `https://pubmed.ncbi.nlm.nih.gov/<pmid>` via `url_launcher`. Citation title is `"PMID <pmid> · <ingredient>"` since the blob doesn't ship full PubMed titles — preserves verbatim data + keeps link discoverable. Section suppresses when `match_count == 0 && clinical_matches.empty`. |
 
 #### S12. HeavyMetalWarning
 
@@ -389,7 +389,7 @@ row:
 | Analytics | Metal-tap |
 | A11y | Danger tone paired with icon + level; clinical voice |
 | Golden | Pb/Cd trace, above-limits, FDA-action, none |
-| **Status** | **placeholder** |
+| **Status** | **wired** — `buildHeavyMetalSection` reads `heavy_metal_detail.signals[]`, extracts each signal's `ingredient` name → flat metals list. Uses production's exact source footnote verbatim: "Source: Prop 65 / EPA reference doses. Applies to raw materials from certain origins." Production renders one row per signal with per-row risk_level + notes; v2 collapses to a single calm caution-tone callout with metals listed inline. Section suppresses when blob is null OR signals list is empty. |
 
 #### S13. Formulation
 
@@ -407,7 +407,7 @@ row:
 | Analytics | none |
 | A11y | Form tier label readable |
 | Golden | Premium, standard, unknown |
-| **Status** | **placeholder** |
+| **Status** | **wired** — `buildFormulationSection` reads `formulation_detail` (delivery_form, delivery_tier, absorption_enhancers, standardized_botanicals) + `ingredient_quality_data.demoted_absorption_enhancers`. Reuses production's `extractIngredientNames` helper verbatim (handles both legacy string-list and modern map-list shapes — was the source of the T0.3 JSON-leak bug). Tier badge color: green for "premium", muted-grey otherwise. Section suppresses when delivery form empty AND no enhancers/botanicals/demoted entries. |
 
 #### S14. Probiotic
 
@@ -425,7 +425,7 @@ row:
 | Analytics | none |
 | A11y | CFU + strain labels readable |
 | Golden | 3-strain w/ survivability, single-strain, no survivability, none |
-| **Status** | **placeholder** |
+| **Status** | **wired** — `buildProbioticSection` reads `probiotic_detail` (total_cfu_label / total_billion_count, probiotic_blends[].strains[], clinical_strains[], has_survivability_coating, survivability_reason, prebiotic_present). CFU formatting (`_formatStrainCfu`) and survivability humanization (`_humanizeSurvivability`) are verbatim ports of production private fns. Strain enrichment: clinical_strains[] preferred (per-strain cfu_per_day + evidence_level + is_inactivated), falls back to flattened probiotic_blends[].strains[]. Section suppresses when both totalCfuLabel and strainNames empty. |
 
 #### S15. ManufacturerViolations
 
@@ -443,7 +443,7 @@ row:
 | Analytics | Violation-tap |
 | A11y | Severity tone paired with type + date |
 | Golden | 1 caution, multiple, FDA-action, none |
-| **Status** | **placeholder** |
+| **Status** | **wired** — `buildManufacturerViolationsSection` reads `manufacturer_detail.violations.violations[]` (nested pipeline structure — both levels parsed defensively). Sorts critical → high → moderate (verbatim from production line 51). Each violation maps to PGViolation: severity → PGReviewTone (critical=danger, high=caution, else=info); prefers Dr. Pham–authored `brand_trust_summary` over raw `reason` (matches production line 115). Date threaded through to v2 row. Section suppresses when violations list empty. |
 
 #### S16. BetterAlternatives
 
@@ -461,7 +461,7 @@ row:
 | Analytics | Alternative-tap |
 | A11y | Score chip readable; brand + name labeled |
 | Golden | 0, 1, 5+ alternatives, G5 blocked (forces visible) |
-| **Status** | **placeholder** (anchor mounted for MNR-4) |
+| **Status** | **wired** — `BetterAlternativesSection` is a ConsumerWidget that watches `fitScoreForProductProvider` + computes FitDisplay via verbatim `computeFitDisplay` helper. Gate fires via verbatim `shouldShowBetterAlternatives` import from production (no duplication). Uses `CoreDatabase.findAlternatives(category, minScore=0.8*currentScore, excludeDsldId, limit=3)` — same query production uses. Each ProductsCoreData → PGAlternative; tap → `context.push('/product/<dsldId>')`. Title "Higher quality alternatives" verbatim. Anchor preserved via KeyedSubtree wrap (MNR-4 invariant: sticky CTA scroll target always layoutable even when section returns SizedBox.shrink). |
 
 #### S17. TransparencyFooter
 
@@ -501,17 +501,19 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7d.5 boundary — editorial sections batch)
+## Completion tally (Phase 11.7e boundary — conditional sections batch)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
 | **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse + privacy correction, S4 LabelConfidence, S5 ScoreBreakdown + alignment fix) |
-| **wired** | 8 (S0, S0.5, S0.9, S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S17 — suppression paths live; tile-render verification awaits a blob-populated product) |
-| **placeholder** | 6 |
-| total | 21 |
+| **wired** | 15 (S0, S0.5, S0.9, S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S10 Certifications, S11 Evidence, S12 HeavyMetal, S13 Formulation, S14 Probiotic, S15 ManufacturerViolations, S16 BetterAlternatives, S17 — suppression paths live; tile-render verification awaits a blob-populated product) |
+| **placeholder** | 1 (S18 AllergenSummaryBanner — legacy fallback, queued for 11.7f) |
+| total | 21 (S20 Synergy intentionally deferred — production widget exists but isn't in v2 scope yet) |
 
-**Dev sim blob limitation:** the iPhone simulator's Supabase blob fetch returns null for every test product in this session (confirmed via production parity — both `/product/65844` and `/product/15712` render "No additional details available." on the production route). All blob-dependent sections (S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S10–S15) will reach their first live tile-render verification when a product whose blob has been populated (cached locally OR fetched successfully from Supabase) flows through the screen. Until then, parity is guaranteed by verbatim helper ports + suppression-path live verification.
+**All 16 mid-page section adapters now exist on disk + are wired into the connected screen.** Connected screen contains zero `_SectionPlaceholder` references (helper class deleted).
+
+**Dev sim blob limitation:** the iPhone simulator's Supabase blob fetch returns null for every test product in this session (confirmed via production parity — both `/product/65844` and `/product/15712` render "No additional details available." on the production route). All blob-dependent sections (S6–S15) will reach their first live tile-render verification when a product whose blob has been populated (cached locally OR fetched successfully from Supabase) flows through the screen. Until then, parity is guaranteed by verbatim helper ports + suppression-path live verification.
 
 ---
 
