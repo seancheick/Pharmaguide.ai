@@ -217,31 +217,83 @@ class _StrainRow extends StatelessWidget {
                   style: V2Typography.bodySm(color: V2Colors.fg),
                 ),
                 const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      strain.cfuLabel,
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
-                    ),
-                    const SizedBox(width: V2Spacing.space8),
-                    Text(
-                      '· ${strain.evidence}',
-                      style: V2Typography.caption(color: V2Colors.fgSubtle),
-                    ),
-                    if (strain.isInactivated) ...[
-                      const SizedBox(width: V2Spacing.space8),
-                      Text(
-                        '· postbiotic',
-                        style: V2Typography.caption(color: V2Colors.fgSubtle),
-                      ),
-                    ],
-                  ],
+                // **Phase 11.7h.5 — Sean 2026-05-16 dose transparency:**
+                // When per-strain CFU is missing, say so explicitly
+                // instead of silently leaving the strain as a decorative
+                // chip with no meaning. "CFU not disclosed" reads as a
+                // calm transparency note, not an alarm.
+                _StrainMetaLine(
+                  cfuLabel: strain.cfuLabel,
+                  evidence: strain.evidence,
+                  isInactivated: strain.isInactivated,
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Sub-line beneath a strain name: per-strain CFU + evidence level +
+/// inactivated/postbiotic flag. Explicit about missing data — when
+/// cfuLabel is empty, surfaces "CFU not disclosed" so users know the
+/// strain isn't decorative (Sean 2026-05-16 polish).
+class _StrainMetaLine extends StatelessWidget {
+  final String cfuLabel;
+  final String evidence;
+  final bool isInactivated;
+
+  const _StrainMetaLine({
+    required this.cfuLabel,
+    required this.evidence,
+    required this.isInactivated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = <Widget>[];
+
+    if (cfuLabel.trim().isNotEmpty) {
+      parts.add(
+        Text(
+          cfuLabel,
+          style: V2Typography.caption(color: V2Colors.fgMuted),
+        ),
+      );
+    } else {
+      parts.add(
+        Text(
+          'CFU not disclosed',
+          style: V2Typography.caption(color: V2Colors.fgSubtle),
+        ),
+      );
+    }
+
+    if (evidence.trim().isNotEmpty) {
+      parts.add(const SizedBox(width: V2Spacing.space8));
+      parts.add(
+        Text(
+          '· $evidence evidence',
+          style: V2Typography.caption(color: V2Colors.fgSubtle),
+        ),
+      );
+    }
+
+    if (isInactivated) {
+      parts.add(const SizedBox(width: V2Spacing.space8));
+      parts.add(
+        Text(
+          '· postbiotic',
+          style: V2Typography.caption(color: V2Colors.fgSubtle),
+        ),
+      );
+    }
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: parts,
     );
   }
 }

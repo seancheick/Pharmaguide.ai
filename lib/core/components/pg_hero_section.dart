@@ -81,8 +81,16 @@ class PGHeroSection extends StatelessWidget {
     final disableAnimations =
         MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
+    // **Phase 11.7h.6 — Sean 2026-05-16 hero tightening.**
+    // Reduce vertical real estate so verdict/fit/warning surface
+    // faster. Changes:
+    //   - Card padding 16 → 12 (saves ~8px top + bottom)
+    //   - Image 96 → 80 (saves 16px row height)
+    //   - Identity-row → score gap 16 → 12
+    //   - PGScoreLine compact=true (hides verbose description line)
+    //   - bottomBanner gap 16 → 12
     final body = Container(
-      padding: const EdgeInsets.all(V2Spacing.space16),
+      padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -92,12 +100,14 @@ class PGHeroSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Identity row: image + (name + subtitle + chips column)
+          // Identity row: image + (name + subtitle + chips column).
+          // Image dropped 96 → 80; saves a row of vertical space without
+          // hurting product recognizability.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(width: 96, height: 96, child: imageWidget),
-              const SizedBox(width: V2Spacing.space16),
+              SizedBox(width: 80, height: 80, child: imageWidget),
+              const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,17 +136,22 @@ class PGHeroSection extends StatelessWidget {
             ],
           ),
           if (score != null && !isBlocked && !isNotScored) ...[
-            const SizedBox(height: V2Spacing.space16),
-            PGScoreLine(score: score!),
-          ] else if (isNotScored) ...[
             const SizedBox(height: V2Spacing.space12),
+            // `compact: true` drops the verbose locked-tier description
+            // line ("Well-formulated with good ingredient quality...") —
+            // that copy was eating 2-3 lines of hero real estate. The
+            // tier color + dot + "89/100 Excellent" headline carries
+            // the verdict alone.
+            PGScoreLine(score: score!, compact: true),
+          ] else if (isNotScored) ...[
+            const SizedBox(height: V2Spacing.space8),
             Text(
               'Not enough verified data to score.',
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
           ],
           if (bottomBanner != null) ...[
-            const SizedBox(height: V2Spacing.space16),
+            const SizedBox(height: V2Spacing.space12),
             bottomBanner!,
           ],
         ],
@@ -247,11 +262,52 @@ class _TrustChipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // **Phase 11.7h.7 — Sean 2026-05-16 chip reorganization.**
+    // Previously: single Wrap with all tags mixed, capped at 4 visible.
+    // Long lists (6+ tags on Thorne products) wrapped to 3+ messy rows.
+    //
+    // New layout: split into two grouped rows by tag type.
+    //   Row 1 — Certifications (Third-Party Tested, Trusted Manufacturer,
+    //           Organic) with verified icon + accent tone.
+    //   Row 2 — Dietary tags (Gluten-Free, Dairy-Free, Soy-Free, Vegan,
+    //           Non-GMO) compact text-only, green tone.
+    // Each row caps at 4 visible + "+N more" overflow.
+    final certs = tags.where((t) => t.isCertification).toList(growable: false);
+    final dietary = tags.where((t) => !t.isCertification).toList(growable: false);
+
+    final children = <Widget>[];
+    if (certs.isNotEmpty) {
+      children.add(_TrustChipGroup(tags: certs));
+    }
+    if (dietary.isNotEmpty) {
+      if (children.isNotEmpty) {
+        children.add(const SizedBox(height: 4));
+      }
+      children.add(_TrustChipGroup(tags: dietary));
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+}
+
+/// One chip group (either certifications or dietary tags). Caps at 4
+/// visible; the rest collapse to a "+N more" overflow chip. Tighter
+/// spacing than the previous all-tags Wrap so each row stays compact.
+class _TrustChipGroup extends StatelessWidget {
+  final List<PGTrustTag> tags;
+  const _TrustChipGroup({required this.tags});
+
+  @override
+  Widget build(BuildContext context) {
     final visible = tags.take(4).toList(growable: false);
     final overflow = tags.length - visible.length;
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: 4,
+      runSpacing: 4,
       children: [
         for (final t in visible)
           _TrustChip(label: t.label, isCertification: t.isCertification),

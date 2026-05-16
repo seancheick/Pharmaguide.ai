@@ -38,6 +38,13 @@ import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence
 ///
 /// Returns `SizedBox.shrink()` defensively when the resulting item
 /// list is empty (should not happen when `hasAnySignal` is true).
+///
+/// **Phase 11.7h.2 — Sean 2026-05-16 compact note-tier:**
+/// When the only signal is product_status (note tier), render a
+/// compact single-row variant instead of the full PGLabelConfidenceCard
+/// header + row layout. Removes the "Product note" + "Product
+/// discontinued" redundancy. The status label becomes the row title
+/// directly, chevron + tap-to-explanation preserved.
 Widget buildLabelConfidenceSection({
   required BuildContext context,
   required double mappedCoverage,
@@ -52,6 +59,21 @@ Widget buildLabelConfidenceSection({
     isNotScored: isNotScored,
     unmappedActives: unmappedActives,
   );
+
+  // Compact note-tier path — only product_status fires, nothing else.
+  if (tier == LabelConfidenceTier.note) {
+    final label = productStatusLabel(productStatus);
+    if (label == null) return const SizedBox.shrink();
+    return _CompactNoteRow(
+      label: label,
+      onTap: () => _showProductStatusSheet(
+        context,
+        productStatusType(productStatus),
+      ),
+    );
+  }
+
+  // Standard partial / limited tier path — full PGLabelConfidenceCard.
   final items = buildLabelConfidenceItems(
     mappedCoverage: mappedCoverage,
     hasProprietaryBlends: hasProprietaryBlends,
@@ -89,6 +111,62 @@ bool labelConfidenceHasAnySignal({
   if (unmappedTotal(unmappedActives) > 0) return true;
   if (productStatusLabel(productStatus) != null) return true;
   return false;
+}
+
+/// Compact one-row variant for note-tier status-only state. Replaces
+/// the redundant "Product note" header + "Product discontinued · ..."
+/// row pattern. Single tappable row with info icon, status label,
+/// and chevron — leads to the same explanation sheet.
+class _CompactNoteRow extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _CompactNoteRow({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: V2Spacing.space16,
+            vertical: V2Spacing.space12,
+          ),
+          decoration: BoxDecoration(
+            color: V2Colors.surface,
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            border: Border.all(color: V2Colors.outline),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.event_busy_outlined,
+                size: 18,
+                color: V2Colors.fgMuted,
+              ),
+              const SizedBox(width: V2Spacing.space12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                ),
+              ),
+              const SizedBox(width: V2Spacing.space8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: V2Colors.fgMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Show the product-status explanation bottom sheet. Mirrors

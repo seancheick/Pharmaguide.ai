@@ -75,11 +75,18 @@ Widget buildTradeoffsSection({
 /// production's `_extractWhyItems` field resolution:
 ///   headline = label || reason
 ///   caption  = sanitizeWhyDetail(detail || description)
+///
+/// **Phase 11.7h.3 — Sean 2026-05-16 language softening:**
+/// Pipeline emits `Harmful additive: ITEM` as a penalty label. Sean's
+/// rule: avoid "harmful" language in user-facing copy; the penalty
+/// column already implies concern. We rewrite at display time only —
+/// pipeline stays unchanged until a future cleanup.
 PGTradeoff _toTradeoff(Map<String, dynamic> entry) {
-  final headline = (entry['label']?.toString() ??
+  final rawHeadline = (entry['label']?.toString() ??
           entry['reason']?.toString() ??
           '')
       .trim();
+  final headline = _softenAdditiveLanguage(rawHeadline);
   final rawDetail =
       entry['detail']?.toString() ?? entry['description']?.toString();
   final caption = sanitizeWhyDetail(rawDetail);
@@ -87,4 +94,25 @@ PGTradeoff _toTradeoff(Map<String, dynamic> entry) {
     headline: headline,
     caption: caption.isEmpty ? null : caption,
   );
+}
+
+/// Regex matching the pipeline's "Harmful additive" prefix on penalty
+/// labels. Mirrors production's `harmfulAdditivePrefixRegex`
+/// (lib/features/product_detail/widgets/tradeoffs_section.dart:31).
+final RegExp _harmfulAdditivePrefix =
+    RegExp(r'^\s*harmful additive[:\s]\s*', caseSensitive: false);
+
+/// Soften the pipeline's `Harmful additive: ITEM` prefix to
+/// `Additive concern: ITEM`. Keeps the clinical signal (this is in
+/// the
+/// considerations column, so concern is implied) without the
+/// alarmist "harmful" framing.
+///
+/// Other label shapes pass through unchanged.
+String _softenAdditiveLanguage(String headline) {
+  final match = _harmfulAdditivePrefix.firstMatch(headline);
+  if (match == null) return headline;
+  final remainder = headline.substring(match.end).trim();
+  if (remainder.isEmpty) return 'Additive concern';
+  return 'Additive concern: $remainder';
 }

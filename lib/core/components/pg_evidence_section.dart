@@ -78,6 +78,26 @@ class PGEvidenceSection extends StatelessWidget {
     return parts.isEmpty ? tier.label : '${tier.label} · ${parts.join(' · ')}';
   }
 
+  /// **Phase 11.7h.4 — Sean 2026-05-16 helper-line copy.**
+  /// Tier labels are jargon — "LIMITED" doesn't say *limited what*. A
+  /// short helper line beneath the summary translates each tier into
+  /// plain language so users can interpret the verdict without
+  /// clinical training.
+  String? _helperLine() {
+    switch (tier) {
+      case PGEvidenceTier.strong:
+        return 'Multiple high-quality human studies support these claims.';
+      case PGEvidenceTier.moderate:
+        return 'Some human studies support these claims, but the body of '
+            'evidence is still building.';
+      case PGEvidenceTier.limited:
+        return 'Limited means early, sparse, or lower-quality human '
+            'evidence.';
+      case PGEvidenceTier.none:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (tier == PGEvidenceTier.none && citations.isEmpty) {
@@ -115,6 +135,19 @@ class PGEvidenceSection extends StatelessWidget {
               ),
             ],
           ),
+          // Phase 11.7h.4 — plain-language helper beneath the tier
+          // summary so "LIMITED" / "MODERATE" / "STRONG" are
+          // interpretable without clinical training.
+          if (_helperLine() != null) ...[
+            const SizedBox(height: V2Spacing.space4),
+            Padding(
+              padding: const EdgeInsets.only(left: 18),
+              child: Text(
+                _helperLine()!,
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+            ),
+          ],
           if (citations.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space16),
             const Divider(
