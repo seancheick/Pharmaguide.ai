@@ -95,35 +95,15 @@ class ReviewBeforeUseSection extends ConsumerWidget {
     final parsedHint = parseInteractionHint(interactionHint);
     final hintHasAny = parsedHint?.hasAny == true;
 
-    // Dose-aware condition gate — drops condition IDs whose ingredients
-    // are all sub-clinical.
-    final gatedSummary = gateInteractionSummary(
-      interactionSummary,
-      ingredientDoses: ingredientDoses,
-    );
-    final survivingConditionIds =
-        (gatedSummary?['condition_summary'] as Map<String, dynamic>?)?.keys
-            .toSet();
-    final filteredHintConditionIds = parsedHint == null
-        ? const <String>[]
-        : (survivingConditionIds == null
-              ? parsedHint.conditionIds
-              : parsedHint.conditionIds
-                    .where(survivingConditionIds.contains)
-                    .toList(growable: false));
-    final hintDrugClassIds = parsedHint?.drugClassIds ?? const <String>[];
-
-    final matchedConditions = filteredHintConditionIds
-        .where(profile.conditions.contains)
-        .toList(growable: false);
-    final matchedDrugClasses = hintDrugClassIds
-        .where(profile.drugClasses.contains)
-        .toList(growable: false);
-
-    final hasInteractionContext =
-        matchedConditions.isNotEmpty || matchedDrugClasses.isNotEmpty;
     final hasWarnings = warnings.isNotEmpty;
     final hasAllergens = matchedAllergens.isNotEmpty;
+
+    // NOTE — `interactionSummary` + `ingredientDoses` are accepted on the
+    // constructor and kept in the data path so future row composition
+    // can resolve "Relevant profile factor: <Condition>" INSIDE a
+    // specific warning row when needed. They're intentionally NOT used
+    // here for any always-visible context line — see privacy comment
+    // below.
 
     // Free-from claims: filter `notClaimed` (absence of claim = no signal).
     final renderableClaims = freeFromClaims
@@ -143,16 +123,24 @@ class ReviewBeforeUseSection extends ConsumerWidget {
       );
     }
 
-    // Nothing to surface — section hides.
-    if (!hasWarnings &&
-        !hasAllergens &&
-        !hasInteractionContext &&
-        !hasFreeFromClaims) {
+    // **Privacy correction (Sean 2026-05-15):** the v2 card NEVER renders
+    // for context-only state (matched profile conditions / drug classes
+    // without an actionable warning/allergen/free-from). Exposing the
+    // user's conditions just to prove profile matching happened leaks
+    // private health context when the screen is shown to someone else.
+    //
+    // We retain `matchedConditions`/`matchedDrugClasses` so future row
+    // composition CAN surface "Relevant profile factor: <Condition>"
+    // INSIDE a specific warning row when the condition is the reason
+    // the warning fires — but not as a generic always-visible body line.
+    if (!hasWarnings && !hasAllergens && !hasFreeFromClaims) {
       return const SizedBox.shrink();
     }
 
-    final hasOnlyAffirmatives =
-        !hasWarnings && !hasAllergens && !hasInteractionContext;
+    // Affirmative-only mode: any free-from claim renders but no warnings,
+    // no allergens. hasInteractionContext intentionally excluded — context
+    // alone never qualifies for the affirmative tone.
+    final hasOnlyAffirmatives = !hasWarnings && !hasAllergens;
 
     final tone = computeReviewTone(
       warnings: warnings,
@@ -161,7 +149,8 @@ class ReviewBeforeUseSection extends ConsumerWidget {
       hasFreeFromCertified: hasFreeFromCertified,
     );
 
-    // Title + body copy — verbatim from production lines 277–306.
+    // Title + body copy — verbatim from production lines 277–306, but
+    // body NEVER appends raw matched-conditions lists.
     final affirmativeCertifiedCount = hasOnlyAffirmatives
         ? renderableClaims
               .where((c) => c.status == FreeFromStatus.certified)
@@ -182,14 +171,13 @@ class ReviewBeforeUseSection extends ConsumerWidget {
           ? affirmativeCopy(affirmativeCertifiedCount)
           : 'No verified free-from claims for your profile';
     }
-    // Append context line under the body when relevant.
-    final contextLine = buildInteractionContextLine(
-      matchedConditions: matchedConditions,
-      matchedDrugClasses: matchedDrugClasses,
-    );
-    if (contextLine != null) {
-      body = body == null ? contextLine : '$body · $contextLine';
-    }
+    // **DO NOT** append `buildInteractionContextLine(...)` to body.
+    // Sean 2026-05-15 privacy correction — never expose raw matched
+    // conditions as a generic always-visible line. Condition names
+    // belong INSIDE a specific warning row's caption ("Relevant
+    // profile factor: Diabetes") and only when the condition is the
+    // reason the warning fires. That row-caption surfacing is a
+    // future iteration (S6.next on parity doc).
 
     // Build rows: allergens first (concrete personal facts), warnings
     // sorted by severity desc, then free-from rows.
