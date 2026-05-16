@@ -21,10 +21,10 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
-import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
+import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
+import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
-import 'package:pharmaguide/features/stack/widgets/timing_advice_card.dart';
 
 /// v2 Stack screen — visual mirror of `stack_screen.dart` with three
 /// sub-tabs via [PGSegmentedControl]:
@@ -380,8 +380,8 @@ class _StackTab extends ConsumerWidget {
         ),
         // Timing + depletion advice — same conditional behavior as
         // the safety slots above (collapse when nothing to show).
-        const _LegacyTimingAdviceSlot(),
-        const _LegacyDepletionSlot(),
+        const _TimingAdviceSlot(),
+        const _DepletionSlot(),
         ],
       ),
     );
@@ -1214,8 +1214,10 @@ class _LegacyProfileNudgeSlot extends ConsumerWidget {
   }
 }
 
-class _LegacyTimingAdviceSlot extends ConsumerWidget {
-  const _LegacyTimingAdviceSlot();
+/// Phase 11.7L.C — timing advice slot wired to the v2 mirror card.
+/// Same data + provider as before; only the surface changes.
+class _TimingAdviceSlot extends ConsumerWidget {
+  const _TimingAdviceSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1223,7 +1225,7 @@ class _LegacyTimingAdviceSlot extends ConsumerWidget {
     return reportAsync.when(
       data: (report) {
         if (!report.hasTimingAdvice) return const SizedBox.shrink();
-        return TimingAdviceCard(
+        return PGTimingAdviceCard(
           optimizations: report.timingOptimizations,
           margin: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
@@ -1239,8 +1241,9 @@ class _LegacyTimingAdviceSlot extends ConsumerWidget {
   }
 }
 
-class _LegacyDepletionSlot extends ConsumerWidget {
-  const _LegacyDepletionSlot();
+/// Phase 11.7L.C — depletion-checker slot wired to the v2 mirror card.
+class _DepletionSlot extends ConsumerWidget {
+  const _DepletionSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1248,7 +1251,7 @@ class _LegacyDepletionSlot extends ConsumerWidget {
     return depletionAsync.when(
       data: (depletions) {
         if (depletions.isEmpty) return const SizedBox.shrink();
-        return DepletionCheckerCard(
+        return PGDepletionCard(
           depletions: depletions,
           margin: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
