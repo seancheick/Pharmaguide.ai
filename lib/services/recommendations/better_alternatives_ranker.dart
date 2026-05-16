@@ -174,12 +174,19 @@ bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
   // On-market only.
   final disc = candidate.discontinuedDate;
   if (disc != null && disc.trim().isNotEmpty) return false;
-  // Strictly higher score (no ties).
-  final curScore = current.scoreQuality80;
+  // Candidate must carry a score so the section can render a value.
   final candScore = candidate.scoreQuality80;
-  if (curScore == null || candScore == null) return false;
-  if (candScore <= curScore) return false;
-  // Safety flags.
+  if (candScore == null) return false;
+  // Strictly higher than the current product — UNLESS the current
+  // product is itself unscored. Phase 11.7L.F follow-up
+  // (Sean 2026-05-16): blocked products like Vinpocetine ship with
+  // `score_quality_80 = NULL` because the safety verdict short-
+  // circuits scoring. The user landing on a banned product NEEDS
+  // to see safer alternatives, so we treat "no score" as "lower
+  // than anything that has a score" and let scored candidates pass.
+  final curScore = current.scoreQuality80;
+  if (curScore != null && candScore <= curScore) return false;
+  // Safety flags — never surface a banned/recalled candidate.
   if ((candidate.hasBannedSubstance ?? 0) == 1) return false;
   if ((candidate.hasRecalledIngredient ?? 0) == 1) return false;
   return true;

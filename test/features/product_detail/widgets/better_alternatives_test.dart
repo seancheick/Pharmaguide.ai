@@ -211,7 +211,14 @@ void main() {
   });
 
   group('BetterAlternativesSection — render', () {
-    testWidgets('null category → renders nothing', (tester) async {
+    testWidgets(
+        'missing current product → renders nothing (no skeleton, no error)',
+        (tester) async {
+      // Phase 11.7L.F follow-up: the legacy `null category → render
+      // nothing` test no longer applies (category is no longer a
+      // gate). New behaviour: if `findById(currentDsldId)` returns
+      // null the section short-circuits to SizedBox.shrink with no
+      // skeleton flicker.
       final coreDb = CoreDatabase.memory();
       await tester.pumpWidget(
         _wrap(
@@ -223,13 +230,19 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.text('Similar higher-quality options'), findsNothing);
+      // Defensive — old title also absent.
       expect(find.text('Higher quality alternatives'), findsNothing);
       await coreDb.close();
     });
 
     testWidgets(
-      'V1 copy is exactly "Higher quality alternatives" — no editorial',
+      'title is "Similar higher-quality options" (Phase 11.7L.F follow-up)',
       (tester) async {
+        // Sean 2026-05-16: the new ranker mixes strict-quality picks
+        // with intent/family/audience matches, so the title now
+        // describes what we actually return — not a category-only
+        // "higher score" claim.
         final coreDb = CoreDatabase.memory();
         await _seedCurrent(coreDb);
         await _seedProduct(
@@ -254,11 +267,13 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Higher quality alternatives'), findsOneWidget);
-        // The old V0 copy was "Better Alternatives" — defensive check
-        // it's not still floating around.
+        expect(
+          find.text('Similar higher-quality options'),
+          findsOneWidget,
+        );
+        // Defensive: the previous title strings shouldn't linger.
+        expect(find.text('Higher quality alternatives'), findsNothing);
         expect(find.text('Better Alternatives'), findsNothing);
-        // Old subtitle removed in V1.
         expect(
           find.text('Higher-scored products in this category'),
           findsNothing,
@@ -399,8 +414,12 @@ void main() {
     });
 
     testWidgets('no alternatives in DB → hides empty state', (tester) async {
-      // findAlternatives returns empty → section returns SizedBox.shrink.
+      // Empty pool → ranker returns [] → section returns SizedBox.shrink.
+      // Phase 11.7L.F follow-up: must also seed `cur` so the new
+      // pipeline gets past `findById` and reaches the empty-pool
+      // branch (rather than the no-current-product branch above).
       final coreDb = CoreDatabase.memory();
+      await _seedCurrent(coreDb);
       await tester.pumpWidget(
         _wrap(
           coreDb,
@@ -413,6 +432,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('Similar higher-quality options'), findsNothing);
+      // Defensive — old title also absent.
       expect(find.text('Higher quality alternatives'), findsNothing);
       await coreDb.close();
     });

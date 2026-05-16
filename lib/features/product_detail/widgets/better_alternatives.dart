@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
@@ -96,16 +97,26 @@ class BetterAlternativesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (category == null || category!.isEmpty || currentScore == null) {
-      return const SizedBox.shrink();
-    }
-
+    // Phase 11.7L.F follow-up (Sean 2026-05-16): do not gate on
+    // `category` or `currentScore` here. The pool query already
+    // handles category-or-supplement_type matching, and the ranker
+    // handles the score comparison (including the no-score-on-
+    // blocked-product case for items like Vinpocetine, which has
+    // `primary_category=''` and `score_quality_80=NULL`).
     final coreDb = ref.watch(coreDatabaseProvider);
 
     return FutureBuilder<List<ProductsCoreData>>(
       future: _loadRanked(coreDb),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        // Loading skeleton — keeps the scroll anchor stable so the
+        // sticky CTA "Better alternatives" scroll target lands here
+        // instead of jumping past an empty slot.
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _LoadingSkeleton();
+        }
+        if (snapshot.hasError ||
+            !snapshot.hasData ||
+            snapshot.data!.isEmpty) {
           return const SizedBox.shrink();
         }
 
@@ -115,12 +126,13 @@ class BetterAlternativesSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Spec: V1 copy is exactly "Higher quality alternatives".
-            // No subtitle in V1 — the title is self-explanatory and
-            // adding a subtitle would push us toward editorialised
-            // claims we don't yet have evidence for.
+            // Title updated 2026-05-16 (Sean): the new ranker mixes
+            // strict-quality picks with intent/family/audience
+            // matches, so "Similar higher-quality options" reflects
+            // what we actually return better than the old
+            // category-only "Higher quality alternatives".
             Text(
-              'Higher quality alternatives',
+              'Similar higher-quality options',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.15,
@@ -134,6 +146,26 @@ class BetterAlternativesSection extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// Cream skeleton placeholder shown while the ranked pool resolves.
+/// Same vertical rhythm as the rendered section so the scroll anchor
+/// doesn't shift when data lands. Two rows is enough to signal
+/// "stuff is coming" without claiming a specific count.
+class _LoadingSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PGShimmerBox(width: 220, height: 18, radius: 4),
+        SizedBox(height: AppTheme.space12),
+        PGShimmerCard(height: 72),
+        SizedBox(height: AppTheme.space8),
+        PGShimmerCard(height: 72),
+      ],
     );
   }
 }

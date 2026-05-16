@@ -131,6 +131,39 @@ void main() {
       expect(result.map((p) => p.dsldId), equals(['on']));
     });
 
+    test(
+        'unscored current (blocked product like Vinpocetine) still returns '
+        'scored candidates', () {
+      // Sean's Phase 11.7L.F follow-up: blocked products like
+      // dsld 16012 Vinpocetine ship with `score_quality_80 = NULL`.
+      // The user MUST still see safer alternatives — treat the
+      // missing score as "lower than any scored candidate."
+      final vinpocetine = _product(
+        dsldId: '16012',
+        name: 'Vinpocetine',
+        brand: 'Thorne Research',
+        supplementType: 'single_nutrient',
+        // primaryCategory + scoreQuality80 intentionally NULL —
+        // mirrors the live catalog row.
+      );
+      final saferAlt = _product(
+        dsldId: 'safer-alt',
+        name: 'Bacopa Monnieri',
+        brand: 'Pure Encapsulations',
+        supplementType: 'single_nutrient',
+        scoreQuality80: 65,
+      );
+      final result = rankAlternatives(
+        current: vinpocetine,
+        candidates: [saferAlt],
+      );
+      expect(result.map((p) => p.dsldId), equals(['safer-alt']),
+          reason:
+              'Blocked products with null scoreQuality80 must still '
+              "surface scored alternatives — that's the user's whole "
+              'reason for landing on this section.');
+    });
+
     test('drops candidates with score ≤ current (strictly higher only)',
         () {
       final cur = _product(

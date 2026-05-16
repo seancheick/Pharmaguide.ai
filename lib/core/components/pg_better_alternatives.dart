@@ -172,3 +172,83 @@ class _AlternativePlaceholder extends StatelessWidget {
     );
   }
 }
+
+/// Phase 11.7L.F follow-up — cream skeleton shown while
+/// `BetterAlternativesRanker` resolves. Mirrors the section's
+/// vertical rhythm (title bar + 2 row placeholders) so the sticky
+/// CTA's scroll anchor lands on a real surface, not an empty slot.
+class PGBetterAlternativesSkeleton extends StatelessWidget {
+  const PGBetterAlternativesSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title placeholder
+        Container(
+          width: 240,
+          height: 20,
+          decoration: BoxDecoration(
+            color: V2Colors.outline,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: V2Spacing.space16),
+        for (var i = 0; i < 2; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+            child: Container(
+              padding: const EdgeInsets.all(V2Spacing.space12),
+              decoration: BoxDecoration(
+                color: V2Colors.surface,
+                borderRadius:
+                    BorderRadius.circular(V2Spacing.radiusCard),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              child: Row(
+                children: [
+                  // Score badge placeholder
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: V2Colors.outline,
+                      borderRadius:
+                          BorderRadius.circular(V2Spacing.space8),
+                    ),
+                  ),
+                  const SizedBox(width: V2Spacing.space16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 200,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: V2Colors.outline,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space8),
+                        Container(
+                          width: 120,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: V2Colors.outline,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}

@@ -100,17 +100,24 @@ class BetterAlternativesSection extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    // Need a category to query alternatives.
-    if (category == null || category!.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    // Phase 11.7L.F follow-up (Sean 2026-05-16): no category gate
+    // here. `fetchBetterAlternativesPool` handles category OR
+    // supplement_type matching, and Vinpocetine-style blocked
+    // products have empty category but a usable supplement_type.
 
     final coreDb = ref.watch(coreDatabaseProvider);
 
     return FutureBuilder<List<ProductsCoreData>>(
       future: _loadRanked(coreDb),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        // Loading skeleton — keeps the sticky-CTA scroll anchor
+        // landing on a real surface, not an empty slot mid-fetch.
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const PGBetterAlternativesSkeleton();
+        }
+        if (snapshot.hasError ||
+            !snapshot.hasData ||
+            snapshot.data!.isEmpty) {
           return const SizedBox.shrink();
         }
         final alternatives = snapshot.data!;
@@ -127,7 +134,10 @@ class BetterAlternativesSection extends ConsumerWidget {
 
         return PGBetterAlternatives(
           alternatives: mapped,
-          title: 'Higher quality alternatives',
+          // Title updated 2026-05-16 (Sean): ranker mixes
+          // strict-quality with intent/family matching, so this
+          // copy describes what we actually return.
+          title: 'Similar higher-quality options',
         );
       },
     );
