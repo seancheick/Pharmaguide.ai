@@ -479,7 +479,7 @@ row:
 | Analytics | Source-tap |
 | A11y | Disclaimer paragraph readable |
 | Golden | covered (no edge cases) |
-| **Status** | **wired** — pending `freshnessLabel` from `catalogInfoProvider` in 11.7f |
+| **Status** | **wired** — `TransparencyFooterSection` is a ConsumerWidget that reads `catalogInfoProvider` and threads the formatted date ("Updated Mon DD, YYYY") into `PGTransparencyFooter.freshnessLabel`. Same pattern as the v2 home screen's `_CitationStrip`. |
 
 #### S18. AllergenSummaryBanner (LEGACY fallback)
 
@@ -497,21 +497,21 @@ row:
 | Analytics | none |
 | A11y | Allergen labels readable |
 | Golden | Legacy product w/ free-text only, new product w/ structured (suppressed) |
-| **Status** | **placeholder** |
+| **Status** | **wired** — `buildAllergenSummaryBannerSection` renders a calm caution-toned banner (3pt left accent + alpha 0.06 fill, matches v2 blocked banner pattern). Gate enforced upstream by `shouldShowAllergenSummaryBanner(isBlocked, allergenSummary, noStructuredAllergens=matchedAllergens.isEmpty)`. Placed between LabelConfidence (S4) and ScoreBreakdown (S5) to mirror production's pre-DeepDive slot. Suppression: structured allergens flowing into ReviewBeforeUse (S3) → this banner hides automatically. |
 
 ---
 
-## Completion tally (Phase 11.7e boundary — conditional sections batch)
+## Completion tally (Phase 11.7f boundary — legacy fallbacks wired)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
 | **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse + privacy correction, S4 LabelConfidence, S5 ScoreBreakdown + alignment fix) |
-| **wired** | 15 (S0, S0.5, S0.9, S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S10 Certifications, S11 Evidence, S12 HeavyMetal, S13 Formulation, S14 Probiotic, S15 ManufacturerViolations, S16 BetterAlternatives, S17 — suppression paths live; tile-render verification awaits a blob-populated product) |
-| **placeholder** | 1 (S18 AllergenSummaryBanner — legacy fallback, queued for 11.7f) |
+| **wired** | 16 (S0, S0.5, S0.9, S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S10 Certifications, S11 Evidence, S12 HeavyMetal, S13 Formulation, S14 Probiotic, S15 ManufacturerViolations, S16 BetterAlternatives, S17 TransparencyFooter + catalog freshness, S18 AllergenSummaryBanner — suppression paths live; tile-render verification awaits a blob-populated product) |
+| **placeholder** | 0 |
 | total | 21 (S20 Synergy intentionally deferred — production widget exists but isn't in v2 scope yet) |
 
-**All 16 mid-page section adapters now exist on disk + are wired into the connected screen.** Connected screen contains zero `_SectionPlaceholder` references (helper class deleted).
+**🎉 PHASE 11.7 ADAPTER WORK COMPLETE.** All 18 sections wired. Connected screen contains zero placeholders (helper class deleted). Next phase: 11.7g route swap after stakeholder live review.
 
 **Dev sim blob limitation:** the iPhone simulator's Supabase blob fetch returns null for every test product in this session (confirmed via production parity — both `/product/65844` and `/product/15712` render "No additional details available." on the production route). All blob-dependent sections (S6–S15) will reach their first live tile-render verification when a product whose blob has been populated (cached locally OR fetched successfully from Supabase) flows through the screen. Until then, parity is guaranteed by verbatim helper ports + suppression-path live verification.
 

@@ -35,7 +35,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -51,6 +50,7 @@ import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/v2/scroll_anchors.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/allergen_summary_banner_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/better_alternatives_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_section.dart';
@@ -69,6 +69,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_sectio
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/transparency_footer_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
@@ -378,6 +379,22 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
+                  // ---- 4.5 AllergenSummaryBanner (LEGACY, 11.7f) ---
+                  // Renders ONLY when the product has free-text
+                  // allergenSummary AND the blob has no structured
+                  // allergens (which would have already populated
+                  // ReviewBeforeUse rows). Suppressed on blocked.
+                  if (shouldShowAllergenSummaryBanner(
+                    isBlocked: isBlocked,
+                    allergenSummary: _product?.allergenSummary,
+                    noStructuredAllergens: matchedAllergens.isEmpty,
+                  )) ...[
+                    buildAllergenSummaryBannerSection(
+                      allergenSummary: _product?.allergenSummary,
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // ---- 5. ScoreBreakdown (WIRED, 11.7d.1) ----------
                   if (showScoreBreakdown) ...[
                     buildScoreBreakdownSection(
@@ -548,8 +565,11 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 17. TransparencyFooter (WIRED) --------------
-                  const PGTransparencyFooter(),
+                  // ---- 17. TransparencyFooter (WIRED, 11.7f) -------
+                  // Reads catalogInfoProvider for the real freshness
+                  // label — "Updated <Mon DD, YYYY>" — same source the
+                  // v2 home screen's citation strip uses.
+                  const TransparencyFooterSection(),
                 ],
               ),
             ),
