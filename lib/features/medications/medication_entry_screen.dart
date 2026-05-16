@@ -348,6 +348,20 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
   }
 
   Widget _buildSuggestionArea(ThemeData theme) {
+    // **Phase 11.7j.9 — Sean 2026-05-16 selection-vs-not-found bug fix.**
+    // After the user picks a suggestion, _searchController.text is set to
+    // the suggestion name, which retriggers the debounced search. If
+    // RxNorm doesn't have an exact match for the full label, the search
+    // returns empty and the "No medication matches" empty state renders
+    // *over* the already-selected state — confusing the user with
+    // "selected but not found" copy.
+    //
+    // Selection is the source of truth: when _selectedName is set,
+    // suppress the suggestion list AND the empty state entirely.
+    if (_selectedName != null) {
+      return const SizedBox.shrink();
+    }
+
     if (_searching) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: AppTheme.space16),
@@ -544,15 +558,44 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
             border: OutlineInputBorder(),
           ),
         ),
-        const SizedBox(height: AppTheme.space8),
-        TextField(
-          key: const Key('med-entry-frequency'),
-          controller: _frequencyController,
-          decoration: const InputDecoration(
-            labelText: 'Schedule',
-            hintText: 'e.g. once daily',
-            border: OutlineInputBorder(),
+        const SizedBox(height: AppTheme.space12),
+        // **Phase 11.7j.9 — Sean 2026-05-16 schedule chip selector.**
+        // Replaces the free-text "Schedule" TextField with ChoiceChips
+        // for the common cadences. The chip tap writes the canonical
+        // string into _frequencyController so the save path stays
+        // unchanged. Users can still type freely on the Stack screen
+        // later if a non-standard cadence is needed.
+        Text(
+          'Schedule',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
+        ),
+        const SizedBox(height: AppTheme.space8),
+        Wrap(
+          spacing: AppTheme.space8,
+          runSpacing: AppTheme.space8,
+          children: [
+            for (final option in const <String>[
+              'Once daily',
+              'Twice daily',
+              '3× daily',
+              '4× daily',
+              'Weekly',
+              'As needed',
+            ])
+              ChoiceChip(
+                key: Key('med-entry-freq-${option.toLowerCase().replaceAll(RegExp(r'\W+'), '-')}'),
+                label: Text(option),
+                selected: _frequencyController.text == option,
+                onSelected: (selected) {
+                  setState(() {
+                    _frequencyController.text = selected ? option : '';
+                  });
+                },
+              ),
+          ],
         ),
       ],
     );
