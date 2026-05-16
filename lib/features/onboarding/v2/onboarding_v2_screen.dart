@@ -110,14 +110,23 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
     }
     await OnboardingPrefs.markSeen();
     if (!mounted) return;
-    GoRouter.of(context).go(toProfileSetup ? Routes.profileSetup : Routes.home);
+    // Phase 11.7i — onboarding completion now routes through the
+    // production auth invitation. `toProfileSetup` is intentionally
+    // dropped from this signature: profile setup remains reachable
+    // from home/settings, but it should NOT block the sign-in step.
+    // Users who want to set up profile post-auth take it from the
+    // home nudge surface.
+    GoRouter.of(context).go(Routes.authInvitation);
   }
 
   Future<void> _skip() async {
     if (!widget.autoFinish) return;
     await OnboardingPrefs.markSeen();
     if (!mounted) return;
-    GoRouter.of(context).go(Routes.home);
+    // Skipping onboarding still surfaces the sign-in step — users can
+    // skip the auth screen too, but the explicit "Skip for now" CTA
+    // sits there rather than being silent.
+    GoRouter.of(context).go(Routes.authInvitation);
   }
 
   void _toggleGoal(String id) {

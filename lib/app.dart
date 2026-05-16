@@ -11,7 +11,10 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
-import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
+// Phase 11.7i — legacy onboarding/splash imports removed after route
+// swap. Files remain on disk (lib/features/onboarding/onboarding_screen.dart,
+// lib/features/splash/animated_splash_screen.dart) so rollback is a
+// `git revert` away. Removed to keep analyzer clean.
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
@@ -23,10 +26,13 @@ import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
-import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
+// Legacy splash import dropped during Phase 11.7i route swap — see
+// note above onboarding_screen import for the rollback story.
 import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
+import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
@@ -349,16 +355,37 @@ GoRouter _buildRouter({
         pageBuilder: (_, state) =>
             _platformPage(state, const StackV2Preview()),
       ),
+      // Phase 11.7i — Splash + Onboarding production routes flipped to
+      // v2 widgets. Legacy widgets (AnimatedSplashScreen, OnboardingScreen)
+      // stay imported above so a single-line revert here restores the
+      // pre-v2 path if needed. Same risk profile as the Home/Profile/Stack
+      // swaps in Phases 11.0–11.5: these are first-impression surfaces
+      // with no safety-critical clinical content.
       GoRoute(
         path: Routes.splashIntro,
         builder: (_, state) {
           final next = state.uri.queryParameters['next'] ?? Routes.home;
-          return AnimatedSplashScreen(nextRoute: next);
+          return AnimatedSplashV2Screen(nextRoute: next);
         },
       ),
       GoRoute(
         path: Routes.onboarding,
-        builder: (_, __) => const OnboardingScreen(),
+        builder: (_, __) => const OnboardingV2Screen(),
+      ),
+      // Phase 11.7i — production AuthInvitation route. Sits between
+      // onboarding completion and home. Wires the four CTAs to the
+      // real PGAuthService methods. Skip lands at home as guest.
+      GoRoute(
+        path: Routes.authInvitation,
+        pageBuilder: (context, state) => _platformPage(
+          state,
+          AuthInvitationV2Screen(
+            onApple: () => _handleSignInApple(context),
+            onGoogle: () => _handleSignInGoogle(context),
+            onEmail: () => showMagicLinkSheet(context),
+            onSkip: () => context.go(Routes.home),
+          ),
+        ),
       ),
       GoRoute(
         path: Routes.profileSetup,
@@ -419,6 +446,47 @@ GoRouter _buildRouter({
   );
   _appRouter = router;
   return router;
+}
+
+// ─── Phase 11.7i — production sign-in handlers ────────────────────────────────
+// Wire the v2 AuthInvitation CTAs to the real Supabase plumbing in
+// PGAuthService. Successful sign-in fires a `signedIn` event handled
+// by `_AuthEventListener` below, which navigates the user to home
+// when they were on an auth path (splash / onboarding / /auth).
+//
+// Cancellation is silent. Errors surface a calm snackbar without
+// blocking the screen.
+
+Future<void> _handleSignInApple(BuildContext context) async {
+  // BuildContext kept on the signature to satisfy the route-handler
+  // call site but intentionally unused inside — snackbar uses the
+  // root scaffoldMessengerKey, so there's no context-across-async-gap
+  // concern.
+  final result = await PGAuthService().signInWithApple();
+  _surfaceAuthError(result);
+}
+
+Future<void> _handleSignInGoogle(BuildContext context) async {
+  final result = await PGAuthService().signInWithGoogle();
+  _surfaceAuthError(result);
+}
+
+void _surfaceAuthError(PGAuthResult result) {
+  if (result is PGAuthError) {
+    // Use the root scaffold messenger (set in main.dart) so the
+    // snackbar isn't tied to a transient screen scope.
+    scaffoldMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
+  // Success / Handoff / Cancel — no snackbar. Auth listener handles
+  // navigation on success/handoff; cancel is intentional user backout.
 }
 
 class _AppShell extends StatelessWidget {
@@ -639,7 +707,8 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
           final loc = router.routerDelegate.currentConfiguration.uri.path;
           final onAuthPath = loc.startsWith('/dev/v2/auth') ||
               loc == Routes.splashIntro ||
-              loc == Routes.onboarding;
+              loc == Routes.onboarding ||
+              loc == Routes.authInvitation;
           if (onAuthPath) {
             // Honor the dev-route override: if the gallery is the
             // active root (DEV_ROUTE=/dev/v2) land at the v2 home
