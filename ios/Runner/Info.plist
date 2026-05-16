@@ -7,7 +7,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Pharmaguide</string>
+		<string>PharmaGuide</string>
 		<key>NSCameraUsageDescription</key>
 		<string>PharmaGuide uses the camera to scan supplement barcodes so you can check safety and interactions instantly.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
