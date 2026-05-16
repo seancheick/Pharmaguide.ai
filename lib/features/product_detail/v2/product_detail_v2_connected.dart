@@ -56,6 +56,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_s
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
@@ -386,14 +387,31 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 6. Ingredients (PLACEHOLDER, 11.7d) ---------
+                  // ---- 6. Ingredients (WIRED, 11.7d.2) -------------
                   if (showDeepDive) ...[
-                    _SectionPlaceholder(
+                    KeyedSubtree(
                       key: _anchors.ingredientsKey,
-                      label: 'Ingredients',
-                      detail: _shellIngredientsSummary(
-                        detailBlob,
-                        ingredientDoses,
+                      child: buildIngredientsSection(
+                        context: context,
+                        ingredients: ((detailBlob?['ingredients'] as List?) ??
+                                const [])
+                            .whereType<Map<String, dynamic>>()
+                            .toList(growable: false),
+                        inactiveIngredients:
+                            ((detailBlob?['inactive_ingredients'] as List?) ??
+                                    const [])
+                                .whereType<Map<String, dynamic>>()
+                                .toList(growable: false),
+                        ulAnalysis:
+                            ((detailBlob?['rda_ul_data']
+                                            as Map<String, dynamic>?)?[
+                                        'analyzed_ingredients']
+                                    as List?)
+                                ?.whereType<Map<String, dynamic>>()
+                                .toList(growable: false),
+                        blends: (blendDetail?['blends'] as List?)
+                            ?.whereType<Map<String, dynamic>>()
+                            .toList(growable: false),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -571,28 +589,6 @@ class _ProductDetailV2ConnectedState
     );
   }
 
-  /// Shell-only diagnostic — one-line summary of ingredient counts so
-  /// the placeholder shows real data while waiting on the 11.7d adapter.
-  /// Deleted along with the Ingredients placeholder when that section
-  /// wires.
-  String _shellIngredientsSummary(
-    Map<String, dynamic>? blob,
-    Map<String, IngredientDose> ingredientDoses,
-  ) {
-    if (blob == null) return 'blob pending';
-    final active =
-        (blob['ingredients'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .length ??
-        0;
-    final inactive =
-        (blob['inactive_ingredients'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .length ??
-        0;
-    return '$active active · $inactive inactive · '
-        '${ingredientDoses.length} doses extracted';
-  }
 }
 
 // =====================================================================
