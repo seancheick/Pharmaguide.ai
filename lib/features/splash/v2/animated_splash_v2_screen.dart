@@ -206,18 +206,116 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
 }
 
 /// Thin centered accent underline beneath the wordmark.
-class _AccentUnderline extends StatelessWidget {
+///
+/// **Two-phase animation** (Sean 2026-05-16 — addresses the "is the
+/// app stuck on a long cold-boot splash?" concern without turning the
+/// brand moment into a progress bar):
+///
+///   Phase 1 — DRAW IN (one-shot, ~420ms):
+///     Width 0 → 32 with a decelerate curve, kicked off on mount.
+///     Reads like a confident signature stroke completing the wordmark.
+///
+///   Phase 2 — BREATHE (looping, ~5s full cycle):
+///     Once the draw-in finishes, opacity oscillates 0.55 ↔ 1.0 on a
+///     slow easeInOutSine curve. Signals "alive / breathing" — calm
+///     enough that it doesn't read as a loading indicator. Same
+///     emotional register as the AuthInvitation brand-mark heartbeat.
+///
+/// **Reduce-motion accessibility:** both phases suppressed. Static
+/// 32×2 accent line renders immediately.
+class _AccentUnderline extends StatefulWidget {
   const _AccentUnderline();
 
   @override
+  State<_AccentUnderline> createState() => _AccentUnderlineState();
+}
+
+class _AccentUnderlineState extends State<_AccentUnderline>
+    with TickerProviderStateMixin {
+  late final AnimationController _drawIn;
+  late final AnimationController _breathe;
+  late final Animation<double> _width;
+  late final Animation<double> _opacity;
+
+  static const double _targetWidth = 32;
+
+  @override
+  void initState() {
+    super.initState();
+    _drawIn = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    _width = Tween<double>(begin: 0, end: _targetWidth).animate(
+      CurvedAnimation(parent: _drawIn, curve: Curves.easeOutCubic),
+    );
+
+    _breathe = AnimationController(
+      vsync: this,
+      // 2500ms one-way × 2 (reverse) = 5s full breath. Slow enough
+      // to read as ambient breath, not anxious pulse.
+      duration: const Duration(milliseconds: 2500),
+    );
+    _opacity = Tween<double>(begin: 0.55, end: 1.0).animate(
+      CurvedAnimation(parent: _breathe, curve: Curves.easeInOutSine),
+    );
+
+    _drawIn.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        _breathe.repeat(reverse: true);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Honor the OS reduce-motion preference. Setting both controllers
+    // to value=1 skips the draw-in animation entirely; the breathe
+    // loop is never started because we only repeat after the draw-in
+    // completes via the status listener — and that listener never
+    // fires for an instantly-completed animation. Net result: static
+    // 32×2 accent line, no motion.
+    final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduce) {
+      _drawIn.value = 1;
+      _opacity.removeStatusListener((_) {});
+    } else {
+      if (!_drawIn.isAnimating && _drawIn.value == 0) {
+        _drawIn.forward();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _drawIn.dispose();
+    _breathe.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 32,
-      height: 2,
-      decoration: BoxDecoration(
-        color: V2Colors.accent,
-        borderRadius: BorderRadius.circular(1),
-      ),
+    return AnimatedBuilder(
+      animation: Listenable.merge([_width, _opacity]),
+      builder: (context, _) {
+        // While the draw-in is running, opacity stays at 1.0 (the
+        // line is being drawn at full color). Once draw-in is
+        // complete, the breathe controller takes over the opacity.
+        final isDrawing = _drawIn.status != AnimationStatus.completed;
+        final opacity = isDrawing ? 1.0 : _opacity.value;
+        return Opacity(
+          opacity: opacity,
+          child: Container(
+            width: _width.value,
+            height: 2,
+            decoration: BoxDecoration(
+              color: V2Colors.accent,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+        );
+      },
     );
   }
 }
