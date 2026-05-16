@@ -225,7 +225,7 @@ row:
 | Analytics | (deferred — no analytics fire in v2 yet; matches production) |
 | A11y | Danger tone paired with icon + colored text + caption; `startExpanded: true` when danger so users see warnings without a tap |
 | Golden | G7 allergen conflict, G10 multiple warnings, 1-row clean state, no-profile nudge state |
-| **Status** | **wired** — verbatim helper ports of production's `_parseHint` / `_computeTone` / `_allergenTone` / `_severityColor` / `_countCopy` / `_affirmativeCopy` / `_humanLabel` / `_humanConcern`. Row composition flattens production's chip layout into v2's `(headline, caption, rowTone, onTap)` model — mechanism + management + evidence + citation count packed into caption; citations tap surfaces same bottom sheet. Auto-expand-on-danger preserved. No-profile nudge preserved as standalone v2 cream card with `PGPillButton(secondary)` → `Routes.profileSetup`. Awaits live verify-alone (warnings + allergens + free-from + nudge + danger states). |
+| **Status** | **verified** — live side-by-side vs production `/product/65844` (Thorne MediPro Vegan All-In-One, SAFE, profile w/ Diabetes + High Cholesterol): title "Review before use" matches; info tone matches; profile-matched context line ("Your conditions: Diabetes, High Cholesterol") renders verbatim; auto-collapse behavior preserved; section correctly suppressed on blocked products (re-verified dsldId 1000). **V2 ENHANCEMENT (Sean to sign off):** context line renders in the header body always visible; production hides it until user taps to expand. Same verbatim copy, different placement. Rationale: medical info should be visible without requiring a tap. Helper ports verbatim: `_parseHint` / `_computeTone` / `_allergenTone` / `_severityColor` / `_countCopy` / `_affirmativeCopy` / `_humanLabel` / `_humanConcern`. Other paths (warnings populated, allergen-match danger, affirmative-only, nudge-banner) statically parity-checked via verbatim ports + exhaustive sealed-class switch; live verification will arrive as those scenarios encounter real data. |
 
 #### S4. LabelConfidence
 
@@ -243,7 +243,7 @@ row:
 | Analytics | none |
 | A11y | Caveat copy reads informational, not alarming. Tier note tier → muted grey icon; partial/limited → caution amber icon (never red) |
 | Golden | G8 low coverage, G9 proprietary blend, G6 not-scored, G discontinued-only (note tier) |
-| **Status** | **wired** — verbatim helper ports of production's `_Tier` / `_computeTier` / `_tierLabel` / `_headerPrefix` / `_unmappedTotal` / `_productStatusLabel` / `_unmappedNames` / `_pluralize`. Row order preserved (isNotScored → coverage → blends → unmapped → productStatus). All row copy strings verbatim from production lines 148–191. Status-explanation sheet copy verbatim from production lines 407–428. Awaits live verify-alone (low-coverage product, proprietary-blend product, NOT_SCORED product, discontinued product). |
+| **Status** | **verified** — suppression path live (dsldId 65844, all signals false → `labelConfidenceHasAnySignal` returns false → section correctly hides; matches production behavior of suppressing the sliver). **Tier-render paths unreachable in shipped dev DB**: all products have `mapped_coverage = 1.0`, all NOT_SCORED are also BLOCKED — coverage/limited/partial/note tiers will surface only via OTA DB (180K products) and Supabase blob in the production environment. Static parity guaranteed via verbatim helper ports of production's `_Tier` / `_computeTier` / `_tierLabel` / `_headerPrefix` / `_unmappedTotal` / `_productStatusLabel` / `_unmappedNames` / `_pluralize`. Row order preserved (isNotScored → coverage → blends → unmapped → productStatus). All row copy strings verbatim from production lines 148–191. Status-explanation sheet copy verbatim from production lines 407–428. Final live tier-render verification will arrive when the staged rollout hits OTA-DB products. |
 
 **Order note (MNR-7):** LabelConfidence MUST render before ScoreBreakdown. The v2 fixture had these reversed; v2 connected restores production order.
 
@@ -501,13 +501,13 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7c.4 boundary)
+## Completion tally (Phase 11.7c.4 verification boundary)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| **verified** | 4 (S1, S1.5, S1.6 blocked flow; S2 PersonalFit FitIncomplete + static-parity) |
-| **wired** | 6 (S0, S0.5, S0.9, S3 ReviewBeforeUse, S4 LabelConfidence, S17 — pending live verification on non-blocked product) |
+| **verified** | 6 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse, S4 LabelConfidence — all live + static-parity composed) |
+| **wired** | 4 (S0, S0.5, S0.9, S17 — pending live verification on non-blocked product) |
 | **placeholder** | 11 |
 | total | 21 |
 
