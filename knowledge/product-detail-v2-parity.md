@@ -263,7 +263,7 @@ row:
 | Analytics | none |
 | A11y | Pillar values readable as "Ingredient Quality, 22 out of 25" |
 | Golden | Full pillars, partial pillars, G8 low coverage, G11 clean |
-| **Status** | **placeholder** |
+| **Status** | **verified** — live side-by-side vs production `/product/65844` (Thorne MediPro, SAFE, all pillars + coverage): title "Why this scored 89" verbatim; subtitle wording slightly wider in v2 ("Tap any pillar to see what drives it."); pillar order verbatim (Ingredient Quality → Safety & Purity → Evidence & Research → Transparency & Verification); pillar copy ("Form, dosage, and bioavailability" / "Free from harmful ingredients..." / "Clinical support behind ingredients" / "Label clarity and independent testing") verbatim; "Third-party tested" + "Trusted manufacturer" badges fire on the correct pillars; coverage line tier ≥0.7 → "Most ingredients in our database — high-confidence score" verbatim. Pillar values match the underlying math exactly (24.59/25=98%→10/10, 29/30=96.67%→10/10, 14.9/20=74.5%→7/10, 3/5=60%→6/10). **Three pre-approved v2 deliberate departures rendering as designed (from PGScoreBreakdownCard widget docs lines 155–169):** (1) **0–10 normalized display** vs production's `X/100` — cross-pillar comparability; (2) **2-tone green palette** vs production's 6-tier ScoreTier — diagnostic pillars are quality not safety signals, no red; (3) **microExplanation revealed on tap** vs production's always-visible under bar — Sean's compactness rule. `section_breakdown` blob threaded through for future sub-score-line parity (production has rich `_explainFn` parsing; deferred to a future v2 component enhancement). |
 
 #### S6. Ingredients
 
@@ -501,14 +501,14 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7c.4 verification boundary)
+## Completion tally (Phase 11.7d.1 verification boundary)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| **verified** | 6 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse, S4 LabelConfidence — all live + static-parity composed) |
+| **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse, S4 LabelConfidence, S5 ScoreBreakdown — all live + static-parity composed) |
 | **wired** | 4 (S0, S0.5, S0.9, S17 — pending live verification on non-blocked product) |
-| **placeholder** | 11 |
+| **placeholder** | 10 |
 | total | 21 |
 
 ---
