@@ -78,6 +78,29 @@ run-v2pd-ios: ## v2 product detail on iOS simulator
 build-ipa-v2pd: ## Build TestFlight IPA with v2 product detail enabled
 	$(FLUTTER) build ipa $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true --release
 
+# ─── Phase 11.7L.B staged route swap — ProfileSetup v2 ────────────────────────
+# Combine with `run-v2pd` flags as needed — both toggles are independent.
+# Set USE_V2_PROFILE_SETUP=false (or omit) to fall back to the legacy
+# multi-step editor instantly. Logic + providers are identical between
+# the two, so flipping the flag is a pure visual change.
+
+.PHONY: run-v2pf
+run-v2pf: ## Run with /profile/setup route swapped to v2
+	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PROFILE_SETUP=true
+
+.PHONY: run-v2all
+run-v2all: ## Run with BOTH v2 PD and v2 ProfileSetup enabled (full TestFlight preview)
+	$(FLUTTER) run $(DART_DEFINES) \
+		--dart-define=USE_V2_PRODUCT_DETAIL=true \
+		--dart-define=USE_V2_PROFILE_SETUP=true
+
+.PHONY: build-ipa-v2all
+build-ipa-v2all: ## Build TestFlight IPA with BOTH v2 toggles on
+	$(FLUTTER) build ipa $(DART_DEFINES) \
+		--dart-define=USE_V2_PRODUCT_DETAIL=true \
+		--dart-define=USE_V2_PROFILE_SETUP=true \
+		--release
+
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios

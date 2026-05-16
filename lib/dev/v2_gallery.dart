@@ -716,6 +716,13 @@ class V2Gallery extends StatelessWidget {
                 subtitle: 'Signed-in account variant',
                 routePath: '/dev/v2/settings?signedIn=1',
               ),
+              _PrototypeLink(
+                label: 'Profile setup',
+                subtitle:
+                    '5-step editor mirror · same providers · '
+                    'serif headings · cream radio/checkbox tiles',
+                routePath: '/dev/v2/profile-setup',
+              ),
             ],
           ),
           const _Section(

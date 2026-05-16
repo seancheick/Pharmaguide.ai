@@ -37,6 +37,19 @@ const bool _useV2ProductDetail = bool.fromEnvironment(
   defaultValue: false,
 );
 
+/// Phase 11.7L.B staged route swap toggle for ProfileSetup. Set via:
+///   `--dart-define=USE_V2_PROFILE_SETUP=true`
+/// When true, the production `/profile/setup` route renders the v2
+/// mirror (`ProfileSetupV2Screen`) instead of the legacy screen.
+/// Logic, providers, and save semantics are identical between the two
+/// — this is a pure visual swap — so flipping the flag at TestFlight
+/// time is low-risk. Default false keeps production on the legacy
+/// screen until Sean signs off on the v2 mirror on a real device.
+const bool _useV2ProfileSetup = bool.fromEnvironment(
+  'USE_V2_PROFILE_SETUP',
+  defaultValue: false,
+);
+
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnv = String.fromEnvironment(
   'SENTRY_ENVIRONMENT',
@@ -465,6 +478,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
           useV2ProductDetail: _useV2ProductDetail,
+          useV2ProfileSetup: _useV2ProfileSetup,
         ),
       ),
     );

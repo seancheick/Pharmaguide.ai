@@ -16,6 +16,7 @@ import 'package:pharmaguide/dev/v2_gallery.dart';
 // lib/features/splash/animated_splash_screen.dart) so rollback is a
 // `git revert` away. Removed to keep analyzer clean.
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
+import 'package:pharmaguide/features/profile/v2/profile_setup_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
@@ -160,6 +161,7 @@ GoRouter _buildRouter({
   VoidCallback? onRetryCatalogLoad,
   bool useV2Theme = false,
   bool useV2ProductDetail = false,
+  bool useV2ProfileSetup = false,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -275,6 +277,15 @@ GoRouter _buildRouter({
           const OnboardingV2Screen(autoFinish: false),
         ),
       ),
+      // v2 ProfileSetup mirror — preview the 5-step editor against the
+      // live `profileProvider` without committing to the env-flag swap.
+      // This route renders ProfileSetupV2Screen unconditionally; the
+      // production `/profile/setup` route honors `useV2ProfileSetup`.
+      GoRoute(
+        path: '/dev/v2/profile-setup',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProfileSetupV2Screen()),
+      ),
       // v2 Product Detail flagship — composes every Phase 8.1.1–8.1.5
       // mirror against fixture data so reviewers can see the full
       // scroll story end-to-end. Production wiring (later phase)
@@ -389,8 +400,16 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.profileSetup,
-        pageBuilder: (_, state) =>
-            _platformPage(state, const ProfileSetupScreen()),
+        pageBuilder: (_, state) {
+          // Phase 11.7L.B staged route swap — same env-toggle pattern
+          // as Product Detail v2. Both screens share `profileProvider`
+          // and the `saveToDb` semantics, so flipping the flag is a
+          // pure visual change with no behavior risk.
+          final Widget screen = useV2ProfileSetup
+              ? const ProfileSetupV2Screen()
+              : const ProfileSetupScreen();
+          return _platformPage(state, screen);
+        },
       ),
       GoRoute(
         path: Routes.search,
@@ -592,6 +611,15 @@ class PharmaGuideApp extends StatelessWidget {
   /// is a single Makefile flag flip.
   final bool useV2ProductDetail;
 
+  /// Phase 11.7L.B ProfileSetup v2 mirror toggle. When true, the
+  /// production `/profile/setup` route renders `ProfileSetupV2Screen`
+  /// instead of the legacy `ProfileSetupScreen`. Logic, providers,
+  /// and save semantics are identical between the two — pure visual
+  /// swap. Driven via `--dart-define=USE_V2_PROFILE_SETUP=true` so
+  /// the flag can be flipped per build / TestFlight scheme without
+  /// modifying source.
+  final bool useV2ProfileSetup;
+
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
@@ -600,6 +628,7 @@ class PharmaGuideApp extends StatelessWidget {
     this.hasSeenOnboarding = true,
     this.useV2Theme = false,
     this.useV2ProductDetail = false,
+    this.useV2ProfileSetup = false,
   });
 
   @override
@@ -618,6 +647,7 @@ class PharmaGuideApp extends StatelessWidget {
         onRetryCatalogLoad: onRetryCatalogLoad,
         useV2Theme: useV2Theme,
         useV2ProductDetail: useV2ProductDetail,
+        useV2ProfileSetup: useV2ProfileSetup,
       ),
       // Global Dynamic Type clamp.
       //
