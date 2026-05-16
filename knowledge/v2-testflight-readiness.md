@@ -1,9 +1,70 @@
-# v2 TestFlight Readiness — Build 1.0.0+3
+# v2 TestFlight Readiness — Build 1.0.0+4
 
-**Status:** Ready to ship behind 5 toggles
+**Status:** Walkthrough patches landed; 5 toggles still default false
 **Branch:** `design/v2-mobile-polish`
-**Date:** 2026-05-16
-**Predecessor:** 1.0.0+2 (uploaded only `USE_V2_PRODUCT_DETAIL=true`)
+**Date:** 2026-05-16 (1.0.0+4 cut at 13:30 PT)
+**Predecessor:** 1.0.0+3 (walkthrough surfaced 11 bugs + 1 Sentry crash)
+
+---
+
+## What changed in 1.0.0+4 (vs 1.0.0+3)
+
+Sean's real-device walkthrough on 1.0.0+3 found 11 bugs + 1 Sentry crash.
+Six clusters landed in this build (commit `453aab7`). Cluster D (Quick
+Check medication RxNorm) is punted to 1.0.0+5.
+
+| Cluster | Bug | Status in 1.0.0+4 |
+|---|---|---|
+| **A** | 1 — Search bar not pinned + tap dead | Fixed (`SliverPersistentHeader` + `onTap` wired) |
+| **A** | 2 — "Scan a supplement" CTA dead | Fixed (`context.go(Routes.scan)`) |
+| **A** | 3 — "View Stack" dead | Fixed (`context.go(Routes.stack)`) |
+| **A** | 10 — Stack app bar Add med / Share dead | Fixed (med routes to `/medication-entry`, Share uses production `ShareClinicianReportButton`) |
+| **B** | 4 — Recent scan images placeholder | Fixed (provider now carries upc / imageThumbnailUrl / formFactor; renders via production `ProductImage`) |
+| **B** | 7 — Stack fixture flash post-clear + swipe + tap | Fixed (fixtures only on initial load; empty state via `PGEmptyState`; tap-to-detail falls back to snackbar when dsldId missing) |
+| **B** | 8 — "Feels mixed v1/v2" | Resolves once A+B+C land |
+| **C** | 5b — QC suggestion score color missing | Fixed (`tierForScore` chip with tier color) |
+| **C** | 6 — Med dosage accepts free text | Fixed (v1 + v2 default keyboard now numeric; users can still switch via 123↔ABC for "mg") |
+| **E** | 11 — KSM-66 → Magnesium Glycinate | Fixed (`supplement_type` added to `_ensureV130Columns`) |
+| **F** | 12 (Sentry) — Magic-link null-check | Fixed (`useRootNavigator: true` on showModalBottomSheet) |
+| **G** | 9 — Other ingredients tap dead | Defensive (`useRootNavigator: true` on `PGModal.bottomSheet`) — needs your re-check |
+| **D** | 5a — QC med search only finds supplements | **Deferred to 1.0.0+5** (RxNorm path needs integration) |
+
+### What to re-check on 1.0.0+4
+
+Same walkthrough flow as 1.0.0+3 — plus these targeted spot-checks:
+
+1. **Home / search**: scroll the home feed. Search bar should stay
+   pinned at the top under the status bar. Tap the search bar → opens
+   /search (no more dead tap).
+2. **Home / Scan CTA**: tap "Scan a supplement" → opens the camera.
+3. **Home / Stack Health card**: tap anywhere on the card → opens
+   the Stack tab.
+4. **Home / Recent scans**: real product images should appear on the
+   horizontal cards (was a green pill icon placeholder).
+5. **Stack**: empty stack now shows "Your stack is empty" empty
+   state — never the fixture brand names. Swipe-to-delete works on
+   real rows. Tap a supplement card → opens product detail when the
+   row has a dsldId, or shows a calm snackbar when it doesn't.
+6. **Stack app bar**: + icon opens medication entry; share icon opens
+   the clinician report share sheet.
+7. **Medication entry**: dose field opens with the numeric keyboard
+   by default (you can still switch to letters for "mg").
+8. **Quick Check**: type a supplement name in either field — the
+   suggestion's trailing score is now tinted (green / yellow / red
+   per tier), not plain black.
+9. **Product Detail / Other ingredients**: tap an individual inactive
+   ingredient row — should open the FunctionalRolesSheet (v1 wiring
+   was correct; defensive useRootNavigator fix in case iOS 26 was the
+   culprit).
+10. **Magic-link sign-in**: from the AuthInvitation screen, tap
+    "Continue with email" — bottom sheet should open without crash
+    (Sentry PHARMAGUIDE-W).
+11. **Better Alternatives — KSM-66 Ashwagandha**: scan or open the
+    KSM-66 product. "Similar higher-quality options" should NOT list
+    Magnesium Glycinate (or any non-ashwagandha supplement). If it
+    still does, the bundled catalog needs an OTA refresh to populate
+    `supplement_type` — the migration column now exists but is NULL
+    until the next catalog build lands.
 
 ---
 
