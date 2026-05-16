@@ -18,6 +18,7 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
 
 /// Maximum number of alternatives surfaced — spec calls for 2-3.
 /// More than that turns the section into a category browser; the
@@ -72,6 +73,27 @@ class BetterAlternativesSection extends ConsumerWidget {
     this.currentScore,
   });
 
+  /// Phase 11.7L.F — fetch the current product, build a wider
+  /// candidate pool (on-market + strictly higher score + same
+  /// category OR supplement_type), then hand the pool to the pure
+  /// `BetterAlternativesRanker` for the 4-tier tiebreaker chain.
+  ///
+  /// Returns `[]` when:
+  ///   * the current product isn't in the DB (no signal to act on)
+  ///   * the SQL pool is empty after hard filters
+  ///   * every candidate fails the audience + sport-carveout walls
+  Future<List<ProductsCoreData>> _loadRanked(CoreDatabase coreDb) async {
+    final current = await coreDb.findById(currentDsldId);
+    if (current == null) return const [];
+    final pool = await coreDb.fetchBetterAlternativesPool(current);
+    if (pool.isEmpty) return const [];
+    return rankAlternatives(
+      current: current,
+      candidates: pool,
+      limit: _maxAlternatives,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (category == null || category!.isEmpty || currentScore == null) {
@@ -79,15 +101,9 @@ class BetterAlternativesSection extends ConsumerWidget {
     }
 
     final coreDb = ref.watch(coreDatabaseProvider);
-    final minQuality80 = (currentScore! * 0.8).clamp(0.0, 80.0);
 
     return FutureBuilder<List<ProductsCoreData>>(
-      future: coreDb.findAlternatives(
-        category!,
-        minQuality80,
-        excludeDsldId: currentDsldId,
-        limit: _maxAlternatives,
-      ),
+      future: _loadRanked(coreDb),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SizedBox.shrink();

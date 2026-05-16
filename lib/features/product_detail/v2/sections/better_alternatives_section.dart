@@ -35,6 +35,7 @@ import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.
     show shouldShowBetterAlternatives;
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
 
 /// BetterAlternatives section — ConsumerWidget so it can watch the
 /// fit-score provider to decide whether to render at all.
@@ -60,6 +61,23 @@ class BetterAlternativesSection extends ConsumerWidget {
     this.maxAlternatives = 3,
   });
 
+  /// Phase 11.7L.F — same pipeline as the legacy widget. Fetches
+  /// the current product, builds a wider candidate pool (on-market
+  /// + strictly higher score + matching category OR supplement_type),
+  /// then hands it to `BetterAlternativesRanker` for tier + tiebreaker
+  /// sorting.
+  Future<List<ProductsCoreData>> _loadRanked(CoreDatabase coreDb) async {
+    final current = await coreDb.findById(currentDsldId);
+    if (current == null) return const [];
+    final pool = await coreDb.fetchBetterAlternativesPool(current);
+    if (pool.isEmpty) return const [];
+    return rankAlternatives(
+      current: current,
+      candidates: pool,
+      limit: maxAlternatives,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch fit score for the gate. FitDisplay null when score not yet
@@ -82,22 +100,15 @@ class BetterAlternativesSection extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    // Need a category + a current score to query alternatives.
+    // Need a category to query alternatives.
     if (category == null || category!.isEmpty) {
       return const SizedBox.shrink();
     }
-    final baseScore = score100 ?? 0;
-    final minQuality80 = (baseScore * 0.8).clamp(0.0, 80.0);
 
     final coreDb = ref.watch(coreDatabaseProvider);
 
     return FutureBuilder<List<ProductsCoreData>>(
-      future: coreDb.findAlternatives(
-        category!,
-        minQuality80,
-        excludeDsldId: currentDsldId,
-        limit: maxAlternatives,
-      ),
+      future: _loadRanked(coreDb),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SizedBox.shrink();

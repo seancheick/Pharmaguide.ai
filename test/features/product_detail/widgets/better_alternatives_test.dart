@@ -36,6 +36,28 @@ Future<void> _seedProduct(
       );
 }
 
+/// Phase 11.7L.F — the new pipeline calls `coreDb.findById(currentDsldId)`
+/// to build the candidate pool. Render tests must seed a current row
+/// for the lookup to succeed; otherwise the widget early-returns to
+/// SizedBox.shrink. Seeds a generic low-score "current" so the
+/// section's gate condition fires.
+Future<void> _seedCurrent(
+  CoreDatabase coreDb, {
+  String dsldId = 'cur',
+  double scoreQuality80 = 40,
+  double score100 = 50,
+  String category = 'multivitamin',
+}) =>
+    _seedProduct(
+      coreDb,
+      dsldId: dsldId,
+      productName: 'Current Test Product',
+      brandName: 'CurrentBrand',
+      scoreQuality80: scoreQuality80,
+      score100: score100,
+      category: category,
+    );
+
 GoRouter _stubRouter(Widget child) {
   return GoRouter(
     initialLocation: '/',
@@ -209,6 +231,7 @@ void main() {
       'V1 copy is exactly "Higher quality alternatives" — no editorial',
       (tester) async {
         final coreDb = CoreDatabase.memory();
+        await _seedCurrent(coreDb);
         await _seedProduct(
           coreDb,
           dsldId: 'alt-1',
@@ -247,6 +270,7 @@ void main() {
 
     testWidgets('renders alternatives with score + brand name', (tester) async {
       final coreDb = CoreDatabase.memory();
+      await _seedCurrent(coreDb);
       await _seedProduct(
         coreDb,
         dsldId: 'alt-1',
@@ -292,6 +316,8 @@ void main() {
 
     testWidgets('caps the list at 3 alternatives (V1 spec)', (tester) async {
       final coreDb = CoreDatabase.memory();
+      // Phase 11.7L.F: current must exist for the new pipeline.
+      await _seedCurrent(coreDb);
       // Seed 5 alternatives — section should only render the top 3.
       for (var i = 0; i < 5; i++) {
         await _seedProduct(
@@ -335,6 +361,7 @@ void main() {
       // brand. No "+N fit" pill. If a future change adds one without
       // updating the spec, this test catches it.
       final coreDb = CoreDatabase.memory();
+      await _seedCurrent(coreDb);
       await _seedProduct(
         coreDb,
         dsldId: 'alt-1',
