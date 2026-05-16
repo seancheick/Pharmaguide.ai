@@ -270,18 +270,18 @@ row:
 | Field | Value |
 |---|---|
 | Production | `_CollapsibleIngredients` inside `DetailSection` (line 2190) |
-| V2 | **11.7d.2: NEW `v2/sections/ingredients_section.dart`** → `PGIngredientsCard` |
-| Source | `blob['ingredients']` (active) + `blob['inactive_ingredients']` + `ingredientDoses` map |
+| V2 | **11.7d.2: NEW `v2/sections/ingredients_section.dart` + `ingredients_helpers.dart`** → `PGIngredientsCard` |
+| Source | `blob['ingredients']` (active) + `blob['inactive_ingredients']` + `blob['rda_ul_data']['analyzed_ingredients']` (UL match) + `blob['proprietary_blend_detail']['blends']` (blend grouping) |
 | Gate | `shouldShowDeepDive({isBlocked, blobLoading, blobError})` |
-| Loading | `PGShimmerBox` skeleton tiles during blob load |
-| Empty | 0 active → verify production; 0 inactive → tile group hides |
-| Blocked | Section suppressed |
+| Loading | Wait for blob; section renders nothing until blob loads (no spinner needed since the deep-dive area shows nothing pre-blob anyway) |
+| Empty | When both active + inactive lists are empty → SizedBox.shrink (matches production's null-blob "No additional details available." path) |
+| Blocked | Section suppressed via `showDeepDive` gate |
 | Anchor | `_anchors.ingredientsKey` (deep-link target `?section=ingredients`) |
-| CTA | Ingredient tap opens `IngredientExplainSheet` modal |
-| Analytics | Ingredient-tap |
-| A11y | Long ingredient names — no `…` truncation on medical terms |
+| CTA | Active ingredient tile tap → production's `showIngredientExplainSheet` (verbatim — same modal, same data). Inactive tile tap deferred (production's `_FunctionalRolesSheet` is private; would need extraction to a public function). |
+| Analytics | Ingredient-tap (deferred — matches production's current state, which doesn't fire analytics for tile tap either) |
+| A11y | Long ingredient names — no `…` truncation on medical terms; PGActiveIngredientTile + PGInactiveRow already enforce |
 | Golden | G2 20+ ingredients, 5-ingredient minimal, G9 proprietary blend, inferred-from-name, unmapped actives |
-| **Status** | **placeholder** |
+| **Status** | **wired** — suppression path live (dsldId 65844 + 15712: both have null/empty blob in dev sim → S6 correctly returns SizedBox.shrink, matching production's "No additional details available." rendering at the same blob state). **Live tile-render verification deferred** — the dev sim's Supabase blob fetch returns null for every test product (production exhibits the same "No additional details" behavior on the same dsldIds, confirming the data gap is upstream of v2's adapter, not a v2 bug). Verbatim helper ports of production's mapping logic: `buildIngredientExplain` field resolution (name / dose / form / form_status), `resolveFormQuality`, `resolveDoseCallOut`, `matchUlEntry`, `sortActivesForDisplay`, `inactiveColorRank`, `groupActivesByBlend`. Render order preserved verbatim (loose-disclosed → blend buckets w/ indented children → loose-undisclosed). Active tile tap opens production's `showIngredientExplainSheet` directly — same data path, same modal. Will live-verify on the next product whose blob is populated (likely once OTA DB lands or stack-cached products surface their blobs). |
 
 #### S7. Tradeoffs
 
@@ -501,15 +501,17 @@ row:
 
 ---
 
-## Completion tally (Phase 11.7d.1 verification boundary)
+## Completion tally (Phase 11.7d.2 boundary)
 
 | Status | Count |
 |---|---|
 | accepted | 0 |
-| **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse, S4 LabelConfidence, S5 ScoreBreakdown — all live + static-parity composed) |
-| **wired** | 4 (S0, S0.5, S0.9, S17 — pending live verification on non-blocked product) |
-| **placeholder** | 10 |
+| **verified** | 7 (S1, S1.5, S1.6, S2 PersonalFit, S3 ReviewBeforeUse + privacy correction, S4 LabelConfidence, S5 ScoreBreakdown) |
+| **wired** | 5 (S0, S0.5, S0.9, S6 Ingredients, S17 — suppression paths live; tile-render verification awaits a blob-populated product) |
+| **placeholder** | 9 |
 | total | 21 |
+
+**Dev sim blob limitation:** the iPhone simulator's Supabase blob fetch returns null for every test product in this session (confirmed via production parity — both `/product/65844` and `/product/15712` render "No additional details available." on the production route). All blob-dependent sections (S6 Ingredients, S7 Tradeoffs, S8 Populations, S9 Nutrition, S10–S15) will reach their first live tile-render verification when a product whose blob has been populated (cached locally OR fetched successfully from Supabase) flows through the screen. Until then, parity is guaranteed by verbatim helper ports + suppression-path live verification.
 
 ---
 
