@@ -68,12 +68,15 @@ class PGDepletionCard extends StatelessWidget {
   }) _chrome() {
     switch (_state) {
       case _CardState.allCovered:
+        // Sean 2026-05-16: "You're covered" felt a touch casual for
+        // a clinical card. "Coverage looks good" matches the calm-
+        // clinical tone of the rest of the depletion surfaces.
         return (
           stripe: V2Colors.safe,
           iconColor: V2Colors.safe,
           icon: Icons.check_circle_outline_rounded,
           eyebrow: 'Depletion check',
-          title: "You're covered",
+          title: 'Coverage looks good',
           subtitle:
               'Your stack already addresses the nutrients your '
               'medications can lower over time.',

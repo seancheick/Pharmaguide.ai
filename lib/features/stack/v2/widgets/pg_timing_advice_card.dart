@@ -96,7 +96,12 @@ class PGTimingAdviceCard extends StatelessWidget {
                   ),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
-                    'Timing optimization',
+                    // Sean 2026-05-16: pluralize when there are
+                    // multiple tips. Singular reads slightly off
+                    // when there are 3+ rules below it.
+                    optimizations.length > 1
+                        ? 'Timing optimizations'
+                        : 'Timing optimization',
                     style: V2Typography.titleSm(color: V2Colors.fg),
                   ),
                   const SizedBox(height: V2Spacing.space12),
