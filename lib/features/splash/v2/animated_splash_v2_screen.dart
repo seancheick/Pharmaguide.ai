@@ -257,16 +257,16 @@ class _AccentUnderlineState extends State<_AccentUnderline>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Honor the OS reduce-motion preference. Setting both controllers
-    // to value=1 skips the draw-in animation entirely; the breathe
-    // loop is never started because we only repeat after the draw-in
-    // completes via the status listener — and that listener never
-    // fires for an instantly-completed animation. Net result: static
-    // 32×2 accent line, no motion.
+    // Honor the OS reduce-motion preference. Sean 2026-05-16: the
+    // previous implementation called `_opacity.removeStatusListener(
+    // (_) {})` here, which was a no-op — the anonymous closure was
+    // never registered, so nothing got removed. Stop `_breathe`
+    // explicitly instead, and snap the draw-in to its end value.
+    // Result: static 32×2 accent line, no motion, clear intent.
     final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     if (reduce) {
+      _breathe.stop();
       _drawIn.value = 1;
-      _opacity.removeStatusListener((_) {});
     } else {
       if (!_drawIn.isAnimating && _drawIn.value == 0) {
         _drawIn.forward();
