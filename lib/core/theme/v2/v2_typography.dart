@@ -154,5 +154,8 @@ abstract final class V2Typography {
     fontWeight: FontWeight.w500,
     height: lhSnug,
     color: color,
+    // Tabular figures — fixed-width digits so "10/10" and "7/10" align
+    // identically at the right edge across pillars / rows.
+    fontFeatures: const [FontFeature.tabularFigures()],
   );
 }

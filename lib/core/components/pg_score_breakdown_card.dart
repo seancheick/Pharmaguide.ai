@@ -213,27 +213,40 @@ class _PGPillarRowState extends State<_PGPillarRow> {
           // microExplanation + badges are hidden behind tap-to-expand
           // (Sean: "more compact than that because before I used to tap
           // each section to open and read what's in it").
+          // Layout fix (Sean 2026-05-15): Flexible+Spacer was splitting
+          // leftover horizontal space between the label and the score,
+          // which forced longer labels ("Evidence & Research", "Transparency
+          // & Verification") to wrap unnecessarily AND shifted the chevron
+          // mid-row. Expanded gives the label all remaining space so the
+          // score sits flush at the right edge for every pillar.
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Flexible(
-                child: Text(
-                  p.label,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        p.label,
+                        style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      ),
+                    ),
+                    if (_hasExpansion) ...[
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: const Icon(
+                          Icons.expand_more_rounded,
+                          size: 16,
+                          color: V2Colors.fgMuted,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              if (_hasExpansion) ...[
-                const SizedBox(width: 4),
-                AnimatedRotation(
-                  turns: _expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 180),
-                  child: const Icon(
-                    Icons.expand_more_rounded,
-                    size: 16,
-                    color: V2Colors.fgMuted,
-                  ),
-                ),
-              ],
-              const Spacer(),
+              const SizedBox(width: V2Spacing.space8),
               if (hasScore)
                 Text(
                   '${_displayScore(score, max)}/10',
