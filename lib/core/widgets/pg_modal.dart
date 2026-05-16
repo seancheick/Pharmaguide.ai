@@ -39,12 +39,23 @@ abstract final class PGModal {
     Color? backgroundColor,
     BoxConstraints? constraints,
   }) {
+    // Phase 11.7L bug 9 (2026-05-16): `useRootNavigator: true` anchors
+    // the sheet on the MaterialApp.router root navigator. The previous
+    // form relied on `Navigator.of(context)` walking up the local
+    // route tree — on iOS 26.5 that traversal occasionally resolves
+    // to null inside Flutter's `Navigator.of`, throwing `Null check
+    // operator used on a null value` and silently dropping the tap.
+    // The same defensive fix landed on `magic_link_sheet.dart`
+    // (Sentry PHARMAGUIDE-W). Routing through the root navigator is
+    // Flutter's documented pattern for sheets invoked from any
+    // nested context.
     return showModalBottomSheet<T>(
       context: context,
       builder: builder,
       isDismissible: isDismissible,
       useSafeArea: useSafeArea,
       showDragHandle: showDragHandle,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.surface,
       constraints: constraints ?? const BoxConstraints(maxWidth: 560),

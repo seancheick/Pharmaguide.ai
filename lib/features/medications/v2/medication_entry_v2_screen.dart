@@ -1087,6 +1087,11 @@ class _OptionalSectionState extends State<_OptionalSection> {
             controller: widget.doseController,
             focusNode: _doseFocus,
             maxLines: 1,
+            // Sean 2026-05-16: dose entry defaults to the numeric pad.
+            // Mirrors the same fix on v1 `medication_entry_screen.dart`
+            // — users can still switch the keyboard to letters via the
+            // 123↔ABC button to append a unit like "mg" if they want.
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
               hintText: 'e.g. 5 mg',

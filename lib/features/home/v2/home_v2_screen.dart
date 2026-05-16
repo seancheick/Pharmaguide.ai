@@ -19,6 +19,7 @@ import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -88,17 +89,14 @@ class HomeV2Screen extends StatelessWidget {
             // iOS pull-to-refresh — absorbs bouncing-physics overscroll.
             if (Platform.isIOS) const CupertinoSliverRefreshControl(),
 
-            // 1. Search field — static placeholder, opens /search.
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  V2Spacing.space24,
-                  mq.padding.top + V2Spacing.space12,
-                  V2Spacing.space24,
-                  V2Spacing.space8,
-                ),
-                child: const _SearchLauncher(),
-              ),
+            // 1. Search field — pinned at top, opens /search.
+            // Mirrors v1 home_screen.dart:106 _PinnedSearchHeaderDelegate
+            // so the field sticks under the status bar while content
+            // scrolls beneath it. ColoredBox surface keeps the cream bg
+            // continuous (no hard edge at the seam).
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _PinnedSearchDelegate(topPadding: mq.padding.top),
             ),
 
             // 2. Hero greeting.
@@ -238,7 +236,7 @@ class _SearchLauncher extends StatelessWidget {
       color: V2Colors.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       child: InkWell(
-        onTap: () {},
+        onTap: () => GoRouter.of(context).push(Routes.search),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
         child: Container(
           height: 48,
@@ -372,7 +370,7 @@ class _ScanCta extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
-        onTap: () {},
+        onTap: () => GoRouter.of(context).go(Routes.scan),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Container(
           padding: const EdgeInsets.fromLTRB(
@@ -545,7 +543,7 @@ class _StackHealthCard extends ConsumerWidget {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
-        onTap: () {},
+        onTap: () => GoRouter.of(context).go(Routes.stack),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Container(
           // Modernization (Sean 2026-05-15): replace the flat white
@@ -802,11 +800,52 @@ class _MicroMetric extends StatelessWidget {
 class _RecentScansSection extends ConsumerWidget {
   const _RecentScansSection();
 
-  static const _fixture = <(String?, String, String, int, String)>[
-    (null, 'Nordic Naturals', 'Ultimate Omega 2X', 84, '2h ago'),
-    (null, 'Thorne', 'Basic Nutrients 2/Day', 91, 'Yesterday'),
-    (null, 'NOW Foods', 'L-Theanine 200mg', 72, '3d ago'),
-    (null, 'Pure Encapsulations', 'Magnesium Glycinate', 88, '5d ago'),
+  // First-paint fixture — only rendered while the real
+  // `_v2RecentScansProvider` is still loading (`realScans == null`).
+  // dsldId is empty so `ProductImage` falls back to
+  // `BrandedPlaceholder` and never tries to hit the network for a
+  // bogus catalog id.
+  static const _fixture = <_RecentScan>[
+    (
+      dsldId: '',
+      upc: null,
+      imageUrl: null,
+      formFactor: null,
+      brand: 'Nordic Naturals',
+      name: 'Ultimate Omega 2X',
+      score: 84,
+      time: '2h ago',
+    ),
+    (
+      dsldId: '',
+      upc: null,
+      imageUrl: null,
+      formFactor: null,
+      brand: 'Thorne',
+      name: 'Basic Nutrients 2/Day',
+      score: 91,
+      time: 'Yesterday',
+    ),
+    (
+      dsldId: '',
+      upc: null,
+      imageUrl: null,
+      formFactor: null,
+      brand: 'NOW Foods',
+      name: 'L-Theanine 200mg',
+      score: 72,
+      time: '3d ago',
+    ),
+    (
+      dsldId: '',
+      upc: null,
+      imageUrl: null,
+      formFactor: null,
+      brand: 'Pure Encapsulations',
+      name: 'Magnesium Glycinate',
+      score: 88,
+      time: '5d ago',
+    ),
   ];
 
   @override
@@ -862,14 +901,7 @@ class _RecentScansSection extends ConsumerWidget {
             separatorBuilder: (_, __) =>
                 const SizedBox(width: V2Spacing.space12),
             itemBuilder: (context, i) {
-              final (dsldId, brand, name, score, time) = scans[i];
-              return _RecentScanCard(
-                dsldId: dsldId,
-                brand: brand,
-                name: name,
-                score: score,
-                time: time,
-              );
+              return _RecentScanCard(scan: scans[i]);
             },
           ),
         ),
@@ -981,19 +1013,9 @@ class _RecentScansEmptyState extends StatelessWidget {
 }
 
 class _RecentScanCard extends StatelessWidget {
-  final String? dsldId;
-  final String brand;
-  final String name;
-  final int score;
-  final String time;
+  final _RecentScan scan;
 
-  const _RecentScanCard({
-    required this.dsldId,
-    required this.brand,
-    required this.name,
-    required this.score,
-    required this.time,
-  });
+  const _RecentScanCard({required this.scan});
 
   @override
   Widget build(BuildContext context) {
@@ -1003,9 +1025,8 @@ class _RecentScanCard extends StatelessWidget {
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
-          onTap: dsldId == null
-              ? null
-              : () => GoRouter.of(context).push('/product/$dsldId'),
+          onTap: () =>
+              GoRouter.of(context).push('/product/${scan.dsldId}'),
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Container(
             padding: const EdgeInsets.all(V2Spacing.space12),
@@ -1017,30 +1038,29 @@ class _RecentScanCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Product image placeholder (production: ProductImage).
+                // Production `ProductImage` — resolves DSLD thumbnail or
+                // OFF image via cache, falls back to BrandedPlaceholder
+                // when nothing is available. Mirrors v1
+                // home_recent_scans.dart:357.
                 Center(
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: V2Colors.accentTint,
-                      borderRadius:
-                          BorderRadius.circular(V2Spacing.radiusCard),
-                    ),
-                    child: const Icon(
-                      Icons.medication_outlined,
-                      color: V2Colors.accent,
-                      size: 24,
-                    ),
+                  child: ProductImage(
+                    dsldId: scan.dsldId,
+                    upc: scan.upc,
+                    dsldImagePath: scan.imageUrl,
+                    productName: scan.name,
+                    brandName: scan.brand,
+                    formFactor: scan.formFactor,
+                    score: scan.score.toDouble(),
+                    size: 56,
                   ),
                 ),
                 const SizedBox(height: V2Spacing.space8),
                 // Compact score line (in lieu of PGScoreRing — keeps
                 // tone alignment with the rest of v2 product surfaces).
-                Center(child: PGScoreLine(score: score, compact: true)),
+                Center(child: PGScoreLine(score: scan.score, compact: true)),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
-                  name,
+                  scan.name,
                   style: V2Typography.bodySm(color: V2Colors.fg).copyWith(
                     fontWeight: FontWeight.w500,
                   ),
@@ -1049,14 +1069,14 @@ class _RecentScanCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  brand,
+                  scan.brand,
                   style: V2Typography.caption(color: V2Colors.fgMuted),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const Spacer(),
                 Text(
-                  time,
+                  scan.time,
                   style: V2Typography.caption(color: V2Colors.fgSubtle),
                 ),
               ],
@@ -1250,28 +1270,103 @@ class _CitationStrip extends ConsumerWidget {
 
 // =============================================================================
 // v2 Recent-scans provider — joins user_scan_history with the core
-// catalog and returns ready-to-render tuples for the carousel cards.
-// Same shape the v2 _RecentScanCard takes: (dsldId, brand, name,
-// score, time). Auto-disposes when the home screen unmounts so the
-// scan list refreshes when the user returns from a scanner round.
+// catalog and returns ready-to-render records for the carousel cards.
+//
+// **Phase 11.7L bug 4 (2026-05-16):** record now carries `upc`,
+// `imageUrl`, and `formFactor` so `_RecentScanCard` can render the
+// real product photo via `ProductImage` (was a hardcoded
+// `Icons.medication_outlined` placeholder). Mirrors the v1
+// `home_recent_scans.dart` invocation exactly.
+//
+// Auto-disposes when the home screen unmounts so the scan list
+// refreshes when the user returns from a scanner round.
 // =============================================================================
 
-final _v2RecentScansProvider = FutureProvider.autoDispose<
-    List<(String?, String, String, int, String)>>((ref) async {
+typedef _RecentScan = ({
+  String dsldId,
+  String? upc,
+  String? imageUrl,
+  String? formFactor,
+  String brand,
+  String name,
+  int score,
+  String time,
+});
+
+final _v2RecentScansProvider =
+    FutureProvider.autoDispose<List<_RecentScan>>((ref) async {
   final userDb = ref.watch(userDatabaseProvider);
   final coreDb = ref.watch(coreDatabaseProvider);
   final history = await userDb.getRecentScans(limit: 10);
-  final results = <(String?, String, String, int, String)>[];
+  final results = <_RecentScan>[];
   for (final scan in history) {
     final product = await coreDb.findById(scan.dsldId);
     if (product == null) continue;
     results.add((
-      product.dsldId,
-      product.brandName ?? '',
-      product.productName,
-      (product.score100Equivalent ?? 0).round(),
-      relativeTime(scan.scannedAt),
+      dsldId: product.dsldId,
+      upc: product.upcSku,
+      imageUrl: product.imageThumbnailUrl,
+      formFactor: product.formFactor,
+      brand: product.brandName ?? '',
+      name: product.productName,
+      score: (product.score100Equivalent ?? 0).round(),
+      time: relativeTime(scan.scannedAt),
     ));
   }
   return results;
 });
+
+// =============================================================================
+// Pinned search header delegate — keeps `_SearchLauncher` sticky under the
+// status bar while content scrolls underneath. Mirrors v1's
+// `_PinnedSearchHeaderDelegate` (home_screen.dart:259) in pinning behavior,
+// without the PGFrostedHeader fade (deferred — minimal pinned regression fix
+// for bug 1 in the 1.0.0+4 walkthrough patch).
+// =============================================================================
+
+class _PinnedSearchDelegate extends SliverPersistentHeaderDelegate {
+  _PinnedSearchDelegate({required this.topPadding});
+
+  /// System status-bar inset; we draw inside this padding so the search
+  /// field never sits underneath the notch / Dynamic Island.
+  final double topPadding;
+
+  // 48pt launcher + 12pt top + 8pt bottom = 68pt below the status bar.
+  static const double _topPadding = V2Spacing.space12;
+  static const double _bottomPadding = V2Spacing.space8;
+  static const double _launcherHeight = 48;
+
+  double get _height =>
+      topPadding + _topPadding + _launcherHeight + _bottomPadding;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: V2Colors.bg,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          topPadding + _topPadding,
+          V2Spacing.space24,
+          _bottomPadding,
+        ),
+        child: const _SearchLauncher(),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedSearchDelegate oldDelegate) {
+    return oldDelegate.topPadding != topPadding;
+  }
+}

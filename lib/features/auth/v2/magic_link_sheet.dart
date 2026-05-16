@@ -19,9 +19,21 @@ const String kAuthRedirectUrl = 'pharmaguide://auth/callback';
 
 /// Opens the email magic-link sheet. Returns once the sheet is
 /// dismissed.
+///
+/// **2026-05-16 (Sentry PHARMAGUIDE-W fix)**: `useRootNavigator: true`
+/// anchors the sheet on the `MaterialApp.router` root navigator. The
+/// previous form passed the GoRoute pageBuilder's context directly to
+/// `showModalBottomSheet`, and on iOS 26.5 (iPhone 16 Pro) that
+/// context's `Navigator.of` resolution returned null inside Flutter's
+/// `Navigator.of` lookup, triggering `Null check operator used on a
+/// null value`. Routing through the root navigator side-steps the
+/// timing race and is the documented Flutter pattern for sheets
+/// invoked from a router-level callback (see Flutter SDK
+/// `bottom_sheet.dart` doc on `useRootNavigator`).
 Future<void> showMagicLinkSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.4),

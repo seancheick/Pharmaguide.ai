@@ -552,6 +552,13 @@ class _MedicationEntryScreenState extends ConsumerState<MedicationEntryScreen> {
         TextField(
           key: const Key('med-entry-dose'),
           controller: _doseController,
+          // Sean 2026-05-16: dose entry defaults to the numeric pad
+          // (was plain-text keyboard, which let users type free text).
+          // Keep `TextInputType.numberWithOptions(decimal: true)` so
+          // users can still tap the keyboard's 123↔ABC switcher to
+          // append a unit like "mg" without losing the numeric-first
+          // affordance.
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Dose',
             hintText: 'e.g. 5 mg',

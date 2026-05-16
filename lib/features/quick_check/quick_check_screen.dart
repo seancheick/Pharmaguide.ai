@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
@@ -477,12 +478,15 @@ class _ProductSearchField extends StatelessWidget {
                             ),
                           )
                         : null,
+                    // Sean 2026-05-16: score on suggestion tiles now
+                    // carries its tier color (was plain text, hence
+                    // the "score color styling is missing" report).
+                    // Mirrors the colorization used on Product Detail
+                    // and Search rows so the user sees a consistent
+                    // green / amber / red signal across the app.
                     trailing: product.score100Equivalent != null
-                        ? Text(
-                            '${product.score100Equivalent!.round()}',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                        ? _SuggestionScoreBadge(
+                            score: product.score100Equivalent!.round(),
                           )
                         : null,
                     // onTap removed — PGPressable owns the gesture.
@@ -492,6 +496,46 @@ class _ProductSearchField extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+// =============================================================================
+// _SuggestionScoreBadge — compact 0–100 score chip with the tier color
+// drawn from `tierForScore`. Replaces the plain-text trailing in the
+// QC suggestion ListTile (Sean 2026-05-16 walkthrough bug 5b).
+// =============================================================================
+
+class _SuggestionScoreBadge extends StatelessWidget {
+  final int score;
+  const _SuggestionScoreBadge({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final tier = tierForScore(score);
+    final tone = tier.color;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space8,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        // Low-opacity tier wash so the chip reads at a glance without
+        // shouting; the tier color carries the meaning.
+        color: tone.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: tone.withValues(alpha: 0.22),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        '$score',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: tone,
+            ),
+      ),
     );
   }
 }

@@ -50,6 +50,15 @@ class CoreDatabase extends _$CoreDatabase {
       'share_og_image_url TEXT',
       'primary_category TEXT',
       'secondary_categories TEXT',
+      // Phase 11.7L.G (2026-05-16): `supplement_type` is required by
+      // `fetchBetterAlternativesPool` + `rankAlternatives` tier
+      // classifier (tiers 0/1 keyed on this column). Older bundled
+      // catalogs predate the v92 schema where the column was added —
+      // without this defensive backfill, `supplement_type` is NULL on
+      // every row, collapsing tiers 0/1/2 to reject and forcing every
+      // candidate into tier 3 (primary_category only). That was the
+      // KSM-66 Ashwagandha → Magnesium Glycinate failure mode.
+      'supplement_type TEXT',
       'contains_omega3 INTEGER',
       'contains_probiotics INTEGER',
       'contains_collagen INTEGER',

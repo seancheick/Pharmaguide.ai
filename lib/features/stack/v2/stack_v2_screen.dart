@@ -17,6 +17,7 @@ import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -24,6 +25,7 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
+import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 
 /// v2 Stack screen — visual mirror of `stack_screen.dart` with three
@@ -177,12 +179,14 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(Icons.add_rounded, color: V2Colors.fg),
           tooltip: 'Add medication',
-          onPressed: () {},
+          onPressed: () => GoRouter.of(context).push(Routes.medicationEntry),
         ),
-        IconButton(
-          icon: const Icon(Icons.ios_share_rounded, color: V2Colors.fg),
-          tooltip: 'Share with clinician',
-          onPressed: () {},
+        // Reuse production `ShareClinicianReportButton` — wraps the full
+        // profile/stack/safety snapshot + share_plus flow. IconTheme
+        // override matches the v2 app-bar foreground (V2Colors.fg).
+        const IconTheme(
+          data: IconThemeData(color: V2Colors.fg),
+          child: ShareClinicianReportButton(),
         ),
         const SizedBox(width: V2Spacing.space8),
       ],
@@ -270,10 +274,24 @@ class _StackTab extends ConsumerWidget {
               dsldId: row.dsldId,
             ))
         .toList();
-    final items = (realItems == null || realItems.isEmpty)
-        ? _fixtureItems
-        : realItems;
-    final isShowingFixture = items == _fixtureItems;
+
+    // Phase 11.7L bug 7 (2026-05-16): only show fixture rows during
+    // the initial-load phase (`!hasValue`). Once the provider has
+    // emitted any value — including an empty list after the user
+    // clears their stack — render the real items or the empty-state
+    // widget below. The previous logic flashed fixture data whenever
+    // `realItems` was null OR empty, producing the "felt like v1"
+    // report after Sean cleared his stack and watched the screen
+    // briefly re-paint with the fixture brand names.
+    final bool hasLoadedOnce = stackAsync.hasValue;
+    final List<_StackEntry> items;
+    if (hasLoadedOnce) {
+      items = realItems ?? const <_StackEntry>[];
+    } else {
+      items = _fixtureItems;
+    }
+    final isShowingFixture = !hasLoadedOnce;
+    final bool isEmpty = hasLoadedOnce && items.isEmpty;
 
     // RefreshIndicator wraps the list so pull-to-refresh re-fires
     // activeStackProvider. Matches production behavior.
@@ -307,25 +325,51 @@ class _StackTab extends ConsumerWidget {
           const _LegacyStackSafetyBannerSlot(),
           const _LegacyProfileNudgeSlot(),
           const SizedBox(height: V2Spacing.space24),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your supplements',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Swipe left to remove',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                ),
-              ],
+          // Empty state — Sean 2026-05-16: replaces the post-clear
+          // fixture flash with a calm "your stack is empty" prompt
+          // pointing back to /scan. Mirrors v1 PGEmptyState wording
+          // (`stack_screen.dart:739`).
+          if (isEmpty)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+              child: PGEmptyState(
+                icon: Icons.layers_outlined,
+                title: 'Your stack is empty',
+                description:
+                    'Add the supplements you take regularly to see '
+                    'nutrient totals, UL warnings, and interactions '
+                    'in one place.',
+                actionLabel: 'Scan a supplement',
+                onAction: () => GoRouter.of(context).go(Routes.scan),
+              ),
+            )
+          else ...[
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your supplements',
+                    style: V2Typography.titleSm(color: V2Colors.fg),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Swipe left to remove',
+                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: V2Spacing.space12),
+            const SizedBox(height: V2Spacing.space12),
+          ],
+          // The items.map below produces zero rows when `items` is
+          // empty, so we don't need to guard it explicitly — the
+          // empty-state branch above replaces the header + the
+          // `_TimingAdviceSlot` / `_DepletionSlot` are content-aware
+          // and collapse to SizedBox.shrink when the stack is empty.
         ...items.map(
           (e) => Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -689,13 +733,35 @@ class _StackItemRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
           // Phase 11.7j.5 — Sean 2026-05-16: stack row tap navigates
-          // to the product detail page when we have a dsldId. Drops
-          // through silently for medications (no dsldId) and fixture
-          // rows. Future iteration: medications could open a dedicated
-          // medication detail screen.
-          onTap: entry.dsldId != null && entry.dsldId!.isNotEmpty
-              ? () => context.push(Routes.productDetail(entry.dsldId!))
-              : null,
+          // to the product detail page when we have a dsldId.
+          //
+          // Phase 11.7L bug 7b (2026-05-16): when dsldId is missing
+          // (medications, or supplements added via non-scan paths
+          // before dsldId was threaded into the add flow), show a
+          // calm snackbar instead of letting the tap drop silently.
+          // Silent dead taps were Sean's "tapping doesn't open
+          // product detail" report.
+          onTap: () {
+            final id = entry.dsldId;
+            if (id != null && id.isNotEmpty) {
+              context.push(Routes.productDetail(id));
+              return;
+            }
+            final messenger = ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar();
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  entry.isMedication
+                      ? "Medications don't have a detail page yet."
+                      : 'No product details available for this entry. '
+                          'Re-add via scan to enable the detail page.',
+                ),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          },
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Container(
             padding: const EdgeInsets.all(V2Spacing.space12),
