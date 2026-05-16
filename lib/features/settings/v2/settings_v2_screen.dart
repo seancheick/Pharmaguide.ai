@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/components/pg_avatar.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -233,28 +232,27 @@ class _ProfileHero extends StatelessWidget {
         border: Border.all(color: V2Colors.outline),
         boxShadow: V2Shadows.sm,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      // **Phase 11.7j.4 — Sean 2026-05-16 profile polish.**
+      // - Avatar circle removed (we never let users upload a photo,
+      //   so the circle just sat as decorative noise).
+      // - Eyebrow always reads "Profile" (was "Account" / "Guest profile"
+      //   — the dual label felt clinical-app uncertain; "Profile" reads
+      //   like the page title in both states).
+      // - Title falls back to "Hello there" when nickname is empty;
+      //   otherwise renders the user's nickname as the headline.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PGAvatar(name: nickname, size: 64),
-          const SizedBox(width: V2Spacing.space16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PGEyebrow(signedIn ? 'Account' : 'Guest profile'),
-                const SizedBox(height: V2Spacing.space4),
-                Text(
-                  nickname,
-                  style: V2Typography.displayXs(color: V2Colors.fg),
-                ),
-                const SizedBox(height: V2Spacing.space8),
-                Text(
-                  _statsLine(),
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                ),
-              ],
-            ),
+          const PGEyebrow('Profile'),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            nickname.trim().isEmpty ? 'Hello there' : nickname,
+            style: V2Typography.displayXs(color: V2Colors.fg),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            _statsLine(),
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
           ),
         ],
       ),

@@ -46,7 +46,12 @@ class SettingsV2Connected extends ConsumerWidget {
     final stackCount = supplementCount + medicationCount;
 
     return SettingsV2Screen(
-      nickname: profile.nickname ?? 'there',
+      // Phase 11.7j.4 — Sean 2026-05-16: when nickname is unset,
+      // pass an empty string instead of the literal placeholder
+      // "there". The hero falls back to "Hello there" as a friendly
+      // greeting; rendering the literal "there" as if it were a
+      // name looked broken.
+      nickname: profile.nickname ?? '',
       stackCount: stackCount,
       medicationCount: medicationCount,
       scanCount: scanCount,

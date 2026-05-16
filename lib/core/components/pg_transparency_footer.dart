@@ -23,6 +23,14 @@ class PGTransparencyFooter extends StatelessWidget {
   /// constant `kTransparencyDisclaimer`.
   final String disclaimer;
 
+  /// **Phase 11.7j.3 — Sean 2026-05-16 home polish.** When true,
+  /// the footer renders center-aligned. Used on the Home screen
+  /// where the surrounding content is centered around the search
+  /// bar / scan CTA / cards. Product Detail keeps the default
+  /// left-aligned layout because that page is left-aligned end to
+  /// end.
+  final bool center;
+
   const PGTransparencyFooter({
     super.key,
     this.freshnessLabel,
@@ -30,6 +38,7 @@ class PGTransparencyFooter extends StatelessWidget {
     this.disclaimer =
         'PharmaGuide is for informational purposes only — talk to your '
         'doctor before changing your stack.',
+    this.center = false,
   });
 
   @override
@@ -47,12 +56,16 @@ class PGTransparencyFooter extends StatelessWidget {
         vertical: V2Spacing.space12,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Row 1 — sources line. Eyebrow first, then sources fill the
           // remaining width without truncation.
           Row(
+            mainAxisAlignment:
+                center ? MainAxisAlignment.center : MainAxisAlignment.start,
+            mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
             children: [
               const Icon(
                 Icons.verified_outlined,
@@ -62,21 +75,28 @@ class PGTransparencyFooter extends StatelessWidget {
               const SizedBox(width: V2Spacing.space4),
               const PGEyebrow('Data sources'),
               const SizedBox(width: V2Spacing.space8),
-              Expanded(
-                child: Text(
-                  sources.join(' · '),
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
-                  maxLines: 1,
-                ),
-              ),
+              center
+                  ? Text(
+                      sources.join(' · '),
+                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      maxLines: 1,
+                    )
+                  : Expanded(
+                      child: Text(
+                        sources.join(' · '),
+                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        maxLines: 1,
+                      ),
+                    ),
             ],
           ),
           if (freshnessLabel != null) ...[
             const SizedBox(height: V2Spacing.space4),
             Padding(
               // Indent matches the icon + gap so the freshness aligns
-              // visually under the eyebrow text.
-              padding: const EdgeInsets.only(left: 17),
+              // visually under the eyebrow text. When centered, no
+              // indent — the line sits flush with the centered group.
+              padding: EdgeInsets.only(left: center ? 0 : 17),
               child: Text(
                 freshnessLabel!,
                 style: V2Typography.caption(color: V2Colors.fgSubtle),
@@ -87,6 +107,7 @@ class PGTransparencyFooter extends StatelessWidget {
           Text(
             disclaimer,
             style: V2Typography.caption(color: V2Colors.fgSubtle),
+            textAlign: center ? TextAlign.center : TextAlign.start,
           ),
         ],
       ),

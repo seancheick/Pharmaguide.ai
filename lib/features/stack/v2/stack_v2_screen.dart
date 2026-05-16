@@ -264,6 +264,10 @@ class _StackTab extends ConsumerWidget {
               dosage: row.dosage,
               frequency: row.frequency,
               isMedication: row.type == 'medication',
+              // Phase 11.7j.5 — Sean 2026-05-16: thread dsldId so the
+              // row tap can navigate to /product/<dsldId>. Null for
+              // medications.
+              dsldId: row.dsldId,
             ))
         .toList();
     final items = (realItems == null || realItems.isEmpty)
@@ -630,6 +634,12 @@ class _StackEntry {
   final String? frequency;
   final bool isMedication;
 
+  /// Phase 11.7j.5 — DSLD id when the row is a catalog product.
+  /// Null for medications (RxNorm-based) and fixture rows.
+  /// Drives the tap-to-open-product-detail navigation in
+  /// `_StackItemRow.onTap`.
+  final String? dsldId;
+
   const _StackEntry({
     required this.id,
     required this.name,
@@ -638,6 +648,7 @@ class _StackEntry {
     this.dosage,
     this.frequency,
     this.isMedication = false,
+    this.dsldId,
   });
 }
 
@@ -677,7 +688,14 @@ class _StackItemRow extends StatelessWidget {
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
-          onTap: () {},
+          // Phase 11.7j.5 — Sean 2026-05-16: stack row tap navigates
+          // to the product detail page when we have a dsldId. Drops
+          // through silently for medications (no dsldId) and fixture
+          // rows. Future iteration: medications could open a dedicated
+          // medication detail screen.
+          onTap: entry.dsldId != null && entry.dsldId!.isNotEmpty
+              ? () => context.push(Routes.productDetail(entry.dsldId!))
+              : null,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Container(
             padding: const EdgeInsets.all(V2Spacing.space12),

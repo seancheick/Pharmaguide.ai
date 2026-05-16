@@ -897,18 +897,27 @@ class _RecentScansEmptyState extends StatelessWidget {
         Padding(
           padding:
               const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          // **Phase 11.7j.2 — Sean 2026-05-16 size + tone parity with
+          // Stack Health card.** Adds V2Shadows.md (was no shadow) +
+          // larger vertical padding so the empty state sits at the
+          // same visual weight as the Stack Health card directly
+          // above it. Text softened from "Your last 10 scanned
+          // supplements will appear here." to "Your recent scans
+          // will appear here." — no need to set a numeric cap
+          // expectation up front.
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(
               V2Spacing.space24,
+              V2Spacing.space32,
               V2Spacing.space24,
-              V2Spacing.space24,
-              V2Spacing.space24,
+              V2Spacing.space32,
             ),
             decoration: BoxDecoration(
               color: V2Colors.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.md,
             ),
             child: Column(
               children: [
@@ -936,7 +945,7 @@ class _RecentScansEmptyState extends StatelessWidget {
                 ),
                 const SizedBox(height: V2Spacing.space4),
                 Text(
-                  'Your last 10 scanned supplements will appear here.',
+                  'Your recent scans will appear here.',
                   textAlign: TextAlign.center,
                   style: V2Typography.bodySm(color: V2Colors.fgMuted),
                 ),
@@ -1209,7 +1218,10 @@ class _CitationStrip extends ConsumerWidget {
     final freshness = info?.buildDate != null
         ? _formatDate(info!.buildDate!)
         : null;
-    return PGTransparencyFooter(freshnessLabel: freshness);
+    // Phase 11.7j.3 — center the footer block on Home. Home's body is
+    // organized around centered cards, so the trust footer should
+    // resolve the column visually rather than hang off the left edge.
+    return PGTransparencyFooter(freshnessLabel: freshness, center: true);
   }
 }
 
