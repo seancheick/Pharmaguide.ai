@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -82,17 +84,27 @@ class SettingsV2Screen extends StatelessWidget {
             PGSettingsGroup(
               eyebrow: 'Health profile',
               children: [
+                // Phase 11.7j.6 — Sean 2026-05-16: was an empty
+                // onTap. Wires to the multi-step profile editor
+                // (ProfileSetupScreen) which already supports age,
+                // goals, conditions, medications, and allergens.
+                // Phase 11.10 will design a v2 mirror of that
+                // screen; the legacy screen handles the data path
+                // correctly today.
                 PGSettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Edit profile',
                   caption: 'Age, goals, conditions, medications',
-                  onTap: () {},
+                  onTap: () => context.push(Routes.profileSetup),
                 ),
                 PGSettingsTile(
                   icon: Icons.medication_outlined,
                   title: 'Allergens',
                   caption: 'None set',
-                  onTap: () {},
+                  // Allergens live within the profile setup flow;
+                  // route to the same screen — user can scroll to
+                  // the allergens section.
+                  onTap: () => context.push(Routes.profileSetup),
                 ),
               ],
             ),
