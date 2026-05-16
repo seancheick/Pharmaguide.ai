@@ -1,5 +1,5 @@
 name: pharmaguide
-description: "PharmaGuide — Scan, score, and stack supplements safely"
+description: "PharmaGuide helps you understand supplements and medications with clinical-grade safety insights, interaction checks, ingredient analysis, and personalized health guidance. Scan products instantly to evaluate quality, purity, evidence, and compatibility with your health profile — all in a calm, transparent, and easy-to-understand experience."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
