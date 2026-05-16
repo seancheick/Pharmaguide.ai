@@ -153,6 +153,7 @@ GoRouter _buildRouter({
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
   bool useV2Theme = false,
+  bool useV2ProductDetail = false,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -394,11 +395,23 @@ GoRouter _buildRouter({
           // link — scrolls to that anchor on first paint. Validation lives
           // in the screen (unknown values fall through cleanly).
           final section = state.uri.queryParameters['section'];
+          // Phase 11.7g.3 staged route swap — when `useV2ProductDetail`
+          // is true (driven by `--dart-define=USE_V2_PRODUCT_DETAIL=true`),
+          // serve the v2 ConnectedScreen on the production route. Legacy
+          // path stays intact so rollback is a single Makefile flag flip.
+          // The `/dev/v2/product/:dsldId` dev route remains active for QA.
+          final Widget productScreen = useV2ProductDetail
+              ? ProductDetailV2ConnectedScreen(
+                  dsldId: dsldId,
+                  initialSection: section,
+                )
+              : ProductDetailScreen(
+                  dsldId: dsldId,
+                  initialSection: section,
+                );
           return _platformPage(
             state,
-            catalogRoute(
-              ProductDetailScreen(dsldId: dsldId, initialSection: section),
-            ),
+            catalogRoute(productScreen),
           );
         },
       ),
@@ -499,6 +512,18 @@ class PharmaGuideApp extends StatelessWidget {
   /// (see `.claude/plans/your-original-prompt-communicates-streamed-liskov.md`).
   final bool useV2Theme;
 
+  /// **Phase 11.7g.3 staged route swap.** When `true`, the production
+  /// `/product/:dsldId` route renders `ProductDetailV2ConnectedScreen`
+  /// instead of the legacy `ProductDetailScreen`. Leave `false` until
+  /// the TestFlight cycle completes — see
+  /// `knowledge/product-detail-v2-route-swap-readiness.md`.
+  ///
+  /// Driven via `--dart-define=USE_V2_PRODUCT_DETAIL=true` at launch so
+  /// it can be toggled per build (Makefile target / TestFlight scheme)
+  /// without modifying source. Legacy route is preserved so rollback
+  /// is a single Makefile flag flip.
+  final bool useV2ProductDetail;
+
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
@@ -506,6 +531,7 @@ class PharmaGuideApp extends StatelessWidget {
     this.onRetryCatalogLoad,
     this.hasSeenOnboarding = true,
     this.useV2Theme = false,
+    this.useV2ProductDetail = false,
   });
 
   @override
@@ -523,6 +549,7 @@ class PharmaGuideApp extends StatelessWidget {
         catalogUnavailableReason: catalogUnavailableReason,
         onRetryCatalogLoad: onRetryCatalogLoad,
         useV2Theme: useV2Theme,
+        useV2ProductDetail: useV2ProductDetail,
       ),
       // Global Dynamic Type clamp.
       //

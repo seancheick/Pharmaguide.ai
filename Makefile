@@ -61,6 +61,23 @@ run-v2-android: ## v2 gallery on Android emulator
 v2-audit: ## Run the v2 design-system governance audit (hex / serif / TextStyle)
 	@bash scripts/v2_audit.sh
 
+# ─── Phase 11.7g.3 staged route swap ──────────────────────────────────────────
+# `run-v2pd` boots the app with the production /product/:dsldId route flipped
+# to the v2 ConnectedScreen. Legacy widget stays imported — set
+# USE_V2_PRODUCT_DETAIL=false (or omit the flag) to fall back instantly.
+
+.PHONY: run-v2pd
+run-v2pd: ## Run with /product route swapped to v2 (TestFlight preview mode)
+	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true
+
+.PHONY: run-v2pd-ios
+run-v2pd-ios: ## v2 product detail on iOS simulator
+	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true -d iPhone
+
+.PHONY: build-ipa-v2pd
+build-ipa-v2pd: ## Build TestFlight IPA with v2 product detail enabled
+	$(FLUTTER) build ipa $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true --release
+
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios

@@ -26,6 +26,17 @@ import 'package:pharmaguide/services/onboarding_prefs.dart';
 /// version doesn't trigger a redundant download/swap cycle (T0.6).
 const String _kCatalogVersionPrefKey = 'activeCatalogVersion';
 
+/// Phase 11.7g.3 staged route swap toggle. Set via:
+///   `--dart-define=USE_V2_PRODUCT_DETAIL=true`
+/// When true, the production `/product/:dsldId` route renders the v2
+/// ConnectedScreen instead of the legacy ProductDetailScreen. Default
+/// false keeps production on the legacy widget until TestFlight cycle
+/// passes — see `knowledge/product-detail-v2-route-swap-readiness.md`.
+const bool _useV2ProductDetail = bool.fromEnvironment(
+  'USE_V2_PRODUCT_DETAIL',
+  defaultValue: false,
+);
+
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnv = String.fromEnvironment(
   'SENTRY_ENVIRONMENT',
@@ -453,6 +464,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           catalogUnavailableReason: _catalogUnavailableReason,
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
+          useV2ProductDetail: _useV2ProductDetail,
         ),
       ),
     );
