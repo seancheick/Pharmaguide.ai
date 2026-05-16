@@ -48,13 +48,23 @@
       "port": 0
     },
     {
-      "name": "flutter run (v2 ALL — PD + ProfileSetup + MedicationEntry)",
+      "name": "flutter run (v2 Search)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_SEARCH=true"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run (v2 ALL — PD + ProfileSetup + MedicationEntry + Search)",
       "runtimeExecutable": "flutter",
       "runtimeArgs": [
         "run",
         "--dart-define=USE_V2_PRODUCT_DETAIL=true",
         "--dart-define=USE_V2_PROFILE_SETUP=true",
-        "--dart-define=USE_V2_MEDICATION_ENTRY=true"
+        "--dart-define=USE_V2_MEDICATION_ENTRY=true",
+        "--dart-define=USE_V2_SEARCH=true"
       ],
       "port": 0
     },

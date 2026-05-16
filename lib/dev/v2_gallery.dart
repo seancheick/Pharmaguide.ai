@@ -737,6 +737,13 @@ class V2Gallery extends StatelessWidget {
                     'class fallback sheet · dose + schedule',
                 routePath: '/dev/v2/medication-entry',
               ),
+              _PrototypeLink(
+                label: 'Search',
+                subtitle:
+                    'Catalog search · on-market first · off-market '
+                    'tail · quality + category chips · grid toggle',
+                routePath: '/dev/v2/search',
+              ),
             ],
           ),
           const _Section(

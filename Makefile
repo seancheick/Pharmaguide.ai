@@ -92,12 +92,17 @@ run-v2pf: ## Run with /profile/setup route swapped to v2
 run-v2med: ## Run with /medication-entry route swapped to v2
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_MEDICATION_ENTRY=true
 
+.PHONY: run-v2search
+run-v2search: ## Run with /search route swapped to v2 (on-market first)
+	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_SEARCH=true
+
 .PHONY: run-v2all
-run-v2all: ## Run with ALL v2 toggles enabled (PD + ProfileSetup + MedicationEntry)
+run-v2all: ## Run with ALL v2 toggles enabled (PD + ProfileSetup + MedicationEntry + Search)
 	$(FLUTTER) run $(DART_DEFINES) \
 		--dart-define=USE_V2_PRODUCT_DETAIL=true \
 		--dart-define=USE_V2_PROFILE_SETUP=true \
-		--dart-define=USE_V2_MEDICATION_ENTRY=true
+		--dart-define=USE_V2_MEDICATION_ENTRY=true \
+		--dart-define=USE_V2_SEARCH=true
 
 .PHONY: build-ipa-v2all
 build-ipa-v2all: ## Build TestFlight IPA with ALL v2 toggles on
@@ -105,6 +110,7 @@ build-ipa-v2all: ## Build TestFlight IPA with ALL v2 toggles on
 		--dart-define=USE_V2_PRODUCT_DETAIL=true \
 		--dart-define=USE_V2_PROFILE_SETUP=true \
 		--dart-define=USE_V2_MEDICATION_ENTRY=true \
+		--dart-define=USE_V2_SEARCH=true \
 		--release
 
 # ─── Build ────────────────────────────────────────────────────────────────────

@@ -63,6 +63,18 @@ const bool _useV2MedicationEntry = bool.fromEnvironment(
   defaultValue: false,
 );
 
+/// Phase 11.7L.E.2 staged route swap toggle for Search. Set via
+/// `--dart-define=USE_V2_SEARCH=true`. When true, the production
+/// `/search` route renders the v2 mirror (`SearchV2Screen`) instead
+/// of the legacy screen. Same `coreDatabase.searchProducts` /
+/// `filterProducts` calls, same RecentSearchesService persistence,
+/// same quality filter vocabulary — the visual layer changes and
+/// on-market results render first per Sean's spec. Default false.
+const bool _useV2Search = bool.fromEnvironment(
+  'USE_V2_SEARCH',
+  defaultValue: false,
+);
+
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnv = String.fromEnvironment(
   'SENTRY_ENVIRONMENT',
@@ -493,6 +505,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           useV2ProductDetail: _useV2ProductDetail,
           useV2ProfileSetup: _useV2ProfileSetup,
           useV2MedicationEntry: _useV2MedicationEntry,
+          useV2Search: _useV2Search,
         ),
       ),
     );

@@ -22,6 +22,7 @@ import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/search_screen.dart';
+import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
@@ -166,6 +167,7 @@ GoRouter _buildRouter({
   bool useV2ProductDetail = false,
   bool useV2ProfileSetup = false,
   bool useV2MedicationEntry = false,
+  bool useV2Search = false,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -445,14 +447,32 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.search,
+        pageBuilder: (_, state) {
+          // Phase 11.7L.E.2 staged route swap. Same db queries, same
+          // recent-searches service, same filter vocabulary — the v2
+          // mirror adds on-market-first ordering + cream chrome.
+          final initialCategory = state.uri.queryParameters['category'];
+          final initialQuery = state.uri.queryParameters['query'];
+          final Widget screen = useV2Search
+              ? SearchV2Screen(
+                  initialCategory: initialCategory,
+                  initialQuery: initialQuery,
+                )
+              : SearchScreen(
+                  initialCategory: initialCategory,
+                  initialQuery: initialQuery,
+                );
+          return _platformPage(state, catalogRoute(screen));
+        },
+      ),
+      // Dev-only direct preview — bypasses both env toggle and
+      // `catalogRoute` so reviewers can see the empty-state and
+      // recent-search flows without a populated catalog DB.
+      GoRoute(
+        path: '/dev/v2/search',
         pageBuilder: (_, state) => _platformPage(
           state,
-          catalogRoute(
-            SearchScreen(
-              initialCategory: state.uri.queryParameters['category'],
-              initialQuery: state.uri.queryParameters['query'],
-            ),
-          ),
+          const SearchV2Screen(),
         ),
       ),
       GoRoute(
@@ -689,6 +709,13 @@ class PharmaGuideApp extends StatelessWidget {
   /// `--dart-define=USE_V2_MEDICATION_ENTRY=true`.
   final bool useV2MedicationEntry;
 
+  /// Phase 11.7L.E.2 Search v2 mirror toggle. When true, the
+  /// production `/search` route renders `SearchV2Screen` with cream
+  /// chrome + on-market-first result ordering. Same db queries,
+  /// same `RecentSearchesService`, same filter vocabulary. Driven
+  /// via `--dart-define=USE_V2_SEARCH=true`.
+  final bool useV2Search;
+
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
@@ -699,6 +726,7 @@ class PharmaGuideApp extends StatelessWidget {
     this.useV2ProductDetail = false,
     this.useV2ProfileSetup = false,
     this.useV2MedicationEntry = false,
+    this.useV2Search = false,
   });
 
   @override
@@ -719,6 +747,7 @@ class PharmaGuideApp extends StatelessWidget {
         useV2ProductDetail: useV2ProductDetail,
         useV2ProfileSetup: useV2ProfileSetup,
         useV2MedicationEntry: useV2MedicationEntry,
+        useV2Search: useV2Search,
       ),
       // Global Dynamic Type clamp.
       //
