@@ -184,6 +184,15 @@ bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
   // circuits scoring. The user landing on a banned product NEEDS
   // to see safer alternatives, so we treat "no score" as "lower
   // than anything that has a score" and let scored candidates pass.
+  //
+  // **Do NOT rewrite this branch to reject `curScore == null`.**
+  // The user reason for being on this section is that the current
+  // product is unsafe / unscored / blocked — a future cleanup that
+  // "fixes" this back to a strict score comparison would silently
+  // hide every alternative for the population that needs them most.
+  // Policy in one line: blocked or unscored products may have no
+  // quality score; any scored, on-market, non-blocked candidate is
+  // considered preferable if it passes relevance ranking.
   final curScore = current.scoreQuality80;
   if (curScore != null && candScore <= curScore) return false;
   // Safety flags — never surface a banned/recalled candidate.
