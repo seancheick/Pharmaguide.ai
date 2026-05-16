@@ -57,6 +57,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dar
 import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
@@ -366,16 +367,21 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 5. ScoreBreakdown (PLACEHOLDER, 11.7d) ------
+                  // ---- 5. ScoreBreakdown (WIRED, 11.7d.1) ----------
                   if (showScoreBreakdown) ...[
-                    _SectionPlaceholder(
-                      label: 'ScoreBreakdown',
-                      detail:
-                          'hero=$score100 · ingredient='
-                          '${_product?.scoreIngredientQuality ?? "—"} · '
-                          'safety=${_product?.scoreSafetyPurity ?? "—"} · '
-                          'evidence=${_product?.scoreEvidenceResearch ?? "—"} · '
-                          'brand=${_product?.scoreBrandTrust ?? "—"}',
+                    buildScoreBreakdownSection(
+                      ingredientQuality: _product?.scoreIngredientQuality,
+                      safetyPurity: _product?.scoreSafetyPurity,
+                      evidenceResearch: _product?.scoreEvidenceResearch,
+                      brandTrust: _product?.scoreBrandTrust,
+                      hasThirdPartyTesting:
+                          _product?.hasThirdPartyTesting == 1,
+                      isTrustedManufacturer:
+                          _product?.isTrustedManufacturer == 1,
+                      heroScore: score100,
+                      mappedCoverage: mappedCoverage,
+                      sectionBreakdown: detailBlob?['section_breakdown']
+                          as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
