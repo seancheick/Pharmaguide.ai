@@ -1,10 +1,16 @@
 # Product Detail v2 — Route-Swap Readiness Report
 
-**Date:** 2026-05-15 → 2026-05-16
+**Date:** 2026-05-15 → 2026-05-16 (Phase 11.7h polish pass applied)
 **Branch:** `design/v2-mobile-polish`
-**Author:** Phase 11.7g verification pass
+**Author:** Phase 11.7g verification + 11.7h polish
 **Decision sought:** Approve or block flipping `/product/:dsldId` from
 `ProductDetailScreen` → `ProductDetailV2ConnectedScreen` in `app.dart`.
+
+**Latest:** Phase 11.7h polish batch (6 fixes from Sean's review) shipped
+in `e949d93` and verified live on production route `/product/178767` +
+`/product/65844` with `USE_V2_PRODUCT_DETAIL=true`. Staged toggle
+shipped in `1a8150f` per Sean's Option A recommendation. **Ready for
+TestFlight cycle pending Sean's final approval gate.**
 
 ---
 
@@ -192,12 +198,36 @@ shapes.
 Acceptable given the verification depth in §1. Lower-friction
 operationally. Rollback is one line.
 
-### My recommendation: **Option A — staged toggle.**
-Cost is ~30 minutes of wire-up; gain is one TestFlight cycle of
-real-blob verification on S12/S15/S18 before the production route
-flips for all users.
+### Sean's chosen path: **Option A — staged toggle.** ✅
+Cost was ~30 minutes of wire-up; gain is one TestFlight cycle of
+real-blob verification before the production route flips for all
+users.
 
 **Awaiting Sean's approval before touching production route.**
+
+---
+
+## 6.5 Phase 11.7h polish pass — APPLIED + LIVE-VERIFIED
+
+Six fixes from Sean's 2026-05-16 review of the staged-toggle build.
+All landed in commit `e949d93` and verified live on production route
+(`/product/178767` Spring Valley gummies + `/product/65844` Thorne
+MediPro Vegan) with `USE_V2_PRODUCT_DETAIL=true`.
+
+| # | Section | Fix | Live verification |
+|---|---|---|---|
+| h.1 | app.dart | `useV2ProductDetail` debug toggle via `--dart-define=USE_V2_PRODUCT_DETAIL=true`. Makefile targets `run-v2pd`, `run-v2pd-ios`, `build-ipa-v2pd` added. | Production route serves v2 when flag set ✓ |
+| h.2 | S4 LabelConfidence | Note-tier compact one-row card replaces "Product note" + "Product discontinued" redundancy. | "Product discontinued · Aug 8, 2017" rendered as a single tappable row with calendar icon + chevron ✓ |
+| h.3 | S7 Tradeoffs | Display-layer regex rewrites pipeline's `Harmful additive: ITEM` → `Additive concern: ITEM`. | Spring Valley gummies show "Additive concern: Dextrose" in WHAT TO CONSIDER column ✓ |
+| h.4 | S11 Evidence | Per-tier helper line beneath the tier summary. STRONG/MODERATE/LIMITED each get plain-language explanation. | "Limited means early, sparse, or lower-quality human evidence." rendered live ✓ |
+| h.5 | S14 Probiotic | Strain rows now explicit about missing per-strain CFU — renders "CFU not disclosed" as muted caption instead of going silent. | Thorne MediPro strains show "CFU not disclosed · HIGH evidence" ✓ |
+| h.6 | S1 Hero height | Card padding 16→12, image 96→80, identity-row→score gap 16→12, PGScoreLine `compact:true` (drops verbose locked-tier description). | Hero ~50-60px shorter; verdict surfaces faster ✓ |
+| h.7 | S1 Trust chips | Two grouped rows (certifications first w/ verified icons, dietary tags second), tighter 4/4 spacing, each row caps at 4 + overflow. | Thorne shows certs row (Third-Party Tested, Trusted Manufacturer) + dietary row (Gluten-Free, Soy-Free) cleanly ✓ |
+
+**Polish acceptance criteria all met. No analyzer issues. No
+regressions on previously-verified sections. The 5 sections still
+in "suppression-only verified" status (S8, S12, S15, S16 results,
+S18) are unaffected by the polish work.**
 
 ---
 

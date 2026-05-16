@@ -512,9 +512,9 @@ row:
 | **placeholder** | 0 |
 | total | 19 unique sections + S1.6 null-blob fallback + S0/S0.5/S0.9 chrome = 21 rows in doc |
 
-**🎉 PHASE 11.7 ADAPTER WORK COMPLETE + STRONG LIVE VERIFICATION.** All 18 mid-page sections wired. Phase 11.7g.1 (2026-05-16, iPhone 17 sim w/ Supabase blob populated for test products 178767 + 65844 + 16012) significantly expanded live coverage — see `knowledge/product-detail-v2-route-swap-readiness.md` for the route-swap readiness report. Awaiting Sean's approval before flipping production route in `app.dart`.
+**🎉 PHASE 11.7 ADAPTER WORK COMPLETE + STRONG LIVE VERIFICATION + POLISH APPLIED.** All 18 mid-page sections wired. Phase 11.7g.1 (2026-05-16, iPhone 17 sim w/ Supabase blob populated for test products 178767 + 65844 + 16012) significantly expanded live coverage. **Phase 11.7h polish (e949d93) — 6 fixes from Sean's review (S1 hero tightening, S1 trust chips grouping, S4 note compact, S7 additive language, S11 evidence helper, S14 CFU transparency) verified live on `/product/178767` + `/product/65844` via `USE_V2_PRODUCT_DETAIL=true` staged toggle.** See `knowledge/product-detail-v2-route-swap-readiness.md` for the full readiness report. Awaiting Sean's approval before promoting the toggle default in `app.dart`.
 
-**Dev sim blob limitation:** the iPhone simulator's Supabase blob fetch returns null for every test product in this session (confirmed via production parity — both `/product/65844` and `/product/15712` render "No additional details available." on the production route). All blob-dependent sections (S6–S15) will reach their first live tile-render verification when a product whose blob has been populated (cached locally OR fetched successfully from Supabase) flows through the screen. Until then, parity is guaranteed by verbatim helper ports + suppression-path live verification.
+**Dev sim blob limitation (resolved by Phase 11.7g.1):** earlier sessions reported null blob fetches; the 11.7g.1 verification on iPhone 17 confirmed Supabase blob IS populated for test products (178767 ingredients + 65844 botanicals/probiotic strains/certifications all rendered live). The 5 still-only-suppression-verified sections (S8, S12, S15, S16 result list, S18) need products that exercise those rare blob shapes — flagged for TestFlight cycle observation.
 
 ---
 
