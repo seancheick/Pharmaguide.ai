@@ -258,6 +258,52 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
         );
   }
 
+  // ───────── demographic sheets (single-select, required) ─────────
+
+  Future<void> _openAgeSheet() async {
+    final profile = ref.read(profileProvider);
+    final result = await showPGSelectionSheet(
+      context: context,
+      eyebrow: 'Age bracket',
+      title: 'Roughly how old are you?',
+      helperText:
+          'Used to apply the right RDA and upper-limit ranges to '
+          'every supplement you scan. Kept on this device.',
+      options: SchemaIds.ageBrackets
+          .map((b) => PGSelectionOption(id: b, label: b))
+          .toList(),
+      initialSelection: profile.ageBracket == null
+          ? <String>{}
+          : {profile.ageBracket!},
+      singleSelect: true,
+    );
+    if (result == null || !mounted) return;
+    if (result.selected.isEmpty) return;
+    ref.read(profileProvider.notifier).setAgeBracket(result.selected.first);
+  }
+
+  Future<void> _openSexSheet() async {
+    final profile = ref.read(profileProvider);
+    final result = await showPGSelectionSheet(
+      context: context,
+      eyebrow: 'Sex',
+      title: 'Which dosing ranges apply?',
+      helperText:
+          "PharmaGuide uses this only to choose the right RDA / UL "
+          'ranges. Pick whatever fits — "Other" and "Prefer not to '
+          'say" use the most conservative limits.',
+      options: SchemaIds.sexOptions
+          .map((s) => PGSelectionOption(id: s, label: s))
+          .toList(),
+      initialSelection:
+          profile.sex == null ? <String>{} : {profile.sex!},
+      singleSelect: true,
+    );
+    if (result == null || !mounted) return;
+    if (result.selected.isEmpty) return;
+    ref.read(profileProvider.notifier).setSex(result.selected.first);
+  }
+
   // ───────── build ─────────
 
   @override
@@ -290,8 +336,14 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                   const SizedBox(height: V2Spacing.space24),
                   const _Header(),
                   const SizedBox(height: V2Spacing.space32),
+                  // Order per Sean 2026-05-16: Nickname first, then
+                  // the four health-context groups, then demographics
+                  // (age / sex) which are required for scoring but
+                  // less expressive than the health groups.
+                  const _NicknameTile(),
+                  const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
-                    eyebrow: 'Goals',
+                    eyebrow: 'Health goals',
                     title: _goalsSummaryTitle(profile),
                     body: _goalsSummaryBody(profile),
                     icon: Icons.flag_outlined,
@@ -315,16 +367,28 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
-                    eyebrow: 'Medications',
+                    eyebrow: 'Medication classes',
                     title: _medsSummaryTitle(profile),
                     body: _medsSummaryBody(profile),
                     icon: Icons.medication_outlined,
                     onTap: _openMedicationsSheet,
                   ),
-                  const SizedBox(height: V2Spacing.space32),
-                  const _BasicInfoEyebrow(),
                   const SizedBox(height: V2Spacing.space12),
-                  const _BasicInfoSection(),
+                  _GroupTile(
+                    eyebrow: 'Age bracket',
+                    title: _ageSummaryTitle(profile),
+                    body: _ageSummaryBody(profile),
+                    icon: Icons.cake_outlined,
+                    onTap: _openAgeSheet,
+                  ),
+                  const SizedBox(height: V2Spacing.space12),
+                  _GroupTile(
+                    eyebrow: 'Sex',
+                    title: _sexSummaryTitle(profile),
+                    body: _sexSummaryBody(profile),
+                    icon: Icons.person_outline_rounded,
+                    onTap: _openSexSheet,
+                  ),
                   const SizedBox(height: V2Spacing.space24),
                   const _PrivacyFooter(),
                 ],
@@ -416,6 +480,25 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
     if (p.drugClasses.isEmpty) {
       return 'Helps flag supplement–medication interactions.';
     }
+    return null;
+  }
+
+  String _ageSummaryTitle(ProfileState p) {
+    if (p.ageBracket == null) return 'Tap to pick';
+    return '${p.ageBracket} years';
+  }
+
+  String? _ageSummaryBody(ProfileState p) {
+    if (p.ageBracket == null) return 'Used for RDA / UL scoring.';
+    return null;
+  }
+
+  String _sexSummaryTitle(ProfileState p) {
+    return p.sex ?? 'Tap to pick';
+  }
+
+  String? _sexSummaryBody(ProfileState p) {
+    if (p.sex == null) return 'Used for accurate dosing.';
     return null;
   }
 }
@@ -563,96 +646,39 @@ class _GroupTile extends StatelessWidget {
 }
 
 // =============================================================================
-// Basic info — inline form: nickname (text field), age bracket (radio
-// rows), sex (radio rows). These are small, finite, free-form
-// inputs that don't justify their own bottom sheet — the user fills
-// them in place. Wrapped in the same `_V2GroupCard` shape as the
-// other tiles so the visual rhythm holds.
+// Nickname tile — the only dashboard row whose value is edited in
+// place (text input) rather than via a bottom-sheet selector. The
+// outer card matches `_GroupTile` exactly (icon + eyebrow + body
+// space) so all six dashboard rows visually agree.
+//
+// Sean 2026-05-16 — explicit copy contract:
+//   Label       : "Nickname"
+//   Placeholder : "What should we call you?"  (single line — must
+//                                              not wrap or overflow
+//                                              the input box)
+//   Helper      : "Used only to personalize your greeting."
+//
+// The Home greeting reads `profile.nickname` directly: filled →
+// "Good morning, Sean", empty → "Good morning" / "Hello there".
 // =============================================================================
 
-class _BasicInfoEyebrow extends StatelessWidget {
-  const _BasicInfoEyebrow();
+class _NicknameTile extends ConsumerStatefulWidget {
+  const _NicknameTile();
 
   @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(left: V2Spacing.space4),
-      child: PGEyebrow('Basic info', color: V2Colors.fgMuted),
-    );
-  }
+  ConsumerState<_NicknameTile> createState() => _NicknameTileState();
 }
 
-class _BasicInfoSection extends ConsumerWidget {
-  const _BasicInfoSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileProvider);
-    final notifier = ref.read(profileProvider.notifier);
-    return Container(
-      decoration: BoxDecoration(
-        color: V2Colors.surface,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
-        boxShadow: V2Shadows.sm,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(V2Spacing.space16),
-            child: _NicknameField(
-              initialValue: profile.nickname ?? '',
-              onChanged: notifier.setNickname,
-            ),
-          ),
-          const Divider(height: 1, thickness: 0.5, color: V2Colors.outline),
-          _InlineRadioGroup(
-            label: 'Age bracket',
-            sublabel: 'Used for RDA / UL scoring.',
-            options: SchemaIds.ageBrackets,
-            value: profile.ageBracket,
-            onChanged: notifier.setAgeBracket,
-          ),
-          const Divider(height: 1, thickness: 0.5, color: V2Colors.outline),
-          _InlineRadioGroup(
-            label: 'Sex',
-            sublabel: 'Used for accurate dosing.',
-            options: SchemaIds.sexOptions,
-            value: profile.sex,
-            optionCaption: (opt) =>
-                (opt == 'Other' || opt == 'Prefer not to say')
-                    ? 'Uses the most conservative safety limits.'
-                    : null,
-            onChanged: notifier.setSex,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NicknameField extends StatefulWidget {
-  final String initialValue;
-  final ValueChanged<String> onChanged;
-
-  const _NicknameField({
-    required this.initialValue,
-    required this.onChanged,
-  });
-
-  @override
-  State<_NicknameField> createState() => _NicknameFieldState();
-}
-
-class _NicknameFieldState extends State<_NicknameField> {
+class _NicknameTileState extends ConsumerState<_NicknameTile> {
   late final TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialValue);
+    _controller = TextEditingController(
+      text: ref.read(profileProvider).nickname ?? '',
+    );
     _focusNode.addListener(() => setState(() {}));
   }
 
@@ -666,217 +692,95 @@ class _NicknameFieldState extends State<_NicknameField> {
   @override
   Widget build(BuildContext context) {
     final focused = _focusNode.hasFocus;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Nickname',
-          style: V2Typography.label(color: V2Colors.fg),
-        ),
-        const SizedBox(height: V2Spacing.space4),
-        Text(
-          'Used for greetings only. Optional.',
-          style: V2Typography.caption(color: V2Colors.fgMuted),
-        ),
-        const SizedBox(height: V2Spacing.space12),
-        AnimatedContainer(
-          duration: V2Motion.fast,
-          curve: V2Motion.smooth,
-          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space12),
-          decoration: BoxDecoration(
-            color: V2Colors.bg,
-            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(
-              color: focused ? V2Colors.accent : V2Colors.outline,
-              width: focused ? 1.5 : 1.0,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.person_outline_rounded,
-                size: 18,
-                color: focused ? V2Colors.accent : V2Colors.fgSubtle,
-              ),
-              const SizedBox(width: V2Spacing.space8),
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  decoration: InputDecoration(
-                    hintText: 'What should we call you?',
-                    hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: V2Spacing.space12,
-                    ),
-                    isCollapsed: true,
-                  ),
-                  style: V2Typography.body(color: V2Colors.fg),
-                  cursorColor: V2Colors.accent,
-                  cursorWidth: 1.5,
-                  onChanged: widget.onChanged,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InlineRadioGroup extends StatelessWidget {
-  final String label;
-  final String? sublabel;
-  final List<String> options;
-  final String? value;
-  final ValueChanged<String?> onChanged;
-  final String? Function(String option)? optionCaption;
-
-  const _InlineRadioGroup({
-    required this.label,
-    required this.options,
-    required this.value,
-    required this.onChanged,
-    this.sublabel,
-    this.optionCaption,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(V2Spacing.space16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+        boxShadow: V2Shadows.sm,
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space16,
+        V2Spacing.space16,
+        V2Spacing.space16,
+        V2Spacing.space16,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(label, style: V2Typography.label(color: V2Colors.fg)),
-          if (sublabel != null) ...[
-            const SizedBox(height: V2Spacing.space4),
-            Text(
-              sublabel!,
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: V2Colors.accentTint,
+              borderRadius: BorderRadius.circular(V2Spacing.space8),
             ),
-          ],
-          const SizedBox(height: V2Spacing.space12),
-          ...options.asMap().entries.map((entry) {
-            final option = entry.value;
-            final selected = value == option;
-            final caption = optionCaption?.call(option);
-            return _RadioRow(
-              label: option,
-              caption: caption,
-              selected: selected,
-              onTap: () => onChanged(option),
-              showDivider: entry.key < options.length - 1,
-            );
-          }),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.waving_hand_outlined,
+              size: 18,
+              color: V2Colors.accent,
+            ),
+          ),
+          const SizedBox(width: V2Spacing.space16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PGEyebrow('Nickname', color: V2Colors.fgMuted),
+                const SizedBox(height: V2Spacing.space4),
+                // Inline editable field. No background fill on the
+                // text itself — the surrounding tile is already
+                // cream, and an inner border would read as a Material
+                // form field. Focus is communicated by the cursor +
+                // a hairline accent underline below the input.
+                AnimatedContainer(
+                  duration: V2Motion.fast,
+                  curve: V2Motion.smooth,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: focused
+                            ? V2Colors.accent
+                            : V2Colors.outline,
+                        width: focused ? 1.5 : 1.0,
+                      ),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    maxLines: 1,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      hintText: 'What should we call you?',
+                      hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: V2Spacing.space8,
+                      ),
+                      isCollapsed: true,
+                      isDense: true,
+                    ),
+                    style: V2Typography.titleSm(color: V2Colors.fg),
+                    cursorColor: V2Colors.accent,
+                    cursorWidth: 1.5,
+                    onChanged: (value) =>
+                        ref.read(profileProvider.notifier).setNickname(value),
+                  ),
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  'Used only to personalize your greeting.',
+                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _RadioRow extends StatelessWidget {
-  final String label;
-  final String? caption;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool showDivider;
-
-  const _RadioRow({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.caption,
-    this.showDivider = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: V2Spacing.space12,
-              ),
-              child: Row(
-                children: [
-                  _RadioMark(selected: selected),
-                  const SizedBox(width: V2Spacing.space12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          label,
-                          style: V2Typography.body(color: V2Colors.fg),
-                        ),
-                        if (caption != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            caption!,
-                            style: V2Typography.caption(
-                              color: V2Colors.fgMuted,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (showDivider)
-          const Padding(
-            padding: EdgeInsets.only(left: 32),
-            child: Divider(
-              height: 1,
-              thickness: 0.5,
-              color: V2Colors.outline,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _RadioMark extends StatelessWidget {
-  final bool selected;
-  const _RadioMark({required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: V2Motion.fast,
-      curve: V2Motion.smooth,
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: selected ? V2Colors.accent : Colors.transparent,
-        border: Border.all(
-          color: selected ? V2Colors.accent : V2Colors.outline,
-          width: selected ? 0 : 1.5,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: selected
-          ? Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-              ),
-            )
-          : null,
     );
   }
 }

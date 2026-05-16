@@ -303,22 +303,37 @@ class _HeroGreeting extends ConsumerWidget {
     'DECEMBER',
   ];
 
-  String _greetingFor(int hour) {
+  /// Resolve the greeting band for the given hour. Sean 2026-05-16
+  /// spec: morning / afternoon / evening windows plus a "Hello"
+  /// fallback outside business hours. Returns the band as a `String`
+  /// (e.g. "Good morning") or `null` if the time is outside the
+  /// known bands — caller substitutes "Hello" (with name) or
+  /// "Hello there" (no name) for the null case.
+  static String? _bandFor(int hour) {
     if (hour >= 5 && hour < 12) return 'Good morning';
-    if (hour >= 12 && hour < 17) return 'Hello there';
-    if (hour >= 17 && hour < 21) return 'Good evening';
-    return 'Good night';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 22) return 'Good evening';
+    return null; // late-night / pre-dawn window → "Hello"
+  }
+
+  /// Compose the greeting line per Sean's spec:
+  ///   * Nickname present → "Good morning, Sean" / "Hello, Sean"
+  ///   * Nickname empty   → "Good morning" / "Hello there"
+  /// No trailing period — the line is a casual hello, not a sentence.
+  static String composeGreeting({required String? nickname, DateTime? now}) {
+    final hour = (now ?? DateTime.now()).hour;
+    final cleaned = nickname?.trim();
+    final hasName = cleaned != null && cleaned.isNotEmpty;
+    final band = _bandFor(hour);
+    if (band != null) {
+      return hasName ? '$band, $cleaned' : band;
+    }
+    return hasName ? 'Hello, $cleaned' : 'Hello there';
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Phase 11.1: read profileProvider for the real nickname; fall
-    // back to "Sean" so the gallery preview keeps showing the polished
-    // editorial state when no profile is loaded.
     final nickname = ref.watch(profileProvider).nickname;
-    final displayName = (nickname != null && nickname.isNotEmpty)
-        ? nickname
-        : 'Sean';
     final now = DateTime.now();
     final dateLabel =
         '${_days[now.weekday - 1]}  ·  ${_months[now.month - 1]} ${now.day}';
@@ -331,7 +346,7 @@ class _HeroGreeting extends ConsumerWidget {
         ),
         const SizedBox(height: V2Spacing.space12),
         Text(
-          '${_greetingFor(now.hour)}, $displayName.',
+          composeGreeting(nickname: nickname, now: now),
           style: V2Typography.displayXs(color: V2Colors.fg),
         ),
         const SizedBox(height: V2Spacing.space4),

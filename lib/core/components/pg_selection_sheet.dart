@@ -109,6 +109,16 @@ Future<PGSelectionResult?> showPGSelectionSheet({
   bool confirmDiscardOnDismiss = true,
   String saveLabel = 'Save',
   String clearLabel = 'Clear',
+  // Phase 11.7L.B.8 — single-select mode for required-single fields
+  // (age bracket, sex). Tapping a chip in this mode REPLACES the
+  // draft selection instead of toggling, so the user can swap their
+  // pick without first clearing. The Save button still gates the
+  // commit to the provider — auto-commit-on-tap would break the
+  // "draft preserved until Save" contract the multi-select sheet
+  // already enforces. Implies the Clear button + a None tile don't
+  // make sense; callers should pass `noneLabel: null` and the Clear
+  // button auto-disables when the draft only ever holds one entry.
+  bool singleSelect = false,
 }) {
   return showModalBottomSheet<PGSelectionResult>(
     context: context,
@@ -122,6 +132,7 @@ Future<PGSelectionResult?> showPGSelectionSheet({
       title: title,
       helperText: helperText,
       options: options,
+      singleSelect: singleSelect,
       initialSelection: initialSelection,
       initialNoneSelected: initialNoneSelected,
       noneLabel: noneLabel,
@@ -151,6 +162,7 @@ class _PGSelectionSheet extends StatefulWidget {
   final bool confirmDiscardOnDismiss;
   final String saveLabel;
   final String clearLabel;
+  final bool singleSelect;
 
   const _PGSelectionSheet({
     required this.eyebrow,
@@ -167,6 +179,7 @@ class _PGSelectionSheet extends StatefulWidget {
     required this.confirmDiscardOnDismiss,
     required this.saveLabel,
     required this.clearLabel,
+    required this.singleSelect,
   });
 
   @override
@@ -258,6 +271,20 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
 
   void _toggleOption(PGSelectionOption option) {
     setState(() {
+      // Single-select mode (e.g. age bracket, sex): tapping a chip
+      // REPLACES the draft so the user can swap their pick without
+      // first clearing. Tapping the currently selected chip leaves
+      // it selected — single-select fields are required, so we
+      // never let the user back into an empty state from inside
+      // the sheet (the Clear button is the explicit escape hatch).
+      if (widget.singleSelect) {
+        if (_draft.contains(option.id) && _draft.length == 1) return;
+        _draft
+          ..clear()
+          ..add(option.id);
+        _noneSelected = false;
+        return;
+      }
       if (_draft.contains(option.id)) {
         _draft.remove(option.id);
       } else {
@@ -300,6 +327,10 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
 
   bool _disabledByMax(PGSelectionOption option) {
     if (option.disabled) return true;
+    // Single-select mode has its own swap semantics — no chip should
+    // ever look "disabled because cap is hit." The user can always
+    // tap a different chip to change their pick.
+    if (widget.singleSelect) return false;
     if (widget.maxSelection == null) return false;
     return !_draft.contains(option.id) &&
         _draft.length >= widget.maxSelection!;
