@@ -744,6 +744,13 @@ class V2Gallery extends StatelessWidget {
                     'tail · quality + category chips · grid toggle',
                 routePath: '/dev/v2/search',
               ),
+              _PrototypeLink(
+                label: 'Quick check',
+                subtitle:
+                    "Safe to take together? · pair lookup · "
+                    'severity verdict · why + what to do',
+                routePath: '/dev/v2/quick-check',
+              ),
             ],
           ),
           const _Section(

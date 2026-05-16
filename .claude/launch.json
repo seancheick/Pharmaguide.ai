@@ -57,14 +57,24 @@
       "port": 0
     },
     {
-      "name": "flutter run (v2 ALL — PD + ProfileSetup + MedicationEntry + Search)",
+      "name": "flutter run (v2 QuickCheck)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_QUICK_CHECK=true"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run (v2 ALL — PD + ProfileSetup + MedicationEntry + Search + QuickCheck)",
       "runtimeExecutable": "flutter",
       "runtimeArgs": [
         "run",
         "--dart-define=USE_V2_PRODUCT_DETAIL=true",
         "--dart-define=USE_V2_PROFILE_SETUP=true",
         "--dart-define=USE_V2_MEDICATION_ENTRY=true",
-        "--dart-define=USE_V2_SEARCH=true"
+        "--dart-define=USE_V2_SEARCH=true",
+        "--dart-define=USE_V2_QUICK_CHECK=true"
       ],
       "port": 0
     },

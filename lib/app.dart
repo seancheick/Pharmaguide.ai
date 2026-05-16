@@ -27,6 +27,7 @@ import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
+import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
 // Legacy splash import dropped during Phase 11.7i route swap — see
@@ -168,6 +169,7 @@ GoRouter _buildRouter({
   bool useV2ProfileSetup = false,
   bool useV2MedicationEntry = false,
   bool useV2Search = false,
+  bool useV2QuickCheck = false,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -497,8 +499,23 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.quickCheck,
+        pageBuilder: (_, state) {
+          // Phase 11.7L.E.3 staged route swap. Same pair-check
+          // engine + same `runPairCheck` helper — v2 mirror just
+          // changes the surface to cream chrome.
+          final Widget screen = useV2QuickCheck
+              ? const QuickCheckV2Screen()
+              : const QuickCheckScreen();
+          return _platformPage(state, catalogRoute(screen));
+        },
+      ),
+      // Dev-only direct preview — bypasses both env toggle and the
+      // `catalogRoute` gate so reviewers can poke at the screen
+      // without a populated catalog DB.
+      GoRoute(
+        path: '/dev/v2/quick-check',
         pageBuilder: (_, state) =>
-            _platformPage(state, catalogRoute(const QuickCheckScreen())),
+            _platformPage(state, const QuickCheckV2Screen()),
       ),
       GoRoute(
         path: '${Routes.product}/:dsldId',
@@ -716,6 +733,14 @@ class PharmaGuideApp extends StatelessWidget {
   /// via `--dart-define=USE_V2_SEARCH=true`.
   final bool useV2Search;
 
+  /// Phase 11.7L.E.3 QuickCheck v2 mirror toggle. When true, the
+  /// production `/quick-check` route renders `QuickCheckV2Screen`
+  /// with cream chrome + a result card surfacing item A, item B,
+  /// verdict, mechanism, and recommended action. Same pair-check
+  /// engine + same `runPairCheck` helper. Driven via
+  /// `--dart-define=USE_V2_QUICK_CHECK=true`.
+  final bool useV2QuickCheck;
+
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
@@ -727,6 +752,7 @@ class PharmaGuideApp extends StatelessWidget {
     this.useV2ProfileSetup = false,
     this.useV2MedicationEntry = false,
     this.useV2Search = false,
+    this.useV2QuickCheck = false,
   });
 
   @override
@@ -748,6 +774,7 @@ class PharmaGuideApp extends StatelessWidget {
         useV2ProfileSetup: useV2ProfileSetup,
         useV2MedicationEntry: useV2MedicationEntry,
         useV2Search: useV2Search,
+        useV2QuickCheck: useV2QuickCheck,
       ),
       // Global Dynamic Type clamp.
       //

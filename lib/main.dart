@@ -75,6 +75,17 @@ const bool _useV2Search = bool.fromEnvironment(
   defaultValue: false,
 );
 
+/// Phase 11.7L.E.3 staged route swap toggle for QuickCheck. Set via
+/// `--dart-define=USE_V2_QUICK_CHECK=true`. When true, the production
+/// `/quick-check` route renders the v2 mirror (`QuickCheckV2Screen`)
+/// instead of the legacy "Safe to Take Together?" screen. Same pair-
+/// check engine, same `runPairCheck` helper, same `InteractionResult`
+/// + `Severity` enums — only the surface changes. Default false.
+const bool _useV2QuickCheck = bool.fromEnvironment(
+  'USE_V2_QUICK_CHECK',
+  defaultValue: false,
+);
+
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnv = String.fromEnvironment(
   'SENTRY_ENVIRONMENT',
@@ -506,6 +517,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           useV2ProfileSetup: _useV2ProfileSetup,
           useV2MedicationEntry: _useV2MedicationEntry,
           useV2Search: _useV2Search,
+          useV2QuickCheck: _useV2QuickCheck,
         ),
       ),
     );
