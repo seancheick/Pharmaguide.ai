@@ -41,6 +41,7 @@ import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
+import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.dart';
 
 /// Optional override for [GoRouter.initialLocation]. Set via:
 ///
@@ -164,6 +165,7 @@ GoRouter _buildRouter({
   bool useV2Theme = false,
   bool useV2ProductDetail = false,
   bool useV2ProfileSetup = false,
+  bool useV2MedicationEntry = false,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -455,8 +457,23 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.medicationEntry,
+        pageBuilder: (_, state) {
+          // Phase 11.7L.E.1 staged route swap. Same engine + same
+          // `StackActions.addMedication` payload — the v2 mirror
+          // changes only the surface and patches the
+          // snackbar-after-pop bug.
+          final Widget screen = useV2MedicationEntry
+              ? const MedicationEntryV2Screen()
+              : const MedicationEntryScreen();
+          return _platformPage(state, screen);
+        },
+      ),
+      // Direct dev preview — bypasses the env toggle so reviewers
+      // can poke at the v2 screen without restarting with a flag.
+      GoRoute(
+        path: '/dev/v2/medication-entry',
         pageBuilder: (_, state) =>
-            _platformPage(state, const MedicationEntryScreen()),
+            _platformPage(state, const MedicationEntryV2Screen()),
       ),
       GoRoute(
         path: Routes.quickCheck,
@@ -664,6 +681,14 @@ class PharmaGuideApp extends StatelessWidget {
   /// modifying source.
   final bool useV2ProfileSetup;
 
+  /// Phase 11.7L.E.1 MedicationEntry v2 mirror toggle. When true,
+  /// the production `/medication-entry` route renders
+  /// `MedicationEntryV2Screen` instead of the legacy screen. Same
+  /// RxNorm API, same `StackActions.addMedication` payload — pure
+  /// visual swap + the snackbar-after-pop bug fix. Driven via
+  /// `--dart-define=USE_V2_MEDICATION_ENTRY=true`.
+  final bool useV2MedicationEntry;
+
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
@@ -673,6 +698,7 @@ class PharmaGuideApp extends StatelessWidget {
     this.useV2Theme = false,
     this.useV2ProductDetail = false,
     this.useV2ProfileSetup = false,
+    this.useV2MedicationEntry = false,
   });
 
   @override
@@ -692,6 +718,7 @@ class PharmaGuideApp extends StatelessWidget {
         useV2Theme: useV2Theme,
         useV2ProductDetail: useV2ProductDetail,
         useV2ProfileSetup: useV2ProfileSetup,
+        useV2MedicationEntry: useV2MedicationEntry,
       ),
       // Global Dynamic Type clamp.
       //

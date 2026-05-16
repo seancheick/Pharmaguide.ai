@@ -50,6 +50,19 @@ const bool _useV2ProfileSetup = bool.fromEnvironment(
   defaultValue: false,
 );
 
+/// Phase 11.7L.E.1 staged route swap toggle for MedicationEntry.
+/// Set via `--dart-define=USE_V2_MEDICATION_ENTRY=true`.
+/// When true, the production `/medication-entry` route renders the v2
+/// mirror (`MedicationEntryV2Screen`) instead of the legacy screen.
+/// Engine, RxNorm API calls, and the `StackActions.addMedication`
+/// payload are byte-identical between the two — a pure visual swap
+/// plus the snackbar-after-pop bug fix. Default false keeps
+/// production on the legacy screen until real-device verification.
+const bool _useV2MedicationEntry = bool.fromEnvironment(
+  'USE_V2_MEDICATION_ENTRY',
+  defaultValue: false,
+);
+
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnv = String.fromEnvironment(
   'SENTRY_ENVIRONMENT',
@@ -479,6 +492,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           hasSeenOnboarding: widget.hasSeenOnboarding,
           useV2ProductDetail: _useV2ProductDetail,
           useV2ProfileSetup: _useV2ProfileSetup,
+          useV2MedicationEntry: _useV2MedicationEntry,
         ),
       ),
     );

@@ -730,6 +730,13 @@ class V2Gallery extends StatelessWidget {
                     '→ health context · runs once per install',
                 routePath: '/dev/v2/profile-wizard',
               ),
+              _PrototypeLink(
+                label: 'Medication entry',
+                subtitle:
+                    'Search RxNorm · select medication · '
+                    'class fallback sheet · dose + schedule',
+                routePath: '/dev/v2/medication-entry',
+              ),
             ],
           ),
           const _Section(
