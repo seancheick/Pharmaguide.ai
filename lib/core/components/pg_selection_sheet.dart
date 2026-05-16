@@ -8,6 +8,19 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
+/// Layout for the option list inside a [showPGSelectionSheet] call.
+///
+/// - [chips]   — Wrap-style chip grid. Use for compact tag-style picks
+///               where the label is short and the count is small-ish
+///               (Goals, Conditions, Allergies, Medications).
+/// - [rows]    — Full-width single-select rows with a leading radio
+///               mark. Use for required demographic fields where the
+///               labels read like answers to a sentence (age bracket,
+///               sex), not tags. Sean 2026-05-16: chips can feel like
+///               casual tags, which is the wrong tone for age and sex
+///               — rows feel like a deliberate, respectful pick.
+enum PGSheetLayout { chips, rows }
+
 /// One selectable option inside a [showPGSelectionSheet] call.
 ///
 /// IDs are opaque strings; the sheet does not validate them. Pass
@@ -119,6 +132,17 @@ Future<PGSelectionResult?> showPGSelectionSheet({
   // make sense; callers should pass `noneLabel: null` and the Clear
   // button auto-disables when the draft only ever holds one entry.
   bool singleSelect = false,
+  // Phase 11.7L.B.9 — layout mode. Default chips for multi-select
+  // surfaces (Goals/Conditions/Allergies/Medications); rows for the
+  // demographic single-selects (age, sex) where chips read as casual
+  // tags rather than respectful answers.
+  PGSheetLayout layout = PGSheetLayout.chips,
+  // Phase 11.7L.B.9 — optional ghost CTA shown on the LEFT of the
+  // action bar in place of Clear. Tapping it dismisses the sheet
+  // without saving — useful for required-but-deferrable fields where
+  // the user should have an explicit "I'll add this later" out
+  // rather than being forced to swipe down to bail.
+  String? dismissLabel,
 }) {
   return showModalBottomSheet<PGSelectionResult>(
     context: context,
@@ -133,6 +157,8 @@ Future<PGSelectionResult?> showPGSelectionSheet({
       helperText: helperText,
       options: options,
       singleSelect: singleSelect,
+      layout: layout,
+      dismissLabel: dismissLabel,
       initialSelection: initialSelection,
       initialNoneSelected: initialNoneSelected,
       noneLabel: noneLabel,
@@ -163,6 +189,8 @@ class _PGSelectionSheet extends StatefulWidget {
   final String saveLabel;
   final String clearLabel;
   final bool singleSelect;
+  final PGSheetLayout layout;
+  final String? dismissLabel;
 
   const _PGSelectionSheet({
     required this.eyebrow,
@@ -180,6 +208,8 @@ class _PGSelectionSheet extends StatefulWidget {
     required this.saveLabel,
     required this.clearLabel,
     required this.singleSelect,
+    required this.layout,
+    required this.dismissLabel,
   });
 
   @override
@@ -438,6 +468,13 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                             ),
                           ),
                         )
+                      else if (widget.layout == PGSheetLayout.rows)
+                        _SheetRowList(
+                          options: visibleOptions,
+                          draft: _draft,
+                          disabledByMax: _disabledByMax,
+                          onTap: _toggleOption,
+                        )
                       else
                         Wrap(
                           spacing: V2Spacing.space8,
@@ -460,9 +497,14 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
               _SheetActionBar(
                 onClear: _clear,
                 onSave: _save,
+                onDismiss: widget.dismissLabel == null
+                    ? null
+                    : () => Navigator.of(context).pop(),
                 clearLabel: widget.clearLabel,
                 saveLabel: widget.saveLabel,
+                dismissLabel: widget.dismissLabel,
                 clearEnabled: _draft.isNotEmpty || _noneSelected,
+                hideClear: widget.singleSelect,
               ),
             ],
           ),
@@ -725,20 +767,45 @@ class _SheetChip extends StatelessWidget {
 class _SheetActionBar extends StatelessWidget {
   final VoidCallback onClear;
   final VoidCallback onSave;
+  final VoidCallback? onDismiss;
   final String clearLabel;
   final String saveLabel;
+  final String? dismissLabel;
   final bool clearEnabled;
+  final bool hideClear;
 
   const _SheetActionBar({
     required this.onClear,
     required this.onSave,
+    required this.onDismiss,
     required this.clearLabel,
     required this.saveLabel,
+    required this.dismissLabel,
     required this.clearEnabled,
+    required this.hideClear,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Layout precedence on the left slot:
+    //   1. `dismissLabel` (e.g. "I'll add this later") if set
+    //   2. `clearLabel` ("Clear") when not hidden
+    //   3. nothing — Save sits flush right
+    Widget? leftAction;
+    if (dismissLabel != null && onDismiss != null) {
+      leftAction = PGPillButton(
+        label: dismissLabel!,
+        variant: PGPillVariant.ghost,
+        onPressed: onDismiss,
+      );
+    } else if (!hideClear) {
+      leftAction = PGPillButton(
+        label: clearLabel,
+        variant: PGPillVariant.ghost,
+        onPressed: clearEnabled ? onClear : null,
+      );
+    }
+
     return Container(
       decoration: const BoxDecoration(
         color: V2Colors.bg,
@@ -752,17 +819,131 @@ class _SheetActionBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          PGPillButton(
-            label: clearLabel,
-            variant: PGPillVariant.ghost,
-            onPressed: clearEnabled ? onClear : null,
-          ),
+          if (leftAction != null) leftAction,
           const Spacer(),
           PGPillButton(
             label: saveLabel,
             onPressed: onSave,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Full-width single-select row list used when [PGSheetLayout.rows] is
+/// chosen. Each row has a leading radio mark + label, separated by a
+/// hairline divider indented past the radio column. Selecting a row
+/// fills the radio with the accent color and inverts the label to
+/// accent weight 500 — same selection language as `_NoneTile` above
+/// so the user reads the sheet as "list of answers" not "list of
+/// chips."
+class _SheetRowList extends StatelessWidget {
+  final List<PGSelectionOption> options;
+  final Set<String> draft;
+  final bool Function(PGSelectionOption) disabledByMax;
+  final void Function(PGSelectionOption) onTap;
+
+  const _SheetRowList({
+    required this.options,
+    required this.draft,
+    required this.disabledByMax,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < options.length; i++)
+            _SheetRow(
+              option: options[i],
+              selected: draft.contains(options[i].id),
+              disabled: disabledByMax(options[i]),
+              onTap: () => onTap(options[i]),
+              showDivider: i < options.length - 1,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetRow extends StatelessWidget {
+  final PGSelectionOption option;
+  final bool selected;
+  final bool disabled;
+  final VoidCallback onTap;
+  final bool showDivider;
+
+  const _SheetRow({
+    required this.option,
+    required this.selected,
+    required this.disabled,
+    required this.onTap,
+    required this.showDivider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = selected
+        ? V2Typography.bodyMedium(color: V2Colors.accent)
+        : V2Typography.body(
+            color: disabled ? V2Colors.fgSubtle : V2Colors.fg,
+          );
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: disabled ? null : onTap,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: V2Spacing.space16,
+                vertical: V2Spacing.space16,
+              ),
+              child: Row(
+                children: [
+                  _CheckCircle(selected: selected),
+                  const SizedBox(width: V2Spacing.space16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(option.label, style: labelStyle),
+                        if (option.subtitle != null) ...[
+                          const SizedBox(height: V2Spacing.space4),
+                          Text(
+                            option.subtitle!,
+                            style: V2Typography.caption(
+                              color: V2Colors.fgMuted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (showDivider)
+              const Padding(
+                padding: EdgeInsets.only(left: V2Spacing.space48),
+                child: Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  color: V2Colors.outline,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -17,6 +17,7 @@ import 'package:pharmaguide/dev/v2_gallery.dart';
 // `git revert` away. Removed to keep analyzer clean.
 import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
 import 'package:pharmaguide/features/profile/v2/profile_setup_v2_screen.dart';
+import 'package:pharmaguide/features/profile/v2/profile_wizard_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
@@ -34,6 +35,7 @@ import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
@@ -286,6 +288,16 @@ GoRouter _buildRouter({
         pageBuilder: (_, state) =>
             _platformPage(state, const ProfileSetupV2Screen()),
       ),
+      // v2 first-time profile wizard — Phase 11.7L.B.9. The
+      // `autoFinish: false` preview keeps `OnboardingPrefs` clean so
+      // reviewers can replay the wizard freely from the gallery.
+      GoRoute(
+        path: '/dev/v2/profile-wizard',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          const ProfileWizardV2Screen(autoFinish: false),
+        ),
+      ),
       // v2 Product Detail flagship — composes every Phase 8.1.1–8.1.5
       // mirror against fixture data so reviewers can see the full
       // scroll story end-to-end. Production wiring (later phase)
@@ -394,7 +406,15 @@ GoRouter _buildRouter({
             onApple: () => _handleSignInApple(context),
             onGoogle: () => _handleSignInGoogle(context),
             onEmail: () => showMagicLinkSheet(context),
-            onSkip: () => context.go(Routes.home),
+            // Phase 11.7L.B.9 — skip routes through the wizard gate
+            // so guest accounts get the same one-shot first-time
+            // profile setup chance signed-in accounts get. Both
+            // paths converge on the same wizard surface.
+            onSkip: () async {
+              final dest = await _postAuthDestination();
+              if (!context.mounted) return;
+              context.go(dest);
+            },
           ),
         ),
       ),
@@ -410,6 +430,16 @@ GoRouter _buildRouter({
               : const ProfileSetupScreen();
           return _platformPage(state, screen);
         },
+      ),
+      // Phase 11.7L.B.9 — first-time profile wizard. Only reached on
+      // the post-auth handoff for accounts that haven't seen it; the
+      // handoff logic that decides between this and home lives in
+      // `_handleSignInSuccess` / the auth flow. Returning users
+      // never land here.
+      GoRoute(
+        path: Routes.profileWizard,
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProfileWizardV2Screen()),
       ),
       GoRoute(
         path: Routes.search,
@@ -488,6 +518,20 @@ Future<void> _handleSignInApple(BuildContext context) async {
 Future<void> _handleSignInGoogle(BuildContext context) async {
   final result = await PGAuthService().signInWithGoogle();
   _surfaceAuthError(result);
+}
+
+/// Phase 11.7L.B.9 — pick the right landing screen after the user
+/// completes (or skips) the auth invitation. First-time users land
+/// on the profile wizard; everyone else goes straight home.
+///
+/// Public so the route handlers and the auth-state listener can
+/// share the same gate. Both paths mark the wizard seen via the
+/// wizard's own Save/Skip handlers, so users see the wizard at
+/// most once per install.
+Future<String> _postAuthDestination({bool isPreview = false}) async {
+  final seenWizard = await OnboardingPrefs.hasSeenProfileWizard();
+  if (!seenWizard) return Routes.profileWizard;
+  return isPreview ? '/dev/v2/home' : Routes.home;
 }
 
 void _surfaceAuthError(PGAuthResult result) {
@@ -742,9 +786,14 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
           if (onAuthPath) {
             // Honor the dev-route override: if the gallery is the
             // active root (DEV_ROUTE=/dev/v2) land at the v2 home
-            // preview; otherwise the production root.
+            // preview; otherwise the production root. Phase 11.7L.B.9
+            // — first-time users land on the wizard instead.
             final isPreview = _devRoute.isNotEmpty;
-            router.go(isPreview ? '/dev/v2/home' : Routes.home);
+            unawaited(
+              _postAuthDestination(isPreview: isPreview).then((dest) {
+                router.go(dest);
+              }),
+            );
           }
         }
       case AuthChangeEvent.signedOut:

@@ -259,23 +259,42 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   }
 
   // ───────── demographic sheets (single-select, required) ─────────
+  //
+  // Sean 2026-05-16: chips can feel like casual tags here, and a
+  // rolling picker reads like DOB collection. Both sheets use the
+  // `PGSheetLayout.rows` variant so each option lands as a clean
+  // answer, with a "why we ask" helper line at the top and an
+  // explicit "I'll add this later" dismiss action so the user can
+  // bail without swiping down.
 
   Future<void> _openAgeSheet() async {
     final profile = ref.read(profileProvider);
+    // The schema is purely numeric brackets; "Prefer not to say" is
+    // tacked on here for the UI. Picked → stored as the literal
+    // string in `profile.ageBracket`; the matcher falls back to the
+    // most conservative RDA/UL ranges for non-numeric brackets.
+    final ageOptions = <PGSelectionOption>[
+      for (final b in SchemaIds.ageBrackets)
+        PGSelectionOption(id: b, label: '$b years'),
+      const PGSelectionOption(
+        id: 'Prefer not to say',
+        label: 'Prefer not to say',
+      ),
+    ];
     final result = await showPGSelectionSheet(
       context: context,
       eyebrow: 'Age bracket',
       title: 'Roughly how old are you?',
       helperText:
-          'Used to apply the right RDA and upper-limit ranges to '
-          'every supplement you scan. Kept on this device.',
-      options: SchemaIds.ageBrackets
-          .map((b) => PGSelectionOption(id: b, label: b))
-          .toList(),
+          'Recommended intake ranges shift with age. Used only on '
+          'this device to apply the right RDA and upper limits.',
+      options: ageOptions,
       initialSelection: profile.ageBracket == null
           ? <String>{}
           : {profile.ageBracket!},
       singleSelect: true,
+      layout: PGSheetLayout.rows,
+      dismissLabel: "I'll add this later",
     );
     if (result == null || !mounted) return;
     if (result.selected.isEmpty) return;
@@ -284,20 +303,33 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
 
   Future<void> _openSexSheet() async {
     final profile = ref.read(profileProvider);
+    // Sean 2026-05-16: drop "Other" from the v2 sheet — Female /
+    // Male / Prefer not to say is the respectful minimum surface
+    // for clinical dosing logic. The underlying schema still
+    // accepts "Other" (legacy profiles preserve it on load), but
+    // the v2 picker doesn't surface it as a new choice.
+    const sexOptions = [
+      PGSelectionOption(id: 'Female', label: 'Female'),
+      PGSelectionOption(id: 'Male', label: 'Male'),
+      PGSelectionOption(
+        id: 'Prefer not to say',
+        label: 'Prefer not to say',
+      ),
+    ];
     final result = await showPGSelectionSheet(
       context: context,
-      eyebrow: 'Sex',
+      eyebrow: 'Sex for safety checks',
       title: 'Which dosing ranges apply?',
       helperText:
-          "PharmaGuide uses this only to choose the right RDA / UL "
-          'ranges. Pick whatever fits — "Other" and "Prefer not to '
-          'say" use the most conservative limits.',
-      options: SchemaIds.sexOptions
-          .map((s) => PGSelectionOption(id: s, label: s))
-          .toList(),
+          'Used for safety checks where dosage limits, '
+          'pregnancy-related cautions, or nutrient guidance can '
+          'differ. Stored only on this device.',
+      options: sexOptions,
       initialSelection:
           profile.sex == null ? <String>{} : {profile.sex!},
       singleSelect: true,
+      layout: PGSheetLayout.rows,
+      dismissLabel: "I'll add this later",
     );
     if (result == null || !mounted) return;
     if (result.selected.isEmpty) return;

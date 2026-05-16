@@ -33,4 +33,10 @@ abstract final class Routes {
   /// screen with calm Apple / Google / Magic-link / Skip options.
   /// Wired to `PGAuthService`; skip lands at `home` as guest.
   static const authInvitation = '/auth';
+
+  /// **Phase 11.7L.B.9 — first-time profile wizard.** 3-step guided
+  /// setup (Nickname → Basics → Health context). Shown once per
+  /// install via `OnboardingPrefs.hasSeenProfileWizard()`. Returning
+  /// users edit through the [profileSetup] dashboard instead.
+  static const profileWizard = '/profile/wizard';
 }

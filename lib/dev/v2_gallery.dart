@@ -717,11 +717,18 @@ class V2Gallery extends StatelessWidget {
                 routePath: '/dev/v2/settings?signedIn=1',
               ),
               _PrototypeLink(
-                label: 'Profile setup',
+                label: 'Profile setup (dashboard)',
                 subtitle:
-                    '5-step editor mirror · same providers · '
-                    'serif headings · cream radio/checkbox tiles',
+                    'Editable health profile · cream tile rows · '
+                    'bottom-sheet selectors · greeting-ready nickname',
                 routePath: '/dev/v2/profile-setup',
+              ),
+              _PrototypeLink(
+                label: 'Profile wizard (first-time)',
+                subtitle:
+                    '3-step guided setup · nickname → basics '
+                    '→ health context · runs once per install',
+                routePath: '/dev/v2/profile-wizard',
               ),
             ],
           ),
