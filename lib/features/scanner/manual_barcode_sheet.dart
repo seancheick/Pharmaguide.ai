@@ -10,14 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
-import 'package:pharmaguide/data/database/core_database.dart';
 
 /// Shows the manual barcode entry sheet via [PGModal.bottomSheet].
 ///
-/// Returns the looked-up [ProductsCoreData] if found, or `null` if the
-/// user dismisses without a match.
-Future<ProductsCoreData?> showManualBarcodeSheet(BuildContext context) {
-  return PGModal.bottomSheet<ProductsCoreData?>(
+/// Returns the normalized barcode string, or `null` if the user dismisses
+/// without submitting.
+Future<String?> showManualBarcodeSheet(BuildContext context) {
+  return PGModal.bottomSheet<String?>(
     context: context,
     builder: (ctx) => const _ManualBarcodeSheet(),
   );

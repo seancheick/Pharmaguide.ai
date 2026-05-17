@@ -26,64 +26,48 @@ import 'package:pharmaguide/services/onboarding_prefs.dart';
 /// version doesn't trigger a redundant download/swap cycle (T0.6).
 const String _kCatalogVersionPrefKey = 'activeCatalogVersion';
 
-/// Phase 11.7g.3 staged route swap toggle. Set via:
-///   `--dart-define=USE_V2_PRODUCT_DETAIL=true`
-/// When true, the production `/product/:dsldId` route renders the v2
-/// ConnectedScreen instead of the legacy ProductDetailScreen. Default
-/// false keeps production on the legacy widget until TestFlight cycle
-/// passes — see `knowledge/product-detail-v2-route-swap-readiness.md`.
+/// Product Detail v2 production route toggle. Defaults on after the
+/// route-coherence promotion; set
+/// `--dart-define=USE_V2_PRODUCT_DETAIL=false` only for emergency
+/// rollback to the legacy ProductDetailScreen.
 const bool _useV2ProductDetail = bool.fromEnvironment(
   'USE_V2_PRODUCT_DETAIL',
-  defaultValue: false,
+  defaultValue: true,
 );
 
-/// Phase 11.7L.B staged route swap toggle for ProfileSetup. Set via:
-///   `--dart-define=USE_V2_PROFILE_SETUP=true`
-/// When true, the production `/profile/setup` route renders the v2
-/// mirror (`ProfileSetupV2Screen`) instead of the legacy screen.
-/// Logic, providers, and save semantics are identical between the two
-/// — this is a pure visual swap — so flipping the flag at TestFlight
-/// time is low-risk. Default false keeps production on the legacy
-/// screen until Sean signs off on the v2 mirror on a real device.
+/// Profile setup v2 production route toggle. Defaults on after the
+/// route-coherence promotion; set
+/// `--dart-define=USE_V2_PROFILE_SETUP=false` only for emergency
+/// rollback to the legacy screen.
 const bool _useV2ProfileSetup = bool.fromEnvironment(
   'USE_V2_PROFILE_SETUP',
-  defaultValue: false,
+  defaultValue: true,
 );
 
-/// Phase 11.7L.E.1 staged route swap toggle for MedicationEntry.
-/// Set via `--dart-define=USE_V2_MEDICATION_ENTRY=true`.
-/// When true, the production `/medication-entry` route renders the v2
-/// mirror (`MedicationEntryV2Screen`) instead of the legacy screen.
-/// Engine, RxNorm API calls, and the `StackActions.addMedication`
-/// payload are byte-identical between the two — a pure visual swap
-/// plus the snackbar-after-pop bug fix. Default false keeps
-/// production on the legacy screen until real-device verification.
+/// Medication Entry v2 production route toggle. Defaults on after the
+/// route-coherence promotion; set
+/// `--dart-define=USE_V2_MEDICATION_ENTRY=false` only for emergency
+/// rollback to the legacy screen.
 const bool _useV2MedicationEntry = bool.fromEnvironment(
   'USE_V2_MEDICATION_ENTRY',
-  defaultValue: false,
+  defaultValue: true,
 );
 
-/// Phase 11.7L.E.2 staged route swap toggle for Search. Set via
-/// `--dart-define=USE_V2_SEARCH=true`. When true, the production
-/// `/search` route renders the v2 mirror (`SearchV2Screen`) instead
-/// of the legacy screen. Same `coreDatabase.searchProducts` /
-/// `filterProducts` calls, same RecentSearchesService persistence,
-/// same quality filter vocabulary — the visual layer changes and
-/// on-market results render first per Sean's spec. Default false.
+/// Search v2 production route toggle. Defaults on after the
+/// route-coherence promotion; set `--dart-define=USE_V2_SEARCH=false`
+/// only for emergency rollback to the legacy screen.
 const bool _useV2Search = bool.fromEnvironment(
   'USE_V2_SEARCH',
-  defaultValue: false,
+  defaultValue: true,
 );
 
-/// Phase 11.7L.E.3 staged route swap toggle for QuickCheck. Set via
-/// `--dart-define=USE_V2_QUICK_CHECK=true`. When true, the production
-/// `/quick-check` route renders the v2 mirror (`QuickCheckV2Screen`)
-/// instead of the legacy "Safe to Take Together?" screen. Same pair-
-/// check engine, same `runPairCheck` helper, same `InteractionResult`
-/// + `Severity` enums — only the surface changes. Default false.
+/// Quick Check v2 production route toggle. Defaults on after the
+/// route-coherence promotion; set
+/// `--dart-define=USE_V2_QUICK_CHECK=false` only for emergency
+/// rollback to the legacy screen.
 const bool _useV2QuickCheck = bool.fromEnvironment(
   'USE_V2_QUICK_CHECK',
-  defaultValue: false,
+  defaultValue: true,
 );
 
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');

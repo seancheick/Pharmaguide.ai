@@ -174,7 +174,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   Future<void> _openManualBarcodeSheet() async {
     final barcode = await showManualBarcodeSheet(context);
     if (!mounted || barcode == null) return;
-    unawaited(_lookUpProduct(barcode.toString()));
+    unawaited(_lookUpProduct(barcode));
   }
 
   @override
@@ -183,140 +183,230 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       body: Stack(
         children: [
           // Camera
-          MobileScanner(controller: _scannerController, onDetect: _onDetect),
-          // Overlay
-          SafeArea(
-            child: Column(
-              children: [
-                // Top bar
-                Padding(
-                  padding: const EdgeInsets.all(AppTheme.space16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Scan Product',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.flash_on, color: Colors.white),
-                        onPressed: () => _scannerController.toggleTorch(),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                // Scan guide — uses Flexible so it shrinks gracefully on
-                // compact viewports (e.g. 600px test frames).
-                Flexible(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 250,
-                      maxHeight: 250,
-                    ),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white70, width: 2),
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusLarge,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space16),
-                const Text(
-                  'Center the barcode in the frame',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                const SizedBox(height: AppTheme.space6),
-                const Text(
-                  'We will match it against your on-device product catalog.',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-                const Spacer(),
-                // Bottom actions
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.space24,
-                    AppTheme.space16,
-                    AppTheme.space24,
-                    AppTheme.space24,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.keyboard, color: Colors.white),
-                          label: const Text(
-                            'Enter code manually',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.white54),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: _openManualBarcodeSheet,
-                        ),
-                      ),
-                      const SizedBox(height: AppTheme.space8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          icon: const Icon(
-                            Icons.medication_outlined,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'Add medication',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.white54),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: () => context.push(Routes.medicationEntry),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          MobileScanner(
+            controller: _scannerController,
+            onDetect: _onDetect,
+            errorBuilder: (_, _) => const ColoredBox(color: Colors.black),
           ),
-          // Loading indicator
-          if (_isLookingUp) const ScannerLookupOverlay(),
-          // Verdict flash overlay — always in tree so AnimatedOpacity can animate
-          IgnorePointer(
-            ignoring: !_showFlash,
-            child: AnimatedOpacity(
-              opacity: _showFlash ? 1.0 : 0.0,
-              duration: AppMotion.fast,
-              child: Container(
-                color: (_flashColor ?? Colors.transparent).withAlpha(180),
-                child: Center(
-                  child: Icon(
-                    _flashColor == AppTheme.severityContraindicated
-                        ? Icons.warning_rounded
-                        : Icons.check_circle_rounded,
-                    color: Colors.white,
-                    size: 80,
-                  ),
+          // Overlay
+          ValueListenableBuilder<MobileScannerState>(
+            valueListenable: _scannerController,
+            builder: (context, scannerState, _) {
+              final cameraUnavailable = scannerState.error != null;
+              final chromeColor = cameraUnavailable
+                  ? AppTheme.lightTextPrimary
+                  : Colors.white;
+              final actionColor = cameraUnavailable
+                  ? AppTheme.brandTeal
+                  : Colors.white;
+              final actionBorderColor = cameraUnavailable
+                  ? AppTheme.brandTeal.withValues(alpha: 0.35)
+                  : Colors.white70;
+              return SafeArea(
+                child: Column(
+                  children: [
+                    // Top bar
+                    Padding(
+                      padding: const EdgeInsets.all(AppTheme.space16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Scan Product',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: chromeColor,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.flash_on, color: chromeColor),
+                            onPressed: () => _scannerController.toggleTorch(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: cameraUnavailable
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: AppTheme.space24,
+                                ),
+                                child: _ScannerUnavailableCard(),
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 250,
+                                      maxHeight: 250,
+                                    ),
+                                    child: AspectRatio(
+                                      aspectRatio: 1,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.white70,
+                                            width: 2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            AppTheme.radiusLarge,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppTheme.space16),
+                                  const Text(
+                                    'Center the barcode in the frame',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppTheme.space6),
+                                  const Text(
+                                    'We will match it against your on-device product catalog.',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                    // Bottom actions
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppTheme.space24,
+                        AppTheme.space16,
+                        AppTheme.space24,
+                        AppTheme.space24,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              icon: Icon(Icons.keyboard, color: actionColor),
+                              label: Text(
+                                'Enter code manually',
+                                style: TextStyle(color: actionColor),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: actionBorderColor),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                              onPressed: _openManualBarcodeSheet,
+                            ),
+                          ),
+                          const SizedBox(height: AppTheme.space12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              icon: Icon(
+                                Icons.medication_outlined,
+                                color: actionColor,
+                              ),
+                              label: Text(
+                                'Add medication',
+                                style: TextStyle(color: actionColor),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: actionBorderColor),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                              onPressed: () =>
+                                  context.push(Routes.medicationEntry),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: kPGNavBarHeight),
+                  ],
                 ),
-              ),
+              );
+            },
+          ),
+          // Loading overlay
+          if (_isLookingUp) const ScannerLookupOverlay(),
+          // Verdict flash
+          if (_showFlash && _flashColor != null)
+            AnimatedOpacity(
+              opacity: _showFlash ? 0.35 : 0.0,
+              duration: AppMotion.fast,
+              child: Container(color: _flashColor),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScannerUnavailableCard extends StatelessWidget {
+  const _ScannerUnavailableCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 24,
+            offset: Offset(0, 12),
           ),
         ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.space20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppTheme.brandTeal.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              child: const Icon(
+                Icons.qr_code_scanner_rounded,
+                color: AppTheme.brandTeal,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space12),
+            Text(
+              'Camera unavailable',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppTheme.space6),
+            Text(
+              'Enter the barcode manually to search the same on-device catalog.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.lightTextSecondary,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -387,11 +477,17 @@ class ScannerNotFoundSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Padding(
+      // `PGModal.bottomSheet` already wraps content in `SafeArea` so
+      // adding `kPGNavBarHeight` here pushed the action row up above
+      // the device's safe-area gutter — Sean called this out as the
+      // "modal opens too high" bug on 1.0.0+4. Inside a modal there
+      // is no nav bar to clear, only the safe-area inset which the
+      // SafeArea wrapper already consumes.
       padding: const EdgeInsets.fromLTRB(
         AppTheme.space24,
         AppTheme.space8,
         AppTheme.space24,
-        AppTheme.space24 + kPGNavBarHeight,
+        AppTheme.space24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

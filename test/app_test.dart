@@ -22,6 +22,16 @@ void main() {
     );
   }
 
+  test('v2 production route defaults stay promoted', () {
+    const app = PharmaGuideApp(hasSeenOnboarding: true);
+
+    expect(app.useV2ProductDetail, isTrue);
+    expect(app.useV2ProfileSetup, isTrue);
+    expect(app.useV2MedicationEntry, isTrue);
+    expect(app.useV2Search, isTrue);
+    expect(app.useV2QuickCheck, isTrue);
+  });
+
   /// Pump past the v2 animated splash so the shell (nav bar, tabs) is
   /// visible. Tests that interact with tabs must call this helper first.
   ///

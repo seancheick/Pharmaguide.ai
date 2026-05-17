@@ -3,12 +3,16 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 // Phase 11.7i — legacy onboarding/splash imports removed after route
@@ -38,7 +42,15 @@ import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
+import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
+// Phase 11.7L — `ScannerV2Screen` / `ScannerV2Preview` exist at
+// lib/features/scanner/v2/scanner_v2_screen.dart and are referenced
+// only by the dev gallery route below (`/dev/v2/scanner`). The
+// production `/scan` route still renders the legacy ScannerScreen
+// (which delegates to CameraPermissionV2Screen for the permission
+// gate). Wiring the v2 scanner to production is a two-stage refactor
+// (scan → verdict → product detail with hero) tracked for 1.0.0+6.
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
@@ -54,10 +66,7 @@ import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.d
 /// launches straight at the named route. Designed for v2 gallery
 /// previews; ignored on release builds (the default empty value means
 /// the normal launch path applies).
-const String _devRoute = String.fromEnvironment(
-  'DEV_ROUTE',
-  defaultValue: '',
-);
+const String _devRoute = String.fromEnvironment('DEV_ROUTE', defaultValue: '');
 
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
 /// "catalog updated" snackbar from outside the widget tree when the OTA
@@ -83,12 +92,72 @@ class _PlaceholderScreen extends StatelessWidget {
   }
 }
 
-class ScanScreen extends StatelessWidget {
+class ScanScreen extends ConsumerWidget {
   const ScanScreen({super.key});
+
+  Future<void> _openManualEntry(BuildContext context, WidgetRef ref) async {
+    final barcode = await showManualBarcodeSheet(context);
+    if (!context.mounted || barcode == null) return;
+
+    try {
+      final product = await ref.read(coreDatabaseProvider).findByUpc(barcode);
+      if (!context.mounted) return;
+
+      if (product == null) {
+        _showManualLookupNotFound(context, ref, barcode);
+        return;
+      }
+
+      await ref
+          .read(userDatabaseProvider)
+          .recordScanEvent(
+            dsldId: product.dsldId,
+            upcSku: product.upcSku,
+            productName: product.productName,
+          );
+      refreshHomeSurface(ref);
+
+      if (context.mounted) {
+        // Verdict-result haptic — mirrors the in-camera flow at
+        // `scanner_screen.dart:129`. Without this, the manual-entry-
+        // via-permission-gate path silently swallows the safety-
+        // critical tactile signal for CONTRAINDICATED / UNSAFE
+        // verdicts. Severity tiers always fire even under reduce-
+        // motion; success patterns suppress (passes context).
+        unawaited(PGHaptics.forVerdict(product.verdict, context));
+        await context.push(Routes.productDetail(product.dsldId));
+      }
+    } on Object {
+      if (!context.mounted) return;
+      _showManualLookupNotFound(context, ref, barcode);
+    }
+  }
+
+  void _showManualLookupNotFound(
+    BuildContext context,
+    WidgetRef ref,
+    String barcode,
+  ) {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (ctx) => ScannerNotFoundSheet(
+        upc: barcode,
+        onTryAgain: () {
+          Navigator.pop(ctx);
+          unawaited(_openManualEntry(context, ref));
+        },
+        onSearchByName: () {
+          Navigator.pop(ctx);
+          context.push(Routes.search);
+        },
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => CameraPermissionGate(
+  Widget build(BuildContext context, WidgetRef ref) => CameraPermissionGate(
     childBuilder: () => const ScannerScreen(),
-    onManualEntry: () => showManualBarcodeSheet(context),
+    onManualEntry: () => unawaited(_openManualEntry(context, ref)),
   );
 }
 
@@ -165,11 +234,11 @@ GoRouter _buildRouter({
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
   bool useV2Theme = false,
-  bool useV2ProductDetail = false,
-  bool useV2ProfileSetup = false,
-  bool useV2MedicationEntry = false,
-  bool useV2Search = false,
-  bool useV2QuickCheck = false,
+  bool useV2ProductDetail = true,
+  bool useV2ProfileSetup = true,
+  bool useV2MedicationEntry = true,
+  bool useV2Search = true,
+  bool useV2QuickCheck = true,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -188,7 +257,7 @@ GoRouter _buildRouter({
   final String initialLocation = _devRoute.isNotEmpty
       ? _devRoute
       : '${Routes.splashIntro}?next='
-          '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
+            '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
 
   final router = GoRouter(
     // Fresh installs start at onboarding; returning users go straight to
@@ -246,10 +315,7 @@ GoRouter _buildRouter({
       // never appears in the nav bar. Will be removed (or moved behind
       // a debug-settings toggle) before v2 ships to production.
       // ---------------------------------------------------------------
-      GoRoute(
-        path: '/dev/v2',
-        builder: (_, __) => const V2Gallery(),
-      ),
+      GoRoute(path: '/dev/v2', builder: (_, __) => const V2Gallery()),
       // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
       // hero into the signed-in variant.
       //
@@ -280,10 +346,8 @@ GoRouter _buildRouter({
       // navigating home.
       GoRoute(
         path: '/dev/v2/onboarding',
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          const OnboardingV2Screen(autoFinish: false),
-        ),
+        pageBuilder: (_, state) =>
+            _platformPage(state, const OnboardingV2Screen(autoFinish: false)),
       ),
       // v2 ProfileSetup mirror — preview the 5-step editor against the
       // live `profileProvider` without committing to the env-flag swap.
@@ -352,8 +416,7 @@ GoRouter _buildRouter({
       // Phase 8.x wiring sweep.
       GoRoute(
         path: '/dev/v2/home',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const HomeV2Preview()),
+        pageBuilder: (_, state) => _platformPage(state, const HomeV2Preview()),
       ),
       // v2 Scanner — Phase 10.1 visual mirror with PGVerdictReveal
       // demo chips for each severity tier. Camera surrogate stands in
@@ -381,8 +444,7 @@ GoRouter _buildRouter({
       // swipe-to-remove.
       GoRoute(
         path: '/dev/v2/stack',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const StackV2Preview()),
+        pageBuilder: (_, state) => _platformPage(state, const StackV2Preview()),
       ),
       // Phase 11.7i — Splash + Onboarding production routes flipped to
       // v2 widgets. Legacy widgets (AnimatedSplashScreen, OnboardingScreen)
@@ -412,25 +474,19 @@ GoRouter _buildRouter({
             onApple: () => _handleSignInApple(context),
             onGoogle: () => _handleSignInGoogle(context),
             onEmail: () => showMagicLinkSheet(context),
-            // Phase 11.7L.B.9 — skip routes through the wizard gate
-            // so guest accounts get the same one-shot first-time
-            // profile setup chance signed-in accounts get. Both
-            // paths converge on the same wizard surface.
-            onSkip: () async {
-              final dest = await _postAuthDestination();
-              if (!context.mounted) return;
-              context.go(dest);
-            },
+            // Auth skip means "try as guest." Profile completion stays
+            // available through Home/Profile nudges; it should not be
+            // another forced step after the user explicitly skipped auth.
+            onSkip: () => context.go(Routes.home),
           ),
         ),
       ),
       GoRoute(
         path: Routes.profileSetup,
         pageBuilder: (_, state) {
-          // Phase 11.7L.B staged route swap — same env-toggle pattern
-          // as Product Detail v2. Both screens share `profileProvider`
-          // and the `saveToDb` semantics, so flipping the flag is a
-          // pure visual change with no behavior risk.
+          // v2 is the production default after the route-coherence
+          // promotion; the legacy screen remains behind the flag for
+          // emergency rollback.
           final Widget screen = useV2ProfileSetup
               ? const ProfileSetupV2Screen()
               : const ProfileSetupScreen();
@@ -450,9 +506,9 @@ GoRouter _buildRouter({
       GoRoute(
         path: Routes.search,
         pageBuilder: (_, state) {
-          // Phase 11.7L.E.2 staged route swap. Same db queries, same
-          // recent-searches service, same filter vocabulary — the v2
-          // mirror adds on-market-first ordering + cream chrome.
+          // v2 is the production default after the route-coherence
+          // promotion; the legacy screen remains behind the flag for
+          // emergency rollback.
           final initialCategory = state.uri.queryParameters['category'];
           final initialQuery = state.uri.queryParameters['query'];
           final Widget screen = useV2Search
@@ -472,18 +528,14 @@ GoRouter _buildRouter({
       // recent-search flows without a populated catalog DB.
       GoRoute(
         path: '/dev/v2/search',
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          const SearchV2Screen(),
-        ),
+        pageBuilder: (_, state) => _platformPage(state, const SearchV2Screen()),
       ),
       GoRoute(
         path: Routes.medicationEntry,
         pageBuilder: (_, state) {
-          // Phase 11.7L.E.1 staged route swap. Same engine + same
-          // `StackActions.addMedication` payload — the v2 mirror
-          // changes only the surface and patches the
-          // snackbar-after-pop bug.
+          // v2 is the production default after the route-coherence
+          // promotion; the legacy screen remains behind the flag for
+          // emergency rollback.
           final Widget screen = useV2MedicationEntry
               ? const MedicationEntryV2Screen()
               : const MedicationEntryScreen();
@@ -500,9 +552,9 @@ GoRouter _buildRouter({
       GoRoute(
         path: Routes.quickCheck,
         pageBuilder: (_, state) {
-          // Phase 11.7L.E.3 staged route swap. Same pair-check
-          // engine + same `runPairCheck` helper — v2 mirror just
-          // changes the surface to cream chrome.
+          // v2 is the production default after the route-coherence
+          // promotion; the legacy screen remains behind the flag for
+          // emergency rollback.
           final Widget screen = useV2QuickCheck
               ? const QuickCheckV2Screen()
               : const QuickCheckScreen();
@@ -525,24 +577,17 @@ GoRouter _buildRouter({
           // link — scrolls to that anchor on first paint. Validation lives
           // in the screen (unknown values fall through cleanly).
           final section = state.uri.queryParameters['section'];
-          // Phase 11.7g.3 staged route swap — when `useV2ProductDetail`
-          // is true (driven by `--dart-define=USE_V2_PRODUCT_DETAIL=true`),
-          // serve the v2 ConnectedScreen on the production route. Legacy
-          // path stays intact so rollback is a single Makefile flag flip.
-          // The `/dev/v2/product/:dsldId` dev route remains active for QA.
+          // v2 is the production default after the route-coherence
+          // promotion; the legacy screen remains behind the flag for
+          // emergency rollback. The `/dev/v2/product/:dsldId` dev route
+          // remains active for QA.
           final Widget productScreen = useV2ProductDetail
               ? ProductDetailV2ConnectedScreen(
                   dsldId: dsldId,
                   initialSection: section,
                 )
-              : ProductDetailScreen(
-                  dsldId: dsldId,
-                  initialSection: section,
-                );
-          return _platformPage(
-            state,
-            catalogRoute(productScreen),
-          );
+              : ProductDetailScreen(dsldId: dsldId, initialSection: section);
+          return _platformPage(state, catalogRoute(productScreen));
         },
       ),
     ],
@@ -574,9 +619,9 @@ Future<void> _handleSignInGoogle(BuildContext context) async {
   _surfaceAuthError(result);
 }
 
-/// Phase 11.7L.B.9 — pick the right landing screen after the user
-/// completes (or skips) the auth invitation. First-time users land
-/// on the profile wizard; everyone else goes straight home.
+/// Phase 11.7L.B.9 — pick the right landing screen after sign-in.
+/// First-time signed-in users land on the profile wizard; everyone
+/// else goes straight home. Guest auth-skip bypasses this gate.
 ///
 /// Public so the route handlers and the auth-state listener can
 /// share the same gate. Both paths mark the wizard seen via the
@@ -697,48 +742,24 @@ class PharmaGuideApp extends StatelessWidget {
   /// (see `.claude/plans/your-original-prompt-communicates-streamed-liskov.md`).
   final bool useV2Theme;
 
-  /// **Phase 11.7g.3 staged route swap.** When `true`, the production
-  /// `/product/:dsldId` route renders `ProductDetailV2ConnectedScreen`
-  /// instead of the legacy `ProductDetailScreen`. Leave `false` until
-  /// the TestFlight cycle completes — see
-  /// `knowledge/product-detail-v2-route-swap-readiness.md`.
-  ///
-  /// Driven via `--dart-define=USE_V2_PRODUCT_DETAIL=true` at launch so
-  /// it can be toggled per build (Makefile target / TestFlight scheme)
-  /// without modifying source. Legacy route is preserved so rollback
-  /// is a single Makefile flag flip.
+  /// Product Detail v2 production route toggle. Defaults to v2; set
+  /// `USE_V2_PRODUCT_DETAIL=false` only for emergency rollback.
   final bool useV2ProductDetail;
 
-  /// Phase 11.7L.B ProfileSetup v2 mirror toggle. When true, the
-  /// production `/profile/setup` route renders `ProfileSetupV2Screen`
-  /// instead of the legacy `ProfileSetupScreen`. Logic, providers,
-  /// and save semantics are identical between the two — pure visual
-  /// swap. Driven via `--dart-define=USE_V2_PROFILE_SETUP=true` so
-  /// the flag can be flipped per build / TestFlight scheme without
-  /// modifying source.
+  /// Profile Setup v2 production route toggle. Defaults to v2; set
+  /// `USE_V2_PROFILE_SETUP=false` only for emergency rollback.
   final bool useV2ProfileSetup;
 
-  /// Phase 11.7L.E.1 MedicationEntry v2 mirror toggle. When true,
-  /// the production `/medication-entry` route renders
-  /// `MedicationEntryV2Screen` instead of the legacy screen. Same
-  /// RxNorm API, same `StackActions.addMedication` payload — pure
-  /// visual swap + the snackbar-after-pop bug fix. Driven via
-  /// `--dart-define=USE_V2_MEDICATION_ENTRY=true`.
+  /// Medication Entry v2 production route toggle. Defaults to v2; set
+  /// `USE_V2_MEDICATION_ENTRY=false` only for emergency rollback.
   final bool useV2MedicationEntry;
 
-  /// Phase 11.7L.E.2 Search v2 mirror toggle. When true, the
-  /// production `/search` route renders `SearchV2Screen` with cream
-  /// chrome + on-market-first result ordering. Same db queries,
-  /// same `RecentSearchesService`, same filter vocabulary. Driven
-  /// via `--dart-define=USE_V2_SEARCH=true`.
+  /// Search v2 production route toggle. Defaults to v2; set
+  /// `USE_V2_SEARCH=false` only for emergency rollback.
   final bool useV2Search;
 
-  /// Phase 11.7L.E.3 QuickCheck v2 mirror toggle. When true, the
-  /// production `/quick-check` route renders `QuickCheckV2Screen`
-  /// with cream chrome + a result card surfacing item A, item B,
-  /// verdict, mechanism, and recommended action. Same pair-check
-  /// engine + same `runPairCheck` helper. Driven via
-  /// `--dart-define=USE_V2_QUICK_CHECK=true`.
+  /// Quick Check v2 production route toggle. Defaults to v2; set
+  /// `USE_V2_QUICK_CHECK=false` only for emergency rollback.
   final bool useV2QuickCheck;
 
   const PharmaGuideApp({
@@ -748,11 +769,11 @@ class PharmaGuideApp extends StatelessWidget {
     this.onRetryCatalogLoad,
     this.hasSeenOnboarding = true,
     this.useV2Theme = false,
-    this.useV2ProductDetail = false,
-    this.useV2ProfileSetup = false,
-    this.useV2MedicationEntry = false,
-    this.useV2Search = false,
-    this.useV2QuickCheck = false,
+    this.useV2ProductDetail = true,
+    this.useV2ProfileSetup = true,
+    this.useV2MedicationEntry = true,
+    this.useV2Search = true,
+    this.useV2QuickCheck = true,
   });
 
   @override
@@ -862,7 +883,8 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
         final router = _appRouter;
         if (router != null) {
           final loc = router.routerDelegate.currentConfiguration.uri.path;
-          final onAuthPath = loc.startsWith('/dev/v2/auth') ||
+          final onAuthPath =
+              loc.startsWith('/dev/v2/auth') ||
               loc == Routes.splashIntro ||
               loc == Routes.onboarding ||
               loc == Routes.authInvitation;

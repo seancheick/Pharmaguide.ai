@@ -80,9 +80,8 @@ class _CameraPermissionGateState extends State<CameraPermissionGate> {
       // Phase 11.7j.1 — prompt + denied states use the v2 component
       // (same callback shape, cream surface + halo + serif headline).
       // Legacy `_PermissionPromptScreen` / `_PermissionDeniedScreen`
-      // widgets remain in this file for now; the switch arm just
-      // delegates to the v2 widget. They can be deleted alongside
-      // the legacy ProductDetailScreen in the Phase 11.11 cleanup.
+      // widgets have been deleted; the switch arms below delegate
+      // directly to `CameraPermissionV2Screen`.
       _PermissionState.prompt => CameraPermissionV2Screen(
         denied: false,
         onPrimaryAction: _requestPermission,
