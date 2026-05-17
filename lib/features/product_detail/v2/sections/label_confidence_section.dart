@@ -1,7 +1,6 @@
 // Phase 11.7c.4 — LabelConfidence section adapter.
 //
-// V2 mirror of production's `LabelConfidenceCard` (line 414 in
-// product_detail_screen.dart). Composes the v2 PGLabelConfidenceCard
+// V2 mirror of production's `LabelConfidenceCard`. Composes the v2 PGLabelConfidenceCard
 // using the same 5 signals production uses:
 //
 //   mappedCoverage         (_product.mappedCoverage)

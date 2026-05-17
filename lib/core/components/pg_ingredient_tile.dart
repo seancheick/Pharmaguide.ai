@@ -7,7 +7,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
 
 /// v2 mirror of `_IngredientTile` in
-/// `lib/features/product_detail/product_detail_screen.dart:2434-2609`.
+///
 ///
 /// **Same structure, semantics preserved verbatim:**
 /// - Row 1: name (Geist Sans 500, ellipsis) + dose label right
@@ -156,7 +156,7 @@ class PGActiveIngredientTile extends StatelessWidget {
 }
 
 // =============================================================================
-// Form chip — mirrors _FormChip color logic from product_detail_screen.dart:2614
+// Form chip — mirrors _FormChip color logic from
 // =============================================================================
 
 class _FormChipV2 extends StatelessWidget {
@@ -188,7 +188,7 @@ class _FormChipV2 extends StatelessWidget {
 }
 
 // =============================================================================
-// Dose chip — mirrors _DoseChip color logic from product_detail_screen.dart:2647
+// Dose chip — mirrors _DoseChip color logic from
 // =============================================================================
 
 class _DoseChipV2 extends StatelessWidget {

@@ -49,7 +49,7 @@ typedef IngredientDose = ({double value, String unit});
 /// **T16.2b (2026-04-30) — field-name fix:** pre-T16.2b this read
 /// `dose_amount` + `dose_unit` (the names in an old pipeline draft
 /// spec). Live pipeline ships `quantity` + `unit`, matching what the
-/// rendering side has always used (see `product_detail_screen.dart`
+/// rendering side has always used (see
 /// `_CollapsibleIngredients` row builder, `ingredient_sort.dart`,
 /// `dose_safety.dart`). The mismatch silently broke every `aboveDose`
 /// threshold gate since T3/T4 shipped — `extractIngredientDoses`

@@ -1,9 +1,7 @@
 // Phase 11.7d.2 — Ingredients helpers (pure mapping).
 //
-// Mirrors production's per-tile mapping in
-// `lib/features/product_detail/product_detail_screen.dart:2434+`
-// (`_IngredientTile.build`) and `widgets/ingredients_card.dart:219`
-// (`_InactiveRow.build`):
+// Inactive-row mapping mirrors
+// `widgets/ingredients_card.dart` (`_InactiveRow.build`):
 //
 //   raw active map → PGActiveIngredient
 //     name           = display_label || standard_name || name || raw_source_text

@@ -1,7 +1,6 @@
 // Phase 11.7d.3 — Tradeoffs section adapter.
 //
-// V2 mirror of production's `TradeoffsSection` (line 2101 in
-// product_detail_screen.dart). Composes the v2 PGTradeoffsSection
+// V2 mirror of production's `TradeoffsSection`. Composes the v2 PGTradeoffsSection
 // from blob['score_bonuses'] (positive) + blob['score_penalties']
 // (negative).
 //

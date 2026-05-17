@@ -29,9 +29,10 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_m
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
-/// v2 Product Detail screen — composes every 8.1.1–8.1.5 mirror in the
-/// production sliver order (`product_detail_screen.dart:235+`) into a
-/// single scrollable screen.
+/// v2 Product Detail screen — composes every section adapter into a
+/// single scrollable screen. This is the canonical Product Detail
+/// surface (the legacy `ProductDetailScreen` was retired in the
+/// Phase 11.11 hygiene pass).
 ///
 /// Fixture-driven. Production wiring (Phase 8 later) replaces the
 /// fixtures with provider data — the COMPONENTS stay identical, only

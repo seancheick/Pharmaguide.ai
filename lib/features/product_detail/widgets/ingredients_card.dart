@@ -124,7 +124,7 @@ class _IngredientsCardState extends State<IngredientsCard> {
       children: [
         // Tappable header — title + count badge + chevron. Mirrors the
         // Active Ingredients section header (see `_CollapsibleIngredients`
-        // in product_detail_screen.dart).
+        // in).
         InkWell(
           onTap: () => setState(() => _expanded = !_expanded),
           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),

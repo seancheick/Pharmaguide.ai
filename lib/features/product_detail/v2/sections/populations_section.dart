@@ -1,7 +1,6 @@
 // Phase 11.7d.4 — Populations section adapter.
 //
-// V2 mirror of production's `PopulationsSection` (line 2155 in
-// product_detail_screen.dart). Composes the v2 PGPopulationsSection
+// V2 mirror of production's `PopulationsSection`. Composes the v2 PGPopulationsSection
 // from aggregated population warnings.
 //
 // Production data path (verbatim port):

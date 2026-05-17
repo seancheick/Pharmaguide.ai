@@ -14,7 +14,7 @@
 //      profile / UL / threshold gate
 //
 // Phase 11.11 will also extract `filterProductDetailWarningsForProfile`
-// from product_detail_screen.dart into this same module so the heavy
+// from into this same module so the heavy
 // transitive import disappears. For now we import the production
 // top-level fn as-is.
 

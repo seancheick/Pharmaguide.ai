@@ -1,7 +1,6 @@
 // Phase 11.7d.5 — Nutrition section adapter.
 //
-// V2 mirror of production's `NutritionPanel` (line 580 + 3010 in
-// product_detail_screen.dart). Composes the v2 PGNutritionPanel
+// V2 mirror of production's `NutritionPanel`. Composes the v2 PGNutritionPanel
 // from `_product.caloriesPerServing` (Drift column) + `blob['nutrition_detail']`
 // (Supabase blob field).
 //

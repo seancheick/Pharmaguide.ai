@@ -34,8 +34,6 @@ import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.
 import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
-// Legacy splash import dropped during Phase 11.7i route swap — see
-// note above onboarding_screen import for the rollback story.
 import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';

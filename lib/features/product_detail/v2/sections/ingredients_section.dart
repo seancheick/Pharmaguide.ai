@@ -1,7 +1,7 @@
 // Phase 11.7d.2 — Ingredients section adapter.
 //
 // V2 mirror of production's `_CollapsibleIngredients` + `IngredientsCard`
-// composition (lines 2043-2061, 2190-2419 in product_detail_screen.dart).
+// composition (lines 2043-2061, 2190-2419 in).
 //
 // Composition preserved verbatim:
 //   • PGIngredientsCard wraps both active + inactive sub-sections

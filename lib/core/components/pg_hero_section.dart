@@ -7,7 +7,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// v2 mirror of `_HeaderSection` in
-/// `lib/features/product_detail/product_detail_screen.dart:1250-1507`.
+///
 ///
 /// **Same structure preserved verbatim:**
 /// - Identity row: 96pt product image + (name / subtitle / trust chips)
@@ -248,7 +248,7 @@ class _Subtitle extends StatelessWidget {
 
 /// Trust tag — outline pill, primary tone for certifications, green
 /// for dietary signals. Mirrors `_HeroTrustChipOutline` from
-/// product_detail_screen.dart:1562.
+///.
 class PGTrustTag {
   final String label;
   final bool isCertification;

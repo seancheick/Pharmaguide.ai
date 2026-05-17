@@ -1,7 +1,7 @@
 // Phase 11.7c.1 — Blocked-banner section adapter (Hero `bottomBanner` slot).
 //
 // V2 mirror of production's private `_BlockedBanner` widget (line 1626
-// of product_detail_screen.dart). Slots into Hero's `bottomBanner` prop
+// of). Slots into Hero's `bottomBanner` prop
 // so blocked products read the same way visually but in v2 tones.
 //
 // Composition (matches production exactly — verified against parity

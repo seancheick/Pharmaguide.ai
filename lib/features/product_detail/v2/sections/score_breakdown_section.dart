@@ -1,7 +1,6 @@
 // Phase 11.7d.1 — ScoreBreakdown section adapter.
 //
-// V2 mirror of production's `ScoreBreakdownCard` (line 437 in
-// product_detail_screen.dart). Composes the v2 PGScoreBreakdownCard
+// V2 mirror of production's `ScoreBreakdownCard`. Composes the v2 PGScoreBreakdownCard
 // from the 4 pillar scores + section_breakdown blob + trust flags +
 // mappedCoverage + heroScore.
 //

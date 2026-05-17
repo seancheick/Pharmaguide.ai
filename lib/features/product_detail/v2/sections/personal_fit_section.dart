@@ -1,7 +1,6 @@
 // Phase 11.7c.2 — PersonalFit section adapter.
 //
-// V2 mirror of production's `PersonalFitCard` (line 310 in
-// product_detail_screen.dart). Composes the v2 PGPersonalFitCard
+// V2 mirror of production's `PersonalFitCard`. Composes the v2 PGPersonalFitCard
 // using the same data flow production uses:
 //
 //   fitScoreForProductProvider(dsldId) → FitScoreResult

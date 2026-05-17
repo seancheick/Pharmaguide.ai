@@ -1,9 +1,8 @@
 // Phase 11.7f — AllergenSummaryBanner section adapter (S18, LEGACY).
 //
-// V2 mirror of production's `AllergenSummaryBanner` (line 522 inside
-// product_detail_screen.dart, sourced from
-// lib/features/product_detail/widgets/pipeline_sections/
-// allergen_summary_banner.dart).
+// Adapts the legacy `AllergenSummaryBanner` (lib/features/
+// product_detail/widgets/pipeline_sections/
+// allergen_summary_banner.dart) onto the v2 product detail surface.
 //
 // **Legacy fallback only.** Renders when:
 //   • product is not blocked AND

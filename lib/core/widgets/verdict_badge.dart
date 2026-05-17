@@ -15,7 +15,7 @@ bool isBlockedVerdict(String? verdict) {
 /// unsafe to add to a supplement stack under any circumstances.
 /// Drives the FLTR-16 stack-add guard (domain + UI), which is
 /// stricter than the BLOCKED renderer override (`_BlockedBanner` in
-/// product_detail_screen.dart): we still show detail for UNSAFE
+///): we still show detail for UNSAFE
 /// products but never let them be tracked.
 bool isUnsafeVerdict(String? verdict) {
   final v = (verdict ?? '').trim().toUpperCase();

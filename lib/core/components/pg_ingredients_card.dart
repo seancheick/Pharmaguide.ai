@@ -185,7 +185,7 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
 
 /// Convenience widget that pairs with [PGIngredientsCard.activeContent].
 /// Mirrors `_CollapsibleIngredients` in
-/// `lib/features/product_detail/product_detail_screen.dart:2190`.
+///
 ///
 /// Header: "Active Ingredients [N] ⌄" — tappable to expand/collapse.
 /// Auto-expands when length ≤ 5.

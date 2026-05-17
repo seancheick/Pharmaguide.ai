@@ -1,7 +1,6 @@
 // Phase 11.7c.3 — ReviewBeforeUse section adapter.
 //
-// V2 mirror of production's `ReviewBeforeUseCard` (line 381 in
-// product_detail_screen.dart). Composes the v2 PGReviewBeforeUseCard
+// V2 mirror of production's `ReviewBeforeUseCard`. Composes the v2 PGReviewBeforeUseCard
 // using the same data flow production uses:
 //
 //   guardedWarnings (composeGuardedWarnings pipeline)
