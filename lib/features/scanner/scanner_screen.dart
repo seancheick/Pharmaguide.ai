@@ -533,8 +533,8 @@ class ScannerNotFoundSheet extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           Text(
-            "We couldn't match this barcode yet. You can submit the "
-            'label so PharmaGuide can review and add it.',
+            "We couldn't match this barcode yet. Search by name or "
+            'scan again to check the on-device catalog.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.45,
@@ -542,24 +542,6 @@ class ScannerNotFoundSheet extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.space24),
-          // Primary: Submit Product (placeholder — submission flow TBD)
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Product submission coming soon.'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.upload_rounded),
-              label: const Text('Submit Product'),
-            ),
-          ),
-          const SizedBox(height: AppTheme.space12),
           Row(
             children: [
               Expanded(

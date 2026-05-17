@@ -65,6 +65,19 @@ import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.d
 /// the normal launch path applies).
 const String _devRoute = String.fromEnvironment('DEV_ROUTE', defaultValue: '');
 
+String? normalizePharmaGuideDeepLink(Uri uri) {
+  if (uri.scheme != 'pharmaguide') return null;
+
+  final host = uri.host.trim();
+  final path = uri.path.trim();
+  final normalizedPath = host.isEmpty
+      ? (path.isEmpty ? Routes.home : path)
+      : '/$host$path';
+
+  final query = uri.query.isEmpty ? '' : '?${uri.query}';
+  return '$normalizedPath$query';
+}
+
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
 /// "catalog updated" snackbar from outside the widget tree when the OTA
 /// in-session swap completes (T0.6). Defining it here keeps the
@@ -256,6 +269,7 @@ GoRouter _buildRouter({
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.
     initialLocation: initialLocation,
+    redirect: (_, state) => normalizePharmaGuideDeepLink(state.uri),
     routes: [
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
@@ -473,6 +487,11 @@ GoRouter _buildRouter({
         ),
       ),
       GoRoute(
+        path: '/auth/callback',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const _AuthCallbackScreen()),
+      ),
+      GoRoute(
         path: Routes.profileSetup,
         pageBuilder: (_, state) =>
             _platformPage(state, const ProfileSetupV2Screen()),
@@ -524,10 +543,8 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.quickCheck,
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          catalogRoute(const QuickCheckV2Screen()),
-        ),
+        pageBuilder: (_, state) =>
+            _platformPage(state, catalogRoute(const QuickCheckV2Screen())),
       ),
       // Dev-only direct preview — bypasses both env toggle and the
       // `catalogRoute` gate so reviewers can poke at the screen
@@ -690,6 +707,15 @@ class _AppShell extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _AuthCallbackScreen extends StatelessWidget {
+  const _AuthCallbackScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 

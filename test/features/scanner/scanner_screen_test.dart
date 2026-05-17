@@ -33,10 +33,14 @@ void main() {
 
       expect(find.text('Product not found'), findsOneWidget);
       expect(find.text('UPC: 0123456789012'), findsOneWidget);
-      expect(find.text('Submit Product'), findsOneWidget);
       expect(find.text('Search by name'), findsOneWidget);
       expect(find.text('Scan again'), findsOneWidget);
-      expect(find.textContaining('submit the label'), findsOneWidget);
+      expect(find.text('Submit Product'), findsNothing);
+      expect(find.textContaining('submit the label'), findsNothing);
+      expect(
+        find.textContaining('Search by name or scan again'),
+        findsOneWidget,
+      );
     });
   });
 

@@ -36,7 +36,7 @@ class ProductDetailScrollAnchors {
   final GlobalKey ingredientsKey = GlobalKey();
 
   bool _didScrollToInitialSection = false;
-  bool _didPrimeInitialSection = false;
+  double _lastPrimeMaxScrollExtent = -1;
   int _scrollAttempts = 0;
 
   /// Scroll to the Better Alternatives sliver. No-op when the sliver
@@ -54,6 +54,24 @@ class ProductDetailScrollAnchors {
     } on Exception {
       // No-op — the user is no worse off than the deferred-key case.
     }
+  }
+
+  void resetInitialScroll() {
+    _didScrollToInitialSection = false;
+    _lastPrimeMaxScrollExtent = -1;
+    _scrollAttempts = 0;
+    if (scrollController.hasClients) {
+      try {
+        scrollController.jumpTo(0);
+      } on Exception {
+        // Best-effort reset; the next scheduled section scroll will
+        // still retry from the current viewport if this fails.
+      }
+    }
+  }
+
+  void dispose() {
+    scrollController.dispose();
   }
 
   /// Schedule a deep-link section scroll. Re-arms via post-frame
@@ -128,10 +146,11 @@ class ProductDetailScrollAnchors {
   }
 
   void _primeOffscreenSection(String section) {
-    if (_didPrimeInitialSection || !scrollController.hasClients) return;
+    if (!scrollController.hasClients) return;
     final position = scrollController.position;
     final max = position.maxScrollExtent;
     if (max <= 0) return;
+    if ((max - _lastPrimeMaxScrollExtent).abs() < 24) return;
 
     final fraction = switch (section) {
       'interactions' => 0.30,
@@ -143,7 +162,7 @@ class ProductDetailScrollAnchors {
 
     final target = max * fraction;
     if ((target - position.pixels).abs() < 24) return;
-    _didPrimeInitialSection = true;
+    _lastPrimeMaxScrollExtent = max;
     try {
       scrollController.jumpTo(target.clamp(0.0, max));
     } on Exception {

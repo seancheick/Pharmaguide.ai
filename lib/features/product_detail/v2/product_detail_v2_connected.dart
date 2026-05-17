@@ -119,21 +119,51 @@ class _ProductDetailV2ConnectedState
   void initState() {
     super.initState();
     _loadProduct();
+    _scheduleInitialSectionScroll();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProductDetailV2ConnectedScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final routeChanged =
+        oldWidget.dsldId != widget.dsldId ||
+        oldWidget.initialSection != widget.initialSection;
+    if (!routeChanged) return;
+
+    _anchors.resetInitialScroll();
+    if (oldWidget.dsldId != widget.dsldId) {
+      setState(() {
+        _product = null;
+        _productLoading = true;
+      });
+      _loadProduct();
+    }
+    _scheduleInitialSectionScroll();
+  }
+
+  Future<void> _loadProduct() async {
+    final requestedDsldId = widget.dsldId;
+    final coreDb = ref.read(coreDatabaseProvider);
+    final product = await coreDb.findById(requestedDsldId);
+    if (mounted && widget.dsldId == requestedDsldId) {
+      setState(() {
+        _product = product;
+        _productLoading = false;
+      });
+    }
+  }
+
+  void _scheduleInitialSectionScroll() {
     _anchors.scheduleInitialScroll(
       initialSection: widget.initialSection,
       isMounted: () => mounted,
     );
   }
 
-  Future<void> _loadProduct() async {
-    final coreDb = ref.read(coreDatabaseProvider);
-    final product = await coreDb.findById(widget.dsldId);
-    if (mounted) {
-      setState(() {
-        _product = product;
-        _productLoading = false;
-      });
-    }
+  @override
+  void dispose() {
+    _anchors.dispose();
+    super.dispose();
   }
 
   @override
@@ -204,16 +234,14 @@ class _ProductDetailV2ConnectedState
       hasProprietaryBlends: hasProprietaryBlends,
       isNotScored: isNotScored,
       productStatus: detailBlob?['product_status'] as Map<String, dynamic>?,
-      unmappedActives:
-          detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
+      unmappedActives: detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
     );
 
     // -------------------------------------------------------------
     // Gate booleans (see gating.dart)
     // -------------------------------------------------------------
     final showPersonalFit = shouldShowPersonalFit(isBlocked: isBlocked);
-    final showReviewBeforeUse =
-        shouldShowReviewBeforeUse(isBlocked: isBlocked);
+    final showReviewBeforeUse = shouldShowReviewBeforeUse(isBlocked: isBlocked);
     final showLabelConfidence = shouldShowLabelConfidence(
       isBlocked: isBlocked,
       hasAnySignal: labelConfidenceHasSignal,
@@ -269,8 +297,7 @@ class _ProductDetailV2ConnectedState
             blockingReason: _product?.blockingReason ?? '',
             topWarnings: parseTopWarnings(_product),
             bannedSubstanceDetail:
-                detailBlob?['banned_substance_detail']
-                    as Map<String, dynamic>?,
+                detailBlob?['banned_substance_detail'] as Map<String, dynamic>?,
           )
         : null;
 
@@ -333,9 +360,7 @@ class _ProductDetailV2ConnectedState
                           fit: fitDisplay,
                           topGoalLabel: topGoalLabelFromFit(fitResult),
                           fitReasons: fitResult?.reasons ?? const [],
-                          ingredientNames: ingredientNamesFromBlob(
-                            detailBlob,
-                          ),
+                          ingredientNames: ingredientNamesFromBlob(detailBlob),
                           userConditions: profile.conditions.toList(
                             growable: false,
                           ),
@@ -359,8 +384,9 @@ class _ProductDetailV2ConnectedState
                       child: ReviewBeforeUseSection(
                         warnings: guardedWarnings,
                         interactionHint: interactionHint,
-                        interactionSummary: detailBlob?['interaction_summary']
-                            as Map<String, dynamic>?,
+                        interactionSummary:
+                            detailBlob?['interaction_summary']
+                                as Map<String, dynamic>?,
                         ingredientDoses: ingredientDoses,
                         matchedAllergens: matchedAllergens,
                         freeFromClaims: freeFromClaims,
@@ -380,10 +406,12 @@ class _ProductDetailV2ConnectedState
                       mappedCoverage: mappedCoverage,
                       hasProprietaryBlends: hasProprietaryBlends,
                       isNotScored: isNotScored,
-                      productStatus: detailBlob?['product_status']
-                          as Map<String, dynamic>?,
-                      unmappedActives: detailBlob?['unmapped_actives']
-                          as Map<String, dynamic>?,
+                      productStatus:
+                          detailBlob?['product_status']
+                              as Map<String, dynamic>?,
+                      unmappedActives:
+                          detailBlob?['unmapped_actives']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -411,14 +439,14 @@ class _ProductDetailV2ConnectedState
                       safetyPurity: _product?.scoreSafetyPurity,
                       evidenceResearch: _product?.scoreEvidenceResearch,
                       brandTrust: _product?.scoreBrandTrust,
-                      hasThirdPartyTesting:
-                          _product?.hasThirdPartyTesting == 1,
+                      hasThirdPartyTesting: _product?.hasThirdPartyTesting == 1,
                       isTrustedManufacturer:
                           _product?.isTrustedManufacturer == 1,
                       heroScore: score100,
                       mappedCoverage: mappedCoverage,
-                      sectionBreakdown: detailBlob?['section_breakdown']
-                          as Map<String, dynamic>?,
+                      sectionBreakdown:
+                          detailBlob?['section_breakdown']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -429,10 +457,10 @@ class _ProductDetailV2ConnectedState
                       key: _anchors.ingredientsKey,
                       child: buildIngredientsSection(
                         context: context,
-                        ingredients: ((detailBlob?['ingredients'] as List?) ??
-                                const [])
-                            .whereType<Map<String, dynamic>>()
-                            .toList(growable: false),
+                        ingredients:
+                            ((detailBlob?['ingredients'] as List?) ?? const [])
+                                .whereType<Map<String, dynamic>>()
+                                .toList(growable: false),
                         inactiveIngredients:
                             ((detailBlob?['inactive_ingredients'] as List?) ??
                                     const [])
@@ -440,8 +468,10 @@ class _ProductDetailV2ConnectedState
                                 .toList(growable: false),
                         ulAnalysis:
                             ((detailBlob?['rda_ul_data']
-                                            as Map<String, dynamic>?)?[
-                                        'analyzed_ingredients']
+                                        as Map<
+                                          String,
+                                          dynamic
+                                        >?)?['analyzed_ingredients']
                                     as List?)
                                 ?.whereType<Map<String, dynamic>>()
                                 .toList(growable: false),
@@ -493,8 +523,9 @@ class _ProductDetailV2ConnectedState
                   if (showDeepDive) ...[
                     buildNutritionSection(
                       caloriesPerServing: _product?.caloriesPerServing,
-                      nutritionDetail: detailBlob?['nutrition_detail']
-                          as Map<String, dynamic>?,
+                      nutritionDetail:
+                          detailBlob?['nutrition_detail']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -502,8 +533,9 @@ class _ProductDetailV2ConnectedState
                   // ---- 10. Certifications (WIRED, 11.7e) -----------
                   if (showDeepDive) ...[
                     buildCertificationsSection(
-                      certificationDetail: detailBlob?['certification_detail']
-                          as Map<String, dynamic>?,
+                      certificationDetail:
+                          detailBlob?['certification_detail']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -511,8 +543,8 @@ class _ProductDetailV2ConnectedState
                   // ---- 11. Evidence (WIRED, 11.7e) -----------------
                   if (showDeepDive) ...[
                     buildEvidenceSection(
-                      evidenceData: detailBlob?['evidence_data']
-                          as Map<String, dynamic>?,
+                      evidenceData:
+                          detailBlob?['evidence_data'] as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -529,8 +561,9 @@ class _ProductDetailV2ConnectedState
                   // ---- 12. HeavyMetal (WIRED, 11.7e) ---------------
                   if (showDeepDive) ...[
                     buildHeavyMetalSection(
-                      heavyMetalDetail: detailBlob?['heavy_metal_detail']
-                          as Map<String, dynamic>?,
+                      heavyMetalDetail:
+                          detailBlob?['heavy_metal_detail']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -538,8 +571,9 @@ class _ProductDetailV2ConnectedState
                   // ---- 13. Formulation (WIRED, 11.7e) --------------
                   if (showDeepDive) ...[
                     buildFormulationSection(
-                      formulationDetail: detailBlob?['formulation_detail']
-                          as Map<String, dynamic>?,
+                      formulationDetail:
+                          detailBlob?['formulation_detail']
+                              as Map<String, dynamic>?,
                       ingredientQualityData:
                           detailBlob?['ingredient_quality_data']
                               as Map<String, dynamic>?,
@@ -550,8 +584,9 @@ class _ProductDetailV2ConnectedState
                   // ---- 14. Probiotic (WIRED, 11.7e) ----------------
                   if (showDeepDive) ...[
                     buildProbioticSection(
-                      probioticDetail: detailBlob?['probiotic_detail']
-                          as Map<String, dynamic>?,
+                      probioticDetail:
+                          detailBlob?['probiotic_detail']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -559,8 +594,9 @@ class _ProductDetailV2ConnectedState
                   // ---- 15. ManufacturerViolations (WIRED, 11.7e) ---
                   if (showDeepDive) ...[
                     buildManufacturerViolationsSection(
-                      manufacturerDetail: detailBlob?['manufacturer_detail']
-                          as Map<String, dynamic>?,
+                      manufacturerDetail:
+                          detailBlob?['manufacturer_detail']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -667,7 +703,6 @@ class _ProductDetailV2ConnectedState
       ],
     );
   }
-
 }
 
 // All sections wired (Phase 11.7e completed). The _SectionPlaceholder
