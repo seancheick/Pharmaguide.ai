@@ -29,6 +29,9 @@ void main() {
             productName: 'Potassium Complex',
             brandName: const drift.Value('Test Brand'),
             ingredientFingerprint: const drift.Value('["potassium"]'),
+            // `canonicalIdsForProduct` reads `key_ingredient_tags`
+            // first (Phase 11.11.B canonical resolver unification).
+            keyIngredientTags: const drift.Value('["potassium"]'),
             score100Equivalent: const drift.Value(82),
             exportVersion: 'test',
             exportedAt: '2026-05-17T00:00:00Z',

@@ -20,6 +20,41 @@ real fixes, not quick patches; toggle-default flips require route
 evidence and tests; no legacy deletes or major UX redesigns until a
 clean walkthrough on 1.0.0+5.
 
+**2026-05-17 — CRITICAL CATALOG DATA GAP (Tier 0 blocker)**
+
+Discovered during local-build Quick Check verification: 100% of
+bundled catalog products (8441/8441) have `ingredient_fingerprint`
+with `"nutrients": {}` empty. 57% of products (4848/8441) also have
+empty `key_ingredient_tags`. As a direct consequence, supplement-
+involved Quick Check returned "no known interaction" for ANY
+supplement whose canonical ids weren't reachable — including
+canonical safety pairs like Lisinopril (ACE inhibitor class) +
+Spring Valley Natural Potassium 99mg.
+
+This was masking what looked like a logic bug ("class-fallback isn't
+firing") but is actually a data-quality emergency.
+
+Code-side mitigations landed in commit `<TBD>`:
+- `extractCanonicalIds` rewritten to parse the structured shape
+  (`{"nutrients": {...}, "herbs": [...]}`) instead of returning
+  top-level structure keys as if they were canonical ids
+- `QuickCheckItem.canonicalIds` now uses `canonicalIdsForProduct`
+  (the same resolver Stack uses) so both surfaces agree on which
+  ids fire which rules
+- `runPairCheck` (supplement-supplement path) uses the unified
+  resolver too
+- Empty `canonicalIds` now correctly routes to the "Ingredient data
+  is incomplete" state card (via `hasInteractionIdentity`)
+
+**Required for 1.0.0+5 v2.0 GA**: catalog OTA must regenerate with
+populated `nutrients{}` map (canonical ids keyed by ingredient
+name) for every product. Until then, Quick Check + Stack
+interaction checks will degrade to "ingredient data incomplete"
+for affected products — which is the honest UX, but blocks the
+"Quick Check works" claim for beta.
+
+---
+
 **2026-05-16 build 1.0.0+4 feedback update:** The build is materially
 better, but not coherent enough for another TestFlight upload yet.
 Do local simulator / device-simulator verification for the next repair

@@ -871,46 +871,63 @@ class _ResultsBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (results.isEmpty) {
-      // Safety rule (Sean 2026-05-17): never imply "safe" when our DB
-      // has no row. PharmaGuide's curated DB ships ~136 interactions —
-      // anything not catalogued is "we don't know," not "we approve."
-      // When class hydration is also incomplete (RxNorm offline /
-      // niche drug), strengthen the disclaimer further: most curated
-      // medication rules are class-keyed, so an empty result without
-      // classes is a likely false-negative.
-      final tint = coverageIncomplete ? V2Colors.caution : V2Colors.monitor;
-      final tintBg = coverageIncomplete
-          ? V2Colors.cautionTint
-          : V2Colors.monitorTint;
-      final eyebrow = coverageIncomplete
-          ? 'Coverage incomplete'
-          : 'No known interaction in our database';
-      final body = coverageIncomplete
-          ? 'We couldn\'t fully resolve drug class data for one or '
-                'both selections — interaction coverage may be '
-                'incomplete. Always confirm with a clinician.'
-          : 'Coverage is limited — always confirm with a clinician.';
+      // Two empty-result shapes (Sean 2026-05-17):
+      //
+      // 1. CLEAN CHECK, NO CURATED ROW (`coverageIncomplete: false`)
+      //    — we DID resolve both items' identity (supplement
+      //    canonicals + medication classes) and the curated DB
+      //    simply has no row for this pair. Surface neutrally — no
+      //    warning tint, no "coverage limited" hedge, no alarm
+      //    icon. The user did everything right and our DB doesn't
+      //    flag this pair; the calm-advisory voice fits.
+      //
+      // 2. COVERAGE INCOMPLETE (`coverageIncomplete: true`) —
+      //    medication's RxNorm class hydration came back empty OR
+      //    supplement's ingredient fingerprint had no canonical ids.
+      //    Class-keyed rules can't fire under either condition, so
+      //    we MUST surface a caution-tinted "we couldn't fully
+      //    check" notice rather than imply a clean check.
+      final Color tint;
+      final Color tintBg;
+      final IconData icon;
+      final String eyebrow;
+      final String body;
+      if (coverageIncomplete) {
+        tint = V2Colors.caution;
+        tintBg = V2Colors.cautionTint;
+        icon = Icons.warning_amber_rounded;
+        eyebrow = 'Coverage incomplete';
+        body =
+            'We couldn\'t fully resolve drug class or ingredient '
+            'data for one or both selections — interaction coverage '
+            'may be incomplete. Always confirm with a clinician.';
+      } else {
+        tint = V2Colors.accent;
+        tintBg = V2Colors.surface;
+        icon = Icons.check_circle_outline_rounded;
+        eyebrow = 'No interaction catalogued';
+        body =
+            'PharmaGuide didn\'t find an interaction between these '
+            'two in our curated database. Coverage is finite — if '
+            'in doubt, your clinician is the right call.';
+      }
       return Container(
         padding: const EdgeInsets.all(V2Spacing.space24),
         decoration: BoxDecoration(
           color: tintBg,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: tint, width: 1.5),
+          border: Border.all(color: tint, width: coverageIncomplete ? 1.5 : 1),
+          boxShadow: coverageIncomplete ? null : V2Shadows.sm,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  coverageIncomplete
-                      ? Icons.warning_amber_rounded
-                      : Icons.info_outline_rounded,
-                  color: tint,
-                  size: 22,
-                ),
+                Icon(icon, color: tint, size: 22),
                 const SizedBox(width: V2Spacing.space12),
-                PGEyebrow(eyebrow, color: tint),
+                Expanded(child: PGEyebrow(eyebrow, color: tint)),
               ],
             ),
             const SizedBox(height: V2Spacing.space12),

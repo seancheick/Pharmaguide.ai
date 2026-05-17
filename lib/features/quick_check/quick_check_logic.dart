@@ -1,8 +1,8 @@
 // Pure helpers for the "Safe to Take Together?" quick-check feature.
 //
 // These live outside the widget so they can be unit-tested without a
-// Flutter test harness. The widget (`quick_check_screen.dart`) is a thin
-// stateful consumer on top of this logic + the interaction DB.
+// Flutter test harness. `QuickCheckV2Screen` is a thin stateful
+// consumer on top of this logic + the interaction DB.
 
 import 'dart:convert';
 
@@ -11,6 +11,8 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart'
+    show canonicalIdsForProduct;
 
 enum QuickCheckItemType { supplement, medication }
 
@@ -73,8 +75,16 @@ class QuickCheckItem {
   bool get isSupplement => type == QuickCheckItemType.supplement;
   bool get isMedication => type == QuickCheckItemType.medication;
 
-  List<String> get canonicalIds =>
-      isSupplement ? extractCanonicalIds(product?.ingredientFingerprint) : [];
+  /// Canonical ingredient ids the interaction DB looks up by. Sourced
+  /// via `canonicalIdsForProduct` (the same helper Stack uses) so the
+  /// two paths agree on which ids fire which curated rules:
+  ///   1. Primary: `key_ingredient_tags` column (pipeline IQM tags)
+  ///   2. Fallback: `herbs` list inside `ingredient_fingerprint`
+  /// Returns `[]` for medications (which look up by RXCUI + class).
+  List<String> get canonicalIds {
+    if (!isSupplement || product == null) return const <String>[];
+    return canonicalIdsForProduct(product!);
+  }
 
   List<String> get rxcuis {
     final out = <String>{
@@ -131,26 +141,87 @@ class QuickCheckItem {
   }
 }
 
-/// Extract lowercase canonical ingredient IDs from a `ingredient_fingerprint`
-/// JSON payload.
+/// Extract lowercase canonical ingredient IDs from an
+/// `ingredient_fingerprint` JSON payload.
 ///
-/// The pipeline emits two shapes:
-///   - a map keyed by canonical id (values are metadata)
-///   - a bare list of canonical ids
+/// The pipeline has emitted three shapes over time:
 ///
-/// Returns an empty list for null, empty string, or malformed JSON.
+/// 1. **Structured (current pipeline output, 2026-04+)** — a map with
+///    reserved top-level keys for each ingredient category:
+///    ```json
+///    {
+///      "nutrients": {"potassium": {...}, "magnesium": {...}},
+///      "herbs": ["ashwagandha", "ginger"],
+///      "categories": ["minerals", "vitamins"],
+///      "pharmacological_flags": {"stimulant": false, ...}
+///    }
+///    ```
+///    Canonical ids live INSIDE `nutrients` keys and `herbs` list
+///    entries. Top-level keys are structure, not canonical ids.
+///
+/// 2. **Legacy keyed map** — a map keyed by canonical id with
+///    metadata values: `{"calcium": {"dose":500}, "iron": {"dose":18}}`.
+///
+/// 3. **Bare list** — `["potassium", "magnesium"]`.
+///
+/// We detect shape 1 by the presence of reserved structure keys; any
+/// other map is treated as shape 2. Lists are shape 3.
+///
+/// Returns an empty list for null, empty string, malformed JSON, or
+/// a structured payload whose `nutrients` and `herbs` are both empty.
+/// Safety note (Sean 2026-05-17): an empty list here means the
+/// product fingerprint can't drive an interaction lookup; callers
+/// (Quick Check, StackInteractionChecker) MUST surface "ingredient
+/// data is incomplete" rather than imply a clean check.
+const Set<String> _structuredFingerprintKeys = <String>{
+  'nutrients',
+  'herbs',
+  'categories',
+  'pharmacological_flags',
+};
+
 List<String> extractCanonicalIds(String? fingerprint) {
   if (fingerprint == null || fingerprint.isEmpty) return const [];
   try {
     final decoded = jsonDecode(fingerprint);
     if (decoded is Map) {
-      return decoded.keys.map((k) => k.toString().toLowerCase()).toList();
+      // Detect structured shape: at least one reserved key present.
+      final mapKeys = decoded.keys.map((k) => k.toString()).toSet();
+      final isStructured = mapKeys
+          .intersection(_structuredFingerprintKeys)
+          .isNotEmpty;
+      if (isStructured) {
+        final ids = <String>{};
+        final nutrients = decoded['nutrients'];
+        if (nutrients is Map) {
+          for (final k in nutrients.keys) {
+            final s = k.toString().trim().toLowerCase();
+            if (s.isNotEmpty) ids.add(s);
+          }
+        }
+        final herbs = decoded['herbs'];
+        if (herbs is List) {
+          for (final h in herbs) {
+            if (h == null) continue;
+            final s = h.toString().trim().toLowerCase();
+            if (s.isNotEmpty) ids.add(s);
+          }
+        }
+        // `categories` and `pharmacological_flags` are intentionally
+        // NOT treated as canonical ids — they're too coarse / boolean
+        // and would produce false matches against the interaction DB.
+        return ids.toList(growable: false);
+      }
+      // Shape 2: legacy keyed map.
+      return decoded.keys
+          .map((k) => k.toString().toLowerCase())
+          .toList(growable: false);
     }
     if (decoded is List) {
       return decoded
           .where((e) => e != null)
           .map((e) => e.toString().toLowerCase())
-          .toList();
+          .toList(growable: false);
     }
   } on FormatException {
     // fall through
@@ -189,8 +260,11 @@ Future<List<InteractionResult>> runPairCheck(
   ProductsCoreData b,
   InteractionDatabase db,
 ) async {
-  final idsA = extractCanonicalIds(a.ingredientFingerprint);
-  final idsB = extractCanonicalIds(b.ingredientFingerprint);
+  // Use the canonical id resolver Stack uses (`key_ingredient_tags`
+  // primary, `ingredient_fingerprint.herbs` fallback) so Quick Check
+  // and Stack agree on which rules fire for which products.
+  final idsA = canonicalIdsForProduct(a);
+  final idsB = canonicalIdsForProduct(b);
   if (idsA.isEmpty || idsB.isEmpty) return const [];
 
   final results = <InteractionResult>[];

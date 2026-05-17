@@ -2,6 +2,8 @@
 // check feature. The widget itself has presentation-only concerns; all
 // interesting logic lives in `quick_check_logic.dart` and is exercised here.
 
+import 'dart:convert';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
@@ -51,6 +53,47 @@ void main() {
       expect(
         extractCanonicalIds('["calcium",null,"iron"]'),
         equals(['calcium', 'iron']),
+      );
+    });
+
+    // Phase 11.11 safety fix (Sean 2026-05-17): the current pipeline
+    // emits a structured shape. Previous parser returned the top-level
+    // structure keys ("nutrients", "herbs", ...) as if they were
+    // canonical ids — silently breaking every supplement-involved
+    // Quick Check.
+    test(
+      'structured shape pulls canonical ids from nutrients keys + herbs list',
+      () {
+        final out = extractCanonicalIds(
+          '{"nutrients":{"Potassium":{},"VITAMIN_D":{}},'
+          '"herbs":["Ashwagandha","ginger"],'
+          '"categories":["minerals","vitamins"],'
+          '"pharmacological_flags":{"stimulant":false}}',
+        );
+        expect(
+          out,
+          containsAll(['potassium', 'vitamin_d', 'ashwagandha', 'ginger']),
+        );
+        expect(out, hasLength(4));
+        // categories + pharmacological_flags are NOT canonical ids —
+        // never include them.
+        expect(out.contains('minerals'), isFalse);
+        expect(out.contains('stimulant'), isFalse);
+      },
+    );
+
+    test('structured shape with empty nutrients + empty herbs returns empty',
+        () {
+      // The Spring Valley Potassium failure mode that masked the
+      // ACE inhibitor + Potassium rule on TestFlight 1.0.0+4.
+      // Empty canonical ids must propagate so callers can surface
+      // "ingredient data is incomplete" rather than imply clean check.
+      expect(
+        extractCanonicalIds(
+          '{"nutrients":{},"herbs":[],"categories":["minerals"],'
+          '"pharmacological_flags":{}}',
+        ),
+        isEmpty,
       );
     });
   });
@@ -439,12 +482,37 @@ void main() {
 // Fixtures
 // ---------------------------------------------------------------------------
 
+// Test product fixture. `fingerprint` accepts either the legacy bare-
+// list shape (`'["calcium"]'`) or the legacy keyed-map shape
+// (`'{"calcium": {...}}'`) and projects the canonical ids into
+// `keyIngredientTags` — the column production reads via
+// `canonicalIdsForProduct`. Lets the pair-matching tests focus on
+// interaction semantics instead of fingerprint parsing edge cases.
 ProductsCoreData _product(String id, String name, String? fingerprint) {
+  String? tagsJson;
+  if (fingerprint != null && fingerprint.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(fingerprint);
+      List<String> ids = const [];
+      if (decoded is List) {
+        ids = decoded
+            .where((e) => e != null)
+            .map((e) => e.toString())
+            .toList(growable: false);
+      } else if (decoded is Map) {
+        ids = decoded.keys.map((k) => k.toString()).toList(growable: false);
+      }
+      tagsJson = jsonEncode(ids);
+    } on FormatException {
+      tagsJson = null;
+    }
+  }
   return ProductsCoreData(
     dsldId: id,
     productName: name,
     productStatus: 'active',
     ingredientFingerprint: fingerprint,
+    keyIngredientTags: tagsJson,
     exportVersion: 'test',
     exportedAt: '2026-04-16T00:00:00Z',
   );
