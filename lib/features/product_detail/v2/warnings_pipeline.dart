@@ -19,7 +19,7 @@
 // top-level fn as-is.
 
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/features/product_detail/product_detail_screen.dart'
+import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show filterProductDetailWarningsForProfile;
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 

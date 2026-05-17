@@ -15,22 +15,22 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
-// Phase 11.7i — legacy onboarding/splash imports removed after route
-// swap. Files remain on disk (lib/features/onboarding/onboarding_screen.dart,
-// lib/features/splash/animated_splash_screen.dart) so rollback is a
-// `git revert` away. Removed to keep analyzer clean.
-import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
+// Phase 11.11 hygiene (2026-05-17): legacy v1 widget imports removed
+// after the route-coherence promotion proved stable. Production
+// routes (`/product/:dsldId`, `/search`, `/quick-check`,
+// `/medication-entry`, `/profile/setup`) render their v2 widgets
+// unconditionally. The on-disk v1 files (ProductDetailScreen,
+// SearchScreen, QuickCheckScreen, MedicationEntryScreen,
+// ProfileSetupScreen, AnimatedSplashScreen, OnboardingScreen) are
+// removed in the same hygiene pass — rollback is a git revert away.
 import 'package:pharmaguide/features/profile/v2/profile_setup_v2_screen.dart';
 import 'package:pharmaguide/features/profile/v2/profile_wizard_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
-import 'package:pharmaguide/features/search/search_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
-import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
-import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
 import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
@@ -54,7 +54,6 @@ import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
-import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
 import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.dart';
 
 /// Optional override for [GoRouter.initialLocation]. Set via:
@@ -234,11 +233,6 @@ GoRouter _buildRouter({
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
   bool useV2Theme = false,
-  bool useV2ProductDetail = true,
-  bool useV2ProfileSetup = true,
-  bool useV2MedicationEntry = true,
-  bool useV2Search = true,
-  bool useV2QuickCheck = true,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -349,10 +343,9 @@ GoRouter _buildRouter({
         pageBuilder: (_, state) =>
             _platformPage(state, const OnboardingV2Screen(autoFinish: false)),
       ),
-      // v2 ProfileSetup mirror — preview the 5-step editor against the
-      // live `profileProvider` without committing to the env-flag swap.
-      // This route renders ProfileSetupV2Screen unconditionally; the
-      // production `/profile/setup` route honors `useV2ProfileSetup`.
+      // v2 ProfileSetup mirror — dev gallery preview against the live
+      // `profileProvider`. Production `/profile/setup` renders the
+      // same widget unconditionally (Phase 11.11 hygiene).
       GoRoute(
         path: '/dev/v2/profile-setup',
         pageBuilder: (_, state) =>
@@ -483,15 +476,8 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.profileSetup,
-        pageBuilder: (_, state) {
-          // v2 is the production default after the route-coherence
-          // promotion; the legacy screen remains behind the flag for
-          // emergency rollback.
-          final Widget screen = useV2ProfileSetup
-              ? const ProfileSetupV2Screen()
-              : const ProfileSetupScreen();
-          return _platformPage(state, screen);
-        },
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProfileSetupV2Screen()),
       ),
       // Phase 11.7L.B.9 — first-time profile wizard. Only reached on
       // the post-auth handoff for accounts that haven't seen it; the
@@ -506,21 +492,17 @@ GoRouter _buildRouter({
       GoRoute(
         path: Routes.search,
         pageBuilder: (_, state) {
-          // v2 is the production default after the route-coherence
-          // promotion; the legacy screen remains behind the flag for
-          // emergency rollback.
           final initialCategory = state.uri.queryParameters['category'];
           final initialQuery = state.uri.queryParameters['query'];
-          final Widget screen = useV2Search
-              ? SearchV2Screen(
-                  initialCategory: initialCategory,
-                  initialQuery: initialQuery,
-                )
-              : SearchScreen(
-                  initialCategory: initialCategory,
-                  initialQuery: initialQuery,
-                );
-          return _platformPage(state, catalogRoute(screen));
+          return _platformPage(
+            state,
+            catalogRoute(
+              SearchV2Screen(
+                initialCategory: initialCategory,
+                initialQuery: initialQuery,
+              ),
+            ),
+          );
         },
       ),
       // Dev-only direct preview — bypasses both env toggle and
@@ -532,15 +514,8 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.medicationEntry,
-        pageBuilder: (_, state) {
-          // v2 is the production default after the route-coherence
-          // promotion; the legacy screen remains behind the flag for
-          // emergency rollback.
-          final Widget screen = useV2MedicationEntry
-              ? const MedicationEntryV2Screen()
-              : const MedicationEntryScreen();
-          return _platformPage(state, screen);
-        },
+        pageBuilder: (_, state) =>
+            _platformPage(state, const MedicationEntryV2Screen()),
       ),
       // Direct dev preview — bypasses the env toggle so reviewers
       // can poke at the v2 screen without restarting with a flag.
@@ -551,15 +526,10 @@ GoRouter _buildRouter({
       ),
       GoRoute(
         path: Routes.quickCheck,
-        pageBuilder: (_, state) {
-          // v2 is the production default after the route-coherence
-          // promotion; the legacy screen remains behind the flag for
-          // emergency rollback.
-          final Widget screen = useV2QuickCheck
-              ? const QuickCheckV2Screen()
-              : const QuickCheckScreen();
-          return _platformPage(state, catalogRoute(screen));
-        },
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          catalogRoute(const QuickCheckV2Screen()),
+        ),
       ),
       // Dev-only direct preview — bypasses both env toggle and the
       // `catalogRoute` gate so reviewers can poke at the screen
@@ -577,17 +547,15 @@ GoRouter _buildRouter({
           // link — scrolls to that anchor on first paint. Validation lives
           // in the screen (unknown values fall through cleanly).
           final section = state.uri.queryParameters['section'];
-          // v2 is the production default after the route-coherence
-          // promotion; the legacy screen remains behind the flag for
-          // emergency rollback. The `/dev/v2/product/:dsldId` dev route
-          // remains active for QA.
-          final Widget productScreen = useV2ProductDetail
-              ? ProductDetailV2ConnectedScreen(
-                  dsldId: dsldId,
-                  initialSection: section,
-                )
-              : ProductDetailScreen(dsldId: dsldId, initialSection: section);
-          return _platformPage(state, catalogRoute(productScreen));
+          return _platformPage(
+            state,
+            catalogRoute(
+              ProductDetailV2ConnectedScreen(
+                dsldId: dsldId,
+                initialSection: section,
+              ),
+            ),
+          );
         },
       ),
     ],
@@ -742,26 +710,6 @@ class PharmaGuideApp extends StatelessWidget {
   /// (see `.claude/plans/your-original-prompt-communicates-streamed-liskov.md`).
   final bool useV2Theme;
 
-  /// Product Detail v2 production route toggle. Defaults to v2; set
-  /// `USE_V2_PRODUCT_DETAIL=false` only for emergency rollback.
-  final bool useV2ProductDetail;
-
-  /// Profile Setup v2 production route toggle. Defaults to v2; set
-  /// `USE_V2_PROFILE_SETUP=false` only for emergency rollback.
-  final bool useV2ProfileSetup;
-
-  /// Medication Entry v2 production route toggle. Defaults to v2; set
-  /// `USE_V2_MEDICATION_ENTRY=false` only for emergency rollback.
-  final bool useV2MedicationEntry;
-
-  /// Search v2 production route toggle. Defaults to v2; set
-  /// `USE_V2_SEARCH=false` only for emergency rollback.
-  final bool useV2Search;
-
-  /// Quick Check v2 production route toggle. Defaults to v2; set
-  /// `USE_V2_QUICK_CHECK=false` only for emergency rollback.
-  final bool useV2QuickCheck;
-
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
@@ -769,11 +717,6 @@ class PharmaGuideApp extends StatelessWidget {
     this.onRetryCatalogLoad,
     this.hasSeenOnboarding = true,
     this.useV2Theme = false,
-    this.useV2ProductDetail = true,
-    this.useV2ProfileSetup = true,
-    this.useV2MedicationEntry = true,
-    this.useV2Search = true,
-    this.useV2QuickCheck = true,
   });
 
   @override
@@ -791,11 +734,6 @@ class PharmaGuideApp extends StatelessWidget {
         catalogUnavailableReason: catalogUnavailableReason,
         onRetryCatalogLoad: onRetryCatalogLoad,
         useV2Theme: useV2Theme,
-        useV2ProductDetail: useV2ProductDetail,
-        useV2ProfileSetup: useV2ProfileSetup,
-        useV2MedicationEntry: useV2MedicationEntry,
-        useV2Search: useV2Search,
-        useV2QuickCheck: useV2QuickCheck,
       ),
       // Global Dynamic Type clamp.
       //

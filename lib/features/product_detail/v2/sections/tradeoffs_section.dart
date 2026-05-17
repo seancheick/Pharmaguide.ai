@@ -30,7 +30,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_tradeoffs_section.dart';
-import 'package:pharmaguide/features/product_detail/product_detail_screen.dart'
+import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show sanitizeWhyDetail;
 
 /// Build the Tradeoffs section. Returns `SizedBox.shrink()` when both

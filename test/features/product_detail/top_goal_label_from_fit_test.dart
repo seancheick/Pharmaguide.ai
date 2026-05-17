@@ -13,7 +13,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
-import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
+import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart';
 
 FitScoreResult _result(List<String> reasons) {
   return FitScoreResult(

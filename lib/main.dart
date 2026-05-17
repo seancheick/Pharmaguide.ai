@@ -26,49 +26,12 @@ import 'package:pharmaguide/services/onboarding_prefs.dart';
 /// version doesn't trigger a redundant download/swap cycle (T0.6).
 const String _kCatalogVersionPrefKey = 'activeCatalogVersion';
 
-/// Product Detail v2 production route toggle. Defaults on after the
-/// route-coherence promotion; set
-/// `--dart-define=USE_V2_PRODUCT_DETAIL=false` only for emergency
-/// rollback to the legacy ProductDetailScreen.
-const bool _useV2ProductDetail = bool.fromEnvironment(
-  'USE_V2_PRODUCT_DETAIL',
-  defaultValue: true,
-);
-
-/// Profile setup v2 production route toggle. Defaults on after the
-/// route-coherence promotion; set
-/// `--dart-define=USE_V2_PROFILE_SETUP=false` only for emergency
-/// rollback to the legacy screen.
-const bool _useV2ProfileSetup = bool.fromEnvironment(
-  'USE_V2_PROFILE_SETUP',
-  defaultValue: true,
-);
-
-/// Medication Entry v2 production route toggle. Defaults on after the
-/// route-coherence promotion; set
-/// `--dart-define=USE_V2_MEDICATION_ENTRY=false` only for emergency
-/// rollback to the legacy screen.
-const bool _useV2MedicationEntry = bool.fromEnvironment(
-  'USE_V2_MEDICATION_ENTRY',
-  defaultValue: true,
-);
-
-/// Search v2 production route toggle. Defaults on after the
-/// route-coherence promotion; set `--dart-define=USE_V2_SEARCH=false`
-/// only for emergency rollback to the legacy screen.
-const bool _useV2Search = bool.fromEnvironment(
-  'USE_V2_SEARCH',
-  defaultValue: true,
-);
-
-/// Quick Check v2 production route toggle. Defaults on after the
-/// route-coherence promotion; set
-/// `--dart-define=USE_V2_QUICK_CHECK=false` only for emergency
-/// rollback to the legacy screen.
-const bool _useV2QuickCheck = bool.fromEnvironment(
-  'USE_V2_QUICK_CHECK',
-  defaultValue: true,
-);
+// Phase 11.11 hygiene (2026-05-17): the 5 USE_V2_* staged route
+// toggles were removed after the route-coherence promotion proved
+// stable. v2 is now the unconditional production route for Product
+// Detail, Profile Setup, Medication Entry, Search, and Quick Check.
+// If a future rollback is needed, restore via git revert; carrying
+// the dart-define plumbing forever was creating audit noise.
 
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnv = String.fromEnvironment(
@@ -497,11 +460,6 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           catalogUnavailableReason: _catalogUnavailableReason,
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
-          useV2ProductDetail: _useV2ProductDetail,
-          useV2ProfileSetup: _useV2ProfileSetup,
-          useV2MedicationEntry: _useV2MedicationEntry,
-          useV2Search: _useV2Search,
-          useV2QuickCheck: _useV2QuickCheck,
         ),
       ),
     );
