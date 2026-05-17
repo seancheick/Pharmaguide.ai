@@ -2,7 +2,7 @@
 
 **Owner:** Sean
 **Created:** 2026-05-16 (after 1.0.0+4 cut)
-**Status:** Frozen until TestFlight 1.0.0+4 real-device walkthrough passes
+**Status:** Active triage after TestFlight 1.0.0+4 walkthrough feedback
 **Branch:** `design/v2-mobile-polish`
 
 ---
@@ -16,8 +16,15 @@ beta. This doc tracks those items by tier so the next 1-2 builds can
 ship them in deliberate batches, not as a single sprint.
 
 **Discipline carries from the hotfix into this work:**
-real fixes, not quick patches; no toggle-default flips, legacy
-deletes, or major UX redesigns until a clean walkthrough on 1.0.0+4.
+real fixes, not quick patches; toggle-default flips require route
+evidence and tests; no legacy deletes or major UX redesigns until a
+clean walkthrough on 1.0.0+5.
+
+**2026-05-16 build 1.0.0+4 feedback update:** The build is materially
+better, but not coherent enough for another TestFlight upload yet.
+Do local simulator / device-simulator verification for the next repair
+batches, then cut one larger 1.0.0+5 build only after the route and
+state-sync issues below are fixed.
 
 ---
 
@@ -33,7 +40,49 @@ surfaces, not just polish.
       disambiguation needed (supplement vs medication).
       Files: `lib/features/quick_check/quick_check_screen.dart`,
       `lib/features/quick_check/quick_check_logic.dart`,
-      `lib/services/rxnorm/rxnorm_api_service.dart`.
+      `lib/features/quick_check/v2/quick_check_v2_screen.dart`,
+      `lib/services/medications/rxnorm_api_service.dart`.
+
+### Route coherence audit (Sean build 1.0.0+4 feedback)
+- [ ] **Full v1/v2 route and fallback audit** — identify every path
+      that can still unexpectedly land on a legacy surface while the
+      tester is in the v2 walkthrough. Include Home CTAs, Stack add,
+      Search result tap, Quick Check result tap, Product Result /
+      Product Detail, scanner result handoff, and post-add flows.
+- [x] **Promote v2 production route defaults** — Search, Product
+      Detail, Quick Check, Medication Entry, and Profile Setup now
+      default to v2 from source so normal local runs/builds do not
+      depend on every command passing the v2 dart-defines. Existing
+      per-surface `USE_V2_* = false` dart-defines remain as emergency
+      rollback switches.
+      ✅ Fixed 2026-05-16: default promotion covered by
+      `app_test.dart` route-default guard.
+- [x] **Product Result / Product Detail fallback paths** — Product
+      Detail v2 is toggle-gated, but Sean still observed v1 rendering
+      in some flows. Trace route creation and all `Routes.productDetail`
+      call sites; static audit found the route default was legacy unless
+      `USE_V2_PRODUCT_DETAIL=true`; now verify scanner/search/quick
+      check result handoff on simulator.
+      ✅ Fixed/verified 2026-05-16: route defaults now promote Product
+      Detail v2, and simulator verified Search → Product Detail,
+      Stack row → Product Detail, Quick Check → v2 result flow, and
+      manual barcode scan → Product Detail v2.
+- [x] **Stack → Add supplement must stay v2** — Sean observed adding
+      a supplement from Stack still going to a v1 supplement list.
+      Static audit found `Routes.search` was legacy by default; Search
+      now defaults to v2, but this still needs simulator verification
+      through Stack → Add → Search → Product Detail.
+      ✅ Fixed/verified 2026-05-16: Search defaults to v2, Product
+      Detail defaults to v2, Add-to-Stack snackbar routes to Stack v2,
+      and simulator verified the added product appears in the Stack v2
+      list row.
+- [x] **Post-add navigation/snackbar flow** — after Add to Stack,
+      show a clear path back to Stack. Add a snackbar action such as
+      "Go to Stack" or an equivalent v2 affordance so the success
+      state is not disconnected from the destination state.
+      ✅ Fixed 2026-05-16: `PGStackActionButtons` success snackbar now
+      includes "Go to Stack"; regression covered in
+      `pg_stack_action_buttons_test.dart`.
 
 ### Stack v2 — real safety surfaces (currently legacy embeds)
 - [ ] **`_RecallAlertSlot`** — currently passes the raw stack rows;
@@ -49,6 +98,19 @@ surfaces, not just polish.
 - [ ] **`StackIntelligenceEngine` status tier** — currently the
       summary card uses a hardcoded tier; should consume the real
       `intelligence.status` verdict.
+- [x] **Empty-stack stale summary counts** — build 1.0.0+4 showed
+      the v2 empty state while the summary still said "3 supplements ·
+      1 medication". Remove fixture counts from user-facing empty
+      states; fixtures may exist only in dev previews, never after
+      `activeStackProvider` has emitted an empty list.
+      ✅ Fixed 2026-05-16: Home v2 + Stack v2 now use zero counts
+      after `activeStackProvider` resolves empty; regression covered
+      in `v2_stack_home_coherence_test.dart`.
+- [ ] **Legacy/v2 state-sync pass** — after clearing the stack, adding
+      one supplement correctly updated to "1 supplement · 0 meds".
+      Audit the transition path so the Stack screen never has two
+      visible truths at once: empty list + non-empty summary, or v1
+      stack state + v2 stack chrome.
 
 ### Home v2 — first-class real data
 - [ ] **iOS `CupertinoSliverRefreshControl` + Android
@@ -65,10 +127,31 @@ surfaces, not just polish.
       heavier sections behind a "see more" interaction.
 
 ### Add-supplement flow (Sean's 2026-05-16 13:30 report)
-- [ ] **"Adding a supplement → v1 supplement list"** — same root
+- [x] **"Adding a supplement → v1 supplement list"** — same root
       cause as Cluster D. When `USE_V2_SEARCH` flips post-walkthrough,
       this resolves. **Action: verify in 1.0.0+5 walkthrough that
       Stack → Add → Search now lands in `SearchV2Screen`.**
+      ✅ Fixed/verified 2026-05-16: v2 search/detail/stack defaults
+      are on, and simulator verified Add-to-Stack → Go to Stack lands
+      on `StackV2Screen`.
+
+### Interaction surfaces from build 1.0.0+4 screenshots
+- [x] **Add-to-Stack bottom sheet vertical anchoring** — current modal
+      opens too high: Cancel / Add actions float far above the bottom
+      safe area and feel detached from the nav bar. Rework the sheet
+      height / constraints / bottom padding so the action row is
+      naturally anchored while still respecting the keyboard and safe
+      area.
+      ✅ Fixed 2026-05-16: safety sheet is content-sized, no longer
+      reserves root nav-bar height inside the modal, and loading text
+      no longer overflows; regression covered in
+      `pg_stack_action_buttons_test.dart`.
+- [x] **Search keyboard gap** — screenshot shows a large white gap
+      between the search results list and iOS keyboard. Audit the
+      Search v2 scroll/padding/inset behavior and remove any extra
+      bottom spacer that is not tied to `viewInsets.bottom`.
+      ✅ Fixed 2026-05-16: removed shell nav-bar bottom padding from
+      Search v2 and added a keyboard-open inset regression test.
 
 ---
 
@@ -102,9 +185,12 @@ across surfaces.
 Settings is currently a v2 chrome over placeholder data. Cleaning
 this up is a real engineering pass.
 
-- [ ] **Real Supabase `user.email`** — Email tile in Settings v2
+- [x] **Real Supabase `user.email`** — Email tile in Settings v2
       should pull from the authenticated session, not a hardcoded
       placeholder.
+      ✅ Fixed 2026-05-16: `SettingsV2Connected` passes the current
+      Supabase email into `SettingsV2Screen`; guest Sign in now opens
+      the production `/auth` invitation route.
 - [ ] **`_PrivacyDashboardSheet`** — v2 sheet showing what data
       lives where (on-device vs Supabase metadata only). Mirror v1
       content + v2 typography.
