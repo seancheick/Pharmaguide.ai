@@ -5,22 +5,17 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 
-/// v2 mirror of `_InactiveRow` in
-/// `lib/features/product_detail/widgets/ingredients_card.dart:219-330`.
+/// Canonical inactive-ingredient row for the Product Detail ingredients
+/// card.
 ///
-/// **Same structure, semantics preserved verbatim:**
 /// - 8pt colored dot driven by `InactiveTone` (green / yellow / orange /
-///   red). Color comes from production `InactiveToneColor` extension on
-///   `AppTheme.severity*` — no v2 remap.
+///   red). Color comes from the `InactiveToneColor` extension on
+///   `AppTheme.severity*`.
 /// - Name (Geist Sans 500, ellipsis on overflow)
 /// - Optional role helper line (12pt onSurfaceVariant) below the name
 /// - Bottom hairline (0.4pt outlineVariant) except on the last row
-/// - Tap anywhere → `onTap` (production opens
-///   `_showFunctionalRolesSheet` bottom sheet)
-///
-/// **What changes in v2:** typography swaps from bodyMedium w600 / bodySmall
-/// 12sp to V2Typography.bodyMedium (Geist Sans 500) / V2Typography.caption.
-/// Dot size, padding, hairline thickness preserved exactly.
+/// - Tap anywhere → `onTap` (Product Detail wires it to
+///   `showFunctionalRolesSheet`)
 class PGInactiveRow extends StatelessWidget {
   final PGInactiveIngredient ingredient;
 
@@ -29,9 +24,9 @@ class PGInactiveRow extends StatelessWidget {
   /// card padding.
   final bool isLast;
 
-  /// Production: opens `_FunctionalRolesSheet`. v2 prototype defers to
-  /// caller — gallery passes a no-op or snackbar; production wiring
-  /// passes the real sheet handler.
+  /// Opens the functional-roles bottom sheet via
+  /// `showFunctionalRolesSheet`. Null hides the inkwell ripple +
+  /// disables the tap.
   final VoidCallback? onTap;
 
   const PGInactiveRow({

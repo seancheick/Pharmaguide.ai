@@ -6,27 +6,21 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// v2 mirror of `IngredientsCard` in
-/// `lib/features/product_detail/widgets/ingredients_card.dart:50-117`.
+/// Canonical ingredients card for Product Detail.
 ///
-/// **Same structure, behavior preserved verbatim:**
-/// - Single elevated card containing the active + inactive sub-sections
-/// - Active content is passed in pre-built (production lets the screen
-///   compose `CollapsibleIngredients(...)` itself — same contract here)
+/// Single elevated card containing the active + inactive sub-sections:
+/// - Active content is passed in pre-built (the screen composes the
+///   active list and its collapse header)
 /// - Hairline divider (0.5pt) between active + inactive
 /// - Inactive section has its own header: "Other ingredients" + count
 ///   pill badge + chevron
 /// - Tappable header toggles inactive expand/collapse
-/// - **Auto-expand threshold ≤5** (Sean: same as active, "show first x,
-///   drop down to see all if more")
+/// - Auto-expand threshold ≤5 (Sean's rule: "show first x, drop down
+///   to see all if more")
 /// - Card hides entirely when both lists are empty
 ///
-/// **What changes in v2:**
-/// - Card surface: v2 cream + outline + sm shadow (production uses
-///   `PGCard(variant: elevated)`)
-/// - Typography: header title in Geist Sans 500 (production w700)
-/// - Count badge bg: V2Colors.accentTint (production used
-///   surfaceContainerHigh)
+/// Surface: V2Colors.surface + outline + sm shadow. Header title in
+/// Geist Sans 500. Count badge bg V2Colors.accentTint.
 class PGIngredientsCard extends StatefulWidget {
   /// Pre-built active-ingredients content. Caller composes the list of
   /// [PGActiveIngredientTile] (with its own collapse header if the active
@@ -38,13 +32,12 @@ class PGIngredientsCard extends StatefulWidget {
   final List<PGInactiveIngredient> inactiveIngredients;
 
   /// Auto-expand threshold. Lists ≤ this size start expanded; longer
-  /// lists start collapsed. Mirrors production
-  /// `_IngredientsCardState.initState` (line 89).
+  /// lists start collapsed.
   final int autoExpandThreshold;
 
-  /// Tap handler for each inactive row — production opens
-  /// `_FunctionalRolesSheet`. Receives the ingredient index so the
-  /// parent can resolve which row was tapped.
+  /// Tap handler for each inactive row — opens the functional-roles
+  /// sheet (`showFunctionalRolesSheet`). Receives the ingredient
+  /// index so the parent can resolve which row was tapped.
   final void Function(int index)? onInactiveTap;
 
   const PGIngredientsCard({
@@ -107,8 +100,7 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Tappable header — mirrors the legacy "Other ingredients [N] ⌄"
-        // pattern from ingredients_card.dart:125-175.
+        // Tappable "Other ingredients [N] ⌄" header.
         InkWell(
           onTap: () => setState(() => _expanded = !_expanded),
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -184,8 +176,6 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
 }
 
 /// Convenience widget that pairs with [PGIngredientsCard.activeContent].
-/// Mirrors `_CollapsibleIngredients` in
-///
 ///
 /// Header: "Active Ingredients [N] ⌄" — tappable to expand/collapse.
 /// Auto-expands when length ≤ 5.

@@ -5,11 +5,22 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
+import 'package:pharmaguide/services/catalog_version.dart';
 
 /// Handles OTA database updates from Supabase storage.
 class SyncService {
+  SyncService({Future<String?> Function()? currentDbVersionFetcher})
+    : _currentDbVersionFetcher = currentDbVersionFetcher;
+
+  final Future<String?> Function()? _currentDbVersionFetcher;
+
   /// Returns the current remote DB version published in export_manifest.
   Future<String?> fetchCurrentDbVersion() async {
+    final injected = _currentDbVersionFetcher;
+    if (injected != null) {
+      return injected();
+    }
+
     final manifest = await supabase
         .from(SupabaseContract.manifestTable)
         .select('db_version')
@@ -25,7 +36,10 @@ class SyncService {
   Future<bool> isUpdateAvailable(String localVersion) async {
     try {
       final remoteVersion = await fetchCurrentDbVersion();
-      return remoteVersion != null && remoteVersion != localVersion;
+      return CatalogVersion.isRemoteNewer(
+        remoteVersion: remoteVersion,
+        localVersion: localVersion,
+      );
     } on Object {
       return false;
     }

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/catalog_version.dart';
 
 /// Provides the singleton CoreDatabase instance (read-only product data).
 /// Must be overridden at app startup with a real instance.
@@ -62,6 +65,9 @@ class CatalogInfo {
 
 const bundledCoreDatabaseAssetPath = 'assets/db/pharmaguide_core.db';
 const bundledInteractionDatabaseAssetPath = 'assets/db/interaction_db.sqlite';
+const bundledCoreDatabaseManifestAssetPath = 'assets/db/export_manifest.json';
+const bundledInteractionDatabaseManifestAssetPath =
+    'assets/db/interaction_db_manifest.json';
 
 /// Ensures that a local core database exists before opening it.
 ///
@@ -69,40 +75,21 @@ const bundledInteractionDatabaseAssetPath = 'assets/db/interaction_db.sqlite';
 /// app. This path should never point to a partial/sample database in
 /// production.
 ///
-/// **Replacement on bundle upgrade.** When a new release ships a new
-/// `assets/db/pharmaguide_core.db`, the existing on-disk copy from a prior
-/// install is stale. We detect this by comparing byte length — same length
-/// means we keep the existing file (cheap path, preserves any OTA-downloaded
-/// catalog that's a byte-identical match for the bundle), different length
-/// means we re-materialize from the bundled asset.
-///
-/// This mirrors the pattern used by [ensureInteractionDatabaseAvailable].
-/// Trade-off: in the rare case a user OTA-downloaded a catalog that's newer
-/// than the bundle they later install, this will regress them to the bundle
-/// version for one session — `_refreshCatalogIfNeeded` will detect the
-/// remote-is-newer state on next launch and re-stage the OTA download.
+/// **Replacement on bundle upgrade.** When a new release ships a new bundled
+/// DB, the previous on-disk copy may have the exact same byte length. We use
+/// the bundled manifest checksum plus a local marker file; byte length alone
+/// is never treated as proof that the local file is current.
 Future<void> ensureCoreDatabaseAvailable({
   required String dbPath,
   AssetBundle? bundle,
 }) async {
-  final dbFile = File(dbPath);
-  final assetData = await (bundle ?? rootBundle).load(
-    bundledCoreDatabaseAssetPath,
+  await _ensureBundledDatabaseAvailable(
+    dbPath: dbPath,
+    bundle: bundle ?? rootBundle,
+    dbAssetPath: bundledCoreDatabaseAssetPath,
+    manifestAssetPath: bundledCoreDatabaseManifestAssetPath,
+    preserveNewerExistingCoreDb: true,
   );
-  final assetBytes = assetData.buffer.asUint8List(
-    assetData.offsetInBytes,
-    assetData.lengthInBytes,
-  );
-
-  if (await dbFile.exists()) {
-    final existingLength = await dbFile.length();
-    if (existingLength == assetBytes.lengthInBytes) {
-      return; // Up to date.
-    }
-  }
-
-  await dbFile.parent.create(recursive: true);
-  await dbFile.writeAsBytes(assetBytes, flush: true);
 }
 
 /// Force-restore the on-disk core DB from the bundled asset, ignoring
@@ -190,42 +177,19 @@ Future<UserDatabase> openUserDatabase() async {
 /// still needs a real file on disk, so we copy it out of the bundle once
 /// on first launch and reuse the file thereafter.
 ///
-/// **Replacement on bundle upgrade.** When a new release ships a new
-/// `assets/db/interaction_db.sqlite`, the existing on-disk copy is
-/// stale. We detect this by comparing byte length — same length means we
-/// keep the existing file (cheap path), different length means we
-/// re-materialize. This is a cheap proxy: if the size changes the file
-/// is definitely different, and if size matches but content is somehow
-/// different we'll catch it at the next bundle build because the
-/// pipeline guarantees byte-stable rebuilds.
-///
-/// Note: a stronger approach is comparing the bundled manifest's
-/// checksum_sha256 to a stored marker — that's wired up by the import
-/// gate (Gate I3) at build time, so a corrupt asset can never reach the
-/// device in the first place. The size check here is purely a cache
-/// invalidation hint, not a security gate.
+/// **Replacement on bundle upgrade.** Uses the interaction DB manifest
+/// checksum and a local marker file. Same-size asset updates are replaced;
+/// the app never relies on byte length as a cache invalidation proxy.
 Future<void> ensureInteractionDatabaseAvailable({
   required String dbPath,
   AssetBundle? bundle,
 }) async {
-  final dbFile = File(dbPath);
-  final assetData = await (bundle ?? rootBundle).load(
-    bundledInteractionDatabaseAssetPath,
+  await _ensureBundledDatabaseAvailable(
+    dbPath: dbPath,
+    bundle: bundle ?? rootBundle,
+    dbAssetPath: bundledInteractionDatabaseAssetPath,
+    manifestAssetPath: bundledInteractionDatabaseManifestAssetPath,
   );
-  final assetBytes = assetData.buffer.asUint8List(
-    assetData.offsetInBytes,
-    assetData.lengthInBytes,
-  );
-
-  if (await dbFile.exists()) {
-    final existingLength = await dbFile.length();
-    if (existingLength == assetBytes.lengthInBytes) {
-      return; // Up to date.
-    }
-  }
-
-  await dbFile.parent.create(recursive: true);
-  await dbFile.writeAsBytes(assetBytes, flush: true);
 }
 
 /// Materialize the bundled interaction asset (if needed) and open a
@@ -243,4 +207,151 @@ Future<InteractionDatabase> openInteractionDatabase({
   final dbPath = p.join(dir.path, 'interaction_db.sqlite');
   await ensureInteractionDatabaseAvailable(dbPath: dbPath, bundle: bundle);
   return InteractionDatabase.open(dbPath);
+}
+
+Future<void> _ensureBundledDatabaseAvailable({
+  required String dbPath,
+  required AssetBundle bundle,
+  required String dbAssetPath,
+  required String manifestAssetPath,
+  bool preserveNewerExistingCoreDb = false,
+}) async {
+  final assetData = await bundle.load(dbAssetPath);
+  final assetBytes = assetData.buffer.asUint8List(
+    assetData.offsetInBytes,
+    assetData.lengthInBytes,
+  );
+  final manifest = await _readBundledDbManifest(
+    bundle: bundle,
+    manifestAssetPath: manifestAssetPath,
+  );
+  final expectedChecksum =
+      _manifestChecksum(manifest) ?? sha256.convert(assetBytes).toString();
+  final expectedVersion = manifest['db_version']?.toString();
+
+  final dbFile = File(dbPath);
+  final markerFile = File('$dbPath.bundle_marker.json');
+  if (await dbFile.exists()) {
+    if (await _markerMatches(
+      markerFile: markerFile,
+      dbAssetPath: dbAssetPath,
+      expectedChecksum: expectedChecksum,
+      expectedVersion: expectedVersion,
+    )) {
+      return;
+    }
+
+    final existingChecksum = await _sha256File(dbFile);
+    if (existingChecksum == expectedChecksum) {
+      await _writeBundleMarker(
+        markerFile: markerFile,
+        dbAssetPath: dbAssetPath,
+        expectedChecksum: expectedChecksum,
+        expectedVersion: expectedVersion,
+      );
+      return;
+    }
+
+    if (preserveNewerExistingCoreDb && expectedVersion != null) {
+      final existingVersion = await _readCoreDbVersionIfAvailable(dbPath);
+      final existingIsNewer = CatalogVersion.isRemoteNewer(
+        remoteVersion: existingVersion,
+        localVersion: expectedVersion,
+      );
+      if (existingIsNewer) {
+        return;
+      }
+    }
+  }
+
+  await dbFile.parent.create(recursive: true);
+  await dbFile.writeAsBytes(assetBytes, flush: true);
+  await _writeBundleMarker(
+    markerFile: markerFile,
+    dbAssetPath: dbAssetPath,
+    expectedChecksum: expectedChecksum,
+    expectedVersion: expectedVersion,
+  );
+}
+
+Future<Map<String, dynamic>> _readBundledDbManifest({
+  required AssetBundle bundle,
+  required String manifestAssetPath,
+}) async {
+  try {
+    final raw = await bundle.loadString(manifestAssetPath);
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+  } on Object {
+    // Release gates require this manifest. Tests can omit it and still
+    // exercise checksum behavior by falling back to a computed asset hash.
+  }
+  return const <String, dynamic>{};
+}
+
+String? _manifestChecksum(Map<String, dynamic> manifest) {
+  final raw = manifest['checksum_sha256'] ?? manifest['checksum'];
+  if (raw == null) return null;
+  final text = raw.toString();
+  return text.startsWith('sha256:') ? text.substring('sha256:'.length) : text;
+}
+
+Future<bool> _markerMatches({
+  required File markerFile,
+  required String dbAssetPath,
+  required String expectedChecksum,
+  required String? expectedVersion,
+}) async {
+  if (!await markerFile.exists()) return false;
+  try {
+    final decoded = jsonDecode(await markerFile.readAsString());
+    if (decoded is! Map<String, dynamic>) return false;
+    return decoded['asset_path'] == dbAssetPath &&
+        decoded['checksum_sha256'] == expectedChecksum &&
+        decoded['db_version'] == expectedVersion;
+  } on Object {
+    return false;
+  }
+}
+
+Future<void> _writeBundleMarker({
+  required File markerFile,
+  required String dbAssetPath,
+  required String expectedChecksum,
+  required String? expectedVersion,
+}) async {
+  await markerFile.parent.create(recursive: true);
+  await markerFile.writeAsString(
+    jsonEncode({
+      'asset_path': dbAssetPath,
+      'db_version': expectedVersion,
+      'checksum_sha256': expectedChecksum,
+    }),
+    flush: true,
+  );
+}
+
+Future<String> _sha256File(File file) async {
+  final digest = await sha256.bind(file.openRead()).first;
+  return digest.toString();
+}
+
+Future<String?> _readCoreDbVersionIfAvailable(String dbPath) async {
+  CoreDatabase? db;
+  try {
+    db = CoreDatabase.open(dbPath);
+    return await db.readDbVersion();
+  } on Object {
+    return null;
+  } finally {
+    if (db != null) {
+      try {
+        await db.close();
+      } on Object {
+        // Best-effort close only; a malformed DB can fail before Drift opens.
+      }
+    }
+  }
 }

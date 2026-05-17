@@ -1,9 +1,9 @@
-// Phase 11.7d.2 — Ingredients section adapter.
+// Ingredients section adapter for Product Detail v2 — the canonical
+// ingredients surface after the Phase 11.11 hygiene pass removed the
+// v1 IngredientsCard. Composes the active list + inactive list inside
+// a single PGIngredientsCard.
 //
-// V2 mirror of production's `_CollapsibleIngredients` + `IngredientsCard`
-// composition (lines 2043-2061, 2190-2419 in).
-//
-// Composition preserved verbatim:
+// Composition:
 //   • PGIngredientsCard wraps both active + inactive sub-sections
 //   • Active sub-section: PGActiveIngredientsSection (auto-expand ≤5)
 //   • Active list ordering (FLTR-9 + T16.2f blend grouping):
@@ -25,10 +25,8 @@
 //     sortActivesForDisplay, matchUlEntry.
 //   • Active tile tap opens production's showIngredientExplainSheet
 //     (same modal copy, same data path).
-//   • Inactive tile tap is DEFERRED to a v2 component enhancement —
-//     production's _FunctionalRolesSheet is private; surfacing requires
-//     extracting it to a public function. Tracked as S6.next-iteration
-//     in parity doc.
+//   • Inactive tile tap opens the functional-roles sheet via the
+//     public `showFunctionalRolesSheet` helper.
 //
 // Architecture note: this file IS larger than the 250-line target
 // because of the blend-bucket header widget + composition logic.
@@ -45,6 +43,7 @@ import 'package:pharmaguide/features/product_detail/blend_grouping.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_helpers.dart';
+import 'package:pharmaguide/features/product_detail/widgets/functional_roles_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
 
 /// Build the Ingredients section. Composes:
@@ -90,23 +89,27 @@ Widget buildIngredientsSection({
   }
 
   // -------------------------------------------------------------
-  // Map inactive list — filter out rows missing both name and raw text.
+  // Map inactive list — filter out rows missing both name and raw
+  // text. Keep the filtered raw maps so the tap handler can pass the
+  // original pipeline shape (with `functional_roles[]`) into the
+  // sheet — `inactiveFromMap` drops that field.
   // -------------------------------------------------------------
-  final inactiveMapped = inactiveIngredients
+  final filteredRawInactive = inactiveIngredients
       .where(
         (m) =>
             (m['name']?.toString().isNotEmpty == true) ||
             (m['raw_source_text']?.toString().isNotEmpty == true),
       )
+      .toList(growable: false);
+  final inactiveMapped = filteredRawInactive
       .map(inactiveFromMap)
       .toList(growable: false);
 
   return PGIngredientsCard(
     activeContent: activeContent,
     inactiveIngredients: inactiveMapped,
-    // onInactiveTap deferred — production's _FunctionalRolesSheet is
-    // private. Tracked as S6.next-iteration in parity doc.
-    onInactiveTap: null,
+    onInactiveTap: (index) =>
+        showFunctionalRolesSheet(context, filteredRawInactive[index]),
   );
 }
 

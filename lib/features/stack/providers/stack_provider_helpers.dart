@@ -8,6 +8,8 @@
 
 import 'dart:convert';
 
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
+    as canonical_ids;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 
@@ -21,57 +23,10 @@ class HydratedSupplement {
 
 /// Extract canonical ingredient ids for interaction matching.
 ///
-/// Primary source: `key_ingredient_tags` column — a JSON array of
-/// canonical IDs like `["iron", "calcium", "vitamin_d"]` that the
-/// pipeline writes from IQM parent keys.
-///
-/// Secondary source: `herbs` list inside `ingredient_fingerprint`
-/// (for herbal products whose canonical IDs live there).
-///
-/// Previous implementation read fingerprint top-level map keys which
-/// always returned `["nutrients", "herbs", "categories", "pharmacological_flags"]`
-/// — structural keys, NOT ingredient IDs. This caused all curated
-/// interaction lookups via `lookupByCanonicalId` to silently return
-/// nothing for every product. Fixed 2026-04-14.
+/// Delegates to the shared catalog parser so Stack, Quick Check, Product
+/// Detail, scanner results, and legacy stack rows agree on ID semantics.
 List<String> canonicalIdsForProduct(ProductsCoreData product) {
-  final ids = <String>{};
-
-  // Primary: key_ingredient_tags (most accurate).
-  final rawTags = product.keyIngredientTags;
-  if (rawTags != null && rawTags.isNotEmpty) {
-    try {
-      final decoded = jsonDecode(rawTags);
-      if (decoded is List) {
-        for (final tag in decoded) {
-          final s = tag.toString().toLowerCase().trim();
-          if (s.isNotEmpty) ids.add(s);
-        }
-      }
-    } on FormatException {
-      // Fall through to fingerprint.
-    }
-  }
-
-  // Secondary: herbs list from ingredient_fingerprint.
-  final rawFp = product.ingredientFingerprint;
-  if (rawFp != null && rawFp.isNotEmpty) {
-    try {
-      final decoded = jsonDecode(rawFp);
-      if (decoded is Map) {
-        final herbs = decoded['herbs'];
-        if (herbs is List) {
-          for (final h in herbs) {
-            final s = h.toString().toLowerCase().trim();
-            if (s.isNotEmpty) ids.add(s);
-          }
-        }
-      }
-    } on FormatException {
-      // Best-effort.
-    }
-  }
-
-  return ids.toList(growable: false);
+  return canonical_ids.canonicalIdsForProduct(product);
 }
 
 /// Extract canonical ingredient tags from a product's `key_ingredient_tags`
@@ -79,47 +34,10 @@ List<String> canonicalIdsForProduct(ProductsCoreData product) {
 ///
 /// Example: `["magnesium", "vitamin_d", "zinc"]` → `{"magnesium", "vitamin_d", "zinc"}`
 ///
-/// Falls back to the `herbs` list in `ingredient_fingerprint` if
-/// `key_ingredient_tags` is empty, so herbal products still get timing advice.
+/// Falls back to canonical IDs recoverable from `ingredient_fingerprint`, so
+/// older product rows still get timing advice without a local parser fork.
 Set<String> ingredientTagsForProduct(ProductsCoreData product) {
-  final tags = <String>{};
-
-  // Primary source: key_ingredient_tags column (most accurate).
-  final rawTags = product.keyIngredientTags;
-  if (rawTags != null && rawTags.isNotEmpty) {
-    try {
-      final decoded = jsonDecode(rawTags);
-      if (decoded is List) {
-        for (final tag in decoded) {
-          final s = tag.toString().toLowerCase().trim();
-          if (s.isNotEmpty) tags.add(s);
-        }
-      }
-    } on FormatException {
-      // Silently fall through to fingerprint fallback.
-    }
-  }
-
-  // Secondary source: herbs list from ingredient_fingerprint.
-  final rawFp = product.ingredientFingerprint;
-  if (rawFp != null && rawFp.isNotEmpty) {
-    try {
-      final decoded = jsonDecode(rawFp);
-      if (decoded is Map) {
-        final herbs = decoded['herbs'];
-        if (herbs is List) {
-          for (final h in herbs) {
-            final s = h.toString().toLowerCase().trim();
-            if (s.isNotEmpty) tags.add(s);
-          }
-        }
-      }
-    } on FormatException {
-      // Best-effort.
-    }
-  }
-
-  return tags;
+  return canonical_ids.canonicalIdsForProduct(product).toSet();
 }
 
 /// Decode a JSON fingerprint column to a map. Returns an empty map on

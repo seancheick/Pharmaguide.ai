@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
+    as canonical_ids;
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
@@ -82,20 +84,107 @@ void main() {
       },
     );
 
-    test('structured shape with empty nutrients + empty herbs returns empty',
-        () {
-      // The Spring Valley Potassium failure mode that masked the
-      // ACE inhibitor + Potassium rule on TestFlight 1.0.0+4.
-      // Empty canonical ids must propagate so callers can surface
-      // "ingredient data is incomplete" rather than imply clean check.
-      expect(
-        extractCanonicalIds(
-          '{"nutrients":{},"herbs":[],"categories":["minerals"],'
+    test(
+      'structured shape canonicalizes legacy label names into ID format',
+      () {
+        final out = extractCanonicalIds(
+          '{"nutrients":{"Vitamin D":{},"N-Acetyl Cysteine":{}},'
+          '"herbs":["St. John\\u0027s Wort","5-HTP"],'
+          '"categories":["herbs"],'
           '"pharmacological_flags":{}}',
-        ),
-        isEmpty,
-      );
-    });
+        );
+
+        expect(
+          out,
+          containsAll([
+            'vitamin_d',
+            'n_acetyl_cysteine',
+            'st_johns_wort',
+            '5_htp',
+          ]),
+        );
+        expect(out, isNot(contains("st. john's wort")));
+      },
+    );
+
+    test(
+      'structured shape with empty nutrients + empty herbs returns empty',
+      () {
+        // The Spring Valley Potassium failure mode that masked the
+        // ACE inhibitor + Potassium rule on TestFlight 1.0.0+4.
+        // Empty canonical ids must propagate so callers can surface
+        // "ingredient data is incomplete" rather than imply clean check.
+        expect(
+          extractCanonicalIds(
+            '{"nutrients":{},"herbs":[],"categories":["minerals"],'
+            '"pharmacological_flags":{}}',
+          ),
+          isEmpty,
+        );
+      },
+    );
+  });
+
+  group('canonicalIdsForProduct', () {
+    test(
+      'does not return structured fingerprint keys from current catalog shape',
+      () {
+        const product = ProductsCoreData(
+          dsldId: 'STRUCTURED',
+          productName: 'Structured Product',
+          productStatus: 'active',
+          keyIngredientTags:
+              '["nutrients","herbs","categories",'
+              '"pharmacological_flags"]',
+          ingredientFingerprint:
+              '{"nutrients":{"Potassium":{},"MAGNESIUM":{}},'
+              '"herbs":["Ashwagandha"],'
+              '"categories":["minerals"],'
+              '"pharmacological_flags":{"sedative":false}}',
+          exportVersion: 'test',
+          exportedAt: '2026-05-17T00:00:00Z',
+        );
+
+        final out = canonical_ids.canonicalIdsForProduct(product);
+
+        expect(QuickCheckItem.supplement(product).canonicalIds, equals(out));
+        expect(out, containsAll(['potassium', 'magnesium', 'ashwagandha']));
+        expect(out, isNot(contains('nutrients')));
+        expect(out, isNot(contains('herbs')));
+        expect(out, isNot(contains('categories')));
+        expect(out, isNot(contains('pharmacological_flags')));
+      },
+    );
+
+    test(
+      'empty product-row carriers fall back to detail blob canonical_id',
+      () {
+        const product = ProductsCoreData(
+          dsldId: '210621',
+          productName: 'Natural Potassium 99 mg',
+          brandName: 'Spring Valley',
+          productStatus: 'active',
+          keyIngredientTags: '[]',
+          ingredientFingerprint:
+              '{"nutrients":{},"herbs":[],"categories":["minerals"],'
+              '"pharmacological_flags":{}}',
+          exportVersion: 'test',
+          exportedAt: '2026-05-17T00:00:00Z',
+        );
+
+        final out = canonical_ids.canonicalIdsForProduct(
+          product,
+          detailBlob: {
+            'ingredients': [
+              {'name': 'Potassium', 'canonical_id': 'potassium'},
+              {'name': 'Potassium Gluconate', 'canonical_id': 'potassium'},
+            ],
+          },
+        );
+
+        expect(out, equals(['potassium']));
+      },
+    );
   });
 
   group('toneForSeverity', () {
@@ -292,6 +381,42 @@ void main() {
       expect(results.first.agent2Name, 'Potassium Complex');
     });
 
+    test(
+      'finds safety-canonical interaction when DB row casing differs from catalog tag',
+      () async {
+        await db.batch((batch) {
+          batch.insert(
+            db.interactions,
+            _interactionRow(
+              id: 'STATINS_RYR',
+              a1Type: 'drug_class',
+              a1Id: 'class:statins',
+              a1Name: 'Statins',
+              a1Canonical: null,
+              a2Canonical: 'BANNED_RED_YEAST_RICE',
+              a2Name: 'Red Yeast Rice',
+              severity: 'avoid',
+            ),
+          );
+        });
+
+        final supplement = QuickCheckItem.supplement(
+          _product('RYR', 'Red Yeast Rice 600 mg', '["banned_red_yeast_rice"]'),
+        );
+        final medication = QuickCheckItem.medication(
+          name: 'Atorvastatin',
+          rxcui: '83367',
+          drugClasses: const ['class:statins'],
+        );
+
+        final results = await runQuickCheckPair(supplement, medication, db);
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'STATINS_RYR');
+        expect(results.single.severity, Severity.avoid);
+      },
+    );
+
     test('finds medication-medication interaction by RXCUI pair', () async {
       await db.batch((batch) {
         batch.insert(
@@ -355,7 +480,10 @@ void main() {
 
         // User's drug doesn't match either explicit RXCUI but is in
         // the antifolate class — must still surface the row.
-        final a = QuickCheckItem.medication(name: 'Methotrexate', rxcui: '6851');
+        final a = QuickCheckItem.medication(
+          name: 'Methotrexate',
+          rxcui: '6851',
+        );
         final b = QuickCheckItem.medication(
           name: 'Sulfamethoxazole-Trimethoprim',
           rxcui: '99999', // not 10829
@@ -368,44 +496,46 @@ void main() {
       },
     );
 
-    test('finds med-med via class-fallback when neither rxcui has a curated row',
-        () async {
-      // Sibling-class case: curated row is class-class only, the
-      // user's specific brand RXCUIs aren't in the DB. Mirrors
-      // StackInteractionChecker behavior.
-      await db.batch((batch) {
-        batch.insert(
-          db.interactions,
-          _interactionRow(
-            id: 'ACE_NSAID',
-            a1Type: 'drug_class',
-            a1Id: 'class:ace_inhibitors',
-            a1Name: 'ACE inhibitors',
-            a1Canonical: null,
-            a2Type: 'drug_class',
-            a2Id: 'class:nsaids',
-            a2Name: 'NSAIDs',
-            a2Canonical: null,
-            severity: 'caution',
-          ),
+    test(
+      'finds med-med via class-fallback when neither rxcui has a curated row',
+      () async {
+        // Sibling-class case: curated row is class-class only, the
+        // user's specific brand RXCUIs aren't in the DB. Mirrors
+        // StackInteractionChecker behavior.
+        await db.batch((batch) {
+          batch.insert(
+            db.interactions,
+            _interactionRow(
+              id: 'ACE_NSAID',
+              a1Type: 'drug_class',
+              a1Id: 'class:ace_inhibitors',
+              a1Name: 'ACE inhibitors',
+              a1Canonical: null,
+              a2Type: 'drug_class',
+              a2Id: 'class:nsaids',
+              a2Name: 'NSAIDs',
+              a2Canonical: null,
+              severity: 'caution',
+            ),
+          );
+        });
+
+        final a = QuickCheckItem.medication(
+          name: 'Brand-X Lisinopril',
+          rxcui: '111111',
+          drugClasses: const ['class:ace_inhibitors'],
         );
-      });
+        final b = QuickCheckItem.medication(
+          name: 'Brand-Y Ibuprofen',
+          rxcui: '222222',
+          drugClasses: const ['class:nsaids'],
+        );
 
-      final a = QuickCheckItem.medication(
-        name: 'Brand-X Lisinopril',
-        rxcui: '111111',
-        drugClasses: const ['class:ace_inhibitors'],
-      );
-      final b = QuickCheckItem.medication(
-        name: 'Brand-Y Ibuprofen',
-        rxcui: '222222',
-        drugClasses: const ['class:nsaids'],
-      );
-
-      final results = await runQuickCheckPair(a, b, db);
-      expect(results, hasLength(1));
-      expect(results.first.severity, Severity.caution);
-    });
+        final results = await runQuickCheckPair(a, b, db);
+        expect(results, hasLength(1));
+        expect(results.first.severity, Severity.caution);
+      },
+    );
 
     test('returns empty when curated DB has no row for the pair', () async {
       // Safety rule: no row → empty list. Downstream UI must NOT

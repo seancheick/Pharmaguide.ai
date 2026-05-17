@@ -4,10 +4,10 @@
 // Flutter test harness. `QuickCheckV2Screen` is a thin stateful
 // consumer on top of this logic + the interaction DB.
 
-import 'dart:convert';
-
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
+    as canonical_ids;
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
@@ -77,9 +77,7 @@ class QuickCheckItem {
 
   /// Canonical ingredient ids the interaction DB looks up by. Sourced
   /// via `canonicalIdsForProduct` (the same helper Stack uses) so the
-  /// two paths agree on which ids fire which curated rules:
-  ///   1. Primary: `key_ingredient_tags` column (pipeline IQM tags)
-  ///   2. Fallback: `herbs` list inside `ingredient_fingerprint`
+  /// two paths agree on which ids fire which curated rules.
   /// Returns `[]` for medications (which look up by RXCUI + class).
   List<String> get canonicalIds {
     if (!isSupplement || product == null) return const <String>[];
@@ -120,9 +118,7 @@ class QuickCheckItem {
   bool get hydrationIncomplete {
     if (!isMedication) return false;
     final hasGeneric = (genericRxcui ?? '').trim().isNotEmpty;
-    return drugClasses.isEmpty &&
-        ingredientRxcuis.isEmpty &&
-        !hasGeneric;
+    return drugClasses.isEmpty && ingredientRxcuis.isEmpty && !hasGeneric;
   }
 
   QuickCheckItem copyWithMedicationResolution({
@@ -173,60 +169,8 @@ class QuickCheckItem {
 /// product fingerprint can't drive an interaction lookup; callers
 /// (Quick Check, StackInteractionChecker) MUST surface "ingredient
 /// data is incomplete" rather than imply a clean check.
-const Set<String> _structuredFingerprintKeys = <String>{
-  'nutrients',
-  'herbs',
-  'categories',
-  'pharmacological_flags',
-};
-
 List<String> extractCanonicalIds(String? fingerprint) {
-  if (fingerprint == null || fingerprint.isEmpty) return const [];
-  try {
-    final decoded = jsonDecode(fingerprint);
-    if (decoded is Map) {
-      // Detect structured shape: at least one reserved key present.
-      final mapKeys = decoded.keys.map((k) => k.toString()).toSet();
-      final isStructured = mapKeys
-          .intersection(_structuredFingerprintKeys)
-          .isNotEmpty;
-      if (isStructured) {
-        final ids = <String>{};
-        final nutrients = decoded['nutrients'];
-        if (nutrients is Map) {
-          for (final k in nutrients.keys) {
-            final s = k.toString().trim().toLowerCase();
-            if (s.isNotEmpty) ids.add(s);
-          }
-        }
-        final herbs = decoded['herbs'];
-        if (herbs is List) {
-          for (final h in herbs) {
-            if (h == null) continue;
-            final s = h.toString().trim().toLowerCase();
-            if (s.isNotEmpty) ids.add(s);
-          }
-        }
-        // `categories` and `pharmacological_flags` are intentionally
-        // NOT treated as canonical ids — they're too coarse / boolean
-        // and would produce false matches against the interaction DB.
-        return ids.toList(growable: false);
-      }
-      // Shape 2: legacy keyed map.
-      return decoded.keys
-          .map((k) => k.toString().toLowerCase())
-          .toList(growable: false);
-    }
-    if (decoded is List) {
-      return decoded
-          .where((e) => e != null)
-          .map((e) => e.toString().toLowerCase())
-          .toList(growable: false);
-    }
-  } on FormatException {
-    // fall through
-  }
-  return const [];
+  return canonical_ids.canonicalIdsFromJsonString(fingerprint);
 }
 
 /// Map a [Severity] enum to a [PGBannerTone] for the result card.
@@ -246,6 +190,10 @@ PGBannerTone toneForSeverity(Severity severity) {
     case Severity.safe:
       return PGBannerTone.info;
   }
+}
+
+bool _sameCanonicalId(String? a, String b) {
+  return a?.toLowerCase() == b.toLowerCase();
 }
 
 /// Run a pair interaction check between two products.
@@ -274,7 +222,7 @@ Future<List<InteractionResult>> runPairCheck(
     final rows = await db.lookupByCanonicalId(idA);
     for (final row in rows) {
       if (seenIds.contains(row.id)) continue;
-      final otherId = (row.agent1CanonicalId == idA)
+      final otherId = _sameCanonicalId(row.agent1CanonicalId, idA)
           ? row.agent2CanonicalId
           : row.agent1CanonicalId;
       if (otherId != null && idsB.contains(otherId.toLowerCase())) {
@@ -348,10 +296,10 @@ Future<List<InteractionResult>> _runSupplementMedicationCheck(
 
       final String? otherType;
       final String? otherId;
-      if (row.agent1CanonicalId == supplementId) {
+      if (_sameCanonicalId(row.agent1CanonicalId, supplementId)) {
         otherType = row.agent2Type;
         otherId = row.agent2Id;
-      } else if (row.agent2CanonicalId == supplementId) {
+      } else if (_sameCanonicalId(row.agent2CanonicalId, supplementId)) {
         otherType = row.agent1Type;
         otherId = row.agent1Id;
       } else {

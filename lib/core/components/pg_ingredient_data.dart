@@ -50,9 +50,8 @@ class PGActiveIngredient {
   });
 }
 
-/// Typed input for [PGInactiveRow]. Mirrors what `_InactiveRow` reads from
-/// the pipeline map: display name, severity-driven tone, optional role
-/// helper line.
+/// Typed input for [PGInactiveRow] — display name, severity-driven
+/// tone, optional role helper line.
 class PGInactiveIngredient {
   /// Display name (pipeline `display_label` ?? `name` ?? `raw_source_text`).
   final String name;

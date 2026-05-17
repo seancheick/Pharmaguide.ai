@@ -822,7 +822,7 @@ void main() {
       expect(result, equals('avoid'));
     });
 
-    test('unknown severity string → coerced to safe (zero contribution)', () {
+    test('unknown severity string uses conservative fallback, never safe', () {
       final result = computeMatchedHighestSeverity(
         gatedSummary: {
           'condition_summary': {
@@ -834,8 +834,10 @@ void main() {
         matchedDrugClassIds: const [],
         fallback: 'avoid',
       );
-      // 'pineapple' coerces to safe (weight 0); monitor wins.
-      expect(result, equals('monitor'));
+      // Unknown per-entry severity cannot silently become safe/zero.
+      // Fall back to the pipeline's overall severity when that is
+      // stricter than the caution floor.
+      expect(result, equals('avoid'));
     });
 
     test(

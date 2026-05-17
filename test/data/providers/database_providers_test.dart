@@ -1,19 +1,53 @@
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:path/path.dart' as p;
 
 class _FakeAssetBundle extends CachingAssetBundle {
-  _FakeAssetBundle(this.bytes);
+  _FakeAssetBundle(this.bytes, {Map<String, List<int>> assets = const {}})
+    : assets = {
+        bundledCoreDatabaseAssetPath: bytes,
+        bundledInteractionDatabaseAssetPath: bytes,
+        ...assets,
+      };
 
   final Uint8List bytes;
+  final Map<String, List<int>> assets;
 
   @override
   Future<ByteData> load(String key) async {
-    return ByteData.sublistView(bytes);
+    final asset = assets[key];
+    if (asset == null) {
+      throw StateError('missing fake asset: $key');
+    }
+    return ByteData.sublistView(Uint8List.fromList(asset));
   }
+
+  @override
+  Future<String> loadString(String key, {bool cache = true}) async {
+    final asset = assets[key];
+    if (asset == null) {
+      throw StateError('missing fake asset: $key');
+    }
+    return utf8.decode(asset);
+  }
+}
+
+List<int> _manifestBytes({
+  required String dbVersion,
+  required List<int> dbBytes,
+}) {
+  return utf8.encode(
+    jsonEncode({
+      'db_version': dbVersion,
+      'checksum_sha256': sha256.convert(dbBytes).toString(),
+    }),
+  );
 }
 
 void main() {
@@ -38,43 +72,117 @@ void main() {
     );
 
     test(
-      'keeps the on-disk database when its byte length matches the bundle',
+      'keeps the on-disk database when checksum marker matches bundle',
       () async {
         final tempDir = await Directory.systemTemp.createTemp('pharmaguide-db');
         addTearDown(() async => tempDir.delete(recursive: true));
 
         final dbPath = '${tempDir.path}/pharmaguide_core.db';
         final file = File(dbPath);
-        // Same length as the bundle below (4 bytes) — the byte-length check
-        // treats this as "already up to date" and leaves the file alone.
-        // This branch also protects an OTA-downloaded catalog whose bytes
-        // happen to match the bundled asset.
-        await file.writeAsBytes([9, 9, 9, 9]);
+        final bytes = [1, 2, 3, 4];
+        await file.writeAsBytes(bytes);
 
-        final bundle = _FakeAssetBundle(Uint8List.fromList([1, 2, 3, 4]));
+        final bundle = _FakeAssetBundle(
+          Uint8List.fromList(bytes),
+          assets: {
+            'assets/db/export_manifest.json': _manifestBytes(
+              dbVersion: '2026.05.17.204805',
+              dbBytes: bytes,
+            ),
+          },
+        );
         await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: bundle);
 
-        expect(await file.readAsBytes(), [9, 9, 9, 9]);
+        expect(await file.readAsBytes(), bytes);
       },
     );
 
     test(
-      'replaces the on-disk database when the bundle has a different byte length',
+      'replaces same-length on-disk database when checksum differs',
       () async {
         final tempDir = await Directory.systemTemp.createTemp('pharmaguide-db');
         addTearDown(() async => tempDir.delete(recursive: true));
 
         final dbPath = '${tempDir.path}/pharmaguide_core.db';
         final file = File(dbPath);
-        // Stale on-disk DB from a prior install (3 bytes). The bundle now
-        // ships a different size — the new logic must re-materialize the
-        // bundled asset so users get the fresh catalog after upgrade.
-        await file.writeAsBytes([9, 9, 9]);
+        await file.writeAsBytes([9, 9, 9, 9]);
 
-        final bundle = _FakeAssetBundle(Uint8List.fromList([1, 2, 3, 4]));
+        final bundleBytes = [1, 2, 3, 4];
+        final bundle = _FakeAssetBundle(
+          Uint8List.fromList(bundleBytes),
+          assets: {
+            'assets/db/export_manifest.json': _manifestBytes(
+              dbVersion: '2026.05.17.204805',
+              dbBytes: bundleBytes,
+            ),
+          },
+        );
         await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: bundle);
 
-        expect(await file.readAsBytes(), [1, 2, 3, 4]);
+        expect(await file.readAsBytes(), bundleBytes);
+      },
+    );
+
+    test(
+      'preserves a validated newer OTA core database over an older bundle',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp('pharmaguide-db');
+        addTearDown(() async => tempDir.delete(recursive: true));
+
+        final assetData = await rootBundle.load(bundledCoreDatabaseAssetPath);
+        final assetBytes = assetData.buffer.asUint8List(
+          assetData.offsetInBytes,
+          assetData.lengthInBytes,
+        );
+        final dbPath = p.join(tempDir.path, 'pharmaguide_core.db');
+        final file = File(dbPath);
+        await file.writeAsBytes(assetBytes, flush: true);
+
+        final db = CoreDatabase.open(dbPath);
+        await db.customStatement(
+          "UPDATE export_manifest SET value = '2099.01.01.000000' "
+          "WHERE key = 'db_version'",
+        );
+        await db.close();
+        final newerBytes = await file.readAsBytes();
+
+        await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: rootBundle);
+
+        expect(await file.readAsBytes(), newerBytes);
+      },
+    );
+  });
+
+  group('ensureInteractionDatabaseAvailable', () {
+    test(
+      'replaces same-length on-disk interaction DB when checksum differs',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'pharmaguide-idb',
+        );
+        addTearDown(() async => tempDir.delete(recursive: true));
+
+        final dbPath = '${tempDir.path}/interaction_db.sqlite';
+        final file = File(dbPath);
+        await file.writeAsBytes([9, 9, 9, 9]);
+
+        final bundleBytes = [1, 2, 3, 4];
+        final bundle = _FakeAssetBundle(
+          Uint8List.fromList(bundleBytes),
+          assets: {
+            'assets/db/interaction_db_manifest.json': _manifestBytes(
+              dbVersion: '1.0.0',
+              dbBytes: bundleBytes,
+            ),
+          },
+        );
+
+        await ensureInteractionDatabaseAvailable(
+          dbPath: dbPath,
+          bundle: bundle,
+        );
+
+        expect(await file.readAsBytes(), bundleBytes);
       },
     );
   });

@@ -25,13 +25,20 @@
 //     + edit pencil, matching production card's restraint.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/components/pg_for_you_extras.dart';
 import 'package:pharmaguide/core/components/pg_personal_fit_card.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_helpers.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
-/// Build the PersonalFit section widget. Pure presentation: the
-/// connected screen does the provider watching + computeFitDisplay
-/// + topGoalLabelFromFit calls, then passes resolved values in.
+/// Build the PersonalFit section widget. Composes the v1 ForYouSection's
+/// 5-signal Section-2 block:
+///   1. Context chips (which profile signals drive the verdict)
+///   2. Verdict + bullets (via PGPersonalFitCard)
+///   3. "Why this fits you" expandable (top-4 FitScore reasons)
+///
+/// Alerts (the v1 4th signal) live in `review_before_use_section` in
+/// v2 — separated for cleaner information architecture.
 ///
 /// `FitHidden` returns `SizedBox.shrink()` to mirror production's
 /// T16.1 dedup rule (hero already surfaces a BlockedBanner or
@@ -43,6 +50,7 @@ Widget buildPersonalFitSection({
   required List<String> fitReasons,
   required List<String> ingredientNames,
   required List<String> userConditions,
+  required List<String> contextChips,
   required VoidCallback onEditProfile,
 }) {
   if (fit is FitHidden) return const SizedBox.shrink();
@@ -55,12 +63,55 @@ Widget buildPersonalFitSection({
     userConditions: userConditions,
   );
 
-  return PGPersonalFitCard(
-    fit: fit,
-    headline: headline,
-    bullets: bullets,
-    onEditProfile: onEditProfile,
+  final hasChips = contextChips.isNotEmpty;
+  final hasReasons = fitReasons.isNotEmpty;
+
+  // When neither chips nor reasons exist, render the card alone —
+  // avoids an empty wrapper Column that would still pad the layout.
+  if (!hasChips && !hasReasons) {
+    return PGPersonalFitCard(
+      fit: fit,
+      headline: headline,
+      bullets: bullets,
+      onEditProfile: onEditProfile,
+    );
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      if (hasChips) ...[
+        PGContextChips(chips: contextChips),
+        const SizedBox(height: V2Spacing.space12),
+      ],
+      PGPersonalFitCard(
+        fit: fit,
+        headline: headline,
+        bullets: bullets,
+        onEditProfile: onEditProfile,
+      ),
+      if (hasReasons) ...[
+        const SizedBox(height: V2Spacing.space12),
+        PGWhyThisFitsExpander(reasons: fitReasons),
+      ],
+    ],
   );
+}
+
+/// Build the context-chips list from a user profile. Mirrors v1
+/// ForYouSection._buildContextChips: up to 2 goals + 2 conditions +
+/// 2 drug classes, then capped at 4 total.
+List<String> contextChipsFromProfile({
+  required List<String> goals,
+  required List<String> conditions,
+  required List<String> drugClasses,
+}) {
+  final chips = <String>[
+    ...goals.take(2),
+    ...conditions.take(2),
+    ...drugClasses.take(2),
+  ];
+  return chips.take(4).toList(growable: false);
 }
 
 /// Pure helper — extract ingredient names from a raw detail blob.

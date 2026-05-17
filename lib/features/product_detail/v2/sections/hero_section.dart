@@ -23,6 +23,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
+import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
 /// One trust tag — the label plus whether the badge gets a check-mark
@@ -100,6 +101,7 @@ String? composeServingsLabel({
 /// `detailBlob['banned_substance_detail']`. For now callers pass null
 /// and the section renders without a banner.
 Widget buildHeroSection({
+  required BuildContext context,
   required String dsldId,
   required ProductsCoreData? product,
   required String productName,
@@ -122,6 +124,15 @@ Widget buildHeroSection({
       score: score100,
       size: 84,
       compact: true,
+      // Tap the hero image → open fullscreen viewer with pinch-zoom.
+      // The Hero tag matches the carousel→detail flight convention so
+      // the lift animation stays smooth.
+      onTap: (imageUrl) => ProductImageViewer.show(
+        context,
+        imageUrl: imageUrl,
+        heroTag: 'product-$dsldId',
+        productName: productName,
+      ),
     ),
     productName: productName,
     brandName: brandName,

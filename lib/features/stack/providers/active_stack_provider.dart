@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
@@ -88,7 +89,7 @@ class StackActions {
         type: const Value('supplement'),
         name: Value(product.productName),
         dsldId: Value(product.dsldId),
-        ingredientKeys: Value(product.ingredientFingerprint),
+        ingredientKeys: Value(jsonEncode(canonicalIdsForProduct(product))),
       ),
     );
     _invalidate();

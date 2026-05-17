@@ -20,6 +20,7 @@
 // routine handles independently.
 
 import 'package:pharmaguide/data/supabase/sync_service.dart';
+import 'package:pharmaguide/services/catalog_version.dart';
 
 typedef RemoteVersionProbe = Future<String?> Function();
 typedef StagedDownload = Future<String> Function({String? expectedVersion});
@@ -102,8 +103,32 @@ class CatalogUpdaterService {
       return const CatalogUnreachable();
     }
 
-    if (!forceDownload && remoteVersion == installedVersion) {
-      return CatalogUpToDate(version: remoteVersion);
+    if (!forceDownload) {
+      final remote = CatalogVersion.parse(remoteVersion);
+      if (remote == null) {
+        return CatalogUnreachable(
+          error: FormatException(
+            'Malformed remote catalog version',
+            remoteVersion,
+          ),
+        );
+      }
+
+      if (installedVersion != null && installedVersion.trim().isNotEmpty) {
+        final installed = CatalogVersion.parse(installedVersion);
+        if (installed == null) {
+          return CatalogUnreachable(
+            error: FormatException(
+              'Malformed installed catalog version',
+              installedVersion,
+            ),
+          );
+        }
+
+        if (remote.compareTo(installed) <= 0) {
+          return CatalogUpToDate(version: installedVersion);
+        }
+      }
     }
 
     try {

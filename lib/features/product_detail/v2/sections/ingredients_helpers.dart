@@ -1,7 +1,4 @@
-// Phase 11.7d.2 — Ingredients helpers (pure mapping).
-//
-// Inactive-row mapping mirrors
-// `widgets/ingredients_card.dart` (`_InactiveRow.build`):
+// Ingredients helpers (pure mapping).
 //
 //   raw active map → PGActiveIngredient
 //     name           = display_label || standard_name || name || raw_source_text

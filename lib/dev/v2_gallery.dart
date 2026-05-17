@@ -120,9 +120,8 @@ class V2Gallery extends StatelessWidget {
             title: 'Ingredients · production parity',
             children: [
               Text(
-                'Mirror of `_IngredientTile` (active) + `_InactiveRow` + '
-                '`IngredientsCard`. Same chip semantics, same auto-expand '
-                '(≤5), same hairline rhythm.',
+                'Canonical ingredients card — active tile, inactive row, '
+                'auto-expand (≤5), hairline rhythm.',
                 style: V2Typography.bodySm(color: V2Colors.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space16),

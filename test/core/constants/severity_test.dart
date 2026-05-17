@@ -18,11 +18,43 @@ void main() {
       expect(Severity.fromString('avoid'), Severity.avoid);
       expect(Severity.fromString('caution'), Severity.caution);
       expect(Severity.fromString('monitor'), Severity.monitor);
+      expect(Severity.fromString('informational'), Severity.informational);
+      expect(Severity.fromString('safe'), Severity.safe);
     });
 
-    test('fromString returns safe for unknown values', () {
-      expect(Severity.fromString('unknown'), Severity.safe);
-      expect(Severity.fromString(''), Severity.safe);
+    test('fromString parses pipeline-emitted severities conservatively', () {
+      expect(Severity.fromString('critical'), Severity.contraindicated);
+      expect(Severity.fromString('high'), Severity.avoid);
+      expect(Severity.fromString('moderate'), Severity.caution);
+      expect(Severity.fromString('low'), Severity.monitor);
+      expect(Severity.fromString('no_data'), Severity.monitor);
+    });
+
+    test('fromString does not silently downgrade unknown values to safe', () {
+      expect(Severity.fromString('unknown'), Severity.caution);
+      expect(Severity.fromString(''), Severity.caution);
+    });
+
+    test('isKnownString tracks accepted pipeline vocabulary', () {
+      for (final value in [
+        'contraindicated',
+        'critical',
+        'avoid',
+        'high',
+        'caution',
+        'moderate',
+        'monitor',
+        'low',
+        'no_data',
+        'informational',
+        'info',
+        'safe',
+      ]) {
+        expect(Severity.isKnownString(value), isTrue);
+      }
+
+      expect(Severity.isKnownString('unknown'), isFalse);
+      expect(Severity.isKnownString(''), isFalse);
     });
 
     test('e2cPenalty returns correct values', () {

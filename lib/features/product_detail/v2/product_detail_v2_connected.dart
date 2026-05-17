@@ -56,6 +56,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_h
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/certifications_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/excipient_density_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/formulation_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/heavy_metal_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
@@ -68,6 +69,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/populations_sect
 import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/synergy_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/transparency_footer_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
@@ -295,6 +297,7 @@ class _ProductDetailV2ConnectedState
                 children: [
                   // ---- 1. Hero (WIRED) -----------------------------
                   buildHeroSection(
+                    context: context,
                     dsldId: widget.dsldId,
                     product: _product,
                     productName: productName,
@@ -334,6 +337,11 @@ class _ProductDetailV2ConnectedState
                           ),
                           userConditions: profile.conditions.toList(
                             growable: false,
+                          ),
+                          contextChips: contextChipsFromProfile(
+                            goals: profile.goals,
+                            conditions: profile.conditions,
+                            drugClasses: profile.drugClasses,
                           ),
                           onEditProfile: () =>
                               context.push(Routes.profileSetup),
@@ -444,6 +452,25 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
+                  // ---- 6.5 Excipient density (WIRED, 11.11) --------
+                  // Quality signal: ratio of actives to inactive fillers.
+                  // Whitelist-aware suppression handled inside the card.
+                  if (showDeepDive) ...[
+                    buildExcipientDensitySection(
+                      activeIngredients:
+                          ((detailBlob?['ingredients'] as List?) ?? const [])
+                              .whereType<Map<String, dynamic>>()
+                              .toList(growable: false),
+                      inactiveIngredients:
+                          ((detailBlob?['inactive_ingredients'] as List?) ??
+                                  const [])
+                              .whereType<Map<String, dynamic>>()
+                              .toList(growable: false),
+                      dosageForm: _product?.formFactor,
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // ---- 7. Tradeoffs (WIRED, 11.7d.3) ---------------
                   if (showDeepDive) ...[
                     buildTradeoffsSection(detailBlob: detailBlob),
@@ -486,6 +513,15 @@ class _ProductDetailV2ConnectedState
                       evidenceData: detailBlob?['evidence_data']
                           as Map<String, dynamic>?,
                     ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- 11.5 Synergy (WIRED, 11.11) -----------------
+                  // "Works well with" — T22 high-confidence clusters
+                  // (Sprint 21 54-cluster data). Hidden when no
+                  // tier ≤ 2 clusters pass — never renders as empty.
+                  if (showDeepDive) ...[
+                    buildSynergySection(detailBlob: detailBlob),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 

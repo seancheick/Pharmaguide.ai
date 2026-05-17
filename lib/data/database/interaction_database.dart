@@ -139,13 +139,25 @@ class InteractionDatabase extends _$InteractionDatabase {
   /// Direction-agnostic: matches whether the supplement appears as
   /// `agent1` or `agent2`. Tombstoned rows are excluded.
   Future<List<InteractionRow>> lookupByCanonicalId(String canonicalId) {
-    return (select(interactions)..where(
-          (t) =>
-              (t.agent1CanonicalId.equals(canonicalId) |
-                  t.agent2CanonicalId.equals(canonicalId)) &
-              t.retiredAt.isNull(),
-        ))
-        .get();
+    final normalized = canonicalId.trim().toLowerCase();
+    if (normalized.isEmpty) return Future.value(const <InteractionRow>[]);
+
+    return customSelect(
+      '''
+      SELECT *
+      FROM interactions
+      WHERE retired_at IS NULL
+        AND (
+          lower(agent1_canonical_id) = ?
+          OR lower(agent2_canonical_id) = ?
+        )
+      ''',
+      variables: [
+        Variable.withString(normalized),
+        Variable.withString(normalized),
+      ],
+      readsFrom: {interactions},
+    ).map((row) => interactions.map(row.data)).get();
   }
 
   /// All live interactions involving the drug identified by [rxcui].
