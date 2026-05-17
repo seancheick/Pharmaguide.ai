@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
@@ -20,6 +21,7 @@ import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -51,7 +53,7 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 ///
 /// Nav bar at the bottom: PGFrostedNavBar with `useV2Tones: true` and
 /// Scan centered (Home / Stack / Scan / Chat / Profile).
-class HomeV2Screen extends StatelessWidget {
+class HomeV2Screen extends ConsumerWidget {
   final ValueChanged<int>? onDestinationSelected;
   final int selectedIndex;
 
@@ -69,8 +71,115 @@ class HomeV2Screen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final mq = MediaQuery.of(context);
+    final scrollView = CustomScrollView(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      slivers: [
+        // iOS pull-to-refresh — absorbs bouncing-physics overscroll.
+        if (Platform.isIOS)
+          CupertinoSliverRefreshControl(onRefresh: () => _onHomeV2Refresh(ref)),
+
+        // 1. Search field — pinned at top, opens /search.
+        // Mirrors v1 home_screen.dart:106 _PinnedSearchHeaderDelegate
+        // so the field sticks under the status bar while content
+        // scrolls beneath it. ColoredBox surface keeps the cream bg
+        // continuous (no hard edge at the seam).
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _PinnedSearchDelegate(topPadding: mq.padding.top),
+        ),
+
+        // 2. Hero greeting.
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space16,
+            V2Spacing.space24,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(child: _HeroGreeting()),
+        ),
+
+        // 3. Scan CTA.
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space24,
+            V2Spacing.space24,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(child: _ScanCta()),
+        ),
+
+        // 4. Stack Health — v2 mirror, provider-wired in
+        // Phase 11.5. Reads StackIntelligenceEngine for the real
+        // tier verdict; identical source-of-truth to the
+        // Stack-tab summary card so the user sees one verdict
+        // across both surfaces.
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space32,
+            V2Spacing.space24,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(child: _StackHealthCard()),
+        ),
+
+        // 5. Recent scans — legacy production carousel with real
+        // _recentScansProvider data + Show-all bottom sheet.
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space24,
+            V2Spacing.space24,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(child: _RecentScansSection()),
+        ),
+
+        // 6. Quick Check — legacy production "Safe to take
+        // together?" tile that opens the real quick-check screen.
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space24,
+            V2Spacing.space24,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(child: _QuickCheckCta()),
+        ),
+
+        // 7. Trust footer — v2 mirror reading the catalog manifest
+        // for the real "Catalog updated <date>" freshness label.
+        // Phase 11.5 replacement for the legacy HomeCitationStrip.
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space32,
+            V2Spacing.space24,
+            V2Spacing.space8,
+          ),
+          sliver: SliverToBoxAdapter(child: _CitationStrip()),
+        ),
+
+        // 8. Bottom spacer for the frosted nav bar overlap.
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: mq.padding.bottom + kPGNavBarHeight + V2Spacing.space8,
+          ),
+        ),
+      ],
+    );
+    final body = Platform.isIOS
+        ? scrollView
+        : RefreshIndicator(
+            onRefresh: () => _onHomeV2Refresh(ref),
+            child: scrollView,
+          );
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -81,146 +190,53 @@ class HomeV2Screen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: V2Colors.bg,
         extendBody: true,
-        body: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            // iOS pull-to-refresh — absorbs bouncing-physics overscroll.
-            if (Platform.isIOS) const CupertinoSliverRefreshControl(),
-
-            // 1. Search field — pinned at top, opens /search.
-            // Mirrors v1 home_screen.dart:106 _PinnedSearchHeaderDelegate
-            // so the field sticks under the status bar while content
-            // scrolls beneath it. ColoredBox surface keeps the cream bg
-            // continuous (no hard edge at the seam).
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _PinnedSearchDelegate(topPadding: mq.padding.top),
-            ),
-
-            // 2. Hero greeting.
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                V2Spacing.space16,
-                V2Spacing.space24,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(child: _HeroGreeting()),
-            ),
-
-            // 3. Scan CTA.
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                V2Spacing.space24,
-                V2Spacing.space24,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(child: _ScanCta()),
-            ),
-
-            // 4. Stack Health — v2 mirror, provider-wired in
-            // Phase 11.5. Reads StackIntelligenceEngine for the real
-            // tier verdict; identical source-of-truth to the
-            // Stack-tab summary card so the user sees one verdict
-            // across both surfaces.
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                V2Spacing.space32,
-                V2Spacing.space24,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(child: _StackHealthCard()),
-            ),
-
-            // 5. Recent scans — legacy production carousel with real
-            // _recentScansProvider data + Show-all bottom sheet.
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                V2Spacing.space24,
-                V2Spacing.space24,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(child: _RecentScansSection()),
-            ),
-
-            // 6. Quick Check — legacy production "Safe to take
-            // together?" tile that opens the real quick-check screen.
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                V2Spacing.space24,
-                V2Spacing.space24,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(child: _QuickCheckCta()),
-            ),
-
-            // 7. Trust footer — v2 mirror reading the catalog manifest
-            // for the real "Catalog updated <date>" freshness label.
-            // Phase 11.5 replacement for the legacy HomeCitationStrip.
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                V2Spacing.space32,
-                V2Spacing.space24,
-                V2Spacing.space8,
-              ),
-              sliver: SliverToBoxAdapter(child: _CitationStrip()),
-            ),
-
-            // 8. Bottom spacer for the frosted nav bar overlap.
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height:
-                    mq.padding.bottom + kPGNavBarHeight + V2Spacing.space8,
-              ),
-            ),
-          ],
-        ),
+        body: body,
         bottomNavigationBar: !showNavBar
             ? null
             : PGFrostedNavBar(
-          useV2Tones: true,
-          selectedIndex: selectedIndex,
-          onDestinationSelected: onDestinationSelected ?? (_) {},
-          // v2 order: Home / Stack / Scan / Chat / Profile — Scan at
-          // index 2 (visual centerpoint of the flat nav).
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.layers_outlined),
-              selectedIcon: Icon(Icons.layers_rounded),
-              label: 'Stack',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.qr_code_scanner_outlined),
-              selectedIcon: Icon(Icons.qr_code_scanner_rounded),
-              label: 'Scan',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined),
-              selectedIcon: Icon(Icons.auto_awesome_rounded),
-              label: 'Chat',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline_rounded),
-              selectedIcon: Icon(Icons.person_rounded),
-              label: 'Profile',
-            ),
-          ],
-        ),
+                useV2Tones: true,
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onDestinationSelected ?? (_) {},
+                // v2 order: Home / Stack / Scan / Chat / Profile — Scan at
+                // index 2 (visual centerpoint of the flat nav).
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.layers_outlined),
+                    selectedIcon: Icon(Icons.layers_rounded),
+                    label: 'Stack',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.qr_code_scanner_outlined),
+                    selectedIcon: Icon(Icons.qr_code_scanner_rounded),
+                    label: 'Scan',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.auto_awesome_outlined),
+                    selectedIcon: Icon(Icons.auto_awesome_rounded),
+                    label: 'Chat',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(Icons.person_rounded),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
       ),
     );
   }
+}
+
+Future<void> _onHomeV2Refresh(WidgetRef ref) async {
+  unawaited(PGHaptics.tap());
+  ref.invalidate(activeStackProvider);
+  ref.invalidate(_v2RecentScansProvider);
+  await Future<void>.delayed(const Duration(milliseconds: 350));
 }
 
 // =============================================================================
@@ -338,10 +354,7 @@ class _HeroGreeting extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          dateLabel,
-          style: V2Typography.eyebrow(color: V2Colors.accent),
-        ),
+        Text(dateLabel, style: V2Typography.eyebrow(color: V2Colors.accent)),
         const SizedBox(height: V2Spacing.space12),
         Text(
           composeGreeting(nickname: nickname, now: now),
@@ -395,8 +408,7 @@ class _ScanCta extends StatelessWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius:
-                      BorderRadius.circular(V2Spacing.radiusCard),
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.22),
                     width: 0.8,
@@ -464,20 +476,18 @@ class _StackHealthCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stack = ref.watch(activeStackProvider).asData?.value ?? const [];
-    final supplementCount = stack
-        .where((e) => e.type == 'supplement')
-        .length;
-    final medicationCount = stack
-        .where((e) => e.type == 'medication')
-        .length;
+    final stackAsync = ref.watch(activeStackProvider);
+    final stack = stackAsync.asData?.value ?? const [];
+    final supplementCount = stack.where((e) => e.type == 'supplement').length;
+    final medicationCount = stack.where((e) => e.type == 'medication').length;
+    final hasLoadedStack = stackAsync.hasValue;
     final hasRealData = stack.isNotEmpty;
-    final supplementLabel = hasRealData ? supplementCount : 3;
-    final medicationLabel = hasRealData ? medicationCount : 1;
-    final contextLine = hasRealData
+    final supplementLabel = hasLoadedStack ? supplementCount : 3;
+    final medicationLabel = hasLoadedStack ? medicationCount : 1;
+    final contextLine = hasLoadedStack
         ? '$supplementCount supplement${supplementCount == 1 ? '' : 's'}'
-            ' · $medicationCount medication'
-            '${medicationCount == 1 ? '' : 's'}'
+              ' · $medicationCount medication'
+              '${medicationCount == 1 ? '' : 's'}'
         : '3 supplements · 1 medication';
 
     // Real intelligence tier — identical wire-up to Stack v2's
@@ -493,7 +503,8 @@ class _StackHealthCard extends ConsumerWidget {
           ...report.stackInteractions,
           ...report.categoryWarnings,
         ];
-        final synergies = synergyAsync.whenOrNull(
+        final synergies =
+            synergyAsync.whenOrNull(
               data: (synergyReport) => synergyReport.matches
                   .map(
                     (m) => SynergyResult(
@@ -519,16 +530,17 @@ class _StackHealthCard extends ConsumerWidget {
     );
     final intelligence =
         (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
-            ? const StackIntelligenceEngine().diagnose(
-                stackSize: stack.length,
-                safetyReport: reportAsync.value!,
-                recalledReport: recallAsync.value!,
-                synergyReport: synergyAsync.value!,
-                qualityScore: safetyScore?.score,
-              )
-            : null;
+        ? const StackIntelligenceEngine().diagnose(
+            stackSize: stack.length,
+            safetyReport: reportAsync.value!,
+            recalledReport: recallAsync.value!,
+            synergyReport: synergyAsync.value!,
+            qualityScore: safetyScore?.score,
+          )
+        : null;
     final status = intelligence?.tier.healthLabel;
-    final isAnalyzing = reportAsync.isLoading ||
+    final isAnalyzing =
+        reportAsync.isLoading ||
         synergyAsync.isLoading ||
         recallAsync.isLoading;
     final Color tone = status?.color ?? V2Colors.safe;
@@ -537,7 +549,7 @@ class _StackHealthCard extends ConsumerWidget {
         : status?.label ?? 'No data yet';
     final insightLine = hasRealData
         ? describeStackSummary(intelligence)
-        : contextLine; // Empty stack: keep the fixture line for design preview.
+        : contextLine;
 
     return Material(
       color: Colors.transparent,
@@ -588,8 +600,7 @@ class _StackHealthCard extends ConsumerWidget {
                             children: [
                               Text(
                                 'Stack Health',
-                                style:
-                                    V2Typography.titleSm(color: V2Colors.fg),
+                                style: V2Typography.titleSm(color: V2Colors.fg),
                               ),
                               const SizedBox(height: 2),
                               // Header subline = supplement/medication
@@ -673,8 +684,9 @@ class _StackHealthCard extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               insightLine,
-                              style: V2Typography.caption(color: tone)
-                                  .copyWith(fontWeight: FontWeight.w500),
+                              style: V2Typography.caption(
+                                color: tone,
+                              ).copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
                         ],
@@ -699,14 +711,16 @@ class _StackHealthCard extends ConsumerWidget {
                   children: [
                     _MicroMetric(
                       icon: Icons.medication_outlined,
-                      label: '$supplementLabel supplement'
+                      label:
+                          '$supplementLabel supplement'
                           '${supplementLabel == 1 ? '' : 's'}',
                       color: V2Colors.accent,
                     ),
                     const SizedBox(width: V2Spacing.space16),
                     _MicroMetric(
                       icon: Icons.local_pharmacy_outlined,
-                      label: '$medicationLabel medication'
+                      label:
+                          '$medicationLabel medication'
                           '${medicationLabel == 1 ? '' : 's'}',
                       color: V2Colors.fgMuted,
                     ),
@@ -771,8 +785,9 @@ class _MicroMetric extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: V2Typography.caption(color: V2Colors.fgMuted)
-                  .copyWith(fontWeight: FontWeight.w500),
+              style: V2Typography.caption(
+                color: V2Colors.fgMuted,
+              ).copyWith(fontWeight: FontWeight.w500),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -894,9 +909,7 @@ class _RecentScansSection extends ConsumerWidget {
           height: 210,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: V2Spacing.space24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
             itemCount: scans.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(width: V2Spacing.space12),
@@ -942,8 +955,7 @@ class _RecentScansEmptyState extends StatelessWidget {
         ),
         const SizedBox(height: V2Spacing.space12),
         Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
           // **Phase 11.7j.2 — Sean 2026-05-16 size + tone parity with
           // Stack Health card.** Adds V2Shadows.md (was no shadow) +
           // larger vertical padding so the empty state sits at the
@@ -1025,8 +1037,7 @@ class _RecentScanCard extends StatelessWidget {
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
-          onTap: () =>
-              GoRouter.of(context).push('/product/${scan.dsldId}'),
+          onTap: () => GoRouter.of(context).push('/product/${scan.dsldId}'),
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Container(
             padding: const EdgeInsets.all(V2Spacing.space12),
@@ -1061,9 +1072,9 @@ class _RecentScanCard extends StatelessWidget {
                 const SizedBox(height: V2Spacing.space8),
                 Text(
                   scan.name,
-                  style: V2Typography.bodySm(color: V2Colors.fg).copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: V2Typography.bodySm(
+                    color: V2Colors.fg,
+                  ).copyWith(fontWeight: FontWeight.w500),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1121,8 +1132,7 @@ class _QuickCheckCta extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: V2Colors.caution.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(V2Spacing.radiusCard),
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 ),
                 child: const Icon(
                   Icons.compare_arrows_rounded,
@@ -1148,10 +1158,7 @@ class _QuickCheckCta extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: V2Colors.fgMuted,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgMuted),
             ],
           ),
         ),
@@ -1186,13 +1193,7 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _index = i);
     // Order matches HomeV2Screen.destinations — Scan sits at index 2.
-    final destination = const [
-      'Home',
-      'Stack',
-      'Scan',
-      'Chat',
-      'Profile',
-    ][i];
+    final destination = const ['Home', 'Stack', 'Scan', 'Chat', 'Profile'][i];
     messenger.showSnackBar(
       SnackBar(
         content: Text('$destination tapped — preview only (Phase 10.0)'),
@@ -1206,10 +1207,7 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        HomeV2Screen(
-          selectedIndex: _index,
-          onDestinationSelected: _onTap,
-        ),
+        HomeV2Screen(selectedIndex: _index, onDestinationSelected: _onTap),
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,
           right: 8,
@@ -1222,11 +1220,7 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
               onTap: () => context.go('/dev/v2'),
               child: const Padding(
                 padding: EdgeInsets.all(V2Spacing.space8),
-                child: Icon(
-                  Icons.close_rounded,
-                  color: V2Colors.fg,
-                  size: 20,
-                ),
+                child: Icon(Icons.close_rounded, color: V2Colors.fg, size: 20),
               ),
             ),
           ),
@@ -1247,8 +1241,18 @@ class _CitationStrip extends ConsumerWidget {
   const _CitationStrip();
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _formatDate(DateTime d) =>
@@ -1293,8 +1297,9 @@ typedef _RecentScan = ({
   String time,
 });
 
-final _v2RecentScansProvider =
-    FutureProvider.autoDispose<List<_RecentScan>>((ref) async {
+final _v2RecentScansProvider = FutureProvider.autoDispose<List<_RecentScan>>((
+  ref,
+) async {
   final userDb = ref.watch(userDatabaseProvider);
   final coreDb = ref.watch(coreDatabaseProvider);
   final history = await userDb.getRecentScans(limit: 10);

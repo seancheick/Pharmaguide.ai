@@ -53,10 +53,12 @@ class PGTimingAdviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (optimizations.isEmpty) return const SizedBox.shrink();
 
-    final separations =
-        optimizations.where((o) => o.isSeparation).toList(growable: false);
-    final others =
-        optimizations.where((o) => !o.isSeparation).toList(growable: false);
+    final separations = optimizations
+        .where((o) => o.isSeparation)
+        .toList(growable: false);
+    final others = optimizations
+        .where((o) => !o.isSeparation)
+        .toList(growable: false);
     final visible = [...separations, ...others].take(maxVisible).toList();
 
     final card = Container(
@@ -67,58 +69,60 @@ class PGTimingAdviceCard extends StatelessWidget {
         boxShadow: V2Shadows.sm,
       ),
       clipBehavior: Clip.antiAlias,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          // 4px accent stripe — quietly anchors the section as
-          // "positive guidance" without competing with severity-
-          // tinted warning surfaces above.
-          Container(width: 4, color: V2Colors.accent),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(V2Spacing.space16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.schedule_rounded,
-                        size: 16,
-                        color: V2Colors.accent,
-                      ),
-                      const SizedBox(width: V2Spacing.space8),
-                      PGEyebrow(
-                        'Timing  ·  ${optimizations.length}',
-                        color: V2Colors.accent,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: V2Spacing.space8),
-                  Text(
-                    // Sean 2026-05-16: pluralize when there are
-                    // multiple tips. Singular reads slightly off
-                    // when there are 3+ rules below it.
-                    optimizations.length > 1
-                        ? 'Timing optimizations'
-                        : 'Timing optimization',
-                    style: V2Typography.titleSm(color: V2Colors.fg),
-                  ),
-                  const SizedBox(height: V2Spacing.space12),
-                  for (var i = 0; i < visible.length; i++) ...[
-                    _TimingRow(opt: visible[i]),
-                    if (i < visible.length - 1)
-                      const SizedBox(height: V2Spacing.space12),
-                  ],
-                  if (optimizations.length > maxVisible) ...[
-                    const SizedBox(height: V2Spacing.space12),
-                    Text(
-                      '+${optimizations.length - maxVisible} more timing tips',
-                      style: V2Typography.label(color: V2Colors.accent),
+          const Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: ColoredBox(
+              color: V2Colors.accent,
+              child: SizedBox(width: 4),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(V2Spacing.space16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 16,
+                      color: V2Colors.accent,
+                    ),
+                    const SizedBox(width: V2Spacing.space8),
+                    PGEyebrow(
+                      'Timing  ·  ${optimizations.length}',
+                      color: V2Colors.accent,
                     ),
                   ],
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  // Sean 2026-05-16: pluralize when there are
+                  // multiple tips. Singular reads slightly off
+                  // when there are 3+ rules below it.
+                  optimizations.length > 1
+                      ? 'Timing optimizations'
+                      : 'Timing optimization',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                ),
+                const SizedBox(height: V2Spacing.space12),
+                for (var i = 0; i < visible.length; i++) ...[
+                  _TimingRow(opt: visible[i]),
+                  if (i < visible.length - 1)
+                    const SizedBox(height: V2Spacing.space12),
                 ],
-              ),
+                if (optimizations.length > maxVisible) ...[
+                  const SizedBox(height: V2Spacing.space12),
+                  Text(
+                    '+${optimizations.length - maxVisible} more timing tips',
+                    style: V2Typography.label(color: V2Colors.accent),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

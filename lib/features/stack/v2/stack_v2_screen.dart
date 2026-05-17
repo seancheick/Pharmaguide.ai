@@ -17,7 +17,6 @@ import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
-import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -45,12 +44,14 @@ class StackV2Screen extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int>? onDestinationSelected;
   final bool showNavBar;
+  final bool showPreviewFixtures;
 
   const StackV2Screen({
     super.key,
     this.selectedIndex = 1, // Stack tab is index 1 in v2 nav order
     this.onDestinationSelected,
     this.showNavBar = true,
+    this.showPreviewFixtures = false,
   });
 
   @override
@@ -98,8 +99,10 @@ class _StackV2ScreenState extends State<StackV2Screen> {
           child: KeyedSubtree(
             key: ValueKey(_segment),
             child: switch (_segment) {
-              0 => const _StackTab(),
-              1 => const _NutrientsTab(),
+              0 => _StackTab(showPreviewFixtures: widget.showPreviewFixtures),
+              1 => _NutrientsTab(
+                showPreviewFixtures: widget.showPreviewFixtures,
+              ),
               _ => const _WishlistTab(),
             },
           ),
@@ -108,8 +111,7 @@ class _StackV2ScreenState extends State<StackV2Screen> {
             ? PGFrostedNavBar(
                 useV2Tones: true,
                 selectedIndex: widget.selectedIndex,
-                onDestinationSelected:
-                    widget.onDestinationSelected ?? (_) {},
+                onDestinationSelected: widget.onDestinationSelected ?? (_) {},
                 destinations: const [
                   NavigationDestination(
                     icon: Icon(Icons.home_outlined),
@@ -153,10 +155,7 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
   final int segment;
   final ValueChanged<int> onSegmentChanged;
 
-  const _StackAppBar({
-    required this.segment,
-    required this.onSegmentChanged,
-  });
+  const _StackAppBar({required this.segment, required this.onSegmentChanged});
 
   @override
   // 56pt AppBar default + 16 gap + 44 segmented control + 16 gap = 132
@@ -171,10 +170,7 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       titleSpacing: V2Spacing.space24,
-      title: Text(
-        'My stack',
-        style: V2Typography.title(color: V2Colors.fg),
-      ),
+      title: Text('My stack', style: V2Typography.title(color: V2Colors.fg)),
       actions: [
         IconButton(
           icon: const Icon(Icons.add_rounded, color: V2Colors.fg),
@@ -215,7 +211,9 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
 // =============================================================================
 
 class _StackTab extends ConsumerWidget {
-  const _StackTab();
+  final bool showPreviewFixtures;
+
+  const _StackTab({required this.showPreviewFixtures});
 
   /// Fixture used only when no real stack rows have loaded (cold cache
   /// + zero-state during the first frame). Production rows replace
@@ -260,19 +258,21 @@ class _StackTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stackAsync = ref.watch(activeStackProvider);
     final realItems = stackAsync.asData?.value
-        .map((row) => _StackEntry(
-              id: row.id,
-              name: row.name,
-              brand: null, // production resolves brand via core DB
-              score: null, // ditto for score
-              dosage: row.dosage,
-              frequency: row.frequency,
-              isMedication: row.type == 'medication',
-              // Phase 11.7j.5 — Sean 2026-05-16: thread dsldId so the
-              // row tap can navigate to /product/<dsldId>. Null for
-              // medications.
-              dsldId: row.dsldId,
-            ))
+        .map(
+          (row) => _StackEntry(
+            id: row.id,
+            name: row.name,
+            brand: null, // production resolves brand via core DB
+            score: null, // ditto for score
+            dosage: row.dosage,
+            frequency: row.frequency,
+            isMedication: row.type == 'medication',
+            // Phase 11.7j.5 — Sean 2026-05-16: thread dsldId so the
+            // row tap can navigate to /product/<dsldId>. Null for
+            // medications.
+            dsldId: row.dsldId,
+          ),
+        )
         .toList();
 
     // Phase 11.7L bug 7 (2026-05-16): only show fixture rows during
@@ -287,10 +287,13 @@ class _StackTab extends ConsumerWidget {
     final List<_StackEntry> items;
     if (hasLoadedOnce) {
       items = realItems ?? const <_StackEntry>[];
-    } else {
+    } else if (showPreviewFixtures) {
       items = _fixtureItems;
+    } else {
+      items = const <_StackEntry>[];
     }
-    final isShowingFixture = !hasLoadedOnce;
+    final isShowingFixture = !hasLoadedOnce && showPreviewFixtures;
+    final isLoading = !hasLoadedOnce && !showPreviewFixtures;
     final bool isEmpty = hasLoadedOnce && items.isEmpty;
 
     // RefreshIndicator wraps the list so pull-to-refresh re-fires
@@ -306,14 +309,15 @@ class _StackTab extends ConsumerWidget {
         ),
         padding: EdgeInsets.only(
           top: V2Spacing.space8,
-          bottom: MediaQuery.of(context).padding.bottom +
+          bottom:
+              MediaQuery.of(context).padding.bottom +
               kPGNavBarHeight +
               V2Spacing.space24,
         ),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-            child: _StackSummaryCard(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+            child: _StackSummaryCard(showPreviewFixtures: showPreviewFixtures),
           ),
           // Production safety + intelligence surfaces — each collapses
           // to SizedBox.shrink when there's nothing to surface, so
@@ -321,7 +325,7 @@ class _StackTab extends ConsumerWidget {
           // production widgets per Sean's directive ("temporary visual
           // inconsistency acceptable, loss of clinical functionality
           // is not"). v2 mirrors of each land in subsequent passes.
-          _LegacyRecallAlertSlot(stack: stackAsync.asData?.value ?? const []),
+          const _LegacyRecallAlertSlot(),
           const _LegacyStackSafetyBannerSlot(),
           const _LegacyProfileNudgeSlot(),
           const SizedBox(height: V2Spacing.space24),
@@ -329,25 +333,30 @@ class _StackTab extends ConsumerWidget {
           // fixture flash with a calm "your stack is empty" prompt
           // pointing back to /scan. Mirrors v1 PGEmptyState wording
           // (`stack_screen.dart:739`).
-          if (isEmpty)
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-              child: PGEmptyState(
-                icon: Icons.layers_outlined,
-                title: 'Your stack is empty',
-                description:
-                    'Add the supplements you take regularly to see '
-                    'nutrient totals, UL warnings, and interactions '
-                    'in one place.',
-                actionLabel: 'Scan a supplement',
-                onAction: () => GoRouter.of(context).go(Routes.scan),
-              ),
+          if (isLoading)
+            const _V2StackEmptyPanel(
+              icon: Icons.hourglass_empty_rounded,
+              eyebrow: 'Loading',
+              headline: 'Checking your stack',
+              body:
+                  'Loading your supplements and medications from this device.',
+            )
+          else if (isEmpty)
+            _V2StackEmptyPanel(
+              icon: Icons.layers_outlined,
+              eyebrow: 'Stack',
+              headline: 'Your stack is empty',
+              body:
+                  'Add the supplements you take regularly to see nutrient '
+                  'totals, UL warnings, and interactions in one place.',
+              actionLabel: 'Scan a supplement',
+              onAction: () => GoRouter.of(context).go(Routes.scan),
             )
           else ...[
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+              padding: const EdgeInsets.symmetric(
+                horizontal: V2Spacing.space24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -370,62 +379,62 @@ class _StackTab extends ConsumerWidget {
           // empty-state branch above replaces the header + the
           // `_TimingAdviceSlot` / `_DepletionSlot` are content-aware
           // and collapse to SizedBox.shrink when the stack is empty.
-        ...items.map(
-          (e) => Padding(
-            padding: const EdgeInsets.fromLTRB(
-              V2Spacing.space24,
-              0,
-              V2Spacing.space24,
-              V2Spacing.space12,
-            ),
-            child: _StackItemRow(
-              entry: e,
-              // Fixture items can't be removed (no provider row to
-              // delete). Real rows wire to stackActionsProvider.
-              onRemoved: isShowingFixture
-                  ? null
-                  : () async {
-                      final actions = ref.read(stackActionsProvider);
-                      try {
-                        await actions.remove(e.id);
-                      } on Exception {
+          ...items.map(
+            (e) => Padding(
+              padding: const EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                0,
+                V2Spacing.space24,
+                V2Spacing.space12,
+              ),
+              child: _StackItemRow(
+                entry: e,
+                // Fixture items can't be removed (no provider row to
+                // delete). Real rows wire to stackActionsProvider.
+                onRemoved: isShowingFixture
+                    ? null
+                    : () async {
+                        final actions = ref.read(stackActionsProvider);
+                        try {
+                          await actions.remove(e.id);
+                        } on Exception {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Could not remove.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
                         if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Could not remove.'),
+                        final messenger = ScaffoldMessenger.of(context)
+                          ..hideCurrentSnackBar();
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('Removed ${e.name}'),
+                            duration: const Duration(seconds: 4),
                             behavior: SnackBarBehavior.floating,
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              onPressed: () async {
+                                try {
+                                  await actions.restore(e.id);
+                                } on Exception {
+                                  // silent
+                                }
+                              },
+                            ),
                           ),
                         );
-                        return;
-                      }
-                      if (!context.mounted) return;
-                      final messenger = ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar();
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text('Removed ${e.name}'),
-                          duration: const Duration(seconds: 4),
-                          behavior: SnackBarBehavior.floating,
-                          action: SnackBarAction(
-                            label: 'Undo',
-                            onPressed: () async {
-                              try {
-                                await actions.restore(e.id);
-                              } on Exception {
-                                // silent
-                              }
-                            },
-                          ),
-                        ),
-                      );
-                    },
+                      },
+              ),
             ),
           ),
-        ),
-        // Timing + depletion advice — same conditional behavior as
-        // the safety slots above (collapse when nothing to show).
-        const _TimingAdviceSlot(),
-        const _DepletionSlot(),
+          // Timing + depletion advice — same conditional behavior as
+          // the safety slots above (collapse when nothing to show).
+          const _TimingAdviceSlot(),
+          const _DepletionSlot(),
         ],
       ),
     );
@@ -437,7 +446,9 @@ class _StackTab extends ConsumerWidget {
 // =============================================================================
 
 class _StackSummaryCard extends ConsumerWidget {
-  const _StackSummaryCard();
+  final bool showPreviewFixtures;
+
+  const _StackSummaryCard({required this.showPreviewFixtures});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -446,14 +457,21 @@ class _StackSummaryCard extends ConsumerWidget {
     // the legacy Home Stack Health card so the user sees ONE verdict
     // across both surfaces (no drift). Sean's safety rule: real
     // clinical surfaces here, never a hardcoded "Optimal".
-    final stack = ref.watch(activeStackProvider).asData?.value ?? const [];
-    final supplementCount =
-        stack.where((e) => e.type == 'supplement').length;
-    final medicationCount =
-        stack.where((e) => e.type == 'medication').length;
-    final hasRealData = stack.isNotEmpty;
-    final liveSupplementCount = hasRealData ? supplementCount : 3;
-    final liveMedicationCount = hasRealData ? medicationCount : 1;
+    final stackAsync = ref.watch(activeStackProvider);
+    final stack = stackAsync.asData?.value ?? const [];
+    final supplementCount = stack.where((e) => e.type == 'supplement').length;
+    final medicationCount = stack.where((e) => e.type == 'medication').length;
+    final hasLoadedStack = stackAsync.hasValue;
+    final liveSupplementCount = hasLoadedStack
+        ? supplementCount
+        : showPreviewFixtures
+        ? 3
+        : 0;
+    final liveMedicationCount = hasLoadedStack
+        ? medicationCount
+        : showPreviewFixtures
+        ? 1
+        : 0;
 
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
@@ -466,7 +484,8 @@ class _StackSummaryCard extends ConsumerWidget {
           ...report.stackInteractions,
           ...report.categoryWarnings,
         ];
-        final synergies = synergyAsync.whenOrNull(
+        final synergies =
+            synergyAsync.whenOrNull(
               data: (synergyReport) => synergyReport.matches
                   .map(
                     (m) => SynergyResult(
@@ -492,16 +511,17 @@ class _StackSummaryCard extends ConsumerWidget {
     );
     final intelligence =
         (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
-            ? const StackIntelligenceEngine().diagnose(
-                stackSize: stack.length,
-                safetyReport: reportAsync.value!,
-                recalledReport: recallAsync.value!,
-                synergyReport: synergyAsync.value!,
-                qualityScore: safetyScore?.score,
-              )
-            : null;
+        ? const StackIntelligenceEngine().diagnose(
+            stackSize: stack.length,
+            safetyReport: reportAsync.value!,
+            recalledReport: recallAsync.value!,
+            synergyReport: synergyAsync.value!,
+            qualityScore: safetyScore?.score,
+          )
+        : null;
     final status = intelligence?.tier.healthLabel;
-    final isAnalyzing = reportAsync.isLoading ||
+    final isAnalyzing =
+        reportAsync.isLoading ||
         synergyAsync.isLoading ||
         recallAsync.isLoading;
     // Tone: real status color when intelligence is loaded; v2 safe
@@ -517,10 +537,7 @@ class _StackSummaryCard extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            V2Colors.surface,
-            Color.lerp(V2Colors.surface, tone, 0.05)!,
-          ],
+          colors: [V2Colors.surface, Color.lerp(V2Colors.surface, tone, 0.05)!],
         ),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         border: Border.all(color: V2Colors.outline),
@@ -557,8 +574,7 @@ class _StackSummaryCard extends ConsumerWidget {
                 ),
                 decoration: BoxDecoration(
                   color: tone.withValues(alpha: 0.10),
-                  borderRadius:
-                      BorderRadius.circular(V2Spacing.radiusPill),
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                   border: Border.all(
                     color: tone.withValues(alpha: 0.20),
                     width: 0.8,
@@ -576,10 +592,7 @@ class _StackSummaryCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: V2Spacing.space8),
-                    Text(
-                      statusLabel,
-                      style: V2Typography.label(color: tone),
-                    ),
+                    Text(statusLabel, style: V2Typography.label(color: tone)),
                   ],
                 ),
               ),
@@ -642,8 +655,7 @@ class _CountChip extends StatelessWidget {
                 children: [
                   Text(
                     '$count',
-                    style: V2Typography.bodyMedium(color: V2Colors.fg)
-                        .copyWith(
+                    style: V2Typography.bodyMedium(color: V2Colors.fg).copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -755,7 +767,7 @@ class _StackItemRow extends StatelessWidget {
                   entry.isMedication
                       ? "Medications don't have a detail page yet."
                       : 'No product details available for this entry. '
-                          'Re-add via scan to enable the detail page.',
+                            'Re-add via scan to enable the detail page.',
                 ),
                 behavior: SnackBarBehavior.floating,
                 duration: const Duration(seconds: 3),
@@ -789,8 +801,7 @@ class _StackItemRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           entry.brand!,
-                          style:
-                              V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(color: V2Colors.fgMuted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -802,8 +813,7 @@ class _StackItemRow extends StatelessWidget {
                               .whereType<String>()
                               .where((s) => s.isNotEmpty)
                               .join(' · '),
-                          style:
-                              V2Typography.caption(color: V2Colors.fgSubtle),
+                          style: V2Typography.caption(color: V2Colors.fgSubtle),
                         ),
                       ],
                       if (entry.score != null) ...[
@@ -856,6 +866,99 @@ class _ItemLeadingGlyph extends StatelessWidget {
   }
 }
 
+class _V2StackEmptyPanel extends StatelessWidget {
+  final IconData icon;
+  final String eyebrow;
+  final String headline;
+  final String body;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _V2StackEmptyPanel({
+    required this.icon,
+    required this.eyebrow,
+    required this.headline,
+    required this.body,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Visual rule (Sean 2026-05-17): empty states sit on the cream
+    // page bg with outline only — no shadow, no surface fill — so
+    // they read as quieter than the active gradient-tinted summary
+    // card above. Avoids the "flat white tile against cream gradient"
+    // mismatch Sean called out in the post-walkthrough review.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+      child: Material(
+        color: V2Colors.bg,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(V2Spacing.space24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            border: Border.all(color: V2Colors.outline),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: V2Colors.accentTint,
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                ),
+                child: Icon(icon, color: V2Colors.accent, size: 28),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              PGEyebrow(eyebrow),
+              const SizedBox(height: V2Spacing.space8),
+              Text(
+                headline,
+                textAlign: TextAlign.center,
+                style: V2Typography.titleSm(color: V2Colors.fg),
+              ),
+              const SizedBox(height: V2Spacing.space8),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: V2Spacing.space16),
+                InkWell(
+                  onTap: onAction,
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: V2Spacing.space16,
+                      vertical: V2Spacing.space8,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                      border: Border.all(
+                        color: V2Colors.accent.withValues(alpha: 0.32),
+                      ),
+                    ),
+                    child: Text(
+                      actionLabel!,
+                      style: V2Typography.label(color: V2Colors.accent),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // =============================================================================
 // Nutrients tab — list of nutrient rows showing % RDA / UL coverage.
 // Mirror of the production NutrientAccumulationPanel intent: most
@@ -863,7 +966,9 @@ class _ItemLeadingGlyph extends StatelessWidget {
 // =============================================================================
 
 class _NutrientsTab extends ConsumerWidget {
-  const _NutrientsTab();
+  final bool showPreviewFixtures;
+
+  const _NutrientsTab({required this.showPreviewFixtures});
 
   // Fixture ordered by clinical priority: UL-flagged first, then RDA-
   // tracked descending by %. Used when the user has no real stack
@@ -915,22 +1020,35 @@ class _NutrientsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Production behavior: when there's a real stack, render the
-    // legacy NutrientAccumulationPanel which sources live data from
-    // stackNutrientStatusesProvider. v2 fixture rows only render
-    // when no real stack is present (for design preview). Sean
-    // 2026-05-15: preserve production functionality first, polish
-    // the legacy widget into a v2 mirror in a later pass.
-    final hasRealStack =
-        (ref.watch(activeStackProvider).asData?.value ?? const []).isNotEmpty;
+    // Production behavior: only render real nutrient totals once a
+    // real stack exists. Fixture nutrient rows are reserved for the
+    // dev preview so the production tab never claims nutrient
+    // coverage while the Stack tab is empty.
+    final stackAsync = ref.watch(activeStackProvider);
+    final stack = stackAsync.asData?.value ?? const [];
+    final isLoading = !stackAsync.hasValue && !showPreviewFixtures;
+    final hasRealStack = stack.isNotEmpty;
+    final shouldShowFixtures = showPreviewFixtures && !hasRealStack;
 
-    return ListView(
+    // Nutrients tab pull-to-refresh parity (Sean 2026-05-17): Stack
+    // tab already supports pull-to-refresh; this tab needs the same
+    // gesture so a user adding a product elsewhere can refresh
+    // nutrient totals without bouncing through the Stack tab first.
+    return RefreshIndicator(
+      color: V2Colors.accent,
+      backgroundColor: V2Colors.surface,
+      onRefresh: () async {
+        ref.invalidate(activeStackProvider);
+        await ref.read(activeStackProvider.future);
+      },
+      child: ListView(
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
       padding: EdgeInsets.only(
         top: V2Spacing.space8,
-        bottom: MediaQuery.of(context).padding.bottom +
+        bottom:
+            MediaQuery.of(context).padding.bottom +
             kPGNavBarHeight +
             V2Spacing.space24,
       ),
@@ -955,38 +1073,53 @@ class _NutrientsTab extends ConsumerWidget {
         const SizedBox(height: V2Spacing.space12),
         // Real production panel — only renders when the user actually
         // has a stack. Audit-backlog: replace with a v2 mirror later.
+        if (isLoading)
+          const _V2StackEmptyPanel(
+            icon: Icons.hourglass_empty_rounded,
+            eyebrow: 'Nutrients',
+            headline: 'Checking nutrient totals',
+            body: 'Loading your stack before calculating coverage.',
+          ),
         if (hasRealStack)
           const Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+            padding: EdgeInsets.symmetric(horizontal: V2Spacing.space24),
             child: NutrientAccumulationPanel(),
           ),
         if (hasRealStack) const SizedBox(height: V2Spacing.space16),
-        // Fixture preview rows — only when there's no real stack, so
-        // the gallery review state still feels populated.
-        if (!hasRealStack)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-          child: Container(
-            decoration: BoxDecoration(
-              color: V2Colors.surface,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
-              boxShadow: V2Shadows.sm,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                for (var i = 0; i < _rows.length; i++)
-                  _NutrientRow(
-                    status: _rows[i],
-                    isLast: i == _rows.length - 1,
-                  ),
-              ],
+        if (!isLoading && !hasRealStack && !shouldShowFixtures)
+          const _V2StackEmptyPanel(
+            icon: Icons.ssid_chart_rounded,
+            eyebrow: 'Nutrients',
+            headline: 'No nutrient totals yet',
+            body:
+                'Add supplements to your stack and PharmaGuide will calculate '
+                'daily coverage and upper-limit warnings here.',
+          ),
+        // Fixture preview rows — dev preview only.
+        if (shouldShowFixtures)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: V2Colors.surface,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  for (var i = 0; i < _rows.length; i++)
+                    _NutrientRow(
+                      status: _rows[i],
+                      isLast: i == _rows.length - 1,
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
       ],
+      ),
     );
   }
 }
@@ -1016,10 +1149,10 @@ class _NutrientRow extends StatelessWidget {
   const _NutrientRow({required this.status, this.isLast = false});
 
   Color get _tone => switch (status.tier) {
-        _NutrientTier.warning => V2Colors.caution,
-        _NutrientTier.monitor => V2Colors.monitor,
-        _NutrientTier.normal => V2Colors.accent,
-      };
+    _NutrientTier.warning => V2Colors.caution,
+    _NutrientTier.monitor => V2Colors.monitor,
+    _NutrientTier.normal => V2Colors.accent,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -1048,8 +1181,9 @@ class _NutrientRow extends StatelessWidget {
               const SizedBox(width: V2Spacing.space8),
               Text(
                 status.detail,
-                style: V2Typography.caption(color: _tone)
-                    .copyWith(fontWeight: FontWeight.w500),
+                style: V2Typography.caption(
+                  color: _tone,
+                ).copyWith(fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -1150,6 +1284,7 @@ class _StackV2PreviewState extends State<StackV2Preview> {
       children: [
         StackV2Screen(
           selectedIndex: _navIndex,
+          showPreviewFixtures: true,
           onDestinationSelected: (i) => setState(() => _navIndex = i),
         ),
         Positioned(
@@ -1164,11 +1299,7 @@ class _StackV2PreviewState extends State<StackV2Preview> {
               onTap: () => context.go('/dev/v2'),
               child: const Padding(
                 padding: EdgeInsets.all(V2Spacing.space8),
-                child: Icon(
-                  Icons.close_rounded,
-                  color: V2Colors.fg,
-                  size: 20,
-                ),
+                child: Icon(Icons.close_rounded, color: V2Colors.fg, size: 20),
               ),
             ),
           ),
@@ -1188,9 +1319,10 @@ class _StackV2PreviewState extends State<StackV2Preview> {
 // =============================================================================
 
 class _LegacyRecallAlertSlot extends ConsumerWidget {
-  const _LegacyRecallAlertSlot({required this.stack});
-  // ignore: unused_element
-  final List<dynamic> stack;
+  // Slot watches `recalledIngredientsReportProvider` directly, which
+  // already filters against the active stack — no need to pass the
+  // stack rows in. Dropped the dead `stack` field 2026-05-17.
+  const _LegacyRecallAlertSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1200,13 +1332,12 @@ class _LegacyRecallAlertSlot extends ConsumerWidget {
         if (report.isEmpty) return const SizedBox.shrink();
         final ordered = report.orderedViolations;
         final primary = ordered.first;
-        final names =
-            ordered.map((v) => v.productName).toList(growable: false);
+        final names = ordered.map((v) => v.productName).toList(growable: false);
         final body = ordered.length == 1
             ? primary.bannerMessage
             : '${ordered.length} products need review. '
-                '${primary.bannerMessage} Plus ${ordered.length - 1} '
-                'more: ${names.skip(1).join(", ")}.';
+                  '${primary.bannerMessage} Plus ${ordered.length - 1} '
+                  'more: ${names.skip(1).join(", ")}.';
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
