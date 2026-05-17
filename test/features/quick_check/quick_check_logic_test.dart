@@ -205,6 +205,234 @@ void main() {
       },
     );
   });
+
+  group('runQuickCheckPair', () {
+    late InteractionDatabase db;
+
+    setUp(() {
+      db = InteractionDatabase.memory();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('finds supplement-medication interaction by drug class', () async {
+      await db.batch((batch) {
+        batch.insert(
+          db.interactions,
+          _interactionRow(
+            id: 'ACE_POTASSIUM',
+            a1Canonical: 'potassium',
+            a2Type: 'drug_class',
+            a2Id: 'class:ace_inhibitors',
+            a2Name: 'ACE inhibitors',
+            severity: 'caution',
+          ),
+        );
+      });
+
+      final supplement = QuickCheckItem.supplement(
+        _product('POTASSIUM', 'Potassium Complex', '["potassium"]'),
+      );
+      final medication = QuickCheckItem.medication(
+        name: 'Lisinopril',
+        rxcui: '29046',
+        drugClasses: const ['class:ace_inhibitors'],
+      );
+
+      final results = await runQuickCheckPair(supplement, medication, db);
+
+      expect(results, hasLength(1));
+      expect(results.first.severity, Severity.caution);
+      expect(results.first.agent1Name, 'Lisinopril');
+      expect(results.first.agent2Name, 'Potassium Complex');
+    });
+
+    test('finds medication-medication interaction by RXCUI pair', () async {
+      await db.batch((batch) {
+        batch.insert(
+          db.interactions,
+          _interactionRow(
+            id: 'WARFARIN_IBUPROFEN',
+            a1Type: 'drug',
+            a1Id: '11289',
+            a1Name: 'Warfarin',
+            a1Canonical: null,
+            a2Type: 'drug',
+            a2Id: '5640',
+            a2Name: 'Ibuprofen',
+            a2Canonical: null,
+            severity: 'avoid',
+          ),
+        );
+      });
+
+      final a = QuickCheckItem.medication(name: 'Warfarin', rxcui: '11289');
+      final b = QuickCheckItem.medication(name: 'Ibuprofen', rxcui: '5640');
+
+      final results = await runQuickCheckPair(a, b, db);
+
+      expect(results, hasLength(1));
+      expect(results.first.severity, Severity.avoid);
+      expect(results.first.agent1Name, 'Warfarin');
+      expect(results.first.agent2Name, 'Ibuprofen');
+    });
+
+    // Phase 11.7L safety fix (Sean 2026-05-17): the previous
+    // lookupPair-only loop missed "class-tag-on-a-drug" rows where a
+    // curated row stores its class via the `agent_drug_class`
+    // cross-ref column rather than as an explicit `agent_type =
+    // drug_class` agent. lookupByDrugClass picks both shapes up; the
+    // new class-fallback walks through it for every medication class
+    // on either side.
+    test(
+      'finds med-med interaction via class-tag-on-a-drug cross-ref column',
+      () async {
+        await db.batch((batch) {
+          batch.insert(
+            db.interactions,
+            _interactionRow(
+              id: 'METH_TRIMETHOPRIM',
+              a1Type: 'drug',
+              a1Id: '6851',
+              a1Name: 'Methotrexate',
+              a1Canonical: null,
+              a2Type: 'drug',
+              a2Id: '10829',
+              a2Name: 'Trimethoprim',
+              a2Canonical: null,
+              // Trimethoprim row tagged with antifolate class — the
+              // exact shape lookupPair(drug, drug_class) misses.
+              a2DrugClass: 'class:antifolates',
+              severity: 'contraindicated',
+            ),
+          );
+        });
+
+        // User's drug doesn't match either explicit RXCUI but is in
+        // the antifolate class — must still surface the row.
+        final a = QuickCheckItem.medication(name: 'Methotrexate', rxcui: '6851');
+        final b = QuickCheckItem.medication(
+          name: 'Sulfamethoxazole-Trimethoprim',
+          rxcui: '99999', // not 10829
+          drugClasses: const ['class:antifolates'],
+        );
+
+        final results = await runQuickCheckPair(a, b, db);
+        expect(results, hasLength(1));
+        expect(results.first.severity, Severity.contraindicated);
+      },
+    );
+
+    test('finds med-med via class-fallback when neither rxcui has a curated row',
+        () async {
+      // Sibling-class case: curated row is class-class only, the
+      // user's specific brand RXCUIs aren't in the DB. Mirrors
+      // StackInteractionChecker behavior.
+      await db.batch((batch) {
+        batch.insert(
+          db.interactions,
+          _interactionRow(
+            id: 'ACE_NSAID',
+            a1Type: 'drug_class',
+            a1Id: 'class:ace_inhibitors',
+            a1Name: 'ACE inhibitors',
+            a1Canonical: null,
+            a2Type: 'drug_class',
+            a2Id: 'class:nsaids',
+            a2Name: 'NSAIDs',
+            a2Canonical: null,
+            severity: 'caution',
+          ),
+        );
+      });
+
+      final a = QuickCheckItem.medication(
+        name: 'Brand-X Lisinopril',
+        rxcui: '111111',
+        drugClasses: const ['class:ace_inhibitors'],
+      );
+      final b = QuickCheckItem.medication(
+        name: 'Brand-Y Ibuprofen',
+        rxcui: '222222',
+        drugClasses: const ['class:nsaids'],
+      );
+
+      final results = await runQuickCheckPair(a, b, db);
+      expect(results, hasLength(1));
+      expect(results.first.severity, Severity.caution);
+    });
+
+    test('returns empty when curated DB has no row for the pair', () async {
+      // Safety rule: no row → empty list. Downstream UI must NOT
+      // imply "safe" — only "no known interaction in our database."
+      final a = QuickCheckItem.medication(
+        name: 'Drug A',
+        rxcui: '1',
+        drugClasses: const ['class:a'],
+      );
+      final b = QuickCheckItem.medication(
+        name: 'Drug B',
+        rxcui: '2',
+        drugClasses: const ['class:b'],
+      );
+      expect(await runQuickCheckPair(a, b, db), isEmpty);
+    });
+  });
+
+  group('QuickCheckItem.hydrationIncomplete', () {
+    test('supplements never report incomplete hydration', () {
+      final supp = QuickCheckItem.supplement(
+        _product('S', 'Vitamin D', '["vitamin_d"]'),
+      );
+      expect(supp.hydrationIncomplete, isFalse);
+    });
+
+    test('medication with no class / generic / ingredient is incomplete', () {
+      // Freshly-picked med where RxNorm hydration failed or returned
+      // nothing — only the bare brand RXCUI is set.
+      final med = QuickCheckItem.medication(name: 'Brand-X', rxcui: '12345');
+      expect(med.hydrationIncomplete, isTrue);
+    });
+
+    test('medication with at least one class is complete', () {
+      final med = QuickCheckItem.medication(
+        name: 'Lisinopril',
+        rxcui: '29046',
+        drugClasses: const ['class:ace_inhibitors'],
+      );
+      expect(med.hydrationIncomplete, isFalse);
+    });
+
+    test('medication with generic rxcui only is complete', () {
+      final med = QuickCheckItem.medication(
+        name: 'Brand-X',
+        rxcui: '12345',
+        genericRxcui: '67890',
+      );
+      expect(med.hydrationIncomplete, isFalse);
+    });
+
+    test('medication with ingredient rxcui only is complete', () {
+      // Combination drug — multiple generic ingredients.
+      final med = QuickCheckItem.medication(
+        name: 'Combo',
+        rxcui: '12345',
+        ingredientRxcuis: const ['111', '222'],
+      );
+      expect(med.hydrationIncomplete, isFalse);
+    });
+
+    test('whitespace-only genericRxcui counts as missing', () {
+      final med = QuickCheckItem.medication(
+        name: 'Brand',
+        rxcui: '12345',
+        genericRxcui: '  ',
+      );
+      expect(med.hydrationIncomplete, isTrue);
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -224,20 +452,30 @@ ProductsCoreData _product(String id, String name, String? fingerprint) {
 
 InteractionsCompanion _interactionRow({
   required String id,
-  required String a1Canonical,
-  required String a2Canonical,
+  String? a1Canonical,
+  String? a2Canonical,
+  String a1Type = 'supplement',
+  String a2Type = 'supplement',
+  String? a1Id,
+  String? a2Id,
+  String? a1Name,
+  String? a2Name,
+  String? a1DrugClass,
+  String? a2DrugClass,
   String severity = 'caution',
 }) {
   return InteractionsCompanion.insert(
     id: id,
-    agent1Type: 'supplement',
-    agent1Name: a1Canonical.replaceAll('_', ' '),
-    agent1Id: 'c_$a1Canonical',
+    agent1Type: a1Type,
+    agent1Name: a1Name ?? (a1Canonical ?? a1Id ?? 'Agent A'),
+    agent1Id: a1Id ?? 'c_$a1Canonical',
     agent1CanonicalId: drift.Value(a1Canonical),
-    agent2Type: 'supplement',
-    agent2Name: a2Canonical.replaceAll('_', ' '),
-    agent2Id: 'c_$a2Canonical',
+    agent1DrugClass: drift.Value(a1DrugClass),
+    agent2Type: a2Type,
+    agent2Name: a2Name ?? (a2Canonical ?? a2Id ?? 'Agent B'),
+    agent2Id: a2Id ?? 'c_$a2Canonical',
     agent2CanonicalId: drift.Value(a2Canonical),
+    agent2DrugClass: drift.Value(a2DrugClass),
     severity: severity,
     mechanism: 'Test mechanism',
     management: 'Test management',
