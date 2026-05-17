@@ -5,7 +5,6 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
-import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_interaction_card.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
@@ -1178,12 +1177,16 @@ class _CitationsSheet extends StatelessWidget {
       builder: (context, scrollController) {
         return SingleChildScrollView(
           controller: scrollController,
-          // Bottom padding clears the frosted nav bar.
+          // Sean 2026-05-17: drop `+ kPGNavBarHeight`. The sheet is
+          // opened via `PGModal.bottomSheet` which wraps in SafeArea,
+          // and a modal renders above the nav bar — there's no nav
+          // bar to clear from inside the sheet. Same antipattern as
+          // the safety-check / scanner-not-found sheets.
           padding: const EdgeInsets.fromLTRB(
             AppTheme.space20,
             AppTheme.space8,
             AppTheme.space20,
-            AppTheme.space32 + kPGNavBarHeight,
+            AppTheme.space32,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

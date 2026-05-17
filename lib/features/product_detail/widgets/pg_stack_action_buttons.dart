@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
@@ -100,7 +104,7 @@ class PGStackActionButtons extends ConsumerWidget {
   // Add flow.
   // ---------------------------------------------------------------------
   Future<void> _handleAdd(BuildContext context, WidgetRef ref) async {
-    await PGHaptics.press();
+    unawaited(PGHaptics.press());
 
     // Fetch the product up front so we can pass its name into the sheet
     // and into the addProduct call on confirm.
@@ -154,14 +158,17 @@ class PGStackActionButtons extends ConsumerWidget {
       return;
     }
 
-    // Fire haptic first so the await doesn't reintroduce the context gap.
-    await PGHaptics.success();
+    unawaited(PGHaptics.success());
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Added ${product.productName} to your stack'),
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Go to Stack',
+          onPressed: () => context.go(Routes.stack),
+        ),
       ),
     );
   }

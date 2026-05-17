@@ -62,7 +62,6 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
-import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/product_list_item.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -216,6 +215,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.paddingOf(context);
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       backgroundColor: V2Colors.bg,
       body: SafeArea(
@@ -262,7 +262,11 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
             ],
             Expanded(
               child: Padding(
-                padding: EdgeInsets.only(bottom: mq.bottom + kPGNavBarHeight),
+                padding: EdgeInsets.only(
+                  bottom: keyboardOpen
+                      ? V2Spacing.space8
+                      : mq.bottom + V2Spacing.space24,
+                ),
                 child: _buildBody(),
               ),
             ),
@@ -315,20 +319,22 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
             ],
           ),
           const SizedBox(height: V2Spacing.space12),
-          ..._recentSearches.map((term) => Padding(
-                padding: const EdgeInsets.only(bottom: V2Spacing.space8),
-                child: _RecentSearchRow(
-                  term: term,
-                  onTap: () {
-                    _controller.text = term;
-                    _onQueryChanged(term);
-                  },
-                  onRemove: () async {
-                    await _recentService.removeSearch(term);
-                    await _loadRecentSearches();
-                  },
-                ),
-              )),
+          ..._recentSearches.map(
+            (term) => Padding(
+              padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+              child: _RecentSearchRow(
+                term: term,
+                onTap: () {
+                  _controller.text = term;
+                  _onQueryChanged(term);
+                },
+                onRemove: () async {
+                  await _recentService.removeSearch(term);
+                  await _loadRecentSearches();
+                },
+              ),
+            ),
+          ),
         ],
       );
     }
@@ -433,11 +439,13 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   Widget _buildListSections(_PartitionedResults partition) {
     final children = <Widget>[];
     if (partition.onMarket.isNotEmpty) {
-      children.add(_SectionEyebrow(
-        label: 'On market',
-        count: partition.onMarket.length,
-        muted: false,
-      ));
+      children.add(
+        _SectionEyebrow(
+          label: 'On market',
+          count: partition.onMarket.length,
+          muted: false,
+        ),
+      );
       for (final p in partition.onMarket) {
         children.add(ProductListItem(product: p));
         children.add(const _HairlineDivider());
@@ -445,30 +453,35 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     }
     if (partition.offMarket.isNotEmpty) {
       children.add(const SizedBox(height: V2Spacing.space16));
-      children.add(_SectionEyebrow(
-        label: 'Off market · older or discontinued',
-        count: partition.offMarket.length,
-        muted: true,
-      ));
-      children.add(const Padding(
-        padding: EdgeInsets.fromLTRB(
-          V2Spacing.space24,
-          V2Spacing.space4,
-          V2Spacing.space24,
-          V2Spacing.space12,
+      children.add(
+        _SectionEyebrow(
+          label: 'Off market · older or discontinued',
+          count: partition.offMarket.length,
+          muted: true,
         ),
-        child: Text(
-          'Shown below the on-market matches so you can still find '
-          'a product that was reformulated, renamed, or pulled. '
-          'Tap to see the timeline.',
-          style: TextStyle(fontSize: 12, color: V2Colors.fgMuted, height: 1.5),
+      );
+      children.add(
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space4,
+            V2Spacing.space24,
+            V2Spacing.space12,
+          ),
+          child: Text(
+            'Shown below the on-market matches so you can still find '
+            'a product that was reformulated, renamed, or pulled. '
+            'Tap to see the timeline.',
+            style: TextStyle(
+              fontSize: 12,
+              color: V2Colors.fgMuted,
+              height: 1.5,
+            ),
+          ),
         ),
-      ));
+      );
       for (final p in partition.offMarket) {
-        children.add(Opacity(
-          opacity: 0.7,
-          child: ProductListItem(product: p),
-        ));
+        children.add(Opacity(opacity: 0.7, child: ProductListItem(product: p)));
         children.add(const _HairlineDivider());
       }
     }
@@ -504,8 +517,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
                 childAspectRatio: 0.85,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) =>
-                    ProductGridItem(product: partition.onMarket[i]),
+                (context, i) => ProductGridItem(product: partition.onMarket[i]),
                 childCount: partition.onMarket.length,
               ),
             ),
@@ -649,10 +661,7 @@ class _TopRow extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: V2Colors.fg,
-            ),
+            icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
             onPressed: onBack,
             splashRadius: 22,
           ),
@@ -688,8 +697,7 @@ class _TopRow extends StatelessWidget {
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         hintText: 'Search supplements',
-                        hintStyle:
-                            V2Typography.body(color: V2Colors.fgSubtle),
+                        hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -809,10 +817,7 @@ class _ViewToggleChip extends StatelessWidget {
           color: bg,
           shape: BoxShape.rectangle,
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          border: Border.all(
-            color: border,
-            width: selected ? 1.5 : 1.0,
-          ),
+          border: Border.all(color: border, width: selected ? 1.5 : 1.0),
         ),
         child: Icon(
           isGrid ? Icons.grid_view_rounded : Icons.view_list_rounded,
@@ -859,15 +864,10 @@ class _SectionEyebrow extends StatelessWidget {
               vertical: 2,
             ),
             decoration: BoxDecoration(
-              color: muted
-                  ? V2Colors.outline
-                  : V2Colors.accentTint,
+              color: muted ? V2Colors.outline : V2Colors.accentTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
             ),
-            child: Text(
-              '$count',
-              style: V2Typography.eyebrow(color: color),
-            ),
+            child: Text('$count', style: V2Typography.eyebrow(color: color)),
           ),
         ],
       ),
@@ -882,11 +882,7 @@ class _HairlineDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.only(left: 84, right: V2Spacing.space16),
-      child: Divider(
-        height: 0.5,
-        thickness: 0.5,
-        color: V2Colors.outline,
-      ),
+      child: Divider(height: 0.5, thickness: 0.5, color: V2Colors.outline),
     );
   }
 }
@@ -1035,10 +1031,7 @@ class _LoadingList extends StatelessWidget {
 class _PartitionedResults {
   final List<ProductsCoreData> onMarket;
   final List<ProductsCoreData> offMarket;
-  const _PartitionedResults({
-    required this.onMarket,
-    required this.offMarket,
-  });
+  const _PartitionedResults({required this.onMarket, required this.offMarket});
 }
 
 enum _SearchFilter {
@@ -1070,10 +1063,11 @@ enum _SearchFilter {
 }
 
 String _formatCategoryLabel(String category) {
-  final parts =
-      category.split('_').where((part) => part.trim().isNotEmpty).map((part) {
-    final lower = part.toLowerCase();
-    return '${lower[0].toUpperCase()}${lower.substring(1)}';
-  }).toList();
+  final parts = category.split('_').where((part) => part.trim().isNotEmpty).map(
+    (part) {
+      final lower = part.toLowerCase();
+      return '${lower[0].toUpperCase()}${lower.substring(1)}';
+    },
+  ).toList();
   return parts.join(' ');
 }

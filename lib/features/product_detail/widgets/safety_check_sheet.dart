@@ -4,7 +4,6 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
-import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -72,100 +71,92 @@ class _SafetyCheckSheet extends ConsumerWidget {
     final verdictAsync = ref.watch(_sheetProductVerdictProvider(dsldId));
     final isUnsafe = isUnsafeVerdict(verdictAsync.asData?.value);
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.35,
-      maxChildSize: 0.92,
-      expand: false,
-      builder: (context, scrollController) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            // Bottom padding clears the frosted nav bar.
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.space20,
-              AppTheme.space8,
-              AppTheme.space20,
-              AppTheme.space32 + kPGNavBarHeight,
+    return Padding(
+      // `viewInsetsOf.bottom` lifts content above the keyboard when
+      // an input inside the sheet is focused. `PGModal.bottomSheet`
+      // already wraps in `SafeArea`, so the inner padding only needs
+      // the design-system 24pt gutter — the prior
+      // `paddingOf(context).bottom + space24` double-counted the
+      // safe-area inset.
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space20,
+          AppTheme.space8,
+          AppTheme.space20,
+          AppTheme.space24,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Add to your stack',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: AppTheme.space4),
+            Text(
+              productName,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppTheme.space20),
+
+            if (isUnsafe)
+              const _UnsafeProductBanner()
+            else
+              safetyAsync.when(
+                loading: () => const _VerifyingSafety(),
+                error: (_, __) => const _SafetyCheckError(),
+                data: (warnings) => _SafetyResults(warnings: warnings),
+              ),
+
+            const SizedBox(height: AppTheme.space20),
+
+            // Action buttons — primary disables entirely when
+            // the product is BLOCKED/UNSAFE. We never offer an
+            // "Add anyway" escape hatch for products that fail
+            // the product-level safety gate.
+            Row(
               children: [
-                Text(
-                  'Add to your stack',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(isUnsafe ? 'Close' : 'Cancel'),
                   ),
                 ),
-                const SizedBox(height: AppTheme.space4),
-                Text(
-                  productName,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space20),
-
-                if (isUnsafe)
-                  const _UnsafeProductBanner()
-                else
-                  safetyAsync.when(
-                    loading: () => const _VerifyingSafety(),
-                    error: (_, __) => const _SafetyCheckError(),
-                    data: (warnings) => _SafetyResults(warnings: warnings),
-                  ),
-
-                const SizedBox(height: AppTheme.space20),
-
-                // Action buttons — primary disables entirely when
-                // the product is BLOCKED/UNSAFE. We never offer an
-                // "Add anyway" escape hatch for products that fail
-                // the product-level safety gate.
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(isUnsafe ? 'Close' : 'Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.space12),
-                    Expanded(
-                      child: isUnsafe
-                          ? const FilledButton(
-                              onPressed: null,
-                              child: Text('Cannot add'),
-                            )
-                          : safetyAsync.maybeWhen(
-                              data: (warnings) => FilledButton(
-                                onPressed: () {
-                                  _fireHaptic(warnings);
-                                  Navigator.of(context).pop(true);
-                                },
-                                child: Text(
-                                  warnings.isEmpty
-                                      ? 'Add to stack'
-                                      : 'Add anyway',
-                                ),
-                              ),
-                              orElse: () => const FilledButton(
-                                onPressed: null,
-                                child: Text('Add to stack'),
-                              ),
+                const SizedBox(width: AppTheme.space12),
+                Expanded(
+                  child: isUnsafe
+                      ? const FilledButton(
+                          onPressed: null,
+                          child: Text('Cannot add'),
+                        )
+                      : safetyAsync.maybeWhen(
+                          data: (warnings) => FilledButton(
+                            onPressed: () {
+                              _fireHaptic(warnings);
+                              Navigator.of(context).pop(true);
+                            },
+                            child: Text(
+                              warnings.isEmpty ? 'Add to stack' : 'Add anyway',
                             ),
-                    ),
-                  ],
+                          ),
+                          orElse: () => const FilledButton(
+                            onPressed: null,
+                            child: Text('Add to stack'),
+                          ),
+                        ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -206,9 +197,11 @@ class _VerifyingSafety extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppTheme.space12),
-          Text(
-            'Checking interactions with your stack…',
-            style: Theme.of(context).textTheme.bodyMedium,
+          Expanded(
+            child: Text(
+              'Checking interactions with your stack…',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ),
         ],
       ),

@@ -100,7 +100,15 @@ class _PGPillButtonState extends State<PGPillButton> {
             Icon(widget.icon, size: 18, color: fg),
             const SizedBox(width: V2Spacing.space8),
           ],
-          Text(widget.label, style: V2Typography.label(color: fg)),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Text(
+              widget.label,
+              style: V2Typography.label(color: fg),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

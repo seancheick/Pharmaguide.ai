@@ -31,6 +31,7 @@ class SettingsV2Screen extends StatelessWidget {
   final int medicationCount;
   final int scanCount;
   final bool signedIn;
+  final String? accountEmail;
 
   const SettingsV2Screen({
     super.key,
@@ -39,6 +40,7 @@ class SettingsV2Screen extends StatelessWidget {
     this.medicationCount = 2,
     this.scanCount = 18,
     this.signedIn = false,
+    this.accountEmail,
   });
 
   @override
@@ -69,8 +71,12 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.mail_outline_rounded,
                   title: signedIn ? 'Email' : 'Sign in',
-                  caption: signedIn ? 'sean@example.com' : 'Sync stack across devices',
-                  onTap: () {},
+                  caption: signedIn
+                      ? accountEmail ?? 'Signed in'
+                      : 'Sync stack across devices',
+                  onTap: signedIn
+                      ? null
+                      : () => context.push(Routes.authInvitation),
                 ),
                 const PGSettingsTile(
                   icon: Icons.fingerprint_rounded,
@@ -269,11 +275,15 @@ class _ProfileHero extends StatelessWidget {
       parts.add('$stackCount in stack');
     }
     if (medicationCount > 0) {
-      parts.add('$medicationCount ${medicationCount == 1 ? "medication" : "medications"}');
+      parts.add(
+        '$medicationCount ${medicationCount == 1 ? "medication" : "medications"}',
+      );
     }
     if (scanCount > 0) {
       parts.add('$scanCount ${scanCount == 1 ? "scan" : "scans"}');
     }
-    return parts.isEmpty ? 'New here — let’s get you set up.' : parts.join(' · ');
+    return parts.isEmpty
+        ? 'New here — let’s get you set up.'
+        : parts.join(' · ');
   }
 }

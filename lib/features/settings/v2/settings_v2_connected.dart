@@ -36,8 +36,6 @@ class SettingsV2Connected extends ConsumerWidget {
     // listener routing to home → user navigates back to settings).
     final user = _safeCurrentUser();
     final signedIn = user != null;
-    // TODO(phase-11): once SettingsV2Screen exposes an email caption
-    // override, pass `user?.email` here.
 
     final stack = stackAsync.asData?.value ?? const [];
     final supplementCount = stack.where((e) => e.type == 'supplement').length;
@@ -56,10 +54,7 @@ class SettingsV2Connected extends ConsumerWidget {
       medicationCount: medicationCount,
       scanCount: scanCount,
       signedIn: signedIn,
-      // TODO(phase-11): pass `email` once SettingsV2Screen exposes
-      // an Email-tile caption override. For now the email caption
-      // stays at the fixture value when signed in; the gallery sign-
-      // out tile already surfaces the real address.
+      accountEmail: user?.email,
     );
   }
 
