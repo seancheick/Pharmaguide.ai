@@ -10,14 +10,21 @@
 //   • Future v2 routes (deep-link emails, share-back URLs) wire the
 //     same way.
 //
-// Behavior mirrors production verbatim — same 280ms easeOutCubic curve,
-// same 30-frame retry budget, same try/catch fallback so platform-edge
-// failures (no Scrollable ancestor in some tree configurations, render
-// object not yet laid out) don't surface as new Sentry error classes.
+// Behavior mirrors production semantics — same 280ms easeOutCubic curve,
+// same try/catch fallback so platform-edge failures (no Scrollable
+// ancestor in some tree configurations, render object not yet laid out)
+// don't surface as new Sentry error classes.
 
 import 'package:flutter/material.dart';
 
 class ProductDetailScrollAnchors {
+  /// Controller used only for deep-link priming. SliverList may not build
+  /// offscreen keyed sections until the viewport is close to them, so a
+  /// pure `ensureVisible(key.currentContext)` retry can wait forever on a
+  /// null context. Priming scrolls near the requested section once, then
+  /// the normal key-based exact scroll finishes the landing.
+  final ScrollController scrollController = ScrollController();
+
   /// Anchor for the Better Alternatives sliver. The unsafe-CTA's
   /// "See safer alternatives" primary scrolls here.
   final GlobalKey alternativesKey = GlobalKey();
@@ -29,6 +36,7 @@ class ProductDetailScrollAnchors {
   final GlobalKey ingredientsKey = GlobalKey();
 
   bool _didScrollToInitialSection = false;
+  bool _didPrimeInitialSection = false;
   int _scrollAttempts = 0;
 
   /// Scroll to the Better Alternatives sliver. No-op when the sliver
@@ -50,9 +58,15 @@ class ProductDetailScrollAnchors {
 
   /// Schedule a deep-link section scroll. Re-arms via post-frame
   /// callback until the target context is laid out, then bails.
-  /// Gives up after 30 frames so a section that never renders (e.g.
+  /// Gives up after 300 frames so a section that never renders (e.g.
   /// blob errored, `?section=interactions` on a blocked product)
   /// doesn't keep the loop alive forever.
+  ///
+  /// The retry budget is intentionally larger than a typical one-frame
+  /// anchor wait because connected Product Detail lays out deep-dive
+  /// sections only after the async detail blob resolves. A short retry
+  /// window races that load and silently drops valid `?section=...`
+  /// deep links.
   ///
   /// [initialSection] — the `?section=` query param value
   /// [isMounted] — closure the caller passes so the loop can check
@@ -67,7 +81,6 @@ class ProductDetailScrollAnchors {
       if (!isMounted() || _didScrollToInitialSection) return;
       final ctx = keyForSection(initialSection)?.currentContext;
       if (ctx != null) {
-        _didScrollToInitialSection = true;
         try {
           Scrollable.ensureVisible(
             ctx,
@@ -75,12 +88,23 @@ class ProductDetailScrollAnchors {
             curve: Curves.easeOutCubic,
             alignment: 0.1,
           );
+          _didScrollToInitialSection = true;
         } on Exception {
-          // No-op — same rationale as `scrollToAlternatives`.
+          // The keyed section can exist before the scrollable is fully
+          // laid out. Retry instead of silently dropping the deep link.
+          if (++_scrollAttempts >= 300) {
+            _didScrollToInitialSection = true;
+            return;
+          }
+          scheduleInitialScroll(
+            initialSection: initialSection,
+            isMounted: isMounted,
+          );
         }
         return;
       }
-      if (++_scrollAttempts >= 30) {
+      _primeOffscreenSection(initialSection);
+      if (++_scrollAttempts >= 300) {
         _didScrollToInitialSection = true;
         return;
       }
@@ -101,5 +125,30 @@ class ProductDetailScrollAnchors {
       'alternatives' => alternativesKey,
       _ => null,
     };
+  }
+
+  void _primeOffscreenSection(String section) {
+    if (_didPrimeInitialSection || !scrollController.hasClients) return;
+    final position = scrollController.position;
+    final max = position.maxScrollExtent;
+    if (max <= 0) return;
+
+    final fraction = switch (section) {
+      'interactions' => 0.30,
+      'ingredients' => 0.55,
+      'alternatives' => 0.90,
+      _ => 0.0,
+    };
+    if (fraction <= 0) return;
+
+    final target = max * fraction;
+    if ((target - position.pixels).abs() < 24) return;
+    _didPrimeInitialSection = true;
+    try {
+      scrollController.jumpTo(target.clamp(0.0, max));
+    } on Exception {
+      // Best-effort only; the key-based retry loop remains the source of
+      // truth once the target section is built.
+    }
   }
 }

@@ -281,6 +281,7 @@ class _ProductDetailV2ConnectedState
       child: Scaffold(
         backgroundColor: V2Colors.bg,
         body: CustomScrollView(
+          controller: _anchors.scrollController,
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
