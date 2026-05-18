@@ -28,15 +28,9 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 
-/// v2 Home — faithful visual mirror of `home_screen.dart`.
+/// v2 Home — production home surface.
 ///
-/// Phase 10.0 rebuild (2026-05-15): the earlier pass invented patterns
-/// that don't exist in production (avatar chip, scan streak, category
-/// chips, "Suggested next" card, 2-card stack health row, numeric
-/// stack score, vertical recent-scans list). Sean called the
-/// foundational rule of v2: visual reskin only, never redesign.
-///
-/// This rebuild mirrors production exactly:
+/// Production information architecture:
 ///   1. iOS pull-to-refresh sliver
 ///   2. Search field — static, opens /search
 ///   3. Hero greeting — date label + "Good morning, Sean." + tagline
@@ -83,10 +77,8 @@ class HomeV2Screen extends ConsumerWidget {
           CupertinoSliverRefreshControl(onRefresh: () => _onHomeV2Refresh(ref)),
 
         // 1. Search field — pinned at top, opens /search.
-        // Mirrors v1 home_screen.dart:106 _PinnedSearchHeaderDelegate
-        // so the field sticks under the status bar while content
-        // scrolls beneath it. ColoredBox surface keeps the cream bg
-        // continuous (no hard edge at the seam).
+        // The field sticks under the status bar while content scrolls
+        // beneath it. ColoredBox keeps the cream bg continuous.
         SliverPersistentHeader(
           pinned: true,
           delegate: _PinnedSearchDelegate(topPadding: mq.padding.top),
@@ -114,11 +106,10 @@ class HomeV2Screen extends ConsumerWidget {
           sliver: SliverToBoxAdapter(child: _ScanCta()),
         ),
 
-        // 4. Stack Health — v2 mirror, provider-wired in
-        // Phase 11.5. Reads StackIntelligenceEngine for the real
-        // tier verdict; identical source-of-truth to the
-        // Stack-tab summary card so the user sees one verdict
-        // across both surfaces.
+        // 4. Stack Health — reads StackIntelligenceEngine for the
+        // real tier verdict; identical source-of-truth to the Stack
+        // tab summary card so the user sees one verdict across both
+        // surfaces.
         const SliverPadding(
           padding: EdgeInsets.fromLTRB(
             V2Spacing.space24,
@@ -129,8 +120,8 @@ class HomeV2Screen extends ConsumerWidget {
           sliver: SliverToBoxAdapter(child: _StackHealthCard()),
         ),
 
-        // 5. Recent scans — legacy production carousel with real
-        // _recentScansProvider data + Show-all bottom sheet.
+        // 5. Recent scans — carousel with real recent-scan data +
+        // Show-all bottom sheet.
         const SliverPadding(
           padding: EdgeInsets.fromLTRB(
             V2Spacing.space24,
@@ -141,8 +132,8 @@ class HomeV2Screen extends ConsumerWidget {
           sliver: SliverToBoxAdapter(child: _RecentScansSection()),
         ),
 
-        // 6. Quick Check — legacy production "Safe to take
-        // together?" tile that opens the real quick-check screen.
+        // 6. Quick Check — "Safe to take together?" tile that opens
+        // the real quick-check screen.
         const SliverPadding(
           padding: EdgeInsets.fromLTRB(
             V2Spacing.space24,
@@ -153,9 +144,8 @@ class HomeV2Screen extends ConsumerWidget {
           sliver: SliverToBoxAdapter(child: _QuickCheckCta()),
         ),
 
-        // 7. Trust footer — v2 mirror reading the catalog manifest
-        // for the real "Catalog updated <date>" freshness label.
-        // Phase 11.5 replacement for the legacy HomeCitationStrip.
+        // 7. Trust footer — reads the catalog manifest for the real
+        // "Catalog updated <date>" freshness label.
         const SliverPadding(
           padding: EdgeInsets.fromLTRB(
             V2Spacing.space24,
@@ -239,7 +229,7 @@ Future<void> _onHomeV2Refresh(WidgetRef ref) async {
 }
 
 // =============================================================================
-// Search launcher row — non-pinned visual mirror of HomeSearchLauncher.
+// Search launcher row — non-pinned home search affordance.
 // =============================================================================
 
 class _SearchLauncher extends StatelessWidget {
@@ -810,14 +800,13 @@ class _MicroMetric extends StatelessWidget {
 
 // =============================================================================
 // Recent scans — section header + horizontal carousel of 156pt cards.
-// Mirrors HomeRecentScansSection. "Show all" opens a list bottom sheet
-// (production behavior, not built in the visual mirror).
+// "Show all" opens a list bottom sheet.
 // =============================================================================
 
-/// v2 Recent scans carousel. Phase 11.5d: now provider-wired —
-/// reads user_scan_history + core DB and renders real cards. Tap on
-/// a card pushes /product/{dsldId}. Loading/error states stay quiet;
-/// true empty data renders the v2 empty state instead of fake cards.
+/// v2 Recent scans carousel. Reads user_scan_history + core DB and
+/// renders real cards. Tap on a card pushes /product/{dsldId}.
+/// Loading/error states stay quiet; true empty data renders the v2
+/// empty state instead of fake cards.
 class _RecentScansSection extends ConsumerWidget {
   const _RecentScansSection();
 
@@ -1003,10 +992,9 @@ class _RecentScanCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Production `ProductImage` — resolves DSLD thumbnail or
-                // OFF image via cache, falls back to BrandedPlaceholder
-                // when nothing is available. Mirrors v1
-                // home_recent_scans.dart:357.
+                // ProductImage resolves the DSLD thumbnail or OFF image
+                // via cache, then falls back to BrandedPlaceholder when
+                // nothing is available.
                 Center(
                   child: Container(
                     key: const ValueKey('home-recent-scan-image-frame'),
@@ -1066,13 +1054,11 @@ class _RecentScanCard extends StatelessWidget {
 }
 
 // =============================================================================
-// Quick Check — "Safe to take together?" single-row card. Mirrors
-// HomeQuickCheckCta. Caution-tinted compare-arrows icon.
+// Quick Check — "Safe to take together?" single-row card with a
+// caution-tinted compare-arrows icon.
 // =============================================================================
 
-/// v2 Quick-Check tile. Phase 11.5: now provider-aware in the sense
-/// that tap routes to the real /quick-check screen — same behavior
-/// as the legacy HomeQuickCheckCta. Production functionality preserved.
+/// v2 Quick-Check tile. Tap routes to the real /quick-check screen.
 class _QuickCheckCta extends StatelessWidget {
   const _QuickCheckCta();
 
@@ -1198,9 +1184,8 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
 
 // =============================================================================
 // v2 Citation strip — reads catalogInfoProvider for the real
-// "Catalog updated <date>" freshness label. Phase 11.5 replacement
-// for legacy HomeCitationStrip. Uses PGTransparencyFooter so the
-// disclaimer + sources strip stays consistent with Product Detail.
+// "Catalog updated <date>" freshness label. Uses PGTransparencyFooter
+// so the disclaimer + sources strip stays consistent with Product Detail.
 // =============================================================================
 
 class _CitationStrip extends ConsumerWidget {
@@ -1244,9 +1229,7 @@ class _CitationStrip extends ConsumerWidget {
 //
 // **Phase 11.7L bug 4 (2026-05-16):** record now carries `upc`,
 // `imageUrl`, and `formFactor` so `_RecentScanCard` can render the
-// real product photo via `ProductImage` (was a hardcoded
-// `Icons.medication_outlined` placeholder). Mirrors the v1
-// `home_recent_scans.dart` invocation exactly.
+// real product photo via `ProductImage`.
 //
 // Auto-disposes when the home screen unmounts so the scan list
 // refreshes when the user returns from a scanner round.
@@ -1289,10 +1272,7 @@ final _v2RecentScansProvider = FutureProvider.autoDispose<List<_RecentScan>>((
 
 // =============================================================================
 // Pinned search header delegate — keeps `_SearchLauncher` sticky under the
-// status bar while content scrolls underneath. Mirrors v1's
-// `_PinnedSearchHeaderDelegate` (home_screen.dart:259) in pinning behavior,
-// without the PGFrostedHeader fade (deferred — minimal pinned regression fix
-// for bug 1 in the 1.0.0+4 walkthrough patch).
+// status bar while content scrolls underneath.
 // =============================================================================
 
 class _PinnedSearchDelegate extends SliverPersistentHeaderDelegate {

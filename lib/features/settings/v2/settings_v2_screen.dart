@@ -12,9 +12,9 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 
 /// v2 Settings (Profile tab) — calm and utility-focused.
 ///
-/// Preserves the legacy information architecture (Account & Security,
+/// Keeps the established information architecture (Account & Security,
 /// Health Profile, Privacy & Data, Analysis History, Settings, About)
-/// because it's well-considered. Redesigns everything visually to v2:
+/// and renders it with v2 components:
 /// - Serif first-name greeting under a mono caps "ACCOUNT" eyebrow
 /// - Avatar = accent-tint circle with mono caps initials (privacy-first,
 ///   never asks for a photo)
@@ -24,9 +24,6 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 ///   trailing (chevron auto-rendered when there's an onTap)
 /// - Destructive actions render in calm muted contraindicated red, never
 ///   bright Material error red
-///
-/// Phase 6 prototype: fixture data so the gallery renders without
-/// providers. Production swap wires `profileProvider` at Phase 8.
 class SettingsV2Screen extends StatelessWidget {
   final String nickname;
   final int stackCount;
@@ -92,14 +89,11 @@ class SettingsV2Screen extends StatelessWidget {
             PGSettingsGroup(
               eyebrow: 'Health profile',
               children: [
-                // Phase 11.7L.B.6 — Sean 2026-05-16: dropped the
-                // standalone "Allergens" tile. Allergies are health
-                // context and live inside the profile editor next
-                // to conditions + medications, not as a disconnected
-                // setting. The Edit profile entry point reaches the
-                // unified editor where every health-context group
-                // (goals, conditions, allergies, medications) is one
-                // tap away.
+                // Allergies are health context and live inside the
+                // profile editor next to conditions + medications,
+                // not as a disconnected setting. The Edit profile
+                // entry point reaches the unified editor where every
+                // health-context group is one tap away.
                 PGSettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Edit profile',

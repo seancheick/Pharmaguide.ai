@@ -39,16 +39,14 @@ final _stackProductProvider = FutureProvider.family
       return coreDb.findById(dsldId);
     });
 
-/// v2 Stack screen — visual mirror of `stack_screen.dart` with three
-/// sub-tabs via [PGSegmentedControl]:
+/// v2 Stack screen — production stack surface with three sub-tabs
+/// via [PGSegmentedControl]:
 ///
 ///   Stack | Nutrients | Wishlist
 ///
-/// Production currently ships two tabs (Stack / Wishlist) with a
-/// nutrient panel embedded in the Stack scroll. Sean 2026-05-15:
-/// split nutrients out into its own segment so each tab does one
-/// clean job. Production wiring keeps the same providers; only the
-/// container changes.
+/// Sean 2026-05-15: nutrients live in their own segment so each tab
+/// does one clean job. Production wiring keeps the same providers;
+/// only the container changes.
 ///
 /// Segmented control sits below the app bar with a sliding pill
 /// highlighter and 280ms emphasized transitions.
@@ -286,14 +284,10 @@ class _StackTab extends ConsumerWidget {
         )
         .toList();
 
-    // Phase 11.7L bug 7 (2026-05-16): only show fixture rows during
-    // the initial-load phase (`!hasValue`). Once the provider has
-    // emitted any value — including an empty list after the user
-    // clears their stack — render the real items or the empty-state
-    // widget below. The previous logic flashed fixture data whenever
-    // `realItems` was null OR empty, producing the "felt like v1"
-    // report after Sean cleared his stack and watched the screen
-    // briefly re-paint with the fixture brand names.
+    // Only show fixture rows during the initial-load phase
+    // (`!hasValue`). Once the provider has emitted any value —
+    // including an empty list after the user clears their stack —
+    // render the real items or the empty-state widget below.
     final bool hasLoadedOnce = stackAsync.hasValue;
     final List<_StackEntry> items;
     if (hasLoadedOnce) {
@@ -308,7 +302,7 @@ class _StackTab extends ConsumerWidget {
     final bool isEmpty = hasLoadedOnce && items.isEmpty;
 
     // RefreshIndicator wraps the list so pull-to-refresh re-fires
-    // activeStackProvider. Matches production behavior.
+    // activeStackProvider.
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(activeStackProvider);
@@ -339,8 +333,7 @@ class _StackTab extends ConsumerWidget {
           const SizedBox(height: V2Spacing.space24),
           // Empty state — Sean 2026-05-16: replaces the post-clear
           // fixture flash with a calm "your stack is empty" prompt
-          // pointing back to /scan. Mirrors v1 PGEmptyState wording
-          // (`stack_screen.dart:739`).
+          // pointing back to /scan.
           if (isLoading)
             const _V2StackEmptyPanel(
               icon: Icons.hourglass_empty_rounded,
@@ -460,11 +453,11 @@ class _StackSummaryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Phase 11.x: live supplement + medication counts AND real
+    // Live supplement + medication counts AND real
     // StackIntelligenceEngine tier verdict. Same source of truth as
-    // the legacy Home Stack Health card so the user sees ONE verdict
-    // across both surfaces (no drift). Sean's safety rule: real
-    // clinical surfaces here, never a hardcoded "Optimal".
+    // Home Stack Health so the user sees ONE verdict across both
+    // surfaces (no drift). Sean's safety rule: real clinical surfaces
+    // here, never a hardcoded "Optimal".
     final stackAsync = ref.watch(activeStackProvider);
     final stack = stackAsync.asData?.value ?? const [];
     final supplementCount = stack.where((e) => e.type == 'supplement').length;
@@ -1085,8 +1078,8 @@ class _NutrientsTab extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: V2Spacing.space12),
-          // Real production panel — only renders when the user actually
-          // has a stack. Audit-backlog: replace with a v2 mirror later.
+          // Production nutrient panel — only renders when the user
+          // actually has a stack.
           if (isLoading)
             const _V2StackEmptyPanel(
               icon: Icons.hourglass_empty_rounded,
