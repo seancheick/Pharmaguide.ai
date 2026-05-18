@@ -1,12 +1,8 @@
 // Phase 11.7b — Product Detail V2 Connected screen (orchestration only).
 //
-// This is the production-wired counterpart of `product_detail_v2_screen.dart`
-// (the fixture-only gallery screen at `/dev/v2/product-detail`). The
-// Connected version takes a real `dsldId` and mirrors production's
-// `ProductDetailScreen` state lifecycle + provider watches + gating logic
-// 1:1, so every clinical/safety surface that fires on the production route
-// also fires here. Only the visual presentation differs — v2 tokens, v2
-// components.
+// Production-wired Product Detail v2. Takes a real `dsldId` and owns the
+// provider watches + gating logic for every clinical/safety surface that
+// fires on the production route.
 //
 // File responsibilities (Sean's directive — no second-gen monolith):
 //   • Own state lifecycle: load product, hold scroll anchors, mount/unmount.

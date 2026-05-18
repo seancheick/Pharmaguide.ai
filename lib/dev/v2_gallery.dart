@@ -754,13 +754,6 @@ class V2Gallery extends StatelessWidget {
             title: 'Flagship screens',
             children: [
               _PrototypeLink(
-                label: 'Product Detail',
-                subtitle:
-                    'Full v2 product detail page · 17 sections, '
-                    'production scroll order',
-                routePath: '/dev/v2/product-detail',
-              ),
-              _PrototypeLink(
                 label: 'Home',
                 subtitle:
                     'Greeting · scan CTA · stack health · recent scans · '

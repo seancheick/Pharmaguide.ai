@@ -34,7 +34,6 @@ import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
-import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_screen.dart';
 import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
@@ -464,19 +463,8 @@ GoRouter _buildRouter({
           const ProfileWizardV2Screen(autoFinish: false),
         ),
       ),
-      // v2 Product Detail flagship — composes every Phase 8.1.1–8.1.5
-      // mirror against fixture data so reviewers can see the full
-      // scroll story end-to-end. Production wiring (later phase)
-      // swaps the fixtures for provider data while reusing the same
-      // components.
-      GoRoute(
-        path: '/dev/v2/product-detail',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const ProductDetailV2Screen()),
-      ),
-      // Product Detail V2 *Connected*. Same components as the fixture
-      // screen above, but driven by a real `dsldId` and the production
-      // provider stack (coreDatabaseProvider, detailBlob,
+      // Product Detail V2 *Connected*. Driven by a real `dsldId` and
+      // the production provider stack (coreDatabaseProvider, detailBlob,
       // personalizedInteractionWarnings, profileProvider, fitScore).
       GoRoute(
         path: '/dev/v2/product/:dsldId',
