@@ -92,7 +92,8 @@ class ProductDetailV2ConnectedScreen extends ConsumerStatefulWidget {
   final String dsldId;
 
   /// Optional anchor for `?section=` deep links. Accepts `'interactions'`,
-  /// `'ingredients'`, or `'alternatives'`. Unknown values fall through.
+  /// `'research'`, `'ingredients'`, or `'alternatives'`. Unknown values
+  /// fall through.
   final String? initialSection;
 
   const ProductDetailV2ConnectedScreen({
@@ -405,7 +406,12 @@ class _ProductDetailV2ConnectedState
                   // Neutral literature co-occurrence surface. These rows
                   // never become warnings or score penalties.
                   if (showDeepDive && canonicalIds.isNotEmpty) ...[
-                    ResearchEvidenceSection(canonicalIds: canonicalIds),
+                    KeyedSubtree(
+                      key: _anchors.researchKey,
+                      child: ResearchEvidenceSection(
+                        canonicalIds: canonicalIds,
+                      ),
+                    ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 

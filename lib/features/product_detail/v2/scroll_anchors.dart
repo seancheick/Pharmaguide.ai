@@ -1,7 +1,7 @@
 // Phase 11.7b.1 — Product Detail v2 scroll anchor encapsulation.
 //
 // Owns the 3 GlobalKey anchors that Product Detail uses for:
-//   • `?section=interactions|ingredients|alternatives` deep-link landing
+//   • `?section=interactions|research|ingredients|alternatives` deep-link landing
 //   • The unsafe-verdict sticky CTA's "See safer alternatives" jump
 //
 // Lives outside the screen state so:
@@ -31,6 +31,9 @@ class ProductDetailScrollAnchors {
 
   /// Anchor for `?section=interactions` deep-link landing.
   final GlobalKey interactionsKey = GlobalKey();
+
+  /// Anchor for `?section=research` deep-link landing.
+  final GlobalKey researchKey = GlobalKey();
 
   /// Anchor for `?section=ingredients` deep-link landing.
   final GlobalKey ingredientsKey = GlobalKey();
@@ -139,6 +142,7 @@ class ProductDetailScrollAnchors {
   GlobalKey? keyForSection(String? section) {
     return switch (section) {
       'interactions' => interactionsKey,
+      'research' => researchKey,
       'ingredients' => ingredientsKey,
       'alternatives' => alternativesKey,
       _ => null,
@@ -154,6 +158,7 @@ class ProductDetailScrollAnchors {
 
     final fraction = switch (section) {
       'interactions' => 0.30,
+      'research' => 0.42,
       'ingredients' => 0.55,
       'alternatives' => 0.90,
       _ => 0.0,
