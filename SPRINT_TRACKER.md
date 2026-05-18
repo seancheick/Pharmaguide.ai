@@ -28,7 +28,7 @@ related:
 **Version:** V1.0
 **Updated:** 2026-05-18
 **Current Sprint:** v2 production promotion + Phase 11.11 v1 retirement complete. 1.0.0+5 ready to cut after Supabase OTA sync to catalog `2026.05.17.204805`.
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1384 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR.
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1385 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR.
 
 **Phase 11.7L (1.0.0+5 prep, 2026-05-16 → 2026-05-18):** TestFlight 1.0.0+4 walkthrough produced 11 bug clusters; closed in commits `baa204b` (routes + scanner manual-entry haptic), `5319c66` (stack v2 fixture flash + empty-panel parity + nutrients refresh), `5b20f82` (Quick Check med-med via RxNorm + class-fallback + hydration-incomplete safety), `a1c5b57` (bottom-sheet anchoring + Search keyboard gap + Settings real account email), `4f7d4c7` (Quick Check canonical-id consolidation + structured fingerprint parser).
 
