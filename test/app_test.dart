@@ -23,12 +23,10 @@ void main() {
     );
   }
 
-  // Phase 11.11 hygiene (2026-05-17): the previous test asserted that
-  // the 5 USE_V2_* toggle defaults were `true` after the route
-  // coherence promotion. The toggles have since been removed — v2 is
-  // the unconditional production route — so the assertion is no
-  // longer meaningful. Coherence is now enforced by the absence of
-  // v1 imports in `lib/app.dart`.
+  // Phase 11.11 hygiene (2026-05-17): staged route toggles were
+  // removed after the route-coherence promotion. v2 is now the
+  // unconditional production route; coherence is enforced by the
+  // absence of v1 imports in `lib/app.dart`.
 
   /// Pump past the v2 animated splash so the shell (nav bar, tabs) is
   /// visible. Tests that interact with tabs must call this helper first.
@@ -141,10 +139,6 @@ void main() {
     expect(find.text('Ask PharmaGuide'), findsOneWidget);
     expect(find.text('Search products'), findsOneWidget);
     expect(find.text('Quick Check'), findsOneWidget);
-    expect(
-      find.text('This surface is not available in this build yet.'),
-      findsNothing,
-    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();

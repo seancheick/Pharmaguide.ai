@@ -29,10 +29,10 @@ import 'package:pharmaguide/services/onboarding_prefs.dart';
 /// version doesn't trigger a redundant download/swap cycle (T0.6).
 const String _kCatalogVersionPrefKey = 'activeCatalogVersion';
 
-// Phase 11.11 hygiene (2026-05-17): the 5 USE_V2_* staged route
-// toggles were removed after the route-coherence promotion proved
-// stable. v2 is now the unconditional production route for Product
-// Detail, Profile Setup, Medication Entry, Search, and Quick Check.
+// Phase 11.11 hygiene (2026-05-17): staged route toggles were removed
+// after the route-coherence promotion proved stable. v2 is now the
+// unconditional production route for Product Detail, Profile Setup,
+// Medication Entry, Search, and Quick Check.
 // If a future rollback is needed, restore via git revert; carrying
 // the dart-define plumbing forever was creating audit noise.
 
