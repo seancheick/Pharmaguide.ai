@@ -49,4 +49,34 @@ void main() {
     expect(find.text('user@example.com'), findsOneWidget);
     expect(find.text('sean@example.com'), findsNothing);
   });
+
+  testWidgets('privacy dashboard opens a real v2 sheet', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    await tester.tap(find.text('Privacy dashboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Health profile: on device'), findsOneWidget);
+    expect(find.text('Account email: Supabase auth'), findsOneWidget);
+  });
+
+  testWidgets('unsupported legal/store rows are static, not dead taps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    await tester.scrollUntilVisible(
+      find.text('Terms of service'),
+      320,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
+
+    final termsTile = find.ancestor(
+      of: find.text('Terms of service'),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.widget<InkWell>(termsTile).onTap, isNull);
+    expect(find.text('Available before public release'), findsNWidgets(2));
+  });
 }

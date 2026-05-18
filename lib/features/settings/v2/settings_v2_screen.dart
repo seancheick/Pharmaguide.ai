@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 
 /// v2 Settings (Profile tab) — calm and utility-focused.
 ///
@@ -114,7 +116,7 @@ class SettingsV2Screen extends StatelessWidget {
                   icon: Icons.shield_outlined,
                   title: 'Privacy dashboard',
                   caption: 'See where your data lives',
-                  onTap: () {},
+                  onTap: () => _showPrivacyDashboard(context),
                 ),
                 const PGSettingsTile(
                   icon: Icons.analytics_outlined,
@@ -132,33 +134,61 @@ class SettingsV2Screen extends StatelessWidget {
                   icon: Icons.palette_outlined,
                   title: 'Theme',
                   caption: 'System',
-                  onTap: () {},
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Theme',
+                    body:
+                        'PharmaGuide follows your device appearance. '
+                        'The app now uses the v2 theme system across '
+                        'production screens.',
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.notifications_outlined,
                   title: 'Notifications',
                   caption: 'Reminders, weekly summary',
-                  onTap: () {},
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Notifications',
+                    body:
+                        'Reminder controls will appear here once push '
+                        'notifications are enabled for this build.',
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.accessibility_new_rounded,
                   title: 'Accessibility',
                   caption: 'Dynamic type, reduce motion',
-                  onTap: () {},
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Accessibility',
+                    body:
+                        'PharmaGuide respects your system text-size and '
+                        'reduce-motion settings. Layouts clamp extreme '
+                        'text scaling so safety content remains readable.',
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.cloud_download_outlined,
                   title: 'Offline mode',
                   caption: 'Download catalog for travel',
-                  onTap: () {},
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Offline catalog',
+                    body:
+                        'The product catalog ships on device for lookup. '
+                        'When an approved catalog update is available, '
+                        'PharmaGuide can refresh it without uploading '
+                        'your health data.',
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: V2Spacing.space24),
-            PGSettingsGroup(
+            const PGSettingsGroup(
               eyebrow: 'About',
               children: [
-                const PGSettingsTile(
+                PGSettingsTile(
                   icon: Icons.info_outline_rounded,
                   title: 'Version',
                   caption: '1.0.0 · build 1',
@@ -166,22 +196,22 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.description_outlined,
                   title: 'Terms of service',
-                  onTap: () {},
+                  caption: 'Available before public release',
                 ),
                 PGSettingsTile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy policy',
-                  onTap: () {},
+                  caption: 'Available before public release',
                 ),
                 PGSettingsTile(
                   icon: Icons.support_outlined,
                   title: 'Contact support',
-                  onTap: () {},
+                  caption: 'Support channel coming soon',
                 ),
                 PGSettingsTile(
                   icon: Icons.star_outline_rounded,
                   title: 'Rate PharmaGuide',
-                  onTap: () {},
+                  caption: 'Enabled after App Store release',
                 ),
               ],
             ),
@@ -192,14 +222,28 @@ class SettingsV2Screen extends StatelessWidget {
                   icon: Icons.download_outlined,
                   title: 'Export my data',
                   caption: 'Profile, stack, scans · JSON',
-                  onTap: () {},
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Export my data',
+                    body:
+                        'Your stack, profile, and scan history are stored '
+                        'locally on this device. Export will be enabled '
+                        'after the secure file-save flow is wired.',
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.delete_outline_rounded,
                   title: 'Delete account',
                   caption: 'Permanently remove all data',
                   destructive: true,
-                  onTap: () {},
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Delete account',
+                    body:
+                        'Account deletion requires a signed-in account. '
+                        'Guest health data remains local to this device.',
+                    destructive: true,
+                  ),
                 ),
               ],
             ),
@@ -212,6 +256,102 @@ class SettingsV2Screen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+void _showPrivacyDashboard(BuildContext context) {
+  PGModal.bottomSheet<void>(
+    context: context,
+    builder: (_) => const _SettingsInfoSheet(
+      title: 'Privacy dashboard',
+      body:
+          'PharmaGuide keeps your health profile, stack, medications, '
+          'and scan history on this device. Supabase is used for account '
+          'and sync plumbing only; health data is not uploaded.',
+      bullets: [
+        'Health profile: on device',
+        'Supplement stack: on device',
+        'Medication list: on device',
+        'Recent scans: on device',
+        'Account email: Supabase auth',
+      ],
+    ),
+  );
+}
+
+void _showSettingSheet(
+  BuildContext context, {
+  required String title,
+  required String body,
+  bool destructive = false,
+}) {
+  PGModal.bottomSheet<void>(
+    context: context,
+    builder: (_) =>
+        _SettingsInfoSheet(title: title, body: body, destructive: destructive),
+  );
+}
+
+class _SettingsInfoSheet extends StatelessWidget {
+  final String title;
+  final String body;
+  final List<String> bullets;
+  final bool destructive;
+
+  const _SettingsInfoSheet({
+    required this.title,
+    required this.body,
+    this.bullets = const [],
+    this.destructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = destructive ? V2Colors.contraindicated : V2Colors.accent;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        V2Spacing.space24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          const SizedBox(height: V2Spacing.space8),
+          Text(body, style: V2Typography.body(color: V2Colors.fgMuted)),
+          if (bullets.isNotEmpty) ...[
+            const SizedBox(height: V2Spacing.space16),
+            for (final bullet in bullets)
+              Padding(
+                padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 18, color: tone),
+                    const SizedBox(width: V2Spacing.space8),
+                    Expanded(
+                      child: Text(
+                        bullet,
+                        style: V2Typography.bodySm(color: V2Colors.fg),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          const SizedBox(height: V2Spacing.space16),
+          PGPillButton(
+            label: 'Done',
+            variant: PGPillVariant.secondary,
+            expand: true,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       ),
     );
   }
