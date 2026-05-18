@@ -1,8 +1,8 @@
-// Search v2 — Phase 11.7L.E.2.
+// Search v2 — production catalog search surface.
 //
-// Visual mirror of `SearchScreen` against the v2 design system, plus
-// the smartness Sean asked for: **on-market results render first,
-// off-market falls to a labeled section at the bottom of the list.**
+// Catalog behavior is preserved while v2 owns the production route:
+// **on-market results render first, off-market falls to a labeled
+// section at the bottom of the list.**
 //
 // Same providers (`coreDatabaseProvider`,
 // `recentSearchesServiceProvider`), same `searchProducts` /
@@ -11,7 +11,7 @@
 // search persistence, same deep-link initial query handling. The
 // only behavior delta is the partition + ordering of results.
 //
-// What changed visually:
+// Visual contract:
 //
 //   * Cream `V2Colors.bg` Scaffold, no Material AppBar.
 //   * Top row: back chip + v2 search field (cream surface, accent
@@ -32,19 +32,18 @@
 //     that explains why those items appear (so the user doesn't
 //     wonder if PharmaGuide is silently filtering).
 //   * Empty states use the v2 `PGEmptyState` API (icon / headline /
-//     body) instead of the legacy `title / description` shape.
+//     body).
 //   * Sticky empty hint about MedicationEntry uses
 //     `PGPillButton.ghost`.
 //
-// What did NOT change:
+// Behavior contract:
 //
 //   * The `searchProducts` / `filterProducts` queries.
 //   * The `RecentSearchesService` add/remove/clear contract.
 //   * The four `_SearchFilter` values (All / High Quality 80+ /
 //     Needs Review / Blocked / Unsafe).
 //   * Category chip derivation from the result set.
-//   * List vs grid toggle — keep, render local v2 product rows/cards
-//     so the production search route never drops into legacy list UI.
+//   * List vs grid toggle — keep, render local v2 product rows/cards.
 //   * Deep-link `initialQuery` and `initialCategory` arguments.
 
 import 'dart:async';
@@ -78,7 +77,7 @@ class SearchV2Screen extends ConsumerStatefulWidget {
 }
 
 class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
-  // ───────── controllers + ephemeral state (1:1 with legacy) ─────────
+  // ───────── controllers + ephemeral state ─────────
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 

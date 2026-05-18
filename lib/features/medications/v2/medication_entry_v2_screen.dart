@@ -1,25 +1,23 @@
-// MedicationEntry v2 — Phase 11.7L.E.1.
+// MedicationEntry v2 — production add-medication surface.
 //
-// Visual mirror of `MedicationEntryScreen` against the v2 design
-// system. Sean's rule: same medication engine, same RxNorm API,
-// same `StackActions.addMedication` contract — only the surface
-// changes. Every state machine field, debounce constant, key
-// constant, snackbar copy, and method name maps 1:1 to the legacy
-// screen so the existing widget tests can be parameterized later
-// without churn.
+// Sean's rule: same medication engine, same RxNorm API, same
+// `StackActions.addMedication` contract. Every state machine field,
+// debounce constant, key constant, snackbar copy, and method name maps
+// to the original medication behavior so the route promotion changed
+// presentation without changing the saved payload.
 //
-// The bug fix that ships with the reskin (Sean 2026-05-16):
+// Snackbar routing fix (Sean 2026-05-16):
 //
-//   The legacy screen showed its "added — checking interactions"
+//   The previous route showed its "added — checking interactions"
 //   confirmation snackbar via `ScaffoldMessenger.of(context)`
-//   immediately before popping the route. The snackbar overlay
-//   attached to the Scaffold that was about to be torn down, so
-//   the user often saw nothing on the destination screen. The
-//   fix routes the snackbar through the root
+//   immediately before popping. The snackbar overlay attached to
+//   the Scaffold that was about to be torn down, so the user often
+//   saw nothing on the destination screen. The fix routes the
+//   snackbar through the root
 //   `scaffoldMessengerKey` (set in `main.dart`) so it lives on
 //   the parent surface and survives the pop.
 //
-// What changed visually (versus legacy):
+// Visual contract:
 //
 // * Cream Scaffold (`V2Colors.bg`), no Material AppBar.
 // * Top row with a back chip + page eyebrow "Add medication".
@@ -41,7 +39,7 @@
 //   ProfileSetup goals.
 // * Sticky bottom Save uses `PGPillButton.primary` expanded.
 //
-// What did NOT change:
+// Behavior contract:
 //
 // * `RxNormApiService.search() / .getClasses() / .resolveGenericRxcuis()
 //   / .offlineDrugClasses()` calls are byte-identical.
@@ -57,10 +55,7 @@
 //   med-entry-suggestion-${rxcui}, med-entry-selection-summary,
 //   med-entry-dose, med-entry-freq-*, med-entry-save,
 //   med-entry-class-picker, med-entry-suggestion-list,
-//   med-entry-class-${classId}). The legacy widget test still
-//   binds against the legacy screen when the toggle is off; once
-//   the toggle flips a parameterized variant can target this
-//   screen with the same keys.
+//   med-entry-class-${classId}).
 
 import 'dart:async';
 
@@ -95,7 +90,7 @@ class MedicationEntryV2Screen extends ConsumerStatefulWidget {
 
 class _MedicationEntryV2ScreenState
     extends ConsumerState<MedicationEntryV2Screen> {
-  // ───────── controllers + ephemeral state (1:1 with legacy) ─────────
+  // ───────── controllers + ephemeral state ─────────
   final _searchController = TextEditingController();
   final _doseController = TextEditingController();
   final _frequencyController = TextEditingController();
@@ -120,8 +115,7 @@ class _MedicationEntryV2ScreenState
   bool _saving = false;
 
   // Canonical schedule options. Sean 2026-05-16 — same string set
-  // and canonical text the legacy chip selector writes, so the
-  // downstream save payload looks identical.
+  // and canonical text the downstream interaction logic expects.
   static const List<String> _scheduleOptions = [
     'Once daily',
     'Twice daily',
@@ -149,7 +143,7 @@ class _MedicationEntryV2ScreenState
 
   RxNormApiService get _service => ref.read(rxNormApiServiceProvider);
 
-  // ───────── autocomplete plumbing (1:1 with legacy) ─────────
+  // ───────── autocomplete plumbing ─────────
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
@@ -200,7 +194,7 @@ class _MedicationEntryV2ScreenState
     });
   }
 
-  // ───────── selection plumbing (1:1 with legacy) ─────────
+  // ───────── selection plumbing ─────────
 
   Future<void> _selectSuggestion(RxNormSuggestion suggestion) async {
     setState(() {
@@ -285,7 +279,7 @@ class _MedicationEntryV2ScreenState
     _searchFocusNode.requestFocus();
   }
 
-  // ───────── save (same payload as legacy, hardened snackbar) ─────────
+  // ───────── save (stable payload, hardened snackbar) ─────────
 
   bool get _canSave =>
       !_saving &&
@@ -316,11 +310,10 @@ class _MedicationEntryV2ScreenState
 
     if (!mounted) return;
 
-    // **Phase 11.7L.E.1 — Sean 2026-05-16 snackbar bug fix.**
-    // The legacy screen called `ScaffoldMessenger.of(context)` and
-    // then popped immediately; the snackbar attached to the
-    // about-to-be-disposed Scaffold and the user often never saw
-    // the confirmation. Route through the ROOT scaffold messenger
+    // **Sean 2026-05-16 snackbar bug fix.**
+    // Showing this snackbar on the local Scaffold immediately before
+    // popping can attach it to an about-to-be-disposed overlay. Route
+    // through the ROOT scaffold messenger
     // (set on MaterialApp.router via `scaffoldMessengerKey`) so it
     // lives on the parent surface and survives the pop.
     scaffoldMessengerKey.currentState
@@ -358,9 +351,7 @@ class _MedicationEntryV2ScreenState
       for (final c in _offlineClasses)
         PGSelectionOption(
           id: c,
-          // The picker key on each row matches the legacy widget
-          // test ID for the inline ActionChip so the same
-          // selection key naming carries over.
+          // Keep the stable selection key naming used by widget tests.
           label: _friendlyClassLabel(c),
         ),
     ];
@@ -936,8 +927,7 @@ class _SearchSkeleton extends StatelessWidget {
 
 // =============================================================================
 // Selection summary — cream card with accent-tint ring + "Change"
-// affordance. Resolves the legacy `PGCardVariant.highlighted` look
-// into the v2 surface language.
+// affordance in the v2 surface language.
 // =============================================================================
 
 class _SelectionSummary extends StatelessWidget {

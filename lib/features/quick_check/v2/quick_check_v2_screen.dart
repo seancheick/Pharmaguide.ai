@@ -1,9 +1,8 @@
-// QuickCheck v2 — Phase 11.7L.E.3.
+// QuickCheck v2 — production pair-check surface.
 //
-// Visual mirror of `QuickCheckScreen` ("Safe to Take Together?") on
-// the v2 design system. Same pair-check logic, same providers, same
-// result states, same routing — only the chrome and the result card
-// change.
+// Same pair-check logic, same providers, same result states, same
+// routing. v2 owns the presentation while preserving the interaction
+// lookup contract.
 //
 // What this screen does NOT touch:
 //
@@ -11,7 +10,7 @@
 //     debounced autocomplete on both fields.
 //   * `interactionDatabaseProvider` lookup via the existing
 //     `runPairCheck(a, b, db)` helper in `quick_check_logic.dart`.
-//   * The four legacy result states (error / insufficientData /
+//   * The four result states (error / insufficientData /
 //     clean / has-interactions) and the 300ms debounce.
 //   * The severity-gated `PGHaptics.forSeverity` celebration / nudge
 //     that fires when results land.
@@ -36,9 +35,8 @@
 //       - **Insufficient data** — cream card with
 //         `Icons.help_outline_rounded` in monitor and a
 //         "Ingredient data is incomplete" headline. Sean
-//         requirement #7: the fallback behavior the legacy screen
-//         already implements (one or both products missing
-//         ingredient data) renders here unchanged.
+//         requirement #7: the fallback behavior for one or both
+//         products missing ingredient data renders here unchanged.
 //       - **Clean** — `V2Colors.safe` accent-tint card with a
 //         check icon, "No known interactions" headline, and a
 //         calm "Always check with your clinician" footer.
@@ -88,7 +86,7 @@ class QuickCheckV2Screen extends ConsumerStatefulWidget {
 }
 
 class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
-  // ───────── state (1:1 with legacy) ─────────
+  // ───────── state ─────────
   final _controller1 = TextEditingController();
   final _controller2 = TextEditingController();
   final _focus1 = FocusNode();
@@ -277,11 +275,10 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
         _results = results;
         _checking = false;
       });
-      // Severity-gated haptic — matches the legacy screen's
-      // "feel the verdict before reading it" pattern. Empty results
-      // are not a celebration: our DB simply has no row, which is
-      // "we don't know," not "safe." Use a neutral tap so the user
-      // doesn't feel a green-light when none was earned.
+      // Severity-gated haptic: feel the verdict before reading it.
+      // Empty results are not a celebration: our DB simply has no row,
+      // which is "we don't know," not "safe." Use a neutral tap so the
+      // user doesn't feel a green-light when none was earned.
       if (results.isNotEmpty) {
         final worst = results.fold<Severity>(
           Severity.safe,
