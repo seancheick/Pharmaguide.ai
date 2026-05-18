@@ -28,7 +28,7 @@ related:
 **Version:** V1.0
 **Updated:** 2026-05-18
 **Current Sprint:** v2 production promotion + Phase 11.11 v1 retirement complete. 1.0.0+5 ready to cut after Supabase OTA sync to catalog `2026.05.17.204805`.
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1385 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR.
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1387 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR.
 
 **Phase 11.7L (1.0.0+5 prep, 2026-05-16 → 2026-05-18):** TestFlight 1.0.0+4 walkthrough produced 11 bug clusters; closed in commits `baa204b` (routes + scanner manual-entry haptic), `5319c66` (stack v2 fixture flash + empty-panel parity + nutrients refresh), `5b20f82` (Quick Check med-med via RxNorm + class-fallback + hydration-incomplete safety), `a1c5b57` (bottom-sheet anchoring + Search keyboard gap + Settings real account email), `4f7d4c7` (Quick Check canonical-id consolidation + structured fingerprint parser).
 
@@ -125,7 +125,7 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
 3. ~~Pipeline v6.0 profile_gate + v6.1 hypoglycemics split + premium UX overhaul~~ ✅ Done 2026-05-06 — catalog v2026.05.06, 136 interactions, 1431 tests.
 4. **Next:** V1.0-release gate — auth (Google/Apple/Email), usage limits, analytics SDK, store builds.
 5. **Then:** Trust & IA Sprint 2 (Refinement Polish) — gated on Sean's real-device smoke.
-6. **Later:** Sprint 28 (Tier 2 Research / RXCUI bridge) — pipeline prereqs partially done.
+6. ~~Sprint 28 (Tier 2 Research / RXCUI bridge)~~ ✅ Done 2026-05-18 — pipeline bridge + Flutter surface verified.
 
 ### Owed back to Sean (parallel to coding)
 
@@ -138,20 +138,20 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
 
 ## CURRENT SPRINT
 
-**Sprint 28 (BACKLOG): Tier 2 Research Evidence Surface + RXCUI bridge** — ⬜ READY
-Status: backlog — DO NOT START until pipeline-side Phase 1 (PubMed verification + duplicate cleanup) ships and Sean greenlights.
+**Sprint 28: Tier 2 Research Evidence Surface + RXCUI bridge** — ✅ DONE 2026-05-18
+Status: complete. The old backlog block was stale after Claude's Tier 2 pass and Codex verification.
 
-Goal: surface the 30,101 supp.ai research_pairs that already ship in `assets/db/interaction_db.sqlite` (currently 21 MB of dead data — schema declared in `lib/data/database/tables/research_pairs_table.dart`, ZERO query consumers in `lib/`).
+Goal: surface the supp.ai research_pairs that ship in `assets/db/interaction_db.sqlite` without converting them into curated safety warnings, severity, or score penalties.
 
-- [ ] Pipeline: bridge drug CUIs → RXCUIs in `scripts/ingest_suppai.py` (today: `drug_anchors: 0` — all 30,101 pairs unreachable by RxNorm). See `docs/INTERACTION_TIER2_AND_BRIDGE_PLAN.md` Gap 1.
-- [ ] Pipeline: rebuild `interaction_db.sqlite` with populated `rxcui_a` / `rxcui_b` columns; verify via `interaction_db_output/ingest_suppai_report.json`.
-- [ ] Flutter: extend `lib/data/database/interaction_database.dart` with `lookupResearchPairsByCanonicalId(...)` + `lookupResearchPairsByRxcui(...)` (Drift queries against existing `research_pairs` table).
-- [ ] Flutter: NEW `lib/services/stack/research_pair_lookup.dart` — wrapper service returning top-N pairs by paper_count.
-- [ ] Flutter: NEW `lib/features/product_detail/widgets/research_evidence_chip.dart` — neutral "Research available — N papers" pill.
-- [ ] Flutter: NEW `lib/features/product_detail/widgets/research_evidence_drawer.dart` — modal with `top_sentences[]` + PubMed PMID links.
-- [ ] Flutter: integrate the chip in `product_detail_screen.dart` below `_InteractionConditionDetails`.
-- [ ] Tests: ≥10 widget tests for chip + drawer. Verify Tier 2 hits do NOT count toward `StackSafetyReport.overallSeverity`.
-- [ ] UX guardrails (per `INTERACTION_DB_SPEC.md` §11.2): neutral tone, no severity coding, "Research is not a recommendation" disclaimer.
+- [x] Pipeline: bridge drug CUIs → RXCUIs. Bundled DB now has 30,474 `research_pairs`, 3,518 with `rxcui_a` / `rxcui_b` populated.
+- [x] Pipeline: rebuilt `interaction_db.sqlite` + manifest. `assets/db/interaction_db_manifest.json`: `source_suppai_count: 30474`, `source_drafts_count: 138`, `checksum_sha256: 72a87bf...`.
+- [x] Flutter: `lib/data/database/interaction_database.dart` exposes `lookupResearchPairsByCanonicalId(...)` + `lookupResearchPairsByRxcui(...)`.
+- [x] Flutter: `lib/services/stack/research_pair_lookup.dart` returns top-N evidence rows, prioritizing evidence involving medications in the user's active stack.
+- [x] Flutter: `lib/core/models/research_pair_evidence.dart` decodes top sentences + PMIDs into a UI-safe model.
+- [x] Flutter: `lib/features/product_detail/v2/sections/research_evidence_section.dart` renders the neutral "Research available" card and drawer with supp.ai/PubMed context.
+- [x] Flutter: Product Detail v2 integrates `ResearchEvidenceSection` after Review Before Use and before Label Confidence when deep-dive sections are available.
+- [x] Tests: Drift lookup tests, lookup service tests, section widget tests, and bundled DB release-gate tests verify canonical lookup, RxCUI bridge lookup, neutral copy, drawer content, and "not severity-bearing" behavior.
+- [x] UX guardrails: neutral tone, no severity coding, explicit "literature evidence, not a safety warning" / "do not create warnings, scores, or clinical instructions" copy.
 
 Already shipping (do NOT rebuild):
 - `lib/services/stack/depletion_checker.dart` — drug-induced nutrient depletion (metformin → B12 etc.)
@@ -580,7 +580,7 @@ Active queue post-merge: `F.0 → F.1 → F.2` (unblocker chunk) → C.2 / C.3 /
 - [🚫] ~~**Task F.6: Atom-style ingredients row**~~ — **DROPPED 2026-04-29.** Same rationale as F.3.
 - [x] **Task E.1: Cross-screen polish smoke tests** (2026-04-29). New file `test/integration/cross_screen_polish_smoke_test.dart` mounts each migrated screen (Stack / Settings / Profile Setup / Quick Check) inside ProviderScope + MaterialApp and asserts a frosted top chrome — PGFrostedAppBar OR PGFrostedHeader-inside-PreferredSize. Both render the same visual surface; the contract is intentionally loose because Profile Setup uses the PreferredSize fallback (sliver-nested PageView causes Flutter null-geometry assertions). Product Detail intentionally out of scope — its top-chrome assertion already lives in `test/features/product_detail/` widget tests where the product fixture + detail-blob mock already exist. The smoke test goes red the moment any of these screens regresses to a Material AppBar. 4/4 pass. Commit `39f34db`.
 - [x] **Task E.2: Final analyze + full-suite + tracker close** (2026-04-29). `flutter analyze` → No issues found. `flutter test` → **890/890 tests pass** (up from 736 in Sprint 27.20 — **+154 net** across all parallel work). 24 apple-grade commits on `origin/main` between `7c90b19` (PGFrostedAppBar primitive) and the sprint-close commit. Sprint 27.21 closes clean.
-- [x] **Phase G: Premium-feel follow-ups** (2026-04-29). Three Sprint 27.21 follow-ups added after the deep-audit pass + dev critique. **G.1 Animated logo splash intro** (`4d609af` + native-splash regen `193ce6b`) — `AnimatedSplashScreen` between native splash + first content screen, 600ms scale 0.85→1.0 + fade-in, reduce-motion path skips animation, end-of-anim `PGHaptics.tap`, light status-bar icons, brand-teal `#0A7D6F` background; 4 widget tests; native splash regenerated for the new 1024×1024 logo Sean uploaded. **G.2 Hero transitions** (`2adb151`) — three Hero wraps with matching tag `'product-${dsldId}'` connecting home carousel card + Show-all sheet item (48pt sources) to product detail hero altar (96pt destination); flightShuttleBuilder uses destination widget verbatim during transit (suppresses Material elevation halo on small-to-large flights); bidirectional. **G.3 Inline subtitle helper** (`882f368`) — stacked `[brand]\n[form]` Text widgets → single `Text.rich` rendering `Brand · Form · Dose` (App Store inline pattern); new file-scope helpers `_hasAnyHeroSubtitle` + `_buildHeroSubtitleSpan` drop orphan dots cleanly. **G.4 Tighter SE spacing** ⏸ deferred (design call; needs simulator validation). **G.5 Tier 2 Research** 🚫 backlog (pipeline-gated).
+- [x] **Phase G: Premium-feel follow-ups** (2026-04-29). Three Sprint 27.21 follow-ups added after the deep-audit pass + dev critique. **G.1 Animated logo splash intro** (`4d609af` + native-splash regen `193ce6b`) — `AnimatedSplashScreen` between native splash + first content screen, 600ms scale 0.85→1.0 + fade-in, reduce-motion path skips animation, end-of-anim `PGHaptics.tap`, light status-bar icons, brand-teal `#0A7D6F` background; 4 widget tests; native splash regenerated for the new 1024×1024 logo Sean uploaded. **G.2 Hero transitions** (`2adb151`) — three Hero wraps with matching tag `'product-${dsldId}'` connecting home carousel card + Show-all sheet item (48pt sources) to product detail hero altar (96pt destination); flightShuttleBuilder uses destination widget verbatim during transit (suppresses Material elevation halo on small-to-large flights); bidirectional. **G.3 Inline subtitle helper** (`882f368`) — stacked `[brand]\n[form]` Text widgets → single `Text.rich` rendering `Brand · Form · Dose` (App Store inline pattern); new file-scope helpers `_hasAnyHeroSubtitle` + `_buildHeroSubtitleSpan` drop orphan dots cleanly. **G.4 Tighter SE spacing** ⏸ deferred (design call; needs simulator validation). **G.5 Tier 2 Research** ✅ done 2026-05-18 via Sprint 28 verification.
 - [x] **Phase H: FitScore product-philosophy refactor — Option C tier-only** (2026-04-29). Sean's product call after the deep audit surfaced the combined-score confusion: Hero rendered `score100Equivalent` (e.g. 82) while the For You pill rendered `scoreCombined100 = scoreQuality80 + scoreFit20` (e.g. 78) — different formulas, different semantics, but both look like "out of 100" and conflict on screen ("did personalization make it worse?"). **H.1** (`7648d87`) killed the combined number entirely: dropped `scoreCombined100` field from `FitScoreResult` model + `FitScoreService.calculate` computation; dropped the `score` field from the four content-bearing FitDisplay sealed cases (`FitStrongMatch / FitGoodMatch / FitLimitedFit / FitNotRecommended`); dropped `_FitScorePill` widget from For You section; switched threshold input from scoreCombined100 (0..100) to `scoreFit20 / 20.0` (fractions 0.85/0.60/0.35); dropped `scoreQuality80` parameter from `FitScoreService.calculate` (no consumers after removal); rebalanced 60+ test fixtures across 5 test files. **H.2** (`77981ab`) deleted dead `PGFitScoreBadge` widget + 10 widget tests (185 + 100 lines); `fit_score_sheet` docstring updated to point at the For You section's tier-label row as the new entry point. Net architecture: PG Score = product (objective, in hero), Fit = state-only (subjective tier label in For You) — two independent axes, never merged.
 
 **Verification (post Phase H — Option C refactor, 2026-04-29):**
@@ -2708,7 +2708,7 @@ Uses in-memory Drift DB + asset fixture. Closes the biggest untested surface on 
 
 ---
 
-## CONSOLIDATED OPEN ITEMS (as of 2026-05-06)
+## CONSOLIDATED OPEN ITEMS (as of 2026-05-18)
 
 Everything below is genuinely NOT DONE, verified against the codebase. Organized by priority tier so nothing gets lost across sprints.
 
@@ -2745,16 +2745,6 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 
 **Trust & IA Sprint 3 — Backend Foundation (7 tasks):**
 - [ ] Excipient ontology, prose `score_bonuses[].detail`, percentile ranking, editorial summaries — mostly pipeline-side data work.
-
-**Sprint 28 — Tier 2 Research Evidence + RXCUI Bridge (9 tasks):**
-- [ ] Pipeline: bridge drug CUIs → RXCUIs in `ingest_suppai.py`
-- [ ] Pipeline: rebuild `interaction_db.sqlite` with populated `rxcui_a`/`rxcui_b`
-- [ ] Flutter: `lookupResearchPairsByCanonicalId` + `lookupResearchPairsByRxcui` queries
-- [ ] Flutter: `research_pair_lookup.dart` wrapper service
-- [ ] Flutter: `research_evidence_chip.dart` + `research_evidence_drawer.dart`
-- [ ] Flutter: integrate chip in `product_detail_screen.dart`
-- [ ] Tests: ≥10 widget tests for chip + drawer
-- [ ] UX guardrails: neutral tone, no severity coding, disclaimer
 
 **Cross-product dose summation:**
 - [ ] New `stack_dose_summer.dart` — sum dose-per-day per nutrient_form across active stack. Wire into `StackIntelligenceEngine`. First targets: caffeine 200mg, vitamin A 3000mcg, niacin 35mg, iron 45mg. ~5h.
