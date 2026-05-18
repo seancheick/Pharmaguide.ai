@@ -5,6 +5,7 @@
 // `ingredients_card_test.dart` 2026-05-17 (Phase 11.11 hygiene).
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 
 void main() {
@@ -48,6 +49,13 @@ void main() {
 
     test('non-string severity → green (defensive)', () {
       expect(inactiveColorRank({'harmful_severity': 5}), InactiveTone.green);
+    });
+
+    test('tone colors use v2 severity palette', () {
+      expect(InactiveTone.green.color, V2Colors.safe);
+      expect(InactiveTone.yellow.color, V2Colors.caution);
+      expect(InactiveTone.orange.color, V2Colors.avoid);
+      expect(InactiveTone.red.color, V2Colors.contraindicated);
     });
   });
 }

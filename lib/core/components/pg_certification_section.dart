@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -25,10 +24,6 @@ class PGCertification {
   });
 }
 
-/// v2 mirror of `CertificationDetailSection`
-/// (lib/features/product_detail/widgets/pipeline_sections/
-/// certification_detail_section.dart).
-///
 /// Lists certifications + quality checks as a flat row of items. Each
 /// item: green check (verified) or muted-grey cancel (not verified) +
 /// label + optional caption.
@@ -74,10 +69,10 @@ class _CertificationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone =
-        cert.verified ? AppTheme.severitySafe : V2Colors.fgSubtle;
-    final icon =
-        cert.verified ? Icons.check_circle_rounded : Icons.cancel_outlined;
+    final tone = cert.verified ? V2Colors.safe : V2Colors.fgSubtle;
+    final icon = cert.verified
+        ? Icons.check_circle_rounded
+        : Icons.cancel_outlined;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

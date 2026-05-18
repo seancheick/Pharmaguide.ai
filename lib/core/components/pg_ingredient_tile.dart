@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -29,8 +28,8 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_m
 /// - Typography: name uses Geist Sans 500 (production used bodyMedium w600)
 /// - Dose uses V2Typography.monoData for tabular figures
 /// - Chip text uses 500 weight not 700 (v2 weight discipline)
-/// - Color tokens stay on `AppTheme.severity*` and `AppTheme.score*` —
-///   semantically identical to production, no remap
+/// - Color tokens use v2 severity colors with the same meaning as the
+///   production mappings.
 class PGActiveIngredientTile extends StatelessWidget {
   final PGActiveIngredient ingredient;
 
@@ -52,7 +51,8 @@ class PGActiveIngredientTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final i = ingredient;
-    final showChips = i.formQuality != FormQuality.unknown ||
+    final showChips =
+        i.formQuality != FormQuality.unknown ||
         i.doseCallOut != DoseCallOut.withinLimits ||
         i.isSafetyConcern ||
         i.isInferredFromLabel;
@@ -115,26 +115,20 @@ class PGActiveIngredientTile extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (i.formQuality != FormQuality.unknown)
-                          _FormChipV2(
-                            quality: i.formQuality,
-                            onTap: onTap,
-                          ),
+                          _FormChipV2(quality: i.formQuality, onTap: onTap),
                         if (i.doseCallOut != DoseCallOut.withinLimits)
-                          _DoseChipV2(
-                            callOut: i.doseCallOut,
-                            onTap: onTap,
-                          ),
+                          _DoseChipV2(callOut: i.doseCallOut, onTap: onTap),
                         if (i.isSafetyConcern)
                           const _MiniChipV2(
                             label: 'Safety concern',
                             icon: Icons.warning_amber_rounded,
-                            color: AppTheme.severityContraindicated,
+                            color: V2Colors.contraindicated,
                           ),
                         if (i.isInferredFromLabel)
                           const _MiniChipV2(
                             label: 'Inferred from label',
                             icon: Icons.manage_search_rounded,
-                            color: AppTheme.insufficientData,
+                            color: V2Colors.fgSubtle,
                           ),
                       ],
                     ),
@@ -145,11 +139,7 @@ class PGActiveIngredientTile extends StatelessWidget {
           ),
         ),
         if (showBottomDivider)
-          const Divider(
-            height: 0.5,
-            thickness: 0.5,
-            color: V2Colors.outline,
-          ),
+          const Divider(height: 0.5, thickness: 0.5, color: V2Colors.outline),
       ],
     );
   }
@@ -165,17 +155,17 @@ class _FormChipV2 extends StatelessWidget {
 
   const _FormChipV2({required this.quality, required this.onTap});
 
-  /// Color mapping copied verbatim from production:
-  /// excellent → severitySafe, good → scoreGood, fair → severityCaution,
+  /// Color mapping mirrors production meaning:
+  /// excellent/good → safe, fair → caution,
   /// **poor → severityCaution (amber, NOT red — bioavailability is form
   /// quality, not safety)**, unknown → insufficientData.
   static Color _color(FormQuality q) => switch (q) {
-        FormQuality.excellent => AppTheme.severitySafe,
-        FormQuality.good => AppTheme.scoreGood,
-        FormQuality.fair => AppTheme.severityCaution,
-        FormQuality.poor => AppTheme.severityCaution,
-        FormQuality.unknown => AppTheme.insufficientData,
-      };
+    FormQuality.excellent => V2Colors.safe,
+    FormQuality.good => V2Colors.safe,
+    FormQuality.fair => V2Colors.caution,
+    FormQuality.poor => V2Colors.caution,
+    FormQuality.unknown => V2Colors.fgSubtle,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -197,16 +187,15 @@ class _DoseChipV2 extends StatelessWidget {
 
   const _DoseChipV2({required this.callOut, required this.onTap});
 
-  /// Color mapping copied verbatim from production:
-  /// **high → severityAvoid (red — the actual safety signal)**,
-  /// low → severityCaution, notDisclosed → insufficientData,
-  /// withinLimits → severitySafe (chip not rendered for withinLimits).
+  /// Color mapping mirrors production meaning:
+  /// **high → avoid (actual safety signal)**, low → caution,
+  /// notDisclosed → subtle, withinLimits → safe (chip not rendered).
   static Color _color(DoseCallOut d) => switch (d) {
-        DoseCallOut.high => AppTheme.severityAvoid,
-        DoseCallOut.low => AppTheme.severityCaution,
-        DoseCallOut.notDisclosed => AppTheme.insufficientData,
-        DoseCallOut.withinLimits => AppTheme.severitySafe,
-      };
+    DoseCallOut.high => V2Colors.avoid,
+    DoseCallOut.low => V2Colors.caution,
+    DoseCallOut.notDisclosed => V2Colors.fgSubtle,
+    DoseCallOut.withinLimits => V2Colors.safe,
+  };
 
   @override
   Widget build(BuildContext context) {

@@ -51,8 +51,8 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 ///      caution-tinted compare-arrows icon
 ///   8. PGTransparencyFooter
 ///
-/// Nav bar at the bottom: PGFrostedNavBar with `useV2Tones: true` and
-/// Scan centered (Home / Stack / Scan / Chat / Profile).
+/// Nav bar at the bottom: PGFrostedNavBar with Scan centered
+/// (Home / Stack / Scan / Chat / Profile).
 class HomeV2Screen extends ConsumerWidget {
   final ValueChanged<int>? onDestinationSelected;
   final int selectedIndex;
@@ -194,7 +194,6 @@ class HomeV2Screen extends ConsumerWidget {
         bottomNavigationBar: !showNavBar
             ? null
             : PGFrostedNavBar(
-                useV2Tones: true,
                 selectedIndex: selectedIndex,
                 onDestinationSelected: onDestinationSelected ?? (_) {},
                 // v2 order: Home / Stack / Scan / Chat / Profile — Scan at
@@ -248,36 +247,47 @@ class _SearchLauncher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: V2Colors.surface,
-      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-      child: InkWell(
-        onTap: () => GoRouter.of(context).push(Routes.search),
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
-          decoration: BoxDecoration(
+    void openSearch() => GoRouter.of(context).push(Routes.search);
+
+    return Semantics(
+      button: true,
+      label: 'Search supplements',
+      onTap: openSearch,
+      child: ExcludeSemantics(
+        child: Material(
+          color: V2Colors.surface,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+          child: InkWell(
+            onTap: openSearch,
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(color: V2Colors.outline),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: V2Colors.fgMuted,
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(
+                horizontal: V2Spacing.space16,
               ),
-              const SizedBox(width: V2Spacing.space12),
-              Expanded(
-                child: Text(
-                  'Search supplements',
-                  style: V2Typography.body(color: V2Colors.fgMuted),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                border: Border.all(color: V2Colors.outline),
               ),
-            ],
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.search_rounded,
+                    size: 20,
+                    color: V2Colors.fgMuted,
+                  ),
+                  const SizedBox(width: V2Spacing.space12),
+                  Expanded(
+                    child: Text(
+                      'Search supplements',
+                      style: V2Typography.body(color: V2Colors.fgMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -806,77 +816,18 @@ class _MicroMetric extends StatelessWidget {
 
 /// v2 Recent scans carousel. Phase 11.5d: now provider-wired —
 /// reads user_scan_history + core DB and renders real cards. Tap on
-/// a card pushes /product/{dsldId}. When no scans exist the section
-/// hides entirely (matches production HomeRecentScansSection's
-/// empty branch via the parent's conditional render — here we
-/// collapse to SizedBox.shrink for the same effect). Fixture data
-/// only shows when the provider hasn't resolved yet so the gallery
-/// preview keeps its polished state.
+/// a card pushes /product/{dsldId}. Loading/error states stay quiet;
+/// true empty data renders the v2 empty state instead of fake cards.
 class _RecentScansSection extends ConsumerWidget {
   const _RecentScansSection();
-
-  // First-paint fixture — only rendered while the real
-  // `_v2RecentScansProvider` is still loading (`realScans == null`).
-  // dsldId is empty so `ProductImage` falls back to
-  // `BrandedPlaceholder` and never tries to hit the network for a
-  // bogus catalog id.
-  static const _fixture = <_RecentScan>[
-    (
-      dsldId: '',
-      upc: null,
-      imageUrl: null,
-      formFactor: null,
-      brand: 'Nordic Naturals',
-      name: 'Ultimate Omega 2X',
-      score: 84,
-      time: '2h ago',
-    ),
-    (
-      dsldId: '',
-      upc: null,
-      imageUrl: null,
-      formFactor: null,
-      brand: 'Thorne',
-      name: 'Basic Nutrients 2/Day',
-      score: 91,
-      time: 'Yesterday',
-    ),
-    (
-      dsldId: '',
-      upc: null,
-      imageUrl: null,
-      formFactor: null,
-      brand: 'NOW Foods',
-      name: 'L-Theanine 200mg',
-      score: 72,
-      time: '3d ago',
-    ),
-    (
-      dsldId: '',
-      upc: null,
-      imageUrl: null,
-      formFactor: null,
-      brand: 'Pure Encapsulations',
-      name: 'Magnesium Glycinate',
-      score: 88,
-      time: '5d ago',
-    ),
-  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scansAsync = ref.watch(_v2RecentScansProvider);
-    final realScans = scansAsync.asData?.value;
-    // Empty real data → render the v2 empty state with a "Scan your
-    // first supplement" CTA. Matches production's _buildEmptyState
-    // contract — never silently hide a section the user might expect.
-    // Loading → fixture data so the first frame doesn't flash empty.
-    if (realScans != null && realScans.isEmpty) {
-      return const _RecentScansEmptyState();
-    }
-    final scans = (realScans == null || realScans.isEmpty)
-        ? _fixture
-        : realScans;
+    final scans = scansAsync.asData?.value;
+    if (scans == null) return const SizedBox.shrink();
+    if (scans.isEmpty) return const _RecentScansEmptyState();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -906,7 +857,7 @@ class _RecentScansSection extends ConsumerWidget {
         ),
         const SizedBox(height: V2Spacing.space12),
         SizedBox(
-          height: 210,
+          height: 218,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
@@ -1029,6 +980,9 @@ class _RecentScanCard extends StatelessWidget {
 
   const _RecentScanCard({required this.scan});
 
+  static const double _imageFrameSize = V2Spacing.space64 + V2Spacing.space8;
+  static const double _imageSize = V2Spacing.space64 - V2Spacing.space8;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -1054,20 +1008,32 @@ class _RecentScanCard extends StatelessWidget {
                 // when nothing is available. Mirrors v1
                 // home_recent_scans.dart:357.
                 Center(
-                  child: ProductImage(
-                    dsldId: scan.dsldId,
-                    upc: scan.upc,
-                    dsldImagePath: scan.imageUrl,
-                    productName: scan.name,
-                    brandName: scan.brand,
-                    formFactor: scan.formFactor,
-                    score: scan.score.toDouble(),
-                    size: 56,
+                  child: Container(
+                    key: const ValueKey('home-recent-scan-image-frame'),
+                    width: _imageFrameSize,
+                    height: _imageFrameSize,
+                    padding: const EdgeInsets.all(V2Spacing.space8),
+                    decoration: BoxDecoration(
+                      color: V2Colors.bg,
+                      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                      border: Border.all(color: V2Colors.outline),
+                    ),
+                    child: ProductImage(
+                      dsldId: scan.dsldId,
+                      upc: scan.upc,
+                      dsldImagePath: scan.imageUrl,
+                      productName: scan.name,
+                      brandName: scan.brand,
+                      formFactor: scan.formFactor,
+                      score: scan.score.toDouble(),
+                      size: _imageSize,
+                      compact: true,
+                    ),
                   ),
                 ),
                 const SizedBox(height: V2Spacing.space8),
-                // Compact score line (in lieu of PGScoreRing — keeps
-                // tone alignment with the rest of v2 product surfaces).
+                // Compact score line keeps tone alignment with the rest
+                // of v2 product surfaces.
                 Center(child: PGScoreLine(score: scan.score, compact: true)),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
@@ -1196,7 +1162,7 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
     final destination = const ['Home', 'Stack', 'Scan', 'Chat', 'Profile'][i];
     messenger.showSnackBar(
       SnackBar(
-        content: Text('$destination tapped — preview only (Phase 10.0)'),
+        content: Text('$destination tapped — preview only'),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(milliseconds: 1200),
       ),

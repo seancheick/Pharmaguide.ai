@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/widgets/heavy_metal_warning_card.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/heavy_metal_section.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
   testWidgets('renders nothing when heavyMetalDetail is null', (tester) async {
     await tester.pumpWidget(
-      wrap(const HeavyMetalWarningCard(heavyMetalDetail: null)),
+      wrap(buildHeavyMetalSection(heavyMetalDetail: null)),
     );
     await tester.pump();
-    expect(find.text('Heavy Metal Risk'), findsNothing);
+    expect(find.text('HEAVY METAL RISK'), findsNothing);
   });
 
   testWidgets('renders nothing when signals list is empty', (tester) async {
     await tester.pumpWidget(
       wrap(
-        const HeavyMetalWarningCard(
+        buildHeavyMetalSection(
           heavyMetalDetail: {'signals': <Map<String, dynamic>>[]},
         ),
       ),
     );
     await tester.pump();
-    expect(find.text('Heavy Metal Risk'), findsNothing);
+    expect(find.text('HEAVY METAL RISK'), findsNothing);
   });
 
   testWidgets('renders card title and ingredient when signals present', (
@@ -30,7 +30,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       wrap(
-        const HeavyMetalWarningCard(
+        buildHeavyMetalSection(
           heavyMetalDetail: {
             'signals': [
               {
@@ -45,7 +45,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Heavy Metal Risk'), findsOneWidget);
+    expect(find.text('HEAVY METAL RISK'), findsOneWidget);
     expect(find.text('Kelp'), findsOneWidget);
   });
 }

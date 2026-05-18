@@ -8,8 +8,13 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -40,15 +45,11 @@ import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
-import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
-// Phase 11.7L — `ScannerV2Screen` / `ScannerV2Preview` exist at
-// lib/features/scanner/v2/scanner_v2_screen.dart and are referenced
-// only by the dev gallery route below (`/dev/v2/scanner`). The
-// production `/scan` route still renders the legacy ScannerScreen
-// (which delegates to CameraPermissionV2Screen for the permission
-// gate). Wiring the v2 scanner to production is a two-stage refactor
-// (scan → verdict → product detail with hero) tracked for 1.0.0+6.
+// `ScannerV2Screen` / `ScannerV2Preview` are referenced only by the
+// dev gallery route below. Production keeps `ScannerScreen` because it
+// owns the real MobileScanner controller and catalog lookup flow; its
+// permission, fallback, lookup, and not-found surfaces use v2 styling.
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
@@ -86,7 +87,6 @@ String? normalizePharmaGuideDeepLink(Uri uri) {
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
-// Placeholder screens — will be replaced by real implementations
 class _PlaceholderScreen extends StatelessWidget {
   final String title;
   const _PlaceholderScreen({required this.title});
@@ -94,9 +94,46 @@ class _PlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(title, style: Theme.of(context).textTheme.headlineMedium),
+      backgroundColor: V2Colors.bg,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space24),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: V2Colors.surface,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: V2Colors.accent,
+                      size: 32,
+                    ),
+                    const SizedBox(height: V2Spacing.space16),
+                    Text(
+                      title,
+                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      'This surface is not available in this build yet.',
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -125,7 +162,10 @@ class ScanScreen extends ConsumerWidget {
             upcSku: product.upcSku,
             productName: product.productName,
           );
-      refreshHomeSurface(ref);
+      // Home v2 picks the new scan up via its own
+      // `_v2RecentScansProvider.autoDispose` on next tab focus or via
+      // its pull-to-refresh control. No external invalidation needed
+      // after the v1 home screen retirement.
 
       if (context.mounted) {
         // Verdict-result haptic — mirrors the in-camera flow at
@@ -187,33 +227,68 @@ class CatalogUnavailableScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Catalog Unavailable')),
+      backgroundColor: V2Colors.bg,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_outlined, size: 56),
-              const SizedBox(height: 16),
-              Text(
-                message ??
-                    'The verified supplement catalog is not available on this device yet.',
-                textAlign: TextAlign.center,
+          padding: const EdgeInsets.all(V2Spacing.space24),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: V2Colors.surface,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+              border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.md,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(V2Spacing.space24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: V2Colors.cautionTint,
+                      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                    ),
+                    child: const Icon(
+                      Icons.cloud_off_outlined,
+                      color: V2Colors.caution,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: V2Spacing.space16),
+                  Text(
+                    'Catalog unavailable',
+                    style: V2Typography.titleSm(color: V2Colors.fg),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: V2Spacing.space8),
+                  Text(
+                    message ??
+                        'The verified supplement catalog is not available on this device yet.',
+                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: V2Spacing.space24),
+                  PGPillButton(
+                    label: 'Open Profile',
+                    icon: Icons.person_rounded,
+                    expand: true,
+                    onPressed: () => context.go(Routes.profile),
+                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: V2Spacing.space12),
+                    PGPillButton(
+                      label: 'Retry Catalog Download',
+                      icon: Icons.refresh_rounded,
+                      variant: PGPillVariant.secondary,
+                      expand: true,
+                      onPressed: onRetry,
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => context.go(Routes.profile),
-                child: const Text('Open Profile'),
-              ),
-              if (onRetry != null) ...[
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: onRetry,
-                  child: const Text('Retry Catalog Download'),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -243,7 +318,6 @@ GoRouter _buildRouter({
   required bool hasSeenOnboarding,
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
-  bool useV2Theme = false,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -301,8 +375,6 @@ GoRouter _buildRouter({
             // Phase 11.0 — production Profile tab now renders the v2
             // settings screen wired to real providers (profileProvider,
             // activeStackProvider, recent-scans count, Supabase auth).
-            // Legacy SettingsScreen import kept for now; remove in
-            // Phase 11.5 when all routes are swapped.
             builder: (_, __) => const SettingsV2Connected(),
           ),
         ],
@@ -327,10 +399,9 @@ GoRouter _buildRouter({
       //
       // Phase 8.1.0 cleanup (2026-05-14): Product Detail / Home / Scanner /
       // Stack / floating-shell preview routes were retired. Those v2
-      // screens were built on misbuilt primitives (PGScoreRing,
-      // PGSeverityBadge, chip-based ingredients, floating nav) that
-      // didn't mirror production patterns. Mirror-based rebuilds land
-      // in Phase 8.1.1+ and re-register their routes there.
+      // screens were built on primitives that didn't mirror production
+      // patterns. Mirror-based rebuilds land in Phase 8.1.1+ and
+      // re-register their routes there.
       GoRoute(
         path: '/dev/v2/settings',
         pageBuilder: (_, state) {
@@ -383,14 +454,10 @@ GoRouter _buildRouter({
         pageBuilder: (_, state) =>
             _platformPage(state, const ProductDetailV2Screen()),
       ),
-      // Phase 11.7b — Product Detail V2 *Connected*. Same components as
-      // the fixture screen above, but driven by a real `dsldId` and the
-      // production provider stack (coreDatabaseProvider, detailBlob,
+      // Product Detail V2 *Connected*. Same components as the fixture
+      // screen above, but driven by a real `dsldId` and the production
+      // provider stack (coreDatabaseProvider, detailBlob,
       // personalizedInteractionWarnings, profileProvider, fitScore).
-      // Section bodies fill in across 11.7c–11.7f; 11.7g flips the
-      // production /product/:dsldId route over once stakeholder review
-      // passes. Until then this lives behind a parallel route so
-      // production stays on the legacy screen.
       GoRoute(
         path: '/dev/v2/product/:dsldId',
         pageBuilder: (_, state) {
@@ -405,34 +472,28 @@ GoRouter _buildRouter({
           );
         },
       ),
-      // v2 Auth Invitation — sits between onboarding completion and
-      // home. Phase 9.0 ships the visual mirror only; Supabase wiring
-      // (magic link → Apple → Google) lands in Phase 9.1–9.3.
-      // Preview wrapper toasts on each button so reviewers can verify
-      // the tap targets without leaving the gallery.
+      // v2 Auth Invitation dev preview — uses the same PGAuthService
+      // methods as production, with a gallery-only back affordance.
       GoRoute(
         path: '/dev/v2/auth',
         pageBuilder: (_, state) =>
             _platformPage(state, const AuthInvitationV2Preview()),
       ),
-      // v2 Home — Phase 10.0 visual mirror of home_screen.dart with
-      // fixture data + retinted frosted nav bar. Production wiring
-      // (real providers + pinned-search scroll chrome) lands in the
-      // Phase 8.x wiring sweep.
+      // v2 Home dev preview — fixture data + retinted frosted nav
+      // bar. The production `/` route uses the connected v2 widget.
       GoRoute(
         path: '/dev/v2/home',
         pageBuilder: (_, state) => _platformPage(state, const HomeV2Preview()),
       ),
-      // v2 Scanner — Phase 10.1 visual mirror with PGVerdictReveal
-      // demo chips for each severity tier. Camera surrogate stands in
-      // for MobileScanner in the gallery preview.
+      // v2 Scanner dev preview — PGVerdictReveal demo chips for each
+      // severity tier. Camera surrogate stands in for MobileScanner.
       GoRoute(
         path: '/dev/v2/scan',
         pageBuilder: (_, state) =>
             _platformPage(state, const ScannerV2Preview()),
       ),
       // v2 camera permission gate — first-ask + denied states.
-      // ?denied=1 flips into the denied variant.
+      // `?denied=1` flips into the denied variant.
       GoRoute(
         path: '/dev/v2/scan/permission',
         pageBuilder: (_, state) {
@@ -443,20 +504,14 @@ GoRouter _buildRouter({
           );
         },
       ),
-      // v2 Stack — Phase 10.2 visual mirror of stack_screen.dart.
-      // Two pinned tabs (Stack / Wishlist), summary card with status
-      // tier (no numeric score), supplement + medication list with
-      // swipe-to-remove.
+      // v2 Stack dev preview — two pinned tabs (Stack / Wishlist),
+      // summary card with status tier (no numeric score), supplement
+      // + medication list with swipe-to-remove.
       GoRoute(
         path: '/dev/v2/stack',
         pageBuilder: (_, state) => _platformPage(state, const StackV2Preview()),
       ),
-      // Phase 11.7i — Splash + Onboarding production routes flipped to
-      // v2 widgets. Legacy widgets (AnimatedSplashScreen, OnboardingScreen)
-      // stay imported above so a single-line revert here restores the
-      // pre-v2 path if needed. Same risk profile as the Home/Profile/Stack
-      // swaps in Phases 11.0–11.5: these are first-impression surfaces
-      // with no safety-critical clinical content.
+      // Splash + Onboarding production routes use the v2 widgets.
       GoRoute(
         path: Routes.splashIntro,
         builder: (_, state) {
@@ -673,9 +728,6 @@ class _AppShell extends StatelessWidget {
       extendBody: true,
       body: child,
       bottomNavigationBar: PGFrostedNavBar(
-        // Phase 11.5 — production shell uses the v2 nav tone since
-        // production Home / Stack / Profile now render v2 widgets.
-        useV2Tones: true,
         selectedIndex: _selectedIndex(context),
         onDestinationSelected: (i) => _onDestinationSelected(context, i),
         destinations: const [
@@ -725,13 +777,12 @@ class PharmaGuideApp extends StatelessWidget {
   final VoidCallback? onRetryCatalogLoad;
   final bool hasSeenOnboarding;
 
-  /// Experimental v2 design system toggle. While `false` (default),
-  /// production `AppTheme` ships. When `true`, the app boots against
-  /// `V2Theme` and the `/dev/v2` gallery reflects live tokens.
+  /// V2 design system toggle.
   ///
-  /// Wire to a debug flag during the `design/v2-mobile-polish` branch;
-  /// flip the default to `true` only when Phase 8 sign-off is complete
-  /// (see `.claude/plans/your-original-prompt-communicates-streamed-liskov.md`).
+  /// Defaults to `true` so production routes, modal sheets, snackbars,
+  /// forms, and Material controls inherit the same v2 token system as
+  /// the migrated feature screens. Tests or one-off debugging can still
+  /// pass `false` to compare against the old Material theme.
   final bool useV2Theme;
 
   const PharmaGuideApp({
@@ -740,7 +791,7 @@ class PharmaGuideApp extends StatelessWidget {
     this.catalogUnavailableReason,
     this.onRetryCatalogLoad,
     this.hasSeenOnboarding = true,
-    this.useV2Theme = false,
+    this.useV2Theme = true,
   });
 
   @override
@@ -757,7 +808,6 @@ class PharmaGuideApp extends StatelessWidget {
         hasSeenOnboarding: hasSeenOnboarding,
         catalogUnavailableReason: catalogUnavailableReason,
         onRetryCatalogLoad: onRetryCatalogLoad,
-        useV2Theme: useV2Theme,
       ),
       // Global Dynamic Type clamp.
       //
@@ -837,11 +887,10 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
         );
         // Route to home so the post-auth landing feels complete.
         // Preview routes (the v2 gallery) land at /dev/v2/home; the
-        // legacy production root replaces this with Routes.home when
-        // the Phase-8 wiring sweep flips the global useV2Theme. Only
-        // route when the listener fires from an auth path — bail if
-        // we're already on a home-adjacent route to avoid a flicker
-        // from token-refresh events that happen on a live home.
+        // production app lands at Routes.home. Only route when the
+        // listener fires from an auth path — bail if we're already on
+        // a home-adjacent route to avoid a flicker from token-refresh
+        // events that happen on a live home.
         final router = _appRouter;
         if (router != null) {
           final loc = router.routerDelegate.currentConfiguration.uri.path;

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_circular_icon_button.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
 
@@ -126,8 +126,8 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
       child: Padding(
         padding: EdgeInsets.only(
           top: topPadding + _verticalPadding,
-          left: AppTheme.space12,
-          right: AppTheme.space12,
+          left: V2Spacing.space12,
+          right: V2Spacing.space12,
           bottom: _verticalPadding,
         ),
         child: SizedBox(

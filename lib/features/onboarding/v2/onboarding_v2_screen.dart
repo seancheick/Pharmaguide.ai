@@ -72,10 +72,7 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
 
   void _next() {
     if (_currentPage < _totalPages - 1) {
-      _pageController.nextPage(
-        duration: V2Motion.base,
-        curve: V2Motion.smooth,
-      );
+      _pageController.nextPage(duration: V2Motion.base, curve: V2Motion.smooth);
     } else {
       _startFinish();
     }
@@ -167,10 +164,9 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
             child: PGCelebration(
               eyebrow: "You're set",
               headline: 'Let’s start scanning.',
-              subline:
-                  _selectedGoals.isEmpty
-                      ? 'We’ll personalize as you go.'
-                      : 'We’ll prioritize what matters to you.',
+              subline: _selectedGoals.isEmpty
+                  ? 'We’ll personalize as you go.'
+                  : 'We’ll prioritize what matters to you.',
               onComplete: () => _celebrationComplete(),
             ),
           ),
@@ -295,10 +291,8 @@ class _StepShellState extends State<_StepShell>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: V2Motion.slower,
-    )..forward();
+    _ctrl = AnimationController(vsync: this, duration: V2Motion.slower)
+      ..forward();
   }
 
   @override
@@ -430,9 +424,8 @@ class _MiniProductPreview extends StatelessWidget {
   }
 }
 
-/// Mini ScoreLine for the onboarding preview. Mirrors the production
-/// `lib/features/product_detail/widgets/score_line.dart` pattern: tier
-/// color dot + `86/100` + tier label, sized down to fit a preview card.
+/// Mini ScoreLine for the onboarding preview: tier color dot +
+/// `86/100` + tier label, sized down to fit a preview card.
 class _ScoreLineDemo extends StatelessWidget {
   final int score;
   const _ScoreLineDemo({required this.score});
@@ -449,10 +442,7 @@ class _ScoreLineDemo extends StatelessWidget {
           decoration: BoxDecoration(color: tier.color, shape: BoxShape.circle),
         ),
         const SizedBox(width: V2Spacing.space8),
-        Text(
-          '$score/100',
-          style: V2Typography.bodyMedium(color: V2Colors.fg),
-        ),
+        Text('$score/100', style: V2Typography.bodyMedium(color: V2Colors.fg)),
         const SizedBox(width: V2Spacing.space8),
         Text(tier.label, style: V2Typography.bodyMedium(color: tier.color)),
       ],
@@ -604,15 +594,9 @@ class _TrustBullets extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Column(
       children: [
-        _TrustRow(
-          eyebrow: 'Sources',
-          label: 'NIH ODS · PubMed · FDA',
-        ),
+        _TrustRow(eyebrow: 'Sources', label: 'NIH ODS · PubMed · FDA'),
         SizedBox(height: V2Spacing.space16),
-        _TrustRow(
-          eyebrow: 'Tone',
-          label: 'Plain-language warnings, no hype',
-        ),
+        _TrustRow(eyebrow: 'Tone', label: 'Plain-language warnings, no hype'),
         SizedBox(height: V2Spacing.space16),
         _TrustRow(
           eyebrow: 'Privacy',
@@ -634,16 +618,10 @@ class _TrustRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 88,
-          child: PGEyebrow(eyebrow, color: V2Colors.fgMuted),
-        ),
+        SizedBox(width: 88, child: PGEyebrow(eyebrow, color: V2Colors.fgMuted)),
         const SizedBox(width: V2Spacing.space12),
         Expanded(
-          child: Text(
-            label,
-            style: V2Typography.body(color: V2Colors.fg),
-          ),
+          child: Text(label, style: V2Typography.body(color: V2Colors.fg)),
         ),
       ],
     );

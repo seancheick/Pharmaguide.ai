@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' as drift;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -45,9 +46,11 @@ void main() {
     WidgetTester tester,
     Widget child, {
     List<UserStacksLocalData> stack = const [],
+    Future<void> Function(CoreDatabase coreDb)? seedCore,
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
+    await seedCore?.call(coreDb);
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
@@ -124,6 +127,41 @@ void main() {
       expect(find.text('Swipe left to remove'), findsOneWidget);
       expect(find.byType(Dismissible), findsOneWidget);
       expect(find.text('Magnesium Glycinate'), findsOneWidget);
+    });
+
+    testWidgets('Stack v2 real rows hydrate product brand and score', (
+      tester,
+    ) async {
+      await pumpWithStack(
+        tester,
+        const StackV2Screen(showNavBar: false),
+        seedCore: (coreDb) async {
+          await coreDb
+              .into(coreDb.productsCore)
+              .insert(
+                ProductsCoreCompanion.insert(
+                  dsldId: 'magnesium-1',
+                  productName: 'Magnesium Glycinate 200',
+                  brandName: const drift.Value('Clean Lab'),
+                  score100Equivalent: const drift.Value(87),
+                  exportVersion: 'test',
+                  exportedAt: '2026-05-18T00:00:00Z',
+                ),
+              );
+        },
+        stack: [
+          stackEntry(
+            id: 'stack-1',
+            name: 'Magnesium Glycinate',
+            type: 'supplement',
+            dsldId: 'magnesium-1',
+          ),
+        ],
+      );
+
+      expect(find.text('Magnesium Glycinate 200'), findsOneWidget);
+      expect(find.text('Clean Lab'), findsOneWidget);
+      expect(find.text('87/100'), findsOneWidget);
     });
 
     testWidgets(

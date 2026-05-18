@@ -21,8 +21,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// - 240ms entrance fade + 8pt translate (skipped under reduce-motion)
 ///
 /// Wraps the whole hero in a v2 elevated card (cream surface + outline +
-/// sm shadow). Production used `PGCard(elevated)` — same intent, v2 token
-/// values.
+/// sm shadow).
 ///
 /// **Image:** caller passes a pre-built widget (production composes
 /// `ProductImage` with Hero tag + flightShuttleBuilder). Same contract.
@@ -209,28 +208,34 @@ class _Subtitle extends StatelessWidget {
     // identity-first, metadata-second hierarchy.
     final spans = <InlineSpan>[];
     if (hasBrand) {
-      spans.add(TextSpan(
-        text: brand,
-        style: V2Typography.bodyMedium(color: V2Colors.fg),
-      ));
+      spans.add(
+        TextSpan(
+          text: brand,
+          style: V2Typography.bodyMedium(color: V2Colors.fg),
+        ),
+      );
     }
     if (hasServings) {
       if (spans.isNotEmpty) {
         spans.add(_dotSpan());
       }
-      spans.add(TextSpan(
-        text: servings!,
-        style: V2Typography.bodySm(color: V2Colors.fgMuted),
-      ));
+      spans.add(
+        TextSpan(
+          text: servings!,
+          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+        ),
+      );
     }
     if (hasDose) {
       if (spans.isNotEmpty) {
         spans.add(_dotSpan());
       }
-      spans.add(TextSpan(
-        text: dose!,
-        style: V2Typography.bodySm(color: V2Colors.fgMuted),
-      ));
+      spans.add(
+        TextSpan(
+          text: dose!,
+          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+        ),
+      );
     }
 
     return Text.rich(
@@ -241,9 +246,9 @@ class _Subtitle extends StatelessWidget {
   }
 
   TextSpan _dotSpan() => TextSpan(
-        text: ' · ',
-        style: V2Typography.bodySm(color: V2Colors.fgSubtle),
-      );
+    text: ' · ',
+    style: V2Typography.bodySm(color: V2Colors.fgSubtle),
+  );
 }
 
 /// Trust tag — outline pill, primary tone for certifications, green
@@ -273,7 +278,9 @@ class _TrustChipRow extends StatelessWidget {
     //           Non-GMO) compact text-only, green tone.
     // Each row caps at 4 visible + "+N more" overflow.
     final certs = tags.where((t) => t.isCertification).toList(growable: false);
-    final dietary = tags.where((t) => !t.isCertification).toList(growable: false);
+    final dietary = tags
+        .where((t) => !t.isCertification)
+        .toList(growable: false);
 
     final children = <Widget>[];
     if (certs.isNotEmpty) {

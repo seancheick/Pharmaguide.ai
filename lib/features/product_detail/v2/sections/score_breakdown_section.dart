@@ -1,10 +1,9 @@
-// Phase 11.7d.1 — ScoreBreakdown section adapter.
+// ScoreBreakdown section adapter.
 //
-// V2 mirror of production's `ScoreBreakdownCard`. Composes the v2 PGScoreBreakdownCard
-// from the 4 pillar scores + section_breakdown blob + trust flags +
-// mappedCoverage + heroScore.
+// Composes the v2 PGScoreBreakdownCard from the 4 pillar scores,
+// section_breakdown blob, trust flags, mappedCoverage, and heroScore.
 //
-// Production widget inputs (verbatim port — no new logic):
+// Widget inputs:
 //   - ingredientQuality  (max 25)  "Form, dosage, and bioavailability"
 //   - safetyPurity       (max 30)  "Free from harmful ingredients and contaminants"
 //   - evidenceResearch   (max 20)  "Clinical support behind ingredients"
@@ -34,7 +33,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 /// Build the ScoreBreakdown section. Gated by
 /// `shouldShowScoreBreakdown(isBlocked, isNotScored)` in the connected
@@ -70,7 +69,7 @@ Widget buildScoreBreakdownSection({
           const PGPillarBadge(
             icon: Icons.verified_outlined,
             label: 'Third-party tested',
-            color: AppTheme.severitySafe,
+            color: V2Colors.safe,
           ),
       ],
     ),
@@ -96,7 +95,7 @@ Widget buildScoreBreakdownSection({
           const PGPillarBadge(
             icon: Icons.factory_outlined,
             label: 'Trusted manufacturer',
-            color: AppTheme.severitySafe,
+            color: V2Colors.safe,
           ),
       ],
     ),

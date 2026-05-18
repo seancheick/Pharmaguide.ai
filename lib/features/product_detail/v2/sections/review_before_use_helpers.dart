@@ -1,15 +1,6 @@
-// Phase 11.7c.3 — ReviewBeforeUse helpers (pure logic).
+// ReviewBeforeUse helpers (pure logic).
 //
-// Mirrors production's tone/row composition in
-// `lib/features/product_detail/widgets/review_before_use_card.dart`:
-//   • `_parseHint(raw)`        (line 1177) → [parseInteractionHint]
-//   • `_computeTone({...})`    (line 1074) → [computeReviewTone]
-//   • `_allergenTone(presence)`(line 1118) → [toneForAllergen]
-//   • `_severityColor(sev)`    (line 913)  → severity → PGReviewTone
-//   • `_countCopy(count)`      (line 331)  → [countCopy]
-//   • `_affirmativeCopy(n)`    (line 336)  → [affirmativeCopy]
-//   • `_humanLabel(id)`        (line 1201) → [humanLabelForCondition]
-//   • `_humanConcern(concern)` (line 751)  → [humanConcernLabel]
+// Owns tone, copy, and row composition for the v2 review card.
 //
 // Sean's rules (2026-05-15):
 //   • Preserve provider logic — no new clinical language.
@@ -32,7 +23,7 @@ import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 
 // =========================================================================
-// Hint parsing (verbatim port of production's _parseHint + _listOfStrings).
+// Hint parsing.
 // =========================================================================
 
 /// Decoded `_product.interactionSummaryHint` structure.
@@ -49,8 +40,7 @@ class ParsedInteractionHint {
 }
 
 /// Decode the `interaction_summary_hint` JSON string. Returns null when
-/// empty, not a Map, or malformed. Verbatim port of production's
-/// `_parseHint` (line 1177).
+/// empty, not a Map, or malformed.
 ParsedInteractionHint? parseInteractionHint(String raw) {
   if (raw.isEmpty) return null;
   try {
@@ -75,13 +65,11 @@ List<String> _stringList(Object? raw) {
 }
 
 // =========================================================================
-// Tone computation (verbatim port of production's _computeTone +
-// _allergenTone; mapped from PGBannerTone → PGReviewTone).
+// Tone computation.
 // =========================================================================
 
-/// Compute the overall card tone from the combined inputs. Mirrors
-/// production line 174 — allergen `contains` ALWAYS bumps to danger
-/// even with a free-from claim present.
+/// Compute the overall card tone from the combined inputs. Allergen
+/// `contains` ALWAYS bumps to danger even with a free-from claim present.
 ///
 /// `hasOnlyAffirmatives` flips the card to a calm tone — `safe` when
 /// any claim is certified, otherwise `info` (matches production's
@@ -127,8 +115,7 @@ PGReviewTone computeReviewTone({
   return PGReviewTone.info;
 }
 
-/// Per-row tone for an allergen match. Verbatim port of production's
-/// `_allergenTone`.
+/// Per-row tone for an allergen match.
 PGReviewTone toneForAllergen(String presenceType) {
   switch (presenceType) {
     case 'contains':
@@ -142,9 +129,7 @@ PGReviewTone toneForAllergen(String presenceType) {
   }
 }
 
-/// Per-row tone for an interaction warning. Verbatim port of
-/// production's `_severityColor` (line 913) — same severity → color
-/// mapping, expressed as PGReviewTone.
+/// Per-row tone for an interaction warning.
 PGReviewTone toneForWarning(Severity severity) {
   switch (severity) {
     case Severity.contraindicated:
@@ -244,9 +229,7 @@ PGReviewRow rowForWarning(
   captionParts.add(warning.evidenceLevel.label);
   final citationCount = warning.sourceUrls.length;
   if (citationCount > 0) {
-    captionParts.add(
-      '$citationCount citation${citationCount == 1 ? '' : 's'}',
-    );
+    captionParts.add('$citationCount citation${citationCount == 1 ? '' : 's'}');
   }
   return PGReviewRow(
     headline: warning.title,
@@ -340,8 +323,7 @@ String humanConcernLabel(String concern) {
 }
 
 /// Build the "Label disagreement" footer body. Returns null when there
-/// are no conflicts. Mirrors production's `_ConflictFooter` body copy
-/// (line 734).
+/// are no conflicts.
 String? buildConflictFooterBody(List<String> conflicts) {
   if (conflicts.isEmpty) return null;
   final labels = conflicts.map(humanConcernLabel).join(', ');

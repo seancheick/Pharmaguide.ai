@@ -6,10 +6,12 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart';
+import 'package:pharmaguide/core/components/pg_product_thumbnail.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/components/pg_type_badge.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -19,6 +21,8 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
@@ -26,6 +30,14 @@ import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+
+/// Resolves stack rows back to catalog products so v2 rows render the
+/// canonical product name, brand, thumbnail, and score.
+final _stackProductProvider = FutureProvider.family
+    .autoDispose<ProductsCoreData?, String>((ref, dsldId) async {
+      final coreDb = ref.read(coreDatabaseProvider);
+      return coreDb.findById(dsldId);
+    });
 
 /// v2 Stack screen — visual mirror of `stack_screen.dart` with three
 /// sub-tabs via [PGSegmentedControl]:
@@ -109,7 +121,6 @@ class _StackV2ScreenState extends State<StackV2Screen> {
         ),
         bottomNavigationBar: widget.showNavBar
             ? PGFrostedNavBar(
-                useV2Tones: true,
                 selectedIndex: widget.selectedIndex,
                 onDestinationSelected: widget.onDestinationSelected ?? (_) {},
                 destinations: const [
@@ -321,13 +332,10 @@ class _StackTab extends ConsumerWidget {
           ),
           // Production safety + intelligence surfaces — each collapses
           // to SizedBox.shrink when there's nothing to surface, so
-          // these silently disappear on a clean stack. Kept as the
-          // production widgets per Sean's directive ("temporary visual
-          // inconsistency acceptable, loss of clinical functionality
-          // is not"). v2 mirrors of each land in subsequent passes.
-          const _LegacyRecallAlertSlot(),
-          const _LegacyStackSafetyBannerSlot(),
-          const _LegacyProfileNudgeSlot(),
+          // these silently disappear on a clean stack.
+          const _RecallAlertSlot(),
+          const _StackSafetyBannerSlot(),
+          const _ProfileNudgeSlot(),
           const SizedBox(height: V2Spacing.space24),
           // Empty state — Sean 2026-05-16: replaces the post-clear
           // fixture flash with a calm "your stack is empty" prompt
@@ -708,7 +716,7 @@ class _StackEntry {
   });
 }
 
-class _StackItemRow extends StatelessWidget {
+class _StackItemRow extends ConsumerWidget {
   final _StackEntry entry;
 
   /// Callback fired after the user swipe-dismisses. Production
@@ -720,7 +728,25 @@ class _StackItemRow extends StatelessWidget {
   const _StackItemRow({required this.entry, this.onRemoved});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final product = entry.dsldId == null
+        ? null
+        : ref.watch(_stackProductProvider(entry.dsldId!)).asData?.value;
+    final productName = product?.productName.trim();
+    final brandName = product?.brandName?.trim();
+    final displayName = productName == null || productName.isEmpty
+        ? entry.name
+        : productName;
+    final displayBrand = brandName == null || brandName.isEmpty
+        ? entry.brand
+        : brandName;
+    final score = entry.isMedication
+        ? null
+        : entry.score ?? product?.score100Equivalent?.round();
+    final itemType = entry.isMedication
+        ? PGItemType.medication
+        : PGItemType.supplement;
+
     return Dismissible(
       key: ValueKey('stack_${entry.id}'),
       direction: onRemoved != null
@@ -784,7 +810,14 @@ class _StackItemRow extends StatelessWidget {
             ),
             child: Row(
               children: [
-                _ItemLeadingGlyph(entry: entry),
+                PGProductThumbnail(
+                  imageUrl: entry.isMedication
+                      ? null
+                      : _preferredProductImageUrl(product),
+                  type: itemType,
+                  size: 48,
+                  showTypeBadge: false,
+                ),
                 const SizedBox(width: V2Spacing.space12),
                 Expanded(
                   child: Column(
@@ -792,15 +825,15 @@ class _StackItemRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        entry.name,
+                        displayName,
                         style: V2Typography.bodyMedium(color: V2Colors.fg),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (entry.brand != null) ...[
+                      if (displayBrand != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          entry.brand!,
+                          displayBrand,
                           style: V2Typography.caption(color: V2Colors.fgMuted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -816,9 +849,9 @@ class _StackItemRow extends StatelessWidget {
                           style: V2Typography.caption(color: V2Colors.fgSubtle),
                         ),
                       ],
-                      if (entry.score != null) ...[
+                      if (score != null) ...[
                         const SizedBox(height: V2Spacing.space4),
-                        PGScoreLine(score: entry.score!, compact: true),
+                        PGScoreLine(score: score, compact: true),
                       ],
                     ],
                   ),
@@ -838,32 +871,13 @@ class _StackItemRow extends StatelessWidget {
   }
 }
 
-class _ItemLeadingGlyph extends StatelessWidget {
-  final _StackEntry entry;
-  const _ItemLeadingGlyph({required this.entry});
-
-  @override
-  Widget build(BuildContext context) {
-    final isMed = entry.isMedication;
-    final tone = isMed ? V2Colors.fgMuted : V2Colors.accent;
-    final tint = isMed
-        ? V2Colors.fgMuted.withValues(alpha: 0.10)
-        : V2Colors.accentTint;
-
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: tint,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-      ),
-      child: Icon(
-        isMed ? Icons.local_pharmacy_outlined : Icons.medication_outlined,
-        size: 20,
-        color: tone,
-      ),
-    );
-  }
+String? _preferredProductImageUrl(ProductsCoreData? product) {
+  if (product == null) return null;
+  final thumbnail = product.imageThumbnailUrl?.trim();
+  if (thumbnail != null && thumbnail.isNotEmpty) return thumbnail;
+  if (product.imageIsPdf == 1) return null;
+  final image = product.imageUrl?.trim();
+  return image == null || image.isEmpty ? null : image;
 }
 
 class _V2StackEmptyPanel extends StatelessWidget {
@@ -1042,83 +1056,85 @@ class _NutrientsTab extends ConsumerWidget {
         await ref.read(activeStackProvider.future);
       },
       child: ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: EdgeInsets.only(
-        top: V2Spacing.space8,
-        bottom:
-            MediaQuery.of(context).padding.bottom +
-            kPGNavBarHeight +
-            V2Spacing.space24,
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Daily nutrient coverage',
-                style: V2Typography.titleSm(color: V2Colors.fg),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Totals across your stack vs. RDA / UL benchmarks.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
-              ),
-            ],
-          ),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
-        const SizedBox(height: V2Spacing.space12),
-        // Real production panel — only renders when the user actually
-        // has a stack. Audit-backlog: replace with a v2 mirror later.
-        if (isLoading)
-          const _V2StackEmptyPanel(
-            icon: Icons.hourglass_empty_rounded,
-            eyebrow: 'Nutrients',
-            headline: 'Checking nutrient totals',
-            body: 'Loading your stack before calculating coverage.',
-          ),
-        if (hasRealStack)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-            child: NutrientAccumulationPanel(),
-          ),
-        if (hasRealStack) const SizedBox(height: V2Spacing.space16),
-        if (!isLoading && !hasRealStack && !shouldShowFixtures)
-          const _V2StackEmptyPanel(
-            icon: Icons.ssid_chart_rounded,
-            eyebrow: 'Nutrients',
-            headline: 'No nutrient totals yet',
-            body:
-                'Add supplements to your stack and PharmaGuide will calculate '
-                'daily coverage and upper-limit warnings here.',
-          ),
-        // Fixture preview rows — dev preview only.
-        if (shouldShowFixtures)
+        padding: EdgeInsets.only(
+          top: V2Spacing.space8,
+          bottom:
+              MediaQuery.of(context).padding.bottom +
+              kPGNavBarHeight +
+              V2Spacing.space24,
+        ),
+        children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
-            child: Container(
-              decoration: BoxDecoration(
-                color: V2Colors.surface,
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                border: Border.all(color: V2Colors.outline),
-                boxShadow: V2Shadows.sm,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  for (var i = 0; i < _rows.length; i++)
-                    _NutrientRow(
-                      status: _rows[i],
-                      isLast: i == _rows.length - 1,
-                    ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily nutrient coverage',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Totals across your stack vs. RDA / UL benchmarks.',
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                ),
+              ],
             ),
           ),
-      ],
+          const SizedBox(height: V2Spacing.space12),
+          // Real production panel — only renders when the user actually
+          // has a stack. Audit-backlog: replace with a v2 mirror later.
+          if (isLoading)
+            const _V2StackEmptyPanel(
+              icon: Icons.hourglass_empty_rounded,
+              eyebrow: 'Nutrients',
+              headline: 'Checking nutrient totals',
+              body: 'Loading your stack before calculating coverage.',
+            ),
+          if (hasRealStack)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+              child: NutrientAccumulationPanel(),
+            ),
+          if (hasRealStack) const SizedBox(height: V2Spacing.space16),
+          if (!isLoading && !hasRealStack && !shouldShowFixtures)
+            const _V2StackEmptyPanel(
+              icon: Icons.ssid_chart_rounded,
+              eyebrow: 'Nutrients',
+              headline: 'No nutrient totals yet',
+              body:
+                  'Add supplements to your stack and PharmaGuide will calculate '
+                  'daily coverage and upper-limit warnings here.',
+            ),
+          // Fixture preview rows — dev preview only.
+          if (shouldShowFixtures)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: V2Spacing.space24,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: V2Colors.surface,
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                  border: Border.all(color: V2Colors.outline),
+                  boxShadow: V2Shadows.sm,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < _rows.length; i++)
+                      _NutrientRow(
+                        status: _rows[i],
+                        isLast: i == _rows.length - 1,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1310,19 +1326,17 @@ class _StackV2PreviewState extends State<StackV2Preview> {
 }
 
 // =============================================================================
-// Legacy production slot widgets — copied from stack_screen.dart so the
-// v2 Stack route preserves the same safety + intelligence surfaces
-// (recall alerts, safety banner, profile nudge, timing advice,
-// depletion). Visual style is still legacy here; v2 mirrors land in
-// subsequent passes and replace these. Sean 2026-05-15: clinical
-// functionality stays alive even while the visual reskin progresses.
+// Production safety slot widgets. These preserve the same recall,
+// interaction, nutrient-warning, profile-nudge, timing, and depletion
+// behavior as the previous stack route while rendering through v2
+// surfaces/tokens.
 // =============================================================================
 
-class _LegacyRecallAlertSlot extends ConsumerWidget {
+class _RecallAlertSlot extends ConsumerWidget {
   // Slot watches `recalledIngredientsReportProvider` directly, which
   // already filters against the active stack — no need to pass the
   // stack rows in. Dropped the dead `stack` field 2026-05-17.
-  const _LegacyRecallAlertSlot();
+  const _RecallAlertSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1349,7 +1363,6 @@ class _LegacyRecallAlertSlot extends ConsumerWidget {
             tone: PGBannerTone.danger,
             title: 'Recall Alert',
             body: body,
-            useV2Tones: true,
           ),
         );
       },
@@ -1359,8 +1372,8 @@ class _LegacyRecallAlertSlot extends ConsumerWidget {
   }
 }
 
-class _LegacyStackSafetyBannerSlot extends ConsumerWidget {
-  const _LegacyStackSafetyBannerSlot();
+class _StackSafetyBannerSlot extends ConsumerWidget {
+  const _StackSafetyBannerSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1370,8 +1383,12 @@ class _LegacyStackSafetyBannerSlot extends ConsumerWidget {
         if (report.isEmpty) return const SizedBox.shrink();
         return StackSafetyBanner(
           report: report,
-          margin: kStackSafetyBannerMargin,
-          useV2Tones: true,
+          margin: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            0,
+          ),
         );
       },
       loading: () => const SizedBox.shrink(),
@@ -1380,8 +1397,8 @@ class _LegacyStackSafetyBannerSlot extends ConsumerWidget {
   }
 }
 
-class _LegacyProfileNudgeSlot extends ConsumerWidget {
-  const _LegacyProfileNudgeSlot();
+class _ProfileNudgeSlot extends ConsumerWidget {
+  const _ProfileNudgeSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1405,7 +1422,6 @@ class _LegacyProfileNudgeSlot extends ConsumerWidget {
             'that actually apply to you.',
         actionLabel: 'Complete profile',
         onAction: () => GoRouter.of(context).push(Routes.profileSetup),
-        useV2Tones: true,
       ),
     );
   }

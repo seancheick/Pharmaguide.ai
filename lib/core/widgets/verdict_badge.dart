@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 /// Returns true when a verdict string represents a hard-stop
 /// ban — BLOCKED only. Drives the FLTR-10 full-screen override:
@@ -22,40 +22,33 @@ bool isUnsafeVerdict(String? verdict) {
   return v == 'BLOCKED' || v == 'UNSAFE';
 }
 
-/// Shared verdict badge used across search results and product detail.
-///
 /// A "verdict" is the final single-word rating from the scoring pipeline
 /// (SAFE / CAUTION / POOR / BLOCKED / NOT_SCORED / NUTRITION_ONLY).
 /// Retired labels are still accepted for old fixtures / cached rows.
-/// Distinct from an interaction severity, which uses [PGSeverityPill].
-class VerdictBadge extends StatelessWidget {
-  final String verdict;
-
-  const VerdictBadge({super.key, required this.verdict});
-
+abstract final class VerdictBadge {
   /// Brightness-aware color for a verdict string. Used externally by
   /// consumers that need to color text or icons to match.
   static Color colorFor(String verdict) {
     switch (verdict.trim().toUpperCase()) {
       case 'RECOMMENDED':
-        return AppTheme.scoreExceptional;
+        return V2Colors.safe;
       case 'SAFE':
       case 'GOOD':
-        return AppTheme.scoreExcellent;
+        return V2Colors.safe;
       case 'CAUTION':
       case 'REVIEW':
-        return AppTheme.scoreFair;
+        return V2Colors.caution;
       case 'POOR':
       case 'MODERATE':
-        return AppTheme.scoreLow;
+        return V2Colors.avoid;
       case 'UNSAFE':
       case 'BLOCKED':
-        return AppTheme.severityContraindicated;
+        return V2Colors.contraindicated;
       case 'NOT_SCORED':
       case 'NUTRITION_ONLY':
-        return AppTheme.insufficientData;
+        return V2Colors.fgSubtle;
       default:
-        return AppTheme.insufficientData;
+        return V2Colors.fgSubtle;
     }
   }
 
@@ -100,31 +93,5 @@ class VerdictBadge extends StatelessWidget {
       default:
         return verdict;
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (verdict.isEmpty) return const SizedBox.shrink();
-    final color = colorFor(verdict);
-    final label = labelFor(verdict);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.22 : 0.10),
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: color,
-          letterSpacing: 0.4,
-          height: 1.2,
-        ),
-      ),
-    );
   }
 }

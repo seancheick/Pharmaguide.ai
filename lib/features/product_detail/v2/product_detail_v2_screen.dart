@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/components/pg_certification_section.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
@@ -86,10 +85,7 @@ class ProductDetailV2Screen extends StatelessWidget {
               floating: true,
               snap: true,
               leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: V2Colors.fg,
-                ),
+                icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
                 // **Sentry fix — 21× `GoError: There is nothing to pop`.**
                 // Dev gallery deep links land here without a stack;
                 // fall back to home instead of throwing.
@@ -103,10 +99,7 @@ class ProductDetailV2Screen extends StatelessWidget {
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(
-                    Icons.ios_share_rounded,
-                    color: V2Colors.fg,
-                  ),
+                  icon: const Icon(Icons.ios_share_rounded, color: V2Colors.fg),
                   onPressed: () {},
                 ),
               ],
@@ -126,8 +119,7 @@ class ProductDetailV2Screen extends StatelessWidget {
                   // 1. Hero
                   PGHeroSection(
                     imageWidget: _DemoHeroImage(),
-                    productName:
-                        'Ultimate Omega 2X with Vitamin D3 + K2',
+                    productName: 'Ultimate Omega 2X with Vitamin D3 + K2',
                     brandName: 'Nordic Naturals',
                     servingsLabel: '60 Softgels',
                     dosingSummary: '2 softgels daily with food',
@@ -136,14 +128,8 @@ class ProductDetailV2Screen extends StatelessWidget {
                         label: 'IFOS Certified',
                         isCertification: true,
                       ),
-                      PGTrustTag(
-                        label: 'Non-GMO',
-                        isCertification: false,
-                      ),
-                      PGTrustTag(
-                        label: 'Gluten Free',
-                        isCertification: false,
-                      ),
+                      PGTrustTag(label: 'Non-GMO', isCertification: false),
+                      PGTrustTag(label: 'Gluten Free', isCertification: false),
                     ],
                     score: 84,
                   ),
@@ -324,15 +310,14 @@ class _DemoScoreBreakdown extends StatelessWidget {
         ),
         PGPillar(
           label: 'Safety & Purity',
-          microExplanation:
-              'Free from harmful ingredients and contaminants',
+          microExplanation: 'Free from harmful ingredients and contaminants',
           score: 26,
           max: 30,
           badges: const [
             PGPillarBadge(
               icon: Icons.verified_outlined,
               label: 'Third-party tested',
-              color: AppTheme.severitySafe,
+              color: V2Colors.safe,
             ),
           ],
           onTap: () {},
@@ -353,7 +338,7 @@ class _DemoScoreBreakdown extends StatelessWidget {
             PGPillarBadge(
               icon: Icons.factory_outlined,
               label: 'Trusted manufacturer',
-              color: AppTheme.severitySafe,
+              color: V2Colors.safe,
             ),
           ],
           onTap: () {},
@@ -392,7 +377,8 @@ class _DemoInteractionWarnings extends StatelessWidget {
           severity: PGWarningSeverity.safe,
           evidence: PGEvidenceLevel.theoretical,
           title: 'May reduce iron absorption when taken together',
-          mechanism: 'Some studies suggest omega-3 may slightly reduce '
+          mechanism:
+              'Some studies suggest omega-3 may slightly reduce '
               'non-heme iron absorption.',
           management: 'Take iron supplements 2 hours apart.',
           sourceCount: 2,
@@ -663,10 +649,7 @@ class _DemoFormulation extends StatelessWidget {
     return const PGFormulationSection(
       form: 'Triglyceride softgel',
       formTierLabel: 'Premium',
-      absorptionEnhancers: [
-        'Phospholipid carrier',
-        'Vitamin E (antioxidant)',
-      ],
+      absorptionEnhancers: ['Phospholipid carrier', 'Vitamin E (antioxidant)'],
       botanicals: ['Rosemary extract'],
     );
   }

@@ -26,9 +26,17 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-05-06
-**Current Sprint:** All code sprints through Trust & IA Sprint 1 DONE. Pipeline v6.0/v6.1 adoption + premium UX overhaul shipped 2026-05-06. Next: V1.0-release gate (auth, analytics, store builds).
-**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1431 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR. Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check screen, personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 14-section product detail IA, risk-gated Fit, transparency footer, sticky action bar, profile_gate adoption (v6.0/v6.1), hypoglycemics three-way split, premium onboarding + splash + medications UX, 17+ PG design components. **Pipeline data:** interaction rules (136 rules, 196 conditions), catalog v2026.05.06 (8331 products), timing_rules.json (42 rules), medication_depletions.json (68 entries). **V1.1 + V1.2 + V1.3 OTA code shipped 2026-04-29. V6.0 profile_gate + v6.1 hypoglycemics split shipped 2026-05-06.**
+**Updated:** 2026-05-18
+**Current Sprint:** v2 production promotion + Phase 11.11 v1 retirement complete. 1.0.0+5 ready to cut after Supabase OTA sync to catalog `2026.05.17.204805`.
+**Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1403 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR.
+
+**Phase 11.7L (1.0.0+5 prep, 2026-05-16 → 2026-05-18):** TestFlight 1.0.0+4 walkthrough produced 11 bug clusters; closed in commits `baa204b` (routes + scanner manual-entry haptic), `5319c66` (stack v2 fixture flash + empty-panel parity + nutrients refresh), `5b20f82` (Quick Check med-med via RxNorm + class-fallback + hydration-incomplete safety), `a1c5b57` (bottom-sheet anchoring + Search keyboard gap + Settings real account email), `4f7d4c7` (Quick Check canonical-id consolidation + structured fingerprint parser).
+
+**Phase 11.11 v1 retirement (2026-05-17 → 2026-05-18):** Promoted v2 production routes by removing the 5 `USE_V2_*` dart-define toggles. Deleted 13 v1 production widget files (~2700 LOC): Product Detail, Search, Quick Check, Medication Entry, Profile Setup, Splash, Onboarding screens + Home/Stack/Settings v1 screens + all their orphan home/widgets and stack/widgets. Extracted shared helpers to dedicated files (`product_detail_helpers.dart`, `functional_roles_sheet.dart`, `pg_for_you_extras.dart`). Closed 4 v2 gaps: image tap-to-zoom in hero, Synergy section (T22 high-confidence clusters), Excipient density section, For You context chips + "Why this fits" expander.
+
+**Phase 11.7L.H + Codex (catalog repair + Tier 2 Research, 2026-05-17):** Catalog regenerated to `db_version 2026.05.17.204805` (was 2026.05.06) — 8440 products with 0 empty `key_ingredient_tags`, 0 `NOT_SCORED`, 16 mainstream-product backfills landed. Tier 2 Research Evidence section shipped (commit `17904aa`) — supp.ai 30k research_pairs now drive a real Product Detail surface. OTA downgrade protection wired (`sync_service.dart`, `catalog_updater_service.dart`).
+
+Full feature set: barcode scanning, FTS5 search + filter chips, score explainer, synergy detection (54 clusters), recall alerts, stack health score, Quick Check v2 (supp↔supp / supp↔med / med↔med via RxNorm), personalized interaction warnings, med-med pairs, medication entry + RxNorm, stack safety banner, FitScore, 14-section product detail IA, risk-gated Fit, transparency footer, sticky action bar, profile_gate adoption (v6.0/v6.1), hypoglycemics three-way split, premium onboarding + splash + medications UX, 17+ PG design components, Tier 2 Research Evidence surface. **Pipeline data:** interaction rules (138 rules), catalog v2026.05.17.204805 (8440 products), research_pairs (30,474 rows, 3,518 with RxCUI bridge), timing_rules.json (42 rules), medication_depletions.json (68 entries).
 
 ## TARGET: V1.0 Ship by 2026-05-11
 
@@ -943,7 +951,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [ ] Re-run full pipeline to measure ALL scoring changes
 - [x] Depletion Checker UI — ✅ DONE (see Sprint 21 T8 above).
 - [x] Offline drug→class SQLite cache — ✅ DONE (see Sprint 22 above).
-- [x] Fix 3 pre-existing test failures (IQM alias dupes + absorption) — ✅ RESOLVED. 0 failures, 0 skipped in current suite (1431 tests). Fixes landed incidentally across later sprints.
+- [x] Fix 3 pre-existing test failures (IQM alias dupes + absorption) — ✅ RESOLVED. 0 failures, 0 skipped in current suite (1403 tests). Fixes landed incidentally across later sprints.
 - [ ] Enrich 21 branded botanical stubs (Chromax, Cognizin, EpiCor, etc.)
 
 ---
@@ -1591,7 +1599,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 ### Tasks
 
 #### V1.0-beta Gate (ship to testers without auth)
-- [x] Full test suite pass: unit, widget, golden, integration — ✅ DONE. **1431 pass, 0 skipped, 0 failures as of 2026-05-06.**
+- [x] Full test suite pass: unit, widget, golden, integration — ✅ DONE. **1403 pass, 0 skipped, 0 failures as of 2026-05-18.**
 - [ ] Error matrix implementation (toast/sheet/snackbar per error type from spec section 11) — ad-hoc today, needs centralized routing
 - [x] Haptics pass (scan success, verdict reveal, error states) — 4 screens: scanner (light+medium), safety_check_sheet, stack swipe, stack action buttons. PGHaptics is reduceMotion-aware. Verified 2026-04-12
 - [ ] Dark mode audit (every screen) — themes exist (AppTheme.light/dark + ThemeMode.system), needs screen-by-screen visual check
@@ -2867,4 +2875,3 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [ ] **Resend domain verification** — DNS records for DKIM/SPF/DMARC need to be added at the registrar before transactional emails will deliver from `hello@pharmaguide.io` instead of the test sandbox.
 - [ ] **GSC + Bing verification tokens** — paste into `.env` + Vercel env, redeploy, verify, submit `sitemap.xml`. Step-by-step in `docs/09-search-console-setup.md`.
 - [ ] **`/blog` hub + first 2-3 seed posts** — see "Blog hub" plan below.
-

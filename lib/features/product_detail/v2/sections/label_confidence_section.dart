@@ -1,7 +1,6 @@
 // Phase 11.7c.4 — LabelConfidence section adapter.
 //
-// V2 mirror of production's `LabelConfidenceCard`. Composes the v2 PGLabelConfidenceCard
-// using the same 5 signals production uses:
+// Composes the v2 PGLabelConfidenceCard using the 5 production signals:
 //
 //   mappedCoverage         (_product.mappedCoverage)
 //   hasProprietaryBlends   (detailBlob.proprietary_blend_detail.has_proprietary_blends)
@@ -65,10 +64,8 @@ Widget buildLabelConfidenceSection({
     if (label == null) return const SizedBox.shrink();
     return _CompactNoteRow(
       label: label,
-      onTap: () => _showProductStatusSheet(
-        context,
-        productStatusType(productStatus),
-      ),
+      onTap: () =>
+          _showProductStatusSheet(context, productStatusType(productStatus)),
     );
   }
 
@@ -79,10 +76,8 @@ Widget buildLabelConfidenceSection({
     isNotScored: isNotScored,
     productStatus: productStatus,
     unmappedActives: unmappedActives,
-    onTapProductStatus: () => _showProductStatusSheet(
-      context,
-      productStatusType(productStatus),
-    ),
+    onTapProductStatus: () =>
+        _showProductStatusSheet(context, productStatusType(productStatus)),
   );
 
   if (items.isEmpty) return const SizedBox.shrink();

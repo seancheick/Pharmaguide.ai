@@ -1,52 +1,105 @@
 // Phase 11.7d.4 — Populations section adapter.
 //
-// V2 mirror of production's `PopulationsSection`. Composes the v2 PGPopulationsSection
-// from aggregated population warnings.
-//
-// Production data path (verbatim port):
-//   aggregatePopulations(guardedWarnings) → List<String>
-//   splitPopulations(populations, userConditions, userDrugClasses, ageBracket)
-//     → (mainList, alreadyCovered)
-//   render: bullet list of mainList (alreadyCovered dropped 2026-05-05
-//   per Sean — silence in ReviewBeforeUseCard is sufficient signal)
-//
-// Each population string follows the pattern "Group — explanation":
-//   "Children — immature gut barrier"
-//   "People with IBD — may aggravate inflammation"
-// We split at the first em-dash / en-dash / " - " into label + body.
-//
-// Sean's rules (2026-05-15):
-//   • Preserve production gates: section hides when mainList empty.
-//   • Use production's aggregatePopulations + splitPopulations helpers
-//     verbatim (publicly exposed).
-//   • Drop the "already covered" parenthetical (matches production's
-//     2026-05-05 behavior — Sean's call).
-//   • No invented copy — every label/body string comes from the pipeline.
-//   • Privacy-aware: user signals are filtered OUT of the main list
-//     (matches via splitPopulations); they're already personalized
-//     surfaces upstream.
-//
-// Deferred to S8.next-iteration:
-//   • Per-population icon mapping (pregnancy → pregnant_woman, kidney →
-//     bloodtype, etc.). Production renders plain bullets without icons;
-//     v2 PGPopulationCallout requires an icon. We default to
-//     Icons.groups_outlined for every callout (matches production's
-//     section header icon). Population-aware icon resolution would
-//     surface a richer visual without changing semantics.
+// Composes the v2 PGPopulationsSection from aggregated population
+// warnings, while preserving the production dedupe/profile-filter logic.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
-import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart'
-    show aggregatePopulations, splitPopulations;
+
+/// Output of [splitPopulations] — a deterministic split of the raw
+/// aggregate into "main list" entries and "already covered" labels.
+typedef PopulationSplit = ({
+  List<String> mainList,
+  List<String> alreadyCovered,
+});
+
+const Map<String, String> _populationKeywords = {
+  'pregnancy': 'pregnancy',
+  'pregnant': 'pregnancy',
+  'lactation': 'lactation',
+  'breastfeed': 'lactation',
+  'breastfeeding': 'lactation',
+  'kidney disease': 'kidney_disease',
+  'renal impairment': 'kidney_disease',
+  'liver disease': 'liver_disease',
+  'hepatic impairment': 'liver_disease',
+  'diabetes': 'diabetes',
+  'diabetic': 'diabetes',
+  'hypertension': 'hypertension',
+  'high blood pressure': 'hypertension',
+  'thyroid': 'thyroid_disorder',
+  'ibd': 'inflammatory_bowel_disease',
+  'inflammatory bowel': 'inflammatory_bowel_disease',
+  'autoimmune': 'autoimmune',
+  'children': 'under_18',
+  'pediatric': 'under_18',
+  'minors': 'under_18',
+  'older adults': 'over_65',
+  'elderly': 'over_65',
+  'geriatric': 'over_65',
+};
+
+/// Split population warnings into rendered rows and profile-covered labels.
+PopulationSplit splitPopulations({
+  required List<String> populations,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  String? ageBracket,
+}) {
+  final userSignals = <String>{
+    ...userConditions,
+    ...userDrugClasses,
+    if (ageBracket != null && ageBracket.isNotEmpty)
+      _ageBracketToSignal(ageBracket),
+  }..removeWhere((s) => s.isEmpty);
+
+  if (userSignals.isEmpty) {
+    final dedupedMain = <String>[];
+    final seen = <String>{};
+    for (final p in populations) {
+      final trimmed = p.trim();
+      if (trimmed.isEmpty) continue;
+      if (seen.add(trimmed.toLowerCase())) dedupedMain.add(trimmed);
+    }
+    return (mainList: dedupedMain, alreadyCovered: const <String>[]);
+  }
+
+  final main = <String>[];
+  final coveredSignals = <String>{};
+  final seen = <String>{};
+
+  for (final p in populations) {
+    final trimmed = p.trim();
+    if (trimmed.isEmpty) continue;
+    final dedupeKey = trimmed.toLowerCase();
+    if (!seen.add(dedupeKey)) continue;
+
+    final matchedSignal = _matchSignal(trimmed, userSignals);
+    if (matchedSignal != null) {
+      coveredSignals.add(matchedSignal);
+    } else {
+      main.add(trimmed);
+    }
+  }
+
+  final coveredHumanized = coveredSignals.map(_humanize).toList()..sort();
+  return (mainList: main, alreadyCovered: coveredHumanized);
+}
+
+/// Aggregate populationWarnings across all warnings into a single list.
+List<String> aggregatePopulations(List<InteractionWarning> warnings) {
+  final out = <String>[];
+  for (final w in warnings) {
+    out.addAll(w.populationWarnings);
+  }
+  return out;
+}
 
 /// Build the Populations section.
 ///
-/// Returns `SizedBox.shrink()` when:
-///   - aggregatePopulations returns an empty list, OR
-///   - splitPopulations.mainList is empty after dedupe against user signals.
-///
-/// Matches production's `if (split.mainList.isEmpty) return SizedBox.shrink()`.
+/// Returns `SizedBox.shrink()` when there are no population warnings or
+/// the main list is empty after dedupe against user signals.
 Widget buildPopulationsSection({
   required List<InteractionWarning> warnings,
   required Set<String> userConditions,
@@ -65,34 +118,64 @@ Widget buildPopulationsSection({
 
   if (split.mainList.isEmpty) return const SizedBox.shrink();
 
-  final callouts = split.mainList
-      .map(_toCallout)
-      .toList(growable: false);
+  final callouts = split.mainList.map(_toCallout).toList(growable: false);
 
   return PGPopulationsSection(
     callouts: callouts,
-    // Production header copy: "Extra caution if you are…" — verbatim port.
     title: 'Extra caution if you are…',
   );
 }
 
-/// Split a raw population string at the first em-dash / en-dash / " - "
-/// into a label (group name) + body (caution reason). Falls through to
-/// label-only when no separator is found.
 PGPopulationCallout _toCallout(String raw) {
   final (head, tail) = _splitAtDash(raw.trim());
   return PGPopulationCallout(
     label: head,
     body: tail,
-    // Default icon — production renders plain bullets without per-population
-    // icons. Population-aware icon mapping is queued as S8.next-iteration.
     icon: Icons.groups_outlined,
   );
 }
 
-/// Verbatim port of production's `_splitAtDash` (private in
-/// populations_section.dart). Looks for `—`, `–`, or ` - ` (in that order)
-/// and splits at the first match. Returns (raw, '') when none found.
+String? _matchSignal(String population, Set<String> userSignals) {
+  final lower = population.toLowerCase();
+  for (final entry in _populationKeywords.entries) {
+    final keyword = entry.key;
+    final signal = entry.value;
+    if (!userSignals.contains(signal)) continue;
+    final pattern = RegExp(
+      r'\b' + RegExp.escape(keyword) + r'\b',
+      caseSensitive: false,
+    );
+    if (pattern.hasMatch(lower)) return signal;
+  }
+  return null;
+}
+
+String _ageBracketToSignal(String bracket) {
+  final normalized = bracket.toLowerCase().trim();
+  if (normalized == '14-18') return 'under_18';
+  if (normalized == '71+') return 'over_65';
+  if (normalized.startsWith('under') || normalized.contains('child')) {
+    return 'under_18';
+  }
+  if (normalized.contains('65') ||
+      normalized.contains('over') ||
+      normalized.contains('elderly') ||
+      normalized.contains('geriatric')) {
+    return 'over_65';
+  }
+  return '';
+}
+
+String _humanize(String raw) {
+  if (raw.isEmpty) return raw;
+  return raw
+      .replaceAll('_', ' ')
+      .split(' ')
+      .where((w) => w.isNotEmpty)
+      .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+}
+
 (String, String) _splitAtDash(String raw) {
   for (final sep in const ['—', '–', ' - ']) {
     final idx = raw.indexOf(sep);

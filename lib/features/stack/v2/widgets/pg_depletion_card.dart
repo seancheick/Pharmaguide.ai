@@ -1,11 +1,10 @@
 // PGDepletionCard — Phase 11.7L.C.
 //
-// V2 mirror of [DepletionCheckerCard] in
-// lib/features/stack/widgets/depletion_checker_card.dart. Same
-// three-state machine (all_covered / partial / none_or_mixed),
-// same data shape, same calm-not-alarming tone. The legacy widget's
-// fallback copy is preserved verbatim — these messages were tuned
-// in the Sprint 16 Path C calibration and remain Sean-approved.
+// V2 depletion coverage surface. Same three-state machine
+// (all_covered / partial / none_or_mixed), same data shape,
+// same calm-not-alarming tone. The fallback copy is preserved verbatim —
+// these messages were tuned in the Sprint 16 Path C calibration and
+// remain Sean-approved.
 //
 // What's different visually:
 //
@@ -19,10 +18,7 @@
 //     happens" disclosure.
 //   * Source URL chips use accent-tinted pills.
 //
-// Behavior + content are identical to the legacy card. The legacy
-// widget remains in `lib/features/stack/widgets/` for the
-// stack_screen.dart consumer; this v2 mirror is mounted by the
-// `_LegacyDepletionSlot` replacement in stack_v2_screen.dart.
+// Behavior + content preserve the production card contract.
 
 import 'dart:async';
 

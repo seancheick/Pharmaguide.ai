@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 
@@ -16,6 +17,36 @@ void main() {
       expect(find.text('Checking this barcode'), findsOneWidget);
       expect(find.textContaining('on-device product database'), findsOneWidget);
       expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
+    });
+  });
+
+  group('scannerCameraPermissionDenied', () {
+    test('returns true only for permissionDenied scanner errors', () {
+      expect(
+        scannerCameraPermissionDenied(
+          const MobileScannerState.uninitialized().copyWith(
+            error: const MobileScannerException(
+              errorCode: MobileScannerErrorCode.permissionDenied,
+            ),
+          ),
+        ),
+        isTrue,
+      );
+
+      expect(
+        scannerCameraPermissionDenied(
+          const MobileScannerState.uninitialized().copyWith(
+            error: const MobileScannerException(
+              errorCode: MobileScannerErrorCode.controllerUninitialized,
+            ),
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        scannerCameraPermissionDenied(const MobileScannerState.uninitialized()),
+        isFalse,
+      );
     });
   });
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 
 /// Apple-style press feedback wrapper.
@@ -21,7 +21,7 @@ import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 /// ```dart
 /// PGPressable(
 ///   onTap: () => context.push('/product/$id'),
-///   child: PGCard(child: ...),
+///   child: YourCardSurface(child: ...),
 /// )
 /// ```
 ///
@@ -54,8 +54,8 @@ class PGPressable extends StatefulWidget {
   final bool haptic;
 
   /// Border radius of the keyboard-focus ring. Defaults to
-  /// `AppTheme.radiusLarge` (matches `PGCard`). Pass a custom value when
-  /// wrapping a non-card-shaped child (e.g. a pill chip → `radiusFull`).
+  /// `V2Spacing.radiusCard`. Pass a custom value when wrapping a
+  /// non-card-shaped child (e.g. a pill chip → `radiusPill`).
   /// The ring only paints under keyboard / screen-reader focus, so
   /// touch-only sessions never see it — safe to leave on the default.
   final BorderRadius? focusBorderRadius;
@@ -121,7 +121,7 @@ class _PGPressableState extends State<PGPressable> {
 
     final scheme = Theme.of(context).colorScheme;
     final ringRadius =
-        widget.focusBorderRadius ?? BorderRadius.circular(AppTheme.radiusLarge);
+        widget.focusBorderRadius ?? BorderRadius.circular(V2Spacing.radiusCard);
 
     // Focus ring overlay — paints only under keyboard / screen-reader
     // focus (gated by `onShowFocusHighlight`), so iPad-with-keyboard, web,
@@ -144,9 +144,7 @@ class _PGPressableState extends State<PGPressable> {
                 decoration: BoxDecoration(
                   borderRadius: ringRadius,
                   border: Border.all(
-                    color: scheme.primary.withValues(
-                      alpha: AppTheme.focusRingOpacity,
-                    ),
+                    color: scheme.primary.withValues(alpha: 0.35),
                     width: 2,
                   ),
                 ),

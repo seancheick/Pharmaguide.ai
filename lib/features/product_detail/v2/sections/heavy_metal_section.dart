@@ -1,11 +1,8 @@
 // Phase 11.7e — HeavyMetal section adapter (S12).
 //
-// V2 mirror of production's `HeavyMetalWarningCard`
-// (lib/features/product_detail/widgets/heavy_metal_warning_card.dart).
-//
-// Production reads `heavy_metal_detail.signals[]` — each signal has
-// `ingredient`, `limit_source`, `risk_level`, `notes`. Section auto-
-// suppresses when the blob is null or signals list is empty.
+// Reads `heavy_metal_detail.signals[]` — each signal has `ingredient`,
+// `limit_source`, `risk_level`, `notes`. Section auto-suppresses when
+// the blob is null or signals list is empty.
 //
 // V2 PGHeavyMetalWarning takes a flattened metals list + optional note.
 // We extract ingredient names from each signal, and use the production

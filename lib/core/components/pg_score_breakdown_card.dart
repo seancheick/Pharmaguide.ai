@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -56,10 +55,9 @@ class PGPillarBadge {
   });
 }
 
-/// v2 mirror of `ScoreBreakdownCard`
-/// (lib/features/product_detail/widgets/score_breakdown_card.dart:35).
+/// Product score breakdown surface.
 ///
-/// **Same structure preserved verbatim:**
+/// Structure:
 /// - 4 pillar bars (Ingredient Quality / Safety & Purity / Evidence &
 ///   Research / Transparency & Verification), each as a horizontal
 ///   bar + raw score + microExplanation + optional badges
@@ -82,8 +80,8 @@ class PGScoreBreakdownCard extends StatelessWidget {
   /// 0..1 — drives the coverage line at the bottom. Null hides the line.
   final double? mappedCoverage;
 
-  /// Top-line PG Score (0..100) shown in the card title. Production:
-  /// "Why this scored 84". Null → "Why this score".
+  /// Top-line PG Score (0..100) shown in the card title. Null omits
+  /// the number.
   final int? heroScore;
 
   const PGScoreBreakdownCard({
@@ -112,7 +110,7 @@ class PGScoreBreakdownCard extends StatelessWidget {
           Text(
             heroScore != null
                 ? 'Why this scored $heroScore'
-                : 'Why this score',
+                : 'Why this scored',
             style: V2Typography.titleSm(color: V2Colors.fg),
           ),
           const SizedBox(height: V2Spacing.space4),
@@ -127,11 +125,7 @@ class PGScoreBreakdownCard extends StatelessWidget {
           ],
           if (mappedCoverage != null) ...[
             const SizedBox(height: V2Spacing.space16),
-            const Divider(
-              color: V2Colors.outline,
-              height: 1,
-              thickness: 0.5,
-            ),
+            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space12),
             _PGCoverageLine(coverage: mappedCoverage!),
           ],
@@ -160,9 +154,9 @@ class _PGPillarRowState extends State<_PGPillarRow> {
   /// QUALITY signals, not SAFETY signals. A 3/10 transparency score
   /// isn't dangerous, it's just lower-quality — rendering it in red
   /// reads as alarm. v2 pillar bars use a 2-tone green palette only:
-  ///   - ≥5/10 (≥50% of max): AppTheme.scoreExcellent (#22A06B solid)
-  ///   - <5/10: AppTheme.scoreGood (#65A30D lighter lime)
-  /// Both calm, both positive — "strong" vs "room to grow", never alarming.
+  ///   - ≥5/10 (≥50% of max): V2Colors.safe
+  ///   - <5/10: V2Colors.monitor
+  /// Both calm — "strong" vs "room to grow", never alarming.
   ///
   /// The hero PGScoreLine still uses the full 6-tier ScoreTier because
   /// that's the top-line clinical verdict. This calming applies ONLY to
@@ -170,7 +164,7 @@ class _PGPillarRowState extends State<_PGPillarRow> {
   Color _toneFor(double? rawScore, int max) {
     if (rawScore == null) return V2Colors.fgSubtle;
     final fraction = (rawScore / max).clamp(0.0, 1.0);
-    return fraction >= 0.5 ? AppTheme.scoreExcellent : AppTheme.scoreGood;
+    return fraction >= 0.5 ? V2Colors.safe : V2Colors.monitor;
   }
 
   /// Normalize pillar raw score to a 0–10 display scale (Sean: users
@@ -301,8 +295,7 @@ class _PGPillarRowState extends State<_PGPillarRow> {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        for (final b in p.badges)
-                          _PillarBadgeChip(badge: b),
+                        for (final b in p.badges) _PillarBadgeChip(badge: b),
                       ],
                     ),
                   ],
@@ -359,8 +352,8 @@ class _PillarBadgeChip extends StatelessWidget {
 }
 
 /// v2 mirror of `_CoverageLine` (score_breakdown_card.dart:619). Same
-/// 3-tier thresholds: ≥0.7 high-confidence (scoreExcellent), ≥0.3
-/// partial (scoreFair), else limited (insufficientData). Same locked
+/// 3-tier thresholds: ≥0.7 high-confidence, ≥0.3 partial,
+/// else limited. Same locked
 /// descriptor copy.
 class _PGCoverageLine extends StatelessWidget {
   final double coverage;
@@ -369,18 +362,18 @@ class _PGCoverageLine extends StatelessWidget {
   ({Color tone, String label}) _tierFor(double c) {
     if (c >= 0.7) {
       return (
-        tone: AppTheme.scoreExcellent,
+        tone: V2Colors.safe,
         label: 'Most ingredients in our database — high-confidence score',
       );
     }
     if (c >= 0.3) {
       return (
-        tone: AppTheme.scoreFair,
+        tone: V2Colors.caution,
         label: 'Some ingredients aren\'t in our database — partial coverage',
       );
     }
     return (
-      tone: AppTheme.insufficientData,
+      tone: V2Colors.fgSubtle,
       label: 'Limited data — only part of this product is in our database',
     );
   }
@@ -388,6 +381,7 @@ class _PGCoverageLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tier = _tierFor(coverage);
+    final percent = (coverage.clamp(0.0, 1.0) * 100).round();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -404,6 +398,8 @@ class _PGCoverageLine extends StatelessWidget {
             maxLines: 2,
           ),
         ),
+        const SizedBox(width: V2Spacing.space8),
+        Text('$percent%', style: V2Typography.monoData(color: tier.tone)),
       ],
     );
   }

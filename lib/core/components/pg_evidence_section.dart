@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -11,18 +10,18 @@ enum PGEvidenceTier { strong, moderate, limited, none }
 
 extension PGEvidenceTierMeta on PGEvidenceTier {
   String get label => switch (this) {
-        PGEvidenceTier.strong => 'STRONG',
-        PGEvidenceTier.moderate => 'MODERATE',
-        PGEvidenceTier.limited => 'LIMITED',
-        PGEvidenceTier.none => 'NO DIRECT EVIDENCE',
-      };
+    PGEvidenceTier.strong => 'STRONG',
+    PGEvidenceTier.moderate => 'MODERATE',
+    PGEvidenceTier.limited => 'LIMITED',
+    PGEvidenceTier.none => 'NO DIRECT EVIDENCE',
+  };
 
   Color get color => switch (this) {
-        PGEvidenceTier.strong => AppTheme.scoreExcellent,
-        PGEvidenceTier.moderate => AppTheme.scoreGood,
-        PGEvidenceTier.limited => AppTheme.severityCaution,
-        PGEvidenceTier.none => V2Colors.fgSubtle,
-      };
+    PGEvidenceTier.strong => V2Colors.safe,
+    PGEvidenceTier.moderate => V2Colors.monitor,
+    PGEvidenceTier.limited => V2Colors.caution,
+    PGEvidenceTier.none => V2Colors.fgSubtle,
+  };
 }
 
 /// One citation — typically a PubMed entry (PMID + title). Tap opens
@@ -46,10 +45,6 @@ class PGCitation {
   });
 }
 
-/// v2 mirror of `EvidenceDetailSection`
-/// (lib/features/product_detail/widgets/pipeline_sections/
-/// evidence_detail_section.dart).
-///
 /// Header: tier label ("Clinical support: STRONG · 7 studies ·
 /// meta-analysis") + tier-colored bullet. Citations list beneath —
 /// each is a tappable PMID + title row that opens PubMed.
@@ -150,11 +145,7 @@ class PGEvidenceSection extends StatelessWidget {
           ],
           if (citations.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space16),
-            const Divider(
-              color: V2Colors.outline,
-              height: 1,
-              thickness: 0.5,
-            ),
+            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space12),
             const PGEyebrow('Sources', color: V2Colors.fgMuted),
             const SizedBox(height: V2Spacing.space8),

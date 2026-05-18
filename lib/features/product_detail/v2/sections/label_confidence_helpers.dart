@@ -1,17 +1,11 @@
 // Phase 11.7c.4 — LabelConfidence helpers (pure logic).
 //
-// Mirrors production's tier + row composition in
-// `lib/features/product_detail/widgets/label_confidence_card.dart`:
-//   • `_Tier` enum                  (line 206) → [LabelConfidenceTier]
-//   • `_computeTier({...})`         (line 208) → [computeLabelConfidenceTier]
-//   • `_tierLabel(tier)`            (line 225) → [tierLabel]
-//   • `_headerPrefix(tier)`         (line 236) → [headerPrefix]
-//   • `composeHeader({...})`        (lines 91–95) → [composeHeader]
-//   • `_unmappedTotal(blob)`        (line 246) → [unmappedTotal]
-//   • `_productStatusLabel(blob)`   (line 262) → [productStatusLabel]
-//   • `_unmappedNames(blob)`        (line 472) → [unmappedNamesSummary]
-//   • `_pluralize(n, sing, plur)`   (line 469) → [pluralize]
-//   • Row composition wraps 5 signals into PGLabelConfidenceItem list.
+// Owns production's tier + row composition for the v2
+// PGLabelConfidenceCard:
+//   • tier classification → [LabelConfidenceTier]
+//   • tier labels/header prefixes
+//   • unmapped/product-status summaries
+//   • row composition for 5 signals into PGLabelConfidenceItem list.
 //
 // Sean's rules (2026-05-15):
 //   • Preserve production's tier rules verbatim (note vs partial vs limited).
@@ -20,8 +14,8 @@
 //     unmapped → productStatus.
 //   • Never red. This card is a calm caveat block; recalled / banned
 //     products go through the hero BlockedBanner instead.
-//   • No invented copy — every row body string is verbatim from
-//     production lines 148–192.
+//   • No invented copy — row body strings preserve the approved
+//     production wording.
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

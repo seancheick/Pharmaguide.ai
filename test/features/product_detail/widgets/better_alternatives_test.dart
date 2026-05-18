@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/better_alternatives_section.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
 Future<void> _seedProduct(
@@ -47,16 +47,15 @@ Future<void> _seedCurrent(
   double scoreQuality80 = 40,
   double score100 = 50,
   String category = 'multivitamin',
-}) =>
-    _seedProduct(
-      coreDb,
-      dsldId: dsldId,
-      productName: 'Current Test Product',
-      brandName: 'CurrentBrand',
-      scoreQuality80: scoreQuality80,
-      score100: score100,
-      category: category,
-    );
+}) => _seedProduct(
+  coreDb,
+  dsldId: dsldId,
+  productName: 'Current Test Product',
+  brandName: 'CurrentBrand',
+  scoreQuality80: scoreQuality80,
+  score100: score100,
+  category: category,
+);
 
 GoRouter _stubRouter(Widget child) {
   return GoRouter(
@@ -78,6 +77,23 @@ Widget _wrap(CoreDatabase coreDb, Widget child) {
   return ProviderScope(
     overrides: [coreDatabaseProvider.overrideWithValue(coreDb)],
     child: MaterialApp.router(routerConfig: _stubRouter(child)),
+  );
+}
+
+BetterAlternativesSection _section({
+  String currentDsldId = 'cur',
+  double? score100 = 50,
+  String? category = 'multivitamin',
+  bool isBlocked = false,
+  bool isNotScored = false,
+}) {
+  return BetterAlternativesSection(
+    currentDsldId: currentDsldId,
+    isBlocked: isBlocked,
+    isNotScored: isNotScored,
+    score100: score100,
+    category: category,
+    guardedWarnings: const [],
   );
 }
 
@@ -212,29 +228,19 @@ void main() {
 
   group('BetterAlternativesSection — render', () {
     testWidgets(
-        'missing current product → renders nothing (no skeleton, no error)',
-        (tester) async {
-      // Phase 11.7L.F follow-up: the legacy `null category → render
-      // nothing` test no longer applies (category is no longer a
-      // gate). New behaviour: if `findById(currentDsldId)` returns
-      // null the section short-circuits to SizedBox.shrink with no
-      // skeleton flicker.
-      final coreDb = CoreDatabase.memory();
-      await tester.pumpWidget(
-        _wrap(
-          coreDb,
-          const BetterAlternativesSection(
-            currentDsldId: 'cur',
-            currentScore: 50,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Similar higher-quality options'), findsNothing);
-      // Defensive — old title also absent.
-      expect(find.text('Higher quality alternatives'), findsNothing);
-      await coreDb.close();
-    });
+      'missing current product → renders nothing (no skeleton, no error)',
+      (tester) async {
+        // Category is not a gate. If `findById(currentDsldId)` returns
+        // null the section settles to SizedBox.shrink with no error.
+        final coreDb = CoreDatabase.memory();
+        await tester.pumpWidget(_wrap(coreDb, _section(category: null)));
+        await tester.pumpAndSettle();
+        expect(find.text('Similar higher-quality options'), findsNothing);
+        // Defensive — old title also absent.
+        expect(find.text('Higher quality alternatives'), findsNothing);
+        await coreDb.close();
+      },
+    );
 
     testWidgets(
       'title is "Similar higher-quality options" (Phase 11.7L.F follow-up)',
@@ -255,22 +261,10 @@ void main() {
           category: 'multivitamin',
         );
 
-        await tester.pumpWidget(
-          _wrap(
-            coreDb,
-            const BetterAlternativesSection(
-              currentDsldId: 'cur',
-              currentScore: 50,
-              category: 'multivitamin',
-            ),
-          ),
-        );
+        await tester.pumpWidget(_wrap(coreDb, _section()));
         await tester.pumpAndSettle();
 
-        expect(
-          find.text('Similar higher-quality options'),
-          findsOneWidget,
-        );
+        expect(find.text('Similar higher-quality options'), findsOneWidget);
         // Defensive: the previous title strings shouldn't linger.
         expect(find.text('Higher quality alternatives'), findsNothing);
         expect(find.text('Better Alternatives'), findsNothing);
@@ -305,21 +299,12 @@ void main() {
         category: 'multivitamin',
       );
 
-      await tester.pumpWidget(
-        _wrap(
-          coreDb,
-          const BetterAlternativesSection(
-            currentDsldId: 'cur',
-            currentScore: 50,
-            category: 'multivitamin',
-          ),
-        ),
-      );
+      await tester.pumpWidget(_wrap(coreDb, _section()));
       await tester.pumpAndSettle();
 
-      // Score badges (rounded to 0 decimals).
-      expect(find.text('87'), findsOneWidget);
-      expect(find.text('81'), findsOneWidget);
+      // Compact v2 score lines (rounded to 0 decimals).
+      expect(find.text('87/100'), findsOneWidget);
+      expect(find.text('81/100'), findsOneWidget);
       // Names + brands.
       expect(find.text('Premium Multi'), findsOneWidget);
       expect(find.text('BrandA'), findsOneWidget);
@@ -329,7 +314,7 @@ void main() {
       await coreDb.close();
     });
 
-    testWidgets('caps the list at 3 alternatives (V1 spec)', (tester) async {
+    testWidgets('caps the list at 3 alternatives', (tester) async {
       final coreDb = CoreDatabase.memory();
       // Phase 11.7L.F: current must exist for the new pipeline.
       await _seedCurrent(coreDb);
@@ -346,16 +331,7 @@ void main() {
         );
       }
 
-      await tester.pumpWidget(
-        _wrap(
-          coreDb,
-          const BetterAlternativesSection(
-            currentDsldId: 'cur',
-            currentScore: 50,
-            category: 'multivitamin',
-          ),
-        ),
-      );
+      await tester.pumpWidget(_wrap(coreDb, _section()));
       await tester.pumpAndSettle();
 
       // Top 3 (sorted desc by scoreQuality80) are alt-0, alt-1, alt-2.
@@ -369,9 +345,7 @@ void main() {
       await coreDb.close();
     });
 
-    testWidgets('no per-row "+N fit" delta visible — deferred per V1 spec', (
-      tester,
-    ) async {
+    testWidgets('no per-row "+N fit" delta visible', (tester) async {
       // Defensive: the section currently shows score badge + name +
       // brand. No "+N fit" pill. If a future change adds one without
       // updating the spec, this test catches it.
@@ -387,23 +361,14 @@ void main() {
         category: 'multivitamin',
       );
 
-      await tester.pumpWidget(
-        _wrap(
-          coreDb,
-          const BetterAlternativesSection(
-            currentDsldId: 'cur',
-            currentScore: 50,
-            category: 'multivitamin',
-          ),
-        ),
-      );
+      await tester.pumpWidget(_wrap(coreDb, _section()));
       await tester.pumpAndSettle();
 
       for (final phrase in const ['+1 fit', '+5 fit', 'fit delta']) {
         expect(
           find.textContaining(phrase),
           findsNothing,
-          reason: 'V1 should not show fit-delta phrase "$phrase"',
+          reason: 'Rows should not show fit-delta phrase "$phrase"',
         );
       }
       // The word "fit" itself shouldn't appear in the rendered rows
@@ -420,16 +385,7 @@ void main() {
       // branch (rather than the no-current-product branch above).
       final coreDb = CoreDatabase.memory();
       await _seedCurrent(coreDb);
-      await tester.pumpWidget(
-        _wrap(
-          coreDb,
-          const BetterAlternativesSection(
-            currentDsldId: 'cur',
-            currentScore: 50,
-            category: 'multivitamin',
-          ),
-        ),
-      );
+      await tester.pumpWidget(_wrap(coreDb, _section()));
       await tester.pumpAndSettle();
 
       expect(find.text('Similar higher-quality options'), findsNothing);

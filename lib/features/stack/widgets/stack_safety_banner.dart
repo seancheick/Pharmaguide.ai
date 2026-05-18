@@ -32,7 +32,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
@@ -43,7 +43,6 @@ class StackSafetyBanner extends StatelessWidget {
     required this.report,
     this.onTap,
     this.margin = EdgeInsets.zero,
-    this.useV2Tones = false,
   });
 
   /// Safety report driving the banner. Build once per stack mutation
@@ -60,10 +59,6 @@ class StackSafetyBanner extends StatelessWidget {
   /// contract so the caller can match the surrounding layout without
   /// wrapping in another [Padding].
   final EdgeInsetsGeometry margin;
-
-  /// Forwarded to PGSeverityBanner — v2 surfaces flip this on so the
-  /// banner uses V2Colors + Geist Sans + the cream surface tone.
-  final bool useV2Tones;
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +79,6 @@ class StackSafetyBanner extends StatelessWidget {
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,
-      useV2Tones: useV2Tones,
     );
   }
 
@@ -167,13 +161,11 @@ class StackSafetyBanner extends StatelessWidget {
   }
 }
 
-/// Margin preset matching the existing stack-screen card spacing. The
-/// stack screen uses `EdgeInsets.fromLTRB(space20, space16, space20, 0)`
-/// for its cards; expose it as a const so both the stack screen wiring
-/// (G11) and tests can re-use without re-deriving the spacing.
+/// Margin preset matching the v2 stack-screen card spacing. Expose it
+/// as a const so stack wiring and tests can re-use the same gutter.
 const EdgeInsets kStackSafetyBannerMargin = EdgeInsets.fromLTRB(
-  AppTheme.space20,
-  AppTheme.space16,
-  AppTheme.space20,
+  V2Spacing.space24,
+  V2Spacing.space12,
+  V2Spacing.space24,
   0,
 );

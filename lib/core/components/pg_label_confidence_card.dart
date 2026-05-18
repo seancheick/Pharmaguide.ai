@@ -28,8 +28,7 @@ class PGLabelConfidenceItem {
   });
 }
 
-/// v2 mirror of `LabelConfidenceCard`
-/// (lib/features/product_detail/widgets/label_confidence_card.dart).
+/// v2 label-confidence card.
 ///
 /// **Same intent preserved:**
 /// - Calm caveat block — never red, even when signals are concerning

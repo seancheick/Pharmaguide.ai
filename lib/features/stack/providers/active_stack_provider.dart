@@ -11,6 +11,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
@@ -199,6 +200,10 @@ class StackActions {
     // must rebuild whenever the stack changes.
     _ref.invalidate(synergyReportProvider);
     _ref.invalidate(recalledIngredientsReportProvider);
+    // The Nutrients tab reads this provider directly, so stack CRUD must
+    // invalidate it explicitly; otherwise removed items can leave stale
+    // nutrient totals visible after the stack list has already updated.
+    _ref.invalidate(stackNutrientStatusesProvider);
   }
 
   /// Fire-and-forget sync attempt after every mutation. Silently skips

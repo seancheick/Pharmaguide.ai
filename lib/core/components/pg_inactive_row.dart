@@ -9,8 +9,7 @@ import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart'
 /// card.
 ///
 /// - 8pt colored dot driven by `InactiveTone` (green / yellow / orange /
-///   red). Color comes from the `InactiveToneColor` extension on
-///   `AppTheme.severity*`.
+///   red). Color comes from the `InactiveToneColor` extension.
 /// - Name (Geist Sans 500, ellipsis on overflow)
 /// - Optional role helper line (12pt onSurfaceVariant) below the name
 /// - Bottom hairline (0.4pt outlineVariant) except on the last row

@@ -96,7 +96,7 @@ bool shouldShowDeepDive({
   required bool blobError,
 }) => !isBlocked && !blobLoading && !blobError;
 
-/// Legacy AllergenSummaryBanner fallback. Renders ONLY when:
+/// Free-text allergen summary fallback. Renders ONLY when:
 ///   • product is not blocked AND
 ///   • the product row carries a free-text allergenSummary AND
 ///   • the blob has NO structured allergens (which would have already

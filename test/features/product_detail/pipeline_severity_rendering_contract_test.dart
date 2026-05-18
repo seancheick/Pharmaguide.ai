@@ -120,7 +120,7 @@ void main() {
       }
     });
 
-    testWidgets('critical banned warning renders as critical, never safe', (
+    testWidgets('critical banned warning maps to critical pill, never safe', (
       tester,
     ) async {
       final warning = InteractionWarning.fromJson({
@@ -130,14 +130,11 @@ void main() {
         'detail': 'Not permitted for dietary supplements.',
       });
 
-      await tester.pumpWidget(
-        wrap(InteractionWarningsList(warnings: [warning])),
-      );
+      expect(warning.severity, Severity.contraindicated);
+      expect(warning.title, 'Banned substance: Brominated Vegetable Oil');
 
-      expect(
-        find.text('Banned substance: Brominated Vegetable Oil'),
-        findsOneWidget,
-      );
+      await tester.pumpWidget(wrap(PGSeverityPill(severity: warning.severity)));
+
       expect(find.text('Do not use'), findsWidgets);
       expect(find.byIcon(Icons.block_rounded), findsWidgets);
       expect(find.text('Safe'), findsNothing);

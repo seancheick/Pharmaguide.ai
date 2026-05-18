@@ -1,7 +1,6 @@
-// Phase 11.7c.2 — PersonalFit section adapter.
+// PersonalFit section adapter.
 //
-// V2 mirror of production's `PersonalFitCard`. Composes the v2 PGPersonalFitCard
-// using the same data flow production uses:
+// Composes PGPersonalFitCard using the resolved fit-score data flow:
 //
 //   fitScoreForProductProvider(dsldId) → FitScoreResult
 //   worstSeverityOf(guardedWarnings)   → Severity verdict
@@ -31,8 +30,8 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_helpers.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
-/// Build the PersonalFit section widget. Composes the v1 ForYouSection's
-/// 5-signal Section-2 block:
+/// Build the PersonalFit section widget. Composes Section 2's
+/// personalization block:
 ///   1. Context chips (which profile signals drive the verdict)
 ///   2. Verdict + bullets (via PGPersonalFitCard)
 ///   3. "Why this fits you" expandable (top-4 FitScore reasons)

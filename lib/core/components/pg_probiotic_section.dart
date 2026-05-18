@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -55,6 +54,9 @@ class PGProbioticSection extends StatelessWidget {
   /// True when the product includes prebiotic fiber.
   final bool prebioticPresent;
 
+  /// True when the product includes inactivated/postbiotic strains.
+  final bool hasPostbioticStrains;
+
   /// Prebiotic name when present ("Inulin", "FOS").
   final String? prebioticName;
 
@@ -71,17 +73,24 @@ class PGProbioticSection extends StatelessWidget {
     this.hasSurvivabilityCoating = false,
     this.survivabilityReason,
     this.prebioticPresent = false,
+    this.hasPostbioticStrains = false,
     this.prebioticName,
     this.strains = const [],
     this.title = 'Probiotic strains',
   });
 
-  bool get _hasContent =>
-      totalCfuLabel != null || strains.isNotEmpty;
+  bool get _hasContent => totalCfuLabel != null || strains.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
     if (!_hasContent) return const SizedBox.shrink();
+    final clinicalCount = strains.where((s) => s.isClinical).length;
+    final hasSummaryChips =
+        totalStrainCount != null ||
+        clinicalCount > 0 ||
+        hasSurvivabilityCoating ||
+        prebioticPresent ||
+        hasPostbioticStrains;
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
@@ -101,17 +110,30 @@ class PGProbioticSection extends StatelessWidget {
               style: V2Typography.bodyMedium(color: V2Colors.fg),
             ),
           ],
-          if (hasSurvivabilityCoating || prebioticPresent) ...[
+          if (hasSummaryChips) ...[
             const SizedBox(height: V2Spacing.space12),
             Wrap(
               spacing: 6,
               runSpacing: 4,
               children: [
+                if (totalStrainCount != null)
+                  _InfoChip(
+                    icon: Icons.bubble_chart_outlined,
+                    label:
+                        '$totalStrainCount strain${totalStrainCount == 1 ? '' : 's'}',
+                    color: V2Colors.accent,
+                  ),
+                if (clinicalCount > 0)
+                  _InfoChip(
+                    icon: Icons.verified_outlined,
+                    label: '$clinicalCount clinically studied',
+                    color: V2Colors.safe,
+                  ),
                 if (hasSurvivabilityCoating)
                   _InfoChip(
                     icon: Icons.shield_outlined,
                     label: survivabilityReason ?? 'Survivability coating',
-                    color: AppTheme.severitySafe,
+                    color: V2Colors.safe,
                   ),
                 if (prebioticPresent)
                   _InfoChip(
@@ -119,18 +141,20 @@ class PGProbioticSection extends StatelessWidget {
                     label: prebioticName != null
                         ? 'Prebiotic · $prebioticName'
                         : 'Prebiotic included',
-                    color: AppTheme.scoreGood,
+                    color: V2Colors.safe,
+                  ),
+                if (hasPostbioticStrains)
+                  const _InfoChip(
+                    icon: Icons.spa_outlined,
+                    label: 'Postbiotic included',
+                    color: V2Colors.monitor,
                   ),
               ],
             ),
           ],
           if (strains.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space16),
-            const Divider(
-              color: V2Colors.outline,
-              height: 1,
-              thickness: 0.5,
-            ),
+            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space12),
             for (var i = 0; i < strains.length; i++)
               _StrainRow(strain: strains[i], isLast: i == strains.length - 1),
@@ -167,10 +191,9 @@ class _InfoChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: V2Typography.caption(color: color).copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+            style: V2Typography.caption(
+              color: color,
+            ).copyWith(fontSize: 11, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -203,9 +226,7 @@ class _StrainRow extends StatelessWidget {
                 ? Icons.check_circle_outline
                 : Icons.circle_outlined,
             size: 14,
-            color: strain.isClinical
-                ? AppTheme.severitySafe
-                : V2Colors.fgSubtle,
+            color: strain.isClinical ? V2Colors.safe : V2Colors.fgSubtle,
           ),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
@@ -257,10 +278,7 @@ class _StrainMetaLine extends StatelessWidget {
 
     if (cfuLabel.trim().isNotEmpty) {
       parts.add(
-        Text(
-          cfuLabel,
-          style: V2Typography.caption(color: V2Colors.fgMuted),
-        ),
+        Text(cfuLabel, style: V2Typography.caption(color: V2Colors.fgMuted)),
       );
     } else {
       parts.add(
@@ -291,9 +309,6 @@ class _StrainMetaLine extends StatelessWidget {
       );
     }
 
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: parts,
-    );
+    return Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: parts);
   }
 }

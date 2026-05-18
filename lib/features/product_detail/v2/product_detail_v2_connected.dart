@@ -265,7 +265,7 @@ class _ProductDetailV2ConnectedState
     // -------------------------------------------------------------
     // Allergen + free-from match (used by ReviewBeforeUse adapter).
     // Computed unconditionally so the no-structured-allergens check
-    // is reusable by the legacy AllergenSummaryBanner fallback (S0.9).
+    // is reusable by the free-text allergen summary fallback.
     // -------------------------------------------------------------
     final matchedAllergens = matchAllergens(
       profile.allergens,
@@ -435,7 +435,7 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 4.5 AllergenSummaryBanner (LEGACY, 11.7f) ---
+                  // ---- 4.5 Allergen summary fallback ---------------
                   // Renders ONLY when the product has free-text
                   // allergenSummary AND the blob has no structured
                   // allergens (which would have already populated

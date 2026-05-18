@@ -30,8 +30,7 @@ class PGAlternative {
   });
 }
 
-/// v2 mirror of `BetterAlternativesSection`
-/// (lib/features/product_detail/widgets/better_alternatives.dart).
+/// v2 better-alternatives section.
 ///
 /// Conditional render — caller decides when to show (production rule:
 /// product is blocked OR score < 60 OR fit is Limited/NotRecommended).
@@ -66,10 +65,7 @@ class PGBetterAlternatives extends StatelessWidget {
           Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
           if (body != null) ...[
             const SizedBox(height: V2Spacing.space4),
-            Text(
-              body!,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
-            ),
+            Text(body!, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
           ],
           const SizedBox(height: V2Spacing.space12),
           for (var i = 0; i < alternatives.length; i++) ...[
@@ -120,9 +116,9 @@ class _AlternativeCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   alt.name,
-                  style: V2Typography.bodySm(color: V2Colors.fg).copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: V2Typography.bodySm(
+                    color: V2Colors.fg,
+                  ).copyWith(fontWeight: FontWeight.w500),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -202,8 +198,7 @@ class PGBetterAlternativesSkeleton extends StatelessWidget {
               padding: const EdgeInsets.all(V2Spacing.space12),
               decoration: BoxDecoration(
                 color: V2Colors.surface,
-                borderRadius:
-                    BorderRadius.circular(V2Spacing.radiusCard),
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 border: Border.all(color: V2Colors.outline),
                 boxShadow: V2Shadows.sm,
               ),
@@ -215,8 +210,7 @@ class PGBetterAlternativesSkeleton extends StatelessWidget {
                     height: 56,
                     decoration: BoxDecoration(
                       color: V2Colors.outline,
-                      borderRadius:
-                          BorderRadius.circular(V2Spacing.space8),
+                      borderRadius: BorderRadius.circular(V2Spacing.space8),
                     ),
                   ),
                   const SizedBox(width: V2Spacing.space16),

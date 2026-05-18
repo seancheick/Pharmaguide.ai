@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/branded_placeholder.dart';
 import 'package:pharmaguide/services/product_image_resolver.dart';
 
@@ -77,7 +77,7 @@ class ProductImage extends ConsumerWidget {
       data: (imageUrl) {
         if (imageUrl == null) return placeholder;
         final clipped = ClipRRect(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: CachedNetworkImage(
             imageUrl: imageUrl,
             width: size,

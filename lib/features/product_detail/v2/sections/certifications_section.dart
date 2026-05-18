@@ -1,13 +1,9 @@
-// Phase 11.7e — Certifications section adapter (S10).
+// Certifications section adapter.
 //
-// V2 mirror of production's `CertificationDetailSection`
-// (lib/features/product_detail/widgets/pipeline_sections/
-// certification_detail_section.dart).
-//
-// Production reads 4 boolean fields from `certification_detail` blob
-// (gmp, purity_verified, heavy_metal_tested, label_accuracy_verified)
-// plus a `third_party_programs.programs` list. Section is suppressed
-// when none of the 4 are true.
+// Reads 4 boolean fields from `certification_detail` blob (gmp,
+// purity_verified, heavy_metal_tested, label_accuracy_verified) plus a
+// `third_party_programs.programs` list. Section is suppressed when none
+// of the fields/programs are present.
 //
 // V2 maps each blob field 1:1 → PGCertification. Third-party programs
 // each get a verified=true entry with the program name as the label.
@@ -32,14 +28,10 @@ Widget buildCertificationsSection({
   // checks appear in LabelConfidence (S4) when relevant. Production
   // suppresses the entire section when none are true.
   if (certificationDetail.safeBool('gmp')) {
-    certs.add(
-      const PGCertification(label: 'GMP Certified', verified: true),
-    );
+    certs.add(const PGCertification(label: 'GMP Certified', verified: true));
   }
   if (certificationDetail.safeBool('purity_verified')) {
-    certs.add(
-      const PGCertification(label: 'Purity Verified', verified: true),
-    );
+    certs.add(const PGCertification(label: 'Purity Verified', verified: true));
   }
   if (certificationDetail.safeBool('heavy_metal_tested')) {
     certs.add(
@@ -48,10 +40,7 @@ Widget buildCertificationsSection({
   }
   if (certificationDetail.safeBool('label_accuracy_verified')) {
     certs.add(
-      const PGCertification(
-        label: 'Label Accuracy Verified',
-        verified: true,
-      ),
+      const PGCertification(label: 'Label Accuracy Verified', verified: true),
     );
   }
 

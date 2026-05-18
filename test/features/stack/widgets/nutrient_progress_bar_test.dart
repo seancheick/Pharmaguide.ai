@@ -9,7 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_progress_bar.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -24,22 +24,22 @@ void main() {
     test('exceedsUl is red, approachingUl is orange', () {
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.exceedsUl),
-        AppTheme.severityContraindicated,
+        V2Colors.contraindicated,
       );
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.approachingUl),
-        AppTheme.severityAvoid,
+        V2Colors.avoid,
       );
     });
 
     test('aboveTypical is yellow, adequate is green', () {
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.aboveTypical),
-        AppTheme.severityCaution,
+        V2Colors.caution,
       );
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.adequate),
-        AppTheme.severitySafe,
+        V2Colors.safe,
       );
     });
   });

@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// v2 mirror of `FormulationDetailSection`
-/// (lib/features/product_detail/widgets/pipeline_sections/
-/// formulation_detail_section.dart).
-///
 /// Shows delivery form + bioavailability enhancers + plant compounds.
 /// Each section is a chip row beneath a small eyebrow label.
 class PGFormulationSection extends StatelessWidget {
@@ -84,7 +79,7 @@ class PGFormulationSection extends StatelessWidget {
                   const SizedBox(width: V2Spacing.space8),
                   _TierBadge(
                     label: formTierLabel!,
-                    color: formTierColor ?? AppTheme.scoreGood,
+                    color: formTierColor ?? V2Colors.monitor,
                   ),
                 ],
               ],
@@ -102,10 +97,7 @@ class PGFormulationSection extends StatelessWidget {
               runSpacing: 4,
               children: [
                 for (final e in absorptionEnhancers)
-                  _IngredientPill(
-                    label: e,
-                    color: AppTheme.severitySafe,
-                  ),
+                  _IngredientPill(label: e, color: V2Colors.safe),
               ],
             ),
           ],
@@ -123,7 +115,7 @@ class PGFormulationSection extends StatelessWidget {
                 for (final b in botanicals)
                   _IngredientPill(
                     label: b,
-                    color: AppTheme.scoreGood,
+                    color: V2Colors.safe,
                     icon: Icons.eco_outlined,
                   ),
               ],
@@ -141,10 +133,7 @@ class PGFormulationSection extends StatelessWidget {
               runSpacing: 4,
               children: [
                 for (final d in demotedEnhancers)
-                  _IngredientPill(
-                    label: d,
-                    color: V2Colors.fgSubtle,
-                  ),
+                  _IngredientPill(label: d, color: V2Colors.fgSubtle),
               ],
             ),
           ],
@@ -181,11 +170,7 @@ class _IngredientPill extends StatelessWidget {
   final Color color;
   final IconData? icon;
 
-  const _IngredientPill({
-    required this.label,
-    required this.color,
-    this.icon,
-  });
+  const _IngredientPill({required this.label, required this.color, this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -204,10 +189,9 @@ class _IngredientPill extends StatelessWidget {
           ],
           Text(
             label,
-            style: V2Typography.caption(color: color).copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+            style: V2Typography.caption(
+              color: color,
+            ).copyWith(fontSize: 11, fontWeight: FontWeight.w500),
           ),
         ],
       ),

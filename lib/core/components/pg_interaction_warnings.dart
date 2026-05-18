@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -20,12 +19,12 @@ enum PGEvidenceLevel { established, probable, moderate, limited, theoretical }
 
 extension PGEvidenceLevelMeta on PGEvidenceLevel {
   String get label => switch (this) {
-        PGEvidenceLevel.established => 'Established',
-        PGEvidenceLevel.probable => 'Probable',
-        PGEvidenceLevel.moderate => 'Moderate',
-        PGEvidenceLevel.limited => 'Limited',
-        PGEvidenceLevel.theoretical => 'Theoretical',
-      };
+    PGEvidenceLevel.established => 'Established',
+    PGEvidenceLevel.probable => 'Probable',
+    PGEvidenceLevel.moderate => 'Moderate',
+    PGEvidenceLevel.limited => 'Limited',
+    PGEvidenceLevel.theoretical => 'Theoretical',
+  };
 }
 
 /// Typed shape consumed by the v2 widget. Screen-level wiring adapts
@@ -146,8 +145,7 @@ class _PGInteractionWarningsState extends State<PGInteractionWarnings> {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () =>
-                  setState(() => _genericExpanded = !_genericExpanded),
+              onTap: () => setState(() => _genericExpanded = !_genericExpanded),
               child: Padding(
                 padding: const EdgeInsets.all(V2Spacing.space16),
                 child: Row(
@@ -188,8 +186,7 @@ class _PGInteractionWarningsState extends State<PGInteractionWarnings> {
                     child: Column(
                       children: [
                         for (var i = 0; i < widget.generic.length; i++) ...[
-                          if (i > 0)
-                            const SizedBox(height: V2Spacing.space8),
+                          if (i > 0) const SizedBox(height: V2Spacing.space8),
                           PGWarningCard(warning: widget.generic[i]),
                         ],
                       ],
@@ -297,8 +294,9 @@ class _PGWarningCardState extends State<PGWarningCard> {
                     const SizedBox(height: V2Spacing.space12),
                     Text(
                       w.title,
-                      style: V2Typography.bodyMedium(color: V2Colors.fg)
-                          .copyWith(fontSize: 16, height: 1.3),
+                      style: V2Typography.bodyMedium(
+                        color: V2Colors.fg,
+                      ).copyWith(fontSize: 16, height: 1.3),
                     ),
                     const SizedBox(height: V2Spacing.space8),
                     _Mechanism(
@@ -335,11 +333,11 @@ class _SeverityPill extends StatelessWidget {
   const _SeverityPill({required this.severity});
 
   String get _label => switch (severity) {
-        PGReviewTone.danger => 'Contraindicated',
-        PGReviewTone.caution => 'Caution',
-        PGReviewTone.safe => 'Monitor',
-        PGReviewTone.info => 'Informational',
-      };
+    PGReviewTone.danger => 'Contraindicated',
+    PGReviewTone.caution => 'Caution',
+    PGReviewTone.safe => 'Monitor',
+    PGReviewTone.info => 'Informational',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -387,10 +385,9 @@ class _EvidenceBadge extends StatelessWidget {
       ),
       child: Text(
         evidence.label.toUpperCase(),
-        style: V2Typography.overline(color: V2Colors.fgMuted).copyWith(
-          fontSize: 10,
-          letterSpacing: 0.4,
-        ),
+        style: V2Typography.overline(
+          color: V2Colors.fgMuted,
+        ).copyWith(fontSize: 10, letterSpacing: 0.4),
       ),
     );
   }
@@ -413,10 +410,7 @@ class _Mechanism extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!_isTruncatable) {
-      return Text(
-        text,
-        style: V2Typography.bodySm(color: V2Colors.fgMuted),
-      );
+      return Text(text, style: V2Typography.bodySm(color: V2Colors.fgMuted));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,11 +476,9 @@ class _SourcesChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: AppTheme.severityInformational.withValues(alpha: 0.10),
+            color: V2Colors.accent.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(
-              color: AppTheme.severityInformational.withValues(alpha: 0.3),
-            ),
+            border: Border.all(color: V2Colors.accent.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -494,13 +486,13 @@ class _SourcesChip extends StatelessWidget {
               const Icon(
                 Icons.menu_book_outlined,
                 size: 14,
-                color: AppTheme.severityInformational,
+                color: V2Colors.accent,
               ),
               const SizedBox(width: 6),
               Text(
                 '$count source${count == 1 ? '' : 's'}',
                 style: V2Typography.caption(
-                  color: AppTheme.severityInformational,
+                  color: V2Colors.accent,
                 ).copyWith(fontSize: 11, fontWeight: FontWeight.w500),
               ),
             ],

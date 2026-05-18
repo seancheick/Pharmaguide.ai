@@ -1,10 +1,8 @@
 // Phase 11.7e — Probiotic section adapter (S14).
 //
-// V2 mirror of production's `ProbioticDetailSection`
-// (lib/features/product_detail/widgets/pipeline_sections/
-// probiotic_detail_section.dart).
+// Probiotic section adapter.
 //
-// Production reads:
+// Reads:
 //   probiotic_detail.total_cfu_label / total_billion_count
 //   probiotic_detail.probiotic_blends[].strains[]
 //   probiotic_detail.clinical_strains[] — per-strain detail with
@@ -20,9 +18,7 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 
 /// Build the Probiotic section. Returns `SizedBox.shrink()` when the
 /// blob is null or contains no probiotic signals.
-Widget buildProbioticSection({
-  required Map<String, dynamic>? probioticDetail,
-}) {
+Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
   if (probioticDetail == null) return const SizedBox.shrink();
 
   // CFU label resolution — pre-formatted label preferred, fall back
@@ -70,30 +66,37 @@ Widget buildProbioticSection({
   }
 
   // Build PGStrain list — clinical-strain enrichment when available.
-  final strains = strainNames.map((name) {
-    final cs = clinicalByName[name];
-    return PGStrain(
-      name: name,
-      cfuLabel: cs == null ? '' : _formatStrainCfu(cs['cfu_per_day']),
-      evidence: cs == null
-          ? ''
-          : (cs['evidence_level']?.toString().toUpperCase() ?? ''),
-      isInactivated: cs?['is_inactivated'] == true,
-      isClinical: cs != null,
-    );
-  }).toList(growable: false);
+  final strains = strainNames
+      .map((name) {
+        final cs = clinicalByName[name];
+        return PGStrain(
+          name: name,
+          cfuLabel: cs == null ? '' : _formatStrainCfu(cs['cfu_per_day']),
+          evidence: cs == null
+              ? ''
+              : (cs['evidence_level']?.toString().toUpperCase() ?? ''),
+          isInactivated: cs?['is_inactivated'] == true,
+          isClinical: cs != null,
+        );
+      })
+      .toList(growable: false);
 
   // Survivability + prebiotic flags.
-  final hasSurvivability =
-      probioticDetail.safeBool('has_survivability_coating');
-  final survivabilityReason =
-      probioticDetail.safeString('survivability_reason');
+  final hasSurvivability = probioticDetail.safeBool(
+    'has_survivability_coating',
+  );
+  final survivabilityReason = probioticDetail.safeString(
+    'survivability_reason',
+  );
   final survivabilityLabel = hasSurvivability
       ? (survivabilityReason.isNotEmpty
-          ? _humanizeSurvivability(survivabilityReason)
-          : null)
+            ? _humanizeSurvivability(survivabilityReason)
+            : null)
       : null;
   final prebioticPresent = probioticDetail.safeBool('prebiotic_present');
+  final hasPostbioticStrains = probioticDetail.safeBool(
+    'has_postbiotic_strains',
+  );
 
   return PGProbioticSection(
     totalCfuLabel: totalCfuLabel.isNotEmpty ? totalCfuLabel : null,
@@ -101,6 +104,7 @@ Widget buildProbioticSection({
     hasSurvivabilityCoating: hasSurvivability,
     survivabilityReason: survivabilityLabel,
     prebioticPresent: prebioticPresent,
+    hasPostbioticStrains: hasPostbioticStrains,
     strains: strains,
   );
 }
@@ -140,8 +144,6 @@ String _humanizeSurvivability(String reason) {
       return 'Delayed';
     default:
       final clean = reason.split(RegExp(r'[\s_-]+')).join(' ');
-      return clean.length > 12
-          ? clean.substring(0, 12)
-          : clean;
+      return clean.length > 12 ? clean.substring(0, 12) : clean;
   }
 }

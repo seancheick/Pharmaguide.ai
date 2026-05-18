@@ -1,8 +1,7 @@
 // Phase 11.7d.5 — Nutrition section adapter.
 //
-// V2 mirror of production's `NutritionPanel`. Composes the v2 PGNutritionPanel
-// from `_product.caloriesPerServing` (Drift column) + `blob['nutrition_detail']`
-// (Supabase blob field).
+// Composes the v2 PGNutritionPanel from `_product.caloriesPerServing`
+// (Drift column) + `blob['nutrition_detail']` (Supabase blob field).
 //
 // Production data path (verbatim port from nutrition_panel.dart:178+):
 //   caloriesPerServing column OR blob['nutrition_detail']['calories_per_serving']
@@ -38,7 +37,8 @@ Widget buildNutritionSection({
   required Map<String, dynamic>? nutritionDetail,
 }) {
   // Calories: column is canonical. Falls back to blob value when null.
-  final calories = caloriesPerServing ??
+  final calories =
+      caloriesPerServing ??
       _readNumber(nutritionDetail, 'calories_per_serving');
 
   // Macros: FDA-order, each only rendered when value is non-null.
@@ -46,34 +46,36 @@ Widget buildNutritionSection({
   if (nutritionDetail != null) {
     final fat = _readNumber(nutritionDetail, 'total_fat_g');
     if (fat != null) {
-      facts.add(PGNutritionFact(
-        label: 'Total Fat',
-        value: '${_formatGrams(fat)} g',
-      ));
+      facts.add(
+        PGNutritionFact(label: 'Total Fat', value: '${_formatGrams(fat)} g'),
+      );
     }
 
     final carbs = _readNumber(nutritionDetail, 'total_carbohydrates_g');
     if (carbs != null) {
-      facts.add(PGNutritionFact(
-        label: 'Total Carbs',
-        value: '${_formatGrams(carbs)} g',
-      ));
+      facts.add(
+        PGNutritionFact(
+          label: 'Total Carbs',
+          value: '${_formatGrams(carbs)} g',
+        ),
+      );
     }
 
     final fiber = _readNumber(nutritionDetail, 'dietary_fiber_g');
     if (fiber != null) {
-      facts.add(PGNutritionFact(
-        label: 'Dietary Fiber',
-        value: '${_formatGrams(fiber)} g',
-      ));
+      facts.add(
+        PGNutritionFact(
+          label: 'Dietary Fiber',
+          value: '${_formatGrams(fiber)} g',
+        ),
+      );
     }
 
     final protein = _readNumber(nutritionDetail, 'protein_g');
     if (protein != null) {
-      facts.add(PGNutritionFact(
-        label: 'Protein',
-        value: '${_formatGrams(protein)} g',
-      ));
+      facts.add(
+        PGNutritionFact(label: 'Protein', value: '${_formatGrams(protein)} g'),
+      );
     }
   }
 

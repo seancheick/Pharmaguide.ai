@@ -9,7 +9,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Wraps [child] (the scanner) with a one-time camera permission prompt.
 ///
@@ -31,7 +30,7 @@ class CameraPermissionGate extends StatefulWidget {
   State<CameraPermissionGate> createState() => _CameraPermissionGateState();
 }
 
-enum _PermissionState { checking, prompt, granted, denied }
+enum _PermissionState { checking, prompt, granted }
 
 class _CameraPermissionGateState extends State<CameraPermissionGate> {
   static const _prefKey = 'cameraPermissionPromptShown';
@@ -88,15 +87,6 @@ class _CameraPermissionGateState extends State<CameraPermissionGate> {
         onManualEntry: widget.onManualEntry,
       ),
       _PermissionState.granted => widget.childBuilder(),
-      _PermissionState.denied => CameraPermissionV2Screen(
-        denied: true,
-        onPrimaryAction: () => launchUrl(
-          Uri.parse('app-settings:'),
-          mode: LaunchMode.externalApplication,
-        ),
-        onManualEntry: widget.onManualEntry,
-      ),
     };
   }
 }
-

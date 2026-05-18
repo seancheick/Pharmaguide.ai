@@ -4,15 +4,13 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// v2 mirror of `lib/features/product_detail/widgets/score_line.dart`.
-///
 /// Same data shape (`ScoreTier` + `tierForScore`), same semantics
 /// (locked color + label + description per tier), same layout (row of
 /// dot + `90/100` + tier label, then description line). Only the
 /// typography + spacing tokens shift to v2:
 /// - Geist Sans 500 for `90/100` and tier label (was titleMedium w800/w700)
 /// - Geist Sans body for the description (was bodySmall)
-/// - 8pt gaps from V2Spacing (was AppTheme.space8)
+/// - 8pt gaps from V2Spacing
 ///
 /// **Contrast on cream `V2Colors.bg`:** all 6 production score colors
 /// (#059669 Exceptional → #DC2626 Poor) clear 4.5:1 against #FAF9F6 by
@@ -92,9 +90,9 @@ class PGScoreLine extends StatelessWidget {
             Flexible(
               child: Text(
                 tier.label,
-                style: V2Typography.bodyMedium(color: tier.color).copyWith(
-                  fontSize: headlineSize,
-                ),
+                style: V2Typography.bodyMedium(
+                  color: tier.color,
+                ).copyWith(fontSize: headlineSize),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

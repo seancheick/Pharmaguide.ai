@@ -1,7 +1,7 @@
-// Phase 11.7c.3 — ReviewBeforeUse section adapter.
+// ReviewBeforeUse section adapter.
 //
-// V2 mirror of production's `ReviewBeforeUseCard`. Composes the v2 PGReviewBeforeUseCard
-// using the same data flow production uses:
+// Composes PGReviewBeforeUseCard using the product-detail review data
+// flow:
 //
 //   guardedWarnings (composeGuardedWarnings pipeline)
 //   matchAllergens(profile.allergens, blob['allergens'])
@@ -117,8 +117,7 @@ class ReviewBeforeUseSection extends ConsumerWidget {
     // No profile + product has interactions → calm nudge mode.
     if (!hasProfile && hintHasAny && !hasWarnings && !hasAllergens) {
       return _NudgeBanner(
-        onCompleteProfile: () =>
-            GoRouter.of(context).push(Routes.profileSetup),
+        onCompleteProfile: () => GoRouter.of(context).push(Routes.profileSetup),
       );
     }
 
@@ -280,9 +279,8 @@ class _NudgeBanner extends StatelessWidget {
   }
 }
 
-/// "Label disagreement detected" footer — renders below the card when
-/// findFreeFromConflicts returned non-empty. Matches production's
-/// `_ConflictFooter` (line 666) but in v2 tones.
+/// Label-disagreement footer — renders below the card when
+/// findFreeFromConflicts returned non-empty.
 class _ConflictFooter extends StatelessWidget {
   final String body;
 
@@ -295,9 +293,7 @@ class _ConflictFooter extends StatelessWidget {
       decoration: BoxDecoration(
         color: V2Colors.caution.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(
-          color: V2Colors.caution.withValues(alpha: 0.18),
-        ),
+        border: Border.all(color: V2Colors.caution.withValues(alpha: 0.18)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,10 +313,7 @@ class _ConflictFooter extends StatelessWidget {
                   style: V2Typography.titleSm(color: V2Colors.caution),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  body,
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                ),
+                Text(body, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
               ],
             ),
           ),
@@ -347,10 +340,7 @@ void _showCitationsSheet(BuildContext context, List<String> sourceUrls) {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Citations',
-              style: V2Typography.titleSm(color: V2Colors.fg),
-            ),
+            Text('Citations', style: V2Typography.titleSm(color: V2Colors.fg)),
             const SizedBox(height: V2Spacing.space12),
             for (final url in sourceUrls)
               Padding(
@@ -367,8 +357,9 @@ void _showCitationsSheet(BuildContext context, List<String> sourceUrls) {
                   },
                   child: Text(
                     url,
-                    style: V2Typography.bodySm(color: V2Colors.accent)
-                        .copyWith(decoration: TextDecoration.underline),
+                    style: V2Typography.bodySm(
+                      color: V2Colors.accent,
+                    ).copyWith(decoration: TextDecoration.underline),
                   ),
                 ),
               ),

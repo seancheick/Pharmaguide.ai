@@ -16,10 +16,9 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// v2 Auth Invitation — the calm sign-in page that sits between
 /// onboarding completion and the home screen.
 ///
-/// Visual mirror only (Phase 9.0). All button callbacks are stubs; the
-/// actual Supabase wiring (magic link → Apple → Google) lands in
-/// Phase 9.1–9.3 once this screen feels right next to the onboarding
-/// celebration.
+/// Production wires Apple, Google, email magic-link, and guest skip
+/// callbacks from `app.dart`. Dev previews/tests may pass null callbacks
+/// when they only need the visual surface.
 ///
 /// Editorial direction (per Sean, 2026-05-15):
 /// - DO NOT use the word "beta" anywhere on this screen
@@ -33,16 +32,14 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// should feel like they made a reasonable choice, not like they
 /// dodged a wall.
 class AuthInvitationV2Screen extends StatefulWidget {
-  /// Callback when the user taps Continue with Apple. Phase 9.0 leaves
-  /// this null (visual mirror); Phase 9.2 wires the real provider.
+  /// Callback when the user taps Continue with Apple.
   final VoidCallback? onApple;
 
-  /// Callback when the user taps Continue with Google. Phase 9.3 wires
-  /// the real provider.
+  /// Callback when the user taps Continue with Google.
   final VoidCallback? onGoogle;
 
   /// Callback when the user taps Continue with Email — routes to the
-  /// magic-link entry sheet. Phase 9.1 wires the real round trip.
+  /// magic-link entry sheet.
   final VoidCallback? onEmail;
 
   /// Callback when the user taps Skip for now. Production: marks the
@@ -97,9 +94,10 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
     // Scale peak bumped 8% → 12% (1.12). At 56pt that's ~6.7px peak
     // movement, which is comfortably above the perceptual threshold.
     // Stays under 1.15 so the mark never feels like it's straining.
-    _heartbeatScale = Tween<double>(begin: 1.0, end: 1.12).animate(
-      CurvedAnimation(parent: _heartbeat, curve: Curves.easeInOutSine),
-    );
+    _heartbeatScale = Tween<double>(
+      begin: 1.0,
+      end: 1.12,
+    ).animate(CurvedAnimation(parent: _heartbeat, curve: Curves.easeInOutSine));
     // Defer starting the heartbeat until the stagger entrance has had
     // a moment to settle — otherwise the mark grows while it's still
     // fading in, which reads as nervous, not calm.
@@ -131,9 +129,8 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
   }
 
   void _noopOrCall(VoidCallback? cb) {
-    // Visual-mirror behavior: callbacks may be null in the gallery; if
-    // wired, just delegate. Production replaces these stubs with real
-    // navigation in Phase 9.1+.
+    // Callbacks may be null in isolated previews/tests; production
+    // delegates to real route/auth handlers from app.dart.
     cb?.call();
   }
 
@@ -207,12 +204,10 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
                                   opacity: buttons.opacity,
                                   lift: buttons.lift,
                                   child: _AuthButtonStack(
-                                    onApple: () =>
-                                        _noopOrCall(widget.onApple),
+                                    onApple: () => _noopOrCall(widget.onApple),
                                     onGoogle: () =>
                                         _noopOrCall(widget.onGoogle),
-                                    onEmail: () =>
-                                        _noopOrCall(widget.onEmail),
+                                    onEmail: () => _noopOrCall(widget.onEmail),
                                   ),
                                 ),
                                 const SizedBox(height: V2Spacing.space24),
@@ -261,10 +256,7 @@ class _Faded extends StatelessWidget {
   Widget build(BuildContext context) {
     return Opacity(
       opacity: opacity,
-      child: Transform.translate(
-        offset: Offset(0, lift),
-        child: child,
-      ),
+      child: Transform.translate(offset: Offset(0, lift), child: child),
     );
   }
 }
@@ -300,10 +292,8 @@ class _BrandMark extends StatelessWidget {
         else
           AnimatedBuilder(
             animation: pulse,
-            builder: (context, child) => Transform.scale(
-              scale: pulse.value,
-              child: child,
-            ),
+            builder: (context, child) =>
+                Transform.scale(scale: pulse.value, child: child),
             child: logo,
           ),
         const SizedBox(height: V2Spacing.space8),
@@ -432,9 +422,7 @@ class _EarlyAccessBadge extends StatelessWidget {
         decoration: BoxDecoration(
           color: V2Colors.accentTint,
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          border: Border.all(
-            color: V2Colors.accent.withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: V2Colors.accent.withValues(alpha: 0.18)),
         ),
         child: Text(
           'FREE DURING EARLY ACCESS',
@@ -448,8 +436,7 @@ class _EarlyAccessBadge extends StatelessWidget {
 /// Provider-styled auth button — Apple and Google have specific brand
 /// requirements (black-on-white or white-on-black for Apple; white
 /// surface with the multi-color G for Google). We honor the spirit
-/// here in v2 tones; HIG-compliant SDK widgets replace these in
-/// Phase 9.2 / 9.3.
+/// here in v2 tones while auth itself is handled by PGAuthService.
 enum _AuthButtonStyle { appleDark, googleLight }
 
 class _AuthButton extends StatelessWidget {
@@ -470,9 +457,7 @@ class _AuthButton extends StatelessWidget {
     final isApple = style == _AuthButtonStyle.appleDark;
     final bg = isApple ? V2Colors.fg : V2Colors.surface;
     final fg = isApple ? V2Colors.surface : V2Colors.fg;
-    final borderColor = isApple
-        ? Colors.transparent
-        : V2Colors.outline;
+    final borderColor = isApple ? Colors.transparent : V2Colors.outline;
 
     return Material(
       color: Colors.transparent,
@@ -481,9 +466,7 @@ class _AuthButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
         child: Container(
           height: 52,
-          padding: const EdgeInsets.symmetric(
-            horizontal: V2Spacing.space24,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
@@ -607,7 +590,7 @@ class _AuthInvitationV2PreviewState extends State<AuthInvitationV2Preview> {
           onGoogle: () => _runProvider(_auth.signInWithGoogle, 'Google'),
           // Email is real — opens the magic-link sheet that calls
           // supabase.auth.signInWithOtp() with the pharmaguide://
-          // redirect URL. Phase 9.1.
+          // redirect URL.
           onEmail: () => showMagicLinkSheet(context),
           onSkip: () => context.go('/dev/v2'),
         ),

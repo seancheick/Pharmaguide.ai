@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -26,18 +25,18 @@ enum PGReviewTone {
 
 extension PGReviewToneMeta on PGReviewTone {
   Color get tint => switch (this) {
-        PGReviewTone.safe => AppTheme.severitySafe,
-        PGReviewTone.caution => AppTheme.severityCaution,
-        PGReviewTone.danger => AppTheme.severityContraindicated,
-        PGReviewTone.info => AppTheme.severityInformational,
-      };
+    PGReviewTone.safe => V2Colors.safe,
+    PGReviewTone.caution => V2Colors.caution,
+    PGReviewTone.danger => V2Colors.contraindicated,
+    PGReviewTone.info => V2Colors.accent,
+  };
 
   IconData get icon => switch (this) {
-        PGReviewTone.safe => Icons.check_circle_outline,
-        PGReviewTone.caution => Icons.error_outline_rounded,
-        PGReviewTone.danger => Icons.warning_amber_rounded,
-        PGReviewTone.info => Icons.info_outline_rounded,
-      };
+    PGReviewTone.safe => Icons.check_circle_outline,
+    PGReviewTone.caution => Icons.error_outline_rounded,
+    PGReviewTone.danger => Icons.warning_amber_rounded,
+    PGReviewTone.info => Icons.info_outline_rounded,
+  };
 }
 
 /// One row in the review card — a matched allergen, free-from conflict,
@@ -67,10 +66,9 @@ class PGReviewRow {
   });
 }
 
-/// v2 mirror of `ReviewBeforeUseCard`
-/// (lib/features/product_detail/widgets/review_before_use_card.dart).
+/// Review-before-use card.
 ///
-/// **Same intent preserved:**
+/// Intent:
 /// - One severity-toned banner block at the top of the card
 /// - Title is count-aware ("Review before use" with N count badge, or
 ///   "Looks safe for you" when zero matches)
@@ -78,7 +76,7 @@ class PGReviewRow {
 ///   `interactionHint` for the warning count summary)
 /// - Optional rows of matched allergens / free-from conflicts /
 ///   generic warnings — each tappable
-/// - Expand/collapse chevron when more than [collapseThreshold] rows
+/// - Expand/collapse chevron when rows are present
 ///
 /// **Production parity rules:**
 /// - Allergen match always bumps tone to `danger` even with a free-from
@@ -102,8 +100,8 @@ class PGReviewBeforeUseCard extends StatefulWidget {
   /// hides the row section entirely (only the banner shows).
   final List<PGReviewRow> rows;
 
-  /// Threshold above which the row list collapses behind a "View N more"
-  /// expander. Default 3 — matches production's "show top 3" pattern.
+  /// Deprecated compatibility field retained for old call sites. Row
+  /// expansion is controlled by [startExpanded] or danger-tier rows.
   final int collapseThreshold;
 
   /// True to start expanded regardless of collapse threshold. Production
@@ -137,9 +135,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
   /// 1. Caller forced startExpanded=true → expanded
   /// 2. At least one row is danger-tier → expanded (you can't bury a
   ///    contraindication / allergen match behind a chevron)
-  /// 3. Row count ≤ collapseThreshold → expanded (short lists feel
-  ///    weird hidden)
-  /// 4. Otherwise → collapsed; banner shows alone with a chevron
+  /// 3. Otherwise → collapsed; banner shows alone with a chevron
   bool _shouldAutoExpand() {
     if (widget.rows.isEmpty) return false;
     if (widget.startExpanded) return true;
@@ -147,7 +143,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
       (r) => (r.rowTone ?? widget.tone) == PGReviewTone.danger,
     );
     if (hasDanger) return true;
-    return widget.rows.length <= widget.collapseThreshold;
+    return false;
   }
 
   @override
@@ -193,8 +189,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                             const SizedBox(width: V2Spacing.space8),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
@@ -214,9 +209,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                                     ],
                                   ),
                                   if (widget.body != null) ...[
-                                    const SizedBox(
-                                      height: V2Spacing.space4,
-                                    ),
+                                    const SizedBox(height: V2Spacing.space4),
                                     Text(
                                       widget.body!,
                                       style: V2Typography.bodySm(
@@ -231,8 +224,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                               const SizedBox(width: V2Spacing.space8),
                               AnimatedRotation(
                                 turns: _expanded ? 0.5 : 0,
-                                duration:
-                                    const Duration(milliseconds: 180),
+                                duration: const Duration(milliseconds: 180),
                                 child: Icon(
                                   Icons.expand_more_rounded,
                                   size: 22,
@@ -314,11 +306,7 @@ class _ReviewRowTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                (row.rowTone ?? fallbackTone).icon,
-                size: 18,
-                color: tone,
-              ),
+              Icon((row.rowTone ?? fallbackTone).icon, size: 18, color: tone),
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Column(

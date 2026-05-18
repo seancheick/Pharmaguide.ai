@@ -95,7 +95,6 @@ class V2Gallery extends StatelessWidget {
             title: 'Score line · production parity',
             children: [
               Text(
-                'Mirror of lib/features/product_detail/widgets/score_line.dart. '
                 'Uses ScoreTier directly — locked colors + labels + descriptions.',
                 style: V2Typography.bodySm(color: V2Colors.fgMuted),
               ),
@@ -107,8 +106,7 @@ class V2Gallery extends StatelessWidget {
                     padding: const EdgeInsets.all(V2Spacing.space16),
                     decoration: BoxDecoration(
                       color: V2Colors.surface,
-                      borderRadius:
-                          BorderRadius.circular(V2Spacing.radiusCard),
+                      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                       border: Border.all(color: V2Colors.outline),
                     ),
                     child: PGScoreLine(score: s),
@@ -374,8 +372,7 @@ class V2Gallery extends StatelessWidget {
                   PGWarning(
                     severity: PGWarningSeverity.danger,
                     evidence: PGEvidenceLevel.established,
-                    title:
-                        'Major interaction with your blood thinner',
+                    title: 'Major interaction with your blood thinner',
                     mechanism:
                         'Omega-3 fatty acids inhibit platelet aggregation '
                         'and can extend bleeding time. Combined with '
@@ -397,7 +394,8 @@ class V2Gallery extends StatelessWidget {
                         'High vitamin D intake increases calcium '
                         'absorption, which can stress kidneys in patients '
                         'with reduced glomerular filtration.',
-                    management: 'Stay under 2000 IU/day. Monitor serum '
+                    management:
+                        'Stay under 2000 IU/day. Monitor serum '
                         'calcium with your nephrologist.',
                     sourceCount: 4,
                     onShowSources: () {},
@@ -494,7 +492,8 @@ class V2Gallery extends StatelessWidget {
                   PGPopulationCallout(
                     icon: Icons.bloodtype_outlined,
                     label: 'Kidney disease',
-                    body: 'High vitamin D increases calcium load on '
+                    body:
+                        'High vitamin D increases calcium load on '
                         'kidneys with reduced GFR.',
                     onTap: () {},
                   ),
@@ -778,8 +777,7 @@ class V2Gallery extends StatelessWidget {
               ),
               _PrototypeLink(
                 label: 'Camera permission',
-                subtitle:
-                    'Pre-prompt — benefit-first ask before the OS dialog',
+                subtitle: 'Pre-prompt — benefit-first ask before the OS dialog',
                 routePath: '/dev/v2/scan/permission',
               ),
               _PrototypeLink(
@@ -796,12 +794,7 @@ class V2Gallery extends StatelessWidget {
               ),
             ],
           ),
-          const _Section(
-            title: 'Auth tools',
-            children: [
-              _SignOutButton(),
-            ],
-          ),
+          const _Section(title: 'Auth tools', children: [_SignOutButton()]),
         ],
       ),
     );
@@ -867,7 +860,6 @@ class _PrototypeLink extends StatelessWidget {
     );
   }
 }
-
 
 class _Section extends StatelessWidget {
   final String title;
@@ -990,8 +982,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
       _sub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
         if (!mounted) return;
         setState(() {
-          _currentEmail =
-              Supabase.instance.client.auth.currentUser?.email;
+          _currentEmail = Supabase.instance.client.auth.currentUser?.email;
         });
       });
     } on Object catch (_) {
@@ -1056,9 +1047,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
                       Text(
                         signedIn ? 'SIGN OUT' : 'NOT SIGNED IN',
                         style: V2Typography.eyebrow(
-                          color: signedIn
-                              ? V2Colors.accent
-                              : V2Colors.fgMuted,
+                          color: signedIn ? V2Colors.accent : V2Colors.fgMuted,
                         ),
                       ),
                       const SizedBox(height: V2Spacing.space4),
@@ -1074,10 +1063,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
                   ),
                 ),
                 if (signedIn)
-                  const Icon(
-                    Icons.chevron_right,
-                    color: V2Colors.fgMuted,
-                  ),
+                  const Icon(Icons.chevron_right, color: V2Colors.fgMuted),
               ],
             ),
           ),

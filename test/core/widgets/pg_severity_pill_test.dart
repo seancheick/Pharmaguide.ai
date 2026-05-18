@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_pill.dart';
 
 /// Widget tests for [PGSeverityPill] — one per Severity enum value, in
@@ -101,7 +102,7 @@ void main() {
       // Verify color is the severity token (exact alpha is internal)
       final iconFinder = find.byIcon(Icons.block_rounded);
       final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.color, AppTheme.severityContraindicated);
+      expect(icon.color, V2Colors.contraindicated);
     });
   });
 }

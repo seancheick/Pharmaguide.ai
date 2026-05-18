@@ -1,12 +1,11 @@
 // Phase 11.7c.1 — Blocked-banner section adapter (Hero `bottomBanner` slot).
 //
-// V2 mirror of production's private `_BlockedBanner` widget (line 1626
-// of). Slots into Hero's `bottomBanner` prop
-// so blocked products read the same way visually but in v2 tones.
+// Blocked-banner section adapter. Slots into Hero's `bottomBanner` prop
+// so blocked products use the same safety contract in v2 tones.
 //
 // Composition (matches production exactly — verified against parity
 // checklist row S1.5):
-//   1. PGSeverityBanner (danger tone, useV2Tones=true): calm headline
+//   1. PGSeverityBanner (danger tone): calm headline
 //      "PharmaGuide does not recommend this product" + reason body.
 //   2. Optional regulatory date line ("FDA ban effective · Sep 7, 2016")
 //      via `buildRegulatoryLine` from the production helper module.
@@ -50,16 +49,17 @@ Widget buildBlockedBannerSection({
   required Map<String, dynamic>? bannedSubstanceDetail,
 }) {
   // Resolve display inputs from the data via helpers.
-  final substanceName =
-      bannedSubstanceDetail?['substance_name']?.toString().trim();
-  final oneLiner =
-      bannedSubstanceDetail?['safety_warning_one_liner']?.toString().trim();
-  final safetyWarning =
-      bannedSubstanceDetail?['safety_warning']?.toString().trim();
-  final banContext =
-      bannedSubstanceDetail?['ban_context']?.toString().trim();
-  final detailText =
-      bannedSubstanceDetail?['detail']?.toString().trim();
+  final substanceName = bannedSubstanceDetail?['substance_name']
+      ?.toString()
+      .trim();
+  final oneLiner = bannedSubstanceDetail?['safety_warning_one_liner']
+      ?.toString()
+      .trim();
+  final safetyWarning = bannedSubstanceDetail?['safety_warning']
+      ?.toString()
+      .trim();
+  final banContext = bannedSubstanceDetail?['ban_context']?.toString().trim();
+  final detailText = bannedSubstanceDetail?['detail']?.toString().trim();
   final regulatoryLine = buildRegulatoryLine(
     bannedSubstanceDetail?['regulatory_date_label']?.toString(),
     bannedSubstanceDetail?['date']?.toString(),
@@ -78,7 +78,8 @@ Widget buildBlockedBannerSection({
   // Whether the standalone "Ingredient: <name>" row should render.
   // Suppressed when the one-liner already mentions the substance by
   // name in prose (avoids redundancy).
-  final showSubstanceRow = substanceName != null &&
+  final showSubstanceRow =
+      substanceName != null &&
       substanceName.isNotEmpty &&
       (oneLiner == null || oneLiner.isEmpty);
 
@@ -133,19 +134,16 @@ Widget buildBlockedBannerSection({
           const SizedBox(height: V2Spacing.space8),
           Text(
             contextNote,
-            style: V2Typography.bodySm(color: V2Colors.fgMuted).copyWith(
-              fontStyle: FontStyle.italic,
-            ),
+            style: V2Typography.bodySm(
+              color: V2Colors.fgMuted,
+            ).copyWith(fontStyle: FontStyle.italic),
           ),
         ],
 
         // 6. Detail / FDA-story paragraph.
         if (detailText != null && detailText.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space12),
-          Text(
-            detailText,
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
-          ),
+          Text(detailText, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
         ],
 
         // 7. FDA sources link list.
@@ -173,7 +171,6 @@ class _BlockedTitleBanner extends StatelessWidget {
       // parent column so we can use v2 typography directly on the
       // cream surface (avoids the banner's internal text styling
       // competing with the surrounding context).
-      useV2Tones: true,
     );
   }
 }

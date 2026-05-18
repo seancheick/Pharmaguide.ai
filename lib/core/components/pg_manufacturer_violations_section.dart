@@ -20,6 +20,9 @@ class PGViolation {
   /// Optional Dr. Pham–authored summary explaining why this matters.
   final String trustSummary;
 
+  /// Optional source/reference identifier from the FDA/enforcement feed.
+  final String? referenceId;
+
   /// Tap → opens production's violation detail sheet.
   final VoidCallback? onTap;
 
@@ -28,14 +31,11 @@ class PGViolation {
     required this.type,
     required this.trustSummary,
     this.date,
+    this.referenceId,
     this.onTap,
   });
 }
 
-/// v2 mirror of `ManufacturerViolationsSection`
-/// (lib/features/product_detail/widgets/pipeline_sections/
-/// manufacturer_violations_section.dart).
-///
 /// Lists FDA violations from the manufacturer (typically 1-5 visible
 /// with "+N more" overflow). Each row: severity dot + type + date +
 /// Dr. Pham–authored trust summary.
@@ -135,6 +135,13 @@ class _ViolationRow extends StatelessWidget {
             violation.trustSummary,
             style: V2Typography.bodySm(color: V2Colors.fgMuted),
           ),
+          if (violation.referenceId != null) ...[
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              'Ref: ${violation.referenceId}',
+              style: V2Typography.caption(color: V2Colors.fgMuted),
+            ),
+          ],
         ],
       ),
     );

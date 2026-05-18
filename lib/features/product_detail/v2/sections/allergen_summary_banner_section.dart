@@ -1,10 +1,6 @@
-// Phase 11.7f — AllergenSummaryBanner section adapter (S18, LEGACY).
+// Allergen summary fallback section.
 //
-// Adapts the legacy `AllergenSummaryBanner` (lib/features/
-// product_detail/widgets/pipeline_sections/
-// allergen_summary_banner.dart) onto the v2 product detail surface.
-//
-// **Legacy fallback only.** Renders when:
+// Renders when:
 //   • product is not blocked AND
 //   • `_product.allergenSummary` is non-empty free text AND
 //   • the blob has NO structured allergens (which would have already
@@ -20,14 +16,12 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// Build the AllergenSummaryBanner legacy fallback section.
+/// Build the allergen summary fallback section.
 ///
 /// Returns `SizedBox.shrink()` when the summary is null/empty. The gate
 /// is enforced upstream by `shouldShowAllergenSummaryBanner` — this
 /// helper only renders the visual presentation.
-Widget buildAllergenSummaryBannerSection({
-  required String? allergenSummary,
-}) {
+Widget buildAllergenSummaryBannerSection({required String? allergenSummary}) {
   if (allergenSummary == null || allergenSummary.trim().isEmpty) {
     return const SizedBox.shrink();
   }

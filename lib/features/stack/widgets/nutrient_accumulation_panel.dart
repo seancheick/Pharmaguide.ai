@@ -18,9 +18,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pharmaguide/core/constants/app_colors.dart';
-import 'package:pharmaguide/core/theme/app_motion.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_progress_bar.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -55,15 +56,12 @@ class _PanelShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
+    return Container(
       key: const Key('nutrient-accumulation-card'),
-      color: scheme.surface,
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        side: BorderSide(color: scheme.outlineVariant, width: 0.8),
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
       ),
       child: child,
     );
@@ -111,7 +109,7 @@ class _PanelBodyState extends State<_PanelBody> {
     final shown = _expanded ? notable : notable.take(_collapsedLimit).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(AppTheme.space8),
+      padding: const EdgeInsets.all(V2Spacing.space8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -119,10 +117,7 @@ class _PanelBodyState extends State<_PanelBody> {
             totalNutrients: widget.statuses.length,
             warningCount: warnings.length,
           ),
-          Divider(
-            height: 1,
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
+          const Divider(height: 1, color: V2Colors.outline),
           // Warnings always render at the top, sorted by risk score —
           // safety outranks user preference.
           for (final s in warnings)
@@ -131,10 +126,7 @@ class _PanelBodyState extends State<_PanelBody> {
               status: s,
             ),
           if (warnings.isNotEmpty && notable.isNotEmpty)
-            Divider(
-              height: 16,
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
+            const Divider(height: 16, color: V2Colors.outline),
           // Notable nutrients (no warning) sorted by %UL/%RDA desc.
           for (final s in shown)
             NutrientProgressBar(
@@ -172,35 +164,32 @@ class _ShowMoreRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final label = expanded
         ? 'Show fewer'
         : 'Show all $totalAll tracked nutrients';
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space12,
+          V2Spacing.space12,
+          V2Spacing.space12,
+          V2Spacing.space8,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: scheme.primary,
-              ),
-            ),
-            const SizedBox(width: AppTheme.space4),
+            Text(label, style: V2Typography.label(color: V2Colors.accent)),
+            const SizedBox(width: V2Spacing.space4),
             AnimatedRotation(
               turns: expanded ? 0.5 : 0,
-              duration: AppMotion.fast,
-              child: Icon(
+              duration: V2Motion.fast,
+              child: const Icon(
                 Icons.expand_more_rounded,
                 size: 18,
-                color: scheme.primary,
+                color: V2Colors.accent,
               ),
             ),
           ],
@@ -218,50 +207,41 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.health_and_safety_outlined,
             size: 20,
-            color: resolved.textSecondary,
+            color: V2Colors.fgMuted,
           ),
-          const SizedBox(width: AppTheme.space8),
+          const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: Text(
               'Stack Nutrient Totals',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: resolved.textPrimary,
-              ),
+              style: V2Typography.bodyMedium(color: V2Colors.fg),
             ),
           ),
           if (warningCount > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.red.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
+                color: V2Colors.contraindicatedTint,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                 border: Border.all(
-                  color: AppColors.red.withValues(alpha: 0.35),
+                  color: V2Colors.contraindicated.withValues(alpha: 0.35),
                 ),
               ),
               child: Text(
                 '$warningCount ${warningCount == 1 ? "alert" : "alerts"}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.red,
-                ),
+                style: V2Typography.overline(color: V2Colors.contraindicated),
               ),
             )
           else
             Text(
               '$totalNutrients tracked',
-              style: TextStyle(fontSize: 11, color: resolved.textSecondary),
+              style: V2Typography.caption(color: V2Colors.fgMuted),
             ),
         ],
       ),

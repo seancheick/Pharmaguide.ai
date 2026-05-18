@@ -13,7 +13,7 @@
 // the v1.5.0 refactor and removed once consumers migrate.
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 /// Visual tone for an inactive ingredient's color dot. Maps cleanly
 /// to a 4-stop palette (green = best, red = worst).
@@ -62,13 +62,13 @@ extension InactiveToneColor on InactiveTone {
   Color get color {
     switch (this) {
       case InactiveTone.green:
-        return AppTheme.severitySafe;
+        return V2Colors.safe;
       case InactiveTone.yellow:
-        return AppTheme.severityCaution;
+        return V2Colors.caution;
       case InactiveTone.orange:
-        return AppTheme.severityAvoid;
+        return V2Colors.avoid;
       case InactiveTone.red:
-        return AppTheme.severityContraindicated;
+        return V2Colors.contraindicated;
     }
   }
 }

@@ -56,7 +56,7 @@
 | **G.2** Hero transitions (scan-card → product detail) | ✅ shipped | `2adb151` | Three Hero wraps with matching tag `'product-${dsldId}'`: home carousel card (48pt source) + Show-all sheet item (48pt source) + product detail hero altar (96pt destination). flightShuttleBuilder uses the destination widget verbatim during transit (suppresses Material elevation overlay halo on small-to-large flights). Bidirectional — back from detail flies image back to source. |
 | **G.3** Inline subtitle helper for product hero | ✅ shipped | `882f368` | Stacked `[brand]\n[form]` Text widgets → single `Text.rich` rendering `Brand · Form · Dose` (App Store / Apple Health pattern). New file-scope helpers `_hasAnyHeroSubtitle` + `_buildHeroSubtitleSpan` drop orphan dots cleanly when segments are missing. Tighter vertical rhythm (~30pt saved) in the hero identity column. Dose param wired but null today — pipeline addition flips it on with a one-line change. |
 | **G.4** Tighter hero spacing for iPhone SE | ⏸ deferred (design call) | — | LayoutBuilder fallback to compact hero (smaller image + ring) at `<360pt`. Needs simulator validation before shipping. Real-device confirmation step belongs to Sean. |
-| **G.5** Sprint 28 prep (Tier 2 Research Evidence) | 🚫 backlog (gated) | — | `SPRINT_TRACKER.md` says DO NOT START until pipeline-side Phase 1 ships. Pipeline-gated, not on apple-grade plate. |
+| **G.5** Tier 2 Research Evidence (NOT the roadmap's Sprint 28 = Lab Integration) | ✅ shipped | `17904aa` | Earlier docs called this "Sprint 28 prep" — that name collides with the roadmap's Sprint 28 = Lab Integration. Renamed here to "Tier 2 Research Evidence" for clarity. Pipeline-side bridge + Flutter `ResearchEvidenceSection` shipped 2026-05-17. |
 | **H.1** FitScore Option-C refactor — tier-only, no number | ✅ shipped | `7648d87` | Sean's product call after the deep audit surfaced the combined-score confusion: `scoreCombined100 = scoreQuality80 + scoreFit20` was a mixed signal masquerading as personalization. Killed entirely. Fit becomes a STATE (Strong / Good / Limited / NotRecommended / Hidden / Incomplete), no number on the For You pill. Math layer (E1/E2a/E2b/E2c → scoreFit20 0..20) stays internal. Threshold logic bands on `scoreFit20 / 20.0` (fractions 0.85/0.60/0.35) instead of the now-gone scoreCombined100. **5 lib files + 5 test files updated**, 60+ test fixtures rebalanced. |
 | **H.2** Delete dead PGFitScoreBadge | ✅ shipped | `77981ab` | 185-line widget + 10-test file deleted. Zero production refs after T1.2's For You section took over the personalization-display surface; H.1's refactor sealed the deal. fit_score_sheet docstring updated to point at the new entry point (For You section's tier-label row). |
 
@@ -2696,11 +2696,24 @@ return LayoutBuilder(
 
 - [ ] **Step 4: Run analyze + tests + commit**
 
-### Task G.5: Sprint 28 prep (Tier 2 Research Evidence)
+### Task G.5: Tier 2 Research Evidence
 
-**Why:** Listed in `SPRINT_TRACKER.md` as `BACKLOG: DO NOT START until pipeline-side Phase 1 ships`. Pipeline-gated, not on apple-grade plate. Logged here for completeness; the apple-grade team will revisit when the pipeline RXCUI bridge lands.
+**Naming note (2026-05-18):** earlier drafts of this section called the
+task "Sprint 28 prep" — that name collides with the roadmap's
+`SPRINT_TRACKER.md` Sprint 28 = Lab Integration (bloodwork PDF OCR /
+biomarker cross-ref), a separate unrelated feature. Renamed to
+"Tier 2 Research Evidence" everywhere for clarity.
 
-**Status:** ⏸ Backlog — gated on pipeline Phase 1 (PubMed verification + duplicate cleanup + RXCUI bridge in `scripts/ingest_suppai.py`). See `SPRINT_TRACKER.md` Sprint 28 entry for full scope.
+**Status:** ✅ Shipped 2026-05-17 (commit `17904aa
+feat(interactions): surface tier 2 research evidence`).
+
+**What landed:** Pipeline-side UMLS CUI → RxCUI bridge in
+`scripts/ingest_suppai.py` produced 3,518 partially-bridged
+`research_pairs` rows. Flutter consumers: `lib/services/stack/
+research_pair_lookup.dart` + `lib/features/product_detail/v2/
+sections/research_evidence_section.dart`. Wired into v2 Product
+Detail. Roadmap Sprint 28 (Lab Integration) remains a separate
+future feature.
 
 ---
 

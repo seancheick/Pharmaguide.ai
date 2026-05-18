@@ -1,8 +1,4 @@
-// Phase 11.7e — Formulation section adapter (S13).
-//
-// V2 mirror of production's `FormulationDetailSection`
-// (lib/features/product_detail/widgets/pipeline_sections/
-// formulation_detail_section.dart).
+// Formulation section adapter.
 //
 // Production reads `formulation_detail` blob (delivery_form,
 // delivery_tier, absorption_enhancers, standardized_botanicals) and
@@ -15,9 +11,21 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_formulation_section.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
-import 'package:pharmaguide/features/product_detail/widgets/pipeline_sections/formulation_detail_section.dart'
-    show extractIngredientNames;
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+
+/// Extract display names from a pipeline list field that may ship in
+/// legacy string-list shape or current map-list shape.
+List<String> extractIngredientNames(dynamic raw) {
+  if (raw is! List) return const <String>[];
+  return raw
+      .map<String>((e) {
+        if (e is String) return e.trim();
+        if (e is Map) return (e['name']?.toString() ?? '').trim();
+        return '';
+      })
+      .where((s) => s.isNotEmpty)
+      .toList(growable: false);
+}
 
 /// Build the Formulation section. Returns `SizedBox.shrink()` when
 /// the blob is null or no formulation signals are present.
@@ -27,8 +35,8 @@ Widget buildFormulationSection({
 }) {
   if (formulationDetail == null) return const SizedBox.shrink();
 
-  final deliveryForm = formulationDetail['delivery_form']?.toString().trim() ??
-      '';
+  final deliveryForm =
+      formulationDetail['delivery_form']?.toString().trim() ?? '';
   final deliveryTier =
       formulationDetail['delivery_tier']?.toString().trim() ?? '';
   final enhancers = extractIngredientNames(
@@ -38,13 +46,10 @@ Widget buildFormulationSection({
     formulationDetail['standardized_botanicals'],
   );
 
-  // demoted_absorption_enhancers ships as `[{name, quantity, unit}, ...]`.
-  // Production extracts a richer `_BioavailabilityAid` value object — for
-  // v2 we just need names (chip labels).
   final demotedRaw = (ingredientQualityData ?? const <String, dynamic>{})
       .safeList('demoted_absorption_enhancers')
       .whereType<Map<dynamic, dynamic>>()
-      .map((m) => (m['name']?.toString() ?? '').trim())
+      .map(_demotedEnhancerLabel)
       .where((s) => s.isNotEmpty)
       .toList(growable: false);
 
@@ -59,10 +64,23 @@ Widget buildFormulationSection({
     form: deliveryForm.isNotEmpty ? deliveryForm : null,
     formTierLabel: deliveryTier.isNotEmpty ? deliveryTier : null,
     formTierColor: deliveryTier.toLowerCase() == 'premium'
-        ? AppTheme.severitySafe
+        ? V2Colors.safe
         : null,
     absorptionEnhancers: enhancers,
     botanicals: botanicals,
     demotedEnhancers: demotedRaw,
   );
+}
+
+String _demotedEnhancerLabel(Map<dynamic, dynamic> raw) {
+  final name = raw['name']?.toString().trim() ?? '';
+  if (name.isEmpty) return '';
+  final quantity = raw['quantity'];
+  final unit = raw['unit']?.toString().trim() ?? '';
+  final quantityLabel = quantity is num
+      ? unit.isEmpty
+            ? quantity.toString()
+            : '${quantity.toString()} $unit'
+      : '';
+  return quantityLabel.isEmpty ? name : '$name $quantityLabel';
 }

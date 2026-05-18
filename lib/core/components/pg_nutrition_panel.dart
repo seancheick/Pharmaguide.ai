@@ -26,8 +26,7 @@ class PGNutritionFact {
   });
 }
 
-/// v2 mirror of `NutritionPanel`
-/// (lib/features/product_detail/widgets/nutrition_panel.dart).
+/// v2 nutrition facts panel.
 ///
 /// Compact supplement-facts panel — name + amount + %DV. Hidden when
 /// there's no nutrition data.

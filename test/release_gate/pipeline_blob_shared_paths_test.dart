@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
@@ -63,46 +63,54 @@ void main() {
     ],
   };
 
-  test('Product Detail and Review Before Use share warning severity semantics', () {
-    final warnings = (pipelineBlob['warnings_profile_gated'] as List)
-        .cast<Map<String, dynamic>>()
-        .map(InteractionWarning.fromJson)
-        .toList(growable: false);
+  test(
+    'Product Detail and Review Before Use share warning severity semantics',
+    () {
+      final warnings = (pipelineBlob['warnings_profile_gated'] as List)
+          .cast<Map<String, dynamic>>()
+          .map(InteractionWarning.fromJson)
+          .toList(growable: false);
 
-    expect(warnings.first.severity, Severity.contraindicated);
-    expect(warnings.first.ingredientName, 'Brominated Vegetable Oil');
-    expect(warnings.first.displayModeDefault, 'critical');
-    expect(warnings.first.alertHeadline, 'Avoid products listing BVO.');
+      expect(warnings.first.severity, Severity.contraindicated);
+      expect(warnings.first.ingredientName, 'Brominated Vegetable Oil');
+      expect(warnings.first.displayModeDefault, 'critical');
+      expect(warnings.first.alertHeadline, 'Avoid products listing BVO.');
 
-    final sorted = sortWarningsBySeverity(warnings);
-    expect(sorted.first.title, 'Banned substance: Brominated Vegetable Oil');
-    expect(toneForWarning(sorted.first.severity), PGReviewTone.danger);
+      final sorted = sortWarningsBySeverity(warnings);
+      expect(sorted.first.title, 'Banned substance: Brominated Vegetable Oil');
+      expect(toneForWarning(sorted.first.severity), PGReviewTone.danger);
 
-    final excipient = sorted.last;
-    expect(excipient.title, 'Excipient watchlist: Titanium Dioxide');
-    expect(excipient.severity, Severity.caution);
-    expect(excipient.displayModeDefault, 'informational');
-    expect(toneForWarning(excipient.severity), PGReviewTone.caution);
-  });
+      final excipient = sorted.last;
+      expect(excipient.title, 'Excipient watchlist: Titanium Dioxide');
+      expect(excipient.severity, Severity.caution);
+      expect(excipient.displayModeDefault, 'informational');
+      expect(toneForWarning(excipient.severity), PGReviewTone.caution);
+    },
+  );
 
-  test('Quick Check and Stack canonical ID helpers parse the same blob fields', () {
-    final fingerprintJson = jsonEncode(pipelineBlob['ingredient_fingerprint']);
+  test(
+    'Quick Check and Stack canonical ID helpers parse the same blob fields',
+    () {
+      final fingerprintJson = jsonEncode(
+        pipelineBlob['ingredient_fingerprint'],
+      );
 
-    expect(
-      quick_check.extractCanonicalIds(fingerprintJson),
-      containsAll(<String>['potassium', 'green_tea']),
-    );
-    expect(
-      canonicalIdsFromDetailBlob(pipelineBlob),
-      containsAll(<String>['potassium', 'green_tea']),
-    );
-  });
+      expect(
+        quick_check.extractCanonicalIds(fingerprintJson),
+        containsAll(<String>['potassium', 'green_tea']),
+      );
+      expect(
+        canonicalIdsFromDetailBlob(pipelineBlob),
+        containsAll(<String>['potassium', 'green_tea']),
+      );
+    },
+  );
 
   test('Scanner blocked verdict renders red, never safe/neutral', () {
-    expect(verdictFlashColor('BLOCKED'), AppTheme.severityContraindicated);
+    expect(verdictFlashColor('BLOCKED'), V2Colors.contraindicated);
     expect(
       verdictFlashColor(pipelineBlob['verdict'] as String),
-      AppTheme.severityContraindicated,
+      V2Colors.contraindicated,
     );
   });
 }

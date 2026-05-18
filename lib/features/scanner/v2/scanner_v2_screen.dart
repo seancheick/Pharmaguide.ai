@@ -74,8 +74,8 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
     // Bottom buttons sit just above the frosted nav bar. kPGNavBarHeight
     // already accounts for the home-indicator inset (~88pt total).
     // SafeArea(bottom: false) means we don't double-count that inset.
-    final bottomActionsPad = (widget.showNavBar ? kPGNavBarHeight : 0) +
-        V2Spacing.space12;
+    final bottomActionsPad =
+        (widget.showNavBar ? kPGNavBarHeight : 0) + V2Spacing.space12;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -102,8 +102,7 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
                     alignment: Alignment.topCenter,
                     child: _TopBar(
                       flashOn: _flashOn,
-                      onToggleFlash: () =>
-                          setState(() => _flashOn = !_flashOn),
+                      onToggleFlash: () => setState(() => _flashOn = !_flashOn),
                     ),
                   ),
                   // Frame + tagline centered, slightly above viewport
@@ -117,8 +116,7 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
                         const SizedBox(height: V2Spacing.space24),
                         Text(
                           'Center the barcode in the frame',
-                          style:
-                              V2Typography.bodyMedium(color: Colors.white),
+                          style: V2Typography.bodyMedium(color: Colors.white),
                         ),
                         const SizedBox(height: V2Spacing.space8),
                         Padding(
@@ -177,10 +175,8 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
         ),
         bottomNavigationBar: widget.showNavBar
             ? PGFrostedNavBar(
-                useV2Tones: true,
                 selectedIndex: widget.selectedIndex,
-                onDestinationSelected:
-                    widget.onDestinationSelected ?? (_) {},
+                onDestinationSelected: widget.onDestinationSelected ?? (_) {},
                 destinations: const [
                   NavigationDestination(
                     icon: Icon(Icons.home_outlined),
@@ -229,10 +225,7 @@ class _CameraSurrogate extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            V2Colors.cameraOverlayTop,
-            V2Colors.cameraOverlayBottom,
-          ],
+          colors: [V2Colors.cameraOverlayTop, V2Colors.cameraOverlayBottom],
         ),
       ),
     );
@@ -356,11 +349,7 @@ class _CornerBracket extends StatelessWidget {
         width: len,
         height: len,
         child: CustomPaint(
-          painter: _CornerPainter(
-            corner: corner,
-            color: color,
-            stroke: stroke,
-          ),
+          painter: _CornerPainter(corner: corner, color: color, stroke: stroke),
         ),
       ),
     );
@@ -569,11 +558,7 @@ class _ScannerV2PreviewState extends State<ScannerV2Preview> {
               onTap: () => context.go('/dev/v2'),
               child: const Padding(
                 padding: EdgeInsets.all(V2Spacing.space8),
-                child: Icon(
-                  Icons.close_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: Icon(Icons.close_rounded, color: Colors.white, size: 20),
               ),
             ),
           ),

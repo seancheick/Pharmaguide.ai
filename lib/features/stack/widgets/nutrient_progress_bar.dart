@@ -4,8 +4,10 @@
 // Now expandable: tap to see which supplements contribute and how much.
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_motion.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 class NutrientProgressBar extends StatefulWidget {
@@ -16,18 +18,18 @@ class NutrientProgressBar extends StatefulWidget {
   static Color tierColorFor(NutrientTier tier) {
     switch (tier) {
       case NutrientTier.exceedsUl:
-        return AppTheme.severityContraindicated;
+        return V2Colors.contraindicated;
       case NutrientTier.approachingUl:
-        return AppTheme.severityAvoid;
+        return V2Colors.avoid;
       case NutrientTier.aboveTypical:
-        return AppTheme.severityCaution;
+        return V2Colors.caution;
       case NutrientTier.abundant:
-        return AppTheme.scoreGood;
+        return V2Colors.monitor;
       case NutrientTier.adequate:
-        return AppTheme.severitySafe;
+        return V2Colors.safe;
       case NutrientTier.underFifty:
       case NutrientTier.noRda:
-        return AppTheme.insufficientData;
+        return V2Colors.fgSubtle;
     }
   }
 
@@ -40,8 +42,6 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final total = widget.status.total;
     final tierColor = NutrientProgressBar.tierColorFor(widget.status.tier);
     final fillPct = _fillPercent(widget.status);
@@ -57,8 +57,8 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.space16,
-          vertical: AppTheme.space8,
+          horizontal: V2Spacing.space16,
+          vertical: V2Spacing.space8,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,22 +71,20 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                       Flexible(
                         child: Text(
                           total.displayName,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: _labelStyle(V2Colors.fg),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (hasContributions) ...[
-                        const SizedBox(width: AppTheme.space2),
+                        const SizedBox(width: V2Spacing.space4),
                         AnimatedRotation(
                           turns: _expanded ? 0.5 : 0.0,
-                          duration: AppMotion.fast,
-                          child: Icon(
-                            Icons.expand_more,
+                          duration: V2Motion.fast,
+                          child: const Icon(
+                            Icons.expand_more_rounded,
                             size: 14,
-                            color: scheme.onSurfaceVariant,
+                            color: V2Colors.fgMuted,
                           ),
                         ),
                       ],
@@ -95,53 +93,44 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                 ),
                 Text(
                   _formatAmount(total.totalAmount, total.unit),
-                  style: AppTheme.numeric(
-                    theme.textTheme.bodySmall!.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: tierColor,
-                    ),
-                  ),
+                  style: _monoDataStyle(tierColor),
                 ),
-                const SizedBox(width: AppTheme.space8),
+                const SizedBox(width: V2Spacing.space8),
                 // Inline compact subtitle (% RDA / UL) — moved from
                 // its own row so each nutrient is a tight single line.
-                _buildSubtitleText(theme, scheme),
+                _buildSubtitleText(),
               ],
             ),
-            const SizedBox(height: AppTheme.space4),
+            const SizedBox(height: V2Spacing.space4),
             ClipRRect(
-              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
               child: LinearProgressIndicator(
                 value: fillPct.clamp(0.0, 1.0),
                 minHeight: 4,
-                backgroundColor: scheme.surfaceContainerHigh,
+                backgroundColor: V2Colors.outline,
                 valueColor: AlwaysStoppedAnimation<Color>(tierColor),
               ),
             ),
             if (widget.status.warning != null) ...[
-              const SizedBox(height: AppTheme.space6),
+              const SizedBox(height: V2Spacing.space8),
               _WarningChip(text: widget.status.warning!, color: tierColor),
             ],
             if (total.hasUnitConflict) ...[
-              const SizedBox(height: AppTheme.space4),
+              const SizedBox(height: V2Spacing.space4),
               Text(
                 'Note: excludes products reported in a different unit.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontStyle: FontStyle.italic,
-                  fontSize: 11,
-                ),
+                style: _captionStyle(V2Colors.fgMuted),
               ),
             ],
 
             // Expandable per-supplement breakdown
             AnimatedCrossFade(
-              duration: AppMotion.fast,
+              duration: V2Motion.fast,
               crossFadeState: _expanded
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,
               firstChild: const SizedBox.shrink(),
-              secondChild: _buildContributions(theme, scheme),
+              secondChild: _buildContributions(),
             ),
           ],
         ),
@@ -153,7 +142,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
   /// so each nutrient entry takes a single tight row instead of two.
   /// Appends an asterisk when RDA came from the anonymous baseline
   /// (Female 19-30) so the user knows the value isn't profile-specific.
-  Widget _buildSubtitleText(ThemeData theme, ColorScheme scheme) {
+  Widget _buildSubtitleText() {
     final rda = widget.status.pctOfRda;
     final ul = widget.status.pctOfUl;
     // Prefer UL when the nutrient has a hard ceiling to flag; otherwise
@@ -168,13 +157,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
       text = '—';
     }
 
-    return Text(
-      text,
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: scheme.onSurfaceVariant,
-        fontSize: 11,
-      ),
-    );
+    return Text(text, style: _captionStyle(V2Colors.fgMuted));
   }
 
   /// Format RDA percentage in a human-friendly way.
@@ -187,30 +170,24 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
     return '${pct.round()}% RDA';
   }
 
-  Widget _buildContributions(ThemeData theme, ColorScheme scheme) {
+  Widget _buildContributions() {
     final contributions = widget.status.total.contributions;
     if (contributions.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Container(
-        padding: const EdgeInsets.all(AppTheme.space8),
+        padding: const EdgeInsets.all(V2Spacing.space8),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          color: V2Colors.bg,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          border: Border.all(color: V2Colors.outline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'From your stack',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurfaceVariant,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: AppTheme.space4),
+            Text('From your stack', style: _overlineStyle(V2Colors.fgMuted)),
+            const SizedBox(height: V2Spacing.space4),
             ...contributions.map((c) {
               final pctOfTotal = widget.status.total.totalAmount > 0
                   ? (c.amount / widget.status.total.totalAmount * 100).round()
@@ -222,40 +199,31 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: BoxDecoration(
-                        color: scheme.primary,
+                      decoration: const BoxDecoration(
+                        color: V2Colors.accent,
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: AppTheme.space8),
+                    const SizedBox(width: V2Spacing.space8),
                     Expanded(
                       child: Text(
                         c.productName,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: _captionStyle(V2Colors.fg),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Text(
                       _formatAmount(c.amount, c.unit),
-                      style: AppTheme.numeric(
-                        theme.textTheme.bodySmall!.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
-                        ),
-                      ),
+                      style: _captionStyle(V2Colors.fg),
                     ),
-                    const SizedBox(width: AppTheme.space6),
+                    const SizedBox(width: V2Spacing.space8),
                     SizedBox(
                       width: 36,
                       child: Text(
                         '$pctOfTotal%',
                         textAlign: TextAlign.end,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        style: _captionStyle(V2Colors.fgMuted),
                       ),
                     ),
                   ],
@@ -295,26 +263,47 @@ class _WarningChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.warning_amber_rounded, size: 14, color: color),
-          const SizedBox(width: AppTheme.space6),
-          Flexible(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color,
-              ),
-            ),
-          ),
+          const SizedBox(width: V2Spacing.space8),
+          Flexible(child: Text(text, style: _captionStyle(color))),
         ],
       ),
     );
   }
 }
+
+TextStyle _labelStyle(Color color) => TextStyle(
+  fontSize: V2Typography.size14,
+  fontWeight: FontWeight.w500,
+  height: V2Typography.lhSnug,
+  color: color,
+);
+
+TextStyle _captionStyle(Color color) => TextStyle(
+  fontSize: V2Typography.size12,
+  fontWeight: FontWeight.w400,
+  height: V2Typography.lhSnug,
+  color: color,
+);
+
+TextStyle _overlineStyle(Color color) => TextStyle(
+  fontSize: V2Typography.size10,
+  fontWeight: FontWeight.w500,
+  height: V2Typography.lhSnug,
+  letterSpacing: V2Typography.tsEyebrow,
+  color: color,
+);
+
+TextStyle _monoDataStyle(Color color) => TextStyle(
+  fontSize: V2Typography.size14,
+  fontWeight: FontWeight.w500,
+  height: V2Typography.lhSnug,
+  color: color,
+  fontFeatures: const [FontFeature.tabularFigures()],
+);

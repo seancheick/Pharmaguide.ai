@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
 /// Visual hierarchy for [EvidenceLevel] — uses signal bars (like cell
 /// reception) so the trust level reads instantly, even for users who don't
@@ -17,19 +18,11 @@ class PGEvidenceBadge extends StatelessWidget {
   ({Color color, String label, int bars}) _style() {
     switch (level) {
       case EvidenceLevel.established:
-        return (
-          color: AppTheme.evidenceStrong,
-          label: 'Strong evidence',
-          bars: 3,
-        );
+        return (color: V2Colors.accent, label: 'Strong evidence', bars: 3);
       case EvidenceLevel.probable:
-        return (color: AppTheme.evidenceGood, label: 'Good evidence', bars: 2);
+        return (color: V2Colors.monitor, label: 'Good evidence', bars: 2);
       case EvidenceLevel.theoretical:
-        return (
-          color: AppTheme.evidenceTheoretical,
-          label: 'Theoretical',
-          bars: 1,
-        );
+        return (color: V2Colors.fgSubtle, label: 'Theoretical', bars: 1);
     }
   }
 
@@ -42,7 +35,7 @@ class PGEvidenceBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
         border: Border.all(color: scheme.outlineVariant, width: 0.8),
       ),
       child: Row(

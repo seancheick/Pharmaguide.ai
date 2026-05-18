@@ -1,12 +1,7 @@
-// Phase 11.7c.2 — PersonalFit helpers (pure logic).
+// PersonalFit helpers (pure logic).
 //
-// Mirrors production's headline/bullet generation in
-// `lib/features/product_detail/widgets/personal_fit_card.dart`:
-//   • `_headlineFor(fit, topGoalLabel)` (line 263) → `personalFitHeadline`
-//   • `_bulletsFor(fit, userConditions)` (line 169) → `personalFitBullets`
-//   • `_cleanReason(reason)` (line 203) → `cleanFitReason`
-//   • `_isConditionWarningReason` + `_conditionLabelPrefixes` (lines 226–259)
-//     — copied verbatim as private to this file.
+// Owns the headline/bullet generation contract used by the v2 Personal
+// Fit card.
 //
 // Sean's rules (2026-05-15):
 //   • Preserve provider logic — no new fit language. The headlines
@@ -20,15 +15,14 @@ import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
 
 /// Generate the personal-fit headline from a [FitDisplay] state and an
-/// optional top-goal label. Verbatim port of production's `_headlineFor`.
+/// optional top-goal label.
 ///
 ///   • Strong/Good/Limited → "&lt;verb&gt; match for your &lt;X&gt; goal" or
 ///     "&lt;verb&gt; match for your profile" when no top goal label.
 ///   • NotRecommended / Hidden → "Not recommended for your profile"
 ///   • Incomplete → "Add your profile to personalize"
 String personalFitHeadline(FitDisplay fit, String? topGoalLabel) {
-  final goalSuffix =
-      (topGoalLabel != null && topGoalLabel.trim().isNotEmpty)
+  final goalSuffix = (topGoalLabel != null && topGoalLabel.trim().isNotEmpty)
       ? 'your ${topGoalLabel.trim()} goal'
       : 'your profile';
   return switch (fit) {
@@ -40,8 +34,7 @@ String personalFitHeadline(FitDisplay fit, String? topGoalLabel) {
   };
 }
 
-/// Build up to 2 causal bullets. Verbatim port of production's
-/// `_bulletsFor`. Priority:
+/// Build up to 2 causal bullets. Priority:
 ///   1. Positive-profile bullets (T3 Path A via
 ///      `generatePositiveProfileBullets`)
 ///   2. fitReasons fallback (`FitScoreResult.reasons`), cleaned
@@ -56,9 +49,7 @@ List<String> personalFitBullets({
   required List<String> ingredientNames,
   required List<String> userConditions,
 }) {
-  if (fit is FitHidden ||
-      fit is FitNotRecommended ||
-      fit is FitIncomplete) {
+  if (fit is FitHidden || fit is FitNotRecommended || fit is FitIncomplete) {
     return const [];
   }
 
@@ -84,8 +75,8 @@ List<String> personalFitBullets({
 }
 
 /// Strip trailing period + drop per-condition warning leaks. Verbatim
-/// port of production's `_cleanReason`. Returns empty string for
-/// reasons that should be filtered out (see [_isConditionWarningReason]).
+/// Returns empty string for reasons that should be filtered out
+/// (see [_isConditionWarningReason]).
 String cleanFitReason(String reason) {
   final trimmed = reason.trim();
   if (trimmed.isEmpty) return '';
@@ -102,8 +93,7 @@ String cleanFitReason(String reason) {
 }
 
 /// Condition-label prefixes that mark a reason as a per-condition
-/// warning leak ("Diabetes: monitor from Vitamin D"). Verbatim copy of
-/// production's `_conditionLabelPrefixes` const set. When the colon-
+/// warning leak ("Diabetes: monitor from Vitamin D"). When the colon
 /// prefix matches one of these, the reason is suppressed at clean time.
 const Set<String> _conditionLabelPrefixes = {
   'pregnancy',
@@ -131,7 +121,6 @@ const Set<String> _conditionLabelPrefixes = {
 
 /// Returns true when [reason] is a per-condition warning leak.
 /// Pattern: `"<Condition Label>: <warning text>"`. Verbatim port of
-/// production's `_isConditionWarningReason`.
 bool _isConditionWarningReason(String reason) {
   final colonIdx = reason.indexOf(':');
   if (colonIdx <= 0 || colonIdx > 30) return false;

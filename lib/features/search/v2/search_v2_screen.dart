@@ -43,9 +43,8 @@
 //   * The four `_SearchFilter` values (All / High Quality 80+ /
 //     Needs Review / Blocked / Unsafe).
 //   * Category chip derivation from the result set.
-//   * List vs grid toggle — keep, render `ProductListItem` /
-//     `ProductGridItem`. Those widgets read the active theme so
-//     they sit cleanly on the v2 cream surface without changes.
+//   * List vs grid toggle — keep, render local v2 product rows/cards
+//     so the production search route never drops into legacy list UI.
 //   * Deep-link `initialQuery` and `initialCategory` arguments.
 
 import 'dart:async';
@@ -60,9 +59,10 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
+import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
-import 'package:pharmaguide/core/widgets/product_list_item.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
@@ -447,7 +447,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         ),
       );
       for (final p in partition.onMarket) {
-        children.add(ProductListItem(product: p));
+        children.add(_SearchProductListTile(product: p));
         children.add(const _HairlineDivider());
       }
     }
@@ -481,7 +481,9 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         ),
       );
       for (final p in partition.offMarket) {
-        children.add(Opacity(opacity: 0.7, child: ProductListItem(product: p)));
+        children.add(
+          Opacity(opacity: 0.7, child: _SearchProductListTile(product: p)),
+        );
         children.add(const _HairlineDivider());
       }
     }
@@ -517,7 +519,8 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
                 childAspectRatio: 0.85,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => ProductGridItem(product: partition.onMarket[i]),
+                (context, i) =>
+                    _SearchProductGridTile(product: partition.onMarket[i]),
                 childCount: partition.onMarket.length,
               ),
             ),
@@ -547,7 +550,9 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
               delegate: SliverChildBuilderDelegate(
                 (context, i) => Opacity(
                   opacity: 0.7,
-                  child: ProductGridItem(product: partition.offMarket[i]),
+                  child: _SearchProductGridTile(
+                    product: partition.offMarket[i],
+                  ),
                 ),
                 childCount: partition.offMarket.length,
               ),
@@ -1025,6 +1030,266 @@ class _LoadingList extends StatelessWidget {
 }
 
 // =============================================================================
+// Search result cards — local v2 surfaces, same product-detail route contract.
+// =============================================================================
+
+class _SearchProductListTile extends StatelessWidget {
+  final ProductsCoreData product;
+
+  const _SearchProductListTile({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    final score = product.score100Equivalent;
+    final scoreLabel = score != null
+        ? ', score ${score.round()} out of 100'
+        : '';
+    final brandLabel = product.brandName?.trim().isNotEmpty == true
+        ? ' by ${product.brandName}'
+        : '';
+
+    return Semantics(
+      button: true,
+      label:
+          '${product.productName}$brandLabel$scoreLabel. Tap to view details.',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push('${Routes.product}/${product.dsldId}'),
+          splashColor: V2Colors.accent.withValues(alpha: 0.08),
+          highlightColor: V2Colors.accent.withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: V2Spacing.space24,
+              vertical: V2Spacing.space12,
+            ),
+            child: Row(
+              children: [
+                _SearchProductImage(product: product, size: 56),
+                const SizedBox(width: V2Spacing.space12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        product.productName,
+                        style: V2Typography.bodyMedium(color: V2Colors.fg),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (product.brandName?.trim().isNotEmpty == true) ...[
+                        const SizedBox(height: V2Spacing.space4),
+                        Text(
+                          product.brandName!,
+                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: V2Spacing.space8),
+                      Wrap(
+                        spacing: V2Spacing.space8,
+                        runSpacing: V2Spacing.space4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (score != null) _ScoreChip(score: score),
+                          if (product.verdict?.trim().isNotEmpty == true)
+                            _VerdictChip(label: product.verdict!),
+                          if (product.primaryCategory?.trim().isNotEmpty ==
+                              true)
+                            _CategoryText(product.primaryCategory!),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: V2Spacing.space8),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: V2Colors.fgSubtle,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchProductGridTile extends StatelessWidget {
+  final ProductsCoreData product;
+
+  const _SearchProductGridTile({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    final score = product.score100Equivalent;
+    final scoreLabel = score != null
+        ? ', score ${score.round()} out of 100'
+        : '';
+    final brandLabel = product.brandName?.trim().isNotEmpty == true
+        ? ' by ${product.brandName}'
+        : '';
+
+    return Semantics(
+      button: true,
+      label:
+          '${product.productName}$brandLabel$scoreLabel. Tap to view details.',
+      child: Material(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: InkWell(
+          onTap: () => context.push('${Routes.product}/${product.dsldId}'),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.all(V2Spacing.space12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _SearchProductImage(product: product, size: 48),
+                    const Spacer(),
+                    if (score != null) _ScoreChip(score: score),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  product.productName,
+                  style: V2Typography.label(color: V2Colors.fg),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (product.brandName?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: V2Spacing.space4),
+                  Text(
+                    product.brandName!,
+                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (product.verdict?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: V2Spacing.space8),
+                  _VerdictChip(label: product.verdict!),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchProductImage extends StatelessWidget {
+  final ProductsCoreData product;
+  final double size;
+
+  const _SearchProductImage({required this.product, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(V2Spacing.space4),
+      decoration: BoxDecoration(
+        color: V2Colors.surfaceContainerHighest.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      child: ProductImage(
+        dsldId: product.dsldId,
+        upc: product.upcSku,
+        dsldImagePath: product.imageThumbnailUrl,
+        productName: product.productName,
+        brandName: product.brandName ?? '',
+        formFactor: product.formFactor,
+        score: product.score100Equivalent,
+        size: size - (V2Spacing.space4 * 2),
+        compact: true,
+      ),
+    );
+  }
+}
+
+class _ScoreChip extends StatelessWidget {
+  final double score;
+
+  const _ScoreChip({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: V2Spacing.space8,
+        vertical: V2Spacing.space4,
+      ),
+      decoration: BoxDecoration(
+        color: _scoreTone(score).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      ),
+      child: Text(
+        '${score.round()}',
+        style: V2Typography.monoData(color: _scoreTone(score)),
+      ),
+    );
+  }
+}
+
+class _VerdictChip extends StatelessWidget {
+  final String label;
+
+  const _VerdictChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = _verdictTone(label);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: V2Spacing.space8,
+        vertical: V2Spacing.space4,
+      ),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: V2Typography.overline(color: tone),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+class _CategoryText extends StatelessWidget {
+  final String category;
+
+  const _CategoryText(this.category);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _formatCategoryLabel(category),
+      style: V2Typography.caption(color: V2Colors.fgMuted),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+// =============================================================================
 // Helpers
 // =============================================================================
 
@@ -1070,4 +1335,31 @@ String _formatCategoryLabel(String category) {
     },
   ).toList();
   return parts.join(' ');
+}
+
+Color _scoreTone(double score) {
+  if (score >= 80) return V2Colors.safe;
+  if (score >= 60) return V2Colors.monitor;
+  if (score >= 40) return V2Colors.caution;
+  return V2Colors.avoid;
+}
+
+Color _verdictTone(String verdict) {
+  switch (verdict.trim().toUpperCase()) {
+    case 'RECOMMENDED':
+    case 'GOOD':
+      return V2Colors.safe;
+    case 'CAUTION':
+    case 'MODERATE':
+    case 'REVIEW':
+      return V2Colors.caution;
+    case 'POOR':
+    case 'AVOID':
+      return V2Colors.avoid;
+    case 'BLOCKED':
+    case 'UNSAFE':
+      return V2Colors.contraindicated;
+    default:
+      return V2Colors.fgMuted;
+  }
 }

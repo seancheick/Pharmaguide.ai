@@ -1,7 +1,6 @@
 // Phase 11.7e — BetterAlternatives section adapter (S16).
 //
-// V2 mirror of production's `BetterAlternativesSection`
-// (lib/features/product_detail/widgets/better_alternatives.dart).
+// Better Alternatives v2 section.
 //
 // Gate rules (verbatim port via `shouldShowBetterAlternatives`):
 //   • product is blocked → ALWAYS render
@@ -31,11 +30,28 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
-import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart'
-    show shouldShowBetterAlternatives;
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
+
+const double _lowQualityThreshold = 60.0;
+
+/// Pure helper — should the Better Alternatives section render for this
+/// product + user state?
+bool shouldShowBetterAlternatives({
+  required bool isBlocked,
+  required bool isNotScored,
+  required double? score100,
+  required FitDisplay? fitDisplay,
+}) {
+  if (isBlocked) return true;
+  if (isNotScored || score100 == null) return false;
+  if (score100 < _lowQualityThreshold) return true;
+  if (fitDisplay is FitLimitedFit || fitDisplay is FitNotRecommended) {
+    return true;
+  }
+  return false;
+}
 
 /// BetterAlternatives section — ConsumerWidget so it can watch the
 /// fit-score provider to decide whether to render at all.
@@ -61,11 +77,10 @@ class BetterAlternativesSection extends ConsumerWidget {
     this.maxAlternatives = 3,
   });
 
-  /// Phase 11.7L.F — same pipeline as the legacy widget. Fetches
-  /// the current product, builds a wider candidate pool (on-market
-  /// + strictly higher score + matching category OR supplement_type),
-  /// then hands it to `BetterAlternativesRanker` for tier + tiebreaker
-  /// sorting.
+  /// Fetches the current product, builds a wider candidate pool
+  /// (on-market + strictly higher score + matching category OR
+  /// supplement_type), then hands it to `BetterAlternativesRanker`
+  /// for tier + tiebreaker sorting.
   Future<List<ProductsCoreData>> _loadRanked(CoreDatabase coreDb) async {
     final current = await coreDb.findById(currentDsldId);
     if (current == null) return const [];
@@ -115,22 +130,22 @@ class BetterAlternativesSection extends ConsumerWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const PGBetterAlternativesSkeleton();
         }
-        if (snapshot.hasError ||
-            !snapshot.hasData ||
-            snapshot.data!.isEmpty) {
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
           return const SizedBox.shrink();
         }
         final alternatives = snapshot.data!;
-        final mapped = alternatives.map((p) {
-          final score = p.score100Equivalent?.round() ?? 0;
-          return PGAlternative(
-            dsldId: p.dsldId,
-            name: p.productName,
-            brand: p.brandName ?? '',
-            score: score,
-            onTap: () => context.push('/product/${p.dsldId}'),
-          );
-        }).toList(growable: false);
+        final mapped = alternatives
+            .map((p) {
+              final score = p.score100Equivalent?.round() ?? 0;
+              return PGAlternative(
+                dsldId: p.dsldId,
+                name: p.productName,
+                brand: p.brandName ?? '',
+                score: score,
+                onTap: () => context.push('/product/${p.dsldId}'),
+              );
+            })
+            .toList(growable: false);
 
         return PGBetterAlternatives(
           alternatives: mapped,

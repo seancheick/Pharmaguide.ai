@@ -69,14 +69,14 @@ These are the visible gaps where a real-device tester would say "this
 isn't doing what it does in v1." They block confidence in the v2
 surfaces, not just polish.
 
-### Cluster D (deferred from 1.0.0+4)
-- [ ] **Quick Check medication search** — add RxNorm path so a tester
-      can find "Lisinopril" alongside supplements. Field-type
-      disambiguation needed (supplement vs medication).
-      Files: `lib/features/quick_check/quick_check_screen.dart`,
-      `lib/features/quick_check/quick_check_logic.dart`,
-      `lib/features/quick_check/v2/quick_check_v2_screen.dart`,
-      `lib/services/medications/rxnorm_api_service.dart`.
+### Cluster D — Quick Check medication search
+- [x] **SHIPPED in 1.0.0+5** (commit `5b20f82`). RxNorm med search
+      wired in `lib/features/quick_check/v2/quick_check_v2_screen.dart`;
+      `runQuickCheckPair` in `lib/features/quick_check/quick_check_logic
+      .dart` handles supp↔supp / supp↔med / med↔med with class-fallback
+      lookup + hydration-incomplete safety signal. v1
+      `quick_check_screen.dart` deleted in Phase 11.11.A
+      (commit `6b982c5`).
 
 ### Route coherence audit (Sean build 1.0.0+4 feedback)
 - [ ] **Full v1/v2 route and fallback audit** — identify every path
@@ -308,17 +308,22 @@ build has room.
 
 ## What goes in 1.0.0+5 specifically
 
-After 1.0.0+4 walkthrough passes, the next build should ship:
-
-1. **Tier 1 — Cluster D** (Quick Check medication search)
-2. **Tier 1 — Stack v2 safety surfaces** (RecallAlertSlot wiring
-   verification, _StackSafetyBannerSlot, NutrientAccumulationPanel)
-3. **Tier 1 — Home v2 pull-to-refresh + first-launch gate**
-4. **Tier 4 — v2 `onInactiveTap` extraction** (only if 1.0.0+4
-   defensive `useRootNavigator` fix did NOT resolve bug 9 on
-   real-device retest)
-5. **Toggle default flip** (`USE_V2_*` → true) ONLY after the
-   above land + a second clean walkthrough
+**1.0.0+5 — SHIPPED 2026-05-17:**
+1. ✅ Cluster D — Quick Check medication search (commit `5b20f82`)
+2. ✅ Stack v2 safety surfaces — RecallAlertSlot + StackSafetyBannerSlot
+   + ProfileNudgeSlot + StackIntelligenceEngine wired (`stack_v2_screen.dart`)
+3. ✅ Home v2 pull-to-refresh (iOS + Android) + fixture-flash fix
+   (commit `5319c66`)
+4. ✅ Bug 9 — v2 `onInactiveTap` extracted to
+   `functional_roles_sheet.dart` with public helper; v1 IngredientsCard
+   deleted (Phase 11.11.A)
+5. ✅ Toggle default flip — 5 `USE_V2_*` defines removed;
+   v2 is the unconditional production route (Phase 11.11.A)
+6. ✅ Quick Check canonical-id consolidation + structured fingerprint
+   parser + catalog repair (commit `4f7d4c7` + Codex's `fa5090c`)
+7. ✅ Tier 2 Research Evidence section (commit `17904aa`)
+8. ✅ v2 gap closures — image tap-to-zoom + Synergy section + Excipient
+   density section + For You context chips + Why-this-fits expander
 
 Anything from Tiers 2-5 that fits naturally with the above changes
 can ride along; do not pre-load 1.0.0+5 with Tier 5 polish.

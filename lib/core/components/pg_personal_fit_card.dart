@@ -7,24 +7,17 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
-/// v2 mirror of `PersonalFitCard` in
-/// `lib/features/product_detail/widgets/personal_fit_card.dart`.
+/// Personal fit card.
 ///
-/// **Same structure preserved verbatim:**
+/// Structure:
 /// - Headline row: tone-colored shield/lock icon + headline copy + edit
 ///   pencil (round surfaceContainer button)
 /// - 0–2 causal bullet points beneath when bullets are non-empty
 /// - `FitHidden` returns `SizedBox.shrink()` — hero already carries the
 ///   message, rendering this would be noise (dedup rule from T16.1)
 ///
-/// **What changes in v2:** typography swaps to V2 (titleSm for the
-/// headline at w500 vs production w700; bullets in Geist Sans). Surface
-/// uses the v2 elevated treatment (cream + outline + sm shadow).
-///
-/// Production parses positive-profile bullets + fitReasons internally
-/// to produce the bullets list. The v2 mirror is pure presentation —
-/// the SCREEN composes the bullets (same way it composes the active
-/// content for `PGIngredientsCard`) and passes them in.
+/// This widget is pure presentation. The screen composes positive-
+/// profile bullets and fitReasons fallback, then passes the final list.
 class PGPersonalFitCard extends StatelessWidget {
   /// Risk-gated fit display state from
   /// `lib/services/fit_score/fit_display.dart`. Drives icon, tone,
@@ -32,9 +25,7 @@ class PGPersonalFitCard extends StatelessWidget {
   final FitDisplay fit;
 
   /// Headline string composed at the screen level using the same
-  /// rules as production (`_headlineFor(fit, topGoalLabel)`).
-  /// Keeping it as a string here means this widget never duplicates
-  /// the production headline logic.
+  /// Personal-fit headline composed by the section helper.
   final String headline;
 
   /// 0–2 causal bullet sentences. Caller composes via production's
@@ -93,10 +84,9 @@ class PGPersonalFitCard extends StatelessWidget {
                   // feedback: 20pt was too loud with the icon + edit
                   // pencil eating horizontal room. 18pt lets the 2-line
                   // wrap actually breathe.
-                  style: V2Typography.bodyXl(color: V2Colors.fg).copyWith(
-                    fontWeight: FontWeight.w500,
-                    height: 1.3,
-                  ),
+                  style: V2Typography.bodyXl(
+                    color: V2Colors.fg,
+                  ).copyWith(fontWeight: FontWeight.w500, height: 1.3),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

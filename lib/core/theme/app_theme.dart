@@ -28,7 +28,7 @@ String? get _platformFontFamily => Platform.isIOS ? null : 'Inter';
 /// 1. **Raw tokens**   — spacing, radius, base hex values
 /// 2. **Semantic**     — surface ladder, text, outlines, severity, evidence
 /// 3. **M3 mapping**   — `ColorScheme`, `TextTheme`, component themes
-/// 4. **Product**      — `PGCard`, `PGInteractionCard`, etc. (see `core/widgets`)
+/// 4. **Product**      — feature-level product surfaces (see `core/components`)
 ///
 /// `AppTheme` handles layers 1-3. Product widgets live in `core/widgets/pg_*`.
 abstract final class AppTheme {

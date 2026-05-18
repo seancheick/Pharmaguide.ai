@@ -1,8 +1,4 @@
-// Phase 11.7e — ManufacturerViolations section adapter (S15).
-//
-// V2 mirror of production's `ManufacturerViolationsSection`
-// (lib/features/product_detail/widgets/pipeline_sections/
-// manufacturer_violations_section.dart).
+// Manufacturer violations section adapter.
 //
 // Production reads `manufacturer_detail.violations.violations[]`
 // (pipeline ships nested for forward-compat). Each violation has:
@@ -39,41 +35,43 @@ Widget buildManufacturerViolationsSection({
   if (violations.isEmpty) return const SizedBox.shrink();
 
   // Sort critical → high → moderate (verbatim from production line 51).
-  final severityRank = <String, int>{
-    'critical': 0,
-    'high': 1,
-    'moderate': 2,
-  };
+  final severityRank = <String, int>{'critical': 0, 'high': 1, 'moderate': 2};
   final sorted = List<Map<String, dynamic>>.from(violations)
     ..sort((a, b) {
-      final ra = severityRank[(a['severity_level']?.toString() ?? '')
-              .toLowerCase()] ??
+      final ra =
+          severityRank[(a['severity_level']?.toString() ?? '').toLowerCase()] ??
           99;
-      final rb = severityRank[(b['severity_level']?.toString() ?? '')
-              .toLowerCase()] ??
+      final rb =
+          severityRank[(b['severity_level']?.toString() ?? '').toLowerCase()] ??
           99;
       return ra.compareTo(rb);
     });
 
-  final mapped = sorted.map((v) {
-    final severity =
-        (v['severity_level']?.toString() ?? 'moderate').toLowerCase();
-    final summary = v['brand_trust_summary']?.toString().trim() ?? '';
-    final reason = v['reason']?.toString().trim() ?? '';
-    // Prefer authored summary, fall back to FDA reason (production
-    // line 115).
-    final trustSummary = summary.isNotEmpty ? summary : reason;
-    final violationType =
-        v['violation_type']?.toString().trim() ?? 'FDA violation';
-    final date = v['date']?.toString().trim();
+  final mapped = sorted
+      .map((v) {
+        final severity = (v['severity_level']?.toString() ?? 'moderate')
+            .toLowerCase();
+        final summary = v['brand_trust_summary']?.toString().trim() ?? '';
+        final reason = v['reason']?.toString().trim() ?? '';
+        // Prefer authored summary, fall back to FDA reason (production
+        // line 115).
+        final trustSummary = summary.isNotEmpty ? summary : reason;
+        final violationType =
+            v['violation_type']?.toString().trim() ?? 'FDA violation';
+        final date = v['date']?.toString().trim();
+        final violationId = v['violation_id']?.toString().trim();
 
-    return PGViolation(
-      severity: _toneFromSeverity(severity),
-      type: violationType,
-      date: date != null && date.isNotEmpty ? date : null,
-      trustSummary: trustSummary,
-    );
-  }).toList(growable: false);
+        return PGViolation(
+          severity: _toneFromSeverity(severity),
+          type: violationType,
+          date: date != null && date.isNotEmpty ? date : null,
+          trustSummary: trustSummary,
+          referenceId: violationId != null && violationId.isNotEmpty
+              ? violationId
+              : null,
+        );
+      })
+      .toList(growable: false);
 
   return PGManufacturerViolationsSection(violations: mapped);
 }

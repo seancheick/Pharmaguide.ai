@@ -4,9 +4,6 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// v2 mirror of `TransparencyFooter`
-/// (lib/features/product_detail/widgets/transparency_footer.dart).
-///
 /// Always-visible footer at the bottom of the Product Detail screen.
 /// Lists data sources, catalog freshness, and the educational
 /// disclaimer. Calm muted tone — never competes with the page content.
@@ -56,15 +53,17 @@ class PGTransparencyFooter extends StatelessWidget {
         vertical: V2Spacing.space12,
       ),
       child: Column(
-        crossAxisAlignment:
-            center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        crossAxisAlignment: center
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Row 1 — sources line. Eyebrow first, then sources fill the
           // remaining width without truncation.
           Row(
-            mainAxisAlignment:
-                center ? MainAxisAlignment.center : MainAxisAlignment.start,
+            mainAxisAlignment: center
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
             mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
             children: [
               const Icon(

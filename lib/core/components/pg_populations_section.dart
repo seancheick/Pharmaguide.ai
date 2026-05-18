@@ -27,8 +27,7 @@ class PGPopulationCallout {
   });
 }
 
-/// v2 mirror of `PopulationsSection`
-/// (lib/features/product_detail/widgets/populations_section.dart).
+/// v2 populations section.
 ///
 /// Lists affected population groups (typically 1-3) as tappable rows
 /// under a "Populations to watch" eyebrow. Each row: caution-tinted icon

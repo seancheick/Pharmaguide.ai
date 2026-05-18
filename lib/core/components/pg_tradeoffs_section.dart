@@ -21,9 +21,6 @@ class PGTradeoff {
   const PGTradeoff({required this.headline, this.caption, this.points});
 }
 
-/// v2 mirror of `TradeoffsSection`
-/// (lib/features/product_detail/widgets/tradeoffs_section.dart).
-///
 /// Two-column "What's good / What to consider" layout — same visual
 /// intent as production. Each column has its own eyebrow + a bulleted
 /// list. Columns hide when empty so a product with only pros shows
@@ -31,6 +28,7 @@ class PGTradeoff {
 class PGTradeoffsSection extends StatelessWidget {
   final List<PGTradeoff> pros;
   final List<PGTradeoff> considerations;
+  final Widget? considerationLeading;
 
   /// Header title. Production uses "Tradeoffs". Defaulted here.
   final String title;
@@ -39,12 +37,15 @@ class PGTradeoffsSection extends StatelessWidget {
     super.key,
     this.pros = const [],
     this.considerations = const [],
+    this.considerationLeading,
     this.title = 'Tradeoffs',
   });
 
   @override
   Widget build(BuildContext context) {
-    if (pros.isEmpty && considerations.isEmpty) return const SizedBox.shrink();
+    final hasConsiderations =
+        considerations.isNotEmpty || considerationLeading != null;
+    if (pros.isEmpty && !hasConsiderations) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
@@ -68,17 +69,20 @@ class PGTradeoffsSection extends StatelessWidget {
                     eyebrowColor: V2Colors.safe,
                     items: pros,
                     dotColor: V2Colors.safe,
+                    overflowSingularNoun: 'bonus',
                   ),
                 ),
-              if (pros.isNotEmpty && considerations.isNotEmpty)
+              if (pros.isNotEmpty && hasConsiderations)
                 const SizedBox(width: V2Spacing.space16),
-              if (considerations.isNotEmpty)
+              if (hasConsiderations)
                 Expanded(
                   child: _TradeoffColumn(
                     eyebrow: 'What to consider',
                     eyebrowColor: V2Colors.caution,
                     items: considerations,
                     dotColor: V2Colors.caution,
+                    overflowSingularNoun: 'concern',
+                    leading: considerationLeading,
                   ),
                 ),
             ],
@@ -94,29 +98,124 @@ class _TradeoffColumn extends StatelessWidget {
   final Color eyebrowColor;
   final List<PGTradeoff> items;
   final Color dotColor;
+  final String overflowSingularNoun;
+  final Widget? leading;
 
   const _TradeoffColumn({
     required this.eyebrow,
     required this.eyebrowColor,
     required this.items,
     required this.dotColor,
+    required this.overflowSingularNoun,
+    this.leading,
   });
 
   @override
   Widget build(BuildContext context) {
+    return _ExpandableTradeoffColumn(
+      eyebrow: eyebrow,
+      eyebrowColor: eyebrowColor,
+      items: items,
+      dotColor: dotColor,
+      overflowSingularNoun: overflowSingularNoun,
+      leading: leading,
+    );
+  }
+}
+
+class _ExpandableTradeoffColumn extends StatefulWidget {
+  final String eyebrow;
+  final Color eyebrowColor;
+  final List<PGTradeoff> items;
+  final Color dotColor;
+  final String overflowSingularNoun;
+  final Widget? leading;
+
+  const _ExpandableTradeoffColumn({
+    required this.eyebrow,
+    required this.eyebrowColor,
+    required this.items,
+    required this.dotColor,
+    required this.overflowSingularNoun,
+    this.leading,
+  });
+
+  @override
+  State<_ExpandableTradeoffColumn> createState() =>
+      _ExpandableTradeoffColumnState();
+}
+
+class _ExpandableTradeoffColumnState extends State<_ExpandableTradeoffColumn> {
+  static const _visibleCap = 4;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final overflow = widget.items.length - _visibleCap;
+    final visible = _expanded
+        ? widget.items
+        : widget.items.take(_visibleCap).toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PGEyebrow(eyebrow, color: eyebrowColor),
+        PGEyebrow(widget.eyebrow, color: widget.eyebrowColor),
         const SizedBox(height: V2Spacing.space12),
-        for (final item in items)
+        if (widget.leading != null) ...[
+          widget.leading!,
+          if (visible.isNotEmpty) const SizedBox(height: V2Spacing.space8),
+        ],
+        for (final item in visible)
           Padding(
             padding: const EdgeInsets.only(bottom: V2Spacing.space8),
-            child: _TradeoffRow(item: item, dotColor: dotColor),
+            child: _TradeoffRow(item: item, dotColor: widget.dotColor),
           ),
+        if (overflow > 0) ...[
+          const SizedBox(height: V2Spacing.space4),
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _expanded
+                        ? 'Show less'
+                        : overflow == 1
+                        ? 'Show 1 more ${widget.overflowSingularNoun}'
+                        : 'Show $overflow more '
+                              '${_pluralize(widget.overflowSingularNoun)}',
+                    style: V2Typography.label(color: V2Colors.fgMuted),
+                  ),
+                  const SizedBox(width: V2Spacing.space4),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 16,
+                    color: V2Colors.fgMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
+}
+
+String _pluralize(String singular) {
+  final lower = singular.toLowerCase();
+  if (lower.endsWith('s') ||
+      lower.endsWith('x') ||
+      lower.endsWith('z') ||
+      lower.endsWith('sh') ||
+      lower.endsWith('ch')) {
+    return '${singular}es';
+  }
+  return '${singular}s';
 }
 
 class _TradeoffRow extends StatelessWidget {

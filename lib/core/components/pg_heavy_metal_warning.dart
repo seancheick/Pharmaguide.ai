@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// v2 mirror of `HeavyMetalWarningCard`
-/// (lib/features/product_detail/widgets/heavy_metal_warning_card.dart).
+/// v2 heavy-metal warning card.
 ///
 /// Conditional callout — only renders when the pipeline flags
 /// `heavy_metal_risk == true`. Calm-clinical tone: amber warning, not
@@ -35,7 +33,7 @@ class PGHeavyMetalWarning extends StatelessWidget {
   Widget build(BuildContext context) {
     if (metals.isEmpty) return const SizedBox.shrink();
 
-    const tone = AppTheme.severityCaution;
+    const tone = V2Colors.caution;
     final card = Container(
       decoration: BoxDecoration(
         color: V2Colors.surface,

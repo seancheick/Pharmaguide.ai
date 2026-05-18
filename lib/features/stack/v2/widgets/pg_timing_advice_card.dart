@@ -1,9 +1,7 @@
 // PGTimingAdviceCard — Phase 11.7L.C.
 //
-// V2 mirror of [TimingAdviceCard] in
-// lib/features/stack/widgets/timing_advice_card.dart. Same data,
-// same rule-type vocabulary, same maxVisible cap. Only the surface
-// changes:
+// V2 stack timing advice surface. Same data, same rule-type vocabulary,
+// same maxVisible cap:
 //
 //   * Cream `V2Colors.surface` card with a 4px accent-tint left
 //     stripe — keeps the section visually "positive guidance"
@@ -15,7 +13,7 @@
 //   * "+N more timing tips" footer in mono-caps for parity with the
 //     other v2 sections.
 //
-// Behavior is identical to the legacy widget — no data shape change.
+// Behavior preserves the production data contract — no data shape change.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
