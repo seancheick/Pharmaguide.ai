@@ -280,6 +280,48 @@ void main() {
     });
   });
 
+  group('Tier 2 research pair lookups', () {
+    test(
+      'lookupResearchPairsByCanonicalId finds supplement-side evidence',
+      () async {
+        final rows = await db.lookupResearchPairsByCanonicalId('vitamin_k');
+
+        expect(rows, isNotEmpty);
+        expect(
+          rows.any((r) => r.pairId == 'C0042878-C0043031'),
+          isTrue,
+          reason: 'vitamin_k should find the supp.ai Vitamin K + Warfarin row',
+        );
+        expect(
+          rows.first.paperCount,
+          greaterThanOrEqualTo(rows.last.paperCount),
+        );
+      },
+    );
+
+    test(
+      'lookupResearchPairsByRxcui finds bridged drug-side evidence',
+      () async {
+        final rows = await db.lookupResearchPairsByRxcui('11289');
+
+        expect(rows, isNotEmpty);
+        expect(
+          rows.any(
+            (r) =>
+                r.canonicalIdA == 'vitamin_k' || r.canonicalIdB == 'vitamin_k',
+          ),
+          isTrue,
+          reason: 'warfarin RxCUI should bridge back to supplement evidence',
+        );
+      },
+    );
+
+    test('Tier 2 lookups return empty for unknown identities', () async {
+      expect(await db.lookupResearchPairsByCanonicalId('not_real'), isEmpty);
+      expect(await db.lookupResearchPairsByRxcui('00000000'), isEmpty);
+    });
+  });
+
   group('rxcuisForDrugClass', () {
     test('decodes the JSON membership list for ACE inhibitors', () async {
       final members = await db.rxcuisForDrugClass('class:ace_inhibitors');

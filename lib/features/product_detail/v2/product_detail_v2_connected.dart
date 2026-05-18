@@ -39,6 +39,7 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
@@ -67,6 +68,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_sectio
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/research_evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/synergy_section.dart';
@@ -221,6 +223,9 @@ class _ProductDetailV2ConnectedState
     // Blob-derived flags + ingredient doses (used by adapters in 11.7c+)
     // -------------------------------------------------------------
     final ingredientDoses = extractIngredientDoses(detailBlob);
+    final canonicalIds = _product == null
+        ? const <String>[]
+        : canonicalIdsForProduct(_product!, detailBlob: detailBlob);
     final blendDetail =
         detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
@@ -393,6 +398,14 @@ class _ProductDetailV2ConnectedState
                         freeFromConflicts: freeFromConflicts,
                       ),
                     ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- 3.5 Tier 2 research evidence (Sprint 28) ----
+                  // Neutral literature co-occurrence surface. These rows
+                  // never become warnings or score penalties.
+                  if (showDeepDive && canonicalIds.isNotEmpty) ...[
+                    ResearchEvidenceSection(canonicalIds: canonicalIds),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 

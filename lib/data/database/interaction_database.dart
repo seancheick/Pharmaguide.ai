@@ -233,6 +233,79 @@ class InteractionDatabase extends _$InteractionDatabase {
         .get();
   }
 
+  /// Tier-2 supp.ai research rows involving [canonicalId].
+  ///
+  /// These rows are deliberately separate from [lookupByCanonicalId]:
+  /// they are literature co-occurrence evidence, not curated safety
+  /// warnings. Callers must render them in a neutral evidence surface and
+  /// must never convert them to [InteractionRow] or score penalties.
+  Future<List<ResearchPairRow>> lookupResearchPairsByCanonicalId(
+    String canonicalId, {
+    int limit = 20,
+  }) {
+    final normalized = canonicalId.trim().toLowerCase();
+    if (normalized.isEmpty || limit <= 0) {
+      return Future.value(const <ResearchPairRow>[]);
+    }
+
+    return customSelect(
+      '''
+      SELECT *
+      FROM research_pairs
+      WHERE lower(canonical_id_a) = ?
+         OR lower(canonical_id_b) = ?
+      ORDER BY paper_count DESC,
+               clinical_study_count DESC,
+               human_study_count DESC,
+               latest_paper_year DESC NULLS LAST,
+               pair_id ASC
+      LIMIT ?
+      ''',
+      variables: [
+        Variable.withString(normalized),
+        Variable.withString(normalized),
+        Variable.withInt(limit),
+      ],
+      readsFrom: {researchPairs},
+    ).map((row) => researchPairs.map(row.data)).get();
+  }
+
+  /// Tier-2 supp.ai research rows involving [rxcui].
+  ///
+  /// RxCUI matching is exact and direction-agnostic. The pipeline only
+  /// populates these columns when a supp.ai drug CUI has an unambiguous
+  /// local RxNorm bridge.
+  Future<List<ResearchPairRow>> lookupResearchPairsByRxcui(
+    String rxcui, {
+    int limit = 20,
+  }) {
+    final normalized = rxcui.trim();
+    if (normalized.isEmpty || limit <= 0) {
+      return Future.value(const <ResearchPairRow>[]);
+    }
+
+    return customSelect(
+      '''
+      SELECT *
+      FROM research_pairs
+      WHERE rxcui_a = ?
+         OR rxcui_b = ?
+      ORDER BY paper_count DESC,
+               clinical_study_count DESC,
+               human_study_count DESC,
+               latest_paper_year DESC NULLS LAST,
+               pair_id ASC
+      LIMIT ?
+      ''',
+      variables: [
+        Variable.withString(normalized),
+        Variable.withString(normalized),
+        Variable.withInt(limit),
+      ],
+      readsFrom: {researchPairs},
+    ).map((row) => researchPairs.map(row.data)).get();
+  }
+
   /// Resolve a drug class id to its member RXCUI list.
   ///
   /// Used by M4 medication entry — when a user types a brand or generic
