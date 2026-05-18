@@ -1,9 +1,4 @@
 /// v2 design system — barrel export.
-///
-/// **Status:** experimental. While active, v2 only ships when
-/// `PharmaGuideApp(useV2Theme: true)` is set. Legacy `AppTheme` remains
-/// the production theme until Phase 8 of the v2-mobile-polish plan
-/// (`.claude/plans/your-original-prompt-communicates-streamed-liskov.md`).
 library;
 
 export 'v2_colors.dart';

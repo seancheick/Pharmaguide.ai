@@ -9,7 +9,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -777,21 +776,12 @@ class PharmaGuideApp extends StatelessWidget {
   final VoidCallback? onRetryCatalogLoad;
   final bool hasSeenOnboarding;
 
-  /// V2 design system toggle.
-  ///
-  /// Defaults to `true` so production routes, modal sheets, snackbars,
-  /// forms, and Material controls inherit the same v2 token system as
-  /// the migrated feature screens. Tests or one-off debugging can still
-  /// pass `false` to compare against the old Material theme.
-  final bool useV2Theme;
-
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
     this.catalogUnavailableReason,
     this.onRetryCatalogLoad,
     this.hasSeenOnboarding = true,
-    this.useV2Theme = true,
   });
 
   @override
@@ -800,8 +790,8 @@ class PharmaGuideApp extends StatelessWidget {
       title: 'PharmaGuide',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: useV2Theme ? V2Theme.light : AppTheme.light,
-      darkTheme: useV2Theme ? V2Theme.dark : AppTheme.dark,
+      theme: V2Theme.light,
+      darkTheme: V2Theme.dark,
       themeMode: ThemeMode.system,
       routerConfig: _buildRouter(
         catalogAvailable: catalogAvailable,

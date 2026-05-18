@@ -5,11 +5,6 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// v2 theme — Material 3 ThemeData built from v2 tokens.
-///
-/// Only enabled when `PharmaGuideApp(useV2Theme: true)`. While experimental,
-/// only screens explicitly migrated to v2 widgets consume this — legacy
-/// feature screens continue rendering against `AppTheme` even with v2 on
-/// (Material's `Theme.of(context)` still works because v2 is a superset).
 abstract final class V2Theme {
   static ThemeData get light => _build(brightness: Brightness.light);
   static ThemeData get dark => _build(brightness: Brightness.dark);
@@ -21,9 +16,7 @@ abstract final class V2Theme {
     final fg = isDark ? V2Colors.fgDark : V2Colors.fg;
     final fgMuted = isDark ? V2Colors.fgMutedDark : V2Colors.fgMuted;
     final accent = isDark ? V2Colors.accentDark : V2Colors.accent;
-    final accentTint = isDark
-        ? V2Colors.accentTintDark
-        : V2Colors.accentTint;
+    final accentTint = isDark ? V2Colors.accentTintDark : V2Colors.accentTint;
     final outline = isDark ? V2Colors.outlineDark : V2Colors.outline;
 
     final colorScheme = ColorScheme(
@@ -43,11 +36,11 @@ abstract final class V2Theme {
       surface: surface,
       onSurface: fg,
       surfaceContainerLowest: bg,
-      surfaceContainerLow:
-          isDark ? V2Colors.surfaceContainerLowDark : V2Colors.surface,
+      surfaceContainerLow: isDark
+          ? V2Colors.surfaceContainerLowDark
+          : V2Colors.surface,
       surfaceContainer: surface,
-      surfaceContainerHigh:
-          isDark ? V2Colors.surfaceContainerHighDark : bg,
+      surfaceContainerHigh: isDark ? V2Colors.surfaceContainerHighDark : bg,
       surfaceContainerHighest: isDark
           ? V2Colors.surfaceContainerHighestDark
           : V2Colors.surfaceContainerHighest,
