@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
+import 'package:pharmaguide/services/analytics_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('guest sign-in tile opens auth invitation', (tester) async {
@@ -58,6 +60,42 @@ void main() {
 
     expect(find.text('Health profile: on device'), findsOneWidget);
     expect(find.text('Account email: Supabase auth'), findsOneWidget);
+  });
+
+  testWidgets('analytics toggle persists local opt-in', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'settings.analyticsCollectionEnabled': false,
+    });
+    final analytics = AnalyticsService()..resetForTest();
+    await analytics.initialize();
+
+    analytics.trackEvent('before_opt_in');
+    expect(analytics.bufferedEvents, isEmpty);
+
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    final toggle = find.byKey(const Key('settings-analytics-toggle'));
+    await tester.scrollUntilVisible(
+      toggle,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
+    await tester.tap(toggle);
+    await tester.pump();
+    await tester.pump();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('settings.analyticsCollectionEnabled'), isTrue);
+    expect(analytics.collectionEnabled, isTrue);
+
+    analytics.trackEvent('after_opt_in');
+    expect(
+      analytics.bufferedEvents.map((e) => e.name),
+      contains('after_opt_in'),
+    );
+
+    analytics.resetForTest();
   });
 
   testWidgets('unsupported legal/store rows are static, not dead taps', (
