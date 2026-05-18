@@ -7,7 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -432,9 +435,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     if (!_bootstrapped) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
+        theme: V2Theme.light,
+        darkTheme: V2Theme.dark,
+        home: const _BootstrapLoadingScreen(),
       );
     }
 
@@ -460,6 +463,49 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           catalogUnavailableReason: _catalogUnavailableReason,
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
+        ),
+      ),
+    );
+  }
+}
+
+class _BootstrapLoadingScreen extends StatelessWidget {
+  const _BootstrapLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: V2Colors.bg,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: V2Colors.accent,
+                  ),
+                ),
+                const SizedBox(height: V2Spacing.space16),
+                Text(
+                  'Preparing PharmaGuide',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  'Opening the verified on-device catalog.',
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

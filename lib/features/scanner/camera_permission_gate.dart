@@ -7,6 +7,9 @@
 // permission is granted. If denied, offers "Open Settings" + manual entry.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -73,9 +76,7 @@ class _CameraPermissionGateState extends State<CameraPermissionGate> {
   @override
   Widget build(BuildContext context) {
     return switch (_state) {
-      _PermissionState.checking => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      _PermissionState.checking => const _CameraPermissionCheckingScreen(),
       // Phase 11.7j.1 — prompt + denied states use the v2 component
       // (same callback shape, cream surface + halo + serif headline).
       // Legacy `_PermissionPromptScreen` / `_PermissionDeniedScreen`
@@ -88,5 +89,48 @@ class _CameraPermissionGateState extends State<CameraPermissionGate> {
       ),
       _PermissionState.granted => widget.childBuilder(),
     };
+  }
+}
+
+class _CameraPermissionCheckingScreen extends StatelessWidget {
+  const _CameraPermissionCheckingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: V2Colors.bg,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: V2Colors.accent,
+                  ),
+                ),
+                const SizedBox(height: V2Spacing.space16),
+                Text(
+                  'Checking camera access',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  'Preparing the scanner.',
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

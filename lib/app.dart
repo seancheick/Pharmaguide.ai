@@ -766,7 +766,52 @@ class _AuthCallbackScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      backgroundColor: V2Colors.bg,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space24),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: V2Colors.surface,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: V2Colors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space16),
+                    Text(
+                      'Finishing sign in',
+                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      'We are completing the secure handoff.',
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
