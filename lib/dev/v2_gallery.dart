@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/components/pg_certification_section.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
@@ -333,7 +332,7 @@ class V2Gallery extends StatelessWidget {
                       PGPillarBadge(
                         icon: Icons.verified_outlined,
                         label: 'Third-party tested',
-                        color: AppTheme.severitySafe,
+                        color: V2Colors.safe,
                       ),
                     ],
                     onTap: () {},
@@ -357,7 +356,7 @@ class V2Gallery extends StatelessWidget {
                       PGPillarBadge(
                         icon: Icons.factory_outlined,
                         label: 'Trusted manufacturer',
-                        color: AppTheme.severitySafe,
+                        color: V2Colors.safe,
                       ),
                     ],
                     onTap: () {},

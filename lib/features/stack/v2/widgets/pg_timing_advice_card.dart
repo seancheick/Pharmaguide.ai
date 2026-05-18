@@ -9,7 +9,7 @@
 //   * Mono-caps "TIMING · {N}" eyebrow + Newsreader-adjacent title
 //     "Timing optimization" in v2 typography.
 //   * Per-rule rows use accent / monitor / caution tints from
-//     `V2Colors` instead of the AppTheme severity colors.
+//     `V2Colors` instead of the retired v1 severity colors.
 //   * "+N more timing tips" footer in mono-caps for parity with the
 //     other v2 sections.
 //

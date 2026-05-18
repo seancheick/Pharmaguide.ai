@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
 /// v2 color tokens — warm palette mirroring the PharmaGuide website.
-///
-/// **Do NOT use outside `lib/core/theme/v2/` and `lib/core/components/`**
-/// while v2 is experimental. Feature screens still consume `AppTheme`.
 abstract final class V2Colors {
   // Light surfaces — warm, never cold.
   static const bg = Color(0xFFFAF9F6);

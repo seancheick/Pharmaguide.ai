@@ -65,8 +65,7 @@ extension ScoreTierMeta on ScoreTier {
   /// bars. Hand-picked to read distinctly across light + dark surfaces:
   ///   Exceptional → deep green   #059669
   ///   Excellent   → green        #22A06B
-  ///   Good        → teal         #0EA5A0  (NEW — distinct from the
-  ///                                         lime-green `AppTheme.scoreGood`)
+  ///   Good        → teal         #0EA5A0
   ///   Fair        → yellow       #CA8A04
   ///   Low Quality → orange       #EA580C
   ///   Poor        → red          #DC2626

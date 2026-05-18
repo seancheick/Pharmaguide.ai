@@ -58,7 +58,7 @@ class VerdictEntry {
   final String tone;
 
   /// Color hint — one of: green, blue, gray, yellow, orange, red.
-  /// Flutter resolves to a theme color (see AppTheme.scoreXxx tokens).
+  /// Flutter resolves this semantic hint through the active v2 surface.
   final String uiColor;
 
   /// Icon hint — one of: check, info, warning, alert, block.
