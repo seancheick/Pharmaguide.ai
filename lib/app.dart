@@ -86,58 +86,6 @@ String? normalizePharmaGuideDeepLink(Uri uri) {
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const _PlaceholderScreen({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: V2Colors.bg,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(V2Spacing.space24),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: V2Colors.surface,
-                borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
-                border: Border.all(color: V2Colors.outline),
-                boxShadow: V2Shadows.sm,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(V2Spacing.space24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.auto_awesome_rounded,
-                      color: V2Colors.accent,
-                      size: 32,
-                    ),
-                    const SizedBox(height: V2Spacing.space16),
-                    Text(
-                      title,
-                      style: V2Typography.titleSm(color: V2Colors.fg),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: V2Spacing.space8),
-                    Text(
-                      'This surface is not available in this build yet.',
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class ScanScreen extends ConsumerWidget {
   const ScanScreen({super.key});
 
@@ -212,9 +160,82 @@ class ScanScreen extends ConsumerWidget {
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
+
   @override
-  Widget build(BuildContext context) =>
-      const _PlaceholderScreen(title: 'AI Pharmacist');
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: V2Colors.bg,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space24,
+            V2Spacing.space24,
+            kPGNavBarHeight + V2Spacing.space32,
+          ),
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: V2Colors.surface,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: V2Colors.accentTint,
+                        borderRadius: BorderRadius.circular(
+                          V2Spacing.radiusCard,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: V2Colors.accent,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space16),
+                    Text(
+                      'Ask PharmaGuide',
+                      style: V2Typography.titleSm(color: V2Colors.fg),
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      'Clinical-grade chat is still being prepared. For now, use the verified catalog flows below for product and interaction decisions.',
+                      style: V2Typography.body(color: V2Colors.fgMuted),
+                    ),
+                    const SizedBox(height: V2Spacing.space24),
+                    PGPillButton(
+                      label: 'Search products',
+                      icon: Icons.search_rounded,
+                      expand: true,
+                      onPressed: () => context.push(Routes.search),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                    PGPillButton(
+                      label: 'Quick Check',
+                      icon: Icons.health_and_safety_outlined,
+                      variant: PGPillVariant.secondary,
+                      expand: true,
+                      onPressed: () => context.push(Routes.quickCheck),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class CatalogUnavailableScreen extends StatelessWidget {

@@ -127,6 +127,30 @@ void main() {
     await userDb.close();
   });
 
+  testWidgets('Tapping Chat tab shows the v2 holding surface', (tester) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+
+    await tester.pumpWidget(buildApp(coreDb, userDb));
+    await pumpPastSplash(tester);
+
+    await tester.tap(find.text('Chat'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Ask PharmaGuide'), findsOneWidget);
+    expect(find.text('Search products'), findsOneWidget);
+    expect(find.text('Quick Check'), findsOneWidget);
+    expect(
+      find.text('This surface is not available in this build yet.'),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await coreDb.close();
+    await userDb.close();
+  });
+
   testWidgets('Tapping Profile tab navigates to profile screen', (
     tester,
   ) async {
