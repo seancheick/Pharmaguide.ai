@@ -114,11 +114,45 @@ void main() {
     await tester.pumpWidget(buildApp(coreDb, userDb));
     await pumpPastSplash(tester);
 
-    await tester.tap(find.text('Stack'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Stack'),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('My stack'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await coreDb.close();
+    await userDb.close();
+  });
+
+  testWidgets('empty stack keeps Nutrients tab empty', (tester) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+
+    await tester.pumpWidget(buildApp(coreDb, userDb));
+    await pumpPastSplash(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Stack'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.text('Nutrients'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('No nutrient totals yet'), findsOneWidget);
+    expect(find.byKey(const Key('nutrient-accumulation-card')), findsNothing);
+    expect(find.text('Stack Nutrient Totals'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
