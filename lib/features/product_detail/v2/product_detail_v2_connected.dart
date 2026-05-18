@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
@@ -179,7 +180,7 @@ class _ProductDetailV2ConnectedState
           surfaceTintColor: Colors.transparent,
           elevation: 0,
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const _ProductDetailLoadingState(),
       );
     }
 
@@ -720,6 +721,57 @@ class _ProductDetailV2ConnectedState
             },
           ),
       ],
+    );
+  }
+}
+
+class _ProductDetailLoadingState extends StatelessWidget {
+  const _ProductDetailLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(V2Spacing.space24),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: V2Colors.surface,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+              border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.sm,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(V2Spacing.space24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: V2Colors.accent,
+                    ),
+                  ),
+                  const SizedBox(height: V2Spacing.space16),
+                  Text(
+                    'Opening product',
+                    style: V2Typography.titleSm(color: V2Colors.fg),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: V2Spacing.space8),
+                  Text(
+                    'Loading the verified catalog record on this device.',
+                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
