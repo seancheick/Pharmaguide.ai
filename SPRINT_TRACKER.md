@@ -1157,7 +1157,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] SyncService with atomic DB swap + rollback (completed in Sprint 0)
 - [x] DetailBlobService for on-demand fetch (completed in Sprint 0)
 - [x] Offline mode indicator (header status bar: online/offline/syncing)
-- [x] Freemium gating service (SharedPreferences for guest: 10 lifetime scans, Supabase user_usage for signed-in: 20/day)
+- [x] Freemium gating service (SharedPreferences for guest: 3 scans/day; signed-in scans unlimited during early access)
 - [x] Guest mode support (app usable without sign-in, limited features)
 - [x] Create test fixtures directory with representative JSON blobs
 - [x] Implement scan_limit_service.dart stub
@@ -1525,7 +1525,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] 5 settings screen tests (title, sections, completeness, guest user, privacy button)
 - [x] Dark mode: full light/dark themes + ThemeMode.system — AppTheme.light + AppTheme.dark in app_theme.dart, wired in app.dart
 - [x] OTA DB update logic: sync_service.dart with getRemoteDbVersion() + downloadCoreDb() from Supabase Storage — verified 2026-04-12
-- [x] Guest usage limits: scan_limit_service.dart with 10-scan lifetime cap via SharedPreferences — verified 2026-04-12
+- [x] Guest usage limits: scan_limit_service.dart with 3 scans/day via SharedPreferences — verified 2026-05-18
 - [x] Auth state management: auth_state_service.dart tracks guest vs signed-in via Supabase session — verified 2026-04-12
 - [x] Medical disclaimer: home screen footer + PGCitationStrip — verified 2026-04-12
 - [x] Analytics scaffold: analytics_service.dart singleton with trackEvent/trackScreen/setUserProperty — no-ops pending SDK — verified 2026-04-12
@@ -1533,9 +1533,9 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [-] Implement Google Sign-In — **→ V1.0-release** (`PGAuthService.signInWithGoogle()` + v2 auth callback wired; needs live provider/device verification)
 - [-] Implement Apple Sign-In — **→ V1.0-release** (`PGAuthService.signInWithApple()` + v2 auth callback wired; needs live provider/device verification)
 - [-] Implement Email auth — **→ V1.0-release** (magic-link sheet + app callback scheme wired; password auth intentionally not used for v1.0; needs live Supabase round trip)
-- [ ] Implement scan/AI usage limits with increment_usage RPC — **→ V1.0-release** (guest-side done, server-side stub)
+- [🚫] ~~Implement scan usage limits with `increment_usage` RPC~~ — rescoped 2026-05-18: guest scan cap is local-only; signed-in scans are unlimited during early access. AI quota remains future server work.
 - [ ] Build "upgrade to signed-in" prompt when guest hits limits — **→ V1.0-release**
-- [ ] Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset) — **→ V1.0-release**
+- [🚫] ~~Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)~~ — rescoped 2026-05-18: signed-in users get unlimited scans for now; AI quota display remains tied to future Gemini enforcement.
 - [ ] Build "update available" indicator on Profile tab — **→ V1.1**
 - [ ] Build notification preferences (flutter_local_notifications) — **→ V1.1**
 - [ ] Implement min_app_version gate (force update if needed) — **→ V1.1**
@@ -1560,8 +1560,8 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - Auth: guest data (scan history, stack, profile) preserved after sign-in
 - OTA: download + swap succeeds, user_data.db untouched (verify with query after swap)
 - OTA: corrupted download detected by checksum, rollback to previous DB
-- Limits: guest blocked after 10 lifetime scans with upgrade prompt
-- Limits: signed-in user sees count reset at UTC midnight
+- Limits: guest blocked after 3 scans/day with upgrade prompt
+- Limits: signed-in user remains unlimited during early access
 - `flutter analyze` reports 0 issues
 - Profile tab has all 6 sections: Account, Health Profile, Privacy, Analysis History, Settings, About
 - Privacy transparency dashboard shows device vs cloud data locations
@@ -1579,14 +1579,14 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 - All prior sprints complete
 - Supabase auth providers configured (Google, Apple)
-- increment_usage RPC function deployed to Supabase
+- AI quota / premium enforcement RPC deployed to Supabase when Gemini features ship
 - OTA DB artifact hosted on Supabase Storage
 
 ### Known Risks / Blockers
 
 - Apple Sign-In requires paid Apple Developer account and entitlements
 - OTA download of ~90MB DB needs background_downloader, not flutter_downloader (deprecated)
-- Network-failure fallback for increment_usage must not block scans
+- Network failures must not block local guest scans
 
 ---
 
@@ -2287,7 +2287,7 @@ See Sprint 8 above. No auth, no deep links. Focus on QA, performance, accessibil
 | Google Sign-In | Roadmap V1.0 / Sprint 7 | 2-3 days | After beta feedback. Requires Google Cloud OAuth config. |
 | Apple Sign-In | Roadmap V1.0 / Sprint 7 | 2-3 days | Requires paid Apple Developer account + entitlements. |
 | Guest → signed-in migration (preserve local data) | Roadmap V1.0 / Sprint 7 | 1-2 days | Auth state service exists; need to wire stack/profile migration. |
-| Server-side usage limits (increment_usage RPC) | Roadmap V1.0 / Sprint 7 | 1 day | Guest-side done (scan_limit_service.dart); server stub in place. |
+| Server-side AI/premium usage limits | Roadmap V1.1+ | 1 day | Scan quotas rescoped: guests are local 3/day; signed-in scans are unlimited during early access. |
 | Analytics SDK integration (Firebase or Mixpanel) | Roadmap V1.0 / Sprint 8 | 1 day | Scaffold exists (analytics_service.dart); replace no-ops with real SDK. |
 | **Stack Health Score (aggregate)** | Strategic / User request | 1-2 days | _StackSummaryCard currently shows counts only. Add combined quality score from all stack products. |
 | **"Safe to Take Together?" Quick Check** | Strategic / User request | 2-3 days | Standalone screen: scan/search 2 products → instant pair interaction check. Uses existing lookupPair(). No stack required. |
@@ -2484,7 +2484,7 @@ These features emerged from competitive analysis of Fullscript ($1B ARR) and pos
 
 - [x] Build branded placeholder card widget — ✅ DONE. `BrandedPlaceholder` in `lib/core/widgets/branded_placeholder.dart`, used by `ProductImage`, tested.
 - [ ] User-contributed photos: "Help improve PharmaGuide — snap a photo of this bottle?" → store in Supabase → use as display image (post-launch data moat)
-- [ ] Wire `scan_limit_service` to live `increment_usage` RPC
+- [🚫] ~~Wire `scan_limit_service` to live `increment_usage` RPC~~ — rescoped 2026-05-18 with signed-in unlimited scans for early access
 - [x] Update stale reference data files (`banned_recalled_ingredients.json`, `synergy_cluster.json`) from v1.0 to v5.0 — **done in Sprint 27.5 (schema-alignment audit follow-up)**
 - [-] TestFlight / Play internal builds — **code-side ready** as of 2026-04-29 (V1.0 hardening + V1.1 + V1.2 all `[x]` per Parallel Initiatives section above; 757/757 tests green; analyze clean). Build cut + upload still ⏳ Sean.
 
@@ -2729,13 +2729,13 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [-] Implement Apple Sign-In — service + v2 auth callback wired; needs live provider/device verification.
 - [-] Implement Email auth — magic-link sheet + `pharmaguide://auth/callback` wired; password auth intentionally not used for v1.0; needs live Supabase round trip.
 - [-] Account & Security section (email, password, login/logout) — email + sign-in route + signed-in sign-out action wired 2026-05-18; password/account-management still open.
-- [-] Implement scan/AI usage limits with `increment_usage` RPC (guest-side done, server-side stub) — guest scans changed to 3/day and scanner/manual barcode paths enforce the cap; signed-in scan policy is unlimited for current release. AI quota still open.
+- [-] Implement scan/AI usage limits — guest scans are local 3/day and scanner/manual barcode paths enforce the cap; signed-in scan policy is unlimited for current release. AI quota still open.
 - [-] Enforce access tiers — Guest: 3 scans/day, no saved stack, no AI, no cloud sync. Signed-in Free: unlimited scans during early access + saved stack/profile/history. Premium: deferred. Stack saves now require sign-in for supplements + medications; AI/Premium gates still open.
-- [ ] Wire `scan_limit_service` to live `increment_usage` RPC
+- [🚫] ~~Wire `scan_limit_service` to live `increment_usage` RPC~~ — rescoped 2026-05-18 with signed-in unlimited scans for early access.
 - [-] Build "upgrade to signed-in" prompt when guest hits limits — scanner cap sheet routes to auth; stack add/medication add route to auth; AI prompt still open.
 - [🚫] ~~Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)~~ — rescoped 2026-05-18: signed-in users get unlimited scans for now; AI quota display remains tied to future Gemini enforcement.
 - [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — auth skip, provider callbacks, magic-link placeholder guard, settings sign-out covered; real provider success/failure + guest migration still open.
-- [-] Write usage limit tests — guest 3/day reset + signed-in-unlimited service behavior covered; scanner smoke + stack domain guard covered; AI/RPC tests still open.
+- [-] Write usage limit tests — guest 3/day reset + signed-in-unlimited service behavior covered; scanner smoke + stack domain guard covered; AI quota tests still open.
 - [ ] Analytics events wired — real SDK (Firebase/Mixpanel) replacing stub `analytics_service.dart`
 - [ ] Gemini AI quota verification (5/day server-side enforcement)
 
