@@ -149,6 +149,10 @@ class PGStackActionButtons extends ConsumerWidget {
     final actions = ref.read(stackActionsProvider);
     try {
       await actions.addProduct(product);
+    } on StackRequiresSignInException {
+      if (!context.mounted) return;
+      await context.push(Routes.authInvitation);
+      return;
     } on Exception {
       if (!context.mounted) return;
       ScaffoldMessenger.of(

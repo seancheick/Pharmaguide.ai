@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 
 /// Minimal product fixture for guard assertions. We never reach the
 /// Drift code path because the guard throws first, so the other
@@ -70,6 +71,7 @@ void main() {
     });
 
     test('non-blocked verdicts pass the guard (reach Drift layer)', () async {
+      container.read(authStateProvider.notifier).onSignedIn();
       final actions = container.read(stackActionsProvider);
       final product = _product(dsldId: 'DS_OK', verdict: 'RECOMMENDED');
 
@@ -85,6 +87,23 @@ void main() {
         // Expected — downstream database failure is fine for this
         // assertion; we only care that the verdict guard did not fire.
       }
+    });
+
+    test('guest users cannot save stack entries', () async {
+      final actions = container.read(stackActionsProvider);
+      final product = _product(dsldId: 'DS_OK', verdict: 'RECOMMENDED');
+
+      expect(
+        () => actions.addProduct(product),
+        throwsA(isA<StackRequiresSignInException>()),
+      );
+      expect(
+        () => actions.addMedication(
+          name: 'Metformin',
+          drugClasses: const ['class:biguanides'],
+        ),
+        throwsA(isA<StackRequiresSignInException>()),
+      );
     });
 
     test('StackAddBlockedException toString includes both fields', () {

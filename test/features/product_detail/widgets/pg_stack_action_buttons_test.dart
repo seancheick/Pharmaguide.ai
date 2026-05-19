@@ -8,6 +8,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 
 const _dsldId = 'dsld-test';
 
@@ -43,19 +44,30 @@ Widget _wrap(
   CoreDatabase coreDb,
   UserDatabase userDb, {
   bool isUnsafe = false,
+  bool signedIn = true,
   VoidCallback? onSeeAlternatives,
 }) {
   return ProviderScope(
     overrides: [
       coreDatabaseProvider.overrideWithValue(coreDb),
       userDatabaseProvider.overrideWithValue(userDb),
+      authStateProvider.overrideWith((ref) {
+        final service = AuthStateService();
+        if (signedIn) service.onSignedIn();
+        return service;
+      }),
     ],
     child: MaterialApp(
+      routes: {
+        '/auth': (_) => const Scaffold(body: Text('Auth invitation')),
+      },
       home: Scaffold(
-        body: PGStackActionButtons(
-          dsldId: _dsldId,
-          isUnsafe: isUnsafe,
-          onSeeAlternatives: onSeeAlternatives,
+        body: Builder(
+          builder: (context) => PGStackActionButtons(
+            dsldId: _dsldId,
+            isUnsafe: isUnsafe,
+            onSeeAlternatives: onSeeAlternatives,
+          ),
         ),
       ),
     ),

@@ -294,19 +294,27 @@ class _MedicationEntryV2ScreenState
     unawaited(HapticFeedback.mediumImpact());
 
     final actions = ref.read(stackActionsProvider);
-    final newId = await actions.addMedication(
-      name: _selectedName!,
-      rxcui: _selectedRxcui,
-      genericRxcui: _selectedGenericRxcui,
-      drugClasses: _selectedClasses,
-      ingredientRxcuis: _ingredientRxcuis,
-      dosage: _doseController.text.trim().isEmpty
-          ? null
-          : _doseController.text.trim(),
-      frequency: _frequencyController.text.trim().isEmpty
-          ? null
-          : _frequencyController.text.trim(),
-    );
+    final String newId;
+    try {
+      newId = await actions.addMedication(
+        name: _selectedName!,
+        rxcui: _selectedRxcui,
+        genericRxcui: _selectedGenericRxcui,
+        drugClasses: _selectedClasses,
+        ingredientRxcuis: _ingredientRxcuis,
+        dosage: _doseController.text.trim().isEmpty
+            ? null
+            : _doseController.text.trim(),
+        frequency: _frequencyController.text.trim().isEmpty
+            ? null
+            : _frequencyController.text.trim(),
+      );
+    } on StackRequiresSignInException {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      await context.push(Routes.authInvitation);
+      return;
+    }
 
     if (!mounted) return;
 

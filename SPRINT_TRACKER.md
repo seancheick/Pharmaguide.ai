@@ -2730,11 +2730,12 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [ ] Implement Email/Password auth
 - [-] Account & Security section (email, password, login/logout) — email + sign-in route + signed-in sign-out action wired 2026-05-18; password/account-management still open.
 - [-] Implement scan/AI usage limits with `increment_usage` RPC (guest-side done, server-side stub) — guest scans changed to 3/day and scanner/manual barcode paths enforce the cap; signed-in scan policy is unlimited for current release. AI quota still open.
+- [-] Enforce access tiers — Guest: 3 scans/day, no saved stack, no AI, no cloud sync. Signed-in Free: unlimited scans during early access + saved stack/profile/history. Premium: deferred. Stack saves now require sign-in for supplements + medications; AI/Premium gates still open.
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
-- [-] Build "upgrade to signed-in" prompt when guest hits limits — scanner cap sheet routes to auth; stack/AI prompts still open.
+- [-] Build "upgrade to signed-in" prompt when guest hits limits — scanner cap sheet routes to auth; stack add/medication add route to auth; AI prompt still open.
 - [🚫] ~~Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)~~ — rescoped 2026-05-18: signed-in users get unlimited scans for now; AI quota display remains tied to future Gemini enforcement.
 - [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — auth skip + settings sign-out covered; real provider success/failure + guest migration still open.
-- [-] Write usage limit tests — guest 3/day reset + signed-in-unlimited service behavior covered; scanner smoke covered; stack/AI/RPC tests still open.
+- [-] Write usage limit tests — guest 3/day reset + signed-in-unlimited service behavior covered; scanner smoke + stack domain guard covered; AI/RPC tests still open.
 - [ ] Analytics events wired — real SDK (Firebase/Mixpanel) replacing stub `analytics_service.dart`
 - [ ] Gemini AI quota verification (5/day server-side enforcement)
 

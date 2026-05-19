@@ -15,6 +15,7 @@ import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.da
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 
 /// Thrown when [StackActions.addProduct] is called with a product whose
 /// verdict is BLOCKED or UNSAFE (FLTR-16). Safety-first defense in
@@ -30,6 +31,16 @@ class StackAddBlockedException implements Exception {
   @override
   String toString() =>
       'StackAddBlockedException(dsldId=$dsldId, verdict=$verdict)';
+}
+
+/// Thrown when a guest tries to save stack state. Guest mode allows
+/// catalog lookups only; saved stack/profile/history are signed-in
+/// early-access features.
+class StackRequiresSignInException implements Exception {
+  const StackRequiresSignInException();
+
+  @override
+  String toString() => 'StackRequiresSignInException()';
 }
 
 /// All non-deleted stack entries, newest first.
@@ -82,6 +93,7 @@ class StackActions {
         verdict: product.verdict ?? '',
       );
     }
+    _requireSignedIn();
     final userDb = _ref.read(userDatabaseProvider);
     final id = _newId(product.dsldId);
     await userDb.addToStack(
@@ -127,6 +139,7 @@ class StackActions {
     String? dosage,
     String? frequency,
   }) async {
+    _requireSignedIn();
     assert(
       (rxcui != null && rxcui.isNotEmpty) || drugClasses.isNotEmpty,
       'medication needs at least one of rxcui or drugClasses to participate '
@@ -213,6 +226,12 @@ class StackActions {
     final service = _ref.read(stackSyncServiceProvider);
     unawaited(service.pushAll());
     _ref.invalidate(pendingSyncCountProvider);
+  }
+
+  void _requireSignedIn() {
+    if (_ref.read(authStateProvider) == AuthMode.guest) {
+      throw const StackRequiresSignInException();
+    }
   }
 }
 
