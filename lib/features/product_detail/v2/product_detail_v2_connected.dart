@@ -31,6 +31,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_empty_state.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -177,6 +178,44 @@ class _ProductDetailV2ConnectedState
           elevation: 0,
         ),
         body: const _ProductDetailLoadingState(),
+      );
+    }
+
+    if (_product == null) {
+      return Scaffold(
+        backgroundColor: V2Colors.bg,
+        appBar: AppBar(
+          backgroundColor: V2Colors.bg,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(Routes.home);
+              }
+            },
+          ),
+        ),
+        body: SafeArea(
+          child: Center(
+            child: PGEmptyState(
+              icon: Icons.inventory_2_outlined,
+              eyebrow: 'Catalog',
+              headline: 'Product unavailable',
+              body:
+                  'This shared or scanned product is not in the verified '
+                  'catalog on this device.',
+              primaryLabel: 'Search catalog',
+              primaryIcon: Icons.search_rounded,
+              onPrimaryTap: () => context.go(Routes.search),
+              secondaryLabel: 'Go home',
+              onSecondaryTap: () => context.go(Routes.home),
+            ),
+          ),
+        ),
       );
     }
 

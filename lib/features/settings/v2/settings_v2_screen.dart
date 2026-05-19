@@ -11,6 +11,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// v2 Settings (Profile tab) — calm and utility-focused.
 ///
@@ -34,6 +35,7 @@ class SettingsV2Screen extends StatelessWidget {
   final bool signedIn;
   final String? accountEmail;
   final Future<void> Function()? onSignOut;
+  final Future<bool> Function(Uri uri)? onOpenExternal;
 
   const SettingsV2Screen({
     super.key,
@@ -44,10 +46,15 @@ class SettingsV2Screen extends StatelessWidget {
     this.signedIn = false,
     this.accountEmail,
     this.onSignOut,
+    this.onOpenExternal,
   });
 
   @override
   Widget build(BuildContext context) {
+    final openExternal =
+        onOpenExternal ??
+        (Uri uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
+
     return Scaffold(
       backgroundColor: V2Colors.bg,
       body: SafeArea(
@@ -192,10 +199,10 @@ class SettingsV2Screen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: V2Spacing.space24),
-            const PGSettingsGroup(
+            PGSettingsGroup(
               eyebrow: 'About',
               children: [
-                PGSettingsTile(
+                const PGSettingsTile(
                   icon: Icons.info_outline_rounded,
                   title: 'Version',
                   caption: '1.0.0 · build 1',
@@ -203,22 +210,49 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.description_outlined,
                   title: 'Terms of service',
-                  caption: 'Available before public release',
+                  caption: 'pharmaguide.io/terms',
+                  onTap: () => _openExternal(
+                    context,
+                    openExternal,
+                    Uri.https('pharmaguide.io', '/terms'),
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy policy',
-                  caption: 'Available before public release',
+                  caption: 'pharmaguide.io/privacy',
+                  onTap: () => _openExternal(
+                    context,
+                    openExternal,
+                    Uri.https('pharmaguide.io', '/privacy'),
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.support_outlined,
                   title: 'Contact support',
-                  caption: 'Support channel coming soon',
+                  caption: 'support@pharmaguide.io',
+                  onTap: () => _openExternal(
+                    context,
+                    openExternal,
+                    Uri(
+                      scheme: 'mailto',
+                      path: 'support@pharmaguide.io',
+                      queryParameters: {'subject': 'PharmaGuide support'},
+                    ),
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.star_outline_rounded,
                   title: 'Rate PharmaGuide',
                   caption: 'Enabled after App Store release',
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Rate PharmaGuide',
+                    body:
+                        'Ratings will open here after PharmaGuide is live '
+                        'on the App Store. For TestFlight builds, send '
+                        'feedback through the tester invitation.',
+                  ),
                 ),
               ],
             ),
@@ -294,6 +328,29 @@ Future<void> _signOut(
         ),
       );
   }
+}
+
+Future<void> _openExternal(
+  BuildContext context,
+  Future<bool> Function(Uri uri) opener,
+  Uri uri,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final opened = await opener(uri);
+    if (opened || !context.mounted) return;
+  } on Object {
+    if (!context.mounted) return;
+  }
+
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text('Could not open link. Try again.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 }
 
 void _showPrivacyDashboard(BuildContext context) {

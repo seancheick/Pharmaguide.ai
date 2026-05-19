@@ -166,10 +166,20 @@ void main() {
     analytics.resetForTest();
   });
 
-  testWidgets('unsupported legal/store rows are static, not dead taps', (
+  testWidgets('about legal and support rows open release-safe destinations', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+    final opened = <Uri>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(
+          onOpenExternal: (uri) async {
+            opened.add(uri);
+            return true;
+          },
+        ),
+      ),
+    );
 
     await tester.scrollUntilVisible(
       find.text('Terms of service'),
@@ -178,11 +188,34 @@ void main() {
     );
     await tester.pump();
 
-    final termsTile = find.ancestor(
-      of: find.text('Terms of service'),
-      matching: find.byType(InkWell),
+    await tester.tap(find.text('Terms of service'));
+    await tester.pump();
+    await tester.tap(find.text('Privacy policy'));
+    await tester.pump();
+    await tester.tap(find.text('Contact support'));
+    await tester.pump();
+
+    expect(opened[0].toString(), 'https://pharmaguide.io/terms');
+    expect(opened[1].toString(), 'https://pharmaguide.io/privacy');
+    expect(opened[2].scheme, 'mailto');
+    expect(opened[2].path, 'support@pharmaguide.io');
+  });
+
+  testWidgets('rate row explains TestFlight feedback instead of dead tapping', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    await tester.scrollUntilVisible(
+      find.text('Rate PharmaGuide'),
+      320,
+      scrollable: find.byType(Scrollable).first,
     );
-    expect(tester.widget<InkWell>(termsTile).onTap, isNull);
-    expect(find.text('Available before public release'), findsNWidgets(2));
+    await tester.ensureVisible(find.text('Rate PharmaGuide'));
+    await tester.pump();
+    await tester.tap(find.text('Rate PharmaGuide'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('TestFlight builds'), findsOneWidget);
   });
 }
