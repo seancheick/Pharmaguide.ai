@@ -3,11 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages scan usage limits.
 ///
-/// Guest users: 10 lifetime scans (stored locally via SharedPreferences).
+/// Guest users: 3 scans/day (stored locally via SharedPreferences).
 /// Signed-in users: unlimited scans for the current release.
 class ScanLimitService {
-  static const _guestScanCountKey = 'guest_scan_count';
-  static const _guestLifetimeLimit = 10;
+  static const _guestScanCountKey = 'guest_daily_scan_count';
+  static const _guestScanDateKey = 'guest_daily_scan_date';
+  static const _guestDailyLimit = 3;
 
   final SharedPreferences _prefs;
   final bool _isSignedIn;
@@ -16,8 +17,11 @@ class ScanLimitService {
     : _prefs = prefs,
       _isSignedIn = isSignedIn;
 
-  /// How many scans the guest has used (lifetime).
-  int get guestScansUsed => _prefs.getInt(_guestScanCountKey) ?? 0;
+  /// How many scans the guest has used today.
+  int get guestScansUsed {
+    if (_prefs.getString(_guestScanDateKey) != _todayKey()) return 0;
+    return _prefs.getInt(_guestScanCountKey) ?? 0;
+  }
 
   /// Whether the current user is exempt from the local scan cap.
   bool get hasUnlimitedScans => _isSignedIn;
@@ -28,13 +32,13 @@ class ScanLimitService {
   /// there is no fake "20/day" cap until server-side enforcement ships.
   int? get scansRemaining {
     if (_isSignedIn) return null;
-    return (_guestLifetimeLimit - guestScansUsed).clamp(0, _guestLifetimeLimit);
+    return (_guestDailyLimit - guestScansUsed).clamp(0, _guestDailyLimit);
   }
 
   /// The total limit for the current user type.
   ///
   /// Null means unlimited.
-  int? get scanLimit => _isSignedIn ? null : _guestLifetimeLimit;
+  int? get scanLimit => _isSignedIn ? null : _guestDailyLimit;
 
   /// Whether the user can perform another scan.
   bool get canScan => _isSignedIn || (scansRemaining ?? 0) > 0;
@@ -51,6 +55,7 @@ class ScanLimitService {
 
     final current = guestScansUsed;
     await _prefs.setInt(_guestScanCountKey, current + 1);
+    await _prefs.setString(_guestScanDateKey, _todayKey());
     return true;
   }
 
@@ -59,8 +64,11 @@ class ScanLimitService {
     if (_isSignedIn) {
       return 'Unlimited scans';
     }
-    return '$guestScansUsed of $_guestLifetimeLimit lifetime scans used';
+    return '$guestScansUsed of $_guestDailyLimit scans used today';
   }
+
+  static String _todayKey() =>
+      DateTime.now().toUtc().toIso8601String().split('T').first;
 }
 
 /// Provider for ScanLimitService. Requires SharedPreferences and auth state.

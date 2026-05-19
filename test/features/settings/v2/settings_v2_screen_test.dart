@@ -74,27 +74,48 @@ void main() {
     expect(find.text('Signed out'), findsOneWidget);
   });
 
-  test('scan limits keep guests capped and signed-in users unlimited', () async {
-    SharedPreferences.setMockInitialValues({'guest_scan_count': 9});
+  test(
+    'scan limits keep guests capped and signed-in users unlimited',
+    () async {
+      final today = DateTime.now().toUtc().toIso8601String().split('T').first;
+      SharedPreferences.setMockInitialValues({
+        'guest_daily_scan_count': 2,
+        'guest_daily_scan_date': today,
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      final guest = ScanLimitService(prefs: prefs, isSignedIn: false);
+      expect(guest.scanLimit, 3);
+      expect(guest.scansRemaining, 1);
+      expect(guest.canScan, isTrue);
+      expect(await guest.recordScan(), isTrue);
+      expect(guest.scansRemaining, 0);
+      expect(guest.canScan, isFalse);
+      expect(await guest.recordScan(), isFalse);
+
+      final signedIn = ScanLimitService(prefs: prefs, isSignedIn: true);
+      expect(signedIn.hasUnlimitedScans, isTrue);
+      expect(signedIn.scanLimit, isNull);
+      expect(signedIn.scansRemaining, isNull);
+      expect(signedIn.canScan, isTrue);
+      expect(await signedIn.recordScan(), isTrue);
+      expect(signedIn.usageLabel, 'Unlimited scans');
+      expect(prefs.getInt('guest_daily_scan_count'), 3);
+    },
+  );
+
+  test('guest scan count resets across UTC days', () async {
+    SharedPreferences.setMockInitialValues({
+      'guest_daily_scan_count': 3,
+      'guest_daily_scan_date': '2026-01-01',
+    });
     final prefs = await SharedPreferences.getInstance();
-
     final guest = ScanLimitService(prefs: prefs, isSignedIn: false);
-    expect(guest.scanLimit, 10);
-    expect(guest.scansRemaining, 1);
-    expect(guest.canScan, isTrue);
-    expect(await guest.recordScan(), isTrue);
-    expect(guest.scansRemaining, 0);
-    expect(guest.canScan, isFalse);
-    expect(await guest.recordScan(), isFalse);
 
-    final signedIn = ScanLimitService(prefs: prefs, isSignedIn: true);
-    expect(signedIn.hasUnlimitedScans, isTrue);
-    expect(signedIn.scanLimit, isNull);
-    expect(signedIn.scansRemaining, isNull);
-    expect(signedIn.canScan, isTrue);
-    expect(await signedIn.recordScan(), isTrue);
-    expect(signedIn.usageLabel, 'Unlimited scans');
-    expect(prefs.getInt('guest_scan_count'), 10);
+    expect(guest.guestScansUsed, 0);
+    expect(guest.scansRemaining, 3);
+    expect(await guest.recordScan(), isTrue);
+    expect(guest.guestScansUsed, 1);
   });
 
   testWidgets('privacy dashboard opens a real v2 sheet', (tester) async {

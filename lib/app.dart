@@ -41,8 +41,11 @@ import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
+import 'package:pharmaguide/services/scan_limit_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 // `ScannerV2Screen` / `ScannerV2Preview` are referenced only by the
 // dev gallery route below. Production keeps `ScannerScreen` because it
@@ -93,6 +96,13 @@ class ScanScreen extends ConsumerWidget {
     if (!context.mounted || barcode == null) return;
 
     try {
+      final allowed = await _recordAllowedScan(ref);
+      if (!context.mounted) return;
+      if (!allowed) {
+        _showGuestScanLimitSheet(context);
+        return;
+      }
+
       final product = await ref.read(coreDatabaseProvider).findByUpc(barcode);
       if (!context.mounted) return;
 
@@ -127,6 +137,28 @@ class ScanScreen extends ConsumerWidget {
       if (!context.mounted) return;
       _showManualLookupNotFound(context, ref, barcode);
     }
+  }
+
+  Future<bool> _recordAllowedScan(WidgetRef ref) async {
+    final prefs = await SharedPreferences.getInstance();
+    final authMode = ref.read(authStateProvider);
+    final service = ScanLimitService(
+      prefs: prefs,
+      isSignedIn: authMode == AuthMode.signedIn,
+    );
+    return service.recordScan();
+  }
+
+  void _showGuestScanLimitSheet(BuildContext context) {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (ctx) => GuestScanLimitSheet(
+        onSignIn: () {
+          Navigator.pop(ctx);
+          context.push(Routes.authInvitation);
+        },
+      ),
+    );
   }
 
   void _showManualLookupNotFound(

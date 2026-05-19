@@ -20,6 +20,9 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/scan_limit_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 bool scannerCameraPermissionDenied(MobileScannerState state) {
@@ -85,6 +88,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _lookUpProduct(String upc) async {
+    final allowed = await _recordAllowedScan();
+    if (!allowed) {
+      _showGuestScanLimitSheet();
+      setState(() => _hasScanned = false);
+      return;
+    }
+
     setState(() => _isLookingUp = true);
 
     try {
@@ -191,6 +201,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     return launchUrl(
       Uri.parse('app-settings:'),
       mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Future<bool> _recordAllowedScan() async {
+    final prefs = await SharedPreferences.getInstance();
+    final authMode = ref.read(authStateProvider);
+    final service = ScanLimitService(
+      prefs: prefs,
+      isSignedIn: authMode == AuthMode.signedIn,
+    );
+    return service.recordScan();
+  }
+
+  void _showGuestScanLimitSheet() {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (ctx) => GuestScanLimitSheet(
+        onSignIn: () {
+          Navigator.pop(ctx);
+          context.push(Routes.authInvitation);
+        },
+      ),
     );
   }
 
@@ -340,6 +372,69 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               duration: V2Motion.fast,
               child: Container(color: _flashColor),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class GuestScanLimitSheet extends StatelessWidget {
+  final VoidCallback onSignIn;
+
+  const GuestScanLimitSheet({super.key, required this.onSignIn});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        V2Spacing.space24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: V2Colors.accentTint,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            ),
+            child: const Icon(
+              Icons.lock_open_rounded,
+              color: V2Colors.accent,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: V2Spacing.space16),
+          Text(
+            'Sign in to keep scanning',
+            style: V2Typography.titleSm(color: V2Colors.fg),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'Guest mode includes 3 scans per day. Early-access accounts get unlimited scans and can save a stack, profile, and history.',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: V2Spacing.space24),
+          PGPillButton(
+            label: 'Sign in or create account',
+            icon: Icons.person_rounded,
+            expand: true,
+            onPressed: onSignIn,
+          ),
+          const SizedBox(height: V2Spacing.space12),
+          PGPillButton(
+            label: 'Not now',
+            icon: Icons.close_rounded,
+            variant: PGPillVariant.secondary,
+            expand: true,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ],
       ),
     );

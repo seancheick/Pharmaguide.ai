@@ -2729,12 +2729,12 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [ ] Implement Apple Sign-In
 - [ ] Implement Email/Password auth
 - [-] Account & Security section (email, password, login/logout) — email + sign-in route + signed-in sign-out action wired 2026-05-18; password/account-management still open.
-- [-] Implement scan/AI usage limits with `increment_usage` RPC (guest-side done, server-side stub) — signed-in scan policy changed to unlimited for current release; scanner enforcement + AI quota still open.
+- [-] Implement scan/AI usage limits with `increment_usage` RPC (guest-side done, server-side stub) — guest scans changed to 3/day and scanner/manual barcode paths enforce the cap; signed-in scan policy is unlimited for current release. AI quota still open.
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
-- [ ] Build "upgrade to signed-in" prompt when guest hits limits
+- [-] Build "upgrade to signed-in" prompt when guest hits limits — scanner cap sheet routes to auth; stack/AI prompts still open.
 - [🚫] ~~Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)~~ — rescoped 2026-05-18: signed-in users get unlimited scans for now; AI quota display remains tied to future Gemini enforcement.
 - [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — auth skip + settings sign-out covered; real provider success/failure + guest migration still open.
-- [-] Write usage limit tests — guest cap + signed-in-unlimited service behavior covered; scanner enforcement + RPC tests still open.
+- [-] Write usage limit tests — guest 3/day reset + signed-in-unlimited service behavior covered; scanner smoke covered; stack/AI/RPC tests still open.
 - [ ] Analytics events wired — real SDK (Firebase/Mixpanel) replacing stub `analytics_service.dart`
 - [ ] Gemini AI quota verification (5/day server-side enforcement)
 
