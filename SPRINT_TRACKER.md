@@ -1530,16 +1530,16 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] Medical disclaimer: home screen footer + PGCitationStrip — verified 2026-04-12
 - [x] Analytics scaffold: analytics_service.dart singleton with trackEvent/trackScreen/setUserProperty — no-ops pending SDK — verified 2026-04-12
 - [x] Settings: theme (light/dark/system) — ThemeMode.system wired in app.dart
-- [ ] Implement Google Sign-In — **→ V1.0-release** (prep auth, ship to beta testers without login first)
-- [ ] Implement Apple Sign-In — **→ V1.0-release**
-- [ ] Implement Email/Password auth — **→ V1.0-release**
+- [-] Implement Google Sign-In — **→ V1.0-release** (`PGAuthService.signInWithGoogle()` + v2 auth callback wired; needs live provider/device verification)
+- [-] Implement Apple Sign-In — **→ V1.0-release** (`PGAuthService.signInWithApple()` + v2 auth callback wired; needs live provider/device verification)
+- [-] Implement Email auth — **→ V1.0-release** (magic-link sheet + app callback scheme wired; password auth intentionally not used for v1.0; needs live Supabase round trip)
 - [ ] Implement scan/AI usage limits with increment_usage RPC — **→ V1.0-release** (guest-side done, server-side stub)
 - [ ] Build "upgrade to signed-in" prompt when guest hits limits — **→ V1.0-release**
 - [ ] Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset) — **→ V1.0-release**
 - [ ] Build "update available" indicator on Profile tab — **→ V1.1**
 - [ ] Build notification preferences (flutter_local_notifications) — **→ V1.1**
 - [ ] Implement min_app_version gate (force update if needed) — **→ V1.1**
-- [ ] Write auth flow tests (sign in, sign out, guest-to-auth migration) — **→ V1.0-release**
+- [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — **→ V1.0-release** (auth skip, provider callbacks, magic-link placeholder guard, settings sign-out covered; real provider success/failure + guest migration still open)
 - [ ] Write OTA update tests (success, failure, rollback) — **→ V1.1**
 - [ ] Write usage limit tests — **→ V1.0-release**
 - [ ] Account & Security section (email, password, login/logout) — **→ V1.0-release**
@@ -2725,16 +2725,16 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 
 ### P1 — V1.0-Release Gate (code tasks)
 
-- [ ] Implement Google Sign-In
-- [ ] Implement Apple Sign-In
-- [ ] Implement Email/Password auth
+- [-] Implement Google Sign-In — service + v2 auth callback wired; needs live provider/device verification.
+- [-] Implement Apple Sign-In — service + v2 auth callback wired; needs live provider/device verification.
+- [-] Implement Email auth — magic-link sheet + `pharmaguide://auth/callback` wired; password auth intentionally not used for v1.0; needs live Supabase round trip.
 - [-] Account & Security section (email, password, login/logout) — email + sign-in route + signed-in sign-out action wired 2026-05-18; password/account-management still open.
 - [-] Implement scan/AI usage limits with `increment_usage` RPC (guest-side done, server-side stub) — guest scans changed to 3/day and scanner/manual barcode paths enforce the cap; signed-in scan policy is unlimited for current release. AI quota still open.
 - [-] Enforce access tiers — Guest: 3 scans/day, no saved stack, no AI, no cloud sync. Signed-in Free: unlimited scans during early access + saved stack/profile/history. Premium: deferred. Stack saves now require sign-in for supplements + medications; AI/Premium gates still open.
 - [ ] Wire `scan_limit_service` to live `increment_usage` RPC
 - [-] Build "upgrade to signed-in" prompt when guest hits limits — scanner cap sheet routes to auth; stack add/medication add route to auth; AI prompt still open.
 - [🚫] ~~Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)~~ — rescoped 2026-05-18: signed-in users get unlimited scans for now; AI quota display remains tied to future Gemini enforcement.
-- [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — auth skip + settings sign-out covered; real provider success/failure + guest migration still open.
+- [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — auth skip, provider callbacks, magic-link placeholder guard, settings sign-out covered; real provider success/failure + guest migration still open.
 - [-] Write usage limit tests — guest 3/day reset + signed-in-unlimited service behavior covered; scanner smoke + stack domain guard covered; AI/RPC tests still open.
 - [ ] Analytics events wired — real SDK (Firebase/Mixpanel) replacing stub `analytics_service.dart`
 - [ ] Gemini AI quota verification (5/day server-side enforcement)
