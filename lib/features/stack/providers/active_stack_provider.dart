@@ -16,6 +16,7 @@ import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Thrown when [StackActions.addProduct] is called with a product whose
 /// verdict is BLOCKED or UNSAFE (FLTR-16). Safety-first defense in
@@ -106,6 +107,7 @@ class StackActions {
       ),
     );
     _invalidate();
+    CrashReportingService().log('stack_add_supplement');
     _triggerSync();
     return id;
   }
@@ -167,6 +169,7 @@ class StackActions {
       ),
     );
     _invalidate();
+    CrashReportingService().log('stack_add_medication');
     // Intentionally NOT calling _triggerSync — medications never leave
     // the device. See spec §8.5.
     return id;

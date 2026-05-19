@@ -21,6 +21,7 @@ import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -115,6 +116,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               upcSku: product.upcSku,
               productName: product.productName,
             );
+        CrashReportingService().log('scan_complete_camera');
         // Home v2 picks up new scans via its own
         // `_v2RecentScansProvider.autoDispose` on tab refocus + pull-
         // to-refresh; no external invalidation needed after the v1

@@ -43,6 +43,7 @@ import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,6 +119,7 @@ class ScanScreen extends ConsumerWidget {
             upcSku: product.upcSku,
             productName: product.productName,
           );
+      CrashReportingService().log('scan_complete_manual');
       // Home v2 picks the new scan up via its own
       // `_v2RecentScansProvider.autoDispose` on next tab focus or via
       // its pull-to-refresh control. No external invalidation needed

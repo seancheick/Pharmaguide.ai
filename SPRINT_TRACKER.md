@@ -1616,7 +1616,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] Medical disclaimer on all score/recommendation screens — home screen footer + PGCitationStrip. Verified 2026-04-12
 
 #### V1.0-release Gate (add auth after beta feedback)
-- [ ] Analytics events wired (scan, search, detail view, stack add/remove, share, AI chat) — scaffold exists (analytics_service.dart), needs real SDK (Firebase/Mixpanel)
+- [-] Analytics/observability events wired (scan, search, detail view, stack add/remove, share, AI chat) — Sentry breadcrumbs added for scan complete + stack add 2026-05-18; analytics scaffold exists (analytics_service.dart), real SDK still needs privacy/vendor decision.
 - [ ] Gemini AI quota verification (5/day server-side enforcement)
 
 #### Deferred to V1.1+
@@ -2736,7 +2736,7 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [🚫] ~~Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)~~ — rescoped 2026-05-18: signed-in users get unlimited scans for now; AI quota display remains tied to future Gemini enforcement.
 - [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — auth skip, provider callbacks, magic-link placeholder guard, settings sign-out covered; real provider success/failure + guest migration still open.
 - [-] Write usage limit tests — guest 3/day reset + signed-in-unlimited service behavior covered; scanner smoke + stack domain guard covered; AI quota tests still open.
-- [ ] Analytics events wired — real SDK (Firebase/Mixpanel) replacing stub `analytics_service.dart`
+- [-] Analytics events wired — Sentry breadcrumbs added for scan complete + stack add; real SDK (Firebase/Mixpanel/PostHog/etc.) still blocked on privacy/vendor decision before replacing stub `analytics_service.dart`.
 - [ ] Gemini AI quota verification (5/day server-side enforcement)
 
 ### P2 — Next Code Sprints
