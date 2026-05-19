@@ -514,8 +514,8 @@ class _SkipFooter extends StatelessWidget {
         ),
         const SizedBox(height: V2Spacing.space8),
         Text(
-          "Skip for now if you'd rather try first. Guest mode caps "
-          "daily scans and won't sync across devices.",
+          "Skip for now if you'd rather try first. Guest mode includes "
+          "3 scans per day, with no AI, saved stack, or cloud sync.",
           style: V2Typography.bodySm(color: V2Colors.fgSubtle),
           textAlign: TextAlign.center,
         ),

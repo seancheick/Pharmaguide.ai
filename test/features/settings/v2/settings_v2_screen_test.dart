@@ -30,6 +30,8 @@ void main() {
     );
 
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+    expect(find.text('Save stack, profile, and history'), findsOneWidget);
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
 

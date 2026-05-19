@@ -75,8 +75,9 @@ class SettingsV2Screen extends StatelessWidget {
                   icon: Icons.mail_outline_rounded,
                   title: signedIn ? 'Email' : 'Sign in',
                   caption: signedIn
-                      ? accountEmail ?? 'Signed in'
-                      : 'Sync stack across devices',
+                      ? accountEmail ??
+                            'Unlimited early-access scans · stack saved'
+                      : 'Save stack, profile, and history',
                   onTap: signedIn
                       ? null
                       : () => context.push(Routes.authInvitation),

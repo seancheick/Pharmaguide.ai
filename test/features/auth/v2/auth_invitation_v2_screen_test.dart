@@ -31,4 +31,19 @@ void main() {
 
     expect(find.text('Home v2'), findsOneWidget);
   });
+
+  testWidgets('guest limitation copy states current access policy', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: AuthInvitationV2Screen(onSkip: () {})),
+    );
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    expect(find.textContaining('3 scans per day'), findsOneWidget);
+    expect(
+      find.textContaining('no AI, saved stack, or cloud sync'),
+      findsOneWidget,
+    );
+  });
 }
