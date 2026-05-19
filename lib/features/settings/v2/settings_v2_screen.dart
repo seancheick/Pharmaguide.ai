@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 
 /// v2 Settings (Profile tab) — calm and utility-focused.
 ///
@@ -32,6 +33,7 @@ class SettingsV2Screen extends StatelessWidget {
   final int scanCount;
   final bool signedIn;
   final String? accountEmail;
+  final Future<void> Function()? onSignOut;
 
   const SettingsV2Screen({
     super.key,
@@ -41,6 +43,7 @@ class SettingsV2Screen extends StatelessWidget {
     this.scanCount = 18,
     this.signedIn = false,
     this.accountEmail,
+    this.onSignOut,
   });
 
   @override
@@ -78,6 +81,14 @@ class SettingsV2Screen extends StatelessWidget {
                       ? null
                       : () => context.push(Routes.authInvitation),
                 ),
+                if (signedIn)
+                  PGSettingsTile(
+                    icon: Icons.logout_rounded,
+                    title: 'Sign out',
+                    caption: 'Keep local health data on this device',
+                    destructive: true,
+                    onTap: () => _signOut(context, onSignOut),
+                  ),
                 const PGSettingsTile(
                   icon: Icons.fingerprint_rounded,
                   title: 'Biometric unlock',
@@ -253,6 +264,34 @@ class SettingsV2Screen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _signOut(
+  BuildContext context,
+  Future<void> Function()? onSignOut,
+) async {
+  try {
+    await (onSignOut ?? PGAuthService().signOut)();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Signed out'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  } on Object {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Could not sign out. Try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 }
 

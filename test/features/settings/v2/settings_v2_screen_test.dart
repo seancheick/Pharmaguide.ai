@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
+import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -50,6 +51,50 @@ void main() {
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('user@example.com'), findsOneWidget);
     expect(find.text('sean@example.com'), findsNothing);
+  });
+
+  testWidgets('signed-in account can sign out from settings', (tester) async {
+    var signedOut = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(
+          signedIn: true,
+          accountEmail: 'user@example.com',
+          onSignOut: () async {
+            signedOut = true;
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Sign out'));
+    await tester.pump();
+
+    expect(signedOut, isTrue);
+    expect(find.text('Signed out'), findsOneWidget);
+  });
+
+  test('scan limits keep guests capped and signed-in users unlimited', () async {
+    SharedPreferences.setMockInitialValues({'guest_scan_count': 9});
+    final prefs = await SharedPreferences.getInstance();
+
+    final guest = ScanLimitService(prefs: prefs, isSignedIn: false);
+    expect(guest.scanLimit, 10);
+    expect(guest.scansRemaining, 1);
+    expect(guest.canScan, isTrue);
+    expect(await guest.recordScan(), isTrue);
+    expect(guest.scansRemaining, 0);
+    expect(guest.canScan, isFalse);
+    expect(await guest.recordScan(), isFalse);
+
+    final signedIn = ScanLimitService(prefs: prefs, isSignedIn: true);
+    expect(signedIn.hasUnlimitedScans, isTrue);
+    expect(signedIn.scanLimit, isNull);
+    expect(signedIn.scansRemaining, isNull);
+    expect(signedIn.canScan, isTrue);
+    expect(await signedIn.recordScan(), isTrue);
+    expect(signedIn.usageLabel, 'Unlimited scans');
+    expect(prefs.getInt('guest_scan_count'), 10);
   });
 
   testWidgets('privacy dashboard opens a real v2 sheet', (tester) async {
