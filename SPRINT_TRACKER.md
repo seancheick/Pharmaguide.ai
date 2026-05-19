@@ -26,8 +26,8 @@ related:
 > - [[debugging-playbook]] — Common issues and fixes
 
 **Version:** V1.0
-**Updated:** 2026-05-18
-**Current Sprint:** v2 production promotion + Phase 11.11 v1 retirement complete. Supabase OTA verified for catalog `2026.05.17.234951`; 1.0.0+5 is ready for simulator / real-device smoke before cutting the build.
+**Updated:** 2026-05-19
+**Current Sprint:** v2 production promotion + Phase 11.11 v1 retirement complete. Supabase OTA verified for catalog `2026.05.17.234951` on 2026-05-19; 1.0.0+5 is ready for simulator / real-device smoke before cutting the build.
 **Overall Status:** Sprints 0-4, 5a, 5b, 8, 9-14 (M1-M5), 17-22, 27, 27.5, 27.6-27.21 ALL DONE. Trust & IA Sprint 0 + Sprint 1 (T1.1-T1.16) ALL DONE. **1387 Flutter tests pass, 0 skipped, 0 failures.** **Zero `flutter analyze` issues.** GitHub Actions CI on every PR.
 
 **Phase 11.7L (1.0.0+5 prep, 2026-05-16 → 2026-05-18):** TestFlight 1.0.0+4 walkthrough produced 11 bug clusters; closed in commits `baa204b` (routes + scanner manual-entry haptic), `5319c66` (stack v2 fixture flash + empty-panel parity + nutrients refresh), `5b20f82` (Quick Check med-med via RxNorm + class-fallback + hydration-incomplete safety), `a1c5b57` (bottom-sheet anchoring + Search keyboard gap + Settings real account email), `4f7d4c7` (Quick Check canonical-id consolidation + structured fingerprint parser).
@@ -1467,7 +1467,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ## Sprint 6: Social Sharing
 
-**Status:** PARTIALLY DONE (ShareService built, deep links pending)
+**Status:** PARTIALLY DONE (native share + custom-scheme product links wired; OG/universal links/store fallback pending)
 **Timeline:** Week 14
 
 ### Tasks
@@ -1476,15 +1476,15 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] ShareService: shareStackSummary() with safety score, product count, issues, synergies
 - [x] share_plus integration for native sharing
 - [ ] Build Open Graph preview for shared links (share_og_image_url)
-- [ ] Implement deep link handling for shared product links (app_links)
-- [ ] Build "shared with you" entry point from deep link
-- [ ] Handle deep link edge cases: app not installed, invalid product ID
-- [ ] Stack share: "Export PDF for Doctor", "Share List (Text/Email)"
-- [ ] Write deep link routing tests
+- [-] Implement deep link handling for shared product links — custom `pharmaguide://product/:id` normalization + iOS/Android scheme config are wired and tested; Universal Links/App Links package-level handling still pending
+- [-] Build "shared with you" entry point from deep link — product detail is the current entry point; no dedicated shared-with-you banner/surface yet
+- [-] Handle deep link edge cases — non-PharmaGuide links ignored and product detail has no-pop fallback; app-not-installed web/store fallback + invalid product polish still pending
+- [-] Stack share: "Export PDF for Doctor", "Share List (Text/Email)" — clinician markdown share button is wired on Stack v2; PDF export + simple share-list mode deferred
+- [-] Write deep link routing tests — `test/app_deep_link_test.dart` covers custom-scheme product/auth/quick-check normalization; Universal/App Link E2E still pending
 
 ### Definition of Done
 
-- All tests pass: `flutter test test/features/sharing/` -- expect 0 failures
+- All tests pass: `flutter test test/services/sharing/ test/features/stack/widgets/share_clinician_report_button_test.dart test/app_deep_link_test.dart` -- expect 0 failures
 - Share: tapping share produces correct title and description from pipeline data
 - Deep link: clicking shared link opens product detail in app
 - Deep link: clicking shared link without app installed goes to store listing
@@ -1511,7 +1511,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 ## Sprint 7: Settings + Profile Management
 
-**Status:** PARTIALLY DONE (full Profile tab built, auth + OTA pending)
+**Status:** PARTIALLY DONE (Profile tab, OTA, guest limits, sign-in route, and auth service wiring complete; live OAuth/provider verification + release settings remain)
 **Timeline:** Week 15
 
 ### Tasks
@@ -1524,7 +1524,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [x] About section (version, ToS, privacy policy, support, rate, share)
 - [x] 5 settings screen tests (title, sections, completeness, guest user, privacy button)
 - [x] Dark mode: full light/dark themes + ThemeMode.system — AppTheme.light + AppTheme.dark in app_theme.dart, wired in app.dart
-- [x] OTA DB update logic: sync_service.dart with getRemoteDbVersion() + downloadCoreDb() from Supabase Storage — verified 2026-04-12
+- [x] OTA DB update logic: sync_service.dart with fetchCurrentDbVersion() + validated download/swap from Supabase Storage — live current row `2026.05.17.234951` verified 2026-05-19
 - [x] Guest usage limits: scan_limit_service.dart with 3 scans/day via SharedPreferences — verified 2026-05-18
 - [x] Auth state management: auth_state_service.dart tracks guest vs signed-in via Supabase session — verified 2026-04-12
 - [x] Medical disclaimer: home screen footer + PGCitationStrip — verified 2026-04-12
@@ -1534,15 +1534,15 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - [-] Implement Apple Sign-In — **→ V1.0-release** (`PGAuthService.signInWithApple()` + v2 auth callback wired; needs live provider/device verification)
 - [-] Implement Email auth — **→ V1.0-release** (magic-link sheet + app callback scheme wired; password auth intentionally not used for v1.0; needs live Supabase round trip)
 - [🚫] ~~Implement scan usage limits with `increment_usage` RPC~~ — rescoped 2026-05-18: guest scan cap is local-only; signed-in scans are unlimited during early access. AI quota remains future server work.
-- [ ] Build "upgrade to signed-in" prompt when guest hits limits — **→ V1.0-release**
+- [x] Build "upgrade to signed-in" prompt when guest hits limits — scanner guest cap sheet routes to `/auth`; stack add/medication add route guests to auth
 - [🚫] ~~Build signed-in limits display (20 scans/day, 5 AI/day with UTC reset)~~ — rescoped 2026-05-18: signed-in users get unlimited scans for now; AI quota display remains tied to future Gemini enforcement.
 - [ ] Build "update available" indicator on Profile tab — **→ V1.1**
 - [ ] Build notification preferences (flutter_local_notifications) — **→ V1.1**
 - [ ] Implement min_app_version gate (force update if needed) — **→ V1.1**
 - [-] Write auth flow tests (sign in, sign out, guest-to-auth migration) — **→ V1.0-release** (auth skip, provider callbacks, magic-link placeholder guard, settings sign-out covered; real provider success/failure + guest migration still open)
-- [ ] Write OTA update tests (success, failure, rollback) — **→ V1.1**
-- [ ] Write usage limit tests — **→ V1.0-release**
-- [ ] Account & Security section (email, password, login/logout) — **→ V1.0-release**
+- [x] Write OTA update tests (success, failure, rollback) — `sync_service_test.dart`, `catalog_updater_service_test.dart`, `catalog_swap_test.dart`, and DB provider rollback tests cover downgrade/no-op/stage failure/swap rollback
+- [x] Write scan usage limit tests — guest 3/day UTC reset + signed-in unlimited covered; AI quota tests remain under Gemini work
+- [-] Account & Security section (email, password, login/logout) — email/sign-in/sign-out wired; password flow intentionally not used for v1.0 magic-link auth; account deletion still informational
 - [x] Health Profile editing (all fields from onboarding, re-editable) — ✅ DONE. Settings "Edit profile" routes to `profileSetup`; no read-only guard — full re-edit works.
 - [x] Privacy Controls (data usage prefs, transparency dashboard, privacy score) — ✅ DONE. `_PrivacyDashboardSheet` in `settings_screen.dart` with `_PrivacyItem` entries.
 - [ ] Stack Analysis History (last 3 saved reports, view/email/share/delete) — **→ V1.2**
@@ -1558,7 +1558,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - All tests pass: `flutter test test/features/settings/` -- expect 0 failures
 - Auth: Google, Apple, Email all produce valid Supabase session
 - Auth: guest data (scan history, stack, profile) preserved after sign-in
-- OTA: download + swap succeeds, user_data.db untouched (verify with query after swap)
+- OTA: download + swap succeeds, user_data.db untouched (unit-tested; live Supabase current row + Storage object verified for `2026.05.17.234951` on 2026-05-19)
 - OTA: corrupted download detected by checksum, rollback to previous DB
 - Limits: guest blocked after 3 scans/day with upgrade prompt
 - Limits: signed-in user remains unlimited during early access
@@ -1580,7 +1580,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 - All prior sprints complete
 - Supabase auth providers configured (Google, Apple)
 - AI quota / premium enforcement RPC deployed to Supabase when Gemini features ship
-- OTA DB artifact hosted on Supabase Storage
+- OTA DB artifact hosted on Supabase Storage (`v2026.05.17.234951/pharmaguide_core.db`, 47,849,472 bytes, verified 2026-05-19)
 
 ### Known Risks / Blockers
 
@@ -1706,7 +1706,7 @@ Status: ✅ DONE (7 of 7 tasks shipped, T8 deferred to V1.1). Commits: `857b827`
 
 - Pipeline test suite: 3,259/3,259 passed
 - Catalog: 5,231 products, 100% coverage, 0 errors
-- Supabase manifest current row: db_version=2026.04.11.040818, schema=1.3.2, products=5,231
+- Supabase manifest current row: db_version=2026.05.17.234951, schema=1.6.0, products=8,440 (reverified 2026-05-19)
 
 ### Commits
 
