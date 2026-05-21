@@ -1,0 +1,137 @@
+{
+  "_metadata": {
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-21",
+    "total_entries": 18,
+    "owner": "pipeline",
+    "notes": "Canonical form-factor vocabulary for product physical state. Owned by the enricher (single normalization stage); v4 router/modules, score_supplements, build_final_db, and Flutter all consume the canonical ID. Aliases cover DSLD `physicalState.langualCodeDescription`, common label-text variants, and v3 enricher's collapsed values. Adding a new physical state requires (1) a new entry here, (2) loader/normalizer test coverage, and (3) consumer review for any scoring impact (e.g. gummy formulation penalty)."
+  },
+  "form_factors": [
+    {
+      "id": "capsule",
+      "short_name": "Capsule",
+      "description": "Hard two-piece capsule, gelatin or vegetarian.",
+      "aliases": ["capsule", "capsules", "hard capsule", "vegcap", "veg capsule", "vegetarian capsule", "vcap"],
+      "dsld_langual_codes": ["e0159"]
+    },
+    {
+      "id": "softgel",
+      "short_name": "Softgel",
+      "description": "Soft-gel liquid-filled capsule. Distinct from hard capsule because softgels are typical for oil-based actives (vitamin D3, omega-3, vitamin E).",
+      "aliases": ["softgel", "softgels", "softgel capsule", "soft gel", "soft-gel", "gelcap", "gel capsule", "liquid-filled capsule"],
+      "dsld_langual_codes": ["e0161"]
+    },
+    {
+      "id": "tablet",
+      "short_name": "Tablet",
+      "description": "Compressed tablet or pill (swallowed whole).",
+      "aliases": ["tablet", "tablets", "tablet or pill", "pill", "pills", "caplet", "caplets", "coated tablet"],
+      "dsld_langual_codes": ["e0155"]
+    },
+    {
+      "id": "chewable",
+      "short_name": "Chewable",
+      "description": "Chewable tablet — orally chewed before swallowing. Carries the chewability formulation tradeoffs (sweeteners, palatability fillers) without the gummy gelatin matrix.",
+      "aliases": ["chewable", "chewable tablet", "chew tab", "chewables", "chewable wafer"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "gummy",
+      "short_name": "Gummy",
+      "description": "Gummy or jelly format. Carries the gummy-formulation penalty in v4 multi/prenatal Formulation scoring due to typical sugar/gelatin matrix and lower active density.",
+      "aliases": ["gummy", "gummies", "gummy or jelly", "jelly", "gummi", "gum drop"],
+      "dsld_langual_codes": ["e0176"]
+    },
+    {
+      "id": "powder",
+      "short_name": "Powder",
+      "description": "Loose powder, typically reconstituted in water or another liquid.",
+      "aliases": ["powder", "powders", "powdered", "drink mix"],
+      "dsld_langual_codes": ["e0162"]
+    },
+    {
+      "id": "liquid",
+      "short_name": "Liquid",
+      "description": "Oral liquid, syrup, or suspension (not a drops/tincture/spray subform).",
+      "aliases": ["liquid", "liquids", "oral liquid", "syrup", "suspension"],
+      "dsld_langual_codes": ["e0165"]
+    },
+    {
+      "id": "tincture",
+      "short_name": "Tincture",
+      "description": "Alcohol or glycerin extract dispensed by dropper. Sub-form of liquid but distinct because herbal tinctures dose differently than aqueous liquids.",
+      "aliases": ["tincture", "tinctures", "alcohol extract", "herbal extract liquid", "liquid extract", "glycerin extract"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "lozenge",
+      "short_name": "Lozenge",
+      "description": "Lozenge, troche, or pastille — slowly dissolved in the mouth.",
+      "aliases": ["lozenge", "lozenges", "troche", "pastille"],
+      "dsld_langual_codes": ["e0174"]
+    },
+    {
+      "id": "sublingual",
+      "short_name": "Sublingual",
+      "description": "Sublingual tablet or strip — dissolves under the tongue. Distinct from lozenge (lozenge dissolves in mouth, sublingual under tongue for direct bloodstream uptake).",
+      "aliases": ["sublingual", "sublingual tablet", "sl tablet", "sublingual strip", "dissolvable", "fast melt"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "drops",
+      "short_name": "Drops",
+      "description": "Oral drops dispensed by dropper or pipette. Aqueous, not alcohol-based like tincture.",
+      "aliases": ["drops", "oral drops", "drop"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "spray",
+      "short_name": "Spray",
+      "description": "Oral or sublingual spray.",
+      "aliases": ["spray", "sprays", "oral spray", "sublingual spray"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "bar",
+      "short_name": "Bar",
+      "description": "Nutrition or protein bar.",
+      "aliases": ["bar", "bars", "nutrition bar", "protein bar", "snack bar"],
+      "dsld_langual_codes": ["e0164"]
+    },
+    {
+      "id": "patch",
+      "short_name": "Patch",
+      "description": "Transdermal patch.",
+      "aliases": ["patch", "patches", "transdermal patch", "topical patch"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "topical",
+      "short_name": "Topical",
+      "description": "Cream, lotion, gel, salve, or balm applied to the skin. Not orally administered.",
+      "aliases": ["topical", "cream", "lotion", "salve", "balm", "gel", "ointment", "rub"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "tea_bag",
+      "short_name": "Tea bag",
+      "description": "Tea bag or infusion bag — steeped in hot water.",
+      "aliases": ["tea bag", "tea bags", "infusion bag", "herbal tea bag"],
+      "dsld_langual_codes": []
+    },
+    {
+      "id": "other",
+      "short_name": "Other",
+      "description": "Other physical state that does not match any specific category. The DSLD 'Other (e.g. tea bag)' bucket maps to `tea_bag` when the label confirms; this `other` bucket is the residual for unusual forms (suppository, enema, etc.).",
+      "aliases": ["other"],
+      "dsld_langual_codes": ["e0172"]
+    },
+    {
+      "id": "unknown",
+      "short_name": "Unknown",
+      "description": "Physical state not disclosed or not parseable. Distinct from `other` because `unknown` means data is missing, not that the form is unusual.",
+      "aliases": ["unknown", "not specified", "n/a"],
+      "dsld_langual_codes": ["e0177"]
+    }
+  ]
+}
