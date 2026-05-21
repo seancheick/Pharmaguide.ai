@@ -338,15 +338,18 @@ class _BasicInfoStepState extends ConsumerState<_BasicInfoStep> {
                       (bracket) => PGPressable(
                         onTap: () => notifier.setAgeBracket(bracket),
                         pressedScale: 0.98,
-                        child: RadioListTile<String>(
-                          title: Text(
-                            bracket,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w500,
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: RadioListTile<String>(
+                            title: Text(
+                              bracket,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
+                            value: bracket,
+                            dense: true,
                           ),
-                          value: bracket,
-                          dense: true,
                         ),
                       ),
                     )
@@ -372,24 +375,27 @@ class _BasicInfoStepState extends ConsumerState<_BasicInfoStep> {
                       (option) => PGPressable(
                         onTap: () => notifier.setSex(option),
                         pressedScale: 0.98,
-                        child: RadioListTile<String>(
-                          title: Text(
-                            option,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w500,
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: RadioListTile<String>(
+                            title: Text(
+                              option,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
+                            subtitle:
+                                (option == 'Other' ||
+                                    option == 'Prefer not to say')
+                                ? Text(
+                                    'Uses the most conservative safety limits',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  )
+                                : null,
+                            value: option,
                           ),
-                          subtitle:
-                              (option == 'Other' ||
-                                  option == 'Prefer not to say')
-                              ? Text(
-                                  'Uses the most conservative safety limits',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                )
-                              : null,
-                          value: option,
                         ),
                       ),
                     )
@@ -535,17 +541,20 @@ class _HealthProfileStep extends ConsumerWidget {
                 return PGPressable(
                   onTap: () => notifier.toggleDrugClass(dcId),
                   pressedScale: 0.98,
-                  child: CheckboxListTile.adaptive(
-                    title: Text(
-                      label,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: CheckboxListTile.adaptive(
+                      title: Text(
+                        label,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
+                      value: selected,
+                      onChanged: (_) => notifier.toggleDrugClass(dcId),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      dense: true,
                     ),
-                    value: selected,
-                    onChanged: (_) => notifier.toggleDrugClass(dcId),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    dense: true,
                   ),
                 );
               }).toList(),
