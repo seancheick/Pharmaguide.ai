@@ -1,5 +1,9 @@
 import 'dart:io' show Platform;
 
+// Flutter 3.44 no longer exposes CupertinoPageTransitionsBuilder through
+// material.dart, while local Flutter 3.41 still considers this redundant.
+// ignore: unnecessary_import
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

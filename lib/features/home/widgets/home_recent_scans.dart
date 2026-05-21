@@ -210,6 +210,10 @@ class HomeRecentScansSection extends ConsumerWidget {
       await showCupertinoSheet<void>(
         context: context,
         showDragHandle: true,
+        // Flutter 3.44 deprecates `builder` in favor of `scrollableBuilder`.
+        // Keep this call compatible with the local Flutter 3.41 SDK, which
+        // does not expose `scrollableBuilder` yet.
+        // ignore: deprecated_member_use
         builder: (_) => Material(
           color: Theme.of(context).colorScheme.surface,
           child: sheetBody,
