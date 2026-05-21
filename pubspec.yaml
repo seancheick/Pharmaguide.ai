@@ -245,6 +245,10 @@ flutter:
     # lozenge, tincture from liquid, etc.).
     # Source: pipeline `scripts/data/form_factor_vocab.json`.
     - assets/data/form_factor_vocab.json
+    # product_type vocab (SP-6, 2026-05-21): canonical supplement /
+    # medication / food / unknown classification labels for catalog rows.
+    # Source: pipeline `scripts/data/product_type_vocab.json`.
+    - assets/data/product_type_vocab.json
     # ingredient_category vocab (SP-4, 2026-05-21): 17 canonical
     # singular line-level ingredient categories (vitamin, mineral,
     # herb, antioxidant, fatty_acid, amino_acid, probiotic, protein,
