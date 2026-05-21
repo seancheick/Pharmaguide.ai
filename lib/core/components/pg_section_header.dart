@@ -55,10 +55,7 @@ class PGSectionHeader extends StatelessWidget {
         ),
         if (subtitle != null) ...[
           const SizedBox(height: V2Spacing.space8),
-          Text(
-            subtitle!,
-            style: V2Typography.body(color: V2Colors.fgMuted),
-          ),
+          Text(subtitle!, style: V2Typography.body(color: V2Colors.fgMuted)),
         ],
       ],
     );

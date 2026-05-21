@@ -52,7 +52,8 @@ class IngredientCategoryEntry {
 
 Map<String, IngredientCategoryEntry>? _cache;
 
-Future<Map<String, IngredientCategoryEntry>> loadIngredientCategoryVocab() async {
+Future<Map<String, IngredientCategoryEntry>>
+loadIngredientCategoryVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 

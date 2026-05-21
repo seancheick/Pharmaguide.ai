@@ -87,7 +87,8 @@ class PGAuthService {
         final idToken = credential.identityToken;
         if (idToken == null) {
           return const PGAuthError(
-              "Apple didn't return an identity token. Try again.");
+            "Apple didn't return an identity token. Try again.",
+          );
         }
         final response = await supabase.auth.signInWithIdToken(
           provider: OAuthProvider.apple,
@@ -97,7 +98,8 @@ class PGAuthService {
         final session = response.session;
         if (session == null) {
           return const PGAuthError(
-              'Something went wrong on our side. Try again.');
+            'Something went wrong on our side. Try again.',
+          );
         }
         return PGAuthSuccess(session);
       }
@@ -121,7 +123,8 @@ class PGAuthService {
       return PGAuthError(_friendlySupabaseError(e));
     } on Object catch (_) {
       return const PGAuthError(
-          "We couldn't reach the network. Try again in a moment.");
+        "We couldn't reach the network. Try again in a moment.",
+      );
     }
   }
 
@@ -157,7 +160,8 @@ class PGAuthService {
       final accessToken = googleAuth.accessToken;
       if (idToken == null) {
         return const PGAuthError(
-            "Google didn't return an identity token. Try again.");
+          "Google didn't return an identity token. Try again.",
+        );
       }
       final response = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
@@ -167,7 +171,8 @@ class PGAuthService {
       final session = response.session;
       if (session == null) {
         return const PGAuthError(
-            'Something went wrong on our side. Try again.');
+          'Something went wrong on our side. Try again.',
+        );
       }
       return PGAuthSuccess(session);
     } on AuthException catch (e) {
@@ -178,7 +183,8 @@ class PGAuthService {
       final msg = e.toString().toLowerCase();
       if (msg.contains('network')) {
         return const PGAuthError(
-            "We couldn't reach the network. Try again in a moment.");
+          "We couldn't reach the network. Try again in a moment.",
+        );
       }
       return PGAuthError(
         msg.contains('sign_in_canceled')
@@ -212,9 +218,7 @@ class PGAuthService {
   static String _sha256Hex(String input) =>
       sha256.convert(utf8.encode(input)).toString();
 
-  static String _friendlyAppleError(
-    SignInWithAppleAuthorizationException e,
-  ) {
+  static String _friendlyAppleError(SignInWithAppleAuthorizationException e) {
     switch (e.code) {
       case AuthorizationErrorCode.canceled:
         return 'Sign in canceled.';

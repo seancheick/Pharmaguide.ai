@@ -100,9 +100,7 @@ class _PlaceholderArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (type == PGItemType.medication) {
-      return CustomPaint(
-        painter: _BottlePainter(color: type.color),
-      );
+      return CustomPaint(painter: _BottlePainter(color: type.color));
     }
     return Center(
       child: Icon(type.icon, size: size * 0.42, color: type.color),
@@ -161,12 +159,7 @@ class _BottlePainter extends CustomPainter {
       )
       // Shoulder → body right
       ..lineTo(bodyRight - cornerRadius, bodyTop)
-      ..quadraticBezierTo(
-        bodyRight,
-        bodyTop,
-        bodyRight,
-        bodyTop + cornerRadius,
-      )
+      ..quadraticBezierTo(bodyRight, bodyTop, bodyRight, bodyTop + cornerRadius)
       // Body right → bottom right
       ..lineTo(bodyRight, bodyBottom - cornerRadius)
       ..quadraticBezierTo(
@@ -185,12 +178,7 @@ class _BottlePainter extends CustomPainter {
       )
       // Body left up
       ..lineTo(bodyLeft, bodyTop + cornerRadius)
-      ..quadraticBezierTo(
-        bodyLeft,
-        bodyTop,
-        bodyLeft + shoulderRadius,
-        bodyTop,
-      )
+      ..quadraticBezierTo(bodyLeft, bodyTop, bodyLeft + shoulderRadius, bodyTop)
       // Shoulder → neck left
       ..lineTo((w - neckWidth) / 2 - shoulderRadius, bodyTop)
       ..quadraticBezierTo(

@@ -39,12 +39,13 @@ class PGSettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = destructive ? V2Colors.contraindicated : V2Colors.fg;
-    final iconColor =
-        destructive ? V2Colors.contraindicated : V2Colors.fgMuted;
-    final captionColor =
-        destructive ? V2Colors.contraindicated : V2Colors.fgMuted;
+    final iconColor = destructive ? V2Colors.contraindicated : V2Colors.fgMuted;
+    final captionColor = destructive
+        ? V2Colors.contraindicated
+        : V2Colors.fgMuted;
 
-    final tail = trailing ??
+    final tail =
+        trailing ??
         (onTap != null
             ? const Icon(
                 Icons.chevron_right_rounded,
@@ -68,10 +69,7 @@ class PGSettingsTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: V2Typography.bodyMedium(color: fg),
-                  ),
+                  Text(title, style: V2Typography.bodyMedium(color: fg)),
                   if (caption != null) ...[
                     const SizedBox(height: V2Spacing.space4),
                     Text(
@@ -103,11 +101,7 @@ class PGSettingsGroup extends StatelessWidget {
   final String? eyebrow;
   final List<PGSettingsTile> children;
 
-  const PGSettingsGroup({
-    super.key,
-    this.eyebrow,
-    required this.children,
-  });
+  const PGSettingsGroup({super.key, this.eyebrow, required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -116,9 +110,7 @@ class PGSettingsGroup extends StatelessWidget {
       children: [
         if (eyebrow != null) ...[
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: V2Spacing.space8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
             child: PGEyebrow(eyebrow!, color: V2Colors.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space8),
@@ -135,8 +127,7 @@ class PGSettingsGroup extends StatelessWidget {
               children: [
                 for (var i = 0; i < children.length; i++) ...[
                   children[i],
-                  if (i < children.length - 1)
-                    const _TileDivider(),
+                  if (i < children.length - 1) const _TileDivider(),
                 ],
               ],
             ),
@@ -156,11 +147,7 @@ class _TileDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.only(left: V2Spacing.space48),
-      child: Divider(
-        color: V2Colors.outline,
-        height: 1,
-        thickness: 1,
-      ),
+      child: Divider(color: V2Colors.outline, height: 1, thickness: 1),
     );
   }
 }

@@ -45,10 +45,12 @@ class PGDepletionCard extends StatelessWidget {
 
   _CardState get _state {
     if (depletions.isEmpty) return _CardState.empty;
-    final anyUncovered =
-        depletions.any((d) => d.coverageLevel == CoverageLevel.none);
-    final anyPartial =
-        depletions.any((d) => d.coverageLevel == CoverageLevel.partial);
+    final anyUncovered = depletions.any(
+      (d) => d.coverageLevel == CoverageLevel.none,
+    );
+    final anyPartial = depletions.any(
+      (d) => d.coverageLevel == CoverageLevel.partial,
+    );
     if (!anyUncovered && !anyPartial) return _CardState.allCovered;
     if (!anyUncovered) return _CardState.partial;
     return _CardState.noneOrMixed;
@@ -61,7 +63,8 @@ class PGDepletionCard extends StatelessWidget {
     String eyebrow,
     String title,
     String subtitle,
-  }) _chrome() {
+  })
+  _chrome() {
     switch (_state) {
       case _CardState.allCovered:
         // Sean 2026-05-16: "You're covered" felt a touch casual for
@@ -288,9 +291,7 @@ class _DepletionRowState extends State<_DepletionRow> {
                       const SizedBox(height: 2),
                       Text(
                         _subtitleForCoverage(d),
-                        style: V2Typography.caption(
-                          color: V2Colors.fgMuted,
-                        ),
+                        style: V2Typography.caption(color: V2Colors.fgMuted),
                       ),
                       const SizedBox(height: V2Spacing.space8),
                       Text(
@@ -383,8 +384,7 @@ class _DetailSection extends StatelessWidget {
             _labelled('What can happen', d.clinicalImpact!),
             const SizedBox(height: V2Spacing.space8),
           ],
-          if (d.foodSourcesShort != null &&
-              d.foodSourcesShort!.isNotEmpty) ...[
+          if (d.foodSourcesShort != null && d.foodSourcesShort!.isNotEmpty) ...[
             _labelled('From food', d.foodSourcesShort!),
             const SizedBox(height: V2Spacing.space8),
           ],

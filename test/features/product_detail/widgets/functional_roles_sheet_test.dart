@@ -85,37 +85,35 @@ void main() {
     },
   );
 
-  testWidgets(
-    'sheet with empty functional_roles renders generic fallback',
-    (tester) async {
-      await _pumpAndOpenSheet(tester, const {
-        'name': 'Mystery Excipient',
-        'functional_roles': <String>[],
-      });
+  testWidgets('sheet with empty functional_roles renders generic fallback', (
+    tester,
+  ) async {
+    await _pumpAndOpenSheet(tester, const {
+      'name': 'Mystery Excipient',
+      'functional_roles': <String>[],
+    });
 
-      expect(find.text('Mystery Excipient'), findsOneWidget);
-      expect(
-        find.text('Inactive ingredient — added during manufacturing.'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('Mystery Excipient'), findsOneWidget);
+    expect(
+      find.text('Inactive ingredient — added during manufacturing.'),
+      findsOneWidget,
+    );
+  });
 
-  testWidgets(
-    'sheet with unknown role ids falls back when vocab misses',
-    (tester) async {
-      await _pumpAndOpenSheet(tester, const {
-        'name': 'Edge Case',
-        'functional_roles': ['not_in_vocab'],
-      });
+  testWidgets('sheet with unknown role ids falls back when vocab misses', (
+    tester,
+  ) async {
+    await _pumpAndOpenSheet(tester, const {
+      'name': 'Edge Case',
+      'functional_roles': ['not_in_vocab'],
+    });
 
-      expect(find.text('Edge Case'), findsOneWidget);
-      expect(
-        find.text('Inactive ingredient — added during manufacturing.'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('Edge Case'), findsOneWidget);
+    expect(
+      find.text('Inactive ingredient — added during manufacturing.'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'sheet header falls back to raw_source_text when name is missing',
@@ -132,9 +130,7 @@ void main() {
   testWidgets(
     'sheet header falls back to "Inactive ingredient" when both name and raw_source_text are missing',
     (tester) async {
-      await _pumpAndOpenSheet(tester, const {
-        'functional_roles': <String>[],
-      });
+      await _pumpAndOpenSheet(tester, const {'functional_roles': <String>[]});
 
       expect(find.text('Inactive ingredient'), findsOneWidget);
     },

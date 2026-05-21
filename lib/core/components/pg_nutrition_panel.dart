@@ -86,10 +86,7 @@ class PGNutritionPanel extends StatelessWidget {
             ),
           ],
           for (var i = 0; i < facts.length; i++)
-            _NutritionRow(
-              fact: facts[i],
-              isLast: i == facts.length - 1,
-            ),
+            _NutritionRow(fact: facts[i], isLast: i == facts.length - 1),
         ],
       ),
     );
@@ -120,10 +117,7 @@ class _NutritionRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(child: Text(fact.label, style: labelStyle)),
-            Text(
-              fact.value,
-              style: V2Typography.monoData(color: V2Colors.fg),
-            ),
+            Text(fact.value, style: V2Typography.monoData(color: V2Colors.fg)),
             if (fact.dailyValue != null) ...[
               const SizedBox(width: V2Spacing.space12),
               SizedBox(

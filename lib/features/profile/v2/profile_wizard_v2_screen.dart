@@ -166,9 +166,7 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
       await OnboardingPrefs.markProfileWizardSeen();
     }
     if (!mounted) return;
-    GoRouter.of(context).go(
-      widget.autoFinish ? Routes.home : '/dev/v2',
-    );
+    GoRouter.of(context).go(widget.autoFinish ? Routes.home : '/dev/v2');
   }
 
   // ───────── sheets — reuse the dashboard helpers verbatim so the ──
@@ -209,10 +207,7 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
     const sexOptions = [
       PGSelectionOption(id: 'Female', label: 'Female'),
       PGSelectionOption(id: 'Male', label: 'Male'),
-      PGSelectionOption(
-        id: 'Prefer not to say',
-        label: 'Prefer not to say',
-      ),
+      PGSelectionOption(id: 'Prefer not to say', label: 'Prefer not to say'),
     ];
     final result = await showPGSelectionSheet(
       context: context,
@@ -223,8 +218,7 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
           'pregnancy-related cautions, or nutrient guidance can '
           'differ. Stored only on this device.',
       options: sexOptions,
-      initialSelection:
-          profile.sex == null ? <String>{} : {profile.sex!},
+      initialSelection: profile.sex == null ? <String>{} : {profile.sex!},
       singleSelect: true,
       layout: PGSheetLayout.rows,
       dismissLabel: "I'll add this later",
@@ -268,7 +262,9 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setGoalsWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setGoalsWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -300,7 +296,9 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setConditionsWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setConditionsWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -331,7 +329,9 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setAllergensWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setAllergensWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -361,7 +361,9 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setDrugClassesWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setDrugClassesWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -501,8 +503,9 @@ class _TopRow extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               onTap: onSkip,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: V2Spacing.space8,
+                ),
                 child: Text(
                   'Skip for now',
                   style: V2Typography.label(color: V2Colors.fgMuted),
@@ -577,16 +580,12 @@ class _NicknameStepState extends ConsumerState<_NicknameStep> {
             helper: widget.helper,
           ),
           const SizedBox(height: V2Spacing.space32),
-          Text(
-            'Nickname',
-            style: V2Typography.label(color: V2Colors.fg),
-          ),
+          Text('Nickname', style: V2Typography.label(color: V2Colors.fg)),
           const SizedBox(height: V2Spacing.space8),
           AnimatedContainer(
             duration: V2Motion.fast,
             curve: V2Motion.smooth,
-            padding:
-                const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
+            padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
             decoration: BoxDecoration(
               color: V2Colors.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -681,9 +680,7 @@ class _BasicsStep extends ConsumerWidget {
           _WizardTile(
             eyebrow: 'Sex for safety checks',
             title: profile.sex ?? 'Tap to pick',
-            body: profile.sex == null
-                ? 'Used for accurate dosing.'
-                : null,
+            body: profile.sex == null ? 'Used for accurate dosing.' : null,
             icon: Icons.person_outline_rounded,
             onTap: onTapSex,
           ),
@@ -845,15 +842,9 @@ class _StepIntro extends StatelessWidget {
       children: [
         PGEyebrow(eyebrow),
         const SizedBox(height: V2Spacing.space12),
-        Text(
-          title,
-          style: V2Typography.displaySm(color: V2Colors.fg),
-        ),
+        Text(title, style: V2Typography.displaySm(color: V2Colors.fg)),
         const SizedBox(height: V2Spacing.space12),
-        Text(
-          helper,
-          style: V2Typography.body(color: V2Colors.fgMuted),
-        ),
+        Text(helper, style: V2Typography.body(color: V2Colors.fgMuted)),
       ],
     );
   }
@@ -935,10 +926,7 @@ class _WizardTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: V2Colors.fgSubtle,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
             ],
           ),
         ),

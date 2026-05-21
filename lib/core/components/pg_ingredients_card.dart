@@ -58,8 +58,7 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
   @override
   void initState() {
     super.initState();
-    _expanded =
-        widget.inactiveIngredients.length <= widget.autoExpandThreshold;
+    _expanded = widget.inactiveIngredients.length <= widget.autoExpandThreshold;
   }
 
   @override
@@ -82,11 +81,7 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
           if (hasActive) widget.activeContent!,
           if (hasActive && hasInactive) ...[
             const SizedBox(height: V2Spacing.space16),
-            const Divider(
-              color: V2Colors.outline,
-              height: 1,
-              thickness: 0.5,
-            ),
+            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space16),
           ],
           if (hasInactive) _buildInactiveSection(),
@@ -110,8 +105,9 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
               children: [
                 Text(
                   'Other ingredients',
-                  style: V2Typography.bodyMedium(color: V2Colors.fg)
-                      .copyWith(fontSize: 16),
+                  style: V2Typography.bodyMedium(
+                    color: V2Colors.fg,
+                  ).copyWith(fontSize: 16),
                 ),
                 const SizedBox(width: V2Spacing.space8),
                 Container(
@@ -121,17 +117,16 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
                   ),
                   decoration: BoxDecoration(
                     color: V2Colors.accentTint,
-                    borderRadius:
-                        BorderRadius.circular(V2Spacing.radiusPill),
+                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                   ),
                   child: Text(
                     '${ingredients.length}',
                     style: V2Typography.overline(color: V2Colors.accent)
                         .copyWith(
-                      fontSize: 11,
-                      letterSpacing: 0.2,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                          fontSize: 11,
+                          letterSpacing: 0.2,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                   ),
                 ),
                 const Spacer(),
@@ -217,8 +212,9 @@ class _PGActiveIngredientsSectionState
               children: [
                 Text(
                   'Active Ingredients',
-                  style: V2Typography.bodyMedium(color: V2Colors.fg)
-                      .copyWith(fontSize: 16),
+                  style: V2Typography.bodyMedium(
+                    color: V2Colors.fg,
+                  ).copyWith(fontSize: 16),
                 ),
                 const SizedBox(width: V2Spacing.space8),
                 Container(
@@ -228,17 +224,16 @@ class _PGActiveIngredientsSectionState
                   ),
                   decoration: BoxDecoration(
                     color: V2Colors.accentTint,
-                    borderRadius:
-                        BorderRadius.circular(V2Spacing.radiusPill),
+                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                   ),
                   child: Text(
                     '${widget.tiles.length}',
                     style: V2Typography.overline(color: V2Colors.accent)
                         .copyWith(
-                      fontSize: 11,
-                      letterSpacing: 0.2,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                          fontSize: 11,
+                          letterSpacing: 0.2,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                   ),
                 ),
                 const Spacer(),

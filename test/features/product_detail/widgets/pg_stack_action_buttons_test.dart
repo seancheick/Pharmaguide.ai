@@ -58,9 +58,7 @@ Widget _wrap(
       }),
     ],
     child: MaterialApp(
-      routes: {
-        '/auth': (_) => const Scaffold(body: Text('Auth invitation')),
-      },
+      routes: {'/auth': (_) => const Scaffold(body: Text('Auth invitation'))},
       home: Scaffold(
         body: Builder(
           builder: (context) => PGStackActionButtons(

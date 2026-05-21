@@ -860,10 +860,7 @@ class _StateCard extends StatelessWidget {
 class _ResultsBlock extends StatelessWidget {
   final List<InteractionResult> results;
   final bool coverageIncomplete;
-  const _ResultsBlock({
-    required this.results,
-    this.coverageIncomplete = false,
-  });
+  const _ResultsBlock({required this.results, this.coverageIncomplete = false});
 
   @override
   Widget build(BuildContext context) {

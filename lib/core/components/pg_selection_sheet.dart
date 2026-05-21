@@ -64,10 +64,7 @@ class PGSelectionResult {
   /// from "selected is empty because the user hasn't decided yet."
   final bool noneSelected;
 
-  const PGSelectionResult({
-    required this.selected,
-    required this.noneSelected,
-  });
+  const PGSelectionResult({required this.selected, required this.noneSelected});
 }
 
 /// Open the v2 selection bottom sheet.
@@ -341,10 +338,7 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
   void _save() {
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop(
-      PGSelectionResult(
-        selected: {..._draft},
-        noneSelected: _noneSelected,
-      ),
+      PGSelectionResult(selected: {..._draft}, noneSelected: _noneSelected),
     );
   }
 
@@ -362,8 +356,7 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
     // tap a different chip to change their pick.
     if (widget.singleSelect) return false;
     if (widget.maxSelection == null) return false;
-    return !_draft.contains(option.id) &&
-        _draft.length >= widget.maxSelection!;
+    return !_draft.contains(option.id) && _draft.length >= widget.maxSelection!;
   }
 
   @override
@@ -450,9 +443,7 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                           !_noneSelected) ...[
                         Text(
                           widget.maxSelectionHint!,
-                          style: V2Typography.caption(
-                            color: V2Colors.fgMuted,
-                          ),
+                          style: V2Typography.caption(color: V2Colors.fgMuted),
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],
@@ -463,9 +454,7 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                           ),
                           child: Text(
                             'No matches for "${_searchController.text}"',
-                            style: V2Typography.bodySm(
-                              color: V2Colors.fgMuted,
-                            ),
+                            style: V2Typography.bodySm(color: V2Colors.fgMuted),
                           ),
                         )
                       else if (widget.layout == PGSheetLayout.rows)
@@ -547,11 +536,7 @@ class _SearchField extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.search_rounded,
-            size: 18,
-            color: V2Colors.fgSubtle,
-          ),
+          const Icon(Icons.search_rounded, size: 18, color: V2Colors.fgSubtle),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: TextField(
@@ -673,11 +658,7 @@ class _CheckCircle extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: selected
-          ? const Icon(
-              Icons.check_rounded,
-              size: 13,
-              color: Colors.white,
-            )
+          ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
           : null,
     );
   }
@@ -719,20 +700,13 @@ class _SheetChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          border: Border.all(
-            color: border,
-            width: selected ? 1.5 : 1.0,
-          ),
+          border: Border.all(color: border, width: selected ? 1.5 : 1.0),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (selected) ...[
-              const Icon(
-                Icons.check_rounded,
-                size: 14,
-                color: V2Colors.accent,
-              ),
+              const Icon(Icons.check_rounded, size: 14, color: V2Colors.accent),
               const SizedBox(width: V2Spacing.space8),
             ],
             Flexible(
@@ -821,10 +795,7 @@ class _SheetActionBar extends StatelessWidget {
         children: [
           if (leftAction != null) leftAction,
           const Spacer(),
-          PGPillButton(
-            label: saveLabel,
-            onPressed: onSave,
-          ),
+          PGPillButton(label: saveLabel, onPressed: onSave),
         ],
       ),
     );
@@ -895,9 +866,7 @@ class _SheetRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final labelStyle = selected
         ? V2Typography.bodyMedium(color: V2Colors.accent)
-        : V2Typography.body(
-            color: disabled ? V2Colors.fgSubtle : V2Colors.fg,
-          );
+        : V2Typography.body(color: disabled ? V2Colors.fgSubtle : V2Colors.fg);
     return Material(
       color: Colors.transparent,
       child: InkWell(

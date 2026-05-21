@@ -84,8 +84,7 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
     super.dispose();
   }
 
-  bool get _isValidEmail =>
-      _emailRegex.hasMatch(_controller.text.trim());
+  bool get _isValidEmail => _emailRegex.hasMatch(_controller.text.trim());
 
   Future<void> _send() async {
     final email = _controller.text.trim();
@@ -163,9 +162,7 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
       child: Container(
         decoration: const BoxDecoration(
           color: V2Colors.bg,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(24),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: V2Shadows.lg,
         ),
         child: SafeArea(
@@ -312,8 +309,9 @@ class _EmailField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor =
-        hasError ? V2Colors.caution.withValues(alpha: 0.45) : V2Colors.outline;
+    final borderColor = hasError
+        ? V2Colors.caution.withValues(alpha: 0.45)
+        : V2Colors.outline;
     return TextField(
       controller: controller,
       focusNode: focusNode,

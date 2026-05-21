@@ -54,9 +54,7 @@ Future<Map<String, FormFactorEntry>> loadFormFactorVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 
-  final raw = await rootBundle.loadString(
-    'assets/data/form_factor_vocab.json',
-  );
+  final raw = await rootBundle.loadString('assets/data/form_factor_vocab.json');
   final decoded = jsonDecode(raw) as Map<String, dynamic>;
   final entries = (decoded['form_factors'] as List?) ?? const [];
 

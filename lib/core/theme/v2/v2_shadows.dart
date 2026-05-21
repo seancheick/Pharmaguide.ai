@@ -10,25 +10,13 @@ abstract final class V2Shadows {
 
   /// Tier 1 — subtle card lift.
   static const List<BoxShadow> sm = [
-    BoxShadow(
-      color: Color(0x0A181A1B),
-      blurRadius: 6,
-      offset: Offset(0, 1),
-    ),
+    BoxShadow(color: Color(0x0A181A1B), blurRadius: 6, offset: Offset(0, 1)),
   ];
 
   /// Tier 2 — elevated card / floating element.
   static const List<BoxShadow> md = [
-    BoxShadow(
-      color: Color(0x0D181A1B),
-      blurRadius: 12,
-      offset: Offset(0, 4),
-    ),
-    BoxShadow(
-      color: Color(0x05181A1B),
-      blurRadius: 4,
-      offset: Offset(0, 1),
-    ),
+    BoxShadow(color: Color(0x0D181A1B), blurRadius: 12, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x05181A1B), blurRadius: 4, offset: Offset(0, 1)),
   ];
 
   /// Tier 3 — modal / floating sheet / hero card.
@@ -39,11 +27,7 @@ abstract final class V2Shadows {
       offset: Offset(0, 12),
       spreadRadius: -6,
     ),
-    BoxShadow(
-      color: Color(0x08181A1B),
-      blurRadius: 8,
-      offset: Offset(0, 2),
-    ),
+    BoxShadow(color: Color(0x08181A1B), blurRadius: 8, offset: Offset(0, 2)),
   ];
 
   /// Accent glow — for primary CTA hover/press state only.

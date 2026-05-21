@@ -94,10 +94,7 @@ void main() {
         primaryCategory: 'multivitamin',
         scoreQuality80: 30,
       );
-      final result = rankAlternatives(
-        current: cur,
-        candidates: [cur],
-      );
+      final result = rankAlternatives(current: cur, candidates: [cur]);
       expect(result, isEmpty);
     });
 
@@ -131,8 +128,7 @@ void main() {
       expect(result.map((p) => p.dsldId), equals(['on']));
     });
 
-    test(
-        'unscored current (blocked product like Vinpocetine) still returns '
+    test('unscored current (blocked product like Vinpocetine) still returns '
         'scored candidates', () {
       // Sean's Phase 11.7L.F follow-up: blocked products like
       // dsld 16012 Vinpocetine ship with `score_quality_80 = NULL`.
@@ -157,15 +153,17 @@ void main() {
         current: vinpocetine,
         candidates: [saferAlt],
       );
-      expect(result.map((p) => p.dsldId), equals(['safer-alt']),
-          reason:
-              'Blocked products with null scoreQuality80 must still '
-              "surface scored alternatives — that's the user's whole "
-              'reason for landing on this section.');
+      expect(
+        result.map((p) => p.dsldId),
+        equals(['safer-alt']),
+        reason:
+            'Blocked products with null scoreQuality80 must still '
+            "surface scored alternatives — that's the user's whole "
+            'reason for landing on this section.',
+      );
     });
 
-    test('drops candidates with score ≤ current (strictly higher only)',
-        () {
+    test('drops candidates with score ≤ current (strictly higher only)', () {
       final cur = _product(
         dsldId: 'cur',
         name: 'Daily Multi',
@@ -187,10 +185,7 @@ void main() {
         primaryCategory: 'multivitamin',
         scoreQuality80: 65,
       );
-      final result = rankAlternatives(
-        current: cur,
-        candidates: [tied, higher],
-      );
+      final result = rankAlternatives(current: cur, candidates: [tied, higher]);
       expect(result.map((p) => p.dsldId), equals(['higher']));
     });
 
@@ -285,19 +280,26 @@ void main() {
       );
 
       final ids = result.map((p) => p.dsldId).toList();
-      expect(ids, contains('better-mens-energy'),
-          reason: 'A same-type same-audience swap should always win.');
-      expect(ids, isNot(contains('328830')),
-          reason: 'Prenatal cross-audience must be blocked.');
-      expect(ids, isNot(contains('313907')),
-          reason: 'Off-market must be filtered.');
+      expect(
+        ids,
+        contains('better-mens-energy'),
+        reason: 'A same-type same-audience swap should always win.',
+      );
+      expect(
+        ids,
+        isNot(contains('328830')),
+        reason: 'Prenatal cross-audience must be blocked.',
+      );
+      expect(
+        ids,
+        isNot(contains('313907')),
+        reason: 'Off-market must be filtered.',
+      );
     });
   });
 
-  group('Regression: Audit case #2 — Vitamin A targeted ↛ kids chewable',
-      () {
-    test(
-        'single-ingredient targeted does not recommend kids multi or '
+  group('Regression: Audit case #2 — Vitamin A targeted ↛ kids chewable', () {
+    test('single-ingredient targeted does not recommend kids multi or '
         'discontinued', () {
       final vitA = _product(
         dsldId: '19170',
@@ -338,17 +340,21 @@ void main() {
         candidates: [kidsMulti, synaQuell, aTargeted],
       );
       final ids = result.map((p) => p.dsldId).toList();
-      expect(ids, contains('better-a-targeted'),
-          reason: 'Same supplement_type=targeted should win.');
-      expect(ids, isNot(contains('281264')),
-          reason: 'Kids cross-audience + off-market must be blocked.');
+      expect(
+        ids,
+        contains('better-a-targeted'),
+        reason: 'Same supplement_type=targeted should win.',
+      );
+      expect(
+        ids,
+        isNot(contains('281264')),
+        reason: 'Kids cross-audience + off-market must be blocked.',
+      );
     });
   });
 
-  group('Regression: Audit case #3 — GNC Probiotic ↛ discontinued Restore',
-      () {
-    test('probiotic does not recommend off-market #1 or magnesium-gummy',
-        () {
+  group('Regression: Audit case #3 — GNC Probiotic ↛ discontinued Restore', () {
+    test('probiotic does not recommend off-market #1 or magnesium-gummy', () {
       final gncProb = _product(
         dsldId: '1646',
         name: 'Probiotic Complex 1',
@@ -394,19 +400,24 @@ void main() {
         candidates: [restore, magnesiumGummy, trueProb],
       );
       final ids = result.map((p) => p.dsldId).toList();
-      expect(ids, isNot(contains('15581')),
-          reason: 'Off-market must be filtered.');
-      expect(ids.first, equals('251907'),
-          reason:
-              'Probiotic-first product (251907) should outrank '
-              'magnesium-with-probiotics (297681) because it shares '
-              'supplement_type and the probiotic family flag.');
+      expect(
+        ids,
+        isNot(contains('15581')),
+        reason: 'Off-market must be filtered.',
+      );
+      expect(
+        ids.first,
+        equals('251907'),
+        reason:
+            'Probiotic-first product (251907) should outrank '
+            'magnesium-with-probiotics (297681) because it shares '
+            'supplement_type and the probiotic family flag.',
+      );
     });
   });
 
   group('Regression: Audit case #4 — Kids multi ↛ prenatal/adult', () {
-    test('children\'s multivitamin does not recommend prenatal or adult',
-        () {
+    test('children\'s multivitamin does not recommend prenatal or adult', () {
       final kidsMulti = _product(
         dsldId: '178559',
         name: 'Children\'s Multivitamin Gummies',
@@ -454,49 +465,59 @@ void main() {
         candidates: [adultMulti, prenatal, discontinued, betterKids],
       );
       final ids = result.map((p) => p.dsldId).toList();
-      expect(ids, contains('better-kids-multi'),
-          reason: 'Same-audience kids swap should win.');
-      expect(ids, isNot(contains('336315')),
-          reason: 'Adult cross-audience must be blocked.');
-      expect(ids, isNot(contains('328830')),
-          reason: 'Prenatal cross-audience must be blocked.');
-      expect(ids, isNot(contains('313907')),
-          reason: 'Off-market must be filtered.');
+      expect(
+        ids,
+        contains('better-kids-multi'),
+        reason: 'Same-audience kids swap should win.',
+      );
+      expect(
+        ids,
+        isNot(contains('336315')),
+        reason: 'Adult cross-audience must be blocked.',
+      );
+      expect(
+        ids,
+        isNot(contains('328830')),
+        reason: 'Prenatal cross-audience must be blocked.',
+      );
+      expect(
+        ids,
+        isNot(contains('313907')),
+        reason: 'Off-market must be filtered.',
+      );
     });
   });
 
-  group('Regression: Audit case #5 — score ties do NOT qualify as "better"',
-      () {
-    test('candidate with equal score is dropped (no > operator)', () {
-      final cur = _product(
-        dsldId: 'cur',
-        name: 'Tied Multi',
-        supplementType: 'multivitamin',
-        primaryCategory: 'multivitamin',
-        scoreQuality80: 50,
-      );
-      final tied = _product(
-        dsldId: 'tied',
-        name: 'Tied Multi B',
-        supplementType: 'multivitamin',
-        primaryCategory: 'multivitamin',
-        scoreQuality80: 50,
-      );
-      final result = rankAlternatives(
-        current: cur,
-        candidates: [tied],
-      );
-      expect(result, isEmpty);
-    });
-  });
+  group(
+    'Regression: Audit case #5 — score ties do NOT qualify as "better"',
+    () {
+      test('candidate with equal score is dropped (no > operator)', () {
+        final cur = _product(
+          dsldId: 'cur',
+          name: 'Tied Multi',
+          supplementType: 'multivitamin',
+          primaryCategory: 'multivitamin',
+          scoreQuality80: 50,
+        );
+        final tied = _product(
+          dsldId: 'tied',
+          name: 'Tied Multi B',
+          supplementType: 'multivitamin',
+          primaryCategory: 'multivitamin',
+          scoreQuality80: 50,
+        );
+        final result = rankAlternatives(current: cur, candidates: [tied]);
+        expect(result, isEmpty);
+      });
+    },
+  );
 
   // ===========================================================================
   // Sport ↔ general carve-out
   // ===========================================================================
 
   group('Sport ↔ general carve-out', () {
-    test(
-        'general wellness candidate blocked from sport product unless '
+    test('general wellness candidate blocked from sport product unless '
         'ingredient overlap ≥ 0.5', () {
       final sportPre = _product(
         dsldId: 'cur',
@@ -532,10 +553,16 @@ void main() {
         candidates: [unrelatedGeneral, overlappingGeneral],
       );
       final ids = result.map((p) => p.dsldId).toList();
-      expect(ids, contains('overlap'),
-          reason: 'High-overlap general should pass the carveout.');
-      expect(ids, isNot(contains('unrelated')),
-          reason: 'No-overlap general must be blocked.');
+      expect(
+        ids,
+        contains('overlap'),
+        reason: 'High-overlap general should pass the carveout.',
+      );
+      expect(
+        ids,
+        isNot(contains('unrelated')),
+        reason: 'No-overlap general must be blocked.',
+      );
     });
   });
 
@@ -544,8 +571,7 @@ void main() {
   // ===========================================================================
 
   group('Tier ordering', () {
-    test(
-        'same supplement_type + high ingredient overlap (tier A) outranks '
+    test('same supplement_type + high ingredient overlap (tier A) outranks '
         'same supplement_type only (tier B) at lower score', () {
       final cur = _product(
         dsldId: 'cur',
@@ -576,14 +602,14 @@ void main() {
         keyIngredientTags: '["fish_oil","epa","dha"]',
       );
 
-      final result = rankAlternatives(
-        current: cur,
-        candidates: [tierB, tierA],
+      final result = rankAlternatives(current: cur, candidates: [tierB, tierA]);
+      expect(
+        result.first.dsldId,
+        equals('tier-a'),
+        reason:
+            'Tier A (intent+family match) must outrank Tier B even at '
+            'a lower score.',
       );
-      expect(result.first.dsldId, equals('tier-a'),
-          reason:
-              'Tier A (intent+family match) must outrank Tier B even at '
-              'a lower score.');
     });
 
     test('tiebreaker chain — within same tier, higher score wins', () {
@@ -630,10 +656,8 @@ void main() {
   // ===========================================================================
 
   group('userGoals tiebreaker', () {
-    test(
-        'when user has goals, candidate matching those goals beats one '
-        'that does not — even at the same tier + same score',
-        () {
+    test('when user has goals, candidate matching those goals beats one '
+        'that does not — even at the same tier + same score', () {
       final cur = _product(
         dsldId: 'cur',
         name: 'Magnesium Glycinate',
@@ -674,17 +698,18 @@ void main() {
         candidates: [goalMismatched, goalAligned],
         userGoals: {'GOAL_SLEEP_QUALITY', 'GOAL_IMMUNE_SUPPORT'},
       );
-      expect(result.first.dsldId, equals('aligned'),
-          reason:
-              "Goal-aligned candidate must outrank the higher-brand-trust "
-              'mismatch when userGoals are present — that is the whole '
-              'point of the personalization hook.');
+      expect(
+        result.first.dsldId,
+        equals('aligned'),
+        reason:
+            "Goal-aligned candidate must outrank the higher-brand-trust "
+            'mismatch when userGoals are present — that is the whole '
+            'point of the personalization hook.',
+      );
     });
 
-    test(
-        'when userGoals is null, ranker falls back to product-to-product '
-        'goal Jaccard (no personalization, no crash)',
-        () {
+    test('when userGoals is null, ranker falls back to product-to-product '
+        'goal Jaccard (no personalization, no crash)', () {
       final cur = _product(
         dsldId: 'cur',
         name: 'Sleep Multi',
@@ -719,18 +744,19 @@ void main() {
         candidates: [noShared, sharesGoal],
         // userGoals deliberately omitted — fallback path.
       );
-      expect(result.first.dsldId, equals('shares'),
-          reason:
-              'With userGoals null, the product-to-product '
-              'goal-match Jaccard takes over as the tiebreaker. Shares '
-              'a goal with current → outranks the higher-brand-trust '
-              'no-overlap candidate.');
+      expect(
+        result.first.dsldId,
+        equals('shares'),
+        reason:
+            'With userGoals null, the product-to-product '
+            'goal-match Jaccard takes over as the tiebreaker. Shares '
+            'a goal with current → outranks the higher-brand-trust '
+            'no-overlap candidate.',
+      );
     });
 
-    test(
-        'empty userGoals set is treated like null (defensive — same as '
-        'a user who has not picked any goals yet)',
-        () {
+    test('empty userGoals set is treated like null (defensive — same as '
+        'a user who has not picked any goals yet)', () {
       final cur = _product(
         dsldId: 'cur',
         name: 'B-Complex',
@@ -750,11 +776,14 @@ void main() {
         candidates: [candidate],
         userGoals: const <String>{},
       );
-      expect(result.map((p) => p.dsldId), equals(['cand']),
-          reason:
-              "An empty userGoals set must not blow up or starve the "
-              'result list — the personalization tiebreaker just goes '
-              'neutral.');
+      expect(
+        result.map((p) => p.dsldId),
+        equals(['cand']),
+        reason:
+            "An empty userGoals set must not blow up or starve the "
+            'result list — the personalization tiebreaker just goes '
+            'neutral.',
+      );
     });
   });
 
@@ -801,8 +830,7 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test(
-        'all candidates fail hard filters (off-market or low score) → '
+    test('all candidates fail hard filters (off-market or low score) → '
         'empty result', () {
       final cur = _product(
         dsldId: 'cur',

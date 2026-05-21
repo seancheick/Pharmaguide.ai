@@ -58,8 +58,7 @@ class PGSegmentedControl extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   color: V2Colors.surfaceContainerHighest,
-                  borderRadius:
-                      BorderRadius.circular(V2Spacing.radiusPill),
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                   border: Border.all(color: V2Colors.outline),
                 ),
               ),

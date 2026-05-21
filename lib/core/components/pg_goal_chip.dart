@@ -56,10 +56,7 @@ class PGGoalChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(
-              color: border,
-              width: selected ? 1.5 : 1.0,
-            ),
+            border: Border.all(color: border, width: selected ? 1.5 : 1.0),
           ),
           child: Text(
             label,

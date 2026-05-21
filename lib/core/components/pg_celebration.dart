@@ -57,16 +57,15 @@ class _PGCelebrationState extends State<PGCelebration>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: V2Motion.slower,
-    );
-    _opacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _ctrl, curve: V2Motion.emphasized),
-    );
-    _lift = Tween<double>(begin: 16, end: 0).animate(
-      CurvedAnimation(parent: _ctrl, curve: V2Motion.emphasized),
-    );
+    _ctrl = AnimationController(vsync: this, duration: V2Motion.slower);
+    _opacity = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: V2Motion.emphasized));
+    _lift = Tween<double>(
+      begin: 16,
+      end: 0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: V2Motion.emphasized));
 
     Future<void>.delayed(V2Motion.instant, () async {
       if (!mounted) return;

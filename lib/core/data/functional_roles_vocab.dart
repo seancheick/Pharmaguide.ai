@@ -64,9 +64,9 @@ class FunctionalRoleEntry {
       notes: json['notes']?.toString() ?? '',
       regulatoryReferences: refsRaw is List
           ? refsRaw
-              .whereType<Map<String, dynamic>>()
-              .map(RegulatoryReference.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(RegulatoryReference.fromJson)
+                .toList()
           : const [],
       examples: examplesRaw is List
           ? examplesRaw.map((a) => a.toString()).toList()

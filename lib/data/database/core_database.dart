@@ -408,14 +408,16 @@ class CoreDatabase extends _$CoreDatabase {
             // `isNull()` matches genuine NULLs, and a defensive
             // equals('') covers older catalogs that stored empty
             // strings.
-            expr = expr &
-                (t.discontinuedDate.isNull() |
-                    t.discontinuedDate.equals(''));
+            expr =
+                expr &
+                (t.discontinuedDate.isNull() | t.discontinuedDate.equals(''));
             // No banned / recalled.
-            expr = expr &
+            expr =
+                expr &
                 (t.hasBannedSubstance.isNull() |
                     t.hasBannedSubstance.equals(0));
-            expr = expr &
+            expr =
+                expr &
                 (t.hasRecalledIngredient.isNull() |
                     t.hasRecalledIngredient.equals(0));
             return expr;

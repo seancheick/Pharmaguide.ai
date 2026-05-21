@@ -147,11 +147,9 @@ List<Widget> _buildActiveTiles({
   final tiles = <Widget>[];
 
   for (final ing in grouped.looseDisclosed) {
-    tiles.add(_tileFor(
-      context: context,
-      ingredient: ing,
-      ulAnalysis: ulAnalysis,
-    ));
+    tiles.add(
+      _tileFor(context: context, ingredient: ing, ulAnalysis: ulAnalysis),
+    );
   }
 
   for (final blend in grouped.blends) {
@@ -171,11 +169,9 @@ List<Widget> _buildActiveTiles({
   }
 
   for (final ing in grouped.looseUndisclosed) {
-    tiles.add(_tileFor(
-      context: context,
-      ingredient: ing,
-      ulAnalysis: ulAnalysis,
-    ));
+    tiles.add(
+      _tileFor(context: context, ingredient: ing, ulAnalysis: ulAnalysis),
+    );
   }
 
   return tiles;
@@ -223,11 +219,7 @@ class _BlendHeaderRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.layers_outlined,
-            size: 14,
-            color: V2Colors.fgMuted,
-          ),
+          const Icon(Icons.layers_outlined, size: 14, color: V2Colors.fgMuted),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: Text(

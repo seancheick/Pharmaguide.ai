@@ -78,14 +78,14 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
   }
 
   Color get _tone => switch (widget.kind) {
-        PGVerdictKind.success => V2Colors.safe,
-        PGVerdictKind.attention => V2Colors.caution,
-      };
+    PGVerdictKind.success => V2Colors.safe,
+    PGVerdictKind.attention => V2Colors.caution,
+  };
 
   IconData get _icon => switch (widget.kind) {
-        PGVerdictKind.success => Icons.check_circle_rounded,
-        PGVerdictKind.attention => Icons.warning_amber_rounded,
-      };
+    PGVerdictKind.success => Icons.check_circle_rounded,
+    PGVerdictKind.attention => Icons.warning_amber_rounded,
+  };
 
   bool get _isCelebration => widget.kind == PGVerdictKind.success;
 

@@ -55,12 +55,13 @@ class CameraPermissionV2Screen extends StatelessWidget {
         : 'Scan supplements\ninstantly';
     final body = denied
         ? "Without camera access, we can't read barcodes. "
-            "Re-enable it in Settings, or enter codes by hand."
+              "Re-enable it in Settings, or enter codes by hand."
         : 'PharmaGuide uses your camera to read product barcodes. '
-            'Nothing is stored unless you choose to submit a product.';
+              'Nothing is stored unless you choose to submit a product.';
     final primaryLabel = denied ? 'Open Settings' : 'Allow camera access';
-    final primaryIcon =
-        denied ? Icons.settings_rounded : Icons.camera_alt_rounded;
+    final primaryIcon = denied
+        ? Icons.settings_rounded
+        : Icons.camera_alt_rounded;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -156,10 +157,8 @@ class _IconWellState extends State<_IconWell>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: V2Motion.slowest,
-    )..forward();
+    _ctrl = AnimationController(vsync: this, duration: V2Motion.slowest)
+      ..forward();
   }
 
   @override
@@ -190,10 +189,7 @@ class _IconWellState extends State<_IconWell>
         decoration: BoxDecoration(
           color: tint,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(
-            color: tone.withValues(alpha: 0.22),
-            width: 0.8,
-          ),
+          border: Border.all(color: tone.withValues(alpha: 0.22), width: 0.8),
           boxShadow: V2Shadows.md,
         ),
         child: Icon(
@@ -272,11 +268,7 @@ class _CloseChip extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: V2Colors.outline),
           ),
-          child: const Icon(
-            Icons.close_rounded,
-            color: V2Colors.fg,
-            size: 18,
-          ),
+          child: const Icon(Icons.close_rounded, color: V2Colors.fg, size: 18),
         ),
       ),
     );

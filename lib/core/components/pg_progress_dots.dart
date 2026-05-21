@@ -61,8 +61,8 @@ class PGProgressDots extends StatelessWidget {
               color: isCurrent
                   ? V2Colors.accent
                   : (isPast
-                      ? V2Colors.accent.withValues(alpha: 0.35)
-                      : V2Colors.outline),
+                        ? V2Colors.accent.withValues(alpha: 0.35)
+                        : V2Colors.outline),
               borderRadius: BorderRadius.circular(dotHeight / 2),
             ),
           ),

@@ -248,7 +248,9 @@ class ProfileState {
     // `.toLowerCase()` below would otherwise rewrite `DRUG_CLASS_NONE`
     // → `drug_class_none`, breaking the sentinel string match.
     final normalized = stored
-        .map((id) => id == SchemaIds.drugClassNone ? id : id.trim().toLowerCase())
+        .map(
+          (id) => id == SchemaIds.drugClassNone ? id : id.trim().toLowerCase(),
+        )
         .toList();
     if (!normalized.contains('hypoglycemics')) return normalized;
     final out = normalized.where((id) => id != 'hypoglycemics').toList();
@@ -382,9 +384,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required bool noneSelected,
   }) {
     state = state.copyWith(
-      conditions: noneSelected
-          ? [SchemaIds.conditionNone]
-          : selected.toList(),
+      conditions: noneSelected ? [SchemaIds.conditionNone] : selected.toList(),
     );
   }
 
@@ -393,9 +393,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required bool noneSelected,
   }) {
     state = state.copyWith(
-      drugClasses: noneSelected
-          ? [SchemaIds.drugClassNone]
-          : selected.toList(),
+      drugClasses: noneSelected ? [SchemaIds.drugClassNone] : selected.toList(),
     );
   }
 
@@ -404,9 +402,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required bool noneSelected,
   }) {
     state = state.copyWith(
-      allergens: noneSelected
-          ? [SchemaIds.allergenNone]
-          : selected.toList(),
+      allergens: noneSelected ? [SchemaIds.allergenNone] : selected.toList(),
     );
   }
 

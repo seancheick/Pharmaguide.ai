@@ -44,9 +44,9 @@ class PGContextChips extends StatelessWidget {
               ),
               child: Text(
                 _humanize(c),
-                style: V2Typography.caption(color: V2Colors.fgMuted).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: V2Typography.caption(
+                  color: V2Colors.fgMuted,
+                ).copyWith(fontWeight: FontWeight.w600),
               ),
             ),
           )
@@ -102,9 +102,9 @@ class _PGWhyThisFitsExpanderState extends State<PGWhyThisFitsExpander> {
             children: [
               Text(
                 'Why this fits you',
-                style: V2Typography.label(color: V2Colors.fgMuted).copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: V2Typography.label(
+                  color: V2Colors.fgMuted,
+                ).copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 4),
               Icon(

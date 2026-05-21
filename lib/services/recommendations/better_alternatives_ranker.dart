@@ -83,9 +83,8 @@ List<ProductsCoreData> rankAlternatives({
     // unaffected.
     final isSportGeneralCross =
         (currentAudience == Audience.sport &&
-                candAudience == Audience.general) ||
-            (currentAudience == Audience.general &&
-                candAudience == Audience.sport);
+            candAudience == Audience.general) ||
+        (currentAudience == Audience.general && candAudience == Audience.sport);
     if (isSportGeneralCross && familyJaccard < 0.5) continue;
 
     // Goals Jaccard — if the user has saved goals, the candidate's
@@ -112,19 +111,20 @@ List<ProductsCoreData> rankAlternatives({
     // tier penalty so a same-audience candidate in a lower tier
     // still beats a cross-audience candidate in a higher tier.
     final audiencePenalty =
-        (currentAudience != Audience.general &&
-                candAudience != currentAudience)
-            ? 1
-            : 0;
+        (currentAudience != Audience.general && candAudience != currentAudience)
+        ? 1
+        : 0;
 
-    ranked.add(_RankedCandidate(
-      product: cand,
-      tier: tier,
-      audiencePenalty: audiencePenalty,
-      familyJaccard: familyJaccard,
-      goalsJaccard: goalsJaccard,
-      allergenCompat: _allergenCompatibility(current, cand),
-    ));
+    ranked.add(
+      _RankedCandidate(
+        product: cand,
+        tier: tier,
+        audiencePenalty: audiencePenalty,
+        familyJaccard: familyJaccard,
+        goalsJaccard: goalsJaccard,
+        allergenCompat: _allergenCompatibility(current, cand),
+      ),
+    );
   }
 
   if (ranked.isEmpty) return const [];
@@ -145,14 +145,17 @@ List<ProductsCoreData> rankAlternatives({
     if (fam != 0) return fam;
     final goals = b.goalsJaccard.compareTo(a.goalsJaccard);
     if (goals != 0) return goals;
-    final score = (b.product.scoreQuality80 ?? 0)
-        .compareTo(a.product.scoreQuality80 ?? 0);
+    final score = (b.product.scoreQuality80 ?? 0).compareTo(
+      a.product.scoreQuality80 ?? 0,
+    );
     if (score != 0) return score;
-    final coverage = (b.product.mappedCoverage ?? 0)
-        .compareTo(a.product.mappedCoverage ?? 0);
+    final coverage = (b.product.mappedCoverage ?? 0).compareTo(
+      a.product.mappedCoverage ?? 0,
+    );
     if (coverage != 0) return coverage;
-    final trust = (b.product.scoreBrandTrust ?? 0)
-        .compareTo(a.product.scoreBrandTrust ?? 0);
+    final trust = (b.product.scoreBrandTrust ?? 0).compareTo(
+      a.product.scoreBrandTrust ?? 0,
+    );
     if (trust != 0) return trust;
     return b.allergenCompat.compareTo(a.allergenCompat);
   });

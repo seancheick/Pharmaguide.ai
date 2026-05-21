@@ -18,32 +18,32 @@ enum PGItemType {
 
 extension PGItemTypeX on PGItemType {
   IconData get icon => switch (this) {
-        PGItemType.supplement => Icons.medication_outlined,
-        PGItemType.medication => Icons.local_pharmacy_outlined,
-        PGItemType.bookmark => Icons.bookmark_outline_rounded,
-      };
+    PGItemType.supplement => Icons.medication_outlined,
+    PGItemType.medication => Icons.local_pharmacy_outlined,
+    PGItemType.bookmark => Icons.bookmark_outline_rounded,
+  };
 
   String get label => switch (this) {
-        PGItemType.supplement => 'Supplement',
-        PGItemType.medication => 'Medication',
-        PGItemType.bookmark => 'Saved',
-      };
+    PGItemType.supplement => 'Supplement',
+    PGItemType.medication => 'Medication',
+    PGItemType.bookmark => 'Saved',
+  };
 
   /// Foreground tone. Supplements get the brand accent; medications get
   /// a calm desaturated brown-grey so the visual hierarchy stays muted
   /// (medications shouldn't shout — they're contextual, not alerts).
   Color get color => switch (this) {
-        PGItemType.supplement => V2Colors.accent,
-        PGItemType.medication => V2Colors.monitor,
-        PGItemType.bookmark => V2Colors.fgMuted,
-      };
+    PGItemType.supplement => V2Colors.accent,
+    PGItemType.medication => V2Colors.monitor,
+    PGItemType.bookmark => V2Colors.fgMuted,
+  };
 
   /// Background tint at low opacity.
   Color get tint => switch (this) {
-        PGItemType.supplement => V2Colors.accentTint,
-        PGItemType.medication => V2Colors.monitorTint,
-        PGItemType.bookmark => V2Colors.outline,
-      };
+    PGItemType.supplement => V2Colors.accentTint,
+    PGItemType.medication => V2Colors.monitorTint,
+    PGItemType.bookmark => V2Colors.outline,
+  };
 }
 
 /// Tiny pill badge identifying a stack item as supplement / medication /

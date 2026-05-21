@@ -222,8 +222,9 @@ class _MedicationEntryV2ScreenState
 
     setState(() {
       _selectedClasses = classesResult;
-      _selectedGenericRxcui =
-          genericsResult.isNotEmpty ? genericsResult.first : null;
+      _selectedGenericRxcui = genericsResult.isNotEmpty
+          ? genericsResult.first
+          : null;
       _ingredientRxcuis = genericsResult.length > 1
           ? genericsResult
           : const <String>[];
@@ -399,14 +400,16 @@ class _MedicationEntryV2ScreenState
           bottom: false,
           child: Column(
             children: [
-              _TopBar(onBack: () {
-                final router = GoRouter.of(context);
-                if (router.canPop()) {
-                  router.pop();
-                } else {
-                  router.go(Routes.home);
-                }
-              }),
+              _TopBar(
+                onBack: () {
+                  final router = GoRouter.of(context);
+                  if (router.canPop()) {
+                    router.pop();
+                  } else {
+                    router.go(Routes.home);
+                  }
+                },
+              ),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(
@@ -457,11 +460,7 @@ class _MedicationEntryV2ScreenState
                   ],
                 ),
               ),
-              _StickySaveBar(
-                saving: _saving,
-                canSave: _canSave,
-                onSave: _save,
-              ),
+              _StickySaveBar(saving: _saving, canSave: _canSave, onSave: _save),
             ],
           ),
         ),
@@ -504,9 +503,7 @@ class _TopBar extends StatelessWidget {
                 splashRadius: 20,
               ),
             ),
-            const Expanded(
-              child: Center(child: PGEyebrow('Add medication')),
-            ),
+            const Expanded(child: Center(child: PGEyebrow('Add medication'))),
             const SizedBox(width: 40),
           ],
         ),
@@ -601,17 +598,12 @@ class _SearchSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PGEyebrow(
-          'Find your medication',
-          color: V2Colors.fgMuted,
-        ),
+        const PGEyebrow('Find your medication', color: V2Colors.fgMuted),
         const SizedBox(height: V2Spacing.space12),
         AnimatedContainer(
           duration: V2Motion.fast,
           curve: V2Motion.smooth,
-          padding: const EdgeInsets.symmetric(
-            horizontal: V2Spacing.space12,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space12),
           decoration: BoxDecoration(
             color: V2Colors.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -638,8 +630,7 @@ class _SearchSection extends StatelessWidget {
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: 'Search your medication',
-                    hintStyle:
-                        V2Typography.body(color: V2Colors.fgSubtle),
+                    hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -744,7 +735,8 @@ class _SuggestionArea extends StatelessWidget {
           const PGEmptyState(
             icon: Icons.search_off_rounded,
             headline: 'No match found',
-            body: "Try a different spelling. If you can't find it, "
+            body:
+                "Try a different spelling. If you can't find it, "
                 "pick the medication class below — we'll still check "
                 'common interactions.',
           ),
@@ -764,11 +756,7 @@ class _SuggestionRow extends StatelessWidget {
   final String name;
   final VoidCallback onTap;
 
-  const _SuggestionRow({
-    super.key,
-    required this.name,
-    required this.onTap,
-  });
+  const _SuggestionRow({super.key, required this.name, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -795,10 +783,7 @@ class _SuggestionRow extends StatelessWidget {
                   style: V2Typography.bodyMedium(color: V2Colors.fg),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: V2Colors.fgSubtle,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
             ],
           ),
         ),
@@ -872,10 +857,7 @@ class _ClassFallbackTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: V2Colors.fgSubtle,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
             ],
           ),
         ),
@@ -981,10 +963,7 @@ class _SelectionSummary extends StatelessWidget {
             ],
           ),
           const SizedBox(height: V2Spacing.space8),
-          Text(
-            name,
-            style: V2Typography.title(color: V2Colors.fg),
-          ),
+          Text(name, style: V2Typography.title(color: V2Colors.fg)),
           if (resolvingClasses) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
@@ -1062,16 +1041,12 @@ class _OptionalSectionState extends State<_OptionalSection> {
           style: V2Typography.caption(color: V2Colors.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space16),
-        Text(
-          'Dose',
-          style: V2Typography.label(color: V2Colors.fg),
-        ),
+        Text('Dose', style: V2Typography.label(color: V2Colors.fg)),
         const SizedBox(height: V2Spacing.space8),
         AnimatedContainer(
           duration: V2Motion.fast,
           curve: V2Motion.smooth,
-          padding:
-              const EdgeInsets.symmetric(horizontal: V2Spacing.space12),
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space12),
           decoration: BoxDecoration(
             color: V2Colors.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -1109,10 +1084,7 @@ class _OptionalSectionState extends State<_OptionalSection> {
           ),
         ),
         const SizedBox(height: V2Spacing.space24),
-        Text(
-          'Schedule',
-          style: V2Typography.label(color: V2Colors.fg),
-        ),
+        Text('Schedule', style: V2Typography.label(color: V2Colors.fg)),
         const SizedBox(height: V2Spacing.space12),
         Wrap(
           spacing: V2Spacing.space8,

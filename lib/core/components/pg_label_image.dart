@@ -55,8 +55,7 @@ class PGLabelImage extends StatelessWidget {
                   if (progress == null) return child;
                   return const _LoadingShimmer();
                 },
-                errorBuilder: (_, __, ___) =>
-                    const _MissingLabelPlaceholder(),
+                errorBuilder: (_, __, ___) => const _MissingLabelPlaceholder(),
               ),
       ),
     );

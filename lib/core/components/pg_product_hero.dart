@@ -60,10 +60,11 @@ class PGProductHero extends StatelessWidget {
         // Product name — Geist Sans, graceful degradation for long names.
         Text(
           productName,
-          style: (longName
-                  ? V2Typography.titleSm(color: V2Colors.fg)
-                  : V2Typography.title(color: V2Colors.fg))
-              .copyWith(height: 1.2),
+          style:
+              (longName
+                      ? V2Typography.titleSm(color: V2Colors.fg)
+                      : V2Typography.title(color: V2Colors.fg))
+                  .copyWith(height: 1.2),
           maxLines: 3,
           softWrap: true,
         ),
@@ -73,8 +74,7 @@ class PGProductHero extends StatelessWidget {
             spacing: V2Spacing.space16,
             runSpacing: V2Spacing.space4,
             children: [
-              if (form != null)
-                _MetaPair(label: 'Form', value: form!),
+              if (form != null) _MetaPair(label: 'Form', value: form!),
               if (servingSize != null)
                 _MetaPair(label: 'Serving', value: servingSize!),
             ],

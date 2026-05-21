@@ -152,14 +152,17 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       initialSelection: profile.goalsForEvaluator.toSet(),
       initialNoneSelected: profile.hasGoalNone,
       noneLabel: 'No specific goal right now',
-      noneSubtitle: "You'll still get safety warnings — just not goal "
+      noneSubtitle:
+          "You'll still get safety warnings — just not goal "
           'recommendations.',
       maxSelection: 2,
       maxSelectionHint: 'Pick up to 2.',
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setGoalsWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setGoalsWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -186,12 +189,15 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       initialSelection: profile.conditionsForEvaluator.toSet(),
       initialNoneSelected: profile.hasConditionNone,
       noneLabel: 'None of these',
-      noneSubtitle: 'Skip and come back any time — your profile is '
+      noneSubtitle:
+          'Skip and come back any time — your profile is '
           'fully editable.',
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setConditionsWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setConditionsWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -217,12 +223,15 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       initialSelection: profile.allergensForEvaluator.toSet(),
       initialNoneSelected: profile.hasAllergenNone,
       noneLabel: 'No known allergies',
-      noneSubtitle: "We won't surface allergen flags — you can change "
+      noneSubtitle:
+          "We won't surface allergen flags — you can change "
           'this any time.',
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setAllergensWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setAllergensWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -252,7 +261,9 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       searchable: true,
     );
     if (result == null || !mounted) return;
-    ref.read(profileProvider.notifier).setDrugClassesWithNone(
+    ref
+        .read(profileProvider.notifier)
+        .setDrugClassesWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
@@ -311,10 +322,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
     const sexOptions = [
       PGSelectionOption(id: 'Female', label: 'Female'),
       PGSelectionOption(id: 'Male', label: 'Male'),
-      PGSelectionOption(
-        id: 'Prefer not to say',
-        label: 'Prefer not to say',
-      ),
+      PGSelectionOption(id: 'Prefer not to say', label: 'Prefer not to say'),
     ];
     final result = await showPGSelectionSheet(
       context: context,
@@ -325,8 +333,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
           'pregnancy-related cautions, or nutrient guidance can '
           'differ. Stored only on this device.',
       options: sexOptions,
-      initialSelection:
-          profile.sex == null ? <String>{} : {profile.sex!},
+      initialSelection: profile.sex == null ? <String>{} : {profile.sex!},
       singleSelect: true,
       layout: PGSheetLayout.rows,
       dismissLabel: "I'll add this later",
@@ -429,10 +436,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: _StickySaveBar(
-                  saving: _saving,
-                  onSave: _save,
-                ),
+                child: _StickySaveBar(saving: _saving, onSave: _save),
               ),
             ],
           ),
@@ -501,8 +505,8 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
     final n = p.drugClassesForEvaluator.length;
     if (n == 0) return 'Tap to pick';
     if (n == 1) {
-      return SchemaIds.drugClassLabels[p.drugClassesForEvaluator.first]
-          ?? p.drugClassesForEvaluator.first;
+      return SchemaIds.drugClassLabels[p.drugClassesForEvaluator.first] ??
+          p.drugClassesForEvaluator.first;
     }
     return '$n selected';
   }
@@ -665,10 +669,7 @@ class _GroupTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: V2Colors.fgSubtle,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
             ],
           ),
         ),
@@ -772,9 +773,7 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        color: focused
-                            ? V2Colors.accent
-                            : V2Colors.outline,
+                        color: focused ? V2Colors.accent : V2Colors.outline,
                         width: focused ? 1.5 : 1.0,
                       ),
                     ),
@@ -863,10 +862,7 @@ class _StickySaveBar extends StatelessWidget {
   final bool saving;
   final VoidCallback onSave;
 
-  const _StickySaveBar({
-    required this.saving,
-    required this.onSave,
-  });
+  const _StickySaveBar({required this.saving, required this.onSave});
 
   @override
   Widget build(BuildContext context) {

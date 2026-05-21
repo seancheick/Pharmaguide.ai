@@ -144,11 +144,7 @@ class _CloseChip extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: V2Colors.outline),
           ),
-          child: const Icon(
-            Icons.close_rounded,
-            color: V2Colors.fg,
-            size: 18,
-          ),
+          child: const Icon(Icons.close_rounded, color: V2Colors.fg, size: 18),
         ),
       ),
     );

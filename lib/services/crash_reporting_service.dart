@@ -207,10 +207,8 @@ class CrashReportingService {
     final env = (event.environment ?? '').toLowerCase();
     if (env == 'development' || env == 'debug') {
       final msg = event.message?.formatted ?? '';
-      final excMsg = event.exceptions
-              ?.map((e) => e.value ?? '')
-              .join(' ') ??
-          '';
+      final excMsg =
+          event.exceptions?.map((e) => e.value ?? '').join(' ') ?? '';
       final haystack = '$msg $excMsg';
       for (final pattern in _debugOnlyFrameworkAsserts) {
         if (haystack.contains(pattern)) return null;

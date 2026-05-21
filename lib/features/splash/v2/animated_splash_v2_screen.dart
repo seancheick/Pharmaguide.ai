@@ -101,9 +101,7 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
 
   void _scheduleNext({bool reducedMotion = false}) {
     if (!widget.autoNavigate) return;
-    final delay = reducedMotion
-        ? const Duration(milliseconds: 180)
-        : _hold;
+    final delay = reducedMotion ? const Duration(milliseconds: 180) : _hold;
     Future.delayed(delay, () {
       if (!mounted) return;
       GoRouter.of(context).go(widget.nextRoute);
@@ -119,8 +117,7 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
   /// Compute opacity + vertical-lift offset for a stagger step.
   ({double opacity, double lift}) _stepValues(double startFraction) {
     final t = _ctrl.value;
-    final localProgress =
-        ((t - startFraction) / _fadeFraction).clamp(0.0, 1.0);
+    final localProgress = ((t - startFraction) / _fadeFraction).clamp(0.0, 1.0);
     // Decelerate curve — feels like content settling into place.
     final eased = V2Motion.decelerate.transform(localProgress);
     return (opacity: eased, lift: 12 * (1 - eased));
@@ -233,9 +230,10 @@ class _AccentUnderlineState extends State<_AccentUnderline>
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    _width = Tween<double>(begin: 0, end: _targetWidth).animate(
-      CurvedAnimation(parent: _drawIn, curve: Curves.easeOutCubic),
-    );
+    _width = Tween<double>(
+      begin: 0,
+      end: _targetWidth,
+    ).animate(CurvedAnimation(parent: _drawIn, curve: Curves.easeOutCubic));
 
     _breathe = AnimationController(
       vsync: this,
@@ -243,9 +241,10 @@ class _AccentUnderlineState extends State<_AccentUnderline>
       // to read as ambient breath, not anxious pulse.
       duration: const Duration(milliseconds: 2500),
     );
-    _opacity = Tween<double>(begin: 0.55, end: 1.0).animate(
-      CurvedAnimation(parent: _breathe, curve: Curves.easeInOutSine),
-    );
+    _opacity = Tween<double>(
+      begin: 0.55,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _breathe, curve: Curves.easeInOutSine));
 
     _drawIn.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {

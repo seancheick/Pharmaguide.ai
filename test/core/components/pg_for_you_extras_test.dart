@@ -72,8 +72,10 @@ void main() {
 
       // Post-tap: all 3 bullets visible.
       expect(find.text('Supports your sleep quality goal'), findsOneWidget);
-      expect(find.text('Contains magnesium glycinate at clinical dose'),
-          findsOneWidget);
+      expect(
+        find.text('Contains magnesium glycinate at clinical dose'),
+        findsOneWidget,
+      );
       expect(find.text('Free from your allergens'), findsOneWidget);
     });
 

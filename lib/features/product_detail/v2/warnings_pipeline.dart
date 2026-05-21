@@ -39,8 +39,7 @@ List<InteractionWarning> composeGuardedWarnings({
   // it carries live DB context (active stack matches, dose-aware
   // thresholds) the static blob can't know about.
   final seenKeys = <String>{
-    for (final w in personalizedWarnings)
-      '${w.severity.name}:${w.mechanism}',
+    for (final w in personalizedWarnings) '${w.severity.name}:${w.mechanism}',
   };
   final merged = <InteractionWarning>[
     ...personalizedWarnings,

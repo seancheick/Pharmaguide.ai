@@ -101,16 +101,9 @@ class PGLabelConfidenceCard extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(
-            color: V2Colors.outline,
-            height: 1,
-            thickness: 0.5,
-          ),
+          const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
           for (var i = 0; i < items.length; i++)
-            _LabelConfidenceRow(
-              item: items[i],
-              isLast: i == items.length - 1,
-            ),
+            _LabelConfidenceRow(item: items[i], isLast: i == items.length - 1),
         ],
       ),
     );

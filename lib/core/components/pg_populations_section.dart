@@ -89,11 +89,7 @@ class _PopulationRow extends StatelessWidget {
               color: V2Colors.cautionTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             ),
-            child: Icon(
-              callout.icon,
-              size: 18,
-              color: V2Colors.caution,
-            ),
+            child: Icon(callout.icon, size: 18, color: V2Colors.caution),
           ),
           const SizedBox(width: V2Spacing.space12),
           Expanded(

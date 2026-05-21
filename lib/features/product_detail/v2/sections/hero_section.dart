@@ -48,10 +48,7 @@ List<HeroTrustTag> buildHeroTrustTags(ProductsCoreData? product) {
   }
   if (product?.isTrustedManufacturer == 1) {
     tags.add(
-      const HeroTrustTag(
-        label: 'Trusted Manufacturer',
-        isCertification: true,
-      ),
+      const HeroTrustTag(label: 'Trusted Manufacturer', isCertification: true),
     );
   }
   if (product?.isVegan == 1) {
@@ -143,10 +140,7 @@ Widget buildHeroSection({
     dosingSummary: product?.dosingSummary,
     trustTags: trustTags
         .map(
-          (t) => PGTrustTag(
-            label: t.label,
-            isCertification: t.isCertification,
-          ),
+          (t) => PGTrustTag(label: t.label, isCertification: t.isCertification),
         )
         .toList(growable: false),
     score: score100?.round(),

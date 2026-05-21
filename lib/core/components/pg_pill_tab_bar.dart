@@ -80,8 +80,7 @@ class PGPillTabBar extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: V2Colors.accent,
-                    borderRadius:
-                        BorderRadius.circular(V2Spacing.radiusPill),
+                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                     boxShadow: V2Shadows.sm,
                   ),
                 ),

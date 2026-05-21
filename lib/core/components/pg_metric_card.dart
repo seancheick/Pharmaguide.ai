@@ -101,10 +101,7 @@ class PGMetricCard extends StatelessWidget {
           ),
           if (caption != null) ...[
             const SizedBox(height: V2Spacing.space4),
-            Text(
-              caption!,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
-            ),
+            Text(caption!, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
           ],
           if (delta != null) ...[
             const SizedBox(height: V2Spacing.space12),
@@ -163,10 +160,7 @@ class _DeltaPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (caret != null) ...[
-            Text(
-              caret,
-              style: V2Typography.label(color: color),
-            ),
+            Text(caret, style: V2Typography.label(color: color)),
             const SizedBox(width: V2Spacing.space4),
           ],
           Text(text, style: V2Typography.caption(color: color)),

@@ -67,9 +67,12 @@ PGActiveIngredient activeFromMap(
 
   // Form label — only when pipeline says form_status == 'known'.
   final formStatus = ingredient['form_status']?.toString();
-  final displayFormLabel =
-      ingredient['display_form_label']?.toString().trim().toLowerCase();
-  final formLabel = (formStatus == 'known' &&
+  final displayFormLabel = ingredient['display_form_label']
+      ?.toString()
+      .trim()
+      .toLowerCase();
+  final formLabel =
+      (formStatus == 'known' &&
           displayFormLabel != null &&
           displayFormLabel.isNotEmpty)
       ? displayFormLabel
@@ -103,8 +106,8 @@ PGActiveIngredient activeFromMap(
 /// Defensive against missing fields — falls back through display_label →
 /// name → raw_source_text, returns empty roleHelper when no roles ship.
 PGInactiveIngredient inactiveFromMap(Map<String, dynamic> ingredient) {
-  final name = (ingredient['display_label']?.toString().trim().isNotEmpty ==
-          true)
+  final name =
+      (ingredient['display_label']?.toString().trim().isNotEmpty == true)
       ? ingredient['display_label'].toString().trim()
       : ((ingredient['name']?.toString().trim().isNotEmpty == true)
             ? ingredient['name'].toString().trim()
@@ -113,11 +116,7 @@ PGInactiveIngredient inactiveFromMap(Map<String, dynamic> ingredient) {
   final tone = inactiveColorRank(ingredient);
   final roleHelper = _resolveRoleHelper(ingredient);
 
-  return PGInactiveIngredient(
-    name: name,
-    tone: tone,
-    roleHelper: roleHelper,
-  );
+  return PGInactiveIngredient(name: name, tone: tone, roleHelper: roleHelper);
 }
 
 /// Pipeline v1.5.0 ships `display_role_label` (one-line, canonical).

@@ -61,9 +61,7 @@ class PGAvatar extends StatelessWidget {
       decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       child: Text(
         _initials(name),
-        style: V2Typography.eyebrow(color: fg).copyWith(
-          fontSize: size * 0.35,
-        ),
+        style: V2Typography.eyebrow(color: fg).copyWith(fontSize: size * 0.35),
       ),
     );
   }
