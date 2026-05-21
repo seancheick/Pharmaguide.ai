@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,7 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/stack_screen.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
@@ -80,6 +83,32 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Your stack is empty'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    testWidgets('does not show profile nudge before saved profile loads', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      final pendingProfile = Completer<ProfileState>();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            userDatabaseProvider.overrideWithValue(userDb),
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            loadedProfileProvider.overrideWith((_) => pendingProfile.future),
+          ],
+          child: const MaterialApp(home: StackScreen()),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Personalize your stack'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();

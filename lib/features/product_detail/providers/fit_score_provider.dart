@@ -12,29 +12,25 @@
 // **Critical invariant:** FitScore is NEVER persisted. Every read is a fresh
 // computation. The family-keyed provider auto-invalidates when either side
 // of the computation changes: different product → different family key;
-// profile edits → the `profileProvider` rebuild propagates because we use
-// `ref.watch`.
+// profile edits → `loadedProfileProvider` rebuilds after persistence has
+// resolved because we use `ref.watch`.
 
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
-import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
-
-/// Reference data repository — singleton that lazy-caches JSON asset loads.
-final _refDataRepositoryProvider = Provider<ReferenceDataRepository>((ref) {
-  return ReferenceDataRepository();
-});
+import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
 
 /// FutureProvider exposing a fully-constructed [FitScoreService].
 ///
@@ -43,7 +39,7 @@ final _refDataRepositoryProvider = Provider<ReferenceDataRepository>((ref) {
 /// load. The repository caches after first load so subsequent reads are
 /// synchronous.
 final fitScoreServiceProvider = FutureProvider<FitScoreService>((ref) async {
-  final repo = ref.watch(_refDataRepositoryProvider);
+  final repo = ref.watch(referenceDataRepositoryProvider);
   final rdaData = await repo.loadRdaOptimalUls();
   final goalData = await repo.loadGoalMappings();
 
@@ -54,47 +50,6 @@ final fitScoreServiceProvider = FutureProvider<FitScoreService>((ref) async {
     e2c: E2cMedicalCalculator(),
   );
 });
-
-/// Shared detail-blob fetcher (matches the pattern used by the M1 nutrient
-/// panel provider — cache-first with 24h TTL, graceful offline behavior).
-final _fitScoreBlobServiceProvider = Provider<DetailBlobService>((ref) {
-  return DetailBlobService();
-});
-
-final _fitScoreBlobByDsldIdProvider = FutureProvider.family
-    .autoDispose<Map<String, dynamic>?, String>((ref, dsldId) async {
-      final userDb = ref.watch(userDatabaseProvider);
-      final service = ref.watch(_fitScoreBlobServiceProvider);
-
-      const cacheTtl = Duration(hours: 24);
-      final cached = await userDb.getCachedDetail(dsldId);
-      if (cached != null) {
-        final age = DateTime.now().difference(cached.cachedAt);
-        if (age < cacheTtl) {
-          try {
-            final decoded = jsonDecode(cached.blobJson);
-            if (decoded is Map<String, dynamic>) return decoded;
-            if (decoded is Map) return Map<String, dynamic>.from(decoded);
-            // Decoded to an unexpected shape (List/scalar). Treat as corrupt
-            // cache and fall through to the network fetch below.
-          } on FormatException {
-            // Malformed JSON — fall through to network.
-          }
-        }
-      }
-
-      // Look up the SHA-256 hash from the core DB to fetch the blob.
-      final coreDb = ref.watch(coreDatabaseProvider);
-      final product = await coreDb.findById(dsldId);
-      final sha256 = product?.detailBlobSha256;
-      if (sha256 == null || sha256.isEmpty) return null;
-
-      final blob = await service.fetchDetailBlobByHash(sha256);
-      if (blob != null) {
-        await userDb.cacheDetail(dsldId, jsonEncode(blob), null);
-      }
-      return blob;
-    });
 
 /// Primary FitScore provider, keyed by `dsldId`.
 ///
@@ -111,10 +66,11 @@ final fitScoreForProductProvider = FutureProvider.family
       final service = await ref.watch(fitScoreServiceProvider.future);
       final coreDb = ref.watch(coreDatabaseProvider);
 
-      // Watch the profile so every profile edit (add a condition, set age, etc)
-      // automatically invalidates this provider and recomputes. FitScore must
-      // never be persisted — it's a fresh computation every time.
-      final profile = ref.watch(profileProvider);
+      // Wait for the persisted profile before computing. A brief default
+      // profile during cold start would otherwise produce a misleading
+      // generic FitScore until the DB load finishes. FitScore must never be
+      // persisted — it's a fresh computation every time.
+      final profile = await ref.watch(loadedProfileProvider.future);
 
       // Product row (for score_quality_80 + primary_category → cluster)
       ProductsCoreData? product;
@@ -128,20 +84,21 @@ final fitScoreForProductProvider = FutureProvider.family
       // Detail blob (for ingredients nutrients + interaction_summary)
       Map<String, dynamic>? blob;
       try {
-        blob = await ref.watch(_fitScoreBlobByDsldIdProvider(dsldId).future);
+        blob = await ref.watch(detailBlobProvider(dsldId).future);
       } on Exception {
         return null;
       }
       if (blob == null) return null;
 
-      final nutrients = _extractNutrients(blob);
-      final interactionSummary = _extractInteractionSummary(blob);
-      final productClusters = extractFitProductClusters(blob);
+      final healthFacts = ProductHealthFacts.fromDetailBlob(blob);
+      final nutrients = healthFacts.nutrients;
+      final interactionSummary = healthFacts.interactionSummary;
+      final productClusters = healthFacts.productClusters;
       final productGoalMatches = _extractGoalMatches(product);
       // v6.0 — parse warnings carrying profile_gate so Fit Score can
       // suppress condition/drug-class penalties whose underlying gates
       // don't fire (e.g., topical-only aloe under pregnancy).
-      final warnings = _extractWarnings(blob);
+      final warnings = healthFacts.warnings;
 
       return service.calculate(
         nutrients: nutrients,
@@ -150,16 +107,19 @@ final fitScoreForProductProvider = FutureProvider.family
         productGoalMatchConfidence: product.goalMatchConfidence,
         interactionSummary: interactionSummary,
         ageBracket: profile.ageBracket,
-        sex: profile.sex,
+        sex: _rdaGroupForProfile(profile.sex, profile.conditions),
         userGoals: profile.goals,
         userConditions: profile.conditions,
         userDrugClasses: profile.drugClasses,
         mappedCoverage: product.mappedCoverage ?? 0.0,
         warnings: warnings,
         userProfileFlags: profile.evaluatorProfileFlags,
-        // Per-product context — extracting from blob is best-effort;
-        // missing values fall back to global gating without
-        // product/nutrient form excludes.
+        productForm: product.formFactor,
+        productContextForWarning: (warning) => resolveProfileGateProductContext(
+          detailBlob: blob,
+          warning: warning,
+          productForm: product?.formFactor,
+        ),
       );
     });
 
@@ -167,87 +127,15 @@ final fitScoreForProductProvider = FutureProvider.family
 // Blob extractors — tolerant of the multiple shapes the pipeline has emitted.
 // ---------------------------------------------------------------------------
 
-List<Map<String, dynamic>> _extractNutrients(Map<String, dynamic> blob) {
-  // Preferred: top-level ingredients list
-  final direct = blob['ingredients'];
-  if (direct is List) {
-    return direct.whereType<Map<String, dynamic>>().toList(growable: false);
-  }
-  // Fallback: nested under ingredient_quality_data
-  final iqd = blob['ingredient_quality_data'];
-  if (iqd is Map<String, dynamic>) {
-    final nested = iqd['ingredients'] ?? iqd['ingredients_scorable'];
-    if (nested is List) {
-      return nested.whereType<Map<String, dynamic>>().toList(growable: false);
-    }
-  }
-  return const [];
-}
-
-Map<String, dynamic> _extractInteractionSummary(Map<String, dynamic> blob) {
-  final raw = blob['interaction_summary'];
-  if (raw is Map) {
-    return Map<String, dynamic>.from(raw);
-  }
-  return const {};
-}
-
-/// v6.0 — parse `warnings[]` from the detail blob into typed
-/// [InteractionWarning] entries. Each carries `profileGate` (when the
-/// catalog DB is v1.6.0+); pre-v6.0 cached blobs return warnings without
-/// gates, which falls back to legacy condition_ids intersection inside
-/// matchesProfile.
-List<InteractionWarning> _extractWarnings(Map<String, dynamic> blob) {
-  final raw = blob['warnings'];
-  if (raw is! List) return const <InteractionWarning>[];
-  final out = <InteractionWarning>[];
-  for (final entry in raw) {
-    if (entry is Map<String, dynamic>) {
-      out.add(InteractionWarning.fromJson(entry));
-    } else if (entry is Map) {
-      out.add(InteractionWarning.fromJson(Map<String, dynamic>.from(entry)));
-    }
-  }
-  return out;
+String? _rdaGroupForProfile(String? sex, List<String> conditions) {
+  final normalizedConditions = conditions.map((c) => c.toLowerCase()).toSet();
+  if (normalizedConditions.contains('pregnancy')) return 'Pregnancy';
+  if (normalizedConditions.contains('lactation')) return 'Lactation';
+  return sex;
 }
 
 List<String> extractFitProductClusters(Map<String, dynamic> blob) {
-  // Prefer explicit clusters in the blob if present
-  final raw = blob['product_clusters'];
-  if (raw is List) {
-    return raw.map((e) => e.toString()).toList(growable: false);
-  }
-
-  // Current final-DB blobs expose formulation cluster matches under
-  // synergy_detail.clusters[*].cluster_id. This keeps the goal fallback
-  // alive when products_core.goal_matches is empty or malformed.
-  final synergyDetail = blob['synergy_detail'];
-  if (synergyDetail is Map) {
-    final clusters = synergyDetail['clusters'];
-    if (clusters is List) {
-      return clusters
-          .whereType<Map<Object?, Object?>>()
-          .map((cluster) => cluster['cluster_id']?.toString().trim() ?? '')
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList(growable: false);
-    }
-  }
-
-  final formulationData = blob['formulation_data'];
-  if (formulationData is Map) {
-    final clusters = formulationData['synergy_clusters'];
-    if (clusters is List) {
-      return clusters
-          .whereType<Map<Object?, Object?>>()
-          .map((cluster) => cluster['cluster_id']?.toString().trim() ?? '')
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList(growable: false);
-    }
-  }
-
-  return const [];
+  return ProductHealthFacts.fromDetailBlob(blob).productClusters;
 }
 
 List<String> _extractGoalMatches(ProductsCoreData product) {

@@ -326,27 +326,6 @@ class PharmaGuideApp extends StatelessWidget {
         catalogUnavailableReason: catalogUnavailableReason,
         onRetryCatalogLoad: onRetryCatalogLoad,
       ),
-      // Global Dynamic Type clamp.
-      //
-      // Accessibility text-scale settings on iOS go up to AX5 (≈3.1x) and
-      // on Android up to ≈2.0x. Letting the app scale unconstrained
-      // breaks card layouts (overflowing icons, ellipsized titles,
-      // truncated counts). Cap to a 0.9–1.4x band globally — large
-      // enough to meaningfully help low-vision users, small enough to
-      // keep editorial layouts readable. Long body content surfaces that
-      // already handle large text (e.g. product detail) can opt back into
-      // full Dynamic Type with a local MediaQuery override.
-      builder: (context, child) {
-        final mq = MediaQuery.of(context);
-        final clamped = mq.textScaler.clamp(
-          minScaleFactor: 0.9,
-          maxScaleFactor: 1.4,
-        );
-        return MediaQuery(
-          data: mq.copyWith(textScaler: clamped),
-          child: child!,
-        );
-      },
     );
   }
 }

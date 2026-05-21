@@ -17,10 +17,8 @@
 //     - Max 2 bullet points
 //     - Pencil icon → opens profile edit
 //
-// The card replaces the pre-T12 `ForYouSection` (which had context
-// chips, an alert list, a verdict row, and a "Why this fits you"
-// expander). The new card is much quieter: one icon + headline, two
-// causal bullets, an edit affordance. Other functionality moved:
+// This card is intentionally quiet: one icon + headline, two causal
+// bullets, and an edit affordance. Other functionality lives elsewhere:
 //   - Context chips → not surfaced (removed from IA per spec)
 //   - Alerts list → T13 Alert Summary card (count + scroll-to)
 //   - "Why this fits you" expander → bullets are inline, no expander
@@ -36,7 +34,6 @@
 // If neither produces any bullets the card renders the headline alone.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
@@ -44,7 +41,7 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
 
-class PersonalFitCard extends ConsumerWidget {
+class PersonalFitCard extends StatelessWidget {
   /// Risk-gated fit display state. Drives headline copy + tone +
   /// icon. Controlled by `computeFitDisplay(...)` upstream — see
   /// `lib/services/fit_score/fit_display.dart`.
@@ -62,8 +59,12 @@ class PersonalFitCard extends ConsumerWidget {
 
   /// Goal label for the headline copy (e.g., `"sleep"` →
   /// `"Strong match for your sleep goal"`). Null falls back to
-  /// `"your profile"`. Same convention as the prior `ForYouSection`.
+  /// `"your profile"`.
   final String? topGoalLabel;
+
+  /// Loaded profile state from the screen. Required so this safety-sensitive
+  /// card cannot accidentally render against the default pre-load profile.
+  final ProfileState profile;
 
   /// Callback fired when the user taps the edit pencil. Caller
   /// wires to navigation (e.g., `context.push(Routes.profileSetup)`).
@@ -76,14 +77,14 @@ class PersonalFitCard extends ConsumerWidget {
     required this.ingredientNames,
     required this.fitReasons,
     required this.onEditProfile,
+    required this.profile,
     this.topGoalLabel,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final profile = ref.watch(profileProvider);
 
     // T16.1 (2026-04-30) — dedup hero ↔ PersonalFit. FitHidden fires
     // EXACTLY when verdict is contraindicated/avoid (see

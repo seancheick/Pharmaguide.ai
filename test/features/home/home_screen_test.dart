@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:drift/drift.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 
 void main() {
@@ -14,11 +18,16 @@ void main() {
   // Drift's close() hangs when called from tearDown after the fake-async
   // zone has drained — closing inside the body avoids the shutdown race.
 
-  Widget buildTestWidget(CoreDatabase coreDb, UserDatabase userDb) {
+  Widget buildTestWidget(
+    CoreDatabase coreDb,
+    UserDatabase userDb, {
+    List<Override> overrides = const [],
+  }) {
     return ProviderScope(
       overrides: [
         coreDatabaseProvider.overrideWithValue(coreDb),
         userDatabaseProvider.overrideWithValue(userDb),
+        ...overrides,
       ],
       child: const MaterialApp(home: HomeScreen()),
     );
@@ -39,6 +48,36 @@ void main() {
         ),
         findsOneWidget,
       );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    testWidgets('hero uses loaded profile nickname when it resolves', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      final pendingProfile = Completer<ProfileState>();
+
+      await tester.pumpWidget(
+        buildTestWidget(
+          coreDb,
+          userDb,
+          overrides: [
+            loadedProfileProvider.overrideWith((_) => pendingProfile.future),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.textContaining('Sean'), findsNothing);
+
+      pendingProfile.complete(const ProfileState(nickname: 'Sean'));
+      await tester.pump();
+
+      expect(find.textContaining('Sean'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();

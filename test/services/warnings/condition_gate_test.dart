@@ -18,8 +18,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 InteractionWarning _w({
   required List<String> conditionIds,
@@ -89,6 +89,29 @@ void main() {
         expect(result, isEmpty);
       },
     );
+
+    test('rda_ul_data dose source gates sub-threshold aboveDose warnings', () {
+      final ingredientDoses = extractIngredientDoses({
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Alpha Lipoic Acid',
+              'quantity': 350,
+              'daily_amount_unit': 'mg',
+            },
+          ],
+        },
+      });
+
+      final result = applyConditionThresholdGate(
+        warnings: [
+          _w(conditionIds: ['diabetes'], ingredientName: 'Alpha-Lipoic Acid'),
+        ],
+        ingredientDoses: ingredientDoses,
+      );
+
+      expect(result, isEmpty);
+    });
   });
 
   group('applyConditionThresholdGate — retinol teratogenic gate', () {
@@ -932,6 +955,48 @@ void main() {
       },
     );
 
+    test('extracts dose rows from rda_ul_data when ingredients are absent', () {
+      final result = extractIngredientDoses({
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Alpha Lipoic Acid',
+              'quantity': 350,
+              'daily_amount_unit': 'mg',
+            },
+            {
+              'standard_name': 'Vanadium',
+              'quantity': '50',
+              'daily_amount_unit': 'mcg',
+            },
+          ],
+        },
+      });
+
+      expect(result['alpha_lipoic_acid'], (value: 350.0, unit: 'mg'));
+      expect(result['vanadium'], (value: 50.0, unit: 'mcg'));
+    });
+
+    test(
+      'skips rda_ul_data dose rows when pipeline marked UL evaluation unsafe',
+      () {
+        final result = extractIngredientDoses({
+          'rda_ul_data': {
+            'analyzed_ingredients': [
+              {
+                'standard_name': 'Vitamin A',
+                'quantity': 2000,
+                'daily_amount_unit': 'IU',
+                'skip_ul_check': true,
+              },
+            ],
+          },
+        });
+
+        expect(result, isEmpty);
+      },
+    );
+
     test('T16.2b — live `quantity` field wins over legacy `dose_amount` '
         'when both present', () {
       // Belt-and-braces: pipeline sometimes mirrors fields during
@@ -948,6 +1013,39 @@ void main() {
         ],
       });
       expect(result['iodine'], (value: 100.0, unit: 'mcg'));
+    });
+
+    test('sums duplicate canonical dose rows when units match', () {
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {'name': 'Caffeine', 'quantity': 80, 'unit': 'mg'},
+          {'name': 'Caffeine', 'quantity': 60, 'unit': 'mg'},
+        ],
+      });
+
+      expect(result['caffeine'], (value: 140.0, unit: 'mg'));
+    });
+
+    test('sums duplicate canonical dose rows across simple mass units', () {
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {'name': 'Alpha Lipoic Acid', 'quantity': 0.3, 'unit': 'g'},
+          {'name': 'Alpha Lipoic Acid', 'quantity': 300, 'unit': 'mg'},
+        ],
+      });
+
+      expect(result['alpha_lipoic_acid'], (value: 0.6, unit: 'g'));
+    });
+
+    test('drops duplicate canonical dose rows with incompatible units', () {
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {'name': 'Vitamin A', 'quantity': 3000, 'unit': 'IU'},
+          {'name': 'Vitamin A', 'quantity': 900, 'unit': 'mcg RAE'},
+        ],
+      });
+
+      expect(result.containsKey('vitamin_a'), isFalse);
     });
 
     test('skips entries missing dose_amount', () {

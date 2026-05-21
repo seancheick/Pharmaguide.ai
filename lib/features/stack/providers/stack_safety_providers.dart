@@ -8,7 +8,6 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
@@ -309,7 +308,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // ---------------------------------------------------------------------------
   List<TimingOptimization> timingOptimizations = const <TimingOptimization>[];
   try {
-    final refDataRepo = ReferenceDataRepository();
+    final refDataRepo = ref.watch(referenceDataRepositoryProvider);
     final timingJson = await refDataRepo.loadTimingRules();
     final timingService = TimingEvaluationService.fromJson(timingJson);
 

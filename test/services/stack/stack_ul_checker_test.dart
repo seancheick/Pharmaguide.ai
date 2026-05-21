@@ -18,6 +18,7 @@ void main() {
       {
         'id': 'vitamin_d3',
         'standard_name': 'Vitamin D3',
+        'unit': 'IU',
         'highest_ul': 4000,
         'data': [
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 600, 'ul': 4000},
@@ -28,6 +29,7 @@ void main() {
       {
         'id': 'zinc',
         'standard_name': 'Zinc',
+        'unit': 'mg',
         'highest_ul': 40,
         'data': [
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 11, 'ul': 40},
@@ -37,6 +39,7 @@ void main() {
       {
         'id': 'magnesium',
         'standard_name': 'Magnesium',
+        'unit': 'mg',
         'highest_ul': 350,
         'data': [
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 400, 'ul': 350},
@@ -46,6 +49,7 @@ void main() {
       {
         'id': 'iron',
         'standard_name': 'Iron',
+        'unit': 'mg',
         'highest_ul': 45,
         'data': [
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 8, 'ul': 45},
@@ -53,12 +57,69 @@ void main() {
         ],
       },
       {
+        'id': 'thiamin',
+        'standard_name': 'Thiamin',
+        'unit': 'mg',
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 1.2},
+        ],
+      },
+      {
         // Entry with no UL at all — e.g. some B vitamins.
         'id': 'vitamin_b12',
         'standard_name': 'Vitamin B12',
+        'unit': 'mcg',
         'data': [
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 2.4},
           {'group': 'Female', 'age_range': '19-30', 'rda_ai': 2.4},
+        ],
+      },
+      {
+        'id': 'pantothenic_acid',
+        'standard_name': 'Pantothenic Acid',
+        'unit': 'mg',
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 5},
+        ],
+      },
+      {
+        'id': 'biotin',
+        'standard_name': 'Biotin',
+        'unit': 'mcg',
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 30},
+        ],
+      },
+      {
+        'id': 'folate',
+        'standard_name': 'Folate',
+        'unit': 'mcg DFE',
+        'highest_ul': 1667,
+        'data': [
+          {'group': 'Female', 'age_range': '19-30', 'rda_ai': 400, 'ul': 1667},
+          {
+            'group': 'Pregnancy',
+            'age_range': '19-30',
+            'rda_ai': 600,
+            'ul': 1667,
+          },
+        ],
+      },
+      {
+        'id': 'niacin',
+        'standard_name': 'Niacin',
+        'unit': 'mg NE',
+        'highest_ul': 35,
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 16, 'ul': 35},
+        ],
+      },
+      {
+        'id': 'alpha_linolenic_acid',
+        'standard_name': 'Alpha-Linolenic Acid',
+        'unit': 'g',
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 1.6},
         ],
       },
     ],
@@ -202,6 +263,24 @@ void main() {
       expect(results.first.rda, isNotNull);
       expect(results.first.rdaIsBaseline, isFalse);
     });
+
+    test('pregnancy group uses pregnancy RDA instead of female RDA', () {
+      final results = checker.check(
+        _totals([_total('vitamin_b9_folate', 'Folate', 600, 'mcg DFE')]),
+        ageBracket: '19-30',
+        sex: 'Pregnancy',
+      );
+      expect(results.first.rda, 600);
+      expect(results.first.pctOfRda, closeTo(100, 0.1));
+    });
+
+    test('anonymous UL fallback is marked as fallback provenance', () {
+      final results = checker.check(
+        _totals([_total('zinc', 'Zinc', 10, 'mg')]),
+      );
+      expect(results.first.ul, 40);
+      expect(results.first.ulIsFallback, isTrue);
+    });
   });
 
   group('StackUlChecker — fuzzy name matching', () {
@@ -232,6 +311,127 @@ void main() {
       ]);
       final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
       expect(results.first.rda, 11);
+    });
+
+    test(
+      'pipeline B-vitamin canonical ids resolve through explicit aliases',
+      () {
+        final results = checker.check(
+          _totals([
+            _total('vitamin_b3_niacin', 'Vitamin B3 (Niacin)', 40, 'mg NE'),
+          ]),
+          ageBracket: '19-30',
+          sex: 'Male',
+        );
+        expect(results.first.tier, NutrientTier.exceedsUl);
+        expect(results.first.warning, contains('flushing'));
+      },
+    );
+
+    test('pipeline parenthetical B1 standard name resolves to thiamin', () {
+      final results = checker.check(
+        _totals([
+          _total('vitamin b1 (thiamine)', 'Vitamin B1 (Thiamine)', 1.2, 'mg'),
+        ]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+
+      expect(results.first.rda, 1.2);
+      expect(results.first.tier, NutrientTier.abundant);
+    });
+
+    test('pipeline B5/B7 parenthetical names resolve through aliases', () {
+      final results = checker.check(
+        _totals([
+          _total(
+            'vitamin b5 (pantothenic acid)',
+            'Vitamin B5 (Pantothenic Acid)',
+            5,
+            'mg',
+          ),
+          _total('vitamin b7 (biotin)', 'Vitamin B7 (Biotin)', 30, 'mcg'),
+        ]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+
+      expect(results.map((r) => r.rda), containsAll([5, 30]));
+      expect(results.every((r) => r.tier == NutrientTier.abundant), isTrue);
+    });
+
+    test('short malformed display names do not fuzzy-match nutrients', () {
+      final results = checker.check(
+        _totals([_total('unknown', 'K', 100, 'mg')]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+      expect(results.first.tier, NutrientTier.noRda);
+    });
+
+    test('EPA is not scored against alpha-linolenic acid RDA', () {
+      final results = checker.check(
+        _totals([_total('epa', 'EPA (Eicosapentaenoic Acid)', 1000, 'mg')]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+      expect(results.first.tier, NutrientTier.noRda);
+      expect(results.first.rda, isNull);
+    });
+  });
+
+  group('StackUlChecker — unit validation', () {
+    test('refuses to compare actual unit against incompatible RDA unit', () {
+      final results = checker.check(
+        _totals([_total('zinc', 'Zinc', 40000, 'IU')]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+      expect(results.first.tier, NutrientTier.noRda);
+      expect(results.first.pctOfUl, isNull);
+      expect(results.first.warning, isNull);
+    });
+
+    test('converts simple metric mass units before RDA comparison', () {
+      final results = checker.check(
+        _totals([
+          _total('alpha-linolenic acid', 'Alpha-Linolenic Acid', 1600, 'mg'),
+        ]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+
+      expect(results.first.rda, 1.6);
+      expect(results.first.pctOfRda, closeTo(100, 0.1));
+      expect(results.first.tier, NutrientTier.abundant);
+    });
+
+    test('accepts gram(s) spelling from pipeline mass units', () {
+      final results = checker.check(
+        _totals([
+          _total(
+            'alpha-linolenic acid',
+            'Alpha-Linolenic Acid',
+            1.6,
+            'gram(s)',
+          ),
+        ]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+
+      expect(results.first.pctOfRda, closeTo(100, 0.1));
+      expect(results.first.tier, NutrientTier.abundant);
+    });
+
+    test('accepts expected-unit aliases for niacin equivalents', () {
+      final results = checker.check(
+        _totals([_total('niacin', 'Niacin', 35, 'mg')]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+      expect(results.first.tier, NutrientTier.exceedsUl);
+      expect(results.first.pctOfUl, closeTo(100, 0.1));
     });
   });
 

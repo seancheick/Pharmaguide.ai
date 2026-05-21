@@ -5,14 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 final synergyReportProvider = FutureProvider<SynergyReport>((ref) async {
   final coreDb = ref.watch(coreDatabaseProvider);
-  final refDataRepo = ReferenceDataRepository();
+  final refDataRepo = ref.watch(referenceDataRepositoryProvider);
 
   // Take a dependency on the active stack so any mutation invalidates us.
   final stack = await ref.watch(activeStackProvider.future);

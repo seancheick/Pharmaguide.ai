@@ -9,18 +9,17 @@ import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
-import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
+import 'package:pharmaguide/core/widgets/product_list_item.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/depletion_checker_card.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
@@ -269,62 +268,43 @@ class _StackSummaryCard extends ConsumerWidget {
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
     final recallAsync = ref.watch(recalledIngredientsReportProvider);
-    final safetyScore = reportAsync.whenOrNull(
-      data: (report) {
-        final allIssues = <InteractionResult>[
-          ...report.medicationPairInteractions,
-          ...report.medicationInteractions,
-          ...report.stackInteractions,
-          ...report.categoryWarnings,
-        ];
-        final synergies =
-            synergyAsync.whenOrNull(
-              data: (synergyReport) => synergyReport.matches
-                  .map(
-                    (m) => SynergyResult(
-                      ingredient1: m.matchedIngredients.isNotEmpty
-                          ? m.matchedIngredients.first
-                          : m.clusterId,
-                      ingredient2: m.matchedIngredients.length > 1
-                          ? m.matchedIngredients[1]
-                          : m.clusterName,
-                      description: m.mechanism,
-                      evidenceLevel: EvidenceLevel.established,
-                      bonus: m.bonusPoints,
-                    ),
-                  )
-                  .toList(),
-            ) ??
-            const <SynergyResult>[];
-        return const StackSafetyScorer().compute(
-          issues: allIssues,
-          synergies: synergies,
-        );
-      },
+    final doseAlertsAsync = ref.watch(stackDoseThresholdAlertsProvider);
+    final doseAlerts = doseAlertsAsync.asData?.value;
+    final severityCounts = reportAsync.whenOrNull(
+      data: (report) => report.severityCounts,
     );
-
+    final seriousCount =
+        (severityCounts?[Severity.contraindicated] ?? 0) +
+        (severityCounts?[Severity.avoid] ?? 0);
+    final moderateCount =
+        (severityCounts?[Severity.caution] ?? 0) + (doseAlerts?.length ?? 0);
+    final monitorCount = severityCounts?[Severity.monitor] ?? 0;
     // Stack tab is the FULL view (home card is the summary). The tier
-    // status comes from the SAME StackIntelligenceEngine + StackSafetyScorer
-    // pair the home card uses, so the user sees one verdict in two places.
+    // status comes from the shared StackIntelligenceEngine composition, so the
+    // user sees one verdict in two places.
     // The numeric 0-100 score has been removed from this view (per UX
     // direction 2026-05-05) — internal score signals still drive the tier
     // computation but are not surfaced here. Stack tab can show MORE
     // detail (counts, alerts, breakdown) but never a different verdict.
     final intelligence =
-        (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
-        ? const StackIntelligenceEngine().diagnose(
+        (reportAsync.hasValue &&
+            synergyAsync.hasValue &&
+            recallAsync.hasValue &&
+            doseAlerts != null)
+        ? const StackIntelligenceEngine().diagnoseFromReports(
             stackSize: stack.length,
             safetyReport: reportAsync.value!,
             recalledReport: recallAsync.value!,
             synergyReport: synergyAsync.value!,
-            qualityScore: safetyScore?.score,
+            doseThresholdAlerts: doseAlerts,
           )
         : null;
     final status = intelligence?.tier.healthLabel;
     final isAnalyzing =
         reportAsync.isLoading ||
         synergyAsync.isLoading ||
-        recallAsync.isLoading;
+        recallAsync.isLoading ||
+        doseAlertsAsync.isLoading;
 
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -395,13 +375,11 @@ class _StackSummaryCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppTheme.space12),
           // Issue counts
-          if (safetyScore != null &&
-              (safetyScore.seriousCount > 0 ||
-                  safetyScore.moderateCount > 0)) ...[
+          if (seriousCount > 0 || moderateCount > 0) ...[
             Text(
-              '${safetyScore.seriousCount} serious \u00B7 '
-              '${safetyScore.moderateCount} cautions \u00B7 '
-              '${safetyScore.monitorCount} monitor',
+              '$seriousCount serious \u00B7 '
+              '$moderateCount cautions \u00B7 '
+              '$monitorCount monitor',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -633,7 +611,10 @@ class _StackItemCardContent extends ConsumerWidget {
       if (product != null) {
         displayName = product.productName;
         brandName = product.brandName;
-        score = product.score100Equivalent;
+        score = scoreForMappedCoverage(
+          product.score100Equivalent,
+          product.mappedCoverage,
+        );
       }
     }
 
@@ -883,7 +864,10 @@ class _ProfileNudgeSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileProvider);
+    final profileAsync = ref.watch(loadedProfileProvider);
+    final profile = profileAsync.asData?.value;
+    if (profile == null) return const SizedBox.shrink();
+
     final hasProfile =
         profile.conditions.isNotEmpty || profile.drugClasses.isNotEmpty;
     if (hasProfile) return const SizedBox.shrink();

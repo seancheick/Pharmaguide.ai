@@ -10,18 +10,11 @@
 //     only (no bullets — bullets would be inappropriate or premature)
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/widgets/personal_fit_card.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
-
-class _StubProfileNotifier extends ProfileNotifier {
-  _StubProfileNotifier(ProfileState initial) : super() {
-    state = initial;
-  }
-}
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -29,26 +22,21 @@ Future<void> _pump(
   List<String> ingredientNames = const [],
   List<String> fitReasons = const [],
   String? topGoalLabel,
-  ProfileState? profile,
+  ProfileState profile = const ProfileState(),
   VoidCallback? onEditProfile,
 }) {
   return tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        if (profile != null)
-          profileProvider.overrideWith((_) => _StubProfileNotifier(profile)),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Padding(
-            padding: const EdgeInsets.all(20),
-            child: PersonalFitCard(
-              fit: fit,
-              ingredientNames: ingredientNames,
-              fitReasons: fitReasons,
-              topGoalLabel: topGoalLabel,
-              onEditProfile: onEditProfile ?? () {},
-            ),
+    MaterialApp(
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: PersonalFitCard(
+            fit: fit,
+            ingredientNames: ingredientNames,
+            fitReasons: fitReasons,
+            topGoalLabel: topGoalLabel,
+            profile: profile,
+            onEditProfile: onEditProfile ?? () {},
           ),
         ),
       ),

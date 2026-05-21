@@ -122,10 +122,10 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
               const SizedBox(height: AppTheme.space6),
               _WarningChip(text: widget.status.warning!, color: tierColor),
             ],
-            if (total.hasUnitConflict) ...[
+            if (total.hasUnitConflict || total.hasExcludedContributions) ...[
               const SizedBox(height: AppTheme.space4),
               Text(
-                'Note: excludes products reported in a different unit.',
+                _exclusionNote(total),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                   fontStyle: FontStyle.italic,
@@ -281,6 +281,23 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
         ? amount.round().toString()
         : amount.toStringAsFixed(amount == amount.roundToDouble() ? 0 : 1);
     return unit.isEmpty ? rounded : '$rounded ${unit.toUpperCase()}';
+  }
+
+  static String _exclusionNote(NutrientTotal total) {
+    final reasons = total.excludedContributions.map((e) => e.reason).toSet();
+    if (reasons.contains(NutrientExclusionReason.skippedByPipeline)) {
+      return 'Note: excludes products whose dose could not be evaluated.';
+    }
+    if (reasons.any(
+      {
+        NutrientExclusionReason.missingUnit,
+        NutrientExclusionReason.notProvidedUnit,
+        NutrientExclusionReason.unsupportedUnit,
+      }.contains,
+    )) {
+      return 'Note: excludes products with missing or unsupported dose units.';
+    }
+    return 'Note: excludes products reported in a different unit.';
   }
 }
 

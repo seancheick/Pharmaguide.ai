@@ -1,0 +1,694 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "PharmaGuide home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: PharmaGuide
+      - navigation "Main" [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "Methodology" [ref=e9] [cursor=pointer]:
+          - /url: /methodology
+        - link "Blog" [ref=e10] [cursor=pointer]:
+          - /url: /blog
+        - link "About" [ref=e11] [cursor=pointer]:
+          - /url: /about
+      - link "Request Access" [ref=e13] [cursor=pointer]:
+        - /url: "#waitlist"
+        - text: Request Access
+        - generic [ref=e14]: →
+  - main [ref=e15]:
+    - region "The supplement and medication co-pilot you actually need." [ref=e16]:
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: Features
+        - heading "The supplement and medication co-pilot you actually need." [level=1] [ref=e20]
+        - paragraph [ref=e21]: Most apps check one bottle at a time. PharmaGuide reads your full stack as a system — flagging interactions, depletions, dose accumulation, recalls, and quality issues across every supplement and medication you take.
+        - generic [ref=e22]:
+          - generic [ref=e23]: 180,000-product catalog
+          - generic [ref=e24]: ·
+          - generic [ref=e25]: Clinician-reviewed
+          - generic [ref=e26]: ·
+          - generic [ref=e27]: Offline-first
+          - generic [ref=e28]: ·
+          - generic [ref=e29]: Privacy by architecture
+    - region "Capability overview" [ref=e30]:
+      - list [ref=e32]:
+        - listitem [ref=e33]:
+          - link "01 Medication Depletion Your medication may be depleting nutrients. We catch it." [ref=e34] [cursor=pointer]:
+            - /url: "#medication-depletion"
+            - generic [ref=e35]:
+              - generic [ref=e36]: "01"
+              - generic [ref=e37]: Medication Depletion
+            - paragraph [ref=e38]: Your medication may be depleting nutrients. We catch it.
+        - listitem [ref=e39]:
+          - link "02 Stack Intelligence Every product. Every interaction. All at once." [ref=e40] [cursor=pointer]:
+            - /url: "#stack-intelligence"
+            - generic [ref=e41]:
+              - generic [ref=e42]: "02"
+              - generic [ref=e43]: Stack Intelligence
+            - paragraph [ref=e44]: Every product. Every interaction. All at once.
+        - listitem [ref=e45]:
+          - link "03 Ingredient & Quality Every ingredient. Including the ones nobody else reads." [ref=e46] [cursor=pointer]:
+            - /url: "#ingredient-transparency"
+            - generic [ref=e47]:
+              - generic [ref=e48]: "03"
+              - generic [ref=e49]: Ingredient & Quality
+            - paragraph [ref=e50]: Every ingredient. Including the ones nobody else reads.
+        - listitem [ref=e51]:
+          - link "04 Personal Fit What's safe for one person may not be for another." [ref=e52] [cursor=pointer]:
+            - /url: "#personal-fit"
+            - generic [ref=e53]:
+              - generic [ref=e54]: "04"
+              - generic [ref=e55]: Personal Fit
+            - paragraph [ref=e56]: What's safe for one person may not be for another.
+        - listitem [ref=e57]:
+          - link "05 Nutrient Accumulation When 'more' becomes too much." [ref=e58] [cursor=pointer]:
+            - /url: "#nutrient-accumulation"
+            - generic [ref=e59]:
+              - generic [ref=e60]: "05"
+              - generic [ref=e61]: Nutrient Accumulation
+            - paragraph [ref=e62]: When 'more' becomes too much.
+        - listitem [ref=e63]:
+          - link "06 Recall & Safety When the FDA pulls something, you find out fast." [ref=e64] [cursor=pointer]:
+            - /url: "#recall-safety"
+            - generic [ref=e65]:
+              - generic [ref=e66]: "06"
+              - generic [ref=e67]: Recall & Safety
+            - paragraph [ref=e68]: When the FDA pulls something, you find out fast.
+    - region "Your medication may be depleting nutrients. We catch it." [ref=e69]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - generic [ref=e76]: "01"
+            - generic [ref=e77]: Medication Depletion
+          - heading "Your medication may be depleting nutrients. We catch it." [level=2] [ref=e78]
+          - paragraph [ref=e79]: Many common prescriptions quietly draw down specific vitamins and minerals over months and years. Statins lower CoQ10. Metformin depletes B12 and folate. PPIs reduce magnesium and B12 absorption. We map every medication you add to the nutrients it's known to deplete — and surface what to consider replenishing.
+          - list [ref=e80]:
+            - listitem [ref=e81]:
+              - generic [ref=e83]: Add a medication → instantly see which nutrients are at risk
+            - listitem [ref=e84]:
+              - generic [ref=e86]: Evidence-graded depletion mappings, never speculative
+            - listitem [ref=e87]:
+              - generic [ref=e89]: Replenishment suggestions you can discuss with your clinician
+            - listitem [ref=e90]:
+              - generic [ref=e92]: Updates as new pharmacology research is published
+          - generic [ref=e93]:
+            - paragraph [ref=e94]: In practice
+            - list [ref=e95]:
+              - listitem [ref=e96]:
+                - generic [ref=e97]: Statin (atorvastatin, simvastatin)
+                - generic [ref=e98]:
+                  - strong [ref=e99]: CoQ10
+                  - text: — supplementation discussed in cardiology guidelines
+              - listitem [ref=e100]:
+                - generic [ref=e101]: Metformin
+                - generic [ref=e102]:
+                  - strong [ref=e103]: Vitamin B12
+                  - text: +
+                  - strong [ref=e104]: Folate
+                  - text: — depletion well-documented over long-term use
+              - listitem [ref=e105]:
+                - generic [ref=e106]: PPI (omeprazole, pantoprazole)
+                - generic [ref=e107]:
+                  - strong [ref=e108]: Magnesium
+                  - text: ","
+                  - strong [ref=e109]: Vitamin B12
+                  - text: ","
+                  - strong [ref=e110]: Calcium
+                  - text: absorption reduced
+              - listitem [ref=e111]:
+                - generic [ref=e112]: Loop diuretic (furosemide)
+                - generic [ref=e113]:
+                  - strong [ref=e114]: Potassium
+                  - text: ","
+                  - strong [ref=e115]: Magnesium
+                  - text: ","
+                  - strong [ref=e116]: Thiamine
+                  - text: lost in urine
+              - listitem [ref=e117]:
+                - generic [ref=e118]: Combined oral contraceptive
+                - generic [ref=e119]:
+                  - strong [ref=e120]: B-complex
+                  - text: +
+                  - strong [ref=e121]: Folate
+                  - text: +
+                  - strong [ref=e122]: Magnesium
+                  - text: routinely depleted
+          - paragraph [ref=e123]:
+            - text: Sources ·
+            - generic [ref=e124]:
+              - link "NIH Office of Dietary Supplements" [ref=e125] [cursor=pointer]:
+                - /url: https://ods.od.nih.gov
+              - text: ·
+            - generic [ref=e126]:
+              - link "DailyMed drug labeling" [ref=e127] [cursor=pointer]:
+                - /url: https://dailymed.nlm.nih.gov
+              - text: ·
+            - link "PubMed clinical pharmacology" [ref=e129] [cursor=pointer]:
+              - /url: https://pubmed.ncbi.nlm.nih.gov
+        - generic [ref=e132]:
+          - generic [ref=e133]:
+            - paragraph [ref=e134]: Medication added
+            - generic [ref=e135]:
+              - img [ref=e137]
+              - generic [ref=e139]:
+                - paragraph [ref=e140]: Metformin
+                - paragraph [ref=e141]: Hypoglycemic · long-term use
+          - generic [ref=e142]:
+            - generic [ref=e144]: depletes
+            - img [ref=e145]
+          - generic [ref=e147]:
+            - generic [ref=e148]:
+              - generic [ref=e151]: Vitamin B12
+              - generic [ref=e152]: absorption reduced
+            - generic [ref=e153]:
+              - generic [ref=e156]: Folate
+              - generic [ref=e157]: long-term draw-down
+          - paragraph [ref=e158]: ↘ replenishment suggested · discuss with clinician
+    - region "Every product. Every interaction. All at once." [ref=e159]:
+      - generic [ref=e161]:
+        - generic [ref=e162]:
+          - generic [ref=e163]:
+            - generic [ref=e164]: "02"
+            - generic [ref=e165]: Stack Intelligence
+          - heading "Every product. Every interaction. All at once." [level=2] [ref=e166]
+          - paragraph [ref=e167]: Most apps check one bottle at a time. PharmaGuide reads your full stack as a system — multi-way interactions, dose accumulation across products, and the timing conflicts that don't show up in any single label. The result is a single Stack Health verdict you can act on.
+          - list [ref=e168]:
+            - listitem [ref=e169]:
+              - generic [ref=e171]: Multi-way analysis — interactions between any pair AND beyond
+            - listitem [ref=e172]:
+              - generic [ref=e174]:
+                - strong [ref=e175]: Cross-product dose summation
+                - text: — three caffeine products at 80mg each won't slip past 200mg/day
+            - listitem [ref=e176]:
+              - generic [ref=e178]:
+                - text: "Stack Health verdict:"
+                - strong [ref=e179]: Optimized · Solid · Decent · Concerning · Unsafe
+            - listitem [ref=e180]:
+              - generic [ref=e182]: Timing conflicts surfaced (e.g. calcium ↔ levothyroxine 4-hour separation)
+          - generic [ref=e183]:
+            - paragraph [ref=e184]: In practice
+            - list [ref=e185]:
+              - listitem [ref=e186]:
+                - generic [ref=e187]: Magnesium AM + Magnesium PM + Multi w/ magnesium
+                - generic [ref=e188]:
+                  - strong [ref=e189]: Triple-counted
+                  - text: — combined dose flagged against tolerable upper intake
+              - listitem [ref=e190]:
+                - generic [ref=e191]: Pre-workout + green tea extract + dark chocolate squares
+                - generic [ref=e192]:
+                  - strong [ref=e193]: ~340 mg caffeine
+                  - text: — 70% above 200 mg/day general guidance
+              - listitem [ref=e194]:
+                - generic [ref=e195]: Iron supplement + calcium-rich multi + thyroid medication
+                - generic [ref=e196]:
+                  - strong [ref=e197]: 3-way timing conflict
+                  - text: — separate iron and calcium from thyroid by 4 hours
+          - paragraph [ref=e198]:
+            - text: Sources ·
+            - generic [ref=e199]:
+              - link "NIH ODS Health Professional fact sheets" [ref=e200] [cursor=pointer]:
+                - /url: https://ods.od.nih.gov
+              - text: ·
+            - link "Cochrane systematic reviews" [ref=e202] [cursor=pointer]:
+              - /url: https://www.cochranelibrary.com
+        - img [ref=e205]:
+          - generic [ref=e214]:
+            - generic [ref=e216]: Mg
+            - generic [ref=e217]: Magnesium
+          - generic [ref=e218]:
+            - generic [ref=e220]: Ca
+            - generic [ref=e221]: Caffeine
+          - generic [ref=e222]:
+            - generic [ref=e224]: Rx
+            - generic [ref=e225]: Levothyroxine
+          - generic [ref=e226]:
+            - generic [ref=e228]: D
+            - generic [ref=e229]: Vitamin D
+          - generic [ref=e230]:
+            - generic [ref=e232]: Fe
+            - generic [ref=e233]: Iron
+    - region "Every ingredient. Including the ones nobody else reads." [ref=e234]:
+      - generic [ref=e238]:
+        - generic [ref=e239]:
+          - generic [ref=e240]:
+            - generic [ref=e241]: "03"
+            - generic [ref=e242]: Ingredient & Quality
+          - heading "Every ingredient. Including the ones nobody else reads." [level=2] [ref=e243]
+          - paragraph [ref=e244]: We parse the active ingredients AND the inactive ones — fillers, binders, allergens, and the proprietary blends most apps skip because the math is hard. Every product gets a 4-pillar PG Score so you can compare brands on substance, not packaging.
+          - list [ref=e245]:
+            - listitem [ref=e246]:
+              - generic [ref=e248]:
+                - strong [ref=e249]: Active and inactive ingredients
+                - text: parsed — fillers, allergens, excipients
+            - listitem [ref=e250]:
+              - generic [ref=e252]:
+                - strong [ref=e253]: Proprietary-blend dose decomposition
+                - text: — most apps can't read these; we can
+            - listitem [ref=e254]:
+              - generic [ref=e256]: "PG Score across 4 pillars: ingredient quality, safety & purity, evidence, brand trust"
+            - listitem [ref=e257]:
+              - generic [ref=e259]: Third-party testing flags (USP, NSF, Informed Sport) where verifiable
+          - generic [ref=e260]:
+            - paragraph [ref=e261]: In practice
+            - list [ref=e262]:
+              - listitem [ref=e263]:
+                - generic [ref=e264]: "\"Energy Blend 850mg\" with no per-ingredient dose"
+                - generic [ref=e265]:
+                  - strong [ref=e266]: Decomposed
+                  - text: — we estimate per-ingredient ranges and flag what's hidden
+              - listitem [ref=e267]:
+                - generic [ref=e268]: Capsule with magnesium stearate + titanium dioxide
+                - generic [ref=e269]:
+                  - strong [ref=e270]: Inactive-ingredient flag
+                  - text: — relevant for some autoimmune conditions
+              - listitem [ref=e271]:
+                - generic [ref=e272]: Two melatonin brands, same dose
+                - generic [ref=e273]:
+                  - strong [ref=e274]: PG Score divergence
+                  - text: — third-party tested vs. unverified, evidence weight differs
+          - paragraph [ref=e275]:
+            - text: Sources ·
+            - generic [ref=e276]:
+              - link "NIH Dietary Supplement Label Database (DSLD)" [ref=e277] [cursor=pointer]:
+                - /url: https://dsld.od.nih.gov
+              - text: ·
+            - link "NIH NCCIH ingredient research" [ref=e279] [cursor=pointer]:
+              - /url: https://www.nccih.nih.gov
+        - generic [ref=e282]:
+          - paragraph [ref=e283]: Supplement facts · parsed
+          - generic [ref=e284]:
+            - paragraph [ref=e285]: Active
+            - list [ref=e286]:
+              - listitem [ref=e287]:
+                - generic [ref=e288]: Magnesium glycinate
+                - generic [ref=e289]: 200 mg
+              - listitem [ref=e290]:
+                - generic [ref=e291]: L-theanine
+                - generic [ref=e292]: 100 mg
+          - generic [ref=e293]:
+            - generic [ref=e294]:
+              - paragraph [ref=e295]: Proprietary blend · decomposed
+              - generic [ref=e296]: 850 mg
+            - list [ref=e297]:
+              - listitem [ref=e298]:
+                - generic [ref=e299]: Ashwagandha root
+                - generic [ref=e300]: ~ 400 mg est.
+              - listitem [ref=e301]:
+                - generic [ref=e302]: Rhodiola
+                - generic [ref=e303]: ~ 300 mg est.
+              - listitem [ref=e304]:
+                - generic [ref=e305]: Holy basil
+                - generic [ref=e306]: ~ 150 mg est.
+          - generic [ref=e307]:
+            - paragraph [ref=e308]: Inactive
+            - paragraph [ref=e309]: Magnesium stearate · vegetable cellulose · titanium dioxide
+    - region "What's safe for one person may not be for another." [ref=e310]:
+      - generic [ref=e312]:
+        - generic [ref=e313]:
+          - generic [ref=e314]:
+            - generic [ref=e315]: "04"
+            - generic [ref=e316]: Personal Fit
+          - heading "What's safe for one person may not be for another." [level=2] [ref=e317]
+          - paragraph [ref=e318]: Your conditions, age, current medications, and goals reshape every recommendation. Pregnancy. Hypertension. Anticoagulant therapy. Each modifies the safety calculus. We profile-gate every interaction so you only see warnings that actually apply to you.
+          - list [ref=e319]:
+            - listitem [ref=e320]:
+              - generic [ref=e322]: Profile gating — irrelevant warnings stay hidden, relevant ones surface clearly
+            - listitem [ref=e323]:
+              - generic [ref=e325]: Pregnancy + breastfeeding flags treated as separate, never combined
+            - listitem [ref=e326]:
+              - generic [ref=e328]: "Drug-class awareness: SSRIs, statins, anticoagulants, hypoglycemics, more"
+            - listitem [ref=e329]:
+              - generic [ref=e331]: Goal-driven stack recommendations (sleep, energy, recovery, longevity)
+          - generic [ref=e332]:
+            - paragraph [ref=e333]: In practice
+            - list [ref=e334]:
+              - listitem [ref=e335]:
+                - generic [ref=e336]: St. John's Wort + sertraline + 'mood support' goal
+                - generic [ref=e337]:
+                  - strong [ref=e338]: Contraindicated
+                  - text: — serotonin syndrome risk, full stop
+              - listitem [ref=e339]:
+                - generic [ref=e340]: High-dose vitamin A + 'pregnancy' profile flag
+                - generic [ref=e341]:
+                  - strong [ref=e342]: Caution
+                  - text: — teratogenic risk above 10,000 IU daily
+              - listitem [ref=e343]:
+                - generic [ref=e344]: Niacin + active statin therapy
+                - generic [ref=e345]:
+                  - strong [ref=e346]: Monitor
+                  - text: — interaction with certain hypoglycemic profiles
+          - paragraph [ref=e347]:
+            - text: Sources ·
+            - generic [ref=e348]:
+              - link "NIH ODS health professional resources" [ref=e349] [cursor=pointer]:
+                - /url: https://ods.od.nih.gov
+              - text: ·
+            - link "PubMed clinical reviews" [ref=e351] [cursor=pointer]:
+              - /url: https://pubmed.ncbi.nlm.nih.gov
+        - generic [ref=e354]:
+          - paragraph [ref=e355]: Your profile
+          - generic [ref=e356]:
+            - generic [ref=e357]: Pregnant · 22w
+            - generic [ref=e359]: Hypertension
+            - generic [ref=e361]: SSRI
+            - generic [ref=e363]: Goal · sleep
+          - paragraph [ref=e365]: Adapted recommendations
+          - list [ref=e366]:
+            - listitem [ref=e367]:
+              - generic [ref=e368]: Magnesium glycinate · evening
+              - generic [ref=e369]: Good fit
+            - listitem [ref=e371]:
+              - generic [ref=e372]: St. John's Wort
+              - generic [ref=e373]: Avoid · SSRI
+            - listitem [ref=e375]:
+              - generic [ref=e376]: High-dose vitamin A
+              - generic [ref=e377]: Avoid · pregnancy
+            - listitem [ref=e379]:
+              - generic [ref=e380]: Iron + multi
+              - generic [ref=e381]: Caution · timing
+    - region "When 'more' becomes too much." [ref=e383]:
+      - generic [ref=e387]:
+        - generic [ref=e388]:
+          - generic [ref=e389]:
+            - generic [ref=e390]: "05"
+            - generic [ref=e391]: Nutrient Accumulation
+          - heading "When 'more' becomes too much." [level=2] [ref=e392]
+          - paragraph [ref=e393]: Fat-soluble vitamins accumulate. Mineral overdoses are real. We track every nutrient across your full stack against the **Recommended Daily Allowance (RDA)** and the **Tolerable Upper Intake Level (UL)** — and flag the moment your intake crosses into the zone where supplementation harms more than it helps.
+          - list [ref=e394]:
+            - listitem [ref=e395]:
+              - generic [ref=e397]: RDA + UL tracking per nutrient across the entire stack
+            - listitem [ref=e398]:
+              - generic [ref=e400]: Fat-soluble accumulation flags (vitamin A, D, E, K)
+            - listitem [ref=e401]:
+              - generic [ref=e403]: Mineral excess detection (iron, zinc, selenium)
+            - listitem [ref=e404]:
+              - generic [ref=e406]: Visualized as a per-nutrient meter so you see the headroom
+          - generic [ref=e407]:
+            - paragraph [ref=e408]: In practice
+            - list [ref=e409]:
+              - listitem [ref=e410]:
+                - generic [ref=e411]: Multi + dedicated vitamin D + cod liver oil
+                - generic [ref=e412]:
+                  - strong [ref=e413]: ~6,000 IU vitamin D/day
+                  - text: — approaching adult UL of 4,000 IU
+              - listitem [ref=e414]:
+                - generic [ref=e415]: Multi + zinc lozenges + zinc-forward immune blend
+                - generic [ref=e416]:
+                  - strong [ref=e417]: ~70 mg zinc
+                  - text: — above 40 mg UL; chronic excess depletes copper
+              - listitem [ref=e418]:
+                - generic [ref=e419]: Iron supplement + iron-fortified multi
+                - generic [ref=e420]:
+                  - strong [ref=e421]: ~80 mg iron
+                  - text: — past UL of 45 mg; oxidative stress risk
+          - paragraph [ref=e422]:
+            - text: Sources ·
+            - generic [ref=e423]:
+              - link "NIH ODS dietary reference intakes" [ref=e424] [cursor=pointer]:
+                - /url: https://ods.od.nih.gov
+              - text: ·
+            - link "FDA dietary supplement guidance" [ref=e426] [cursor=pointer]:
+              - /url: https://www.fda.gov/food/dietary-supplements
+        - generic [ref=e429]:
+          - generic [ref=e430]:
+            - paragraph [ref=e431]: Daily intake · stack-wide
+            - paragraph [ref=e432]: vs. UL
+          - list [ref=e433]:
+            - listitem [ref=e434]:
+              - generic [ref=e435]:
+                - generic [ref=e436]: Vitamin D
+                - generic [ref=e437]:
+                  - text: "6000"
+                  - generic [ref=e438]: / 4000 IU
+            - listitem [ref=e442]:
+              - generic [ref=e443]:
+                - generic [ref=e444]: Zinc
+                - generic [ref=e445]:
+                  - text: "70"
+                  - generic [ref=e446]: / 40 mg
+            - listitem [ref=e450]:
+              - generic [ref=e451]:
+                - generic [ref=e452]: Vitamin C
+                - generic [ref=e453]:
+                  - text: "800"
+                  - generic [ref=e454]: / 2000 mg
+            - listitem [ref=e458]:
+              - generic [ref=e459]:
+                - generic [ref=e460]: Magnesium
+                - generic [ref=e461]:
+                  - text: "350"
+                  - generic [ref=e462]: / 350 mg
+    - region "When the FDA pulls something, you find out fast." [ref=e466]:
+      - generic [ref=e468]:
+        - generic [ref=e469]:
+          - generic [ref=e470]:
+            - generic [ref=e471]: "06"
+            - generic [ref=e472]: Recall & Safety
+          - heading "When the FDA pulls something, you find out fast." [level=2] [ref=e473]
+          - paragraph [ref=e474]: The FDA recalls dietary supplements regularly — adulterated formulations, undeclared pharmaceuticals, contamination, mislabeling. Most users never hear about it. PharmaGuide pulls active recalls and the FDA Adverse Event Reporting System (FAERS) so a product in your stack can't quietly become unsafe without you noticing.
+          - list [ref=e475]:
+            - listitem [ref=e476]:
+              - generic [ref=e478]: Live FDA recall monitoring across dietary supplements + medications
+            - listitem [ref=e479]:
+              - generic [ref=e481]: FAERS-linked safety signals — adverse event reports surface in-app
+            - listitem [ref=e482]:
+              - generic [ref=e484]: Lot-level recall checking when manufacturers publish lot data
+            - listitem [ref=e485]:
+              - generic [ref=e487]: FDA warning letter awareness for repeat-offender brands
+          - generic [ref=e488]:
+            - paragraph [ref=e489]: In practice
+            - list [ref=e490]:
+              - listitem [ref=e491]:
+                - generic [ref=e492]: Brand X recalled for undeclared sildenafil
+                - generic [ref=e493]:
+                  - strong [ref=e494]: Stack alert
+                  - text: — flagged immediately if you've scanned that product
+              - listitem [ref=e495]:
+                - generic [ref=e496]: Manufacturing recall by lot number 2026-AC-0814
+                - generic [ref=e497]:
+                  - strong [ref=e498]: Lot match
+                  - text: — your bottle's lot triggers the warning, others don't
+              - listitem [ref=e499]:
+                - generic [ref=e500]: FAERS adverse event cluster on a kratom product
+                - generic [ref=e501]:
+                  - strong [ref=e502]: Safety signal
+                  - text: — surfaced before the FDA formally pulls the product
+          - paragraph [ref=e503]:
+            - text: Sources ·
+            - generic [ref=e504]:
+              - link "FDA Recalls, Market Withdrawals & Safety Alerts" [ref=e505] [cursor=pointer]:
+                - /url: https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts
+              - text: ·
+            - link "FDA Adverse Event Reporting System (FAERS)" [ref=e507] [cursor=pointer]:
+              - /url: https://www.fda.gov/drugs/questions-and-answers-fdas-adverse-event-reporting-system-faers
+        - generic [ref=e510]:
+          - paragraph [ref=e511]: Active alerts · your stack
+          - generic [ref=e515]:
+            - paragraph [ref=e516]: FDA recall · class I
+            - paragraph [ref=e517]: NaturalBoost Energy — undeclared sildenafil
+            - paragraph [ref=e518]: In your stack · scanned March 12 · all lots
+          - generic [ref=e522]:
+            - paragraph [ref=e523]: FAERS signal · monitoring
+            - paragraph [ref=e524]: Kratom — adverse-event cluster
+            - paragraph [ref=e525]: Watching · FDA response pending
+          - generic [ref=e526]:
+            - generic [ref=e527]: Last checked
+            - generic [ref=e528]: 8 minutes ago
+    - region "A report your clinician can actually read." [ref=e529]:
+      - generic [ref=e533]:
+        - paragraph [ref=e534]: Bonus capability
+        - heading "A report your clinician can actually read." [level=2] [ref=e535]
+        - paragraph [ref=e536]: Export your full stack — every supplement, every medication, every flagged interaction with mechanism and evidence — as a clean PDF sized for the 7-minute primary care visit. Or copy-paste it straight into MyChart's secure messaging.
+        - list [ref=e537]:
+          - listitem [ref=e538]:
+            - generic [ref=e540]: PDF export sized for clinical workflow
+          - listitem [ref=e541]:
+            - generic [ref=e543]: Plain-text version for MyChart and patient portals
+          - listitem [ref=e544]:
+            - generic [ref=e546]: Includes evidence levels and recommendation language
+    - region "Built on what makes the rest possible. By design." [ref=e547]:
+      - generic [ref=e548]:
+        - generic [ref=e549]:
+          - paragraph [ref=e550]: The foundation
+          - heading "Built on what makes the rest possible. By design." [level=2] [ref=e551]
+        - list [ref=e552]:
+          - listitem [ref=e553]:
+            - paragraph [ref=e554]: 180,000-product catalog
+            - paragraph [ref=e555]: Pre-loaded on your device. Sub-10ms lookup. Updates over the air.
+          - listitem [ref=e556]:
+            - paragraph [ref=e557]: Offline-first
+            - paragraph [ref=e558]: Scan and analyze with one bar of signal — pharmacy, flight, supplement aisle.
+          - listitem [ref=e559]:
+            - paragraph [ref=e560]: Privacy by architecture
+            - paragraph [ref=e561]: Your stack and conditions never leave your device. AES-256 locally. HIPAA-aligned.
+          - listitem [ref=e562]:
+            - paragraph [ref=e563]: Clinician-reviewed
+            - paragraph [ref=e564]: Every interaction passes through a licensed pharmacist before it ships.
+    - region [ref=e565]:
+      - generic [ref=e567]:
+        - paragraph [ref=e568]: What we don't do
+        - list [ref=e569]:
+          - listitem [ref=e570]:
+            - img [ref=e571]
+            - generic [ref=e573]: We don't diagnose conditions
+          - listitem [ref=e574]:
+            - img [ref=e575]
+            - generic [ref=e577]: We don't replace your clinician
+          - listitem [ref=e578]:
+            - img [ref=e579]
+            - generic [ref=e581]: We don't tell you to stop medications
+          - listitem [ref=e582]:
+            - img [ref=e583]
+            - generic [ref=e585]: We don't sell your health data
+    - region "Next steps" [ref=e586]:
+      - generic [ref=e588]:
+        - paragraph [ref=e589]: Ready to see your stack the way we do?
+        - paragraph [ref=e590]: Join the beta. Opening in waves through 2026.
+        - generic [ref=e591]:
+          - link "Join the beta" [ref=e592] [cursor=pointer]:
+            - /url: /#waitlist
+            - text: Join the beta
+            - generic [ref=e593]: →
+          - link "Read the methodology" [ref=e594] [cursor=pointer]:
+            - /url: /methodology
+            - text: Read the methodology
+            - generic [ref=e595]: →
+  - contentinfo [ref=e596]:
+    - generic [ref=e598]:
+      - generic [ref=e599]:
+        - link "PharmaGuide home" [ref=e600] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e602]: PharmaGuide
+        - paragraph [ref=e603]: Supplement intelligence.
+        - generic [ref=e604]:
+          - generic [ref=e605]:
+            - img [ref=e607]
+            - text: Boston, MA
+          - link "info@pharmaguide.io" [ref=e610] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+            - img [ref=e612]
+            - text: info@pharmaguide.io
+        - list [ref=e615]:
+          - listitem [ref=e616]:
+            - link "X (Twitter)" [ref=e617] [cursor=pointer]:
+              - /url: https://twitter.com/pharmaguideai
+              - img [ref=e618]
+          - listitem [ref=e620]:
+            - link "LinkedIn" [ref=e621] [cursor=pointer]:
+              - /url: https://linkedin.com/company/pharmaguide
+              - img [ref=e622]
+          - listitem [ref=e624]:
+            - link "Instagram" [ref=e625] [cursor=pointer]:
+              - /url: https://instagram.com/pharmaguide.io
+              - img [ref=e626]
+      - generic [ref=e629]:
+        - heading "Product" [level=3] [ref=e630]
+        - list [ref=e631]:
+          - listitem [ref=e632]:
+            - link "Features" [ref=e633] [cursor=pointer]:
+              - /url: /features
+              - text: Features
+          - listitem [ref=e634]:
+            - link "How It Works" [ref=e635] [cursor=pointer]:
+              - /url: /how-it-works
+              - text: How It Works
+          - listitem [ref=e636]:
+            - link "Methodology" [ref=e637] [cursor=pointer]:
+              - /url: /methodology
+              - text: Methodology
+          - listitem [ref=e638]:
+            - link "FAQ" [ref=e639] [cursor=pointer]:
+              - /url: /faq
+              - text: FAQ
+          - listitem [ref=e640]:
+            - generic [ref=e641]:
+              - text: Healthcare Pros
+              - generic [ref=e642]: "2026"
+      - generic [ref=e643]:
+        - heading "Company" [level=3] [ref=e644]
+        - list [ref=e645]:
+          - listitem [ref=e646]:
+            - link "About" [ref=e647] [cursor=pointer]:
+              - /url: /about
+              - text: About
+          - listitem [ref=e648]:
+            - link "Blog" [ref=e649] [cursor=pointer]:
+              - /url: /blog
+              - text: Blog
+          - listitem [ref=e650]:
+            - link "Careers" [ref=e651] [cursor=pointer]:
+              - /url: /careers
+              - text: Careers
+          - listitem [ref=e652]:
+            - link "Press" [ref=e653] [cursor=pointer]:
+              - /url: /press
+              - text: Press
+      - generic [ref=e654]:
+        - heading "Legal" [level=3] [ref=e655]
+        - list [ref=e656]:
+          - listitem [ref=e657]:
+            - link "Privacy" [ref=e658] [cursor=pointer]:
+              - /url: /privacy
+              - text: Privacy
+          - listitem [ref=e659]:
+            - link "Terms" [ref=e660] [cursor=pointer]:
+              - /url: /terms
+              - text: Terms
+          - listitem [ref=e661]:
+            - link "HIPAA" [ref=e662] [cursor=pointer]:
+              - /url: /hipaa
+              - text: HIPAA
+          - listitem [ref=e663]:
+            - link "Accessibility" [ref=e664] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+      - generic [ref=e665]:
+        - heading "Coming Soon" [level=3] [ref=e666]
+        - generic [ref=e667]:
+          - img "Coming soon to App Store" [ref=e668]:
+            - img [ref=e670]
+            - generic [ref=e672]:
+              - generic [ref=e673]: Download on the
+              - generic [ref=e674]: App Store
+          - img "Coming soon to Google Play" [ref=e675]:
+            - img [ref=e677]
+            - generic [ref=e679]:
+              - generic [ref=e680]: Get it on
+              - generic [ref=e681]: Google Play
+    - list [ref=e684]:
+      - listitem [ref=e685]:
+        - img [ref=e687]
+        - generic [ref=e690]: HIPAA Compliant
+      - listitem [ref=e691]:
+        - img [ref=e693]
+        - generic [ref=e696]: AES-256 Encrypted
+      - listitem [ref=e697]:
+        - img [ref=e699]
+        - generic [ref=e702]: Offline-First
+      - listitem [ref=e703]:
+        - img [ref=e705]
+        - generic [ref=e708]: No Data Selling
+      - listitem [ref=e709]:
+        - generic [ref=e710]: Evidence-graded·
+        - generic [ref=e711]: On-device analysis·
+        - generic [ref=e712]: Clinician-informed
+    - generic [ref=e713]:
+      - generic [ref=e715]:
+        - img [ref=e717]
+        - paragraph [ref=e719]: "Disclaimer: PharmaGuide provides educational information only — not a substitute for professional medical advice. Always consult your healthcare provider before making changes."
+      - generic [ref=e722]:
+        - paragraph [ref=e723]:
+          - text: Last reviewed
+          - time [ref=e724]: May 7, 2026
+          - text: · by Dr. Pham L., PharmD
+        - generic [ref=e725]:
+          - paragraph [ref=e726]: © 2026 PharmaGuide Inc.
+          - generic [ref=e727]: ·
+          - link "Sitemap" [ref=e728] [cursor=pointer]:
+            - /url: /sitemap.xml
+    - button:
+      - img
+  - alert [ref=e729]

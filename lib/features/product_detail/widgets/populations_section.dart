@@ -26,7 +26,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Output of [splitPopulations] — a deterministic split of the raw
 /// aggregate into "main list" entries (rendered as bullets) and
@@ -173,7 +173,7 @@ String? _matchSignal(String population, Set<String> userSignals) {
 /// Map an age-bracket profile string to the canonical population
 /// signal ID.
 ///
-/// Production input comes from `profileProvider.ageBracket`, which
+/// Production input comes from loaded profile `ageBracket`, which
 /// stores one of `SchemaIds.ageBrackets` verbatim:
 ///   ['14-18', '19-30', '31-50', '51-70', '71+']
 ///
@@ -205,8 +205,8 @@ String _ageBracketToSignal(String bracket) {
   return '';
 }
 
-/// snake_case → "Snake Case". Same humanizer used elsewhere in
-/// for_you_section + with_your_stack_section.
+/// snake_case → "Snake Case". Same humanizer used by nearby
+/// product-detail profile surfaces.
 String _humanize(String raw) {
   if (raw.isEmpty) return raw;
   return raw

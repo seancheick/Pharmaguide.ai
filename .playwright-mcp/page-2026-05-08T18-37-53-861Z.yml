@@ -1,0 +1,211 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "PharmaGuide home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: PharmaGuide
+      - button "Open menu" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+  - main [ref=e11]:
+    - region "Everything you need to know about what we're building." [ref=e12]:
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: FAQ
+        - heading "Everything you need to know about what we're building." [level=1] [ref=e16]
+        - paragraph [ref=e17]: Privacy, evidence, accuracy, pricing — all the answers, without the marketing.
+    - region "Frequently asked questions" [ref=e18]:
+      - list [ref=e20]:
+        - listitem [ref=e21]:
+          - heading "What is PharmaGuide?" [level=3] [ref=e22]:
+            - button "What is PharmaGuide?" [ref=e23] [cursor=pointer]:
+              - generic [ref=e24]: What is PharmaGuide?
+              - img [ref=e26]
+        - listitem [ref=e28]:
+          - heading "Is my health data actually private?" [level=3] [ref=e29]:
+            - button "Is my health data actually private?" [ref=e30] [cursor=pointer]:
+              - generic [ref=e31]: Is my health data actually private?
+              - img [ref=e33]
+        - listitem [ref=e35]:
+          - heading "How accurate is the data?" [level=3] [ref=e36]:
+            - button "How accurate is the data?" [ref=e37] [cursor=pointer]:
+              - generic [ref=e38]: How accurate is the data?
+              - img [ref=e40]
+        - listitem [ref=e42]:
+          - heading "Does it work offline?" [level=3] [ref=e43]:
+            - button "Does it work offline?" [ref=e44] [cursor=pointer]:
+              - generic [ref=e45]: Does it work offline?
+              - img [ref=e47]
+        - listitem [ref=e49]:
+          - heading "Is it free?" [level=3] [ref=e50]:
+            - button "Is it free?" [ref=e51] [cursor=pointer]:
+              - generic [ref=e52]: Is it free?
+              - img [ref=e54]
+        - listitem [ref=e56]:
+          - heading "What makes PharmaGuide different?" [level=3] [ref=e57]:
+            - button "What makes PharmaGuide different?" [ref=e58] [cursor=pointer]:
+              - generic [ref=e59]: What makes PharmaGuide different?
+              - img [ref=e61]
+        - listitem [ref=e63]:
+          - heading "What if my supplement isn't in your database?" [level=3] [ref=e64]:
+            - button "What if my supplement isn't in your database?" [ref=e65] [cursor=pointer]:
+              - generic [ref=e66]: What if my supplement isn't in your database?
+              - img [ref=e68]
+        - listitem [ref=e70]:
+          - heading "Can I share my stack with my doctor?" [level=3] [ref=e71]:
+            - button "Can I share my stack with my doctor?" [ref=e72] [cursor=pointer]:
+              - generic [ref=e73]: Can I share my stack with my doctor?
+              - img [ref=e75]
+        - listitem [ref=e77]:
+          - heading "Does it replace my doctor?" [level=3] [ref=e78]:
+            - button "Does it replace my doctor?" [ref=e79] [cursor=pointer]:
+              - generic [ref=e80]: Does it replace my doctor?
+              - img [ref=e82]
+        - listitem [ref=e84]:
+          - heading "When does it launch?" [level=3] [ref=e85]:
+            - button "When does it launch?" [ref=e86] [cursor=pointer]:
+              - generic [ref=e87]: When does it launch?
+              - img [ref=e89]
+    - region "Still have questions" [ref=e91]:
+      - generic [ref=e93]:
+        - paragraph [ref=e94]: Can't find your answer?
+        - generic [ref=e95]:
+          - link "info@pharmaguide.io" [ref=e96] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+          - generic [ref=e97]: ·
+          - link "Join the beta" [ref=e98] [cursor=pointer]:
+            - /url: /#waitlist
+            - text: Join the beta
+            - generic [ref=e99]: →
+  - contentinfo [ref=e100]:
+    - generic [ref=e102]:
+      - generic [ref=e103]:
+        - link "PharmaGuide home" [ref=e104] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e106]: PharmaGuide
+        - paragraph [ref=e107]: Supplement intelligence.
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - img [ref=e111]
+            - text: Boston, MA
+          - link "info@pharmaguide.io" [ref=e114] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+            - img [ref=e116]
+            - text: info@pharmaguide.io
+        - list [ref=e119]:
+          - listitem [ref=e120]:
+            - link "X (Twitter)" [ref=e121] [cursor=pointer]:
+              - /url: https://twitter.com/pharmaguideai
+              - img [ref=e122]
+          - listitem [ref=e124]:
+            - link "LinkedIn" [ref=e125] [cursor=pointer]:
+              - /url: https://linkedin.com/company/pharmaguide
+              - img [ref=e126]
+          - listitem [ref=e128]:
+            - link "Instagram" [ref=e129] [cursor=pointer]:
+              - /url: https://instagram.com/pharmaguide.io
+              - img [ref=e130]
+      - generic [ref=e133]:
+        - heading "Product" [level=3] [ref=e134]
+        - list [ref=e135]:
+          - listitem [ref=e136]:
+            - link "Features" [ref=e137] [cursor=pointer]:
+              - /url: /features
+              - text: Features
+          - listitem [ref=e138]:
+            - link "How It Works" [ref=e139] [cursor=pointer]:
+              - /url: /how-it-works
+              - text: How It Works
+          - listitem [ref=e140]:
+            - link "Methodology" [ref=e141] [cursor=pointer]:
+              - /url: /methodology
+              - text: Methodology
+          - listitem [ref=e142]:
+            - link "FAQ" [ref=e143] [cursor=pointer]:
+              - /url: /faq
+              - text: FAQ
+          - listitem [ref=e144]:
+            - generic [ref=e145]:
+              - text: Healthcare Pros
+              - generic [ref=e146]: "2026"
+      - generic [ref=e147]:
+        - heading "Company" [level=3] [ref=e148]
+        - list [ref=e149]:
+          - listitem [ref=e150]:
+            - link "About" [ref=e151] [cursor=pointer]:
+              - /url: /about
+              - text: About
+          - listitem [ref=e152]:
+            - link "Blog" [ref=e153] [cursor=pointer]:
+              - /url: /blog
+              - text: Blog
+          - listitem [ref=e154]:
+            - link "Careers" [ref=e155] [cursor=pointer]:
+              - /url: /careers
+              - text: Careers
+          - listitem [ref=e156]:
+            - link "Press" [ref=e157] [cursor=pointer]:
+              - /url: /press
+              - text: Press
+      - generic [ref=e158]:
+        - heading "Legal" [level=3] [ref=e159]
+        - list [ref=e160]:
+          - listitem [ref=e161]:
+            - link "Privacy" [ref=e162] [cursor=pointer]:
+              - /url: /privacy
+              - text: Privacy
+          - listitem [ref=e163]:
+            - link "Terms" [ref=e164] [cursor=pointer]:
+              - /url: /terms
+              - text: Terms
+          - listitem [ref=e165]:
+            - link "HIPAA" [ref=e166] [cursor=pointer]:
+              - /url: /hipaa
+              - text: HIPAA
+          - listitem [ref=e167]:
+            - link "Accessibility" [ref=e168] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+      - generic [ref=e169]:
+        - heading "Coming Soon" [level=3] [ref=e170]
+        - generic [ref=e171]:
+          - img "Coming soon to App Store" [ref=e172]:
+            - img [ref=e174]
+            - generic [ref=e176]:
+              - generic [ref=e177]: Download on the
+              - generic [ref=e178]: App Store
+          - img "Coming soon to Google Play" [ref=e179]:
+            - img [ref=e181]
+            - generic [ref=e183]:
+              - generic [ref=e184]: Get it on
+              - generic [ref=e185]: Google Play
+    - list [ref=e188]:
+      - listitem [ref=e189]:
+        - img [ref=e191]
+        - generic [ref=e194]: HIPAA Compliant
+      - listitem [ref=e195]:
+        - img [ref=e197]
+        - generic [ref=e200]: AES-256 Encrypted
+      - listitem [ref=e201]:
+        - img [ref=e203]
+        - generic [ref=e206]: Offline-First
+      - listitem [ref=e207]:
+        - img [ref=e209]
+        - generic [ref=e212]: No Data Selling
+    - generic [ref=e213]:
+      - generic [ref=e215]:
+        - img [ref=e217]
+        - paragraph [ref=e219]: "Disclaimer: PharmaGuide provides educational information only — not a substitute for professional medical advice. Always consult your healthcare provider before making changes."
+      - generic [ref=e222]:
+        - paragraph [ref=e223]:
+          - text: Last reviewed
+          - time [ref=e224]: May 7, 2026
+          - text: · by Dr. Pham L., PharmD
+        - generic [ref=e225]:
+          - paragraph [ref=e226]: © 2026 PharmaGuide Inc.
+          - generic [ref=e227]: ·
+          - link "Sitemap" [ref=e228] [cursor=pointer]:
+            - /url: /sitemap.xml
+    - button:
+      - img
+  - alert [ref=e229]

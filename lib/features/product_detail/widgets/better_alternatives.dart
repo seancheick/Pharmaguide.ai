@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/app_colors.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
+import 'package:pharmaguide/core/widgets/product_list_item.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
@@ -140,7 +141,10 @@ class _AlternativeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = AppColors.of(context);
-    final score = product.score100Equivalent;
+    final score = scoreForMappedCoverage(
+      product.score100Equivalent,
+      product.mappedCoverage,
+    );
     final color = _scoreColor(score, context);
 
     return Padding(

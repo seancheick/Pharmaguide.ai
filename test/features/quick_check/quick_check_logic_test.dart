@@ -40,6 +40,15 @@ void main() {
       expect(out.length, 2);
     });
 
+    test('object keys are trimmed and deduplicated', () {
+      expect(
+        extractCanonicalIds(
+          '{" Calcium ":{"dose":500},"calcium":{}," ":{},"IRON":{}}',
+        ),
+        equals(['calcium', 'iron']),
+      );
+    });
+
     test('bare list of canonical ids lowercases entries', () {
       expect(
         extractCanonicalIds('["Vitamin_D","MAGNESIUM"]'),
@@ -47,9 +56,9 @@ void main() {
       );
     });
 
-    test('list with nulls drops them', () {
+    test('list trims, deduplicates, and drops null or empty values', () {
       expect(
-        extractCanonicalIds('["calcium",null,"iron"]'),
+        extractCanonicalIds('[" calcium ",null,"calcium",""," iron "]'),
         equals(['calcium', 'iron']),
       );
     });
@@ -70,6 +79,43 @@ void main() {
     });
     test('safe → info', () {
       expect(toneForSeverity(Severity.safe), PGBannerTone.info);
+    });
+  });
+
+  group('suggestionScoreForDisplay', () {
+    test('returns score when mapped coverage meets confidence floor', () {
+      final product = _product(
+        'SCORE_OK',
+        'Scored Product',
+        null,
+        score: 92,
+        mappedCoverage: 0.3,
+      );
+
+      expect(suggestionScoreForDisplay(product), 92);
+    });
+
+    test('suppresses score when mapped coverage is low', () {
+      final product = _product(
+        'LOW_COVERAGE',
+        'Low Coverage Product',
+        null,
+        score: 95,
+        mappedCoverage: 0.29,
+      );
+
+      expect(suggestionScoreForDisplay(product), isNull);
+    });
+
+    test('suppresses score when mapped coverage is missing', () {
+      final product = _product(
+        'UNKNOWN_COVERAGE',
+        'Unknown Coverage Product',
+        null,
+        score: 95,
+      );
+
+      expect(suggestionScoreForDisplay(product), isNull);
     });
   });
 
@@ -131,6 +177,30 @@ void main() {
         expect(results.first.severity, Severity.caution);
         expect(results.first.agent1Name, 'Calcium Citrate');
         expect(results.first.agent2Name, 'Iron Bisglycinate');
+      },
+    );
+
+    test(
+      'matches normalized fingerprint and interaction canonical ids',
+      () async {
+        await db.batch((batch) {
+          batch.insert(
+            db.interactions,
+            _interactionRow(
+              id: 'CA_FE_NORMALIZED',
+              a1Canonical: 'calcium',
+              a2Canonical: 'iron',
+              severity: 'caution',
+            ),
+          );
+        });
+
+        final a = _product('A', 'Calcium Citrate', '[" Calcium ","calcium"]');
+        final b = _product('B', 'Iron Bisglycinate', '[" IRON "]');
+
+        final results = await runPairCheck(a, b, db);
+        expect(results, hasLength(1));
+        expect(results.first.severity, Severity.caution);
       },
     );
 
@@ -211,12 +281,20 @@ void main() {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-ProductsCoreData _product(String id, String name, String? fingerprint) {
+ProductsCoreData _product(
+  String id,
+  String name,
+  String? fingerprint, {
+  double? score,
+  double? mappedCoverage,
+}) {
   return ProductsCoreData(
     dsldId: id,
     productName: name,
     productStatus: 'active',
     ingredientFingerprint: fingerprint,
+    score100Equivalent: score,
+    mappedCoverage: mappedCoverage,
     exportVersion: 'test',
     exportedAt: '2026-04-16T00:00:00Z',
   );

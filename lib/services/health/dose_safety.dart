@@ -11,10 +11,6 @@
 /// Implements the FLTR-11 safety hierarchy from the handoff §0:
 ///   UL exceeded  →  override all positive dose badges.
 ///   skip_ul_check →  render neutral; do not claim safe OR unsafe.
-///
-/// The fixtures in test/features/product_detail/dose_safety_test.dart
-/// mirror the real blob shape under rda_ul_data.analyzed_ingredients.
-
 library;
 
 /// Per-ingredient dose safety state derived from the pipeline's UL
@@ -39,8 +35,7 @@ enum DoseSafety {
 
 /// Resolve the dose-safety state for a single ingredient against the
 /// pipeline's `rda_ul_data.analyzed_ingredients` list. Pure function —
-/// no widget/ref dependencies, so the logic is unit-testable in
-/// isolation.
+/// no widget/ref dependencies, so the logic is unit-testable in isolation.
 ///
 /// Matching is by `standard_name` (lowercase trim). Falls back to
 /// `ingredient`/`name` fields on either side so blobs that emit a
@@ -52,6 +47,7 @@ DoseSafety resolveDoseSafety({
   final entry = matchUlEntry(ingredient, ulAnalysis);
   if (entry == null) return DoseSafety.withinLimits;
   if (entry['skip_ul_check'] == true) return DoseSafety.skip;
+  if (_hasUlWarning(entry)) return DoseSafety.exceedsUl;
 
   // Per the FLTR-11 clarification: compare the actual disclosed
   // `quantity` against the UL, NOT `per_day_max`. per_day_max is a
@@ -74,6 +70,14 @@ DoseSafety resolveDoseSafety({
   if (ul == null || ul <= 0) return DoseSafety.withinLimits;
 
   return quantity > ul ? DoseSafety.exceedsUl : DoseSafety.withinLimits;
+}
+
+bool _hasUlWarning(Map<String, dynamic> entry) {
+  final warnings = entry['warnings'];
+  if (warnings is! List) return false;
+  return warnings.any(
+    (warning) => warning?.toString().trim().isNotEmpty ?? false,
+  );
 }
 
 /// Find the UL-analysis entry for an ingredient. Pulled out so the
@@ -156,25 +160,3 @@ double? _asDouble(dynamic v) {
   }
   return null;
 }
-
-// ----------------------------------------------------------------------
-// FLTR-11a RETIRED (2026-04-24) — pipeline E1.11 now ships dose-aware
-// severity at source. The _lowDoseThresholds map, downgradeIfLowDose()
-// function, and indexIngredientsByStandardName() helper have all been
-// removed. The pipeline's interaction_rules[*].dose_thresholds array
-// carries per-rule thresholds (33 rules covered as of sprint E1.25),
-// evaluated by enrich_supplements_v3.py::_evaluate_dose_thresholds_for_target
-// and reflected in the rendered severity field at runtime.
-//
-// Coverage for FLTR-11a's two original targets:
-//   niacin  — RULE_IQM_NIACIN_DIABETES: >1000 mg/day → avoid else monitor
-//             (18 mg in a prenatal correctly emits monitor at the source)
-//   chromium — RULE_IQM_CHROMIUM_GLUCOSE: base severity already monitor;
-//             no downgrade was needed.
-//
-// If a niche case is observed where pipeline-side severity looks too
-// hot for a trace dose, the fix is to add a dose_thresholds entry to
-// the relevant rule in ingredient_interaction_rules.json — NOT to
-// reintroduce a Flutter-side downgrade layer. The UI interprets,
-// it does not reinterpret.
-// ----------------------------------------------------------------------

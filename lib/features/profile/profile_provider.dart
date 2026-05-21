@@ -366,3 +366,13 @@ final profileLoadedProvider = FutureProvider<void>((ref) async {
     await Future<void>.delayed(const Duration(milliseconds: 16));
   }
 });
+
+/// Loaded profile state for safety-sensitive consumers.
+///
+/// Use this instead of reading [profileProvider] directly when a brief default
+/// profile could suppress or misclassify personalized safety warnings during
+/// cold start.
+final loadedProfileProvider = FutureProvider<ProfileState>((ref) async {
+  await ref.watch(profileLoadedProvider.future);
+  return ref.watch(profileProvider);
+});

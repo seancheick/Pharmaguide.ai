@@ -10,13 +10,12 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/models/stack_safety_score.dart';
-import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
-import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 
 /// Premium stack health widget. Shows empty-state card when the stack is
 /// empty, otherwise delegates to [_StackHealthCard] for the populated view.
@@ -105,64 +104,38 @@ class _StackHealthCard extends ConsumerWidget {
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
     final recallAsync = ref.watch(recalledIngredientsReportProvider);
+    final doseAlertsAsync = ref.watch(stackDoseThresholdAlertsProvider);
+    final doseAlerts = doseAlertsAsync.asData?.value;
 
-    // Compute the internal stack score from report signals. The user-facing
-    // surface renders a health label derived from this score + severity caps.
-    final safetyScore = reportAsync.whenOrNull(
-      data: (report) {
-        final allIssues = <InteractionResult>[
-          ...report.medicationPairInteractions,
-          ...report.medicationInteractions,
-          ...report.stackInteractions,
-          ...report.categoryWarnings,
-        ];
-        final synergies =
-            synergyAsync.whenOrNull(
-              data: (synergyReport) => synergyReport.matches
-                  .map(
-                    (m) => SynergyResult(
-                      ingredient1: m.matchedIngredients.isNotEmpty
-                          ? m.matchedIngredients.first
-                          : m.clusterId,
-                      ingredient2: m.matchedIngredients.length > 1
-                          ? m.matchedIngredients[1]
-                          : m.clusterName,
-                      description: m.mechanism,
-                      evidenceLevel: EvidenceLevel.established,
-                      bonus: m.bonusPoints,
-                    ),
-                  )
-                  .toList(),
-            ) ??
-            const <SynergyResult>[];
-        return const StackSafetyScorer().compute(
-          issues: allIssues,
-          synergies: synergies,
-        );
-      },
+    final severityCounts = reportAsync.whenOrNull(
+      data: (report) => report.severityCounts,
     );
-
-    final serious = safetyScore?.seriousCount ?? 0;
-    final moderate = safetyScore?.moderateCount ?? 0;
+    final serious =
+        (severityCounts?[Severity.contraindicated] ?? 0) +
+        (severityCounts?[Severity.avoid] ?? 0);
+    final moderate =
+        (severityCounts?[Severity.caution] ?? 0) + (doseAlerts?.length ?? 0);
     final supplementCount = stack.where((e) => e.type == 'supplement').length;
     final medicationCount = stack.where((e) => e.type == 'medication').length;
-    final interactionCount = serious + moderate;
+    final issueCount = serious + moderate;
 
     // Diagnostic verdict: lets recalled/banned ingredients dominate the
-    // headline regardless of the numeric score. Falls back to the
-    // score-derived label while any input is still loading so the UI
-    // does not flicker.
+    // headline regardless of the numeric score. Null while any input is still
+    // loading so the UI shows the existing "Analyzing" fallback.
     final StackIntelligence? intelligence =
-        (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
-        ? const StackIntelligenceEngine().diagnose(
+        (reportAsync.hasValue &&
+            synergyAsync.hasValue &&
+            recallAsync.hasValue &&
+            doseAlerts != null)
+        ? const StackIntelligenceEngine().diagnoseFromReports(
             stackSize: stack.length,
             safetyReport: reportAsync.value!,
             recalledReport: recallAsync.value!,
             synergyReport: synergyAsync.value!,
-            qualityScore: safetyScore?.score,
+            doseThresholdAlerts: doseAlerts,
           )
         : null;
-    final status = intelligence?.tier.healthLabel ?? safetyScore?.healthLabel;
+    final status = intelligence?.tier.healthLabel;
 
     // Top issue — recall first (when present), else most severe interaction.
     final topIssue = (intelligence != null && intelligence.issues.isNotEmpty)
@@ -313,13 +286,13 @@ class _StackHealthCard extends ConsumerWidget {
                 ),
                 const SizedBox(width: AppTheme.space16),
                 _MicroMetric(
-                  icon: interactionCount > 0
+                  icon: issueCount > 0
                       ? Icons.warning_amber_rounded
                       : Icons.check_circle_outline,
-                  label: interactionCount > 0
-                      ? '$interactionCount interaction${interactionCount == 1 ? '' : 's'}'
+                  label: issueCount > 0
+                      ? '$issueCount issue${issueCount == 1 ? '' : 's'}'
                       : 'No conflicts',
-                  color: interactionCount > 0
+                  color: issueCount > 0
                       ? AppTheme.severityCaution
                       : AppTheme.severitySafe,
                 ),
@@ -383,7 +356,7 @@ class _StackHealthCard extends ConsumerWidget {
             child: Row(
               children: [
                 Text(
-                  interactionCount > 0 ? 'Review stack' : 'View stack',
+                  issueCount > 0 ? 'Review stack' : 'View stack',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: scheme.primary,
                     fontWeight: FontWeight.w700,

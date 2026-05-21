@@ -19,6 +19,7 @@ Future<void> _seedProduct(
   required double scoreQuality80,
   required double score100,
   required String category,
+  double mappedCoverage = 0.9,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -31,6 +32,7 @@ Future<void> _seedProduct(
           brandName: Value(brandName),
           scoreQuality80: Value(scoreQuality80),
           score100Equivalent: Value(score100),
+          mappedCoverage: Value(mappedCoverage),
           primaryCategory: Value(category),
         ),
       );
@@ -286,6 +288,40 @@ void main() {
       expect(find.text('BrandA'), findsOneWidget);
       expect(find.text('Daily Wellness'), findsOneWidget);
       expect(find.text('BrandB'), findsOneWidget);
+
+      await coreDb.close();
+    });
+
+    testWidgets('suppresses alternative score when mapped coverage is low', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      await _seedProduct(
+        coreDb,
+        dsldId: 'alt-low-coverage',
+        productName: 'Sparse Label Multi',
+        brandName: 'BrandC',
+        scoreQuality80: 70,
+        score100: 91,
+        mappedCoverage: 0.2,
+        category: 'multivitamin',
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          coreDb,
+          const BetterAlternativesSection(
+            currentDsldId: 'cur',
+            currentScore: 50,
+            category: 'multivitamin',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sparse Label Multi'), findsOneWidget);
+      expect(find.text('91'), findsNothing);
+      expect(find.text('--'), findsOneWidget);
 
       await coreDb.close();
     });

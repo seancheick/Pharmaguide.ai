@@ -42,8 +42,8 @@ class ReferenceDataRepository {
   }
 
   Future<Map<String, dynamic>> loadBannedRecalledIngredients() async {
-    _bannedRecalledCache ??= await _loadJson(
-      'assets/reference_data/banned_recalled_ingredients.json',
+    _bannedRecalledCache ??= normalizeBannedRecalledData(
+      await _loadJson('assets/reference_data/banned_recalled_ingredients.json'),
     );
     return _bannedRecalledCache!;
   }
@@ -65,6 +65,94 @@ class ReferenceDataRepository {
     // hard failure rather than silently returning empty data, since
     // downstream callers depend on these maps being non-empty.
     throw FormatException('Reference data at $path is not a JSON object');
+  }
+}
+
+/// Normalizes pipeline-owned banned_recalled_ingredients.json into the compact
+/// shape consumed by the stack recall provider.
+///
+/// The pipeline source uses top-level `ingredients` and keeps identity,
+/// regulatory, and authored safety fields separate. Flutter consumers read
+/// `recalled_ingredients` with the narrower field names used by
+/// [RecalledIngredientAlert]. Keep the asset byte-identical to the pipeline
+/// file and adapt at this boundary.
+Map<String, dynamic> normalizeBannedRecalledData(Map<String, dynamic> raw) {
+  final existing = raw['recalled_ingredients'];
+  if (existing is List) {
+    return raw;
+  }
+
+  final pipelineEntries = raw['ingredients'];
+  if (pipelineEntries is! List) {
+    return raw;
+  }
+
+  return {
+    ...raw,
+    'recalled_ingredients': pipelineEntries
+        .whereType<Map<String, dynamic>>()
+        .map(_normalizeBannedRecalledEntry)
+        .toList(growable: false),
+  }..remove('ingredients');
+}
+
+Map<String, dynamic> _normalizeBannedRecalledEntry(Map<String, dynamic> entry) {
+  final status = entry['status']?.toString() ?? 'warning';
+  final legalStatus = entry['legal_status_enum']?.toString() ?? '';
+  return {
+    'canonical_id':
+        entry['canonical_id']?.toString() ?? entry['id']?.toString() ?? '',
+    'common_names': _commonNamesForBannedEntry(entry),
+    'recall_status': entry['recall_status']?.toString() ?? status,
+    'regulatory_basis':
+        entry['regulatory_basis']?.toString() ??
+        [legalStatus, status].where((v) => v.trim().isNotEmpty).join(' - '),
+    'reason': entry['reason']?.toString() ?? '',
+    'effective_date':
+        entry['effective_date']?.toString() ??
+        entry['regulatory_date']?.toString() ??
+        '',
+    'severity':
+        entry['severity']?.toString() ??
+        _recallSeverity(entry['clinical_risk_enum']?.toString()),
+    'safety_warning': entry['safety_warning']?.toString() ?? '',
+    'safety_warning_one_liner':
+        entry['safety_warning_one_liner']?.toString() ?? '',
+    'ban_context': entry['ban_context']?.toString() ?? '',
+  };
+}
+
+List<String> _commonNamesForBannedEntry(Map<String, dynamic> entry) {
+  final names = <String>[];
+  final commonNames = entry['common_names'];
+  if (commonNames is List) {
+    names.addAll(commonNames.map((v) => v.toString()));
+  }
+  final standardName = entry['standard_name']?.toString();
+  if (standardName != null) names.add(standardName);
+  final aliases = entry['aliases'];
+  if (aliases is List) {
+    names.addAll(aliases.map((v) => v.toString()));
+  }
+
+  final seen = <String>{};
+  return names
+      .map((name) => name.trim())
+      .where((name) => name.isNotEmpty)
+      .where((name) => seen.add(name.toLowerCase()))
+      .toList(growable: false);
+}
+
+String _recallSeverity(String? clinicalRisk) {
+  switch (clinicalRisk) {
+    case 'critical':
+      return 'critical';
+    case 'high':
+    case 'moderate':
+    case 'dose_dependent':
+      return 'major';
+    default:
+      return 'warning';
   }
 }
 

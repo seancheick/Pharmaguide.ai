@@ -24,7 +24,8 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileProvider);
+    final profileAsync = ref.watch(loadedProfileProvider);
+    final profile = profileAsync.asData?.value;
     final mq = MediaQuery.of(context);
 
     return Scaffold(
@@ -52,25 +53,10 @@ class SettingsScreen extends ConsumerWidget {
                     AppTheme.space20,
                     0,
                   ),
-                  child: _ProfileSummaryCard(profile: profile),
-                ),
-
-                // -------- Account & Security --------
-                const PGSectionHeader(title: 'Account & security'),
-                _SettingsGroup(
-                  children: [
-                    _SettingsTile(
-                      icon: Icons.email_outlined,
-                      title: 'Email',
-                      subtitle: 'Not signed in',
-                      onTap: () {},
-                    ),
-                    _SettingsTile(
-                      icon: Icons.login_rounded,
-                      title: 'Sign in / create account',
-                      onTap: () {},
-                    ),
-                  ],
+                  child: _ProfileSummaryCard(
+                    profile: profile,
+                    isLoading: profileAsync.isLoading,
+                  ),
                 ),
 
                 // -------- Health Profile --------
@@ -245,19 +231,22 @@ class SettingsScreen extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _ProfileSummaryCard extends StatelessWidget {
-  final ProfileState profile;
-  const _ProfileSummaryCard({required this.profile});
+  final ProfileState? profile;
+  final bool isLoading;
+  const _ProfileSummaryCard({required this.profile, this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final name = profile.nickname?.isNotEmpty == true
-        ? profile.nickname!
-        : 'Guest';
-    final initial = profile.nickname?.isNotEmpty == true
-        ? profile.nickname![0].toUpperCase()
-        : '?';
+    final nickname = profile?.nickname;
+    final hasNickname = nickname?.isNotEmpty == true;
+    final name = isLoading
+        ? 'Loading profile'
+        : (hasNickname ? nickname! : 'Guest');
+    final initial = isLoading
+        ? ''
+        : (hasNickname ? nickname![0].toUpperCase() : '?');
 
     return PGCard(
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -271,13 +260,22 @@ class _ProfileSummaryCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             ),
             alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.primary,
-              ),
-            ),
+            child: isLoading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: scheme.primary,
+                    ),
+                  )
+                : Text(
+                    initial,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.primary,
+                    ),
+                  ),
           ),
           const SizedBox(width: AppTheme.space16),
           Expanded(
@@ -463,7 +461,7 @@ class _PrivacyDashboardSheet extends StatelessWidget {
             tone: _PrivacyTone.primary,
             items: [
               'Health profile & conditions',
-              'Scan history & stack data',
+              'Medications and scan history',
               'AI conversation history',
               'Personal notes & reminders',
             ],
@@ -474,6 +472,7 @@ class _PrivacyDashboardSheet extends StatelessWidget {
             label: 'SYNCED TO CLOUD (if enabled)',
             tone: _PrivacyTone.info,
             items: [
+              'Supplement stack entries',
               'App settings and account preferences',
               'Anonymous usage analytics',
             ],
@@ -484,8 +483,8 @@ class _PrivacyDashboardSheet extends StatelessWidget {
             label: 'NEVER SHARED',
             tone: _PrivacyTone.safe,
             items: [
-              'Personal health information',
               'Medications (PHI-sensitive)',
+              'Conditions, allergies, and health profile',
             ],
           ),
         ],

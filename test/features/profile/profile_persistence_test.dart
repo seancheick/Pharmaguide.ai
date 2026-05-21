@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 void main() {
@@ -197,5 +199,27 @@ void main() {
         expect(notifierB.state.goals, ['GOAL_SLEEP_QUALITY']);
       },
     );
+  });
+
+  group('loadedProfileProvider', () {
+    test('returns the saved profile only after DB load completes', () async {
+      const saved = ProfileState(
+        nickname: 'Loaded',
+        ageBracket: '31-50',
+        conditions: ['diabetes'],
+      );
+      await db.saveProfile(saved.toCompanion());
+
+      final container = ProviderContainer(
+        overrides: [userDatabaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+
+      final loaded = await container.read(loadedProfileProvider.future);
+
+      expect(loaded.nickname, 'Loaded');
+      expect(loaded.ageBracket, '31-50');
+      expect(loaded.conditions, ['diabetes']);
+    });
   });
 }

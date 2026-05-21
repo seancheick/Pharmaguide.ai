@@ -14,8 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// ReferenceDataRepository boundary so local stack/pairs-well consumers still
 /// receive `clusters`.
 ///
-/// The recall asset still intentionally diverges from pipeline shape:
-///   banned_recalled_ingredients pipeline: `ingredients` -> Flutter: `recalled_ingredients`
+/// The recall asset is also pipeline-owned and uses top-level `ingredients`.
+/// Flutter normalizes that at the repository boundary so stack consumers still
+/// receive `recalled_ingredients`.
 ///
 /// If these tests fail, DO NOT fix them by changing the tests. The
 /// asset file has been replaced with an incompatible schema. Re-run
@@ -98,8 +99,8 @@ void main() {
       },
     );
 
-    test('banned_recalled_ingredients.json exposes non-empty '
-        '"recalled_ingredients" list', () {
+    test('banned_recalled_ingredients.json uses pipeline shape and normalizes '
+        'for Flutter', () {
       final file = File(
         'assets/reference_data/banned_recalled_ingredients.json',
       );
@@ -113,23 +114,19 @@ void main() {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
 
       expect(
-        decoded['recalled_ingredients'],
+        decoded['ingredients'],
         isNotNull,
         reason:
-            'Flutter asset MUST use top-level key "recalled_ingredients". '
-            'If it has "ingredients" instead, a raw pipeline file was copied '
-            'in — the stack safety provider at '
-            'lib/features/stack/providers/stack_safety_providers.dart '
-            'reads recallData["recalled_ingredients"] and will silently '
-            'skip every banned-ingredient check.',
+            'Flutter now bundles the pipeline-owned banned/recalled asset. '
+            'The raw asset should keep top-level "ingredients".',
       );
       expect(
-        decoded['recalled_ingredients'],
+        decoded['ingredients'],
         isA<List<dynamic>>(),
-        reason: '"recalled_ingredients" must be a JSON array',
+        reason: '"ingredients" must be a JSON array',
       );
 
-      final entries = decoded['recalled_ingredients'] as List<dynamic>;
+      final entries = decoded['ingredients'] as List<dynamic>;
       expect(
         entries,
         isNotEmpty,
@@ -138,20 +135,36 @@ void main() {
             'check cannot flag banned substances.',
       );
 
-      // Guard against accidental direct-copy of pipeline file: the
-      // pipeline's bare top-level key must NOT be present.
       expect(
-        decoded.containsKey('ingredients'),
+        decoded.containsKey('recalled_ingredients'),
         isFalse,
         reason:
-            'Pipeline-shaped key "ingredients" found alongside "recalled_ingredients". '
-            'This asset was direct-copied from the pipeline — re-run the remap.',
+            'Do not commit a second remapped top-level list into the asset. '
+            'Normalize at ReferenceDataRepository instead.',
+      );
+
+      final normalized = normalizeBannedRecalledData(decoded);
+      expect(
+        normalized.containsKey('ingredients'),
+        isFalse,
+        reason:
+            'Repository normalization must hide the pipeline-shaped key '
+            'from Flutter consumers.',
+      );
+      expect(
+        normalized['recalled_ingredients'],
+        isA<List<dynamic>>(),
+        reason:
+            'Repository normalization must expose "recalled_ingredients" '
+            'to stack_safety_providers.dart.',
       );
 
       // Spot-check the first entry has the exact field names Flutter
       // consumers read at stack_safety_providers.dart:358-398.
       //
-      final first = entries.first as Map<String, dynamic>;
+      final normalizedEntries =
+          normalized['recalled_ingredients'] as List<dynamic>;
+      final first = normalizedEntries.first as Map<String, dynamic>;
       expect(first, containsPair('canonical_id', isA<String>()));
       expect(first, containsPair('common_names', isA<List<dynamic>>()));
       expect(first, containsPair('recall_status', isA<String>()));

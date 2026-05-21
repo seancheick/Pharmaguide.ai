@@ -1,0 +1,435 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "PharmaGuide home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: PharmaGuide
+      - navigation "Main" [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "Methodology" [ref=e9] [cursor=pointer]:
+          - /url: /methodology
+        - link "Blog" [ref=e10] [cursor=pointer]:
+          - /url: /blog
+        - link "About" [ref=e11] [cursor=pointer]:
+          - /url: /about
+      - link "Request Access" [ref=e13] [cursor=pointer]:
+        - /url: "#waitlist"
+        - text: Request Access
+        - generic [ref=e14]: →
+  - main [ref=e15]:
+    - region "Hero" [ref=e16]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - paragraph [ref=e20]: On-device supplement safety
+          - heading "Your supplements don't work in isolation. Neither should your check." [level=1] [ref=e21]:
+            - text: Your supplements don't work in isolation.
+            - text: Neither should your check.
+          - paragraph [ref=e22]: See how your supplements, medications, and timing work together — not one bottle at a time.
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - img [ref=e25]
+              - generic [ref=e28]: 180,000+
+              - text: products
+            - generic [ref=e29]:
+              - img [ref=e30]
+              - text: Evidence-graded
+            - generic [ref=e34]:
+              - img [ref=e35]
+              - text: Clinician-informed
+          - generic [ref=e37]:
+            - link "Request Access" [ref=e38] [cursor=pointer]:
+              - /url: "#waitlist"
+              - text: Request Access
+              - generic [ref=e39]: →
+            - link "Why interactions matter" [ref=e40] [cursor=pointer]:
+              - /url: "#problem"
+              - text: Why interactions matter
+              - generic [ref=e41]: ↓
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - generic [ref=e52]: 9:41
+            - img [ref=e59]
+          - generic [ref=e63]:
+            - img [ref=e65]
+            - generic [ref=e67]:
+              - generic [ref=e70]: PharmaGuide
+              - generic [ref=e71]: Add to stack
+          - generic [ref=e73]:
+            - img [ref=e74]
+            - generic [ref=e78]: Search supplements or medications
+    - region "Platform principles" [ref=e82]:
+      - paragraph [ref=e84]:
+        - generic [ref=e85]: Evidence-graded interactions
+        - generic [ref=e86]: ·
+        - generic [ref=e87]: Clinician-informed review
+        - generic [ref=e88]: ·
+        - generic [ref=e89]: Privacy-first architecture
+    - region "The problem" [ref=e90]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - paragraph [ref=e93]: The problem
+          - heading "A label tells you what's in the bottle. Not what happens with your other bottles." [level=2] [ref=e94]:
+            - text: A label tells you what's in the bottle.
+            - text: Not what happens with your other bottles.
+        - generic [ref=e95]:
+          - paragraph [ref=e96]: Googling “X with Y” usually gives you three different answers.
+          - paragraph [ref=e97]: Most products are checked one at a time. That’s not how people take them.
+          - paragraph [ref=e98]: Sometimes it’s not the ingredient. It’s the timing.
+        - 'figure "Source: CDC ↗·Not all interactions require emergency care" [ref=e99]':
+          - paragraph [ref=e101]: 4,100+
+          - paragraph [ref=e102]: ER visits per day · U.S.
+          - paragraph [ref=e103]: Every day, thousands of people visit the ER from adverse drug events, including known drug interactions.
+          - paragraph [ref=e104]: Information is your first line of defense.
+          - generic [ref=e105]:
+            - 'link "Source: CDC ↗" [ref=e106] [cursor=pointer]':
+              - /url: https://www.cdc.gov/medication-safety/data-research/facts-stats/index.html
+            - text: ·Not all interactions require emergency care
+        - paragraph [ref=e107]:
+          - text: Because interactions happen between products
+          - text: — not in isolation.
+    - region "Three beats. No guesswork." [ref=e109]:
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - paragraph [ref=e114]: How it works
+          - heading "Three beats. No guesswork." [level=2] [ref=e115]
+          - paragraph [ref=e116]: From scan to decision — PharmaGuide brings everything together so you can understand your stack in seconds.
+        - list [ref=e117]:
+          - listitem [ref=e118]:
+            - generic [ref=e119]: "01"
+            - heading "Scan or search." [level=3] [ref=e120]
+            - paragraph [ref=e121]: 180,000-product catalog, pre-loaded on your device. Works in pharmacies, on flights, or in the supplement aisle with one bar of signal. No cloud lookup required.
+            - generic [ref=e123]:
+              - generic [ref=e124]:
+                - generic [ref=e125]: Catalog · local
+                - generic [ref=e126]: offline
+              - generic [ref=e130]:
+                - generic [ref=e131]:
+                  - img [ref=e133]
+                  - generic [ref=e135]: ashwagandha 600 mg
+                  - generic [ref=e136]: 0.008 s
+                - generic [ref=e137]:
+                  - img [ref=e139]
+                  - generic [ref=e141]: magnesium glycinate
+                  - generic [ref=e142]: 0.006 s
+                - generic [ref=e143]:
+                  - img [ref=e145]
+                  - generic [ref=e147]: rhodiola rosea
+                  - generic [ref=e148]: 0.011 s
+              - generic [ref=e149]:
+                - generic [ref=e150]: 180,000 products
+                - generic [ref=e151]: on-device · no cloud
+          - listitem [ref=e152]:
+            - generic [ref=e153]: "02"
+            - heading "We cross-reference your full stack." [level=3] [ref=e154]
+            - paragraph [ref=e155]: Every supplement is checked against your medications, timing, and personal health context. All computation happens on-device. Nothing about your body is ever sent anywhere.
+            - generic [ref=e157]:
+              - generic [ref=e160]:
+                - paragraph [ref=e161]: St. John's Wort ↔ sertraline
+                - paragraph [ref=e162]: Contraindicated
+              - generic [ref=e165]:
+                - paragraph [ref=e166]: Ginkgo ↔ warfarin
+                - paragraph [ref=e167]: Avoid
+              - generic [ref=e170]:
+                - paragraph [ref=e171]: Magnesium ↔ metformin
+                - paragraph [ref=e172]: Monitor · space 2h
+          - listitem [ref=e173]:
+            - generic [ref=e174]: "03"
+            - heading "You get Your Fit — with every study behind it." [level=3] [ref=e175]
+            - paragraph [ref=e176]: Personalized compatibility, computed fresh each time. Tap any note to read the mechanism, evidence level, and clinical trial.
+            - generic [ref=e178]:
+              - paragraph [ref=e179]: Your Fit
+              - generic [ref=e182]: Good fit
+              - paragraph [ref=e183]: 2 timing notes·1 interaction to review
+              - generic [ref=e184]: ↘magnesium + metformin (space 2h)
+        - generic [ref=e185]:
+          - paragraph [ref=e186]: Cross-referenced with FDA·NIH·PubMed·DSLD
+          - paragraph [ref=e187]: Reviewed by Dr. Pham L., PharmD·Catalog updated weekly
+    - region "Not just warnings. Reasoning." [ref=e189]:
+      - generic [ref=e190]:
+        - generic [ref=e191]:
+          - paragraph [ref=e192]: The ladder
+          - heading "Not just warnings. Reasoning." [level=2] [ref=e193]:
+            - text: Not just warnings.
+            - text: Reasoning.
+          - paragraph [ref=e194]:
+            - text: Five severity tiers, each with the mechanism, evidence level, and study basis behind the verdict.
+            - generic [ref=e195]: Hover or tap a tier.
+        - generic [ref=e196]:
+          - tablist "Severity tiers" [ref=e197]:
+            - tab "Contraindicated Do not combine." [ref=e198] [cursor=pointer]:
+              - generic [ref=e200]:
+                - img [ref=e201]
+                - generic [ref=e203]: Contraindicated
+              - paragraph [ref=e204]: Do not combine.
+            - tab "Avoid Strong reason to separate." [ref=e205] [cursor=pointer]:
+              - generic [ref=e207]:
+                - img [ref=e208]
+                - generic [ref=e210]: Avoid
+              - paragraph [ref=e211]: Strong reason to separate.
+            - tab "Caution Risk depends on context." [ref=e212] [cursor=pointer]:
+              - generic [ref=e214]:
+                - img [ref=e215]
+                - generic [ref=e217]: Caution
+              - paragraph [ref=e218]: Risk depends on context.
+            - tab "Monitor Manage with timing." [selected] [ref=e219] [cursor=pointer]:
+              - generic [ref=e221]:
+                - img [ref=e222]
+                - generic [ref=e224]: Monitor
+              - paragraph [ref=e225]: Manage with timing.
+            - tab "Informational FYI — no action needed." [ref=e226] [cursor=pointer]:
+              - generic [ref=e228]:
+                - img [ref=e229]
+                - generic [ref=e231]: Informational
+              - paragraph [ref=e232]: FYI — no action needed.
+          - tabpanel "Monitor Manage with timing." [ref=e233]:
+            - generic [ref=e234]:
+              - generic [ref=e235]:
+                - paragraph [ref=e236]: Monitor
+                - paragraph [ref=e237]: Magnesium + Levothyroxine
+              - generic [ref=e238]:
+                - paragraph [ref=e239]: Minor absorption shift
+                - generic [ref=e240]:
+                  - paragraph [ref=e241]: Mechanism
+                  - paragraph [ref=e242]: Magnesium may reduce levothyroxine absorption when taken too closely together.
+                - generic [ref=e243]:
+                  - paragraph [ref=e244]: Recommendation
+                  - paragraph [ref=e245]: Separate by at least 4 hours.
+              - generic [ref=e246]:
+                - paragraph [ref=e247]: Evidence level
+                - generic [ref=e250]: Moderate
+                - generic [ref=e251]:
+                  - paragraph [ref=e252]: Studies
+                  - paragraph [ref=e253]: 2 pharmacokinetic studies
+        - paragraph [ref=e254]: When evidence is incomplete, we say so directly.
+    - region "The moments people don't realize they need this." [ref=e255]:
+      - generic [ref=e257]:
+        - paragraph [ref=e258]: Built for real life
+        - heading "The moments people don't realize they need this." [level=2] [ref=e259]:
+          - text: The moments people don't realize
+          - text: they need this.
+        - paragraph [ref=e260]: Most people never check the combination.
+      - list "Real-life moments" [ref=e261]:
+        - listitem [ref=e262] [cursor=pointer]:
+          - img "A small organized row of supplement bottles on a sunlit kitchen counter beside a coffee mug." [ref=e264]
+          - generic: Daily routine
+          - button "Open moment" [ref=e266]:
+            - img [ref=e267]
+          - heading "The vitamins you've taken for years" [level=3] [ref=e270]
+        - listitem [ref=e271] [cursor=pointer]:
+          - img "Soft natural-light photograph of a pregnant person at a kitchen table, hand resting near the bump." [ref=e273]
+          - generic: Pregnancy
+          - button "Open moment" [ref=e275]:
+            - img [ref=e276]
+          - heading "Pregnancy changes more than your routine" [level=3] [ref=e279]
+        - listitem [ref=e280] [cursor=pointer]:
+          - img "Quiet medical setting — a clinician's hand passing a prescription slip to a patient, soft daylight." [ref=e282]
+          - generic: Medication changes
+          - button "Open moment" [ref=e284]:
+            - img [ref=e285]
+          - heading "When your doctor adds something new" [level=3] [ref=e288]
+        - listitem [ref=e289] [cursor=pointer]:
+          - img "Athletic person at a home gym counter with a row of supplement tubs and a shaker bottle, soft daylight." [ref=e291]
+          - generic: Performance
+          - button "Open moment" [ref=e293]:
+            - img [ref=e294]
+          - heading "Your gym stack, all together" [level=3] [ref=e297]
+        - listitem [ref=e298] [cursor=pointer]:
+          - img "Older person's hands organizing four supplement bottles next to a coffee maker on a kitchen counter." [ref=e300]
+          - generic: Family
+          - button "Open moment" [ref=e302]:
+            - img [ref=e303]
+          - heading "The supplements your parents take now" [level=3] [ref=e306]
+        - listitem [ref=e307] [cursor=pointer]:
+          - img "Editorial photo of an organized row of varied supplement bottles on a wooden shelf, soft daylight." [ref=e309]
+          - generic: Wellness
+          - button "Open moment" [ref=e311]:
+            - img [ref=e312]
+          - heading "Healthy can still overlap badly" [level=3] [ref=e315]
+      - generic [ref=e320]:
+        - button "Previous moments" [ref=e321] [cursor=pointer]:
+          - img [ref=e322]
+        - button "Next moments" [ref=e324] [cursor=pointer]:
+          - img [ref=e325]
+    - region "What's high quality for one person may deserve a second look for another." [ref=e327]:
+      - generic [ref=e329]:
+        - generic [ref=e330]:
+          - paragraph [ref=e331]: Your Fit
+          - heading "What's high quality for one person may deserve a second look for another." [level=2] [ref=e332]:
+            - text: What's high quality for one person
+            - text: may deserve a second look for another.
+          - paragraph [ref=e333]: PharmaGuide gives you two reads on every product — objective quality, and personal fit.
+          - paragraph [ref=e334]:
+            - text: Quality is what's in the bottle.
+            - text: Fit is everything around it.
+        - generic [ref=e337]:
+          - paragraph [ref=e338]: Magnesium Glycinate · 200 mg
+          - generic [ref=e339]:
+            - generic [ref=e340]:
+              - generic [ref=e341]: Quality
+              - generic [ref=e342]: "0"
+            - paragraph [ref=e344]: Excellent quality · 3rd-party tested · clean ingredient list
+          - generic [ref=e345]:
+            - text: Your Fit
+            - generic [ref=e348]: Good fit
+            - list [ref=e349]:
+              - listitem [ref=e350]:
+                - generic [ref=e352]: 2 timing notes
+              - listitem [ref=e353]:
+                - generic [ref=e355]: 1 interaction to review
+              - listitem [ref=e356]:
+                - generic [ref=e358]: No major conflicts detected
+          - paragraph [ref=e359]: Personalized to your stack · updated continuously
+    - region "Opening in waves." [ref=e360]:
+      - generic [ref=e362]:
+        - heading "Opening in waves." [level=2] [ref=e363]:
+          - text: Opening
+          - text: in waves.
+        - paragraph [ref=e364]: Join the beta and be among the first to use PharmaGuide as we prepare for launch.
+        - generic [ref=e365]:
+          - generic [ref=e366]:
+            - generic [ref=e367]: Email address
+            - textbox "Email address" [ref=e368]:
+              - /placeholder: Enter your email
+            - button "Request early access" [ref=e369] [cursor=pointer]:
+              - text: Request early access
+              - generic [ref=e370]: →
+          - paragraph [ref=e371]: Free during beta·No credit card·We never sell your health data
+  - contentinfo [ref=e372]:
+    - generic [ref=e374]:
+      - generic [ref=e375]:
+        - link "PharmaGuide home" [ref=e376] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e378]: PharmaGuide
+        - paragraph [ref=e379]: Supplement intelligence.
+        - generic [ref=e380]:
+          - generic [ref=e381]:
+            - img [ref=e383]
+            - text: Boston, MA
+          - link "info@pharmaguide.io" [ref=e386] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+            - img [ref=e388]
+            - text: info@pharmaguide.io
+        - list [ref=e391]:
+          - listitem [ref=e392]:
+            - link "X (Twitter)" [ref=e393] [cursor=pointer]:
+              - /url: https://twitter.com/pharmaguideai
+              - img [ref=e394]
+          - listitem [ref=e396]:
+            - link "LinkedIn" [ref=e397] [cursor=pointer]:
+              - /url: https://linkedin.com/company/pharmaguide
+              - img [ref=e398]
+          - listitem [ref=e400]:
+            - link "Instagram" [ref=e401] [cursor=pointer]:
+              - /url: https://instagram.com/pharmaguide.io
+              - img [ref=e402]
+      - generic [ref=e405]:
+        - heading "Product" [level=3] [ref=e406]
+        - list [ref=e407]:
+          - listitem [ref=e408]:
+            - link "Features" [ref=e409] [cursor=pointer]:
+              - /url: /features
+              - text: Features
+          - listitem [ref=e410]:
+            - link "How It Works" [ref=e411] [cursor=pointer]:
+              - /url: /how-it-works
+              - text: How It Works
+          - listitem [ref=e412]:
+            - link "Methodology" [ref=e413] [cursor=pointer]:
+              - /url: /methodology
+              - text: Methodology
+          - listitem [ref=e414]:
+            - link "FAQ" [ref=e415] [cursor=pointer]:
+              - /url: /faq
+              - text: FAQ
+          - listitem [ref=e416]:
+            - generic [ref=e417]:
+              - text: Healthcare Pros
+              - generic [ref=e418]: "2026"
+      - generic [ref=e419]:
+        - heading "Company" [level=3] [ref=e420]
+        - list [ref=e421]:
+          - listitem [ref=e422]:
+            - link "About" [ref=e423] [cursor=pointer]:
+              - /url: /about
+              - text: About
+          - listitem [ref=e424]:
+            - link "Blog" [ref=e425] [cursor=pointer]:
+              - /url: /blog
+              - text: Blog
+          - listitem [ref=e426]:
+            - link "Careers" [ref=e427] [cursor=pointer]:
+              - /url: /careers
+              - text: Careers
+          - listitem [ref=e428]:
+            - link "Press" [ref=e429] [cursor=pointer]:
+              - /url: /press
+              - text: Press
+      - generic [ref=e430]:
+        - heading "Legal" [level=3] [ref=e431]
+        - list [ref=e432]:
+          - listitem [ref=e433]:
+            - link "Privacy" [ref=e434] [cursor=pointer]:
+              - /url: /privacy
+              - text: Privacy
+          - listitem [ref=e435]:
+            - link "Terms" [ref=e436] [cursor=pointer]:
+              - /url: /terms
+              - text: Terms
+          - listitem [ref=e437]:
+            - link "HIPAA" [ref=e438] [cursor=pointer]:
+              - /url: /hipaa
+              - text: HIPAA
+          - listitem [ref=e439]:
+            - link "Accessibility" [ref=e440] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+      - generic [ref=e441]:
+        - heading "Coming Soon" [level=3] [ref=e442]
+        - generic [ref=e443]:
+          - img "Coming soon to App Store" [ref=e444]:
+            - img [ref=e446]
+            - generic [ref=e448]:
+              - generic [ref=e449]: Download on the
+              - generic [ref=e450]: App Store
+          - img "Coming soon to Google Play" [ref=e451]:
+            - img [ref=e453]
+            - generic [ref=e455]:
+              - generic [ref=e456]: Get it on
+              - generic [ref=e457]: Google Play
+    - list [ref=e460]:
+      - listitem [ref=e461]:
+        - img [ref=e463]
+        - generic [ref=e466]: HIPAA Compliant
+      - listitem [ref=e467]:
+        - img [ref=e469]
+        - generic [ref=e472]: AES-256 Encrypted
+      - listitem [ref=e473]:
+        - img [ref=e475]
+        - generic [ref=e478]: Offline-First
+      - listitem [ref=e479]:
+        - img [ref=e481]
+        - generic [ref=e484]: No Data Selling
+      - listitem [ref=e485]:
+        - generic [ref=e486]: Evidence-graded·
+        - generic [ref=e487]: On-device analysis·
+        - generic [ref=e488]: Clinician-informed
+    - generic [ref=e489]:
+      - generic [ref=e491]:
+        - img [ref=e493]
+        - paragraph [ref=e495]: "Disclaimer: PharmaGuide provides educational information only — not a substitute for professional medical advice. Always consult your healthcare provider before making changes."
+      - generic [ref=e498]:
+        - paragraph [ref=e499]:
+          - text: Last reviewed
+          - time [ref=e500]: May 7, 2026
+          - text: · by Dr. Pham L., PharmD
+        - generic [ref=e501]:
+          - paragraph [ref=e502]: © 2026 PharmaGuide Inc.
+          - generic [ref=e503]: ·
+          - link "Sitemap" [ref=e504] [cursor=pointer]:
+            - /url: /sitemap.xml
+    - button:
+      - img
+  - alert [ref=e505]

@@ -11,11 +11,13 @@ import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/core/widgets/product_list_item.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
+import 'package:pharmaguide/services/scan_limit_service.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -50,6 +52,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   // Verdict flash overlay state
   Color? _flashColor;
+  IconData? _flashIcon;
   bool _showFlash = false;
 
   @override
@@ -79,6 +82,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     setState(() => _isLookingUp = true);
 
     try {
+      final scanLimit = await ref.read(scanLimitServiceProvider.future);
+      final allowed = await scanLimit.recordScan();
+      if (!allowed) {
+        if (!mounted) return;
+        setState(() {
+          _isLookingUp = false;
+          _hasScanned = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Scan limit reached. Sign in to continue scanning.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
       final db = ref.read(coreDatabaseProvider);
       final product = await db.findByUpc(upc);
 
@@ -87,18 +107,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       setState(() => _isLookingUp = false);
 
       if (product != null) {
-        // Persist the scan before we navigate so any mounted Home shell can
-        // leave first-launch mode and refresh Recents immediately.
-        await ref
-            .read(userDatabaseProvider)
-            .recordScanEvent(
-              dsldId: product.dsldId,
-              upcSku: product.upcSku,
-              productName: product.productName,
-            );
-        if (mounted) {
-          refreshHomeSurface(ref);
-        }
+        await _recordRecentScan(product);
         await _showVerdictFlashAndNavigate(product);
       } else {
         _showProductNotFound(upc);
@@ -116,8 +125,33 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
+  Future<void> _recordRecentScan(ProductsCoreData product) async {
+    try {
+      // Recents are useful, but failure to persist local history must not
+      // turn a found product into a false "not found" result.
+      await ref
+          .read(userDatabaseProvider)
+          .recordScanEvent(
+            dsldId: product.dsldId,
+            upcSku: product.upcSku,
+            productName: product.productName,
+          );
+      if (mounted) {
+        refreshHomeSurface(ref);
+      }
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
+      // Navigation still proceeds; the scan result is the source of truth.
+    }
+  }
+
   /// Flash the verdict color briefly, trigger haptic feedback, then navigate.
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
+    final displayVerdict = verdictForMappedCoverage(
+      product.verdict,
+      product.mappedCoverage,
+    );
+
     // Verdict-result haptic — severity-gated via PGHaptics.forVerdict so
     // the user feels the outcome before reading the screen:
     //   RECOMMENDED / GOOD  → di-DUP (Apple Pay success pattern)
@@ -126,11 +160,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     //   BLOCKED             → di-da-DUP (error pattern)
     // Safety-critical tiers always fire even under reduce-motion;
     // success patterns suppress under reduce-motion (passes context).
-    unawaited(PGHaptics.forVerdict(product.verdict, context));
+    unawaited(PGHaptics.forVerdict(displayVerdict, context));
 
-    final color = verdictFlashColor(product.verdict);
+    final color = verdictFlashColor(displayVerdict);
+    final icon = verdictFlashIcon(displayVerdict);
     setState(() {
       _flashColor = color;
+      _flashIcon = icon;
       _showFlash = true;
     });
 
@@ -174,7 +210,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   Future<void> _openManualBarcodeSheet() async {
     final barcode = await showManualBarcodeSheet(context);
     if (!mounted || barcode == null) return;
-    unawaited(_lookUpProduct(barcode.toString()));
+    if (_hasScanned) return;
+    setState(() => _hasScanned = true);
+    unawaited(_lookUpProduct(barcode));
   }
 
   @override
@@ -306,9 +344,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 color: (_flashColor ?? Colors.transparent).withAlpha(180),
                 child: Center(
                   child: Icon(
-                    _flashColor == AppTheme.severityContraindicated
-                        ? Icons.warning_rounded
-                        : Icons.check_circle_rounded,
+                    _flashIcon ?? Icons.info_outline_rounded,
                     color: Colors.white,
                     size: 80,
                   ),

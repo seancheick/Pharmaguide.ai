@@ -1,20 +1,13 @@
 // Sprint: docs/sprints/product_detail_page_sprint.md — T2A.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/review_before_use_card.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
-
-class _StubProfileNotifier extends ProfileNotifier {
-  _StubProfileNotifier(ProfileState initial) : super() {
-    state = initial;
-  }
-}
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 InteractionWarning _w({
   Severity severity = Severity.caution,
@@ -56,20 +49,16 @@ Future<void> _pump(
   ProfileState profile = const ProfileState(),
 }) {
   return tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        profileProvider.overrideWith((_) => _StubProfileNotifier(profile)),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: ReviewBeforeUseCard(
-            warnings: warnings,
-            interactionHint: interactionHint,
-            interactionSummary: interactionSummary,
-            matchedAllergens: matchedAllergens,
-            freeFromClaims: freeFromClaims,
-            freeFromConflicts: freeFromConflicts,
-          ),
+    MaterialApp(
+      home: Scaffold(
+        body: ReviewBeforeUseCard(
+          warnings: warnings,
+          interactionHint: interactionHint,
+          interactionSummary: interactionSummary,
+          matchedAllergens: matchedAllergens,
+          freeFromClaims: freeFromClaims,
+          freeFromConflicts: freeFromConflicts,
+          profile: profile,
         ),
       ),
     ),

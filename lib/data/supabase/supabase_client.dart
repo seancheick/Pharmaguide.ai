@@ -25,6 +25,13 @@ abstract final class SupabaseConfig {
   /// sync to skip network calls that will definitely fail.
   static bool get isPlaceholder =>
       url == _placeholderUrl || anonKey == _placeholderKey;
+
+  static void validateForRuntime({required bool releaseMode}) {
+    if (!isPlaceholder) return;
+    if (releaseMode || kDebugMode) {
+      throw const SupabasePlaceholderConfigException();
+    }
+  }
 }
 
 /// Thrown in debug mode when the app is started without `--dart-define`
@@ -49,18 +56,11 @@ class SupabasePlaceholderConfigException implements Exception {
 /// engineer notices immediately instead of chasing a "Failed host lookup"
 /// error 10 seconds into the session.
 ///
-/// **Release mode graceful fallback:** production builds are assumed to be
-/// signed with the proper dart-defines. If they somehow aren't, we silently
-/// continue and let the catalog sync fall back to the bundled DB (guest mode
-/// works without network as long as `pharmaguide_core.db` is bundled).
+/// **Release mode fail-fast:** production builds must be signed with the
+/// proper dart-defines. Placeholder Supabase config disables auth, sync, and
+/// OTA catalog refresh, so it is treated as a build/release error.
 Future<void> initSupabase() async {
-  if (SupabaseConfig.isPlaceholder) {
-    if (kDebugMode) {
-      throw const SupabasePlaceholderConfigException();
-    }
-    // Release build — still call initialize() so `Supabase.instance.client`
-    // exists, but catalog sync will no-op.
-  }
+  SupabaseConfig.validateForRuntime(releaseMode: kReleaseMode);
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,

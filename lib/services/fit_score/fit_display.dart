@@ -25,7 +25,7 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 
-/// Display state for the Personal Fit pill in Section 2 ("For You").
+/// Display state for the Personal Fit card in Section 2.
 sealed class FitDisplay {
   const FitDisplay();
 }
@@ -91,7 +91,7 @@ abstract final class FitDisplayThresholds {
   static const double limitedFit = 0.35;
 }
 
-/// Decide the [FitDisplay] state for the For You section.
+/// Decide the [FitDisplay] state for the Personal Fit section.
 ///
 /// Inputs:
 ///   * [verdict] — the worst-applicable severity affecting this

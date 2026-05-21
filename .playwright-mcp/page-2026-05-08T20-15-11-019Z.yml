@@ -1,0 +1,532 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "PharmaGuide home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: PharmaGuide
+      - navigation "Main" [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "Methodology" [ref=e9] [cursor=pointer]:
+          - /url: /methodology
+        - link "Blog" [ref=e10] [cursor=pointer]:
+          - /url: /blog
+        - link "About" [ref=e11] [cursor=pointer]:
+          - /url: /about
+      - link "Request Access" [ref=e13] [cursor=pointer]:
+        - /url: "#waitlist"
+        - text: Request Access
+        - generic [ref=e14]: →
+  - main [ref=e15]:
+    - region "We don't want your health data. Period." [ref=e16]:
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: Privacy Policy
+        - heading "We don't want your health data. Period." [level=1] [ref=e20]
+        - paragraph [ref=e21]: Your supplement stack and conditions stay on your device. This page explains exactly what we do collect, why, and how to control it.
+        - paragraph [ref=e22]:
+          - text: Last updated
+          - time [ref=e23]: May 8, 2026
+    - region "The short version" [ref=e24]:
+      - generic [ref=e26]:
+        - paragraph [ref=e27]: The short version
+        - list [ref=e28]:
+          - listitem [ref=e29]:
+            - generic [ref=e31]:
+              - text: Your
+              - strong [ref=e32]: health profile and stack
+              - text: never leave your device. Encrypted locally with AES-256.
+          - listitem [ref=e33]:
+            - generic [ref=e35]:
+              - text: We collect a
+              - strong [ref=e36]: minimal account email
+              - text: and basic usage analytics — that's it.
+          - listitem [ref=e37]:
+            - generic [ref=e39]:
+              - text: We
+              - strong [ref=e40]: never sell
+              - text: your data. We don't share it with advertisers, brokers, or insurance companies.
+          - listitem [ref=e41]:
+            - generic [ref=e43]:
+              - text: You can
+              - strong [ref=e44]: export or delete
+              - text: everything we have on you, anytime, with one tap.
+          - listitem [ref=e45]:
+            - generic [ref=e47]: Children under 13 may not use PharmaGuide. We comply with COPPA, CCPA/CPRA, and GDPR.
+    - region "Document contents" [ref=e48]:
+      - generic [ref=e50]:
+        - complementary "Table of contents" [ref=e51]:
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: Contents
+            - list [ref=e54]:
+              - listitem [ref=e55]:
+                - link "1Introduction" [ref=e56] [cursor=pointer]:
+                  - /url: "#introduction"
+              - listitem [ref=e57]:
+                - link "2What we collect" [ref=e58] [cursor=pointer]:
+                  - /url: "#what-we-collect"
+              - listitem [ref=e59]:
+                - link "3How we use information" [ref=e60] [cursor=pointer]:
+                  - /url: "#how-we-use"
+              - listitem [ref=e61]:
+                - link "4Storage and security" [ref=e62] [cursor=pointer]:
+                  - /url: "#storage-security"
+              - listitem [ref=e63]:
+                - link "5Who we share with" [ref=e64] [cursor=pointer]:
+                  - /url: "#sharing"
+              - listitem [ref=e65]:
+                - link "6Your rights" [ref=e66] [cursor=pointer]:
+                  - /url: "#your-rights"
+              - listitem [ref=e67]:
+                - link "7Third parties and tracking" [ref=e68] [cursor=pointer]:
+                  - /url: "#third-parties"
+              - listitem [ref=e69]:
+                - link "8Children's privacy" [ref=e70] [cursor=pointer]:
+                  - /url: "#children"
+              - listitem [ref=e71]:
+                - link "9California privacy rights (CCPA/CPRA)" [ref=e72] [cursor=pointer]:
+                  - /url: "#california-rights"
+              - listitem [ref=e73]:
+                - link "10European privacy rights (GDPR / UK GDPR)" [ref=e74] [cursor=pointer]:
+                  - /url: "#european-rights"
+              - listitem [ref=e75]:
+                - link "11Security incidents" [ref=e76] [cursor=pointer]:
+                  - /url: "#security-incidents"
+              - listitem [ref=e77]:
+                - link "12Changes to this policy" [ref=e78] [cursor=pointer]:
+                  - /url: "#changes"
+              - listitem [ref=e79]:
+                - link "13Contact us" [ref=e80] [cursor=pointer]:
+                  - /url: "#contact"
+        - generic [ref=e82]:
+          - article [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e85]: "1"
+              - heading "Introduction" [level=2] [ref=e86]
+            - generic [ref=e87]:
+              - paragraph [ref=e88]:
+                - generic [ref=e89]: "PharmaGuide is built around a simple privacy principle: the most sensitive information about your health should stay on your device. We can't be careless with data we never have."
+              - paragraph [ref=e90]:
+                - generic [ref=e91]:
+                  - text: This policy explains what we collect, what we don't, why, and the rights you have over the data we do hold. It covers the PharmaGuide mobile apps (iOS and Android), the website at
+                  - link "pharmaguide.io" [ref=e92] [cursor=pointer]:
+                    - /url: https://pharmaguide.io
+                  - text: ", and any related services."
+              - paragraph [ref=e93]:
+                - generic [ref=e94]: By using PharmaGuide, you agree to the practices described here. If you don't agree, don't use the service. We won't take it personally.
+          - article [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e97]: "2"
+              - heading "What we collect" [level=2] [ref=e98]
+            - generic [ref=e99]:
+              - paragraph [ref=e100]:
+                - generic [ref=e101]:
+                  - strong [ref=e102]: "Information you provide directly:"
+                  - text: your email address (required for account creation), and any feedback or support messages you send us.
+              - paragraph [ref=e103]:
+                - generic [ref=e104]:
+                  - strong [ref=e105]: "Information collected automatically:"
+                  - text: standard server logs (IP address, device type, app version, crash reports). Used to keep the service running and diagnose bugs. We don't tie these logs to your identity longer than 30 days.
+              - paragraph [ref=e106]:
+                - generic [ref=e107]:
+                  - strong [ref=e108]: "What we do NOT collect from your device:"
+                  - text: your supplement stack, the medications you take, your conditions, your age, your goals, your scan history, your interaction warnings, or any health-related profile data. All of that lives in an encrypted local database on your phone. We can't read it. We've never read it.
+              - paragraph [ref=e109]:
+                - generic [ref=e110]:
+                  - strong [ref=e111]: "What we do NOT collect from you ever:"
+                  - text: social security number, government ID, financial account numbers, biometric data, precise location.
+          - article [ref=e112]:
+            - generic [ref=e113]:
+              - generic [ref=e114]: "3"
+              - heading "How we use information" [level=2] [ref=e115]
+            - generic [ref=e116]:
+              - paragraph [ref=e117]:
+                - generic [ref=e118]:
+                  - strong [ref=e119]: "To run the service:"
+                  - text: authenticate your account, deliver app updates, fix bugs, prevent abuse.
+              - paragraph [ref=e120]:
+                - generic [ref=e121]:
+                  - strong [ref=e122]: "To communicate with you:"
+                  - text: send the welcome email when you join, send beta-wave invites when your wave opens, respond to support requests, and (if you opted in) the monthly newsletter.
+              - paragraph [ref=e123]:
+                - generic [ref=e124]:
+                  - strong [ref=e125]: "To improve the product:"
+                  - text: anonymized, aggregated usage patterns (e.g. "X% of users scanned a barcode this week") help us prioritize what to build next. We do not link these aggregates back to individual users.
+              - paragraph [ref=e126]:
+                - generic [ref=e127]:
+                  - strong [ref=e128]: "What we do NOT do:"
+                  - text: we do not use your data to train AI models. We do not sell or rent your data. We do not target ads at you. We do not allow third parties to track you across the web from PharmaGuide.
+          - article [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131]: "4"
+              - heading "Storage and security" [level=2] [ref=e132]
+            - generic [ref=e133]:
+              - paragraph [ref=e134]:
+                - strong [ref=e136]: "Where data lives:"
+                - generic [ref=e137]: "On-device (encrypted, AES-256): your full supplement stack, medications, conditions, profile, scan history, interaction history, FitScore inputs."
+                - generic [ref=e138]: "On our servers (encrypted in transit and at rest): your email, account metadata, anonymized usage logs."
+              - paragraph [ref=e139]:
+                - generic [ref=e140]:
+                  - strong [ref=e141]: "Security measures:"
+                  - text: TLS 1.3 in transit, AES-256 at rest, hardware-backed keystore for on-device secrets, scoped service-account access for our servers, regular security audits, and a coordinated disclosure policy at
+                  - link "security@pharmaguide.io" [ref=e142] [cursor=pointer]:
+                    - /url: mailto:security@pharmaguide.io
+                  - text: .
+              - paragraph [ref=e143]:
+                - generic [ref=e144]:
+                  - strong [ref=e145]: "Data retention:"
+                  - text: server-side data is retained as long as your account is active. When you delete your account, we permanently remove your account record and email within 30 days. On-device data is wiped immediately when you uninstall the app or tap "delete all my data" in settings.
+          - article [ref=e146]:
+            - generic [ref=e147]:
+              - generic [ref=e148]: "5"
+              - heading "Who we share with" [level=2] [ref=e149]
+            - generic [ref=e150]:
+              - paragraph [ref=e151]:
+                - generic [ref=e152]:
+                  - strong [ref=e153]: "Service providers:"
+                  - text: the small number of vendors we use (email delivery, app hosting, error monitoring) only see what they need to do their job. None of them see your health data because we don't have it. All vendors are bound by data-processing agreements aligned with GDPR / CCPA standards.
+              - paragraph [ref=e154]:
+                - generic [ref=e155]:
+                  - strong [ref=e156]: "Legal requirements:"
+                  - text: we will disclose information when legally required (court order, subpoena, lawful request from a regulator) and we will tell you about the request unless legally barred from doing so.
+              - paragraph [ref=e157]:
+                - generic [ref=e158]:
+                  - strong [ref=e159]: "Business transfers:"
+                  - text: if PharmaGuide is acquired or merges with another company, your data may transfer to the new entity. They are required to honor this policy or notify you of any changes.
+              - paragraph [ref=e160]:
+                - generic [ref=e161]:
+                  - strong [ref=e162]: "With your explicit consent:"
+                  - text: anything else requires you to actively opt in. We do not "imply" consent through obscure checkboxes.
+          - article [ref=e163]:
+            - generic [ref=e164]:
+              - generic [ref=e165]: "6"
+              - heading "Your rights" [level=2] [ref=e166]
+            - generic [ref=e167]:
+              - paragraph [ref=e168]:
+                - generic [ref=e169]: "Regardless of where you live, you can:"
+              - paragraph [ref=e170]:
+                - generic [ref=e171]:
+                  - strong [ref=e172]: Access
+                  - text: — get a copy of everything we have on you. Settings → Privacy → Export my data.
+              - paragraph [ref=e173]:
+                - generic [ref=e174]:
+                  - strong [ref=e175]: Correct
+                  - text: — fix anything that's wrong. Most fields you can edit directly.
+              - paragraph [ref=e176]:
+                - generic [ref=e177]:
+                  - strong [ref=e178]: Delete
+                  - text: — wipe your account and any associated server data. Settings → Privacy → Delete account. Takes effect within 30 days.
+              - paragraph [ref=e179]:
+                - generic [ref=e180]:
+                  - strong [ref=e181]: Port
+                  - text: — receive your data in a portable JSON format you can take elsewhere.
+              - paragraph [ref=e182]:
+                - generic [ref=e183]:
+                  - strong [ref=e184]: Opt out of marketing
+                  - text: — unsubscribe from any email we send, instantly, no questions.
+              - paragraph [ref=e185]:
+                - generic [ref=e186]:
+                  - strong [ref=e187]: Opt out of analytics
+                  - text: — Settings → Privacy → Disable usage analytics.
+              - paragraph [ref=e188]:
+                - generic [ref=e189]:
+                  - text: If you're in California, the EU, the UK, or another jurisdiction with additional rights, those rights apply too. See the
+                  - link "California Privacy Rights" [ref=e190] [cursor=pointer]:
+                    - /url: "#california-rights"
+                  - text: and
+                  - link "European Privacy Rights" [ref=e191] [cursor=pointer]:
+                    - /url: "#european-rights"
+                  - text: sections below.
+          - article [ref=e192]:
+            - generic [ref=e193]:
+              - generic [ref=e194]: "7"
+              - heading "Third parties and tracking" [level=2] [ref=e195]
+            - generic [ref=e196]:
+              - paragraph [ref=e197]:
+                - generic [ref=e198]:
+                  - strong [ref=e199]: "Cookies on the website:"
+                  - text: we use a minimal set of essential cookies (session, security). We use privacy-friendly analytics (Vercel Analytics, Microsoft Clarity for session replay). No cross-site advertising trackers. No Facebook pixel. No data brokers.
+              - paragraph [ref=e200]:
+                - generic [ref=e201]:
+                  - strong [ref=e202]: "Third-party links:"
+                  - text: the site occasionally links to external sources (FDA, NIH, PubMed, DSLD). When you click those, you leave our site and their privacy policies apply.
+              - paragraph [ref=e203]:
+                - generic [ref=e204]:
+                  - strong [ref=e205]: "Do Not Track:"
+                  - text: we honor browser-level DNT signals — when DNT is enabled, we do not load analytics.
+          - article [ref=e206]:
+            - generic [ref=e207]:
+              - generic [ref=e208]: "8"
+              - heading "Children's privacy" [level=2] [ref=e209]
+            - generic [ref=e210]:
+              - paragraph [ref=e211]:
+                - generic [ref=e212]:
+                  - text: PharmaGuide is not intended for children under 13. We do not knowingly collect personal information from anyone under 13. If you believe we have, contact us at
+                  - link "info@pharmaguide.io" [ref=e213] [cursor=pointer]:
+                    - /url: mailto:info@pharmaguide.io
+                  - text: and we will delete the data immediately.
+              - paragraph [ref=e214]:
+                - generic [ref=e215]: For users 13–17, a parent or legal guardian must approve account creation, and the user should consult their healthcare provider before relying on any PharmaGuide guidance.
+          - article [ref=e216]:
+            - generic [ref=e217]:
+              - generic [ref=e218]: "9"
+              - heading "California privacy rights (CCPA/CPRA)" [level=2] [ref=e219]
+            - generic [ref=e220]:
+              - paragraph [ref=e221]:
+                - generic [ref=e222]: "California residents have additional rights under the CCPA and CPRA:"
+              - paragraph [ref=e223]:
+                - generic [ref=e224]:
+                  - strong [ref=e225]: Right to know
+                  - text: what personal information we collect, use, disclose, and sell.
+              - paragraph [ref=e226]:
+                - generic [ref=e227]:
+                  - strong [ref=e228]: Right to delete
+                  - text: the personal information we hold about you (subject to certain exceptions).
+              - paragraph [ref=e229]:
+                - generic [ref=e230]:
+                  - strong [ref=e231]: Right to correct
+                  - text: inaccurate personal information.
+              - paragraph [ref=e232]:
+                - generic [ref=e233]:
+                  - strong [ref=e234]: Right to opt out of sale or sharing
+                  - text: — we do not sell or share personal information for cross-context behavioral advertising, full stop. There's nothing to opt out of, but the right exists.
+              - paragraph [ref=e235]:
+                - generic [ref=e236]:
+                  - strong [ref=e237]: Right to limit use of sensitive personal information
+                  - text: — we treat health-related data as sensitive and never use it beyond providing the service.
+              - paragraph [ref=e238]:
+                - generic [ref=e239]:
+                  - strong [ref=e240]: Right to non-discrimination
+                  - text: — exercising your rights does not affect your access to PharmaGuide.
+              - paragraph [ref=e241]:
+                - generic [ref=e242]:
+                  - text: To exercise any of these, email
+                  - link "privacy@pharmaguide.io" [ref=e243] [cursor=pointer]:
+                    - /url: mailto:privacy@pharmaguide.io
+                  - text: or use the in-app Settings → Privacy controls.
+          - article [ref=e244]:
+            - generic [ref=e245]:
+              - generic [ref=e246]: "10"
+              - heading "European privacy rights (GDPR / UK GDPR)" [level=2] [ref=e247]
+            - generic [ref=e248]:
+              - paragraph [ref=e249]:
+                - generic [ref=e250]: If you are in the European Economic Area, the United Kingdom, or Switzerland, the GDPR (and equivalents) apply.
+              - paragraph [ref=e251]:
+                - generic [ref=e252]:
+                  - strong [ref=e253]: "Lawful basis:"
+                  - text: we process your minimal account data on the lawful basis of (a) contractual necessity (you can't have an account without an email), (b) legitimate interest (running the service securely), and (c) your consent for any optional processing such as the newsletter.
+              - paragraph [ref=e254]:
+                - generic [ref=e255]:
+                  - strong [ref=e256]: "International transfers:"
+                  - text: our servers are located in the United States. Where we transfer EU/UK personal data to the US, we rely on Standard Contractual Clauses approved by the European Commission and the UK ICO.
+              - paragraph [ref=e257]:
+                - generic [ref=e258]:
+                  - strong [ref=e259]: "Data Protection Officer:"
+                  - text: for GDPR-related queries, email
+                  - link "dpo@pharmaguide.io" [ref=e260] [cursor=pointer]:
+                    - /url: mailto:dpo@pharmaguide.io
+                  - text: .
+              - paragraph [ref=e261]:
+                - generic [ref=e262]:
+                  - strong [ref=e263]: "Right to lodge a complaint:"
+                  - text: you can complain to your local data protection authority. For EU residents this is your country's DPA; for UK residents this is the ICO.
+          - article [ref=e264]:
+            - generic [ref=e265]:
+              - generic [ref=e266]: "11"
+              - heading "Security incidents" [level=2] [ref=e267]
+            - generic [ref=e268]:
+              - paragraph [ref=e269]:
+                - generic [ref=e270]: If we ever discover a security incident affecting your information, we will notify you within 72 hours of discovery (or sooner where required by law), explain what happened, what data was affected, what we're doing about it, and what you can do.
+              - paragraph [ref=e271]:
+                - generic [ref=e272]:
+                  - text: We test our systems regularly and run a coordinated disclosure program. Researchers can report findings to
+                  - link "security@pharmaguide.io" [ref=e273] [cursor=pointer]:
+                    - /url: mailto:security@pharmaguide.io
+                  - text: .
+          - article [ref=e274]:
+            - generic [ref=e275]:
+              - generic [ref=e276]: "12"
+              - heading "Changes to this policy" [level=2] [ref=e277]
+            - generic [ref=e278]:
+              - paragraph [ref=e279]:
+                - generic [ref=e280]: We update this policy when our practices change or when laws change. The "Last updated" date at the top reflects the most recent revision.
+              - paragraph [ref=e281]:
+                - generic [ref=e282]: For material changes (anything that meaningfully affects what we do with your data), we will email you at least 30 days before the change takes effect, and you will have the opportunity to delete your account before it does.
+              - paragraph [ref=e283]:
+                - generic [ref=e284]: We will never quietly change this policy in a way that reduces your privacy and hope you don't notice.
+          - article [ref=e285]:
+            - generic [ref=e286]:
+              - generic [ref=e287]: "13"
+              - heading "Contact us" [level=2] [ref=e288]
+            - generic [ref=e289]:
+              - paragraph [ref=e290]:
+                - generic [ref=e291]:
+                  - strong [ref=e292]: "General privacy questions:"
+                  - link "info@pharmaguide.io" [ref=e293] [cursor=pointer]:
+                    - /url: mailto:info@pharmaguide.io
+              - paragraph [ref=e294]:
+                - generic [ref=e295]:
+                  - strong [ref=e296]: "Privacy rights requests (access, deletion, portability):"
+                  - link "privacy@pharmaguide.io" [ref=e297] [cursor=pointer]:
+                    - /url: mailto:privacy@pharmaguide.io
+              - paragraph [ref=e298]:
+                - generic [ref=e299]:
+                  - strong [ref=e300]: "Security incidents and responsible disclosure:"
+                  - link "security@pharmaguide.io" [ref=e301] [cursor=pointer]:
+                    - /url: mailto:security@pharmaguide.io
+              - paragraph [ref=e302]:
+                - generic [ref=e303]:
+                  - strong [ref=e304]: "EU/UK Data Protection Officer:"
+                  - link "dpo@pharmaguide.io" [ref=e305] [cursor=pointer]:
+                    - /url: mailto:dpo@pharmaguide.io
+              - paragraph [ref=e306]:
+                - generic [ref=e307]:
+                  - strong [ref=e308]: "Mailing address:"
+                  - text: PharmaGuide Inc., Boston, MA, United States.
+              - paragraph [ref=e309]:
+                - generic [ref=e310]: We respond to every privacy email within 5 business days. A human reads every one.
+    - region "Contact" [ref=e311]:
+      - generic [ref=e313]:
+        - paragraph [ref=e314]: Questions about this policy?
+        - paragraph [ref=e315]:
+          - text: Reach us at
+          - link "info@pharmaguide.io" [ref=e316] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+          - text: — a human reads every reply.
+  - contentinfo [ref=e317]:
+    - generic [ref=e319]:
+      - generic [ref=e320]:
+        - link "PharmaGuide home" [ref=e321] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e323]: PharmaGuide
+        - paragraph [ref=e324]: Supplement intelligence.
+        - generic [ref=e325]:
+          - generic [ref=e326]:
+            - img [ref=e328]
+            - text: Boston, MA
+          - link "info@pharmaguide.io" [ref=e331] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+            - img [ref=e333]
+            - text: info@pharmaguide.io
+        - list [ref=e336]:
+          - listitem [ref=e337]:
+            - link "X (Twitter)" [ref=e338] [cursor=pointer]:
+              - /url: https://twitter.com/pharmaguideai
+              - img [ref=e339]
+          - listitem [ref=e341]:
+            - link "LinkedIn" [ref=e342] [cursor=pointer]:
+              - /url: https://linkedin.com/company/pharmaguide
+              - img [ref=e343]
+          - listitem [ref=e345]:
+            - link "Instagram" [ref=e346] [cursor=pointer]:
+              - /url: https://instagram.com/pharmaguide.io
+              - img [ref=e347]
+      - generic [ref=e350]:
+        - heading "Product" [level=3] [ref=e351]
+        - list [ref=e352]:
+          - listitem [ref=e353]:
+            - link "Features" [ref=e354] [cursor=pointer]:
+              - /url: /features
+              - text: Features
+          - listitem [ref=e355]:
+            - link "How It Works" [ref=e356] [cursor=pointer]:
+              - /url: /how-it-works
+              - text: How It Works
+          - listitem [ref=e357]:
+            - link "Methodology" [ref=e358] [cursor=pointer]:
+              - /url: /methodology
+              - text: Methodology
+          - listitem [ref=e359]:
+            - link "FAQ" [ref=e360] [cursor=pointer]:
+              - /url: /faq
+              - text: FAQ
+          - listitem [ref=e361]:
+            - generic [ref=e362]:
+              - text: Healthcare Pros
+              - generic [ref=e363]: "2026"
+      - generic [ref=e364]:
+        - heading "Company" [level=3] [ref=e365]
+        - list [ref=e366]:
+          - listitem [ref=e367]:
+            - link "About" [ref=e368] [cursor=pointer]:
+              - /url: /about
+              - text: About
+          - listitem [ref=e369]:
+            - link "Blog" [ref=e370] [cursor=pointer]:
+              - /url: /blog
+              - text: Blog
+          - listitem [ref=e371]:
+            - link "Careers" [ref=e372] [cursor=pointer]:
+              - /url: /careers
+              - text: Careers
+          - listitem [ref=e373]:
+            - link "Press" [ref=e374] [cursor=pointer]:
+              - /url: /press
+              - text: Press
+      - generic [ref=e375]:
+        - heading "Legal" [level=3] [ref=e376]
+        - list [ref=e377]:
+          - listitem [ref=e378]:
+            - link "Privacy" [ref=e379] [cursor=pointer]:
+              - /url: /privacy
+              - text: Privacy
+          - listitem [ref=e380]:
+            - link "Terms" [ref=e381] [cursor=pointer]:
+              - /url: /terms
+              - text: Terms
+          - listitem [ref=e382]:
+            - link "HIPAA" [ref=e383] [cursor=pointer]:
+              - /url: /hipaa
+              - text: HIPAA
+          - listitem [ref=e384]:
+            - link "Accessibility" [ref=e385] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+      - generic [ref=e386]:
+        - heading "Coming Soon" [level=3] [ref=e387]
+        - generic [ref=e388]:
+          - img "Coming soon to App Store" [ref=e389]:
+            - img [ref=e391]
+            - generic [ref=e393]:
+              - generic [ref=e394]: Download on the
+              - generic [ref=e395]: App Store
+          - img "Coming soon to Google Play" [ref=e396]:
+            - img [ref=e398]
+            - generic [ref=e400]:
+              - generic [ref=e401]: Get it on
+              - generic [ref=e402]: Google Play
+    - list [ref=e405]:
+      - listitem [ref=e406]:
+        - img [ref=e408]
+        - generic [ref=e411]: HIPAA Compliant
+      - listitem [ref=e412]:
+        - img [ref=e414]
+        - generic [ref=e417]: AES-256 Encrypted
+      - listitem [ref=e418]:
+        - img [ref=e420]
+        - generic [ref=e423]: Offline-First
+      - listitem [ref=e424]:
+        - img [ref=e426]
+        - generic [ref=e429]: No Data Selling
+      - listitem [ref=e430]:
+        - generic [ref=e431]: Evidence-graded·
+        - generic [ref=e432]: On-device analysis·
+        - generic [ref=e433]: Clinician-informed
+    - generic [ref=e434]:
+      - generic [ref=e436]:
+        - img [ref=e438]
+        - paragraph [ref=e440]: "Disclaimer: PharmaGuide provides educational information only — not a substitute for professional medical advice. Always consult your healthcare provider before making changes."
+      - generic [ref=e443]:
+        - paragraph [ref=e444]:
+          - text: Last reviewed
+          - time [ref=e445]: May 7, 2026
+          - text: · by Dr. Pham L., PharmD
+        - generic [ref=e446]:
+          - paragraph [ref=e447]: © 2026 PharmaGuide Inc.
+          - generic [ref=e448]: ·
+          - link "Sitemap" [ref=e449] [cursor=pointer]:
+            - /url: /sitemap.xml
+    - button:
+      - img
+  - alert [ref=e450]

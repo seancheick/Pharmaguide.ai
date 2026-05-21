@@ -19,6 +19,7 @@ import 'package:pharmaguide/core/widgets/pg_section_header.dart';
 import 'package:pharmaguide/core/widgets/pg_shimmer_box.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
+import 'package:pharmaguide/core/widgets/product_list_item.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
@@ -331,7 +332,10 @@ class _RecentScanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final score = product.score100Equivalent;
+    final score = scoreForMappedCoverage(
+      product.score100Equivalent,
+      product.mappedCoverage,
+    );
 
     return SizedBox(
       width: 156,
@@ -618,7 +622,10 @@ class _RecentScanListTile extends StatelessWidget {
                 productName: product.productName,
                 brandName: product.brandName ?? '',
                 formFactor: product.formFactor,
-                score: product.score100Equivalent,
+                score: scoreForMappedCoverage(
+                  product.score100Equivalent,
+                  product.mappedCoverage,
+                ),
                 size: 48,
               ),
               child: ProductImage(
@@ -628,7 +635,10 @@ class _RecentScanListTile extends StatelessWidget {
                 productName: product.productName,
                 brandName: product.brandName ?? '',
                 formFactor: product.formFactor,
-                score: product.score100Equivalent,
+                score: scoreForMappedCoverage(
+                  product.score100Equivalent,
+                  product.mappedCoverage,
+                ),
                 size: 48,
               ),
             ),
@@ -670,7 +680,10 @@ class _RecentScanListTile extends StatelessWidget {
             ),
             const SizedBox(width: AppTheme.space12),
             PGScoreRing(
-              score: product.score100Equivalent,
+              score: scoreForMappedCoverage(
+                product.score100Equivalent,
+                product.mappedCoverage,
+              ),
               size: 40,
               strokeWidth: 3.5,
             ),

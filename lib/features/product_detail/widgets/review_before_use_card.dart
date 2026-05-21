@@ -17,7 +17,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
@@ -28,11 +27,11 @@ import 'package:pharmaguide/core/widgets/pg_pressable.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
-class ReviewBeforeUseCard extends ConsumerStatefulWidget {
+class ReviewBeforeUseCard extends StatefulWidget {
   /// Profile-filtered interaction warnings (= guardedWarnings from the
   /// screen's filterProductDetailWarningsForProfile pass).
   final List<InteractionWarning> warnings;
@@ -68,6 +67,10 @@ class ReviewBeforeUseCard extends ConsumerStatefulWidget {
   /// label rather than have us silently pick a side.
   final List<String> freeFromConflicts;
 
+  /// Loaded profile state from the screen. Required so this safety-sensitive
+  /// card cannot briefly render against the default pre-load profile.
+  final ProfileState profile;
+
   const ReviewBeforeUseCard({
     super.key,
     required this.warnings,
@@ -77,19 +80,19 @@ class ReviewBeforeUseCard extends ConsumerStatefulWidget {
     this.matchedAllergens = const [],
     this.freeFromClaims = const [],
     this.freeFromConflicts = const [],
+    required this.profile,
   });
 
   @override
-  ConsumerState<ReviewBeforeUseCard> createState() =>
-      _ReviewBeforeUseCardState();
+  State<ReviewBeforeUseCard> createState() => _ReviewBeforeUseCardState();
 }
 
-class _ReviewBeforeUseCardState extends ConsumerState<ReviewBeforeUseCard> {
+class _ReviewBeforeUseCardState extends State<ReviewBeforeUseCard> {
   bool? _expandedOverride;
 
   @override
   Widget build(BuildContext context) {
-    final profile = ref.watch(profileProvider);
+    final ProfileState profile = widget.profile;
     final hasProfile =
         profile.conditions.isNotEmpty || profile.drugClasses.isNotEmpty;
 

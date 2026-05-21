@@ -7,7 +7,7 @@
 // product is product-side blocking (UNSAFE/BLOCKED) or when the
 // user's stack carries an Avoid/Contraindicated interaction with
 // the product. Lower-severity verdicts (Caution / Monitor / Safe /
-// Recommended / etc.) live in Section 2 ("For You") — they don't
+// Recommended / etc.) live in Section 2 (Personal Fit) — they don't
 // belong in the hero alongside the product score.
 //
 // The "provider" naming in the file path tracks the spec; this
@@ -93,7 +93,7 @@ final class HeroVerdictAvoid extends HeroVerdict {
 }
 
 /// No banner. Lower-severity verdicts (Caution, Monitor, Safe,
-/// Recommended, etc.) flow through to Section 2 ("For You").
+/// Recommended, etc.) flow through to Section 2 (Personal Fit).
 final class HeroVerdictNone extends HeroVerdict {
   const HeroVerdictNone();
 }

@@ -1,0 +1,3 @@
+[     339ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://pharmaguide-website.vercel.app/about?_rsc=QgfnF85fYcrwyI4V:0
+[     339ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://pharmaguide-website.vercel.app/how-it-works?_rsc=QgfnF85fYcrwyI4V:0
+[     363ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://pharmaguide-website.vercel.app/blog?_rsc=QgfnF85fYcrwyI4V:0

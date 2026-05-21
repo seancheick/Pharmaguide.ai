@@ -12,15 +12,45 @@
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/models/synergy_result.dart' as core_models;
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 @immutable
 class StackIntelligenceEngine {
   const StackIntelligenceEngine();
+
+  /// Compose the full stack-health verdict from the shared report types.
+  ///
+  /// This is the preferred entry point for UI surfaces. It keeps the
+  /// interaction issue flattening and synergy-to-quality-score mapping in one
+  /// service-layer place so Home, Stack, and clinician share views do not drift.
+  StackIntelligence diagnoseFromReports({
+    required int stackSize,
+    required StackSafetyReport safetyReport,
+    required RecalledIngredientsReport recalledReport,
+    required SynergyReport synergyReport,
+    List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+  }) {
+    final safetyScore = const StackSafetyScorer().compute(
+      issues: _interactionIssuesForScore(safetyReport),
+      synergies: _synergyResultsForScore(synergyReport),
+    );
+
+    return diagnose(
+      stackSize: stackSize,
+      safetyReport: safetyReport,
+      recalledReport: recalledReport,
+      synergyReport: synergyReport,
+      qualityScore: safetyScore.score,
+      doseThresholdAlerts: doseThresholdAlerts,
+    );
+  }
 
   /// Compose existing reports into a single [StackIntelligence] verdict.
   ///
@@ -39,6 +69,7 @@ class StackIntelligenceEngine {
     required RecalledIngredientsReport recalledReport,
     required SynergyReport synergyReport,
     int? qualityScore,
+    List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
   }) {
     final hasBannedIngredient = recalledReport.violations.any(
       (v) => v.recalledIngredients.any((r) => r.recallStatus == 'banned'),
@@ -63,9 +94,9 @@ class StackIntelligenceEngine {
     final interactionCount =
         contraindicatedCount + avoidCount + cautionCount + monitorCount;
 
-    final nutrientWarningCount = safetyReport.nutrientStatuses
-        .where((n) => n.shouldWarn)
-        .length;
+    final nutrientWarningCount =
+        safetyReport.nutrientStatuses.where((n) => n.shouldWarn).length +
+        doseThresholdAlerts.length;
 
     final tier = StackIntelligence.deriveTier(
       stackSize: stackSize,
@@ -82,6 +113,7 @@ class StackIntelligenceEngine {
     final issues = _composeIssues(
       safetyReport: safetyReport,
       recalledReport: recalledReport,
+      doseThresholdAlerts: doseThresholdAlerts,
     );
 
     return StackIntelligence(
@@ -100,6 +132,7 @@ class StackIntelligenceEngine {
   List<StackIssue> _composeIssues({
     required StackSafetyReport safetyReport,
     required RecalledIngredientsReport recalledReport,
+    required List<StackDoseThresholdAlert> doseThresholdAlerts,
   }) {
     final out = <StackIssue>[];
 
@@ -126,6 +159,55 @@ class StackIntelligenceEngine {
       }
     }
 
+    for (final alert in doseThresholdAlerts) {
+      out.add(
+        StackIssue(
+          severity: Severity.caution,
+          headline:
+              'Cumulative ${alert.displayName} is '
+              '${_formatDose(alert.totalValue)} ${alert.unit} across your stack '
+              '(threshold ${_formatDose(alert.thresholdValue)} '
+              '${alert.thresholdUnit}).',
+        ),
+      );
+    }
+
     return out;
+  }
+
+  String _formatDose(double value) {
+    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+    return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
+  }
+
+  List<InteractionResult> _interactionIssuesForScore(
+    StackSafetyReport safetyReport,
+  ) {
+    return <InteractionResult>[
+      ...safetyReport.medicationPairInteractions,
+      ...safetyReport.medicationInteractions,
+      ...safetyReport.stackInteractions,
+      ...safetyReport.categoryWarnings,
+    ];
+  }
+
+  List<core_models.SynergyResult> _synergyResultsForScore(
+    SynergyReport synergyReport,
+  ) {
+    return synergyReport.matches
+        .map(
+          (match) => core_models.SynergyResult(
+            ingredient1: match.matchedIngredients.isNotEmpty
+                ? match.matchedIngredients.first
+                : match.clusterId,
+            ingredient2: match.matchedIngredients.length > 1
+                ? match.matchedIngredients[1]
+                : match.clusterName,
+            description: match.mechanism,
+            evidenceLevel: EvidenceLevel.established,
+            bonus: match.bonusPoints,
+          ),
+        )
+        .toList(growable: false);
   }
 }

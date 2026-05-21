@@ -1,5 +1,7 @@
 // Spec: docs/sprints/product_detail_page_sprint.md — T1A.
 
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
+import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
 
 const _dsldId = 'dsld-test';
 
@@ -39,6 +42,23 @@ Future<void> _addToStack(UserDatabase userDb, {String dsldId = _dsldId}) async {
   );
 }
 
+class _RaceCoreDatabase extends CoreDatabase {
+  final ProductsCoreData product;
+  final Completer<ProductsCoreData?> verdictLookup;
+  int findCalls = 0;
+
+  _RaceCoreDatabase({required this.product, required this.verdictLookup})
+    : super.memory();
+
+  @override
+  Future<ProductsCoreData?> findById(String dsldId) {
+    if (dsldId != product.dsldId) return Future.value(null);
+    findCalls++;
+    if (findCalls == 1) return Future.value(product);
+    return verdictLookup.future;
+  }
+}
+
 Widget _wrap(
   CoreDatabase coreDb,
   UserDatabase userDb, {
@@ -56,6 +76,32 @@ Widget _wrap(
           dsldId: _dsldId,
           isUnsafe: isUnsafe,
           onSeeAlternatives: onSeeAlternatives,
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _wrapSafetySheetOpener(CoreDatabase coreDb, UserDatabase userDb) {
+  return ProviderScope(
+    overrides: [
+      coreDatabaseProvider.overrideWithValue(coreDb),
+      userDatabaseProvider.overrideWithValue(userDb),
+    ],
+    child: MaterialApp(
+      home: Scaffold(
+        body: Consumer(
+          builder: (context, ref, _) {
+            return FilledButton(
+              onPressed: () => showSafetyCheckSheet(
+                context,
+                ref,
+                dsldId: _dsldId,
+                productName: 'Test Product',
+              ),
+              child: const Text('Open sheet'),
+            );
+          },
         ),
       ),
     ),
@@ -228,5 +274,53 @@ void main() {
       await coreDb.close();
       await userDb.close();
     });
+
+    testWidgets(
+      'direct safety sheet does not show safe-to-add while verdict is pending',
+      (tester) async {
+        final verdictLookup = Completer<ProductsCoreData?>();
+        const product = ProductsCoreData(
+          dsldId: _dsldId,
+          productName: 'Test Product',
+          exportVersion: 'test',
+          exportedAt: '2026-04-29T00:00:00Z',
+          verdict: 'UNSAFE',
+        );
+        final coreDb = _RaceCoreDatabase(
+          product: product,
+          verdictLookup: verdictLookup,
+        );
+        final userDb = UserDatabase.memory();
+
+        await tester.pumpWidget(_wrapSafetySheetOpener(coreDb, userDb));
+        await tester.tap(find.text('Open sheet'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('Checking product safety…'), findsOneWidget);
+        expect(find.text('No stack interactions found'), findsNothing);
+        expect(find.textContaining('Safe to add'), findsNothing);
+
+        final pendingButton = tester.widget<FilledButton>(
+          find.ancestor(
+            of: find.text('Add to stack'),
+            matching: find.byType(FilledButton),
+          ),
+        );
+        expect(pendingButton.onPressed, isNull);
+
+        verdictLookup.complete(product);
+        await tester.pumpAndSettle();
+
+        expect(find.text('This product cannot be added'), findsOneWidget);
+        expect(find.text('Cannot add'), findsOneWidget);
+        expect(find.text('No stack interactions found'), findsNothing);
+        expect(find.textContaining('Safe to add'), findsNothing);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+      },
+    );
   });
 }

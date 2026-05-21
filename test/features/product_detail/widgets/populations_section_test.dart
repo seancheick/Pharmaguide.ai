@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Walks RichText widgets and matches when their concatenated plain-
 /// text contains [substring]. Needed because the population bullet is

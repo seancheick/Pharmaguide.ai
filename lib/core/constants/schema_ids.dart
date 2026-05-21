@@ -41,11 +41,11 @@ abstract final class SchemaIds {
   };
 
   /// v6.0 profile flags — additive to [conditions]. The pipeline's
-  /// `clinical_risk_taxonomy.json::profile_flags[]` contract has 7 flag
+  /// `clinical_risk_taxonomy.json::profile_flags[]` contract has 8 flag
   /// IDs total. Four of them (`pregnant`, `breastfeeding`,
   /// `trying_to_conceive`, `surgery_scheduled`) are derived from the
   /// existing condition IDs at evaluator time
-  /// (see ProfileState.evaluatorProfileFlags); the remaining 3 are
+  /// (see ProfileState.evaluatorProfileFlags); the remaining 4 are
   /// distinct history/transient states and live as their own selectable
   /// flags here:
   ///   post_op_recovery     — currently in post-operative recovery (vs.
@@ -95,9 +95,11 @@ abstract final class SchemaIds {
     'antiplatelets': 'Antiplatelet medication',
     'nsaids': 'NSAIDs (Ibuprofen, Aspirin regularly)',
     'antihypertensives': 'Blood pressure medication',
-    'hypoglycemics_high_risk': 'Higher low-blood-sugar risk diabetes meds',
-    'hypoglycemics_lower_risk': 'Lower low-blood-sugar risk diabetes meds',
-    'hypoglycemics_unknown': 'Not sure / other diabetes medication',
+    'hypoglycemics_high_risk':
+        'Diabetes meds — Insulin, Sulfonylureas, Meglitinides',
+    'hypoglycemics_lower_risk':
+        'Diabetes meds — Metformin, GLP-1 RAs, SGLT2i, DPP-4i',
+    'hypoglycemics_unknown': 'Diabetes medication (not yet specified)',
     'thyroid_medications': 'Thyroid medication',
     'sedatives': 'Sedatives / Sleep medication',
     'immunosuppressants': 'Immunosuppressants',

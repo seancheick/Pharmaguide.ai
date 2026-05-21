@@ -224,6 +224,11 @@ flutter:
     # for round-trip lookup until v1.1 source-data migration.
     # Source: pipeline `scripts/data/primary_outcome_vocab.json`.
     - assets/data/primary_outcome_vocab.json
+    # Product-type vocab (SP-2, 2026-05-20): 20 canonical supplement
+    # product-type buckets used for primary_category, search filter chips,
+    # and product badges.
+    # Source: pipeline `scripts/data/product_type_vocab.json`.
+    - assets/data/product_type_vocab.json
     # form_factor vocab (SP-3, 2026-05-21): 18 canonical product
     # physical-state buckets covering DSLD's 10 langual codes plus
     # finer-grain forms (softgel split from capsule, sublingual from

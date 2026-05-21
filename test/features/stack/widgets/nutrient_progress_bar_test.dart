@@ -155,6 +155,42 @@ void main() {
       expect(find.textContaining('different unit'), findsOneWidget);
     });
 
+    testWidgets(
+      'renders pipeline-skip exclusion note without unit-conflict copy',
+      (tester) async {
+        const status = NutrientStatus(
+          total: NutrientTotal(
+            canonicalId: 'vitamin_a',
+            displayName: 'Vitamin A',
+            totalAmount: 0,
+            unit: '',
+            contributions: [],
+            excludedContributions: [
+              ExcludedNutrientContribution(
+                contribution: NutrientContribution(
+                  stackEntryId: 's1',
+                  productName: 'Vitamin A',
+                  amount: 25000,
+                  unit: 'iu',
+                ),
+                reason: NutrientExclusionReason.skippedByPipeline,
+              ),
+            ],
+          ),
+          tier: NutrientTier.noRda,
+        );
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: NutrientProgressBar(status: status)),
+          ),
+        );
+
+        expect(find.textContaining('could not be evaluated'), findsOneWidget);
+        expect(find.textContaining('different unit'), findsNothing);
+      },
+    );
+
     testWidgets('formats sub-10 amounts with one decimal', (tester) async {
       const status = NutrientStatus(
         total: NutrientTotal(

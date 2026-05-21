@@ -19,11 +19,11 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_card.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pipeline_sections/synergy_detail_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 class _StubProfileNotifier extends ProfileNotifier {
   _StubProfileNotifier(ProfileState initial) : super() {
@@ -142,6 +142,7 @@ void main() {
 
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
+      const profile = ProfileState(drugClasses: ['anticoagulants']);
 
       await tester.pumpWidget(
         _wrap(
@@ -150,6 +151,7 @@ void main() {
           DetailSection(
             detailBlob: _fullDetailBlob(),
             warnings: _warningsWithStackMatch(),
+            profile: profile,
             isTrustedManufacturer: false,
             hasThirdPartyTesting: false,
             mappedCoverage: 0.3,

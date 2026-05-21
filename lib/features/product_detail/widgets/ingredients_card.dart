@@ -35,10 +35,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
-import 'package:pharmaguide/features/product_detail/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 
 /// Merged Ingredients card — Section 6 of the product detail page.
@@ -188,7 +188,7 @@ class _IngredientsCardState extends State<IngredientsCard> {
           child: _expanded
               ? Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: FutureBuilder<Map<String, FunctionalRole>>(
+                  child: FutureBuilder<Map<String, FunctionalRoleEntry>>(
                     future: loadFunctionalRolesVocab(),
                     builder: (context, snapshot) {
                       final vocab = snapshot.data;
@@ -223,7 +223,7 @@ class _InactiveRow extends StatelessWidget {
   /// Pre-loaded functional-roles vocab from the parent
   /// [IngredientsCard]. Null when the cache is still cold OR the
   /// asset failed to load — the row falls back to name-only render.
-  final Map<String, FunctionalRole>? vocab;
+  final Map<String, FunctionalRoleEntry>? vocab;
 
   const _InactiveRow({
     required this.ingredient,
@@ -397,7 +397,7 @@ class _FunctionalRolesSheet extends StatelessWidget {
               if (roles.isEmpty)
                 _GenericFallback(scheme: scheme, theme: theme)
               else
-                FutureBuilder<Map<String, FunctionalRole>>(
+                FutureBuilder<Map<String, FunctionalRoleEntry>>(
                   future: loadFunctionalRolesVocab(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
@@ -411,7 +411,7 @@ class _FunctionalRolesSheet extends StatelessWidget {
                     final vocab = snapshot.data!;
                     final matched = roles
                         .map((id) => vocab[id])
-                        .whereType<FunctionalRole>()
+                        .whereType<FunctionalRoleEntry>()
                         .toList(growable: false);
                     if (matched.isEmpty) {
                       // All ids unknown — fall back so the user gets
@@ -442,7 +442,7 @@ class _FunctionalRolesSheet extends StatelessWidget {
 /// title, body (verbatim — clinician-locked), examples chip row,
 /// regulatory deep-link row.
 class _RoleSection extends StatelessWidget {
-  final FunctionalRole role;
+  final FunctionalRoleEntry role;
   const _RoleSection({required this.role});
 
   @override

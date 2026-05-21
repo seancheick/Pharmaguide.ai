@@ -1,23 +1,19 @@
 // Manual barcode entry bottom sheet — lets the user type a UPC/EAN
 // barcode number and look up the product from the on-device catalog.
 //
-// Reuses the same `findByUpc()` lookup as the camera scanner. The
-// caller is responsible for handling the result (navigate to product
-// detail or show not-found flow) via the [onProductFound] and
-// [onProductNotFound] callbacks.
+// Returns the sanitized barcode string so the scanner screen can reuse
+// the same lookup, navigation, and not-found flow as the camera path.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
-import 'package:pharmaguide/data/database/core_database.dart';
 
 /// Shows the manual barcode entry sheet via [PGModal.bottomSheet].
 ///
-/// Returns the looked-up [ProductsCoreData] if found, or `null` if the
-/// user dismisses without a match.
-Future<ProductsCoreData?> showManualBarcodeSheet(BuildContext context) {
-  return PGModal.bottomSheet<ProductsCoreData?>(
+/// Returns the sanitized barcode string, or `null` if the user dismisses.
+Future<String?> showManualBarcodeSheet(BuildContext context) {
+  return PGModal.bottomSheet<String>(
     context: context,
     builder: (ctx) => const _ManualBarcodeSheet(),
   );

@@ -2,7 +2,7 @@
 // app startup, then expose synchronous lookups for widget render paths.
 //
 // Background:
-//   The 25 vocab JSON assets in assets/data/ are the single source of
+//   The 29 vocab JSON assets in assets/data/ are the single source of
 //   truth for severity/verdict/condition/etc. labels. Their per-vocab
 //   loaders (loadVerdictVocab, loadSeverityVocab, ...) are async because
 //   rootBundle.loadString is async.

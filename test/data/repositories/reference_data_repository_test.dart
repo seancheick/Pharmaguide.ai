@@ -19,17 +19,39 @@ void main() {
       expect((conditions.first as Map)['id'], 'pregnancy');
     });
 
-    test('loads clinical_risk_taxonomy with 14 drug classes', () async {
-      // Count bumped 9→14 when round 2b-full added authored copy to
-      // previously-missing drug classes (sedatives, immunosuppressants,
-      // statins, antidepressants_ssri_snri, maois, cardiac_glycosides,
-      // anticholinergics, anticonvulsants). See pipeline repo commit
-      // 46971b8.
+    test('loads clinical_risk_taxonomy with 23 drug classes', () async {
       final taxonomy = await repo.loadClinicalRiskTaxonomy();
       final drugClasses = taxonomy['drug_classes'] as List;
-      expect(drugClasses.length, 14);
+      expect(drugClasses.length, 23);
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
     });
+
+    test('loads v6 profile gate taxonomy blocks', () async {
+      final taxonomy = await repo.loadClinicalRiskTaxonomy();
+      expect(taxonomy['profile_flags'], isA<List<dynamic>>());
+      expect(taxonomy['product_forms'], isA<List<dynamic>>());
+      expect((taxonomy['profile_flags'] as List).length, 8);
+      expect((taxonomy['product_forms'] as List).length, 9);
+    });
+
+    test(
+      'normalizes banned_recalled_ingredients for stack consumers',
+      () async {
+        final recallData = await repo.loadBannedRecalledIngredients();
+        expect(recallData.containsKey('ingredients'), isFalse);
+        expect(recallData['recalled_ingredients'], isA<List<dynamic>>());
+
+        final entries = recallData['recalled_ingredients'] as List<dynamic>;
+        expect(entries.length, 156);
+
+        final first = entries.first as Map<dynamic, dynamic>;
+        expect(first['canonical_id'], 'ADULTERANT_MELOXICAM');
+        expect(first['common_names'], isA<List<dynamic>>());
+        expect(first['recall_status'], 'banned');
+        expect(first['severity'], 'critical');
+        expect((first['safety_warning'] as String).trim(), isNotEmpty);
+      },
+    );
 
     test('loads user_goals_to_clusters with 18 goals', () async {
       final goals = await repo.loadGoalMappings();
@@ -45,6 +67,18 @@ void main() {
         (rda['nutrient_recommendations']! as List<dynamic>).isNotEmpty,
         true,
       );
+    });
+
+    test('RDA omega reference is ALA, not EPA/DHA or fish-oil mass', () async {
+      final rda = await repo.loadRdaOptimalUls();
+      final entries = rda['nutrient_recommendations']! as List<dynamic>;
+      final ids = entries
+          .whereType<Map<dynamic, dynamic>>()
+          .map((entry) => entry['id'])
+          .toSet();
+
+      expect(ids, contains('alpha_linolenic_acid'));
+      expect(ids, isNot(contains('omega_3_fatty_acids')));
     });
 
     test('loads timing_rules placeholder', () async {

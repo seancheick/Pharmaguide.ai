@@ -56,7 +56,7 @@
       "notes": "Support healthy body composition. Common targets: protein, fiber, green tea extract, berberine, conjugated linoleic acid (CLA).",
       "priority": "high",
       "related_condition_ids": ["diabetes", "hypertension"],
-      "related_drug_class_ids": ["hypoglycemics"]
+      "related_drug_class_ids": ["hypoglycemics_high_risk", "hypoglycemics_lower_risk", "hypoglycemics_unknown"]
     },
     {
       "id": "GOAL_CARDIOVASCULAR_HEART_HEALTH",
@@ -80,7 +80,7 @@
       "notes": "Improve glycemic control. Common targets: berberine, chromium, alpha-lipoic acid, cinnamon, magnesium.",
       "priority": "medium",
       "related_condition_ids": ["diabetes"],
-      "related_drug_class_ids": ["hypoglycemics"]
+      "related_drug_class_ids": ["hypoglycemics_high_risk", "hypoglycemics_lower_risk", "hypoglycemics_unknown"]
     },
     {
       "id": "GOAL_IMMUNE_SUPPORT",

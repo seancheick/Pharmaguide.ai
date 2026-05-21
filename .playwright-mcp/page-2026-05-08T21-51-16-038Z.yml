@@ -1,0 +1,361 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "PharmaGuide home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: PharmaGuide
+      - navigation "Main" [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "Methodology" [ref=e9] [cursor=pointer]:
+          - /url: /methodology
+        - link "Blog" [ref=e10] [cursor=pointer]:
+          - /url: /blog
+        - link "About" [ref=e11] [cursor=pointer]:
+          - /url: /about
+      - link "Request Access" [ref=e13] [cursor=pointer]:
+        - /url: "#waitlist"
+        - text: Request Access
+        - generic [ref=e14]: →
+  - main [ref=e15]:
+    - region "What your medication might be quietly depleting" [ref=e16]:
+      - generic [ref=e18]:
+        - link "Blog" [ref=e19] [cursor=pointer]:
+          - /url: /blog
+          - generic [ref=e20]: ←
+          - text: Blog
+        - paragraph [ref=e21]: Health Education
+        - heading "What your medication might be quietly depleting" [level=1] [ref=e22]
+        - paragraph [ref=e23]: Statins lower CoQ10. Metformin draws down B12 and folate. PPIs reduce magnesium absorption. Here's the cheat sheet for the most common prescriptions — and why your supplement stack should know about it.
+        - generic [ref=e24]:
+          - generic [ref=e25]: By Sean Cheick Baradji
+          - generic [ref=e26]: ·
+          - generic [ref=e27]: Reviewed by Dr. Pham L., PharmD
+          - generic [ref=e28]: ·
+          - time [ref=e29]: May 8, 2026
+          - generic [ref=e30]: ·
+          - generic [ref=e31]: 8 min read
+    - region "Article body" [ref=e32]:
+      - article [ref=e34]:
+        - paragraph [ref=e35]:
+          - text: If you take a daily prescription, there's a reasonable chance it's quietly drawing down a specific vitamin or mineral over months and years.
+          - strong [ref=e36]: It's not a side effect in the dramatic sense.
+          - text: You won't feel it the day you start the medication. You'll feel it eight months in, when your energy isn't quite what it used to be, or your hair is thinner, or your sleep is off — and you'll blame anything
+          - emphasis [ref=e37]: but
+          - text: the prescription that's been working perfectly to manage what it was prescribed for.
+        - paragraph [ref=e38]:
+          - text: This is the gap most people miss. The prescription is doing its job.
+          - emphasis [ref=e39]: And
+          - text: it's depleting something. Both can be true.
+        - paragraph [ref=e40]:
+          - text: "The good news: this is well-documented in pharmacology. The depletion patterns for the most common medications are mapped, the mechanisms are understood, and the replenishment options are simple. It's just that nobody routinely tells you about them at the pharmacy counter — partly because there isn't time in a 7-minute primary care visit, and partly because the depletion is slow enough that it's nobody's"
+          - emphasis [ref=e41]: acute
+          - text: problem.
+        - paragraph [ref=e42]:
+          - text: This guide walks through five of the most common medication classes and the nutrients they affect.
+          - strong [ref=e43]: The point isn't to scare you off your prescription.
+          - text: The point is to know what to ask your doctor or pharmacist about, and to think about your supplement stack with the depletion in mind rather than ignoring it.
+        - heading "A note on what this is and isn't" [level=2] [ref=e44]
+        - complementary [ref=e45]:
+          - paragraph [ref=e46]:
+            - text: This is
+            - strong [ref=e47]: educational information
+            - text: ", not medical advice. The depletion patterns described are well-established in clinical pharmacology, but specific dosing and timing decisions should always involve your healthcare provider — especially because depletion severity varies by individual, dose, and duration."
+        - paragraph [ref=e48]: "If you're taking any of the medications below and want to discuss replenishment, the conversation with your clinician is short: \"I read that this medication can reduce levels of [nutrient]. Should I be supplementing, or should we test my levels?\" That's it. They'll know."
+        - heading "1. Statins → CoQ10" [level=2] [ref=e49]
+        - paragraph [ref=e50]:
+          - text: "Statins (atorvastatin, simvastatin, rosuvastatin, pravastatin) work by inhibiting an enzyme called HMG-CoA reductase, which the liver uses to make cholesterol. The catch: that same enzyme is upstream of the body's production of"
+          - link "coenzyme Q10" [ref=e51] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/factsheets/CoenzymeQ10-HealthProfessional/
+          - text: ", a critical molecule in cellular energy production. Block the cholesterol pathway, and you also dial down CoQ10 synthesis."
+        - paragraph [ref=e52]:
+          - strong [ref=e53]: Why it matters.
+          - text: CoQ10 is concentrated in tissues that work hardest — heart, skeletal muscle, brain, kidneys. The clinical signal that overlaps with statin-related muscle complaints (myalgia, weakness, fatigue) has been studied for two decades. The literature is mixed on whether CoQ10 supplementation reliably
+          - emphasis [ref=e54]: reverses
+          - text: statin-associated muscle symptoms in everyone, but the depletion itself is well-documented.
+        - paragraph [ref=e55]:
+          - strong [ref=e56]: Common context.
+          - text: Some cardiology guidelines now mention CoQ10 supplementation as a discussion point for patients on long-term high-dose statins, especially those reporting muscle symptoms.
+        - paragraph [ref=e57]:
+          - strong [ref=e58]: Typical replenishment.
+          - text: 100–200 mg of CoQ10 (or its bioactive form, ubiquinol) daily, taken with a meal containing fat for absorption.
+          - emphasis [ref=e59]: Discuss with your clinician.
+        - paragraph [ref=e60]:
+          - strong [ref=e61]: "Source:"
+          - link "NIH Office of Dietary Supplements — CoQ10 fact sheet" [ref=e62] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/factsheets/CoenzymeQ10-HealthProfessional/
+        - heading "2. Metformin → Vitamin B12 and folate" [level=2] [ref=e63]
+        - paragraph [ref=e64]:
+          - text: Metformin is the most-prescribed first-line type-2 diabetes medication in the United States. It also has a well-documented effect on
+          - link "vitamin B12 absorption" [ref=e65] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/
+          - text: — specifically, it reduces the calcium-dependent uptake of B12 in the small intestine. Long-term users (think years, not months) develop measurable B12 deficiencies more frequently than people not on metformin.
+        - paragraph [ref=e66]: Folate (vitamin B9) often follows the same pattern, though by a different mechanism.
+        - paragraph [ref=e67]:
+          - strong [ref=e68]: Why it matters.
+          - text: "B12 deficiency presents as fatigue, neuropathy (tingling in feet and hands), cognitive fog, and in advanced cases anemia. The cruel irony: peripheral neuropathy from B12 deficiency can be misattributed to diabetes itself, since diabetic neuropathy presents similarly. This is why some endocrinologists routinely test B12 levels in long-term metformin patients."
+        - paragraph [ref=e69]:
+          - strong [ref=e70]: Typical replenishment.
+          - text: Methylcobalamin (the bioactive form of B12) at 500–1,000 mcg daily, often paired with methylfolate.
+          - emphasis [ref=e71]: If you're on metformin and haven't had B12 levels checked in 2+ years, that's the conversation.
+        - paragraph [ref=e72]:
+          - strong [ref=e73]: "Source:"
+          - link "DailyMed — Metformin labeling" [ref=e74] [cursor=pointer]:
+            - /url: https://dailymed.nlm.nih.gov/dailymed/search.cfm?query=metformin
+          - text: ·
+          - link "NIH ODS — Vitamin B12" [ref=e75] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/
+        - heading "3. PPIs → Magnesium, B12, calcium" [level=2] [ref=e76]
+        - paragraph [ref=e77]:
+          - text: Proton pump inhibitors — omeprazole, pantoprazole, esomeprazole, lansoprazole — suppress stomach acid production. That's the entire point; they treat reflux, ulcers, and esophageal irritation by reducing acid.
+          - strong [ref=e78]: The trade-off
+          - text: "is that several nutrients require gastric acid for absorption: vitamin B12 (released from food protein by acid),"
+          - link "magnesium" [ref=e79] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/
+          - text: (acid-dependent uptake), and calcium (acid-soluble forms).
+        - paragraph [ref=e80]:
+          - strong [ref=e81]: Why it matters.
+          - text: Long-term PPI use has been associated in clinical literature with magnesium deficiency, B12 deficiency, and a measurable shift in calcium absorption. The FDA has issued specific safety communications about PPI-related magnesium deficiency for users on these medications more than a year.
+        - paragraph [ref=e82]:
+          - strong [ref=e83]: Common context.
+          - text: PPIs are some of the most over-prescribed medications in modern medicine; many people take them for years for symptoms that could be addressed at the lifestyle level. If you're on a PPI long-term, the conversation with your clinician about whether you still need it is worth having — separate from the depletion question.
+        - paragraph [ref=e84]:
+          - strong [ref=e85]: Typical replenishment.
+          - text: Magnesium glycinate 200–400 mg, B12 (see above), and calcium citrate (the form that doesn't require acid for absorption) if dietary intake is low.
+        - paragraph [ref=e86]:
+          - strong [ref=e87]: "Source:"
+          - 'link "FDA Safety Communication: PPIs and low magnesium" [ref=e88] [cursor=pointer]':
+            - /url: https://www.fda.gov/drugs/drug-safety-and-availability
+          - text: ·
+          - link "NIH ODS — Magnesium" [ref=e89] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/
+        - heading "4. Loop and thiazide diuretics → Potassium, magnesium, thiamine" [level=2] [ref=e90]
+        - paragraph [ref=e91]: Loop diuretics (furosemide, torsemide, bumetanide) and thiazide diuretics (hydrochlorothiazide, chlorthalidone) are workhorses in hypertension and heart failure management. They work by promoting urinary excretion of sodium and water — and several other nutrients are excreted along with the sodium, including potassium, magnesium, and thiamine (vitamin B1).
+        - paragraph [ref=e92]:
+          - strong [ref=e93]: Why it matters.
+          - text: Potassium depletion is the most clinically dangerous because it can affect heart rhythm; this is why many people on loop diuretics are also told to take a potassium supplement or are prescribed a "potassium-sparing" diuretic alongside. Magnesium depletion is also common but routinely under-screened. Thiamine deficiency from chronic diuretic use is documented enough that some heart-failure guidelines specifically address it.
+        - paragraph [ref=e94]:
+          - strong [ref=e95]: Typical replenishment.
+          - text: Driven by your clinician based on labs — potassium and magnesium especially shouldn't be self-supplemented in significant amounts when you're on a diuretic. Thiamine replenishment is generally safer to discuss casually.
+        - paragraph [ref=e96]:
+          - strong [ref=e97]: "Source:"
+          - link "NIH ODS — Magnesium, Potassium fact sheets" [ref=e98] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/
+          - text: ·
+          - link "DailyMed — diuretic labeling" [ref=e99] [cursor=pointer]:
+            - /url: https://dailymed.nlm.nih.gov/
+        - heading "5. Combined oral contraceptives → B-complex, folate, magnesium" [level=2] [ref=e100]
+        - paragraph [ref=e101]: Combined oral contraceptives (the "pill") contain estrogen plus a progestin and have been associated in clinical literature with reduced levels of several B vitamins (especially folate, B6, B12, and riboflavin), and sometimes magnesium and zinc. The mechanisms are partly metabolic — estrogen affects the liver enzymes that handle some of these nutrients — and partly absorption-related.
+        - paragraph [ref=e102]:
+          - strong [ref=e103]: Why it matters.
+          - text: Folate is the most clinically meaningful, especially for anyone who might become pregnant — folate deficiency in early pregnancy (often before pregnancy is recognized) is the textbook risk factor for neural tube defects. This is part of why prenatal vitamins exist and why many family-medicine guidelines recommend folate supplementation in women of reproductive age, regardless of contraception status.
+        - paragraph [ref=e104]:
+          - strong [ref=e105]: Typical replenishment.
+          - text: A B-complex with active folate (5-MTHF, not the synthetic folic acid form for those with MTHFR variants), magnesium glycinate, and adequate dietary protein.
+        - paragraph [ref=e106]:
+          - strong [ref=e107]: "Source:"
+          - link "PubMed — oral contraceptives and B vitamins" [ref=e108] [cursor=pointer]:
+            - /url: https://pubmed.ncbi.nlm.nih.gov/?term=oral+contraceptive+B+vitamin+depletion
+          - text: ·
+          - link "NIH ODS — Folate" [ref=e109] [cursor=pointer]:
+            - /url: https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/
+        - heading "What to actually do with all this" [level=2] [ref=e110]
+        - paragraph [ref=e111]: "Three takeaways:"
+        - paragraph [ref=e112]:
+          - strong [ref=e113]: 1. If you take any of these medications long-term, get your levels checked.
+          - text: B12, vitamin D, magnesium, ferritin (iron stores), and basic electrolytes are inexpensive blood tests. Most insurance plans cover them. Your doctor can run them at your next visit if you ask.
+        - paragraph [ref=e114]:
+          - strong [ref=e115]: 2. Don't self-supplement potassium or aggressively self-supplement magnesium if you're on a diuretic.
+          - text: Those are conversations with your clinician — the wrong dose can cause arrhythmias.
+        - paragraph [ref=e116]:
+          - strong [ref=e117]: 3. For the others (B12 with metformin, CoQ10 with statins, B-complex with the pill), supplementation is generally low-risk and worth a conversation with your pharmacist.
+          - text: Most pharmacists will give you a straight answer in five minutes if you ask at the counter.
+        - paragraph [ref=e118]: This is exactly the kind of cross-checking PharmaGuide does automatically when you add a medication to your stack — it surfaces the depletion patterns and recommends replenishment options, all reviewed by a licensed pharmacist before they ship.
+        - complementary [ref=e119]:
+          - paragraph [ref=e120]:
+            - strong [ref=e121]: Reading this on PharmaGuide.io?
+            - text: When you join the beta, every medication you add prompts a depletion check — including the patterns above and many more (proton pump inhibitors and B12, ACE inhibitors and zinc, methotrexate and folate, the long tail).
+          - paragraph [ref=e122]:
+            - link "Join the beta →" [ref=e123] [cursor=pointer]:
+              - /url: /#waitlist
+        - heading "Sources and further reading" [level=2] [ref=e124]
+        - list [ref=e125]:
+          - listitem [ref=e126]:
+            - text: NIH Office of Dietary Supplements —
+            - link "Coenzyme Q10" [ref=e127] [cursor=pointer]:
+              - /url: https://ods.od.nih.gov/factsheets/CoenzymeQ10-HealthProfessional/
+          - listitem [ref=e128]:
+            - text: NIH Office of Dietary Supplements —
+            - link "Vitamin B12" [ref=e129] [cursor=pointer]:
+              - /url: https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/
+          - listitem [ref=e130]:
+            - text: NIH Office of Dietary Supplements —
+            - link "Magnesium" [ref=e131] [cursor=pointer]:
+              - /url: https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/
+          - listitem [ref=e132]:
+            - text: NIH Office of Dietary Supplements —
+            - link "Folate" [ref=e133] [cursor=pointer]:
+              - /url: https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/
+          - listitem [ref=e134]:
+            - text: DailyMed (FDA-curated drug labeling) —
+            - link "search any medication" [ref=e135] [cursor=pointer]:
+              - /url: https://dailymed.nlm.nih.gov/
+          - listitem [ref=e136]:
+            - text: PubMed —
+            - link "drug-nutrient depletion meta-analyses" [ref=e137] [cursor=pointer]:
+              - /url: https://pubmed.ncbi.nlm.nih.gov/?term=drug+nutrient+depletion
+    - region "Stay in the loop." [ref=e138]:
+      - generic [ref=e140]:
+        - heading "Stay in the loop." [level=2] [ref=e141]
+        - paragraph [ref=e142]: Latest research, supplement recalls, interaction updates, and the health industry's signal — distilled. One email, no noise.
+        - generic [ref=e143]:
+          - generic [ref=e145]:
+            - generic [ref=e146]: Email address
+            - textbox "Email address" [ref=e147]:
+              - /placeholder: your@email.com
+            - button "Subscribe" [ref=e148] [cursor=pointer]:
+              - text: Subscribe
+              - generic [ref=e149]: →
+          - paragraph [ref=e150]: Roughly monthly·No spam·Unsubscribe anytime
+        - paragraph [ref=e151]:
+          - text: Still have a specific question?
+          - link "info@pharmaguide.io" [ref=e152] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+  - contentinfo [ref=e153]:
+    - generic [ref=e155]:
+      - generic [ref=e156]:
+        - link "PharmaGuide home" [ref=e157] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e159]: PharmaGuide
+        - paragraph [ref=e160]: Supplement intelligence.
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - img [ref=e164]
+            - text: Boston, MA
+          - link "info@pharmaguide.io" [ref=e167] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+            - img [ref=e169]
+            - text: info@pharmaguide.io
+        - list [ref=e172]:
+          - listitem [ref=e173]:
+            - link "X (Twitter)" [ref=e174] [cursor=pointer]:
+              - /url: https://twitter.com/pharmaguideai
+              - img [ref=e175]
+          - listitem [ref=e177]:
+            - link "LinkedIn" [ref=e178] [cursor=pointer]:
+              - /url: https://linkedin.com/company/pharmaguide
+              - img [ref=e179]
+          - listitem [ref=e181]:
+            - link "Instagram" [ref=e182] [cursor=pointer]:
+              - /url: https://instagram.com/pharmaguide.io
+              - img [ref=e183]
+      - generic [ref=e186]:
+        - heading "Product" [level=3] [ref=e187]
+        - list [ref=e188]:
+          - listitem [ref=e189]:
+            - link "Features" [ref=e190] [cursor=pointer]:
+              - /url: /features
+              - text: Features
+          - listitem [ref=e191]:
+            - link "How It Works" [ref=e192] [cursor=pointer]:
+              - /url: /#how-it-works
+              - text: How It Works
+          - listitem [ref=e193]:
+            - link "Methodology" [ref=e194] [cursor=pointer]:
+              - /url: /methodology
+              - text: Methodology
+          - listitem [ref=e195]:
+            - link "FAQ" [ref=e196] [cursor=pointer]:
+              - /url: /faq
+              - text: FAQ
+          - listitem [ref=e197]:
+            - generic [ref=e198]:
+              - text: Healthcare Pros
+              - generic [ref=e199]: "2026"
+      - generic [ref=e200]:
+        - heading "Company" [level=3] [ref=e201]
+        - list [ref=e202]:
+          - listitem [ref=e203]:
+            - link "About" [ref=e204] [cursor=pointer]:
+              - /url: /about
+              - text: About
+          - listitem [ref=e205]:
+            - link "Blog" [ref=e206] [cursor=pointer]:
+              - /url: /blog
+              - text: Blog
+          - listitem [ref=e207]:
+            - link "Careers" [ref=e208] [cursor=pointer]:
+              - /url: /careers
+              - text: Careers
+          - listitem [ref=e209]:
+            - link "Press" [ref=e210] [cursor=pointer]:
+              - /url: /press
+              - text: Press
+      - generic [ref=e211]:
+        - heading "Legal" [level=3] [ref=e212]
+        - list [ref=e213]:
+          - listitem [ref=e214]:
+            - link "Privacy" [ref=e215] [cursor=pointer]:
+              - /url: /privacy
+              - text: Privacy
+          - listitem [ref=e216]:
+            - link "Terms" [ref=e217] [cursor=pointer]:
+              - /url: /terms
+              - text: Terms
+          - listitem [ref=e218]:
+            - link "HIPAA" [ref=e219] [cursor=pointer]:
+              - /url: /hipaa
+              - text: HIPAA
+          - listitem [ref=e220]:
+            - link "Accessibility" [ref=e221] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+      - generic [ref=e222]:
+        - heading "Coming Soon" [level=3] [ref=e223]
+        - generic [ref=e224]:
+          - img "Coming soon to App Store" [ref=e225]:
+            - img [ref=e227]
+            - generic [ref=e229]:
+              - generic [ref=e230]: Download on the
+              - generic [ref=e231]: App Store
+          - img "Coming soon to Google Play" [ref=e232]:
+            - img [ref=e234]
+            - generic [ref=e236]:
+              - generic [ref=e237]: Get it on
+              - generic [ref=e238]: Google Play
+    - list [ref=e241]:
+      - listitem [ref=e242]:
+        - img [ref=e244]
+        - generic [ref=e247]: HIPAA Compliant
+      - listitem [ref=e248]:
+        - img [ref=e250]
+        - generic [ref=e253]: AES-256 Encrypted
+      - listitem [ref=e254]:
+        - img [ref=e256]
+        - generic [ref=e259]: Offline-First
+      - listitem [ref=e260]:
+        - img [ref=e262]
+        - generic [ref=e265]: No Data Selling
+      - listitem [ref=e266]:
+        - generic [ref=e267]: Evidence-graded·
+        - generic [ref=e268]: On-device analysis·
+        - generic [ref=e269]: Clinician-informed
+    - generic [ref=e270]:
+      - generic [ref=e272]:
+        - img [ref=e274]
+        - paragraph [ref=e276]: "Disclaimer: PharmaGuide provides educational information only — not a substitute for professional medical advice. Always consult your healthcare provider before making changes."
+      - generic [ref=e279]:
+        - paragraph [ref=e280]:
+          - text: Last reviewed
+          - time [ref=e281]: May 7, 2026
+          - text: · by Dr. Pham L., PharmD
+        - generic [ref=e282]:
+          - paragraph [ref=e283]: © 2026 PharmaGuide Inc.
+          - generic [ref=e284]: ·
+          - link "Sitemap" [ref=e285] [cursor=pointer]:
+            - /url: /sitemap.xml
+    - button:
+      - img
+  - alert [ref=e286]

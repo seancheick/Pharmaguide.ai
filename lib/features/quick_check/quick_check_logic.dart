@@ -25,18 +25,26 @@ List<String> extractCanonicalIds(String? fingerprint) {
   try {
     final decoded = jsonDecode(fingerprint);
     if (decoded is Map) {
-      return decoded.keys.map((k) => k.toString().toLowerCase()).toList();
+      return _normalizeCanonicalIds(decoded.keys);
     }
     if (decoded is List) {
-      return decoded
-          .where((e) => e != null)
-          .map((e) => e.toString().toLowerCase())
-          .toList();
+      return _normalizeCanonicalIds(decoded.where((e) => e != null));
     }
   } on FormatException {
     // fall through
   }
   return const [];
+}
+
+List<String> _normalizeCanonicalIds(Iterable<Object?> values) {
+  final seen = <String>{};
+  final ids = <String>[];
+  for (final value in values) {
+    final id = value.toString().trim().toLowerCase();
+    if (id.isEmpty || !seen.add(id)) continue;
+    ids.add(id);
+  }
+  return ids;
 }
 
 /// Map a [Severity] enum to a [PGBannerTone] for the result card.
@@ -56,6 +64,16 @@ PGBannerTone toneForSeverity(Severity severity) {
     case Severity.safe:
       return PGBannerTone.info;
   }
+}
+
+/// Score shown in typeahead suggestions.
+///
+/// The score is suppressed when mapped coverage is missing or below the same
+/// confidence floor used by product cards. Quick Check should not promote a
+/// high-looking score before the app has enough mapped label data.
+double? suggestionScoreForDisplay(ProductsCoreData product) {
+  if ((product.mappedCoverage ?? 0) < 0.3) return null;
+  return product.score100Equivalent;
 }
 
 /// Run a pair interaction check between two products.
@@ -84,7 +102,8 @@ Future<List<InteractionResult>> runPairCheck(
       final otherId = (row.agent1CanonicalId == idA)
           ? row.agent2CanonicalId
           : row.agent1CanonicalId;
-      if (otherId != null && idsB.contains(otherId.toLowerCase())) {
+      final normalizedOtherId = otherId?.trim().toLowerCase();
+      if (normalizedOtherId != null && idsB.contains(normalizedOtherId)) {
         seenIds.add(row.id);
         results.add(
           InteractionResult.fromRow(

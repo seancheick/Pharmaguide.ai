@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/settings/settings_screen.dart';
 
 void main() {
@@ -10,9 +14,12 @@ void main() {
   // Drift's close() hangs when called from tearDown after the fake-async
   // zone has drained — closing inside the body avoids the shutdown race.
 
-  Widget buildTestWidget(UserDatabase userDb) {
+  Widget buildTestWidget(
+    UserDatabase userDb, {
+    List<Override> overrides = const [],
+  }) {
     return ProviderScope(
-      overrides: [userDatabaseProvider.overrideWithValue(userDb)],
+      overrides: [userDatabaseProvider.overrideWithValue(userDb), ...overrides],
       child: const MaterialApp(home: SettingsScreen()),
     );
   }
@@ -31,17 +38,18 @@ void main() {
       await userDb.close();
     });
 
-    testWidgets('shows all 6 section headers', (tester) async {
+    testWidgets('shows active section headers and no dead account section', (
+      tester,
+    ) async {
       final userDb = UserDatabase.memory();
 
       await tester.pumpWidget(buildTestWidget(userDb));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Verify all 6 headers exist by scrolling through the list.
+      // Verify active headers exist by scrolling through the list.
       // Use skipOffstage: false to find text even if not yet visible.
       final headers = [
-        'Account & security',
         'Health profile',
         'Privacy & data',
         'Analysis history',
@@ -59,6 +67,10 @@ void main() {
         }
         expect(find.text(header), findsOneWidget);
       }
+
+      expect(find.text('Account & security'), findsNothing);
+      expect(find.text('Sign in / create account'), findsNothing);
+      expect(find.text('Email'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await userDb.close();
@@ -85,6 +97,35 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Guest'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await userDb.close();
+    });
+
+    testWidgets('does not flash Guest while profile is still loading', (
+      tester,
+    ) async {
+      final userDb = UserDatabase.memory();
+      final pendingProfile = Completer<ProfileState>();
+
+      await tester.pumpWidget(
+        buildTestWidget(
+          userDb,
+          overrides: [
+            loadedProfileProvider.overrideWith((_) => pendingProfile.future),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Loading profile'), findsOneWidget);
+      expect(find.text('Guest'), findsNothing);
+
+      pendingProfile.complete(const ProfileState(nickname: 'Sean'));
+      await tester.pump();
+
+      expect(find.text('Sean'), findsOneWidget);
+      expect(find.text('Loading profile'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await userDb.close();
@@ -117,19 +158,16 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
 
         expect(
-          find.text('Backup of encrypted stack data', skipOffstage: false),
+          find.text('Scan history & stack data', skipOffstage: false),
           findsNothing,
         );
         expect(
-          find.textContaining(
-            'App settings and account preferences',
-            skipOffstage: false,
-          ),
+          find.textContaining('Supplement stack entries', skipOffstage: false),
           findsWidgets,
         );
         expect(
           find.textContaining(
-            'Personal health information',
+            'Conditions, allergies, and health profile',
             skipOffstage: false,
           ),
           findsWidgets,

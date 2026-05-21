@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:drift/drift.dart' show MigrationStrategy, driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +14,9 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
 import 'package:pharmaguide/features/product_detail/widgets/score_line.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 class _FakeCoreDatabase extends CoreDatabase {
   final ProductsCoreData product;
@@ -206,6 +209,114 @@ void main() {
     },
   );
 
+  testWidgets('low mapped coverage suppresses product-detail score line', (
+    tester,
+  ) async {
+    final lowCoverageDb = _FakeCoreDatabase(
+      const ProductsCoreData(
+        dsldId: 'TEST_LOW_COVERAGE_DETAIL_001',
+        productName: 'Low Coverage Blend',
+        productStatus: 'active',
+        score100Equivalent: 95.0,
+        grade: 'A',
+        verdict: 'SAFE',
+        mappedCoverage: 0.2,
+        primaryCategory: 'blend',
+        exportVersion: 'test',
+        exportedAt: '2026-04-26T00:00:00Z',
+      ),
+    );
+    final lowCoverageUserDb = UserDatabase.memory();
+    await lowCoverageUserDb.cacheDetail(
+      'TEST_LOW_COVERAGE_DETAIL_001',
+      jsonEncode(<String, Object>{'warnings': <Object>[]}),
+      null,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(lowCoverageDb),
+          userDatabaseProvider.overrideWithValue(lowCoverageUserDb),
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          fitScoreServiceProvider.overrideWith((ref) async {
+            throw UnimplementedError('No FitScore in test');
+          }),
+        ],
+        child: const MaterialApp(
+          home: ProductDetailScreen(dsldId: 'TEST_LOW_COVERAGE_DETAIL_001'),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(ScoreLine), findsNothing);
+    expect(find.text('Not enough verified data to score.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets(
+    'does not render generic interaction nudge before saved profile loads',
+    (tester) async {
+      final profileCompleter = Completer<ProfileState>();
+      final productDb = _FakeCoreDatabase(
+        const ProductsCoreData(
+          dsldId: 'TEST_PROFILE_LOADING_001',
+          productName: 'Profile Loading Blend',
+          productStatus: 'active',
+          score100Equivalent: 70.0,
+          grade: 'B',
+          verdict: 'TRUSTED',
+          mappedCoverage: 0.9,
+          primaryCategory: 'blend',
+          exportVersion: 'test',
+          exportedAt: '2026-04-26T00:00:00Z',
+          interactionSummaryHint:
+              '{"has_any":true,"highest_severity":"caution",'
+              '"condition_ids":["pregnancy"],"drug_class_ids":[]}',
+        ),
+      );
+      final userDb = UserDatabase.memory();
+      await userDb.cacheDetail(
+        'TEST_PROFILE_LOADING_001',
+        jsonEncode(<String, Object>{'warnings': <Object>[]}),
+        null,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(productDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            loadedProfileProvider.overrideWith((_) => profileCompleter.future),
+            fitScoreServiceProvider.overrideWith((ref) async {
+              throw UnimplementedError('No FitScore in test');
+            }),
+          ],
+          child: const MaterialApp(
+            home: ProductDetailScreen(dsldId: 'TEST_PROFILE_LOADING_001'),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('This product has known interactions'), findsNothing);
+
+      profileCompleter.complete(const ProfileState(conditions: ['pregnancy']));
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
   group('product-detail warning filtering', () {
     test('suppresses non-matching profile-tagged critical warnings', () {
       final out = filterProductDetailWarningsForProfile(
@@ -249,9 +360,293 @@ void main() {
       expect(out.single.title, 'Avoid during pregnancy');
     });
 
-    test('synthesizes UL exceedance warnings as global critical alerts', () {
+    test('suppresses gated warning when product form is excluded', () {
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: const {'product_form': 'topical_only'},
+        warnings: const [
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Oral aloe in pregnancy',
+            mechanism: 'Oral aloe is pregnancy-specific.',
+            management: 'Avoid oral aloe if pregnant.',
+            displayModeDefault: 'suppress',
+            conditionIds: ['pregnancy'],
+            profileGate: {
+              'gate_type': 'profile_flag',
+              'requires': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': ['pregnant'],
+              },
+              'excludes': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': <String>[],
+                'product_forms_any': ['topical_only'],
+                'nutrient_forms_any': <String>[],
+              },
+              'dose': null,
+            },
+          ),
+        ],
+        userConditions: const {'pregnancy'},
+        userDrugClasses: const {},
+        userProfileFlags: const {'pregnant'},
+      );
+
+      expect(out, isEmpty);
+    });
+
+    test(
+      'profile-gates interaction summary using the same warning context',
+      () {
+        final out = filterProductDetailInteractionSummaryForProfile(
+          interactionSummary: const {
+            'condition_summary': {
+              'pregnancy': {
+                'highest_severity': 'avoid',
+                'ingredients': ['Aloe'],
+              },
+            },
+            'drug_class_summary': <String, Object>{},
+          },
+          detailBlob: const {'product_form': 'topical_only'},
+          warnings: const [
+            InteractionWarning(
+              severity: Severity.avoid,
+              evidenceLevel: EvidenceLevel.established,
+              title: 'Oral aloe in pregnancy',
+              mechanism: 'Oral aloe is pregnancy-specific.',
+              management: 'Avoid oral aloe if pregnant.',
+              displayModeDefault: 'suppress',
+              conditionIds: ['pregnancy'],
+              profileGate: {
+                'gate_type': 'profile_flag',
+                'requires': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': ['pregnant'],
+                },
+                'excludes': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': <String>[],
+                  'product_forms_any': ['topical_only'],
+                  'nutrient_forms_any': <String>[],
+                },
+                'dose': null,
+              },
+            ),
+          ],
+          userConditions: const {'pregnancy'},
+          userDrugClasses: const {},
+          userProfileFlags: const {'pregnant'},
+        );
+
+        expect(out['condition_summary'], isEmpty);
+      },
+    );
+
+    test('falls back to blob product form when product row form is empty', () {
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: const {'product_form': 'topical_only'},
+        productForm: '',
+        warnings: const [
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Oral aloe in pregnancy',
+            mechanism: 'Oral aloe is pregnancy-specific.',
+            management: 'Avoid oral aloe if pregnant.',
+            displayModeDefault: 'suppress',
+            conditionIds: ['pregnancy'],
+            profileGate: {
+              'gate_type': 'profile_flag',
+              'requires': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': ['pregnant'],
+              },
+              'excludes': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': <String>[],
+                'product_forms_any': ['topical_only'],
+                'nutrient_forms_any': <String>[],
+              },
+              'dose': null,
+            },
+          ),
+        ],
+        userConditions: const {'pregnancy'},
+        userDrugClasses: const {},
+        userProfileFlags: const {'pregnant'},
+      );
+
+      expect(out, isEmpty);
+    });
+
+    test('suppresses retinol pregnancy warning for beta-carotene form', () {
       final out = filterProductDetailWarningsForProfile(
         detailBlob: const {
+          'ingredients': [
+            {
+              'name': 'Vitamin A',
+              'standard_name': 'Vitamin A',
+              'matched_form': 'Beta-Carotene',
+              'dosage': 3000,
+              'dosage_unit': 'IU',
+            },
+          ],
+        },
+        warnings: const [
+          InteractionWarning(
+            severity: Severity.caution,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Vitamin A in pregnancy',
+            mechanism: 'Preformed vitamin A is dose-sensitive in pregnancy.',
+            management: 'Avoid excess retinol.',
+            displayModeDefault: 'suppress',
+            conditionIds: ['pregnancy'],
+            ingredientName: 'Vitamin A',
+            profileGate: {
+              'gate_type': 'profile_flag',
+              'requires': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': ['pregnant'],
+              },
+              'excludes': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': <String>[],
+                'product_forms_any': <String>[],
+                'nutrient_forms_any': ['beta_carotene', 'mixed_carotenoids'],
+              },
+              'dose': null,
+            },
+          ),
+        ],
+        userConditions: const {'pregnancy'},
+        userDrugClasses: const {},
+        userProfileFlags: const {'pregnant'},
+      );
+
+      expect(out, isEmpty);
+    });
+
+    test(
+      'suppresses retinol pregnancy warning when beta-carotene form is only in rda_ul_data',
+      () {
+        final out = filterProductDetailWarningsForProfile(
+          detailBlob: const {
+            'rda_ul_data': {
+              'analyzed_ingredients': [
+                {
+                  'standard_name': 'Vitamin A',
+                  'matched_form': 'Beta-Carotene',
+                  'quantity': 3000,
+                  'daily_amount_unit': 'IU',
+                },
+              ],
+            },
+          },
+          warnings: const [
+            InteractionWarning(
+              severity: Severity.caution,
+              evidenceLevel: EvidenceLevel.established,
+              title: 'Vitamin A in pregnancy',
+              mechanism: 'Preformed vitamin A is dose-sensitive in pregnancy.',
+              management: 'Avoid excess retinol.',
+              displayModeDefault: 'suppress',
+              conditionIds: ['pregnancy'],
+              ingredientName: 'Vitamin A',
+              profileGate: {
+                'gate_type': 'profile_flag',
+                'requires': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': ['pregnant'],
+                },
+                'excludes': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': <String>[],
+                  'product_forms_any': <String>[],
+                  'nutrient_forms_any': ['beta_carotene', 'mixed_carotenoids'],
+                },
+                'dose': null,
+              },
+            ),
+          ],
+          userConditions: const {'pregnancy'},
+          userDrugClasses: const {},
+          userProfileFlags: const {'pregnant'},
+        );
+
+        expect(out, isEmpty);
+      },
+    );
+
+    test(
+      'suppresses retinol pregnancy warning when beta-carotene form is only in ingredient_quality_data',
+      () {
+        final out = filterProductDetailWarningsForProfile(
+          detailBlob: const {
+            'ingredient_quality_data': {
+              'ingredients': <Object>[],
+              'ingredients_scorable': [
+                {
+                  'standard_name': 'Vitamin A',
+                  'matched_form': 'Beta-Carotene',
+                  'quantity': 3000,
+                  'daily_amount_unit': 'IU',
+                },
+              ],
+            },
+          },
+          warnings: const [
+            InteractionWarning(
+              severity: Severity.caution,
+              evidenceLevel: EvidenceLevel.established,
+              title: 'Vitamin A in pregnancy',
+              mechanism: 'Preformed vitamin A is dose-sensitive in pregnancy.',
+              management: 'Avoid excess retinol.',
+              displayModeDefault: 'suppress',
+              conditionIds: ['pregnancy'],
+              ingredientName: 'Vitamin A',
+              profileGate: {
+                'gate_type': 'profile_flag',
+                'requires': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': ['pregnant'],
+                },
+                'excludes': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': <String>[],
+                  'product_forms_any': <String>[],
+                  'nutrient_forms_any': ['beta_carotene', 'mixed_carotenoids'],
+                },
+                'dose': null,
+              },
+            ),
+          ],
+          userConditions: const {'pregnancy'},
+          userDrugClasses: const {},
+          userProfileFlags: const {'pregnant'},
+        );
+
+        expect(out, isEmpty);
+      },
+    );
+
+    test('keeps ProductHealthFacts UL warnings as global critical alerts', () {
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: const {},
+        warnings: ProductHealthFacts.fromDetailBlob({
           'rda_ul_data': {
             'analyzed_ingredients': [
               {
@@ -261,8 +656,7 @@ void main() {
               },
             ],
           },
-        },
-        warnings: const [],
+        }).warnings,
         userConditions: const {},
         userDrugClasses: const {},
       );

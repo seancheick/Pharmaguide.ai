@@ -13,7 +13,7 @@
 // In the explain sheet the chip label gets a "form" suffix because we
 // have room for clarity ("Excellent form" vs the chip's "Excellent").
 
-import 'package:pharmaguide/features/product_detail/dose_safety.dart';
+import 'package:pharmaguide/services/health/dose_safety.dart';
 
 /// Form-quality tier driven by `bio_score` on the 0–15 scale (pure
 /// form quality; natural-source bonus lives in pipeline A5 starting

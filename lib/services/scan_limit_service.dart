@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages scan usage limits.
@@ -59,9 +60,13 @@ class ScanLimitService {
   }
 }
 
-/// Provider for ScanLimitService. Requires SharedPreferences and auth state.
-final scanLimitServiceProvider = Provider<ScanLimitService>((ref) {
-  throw UnimplementedError(
-    'scanLimitServiceProvider must be overridden with SharedPreferences instance',
+/// Provider for ScanLimitService. Owns its SharedPreferences dependency so
+/// scan gating works in the real app without startup overrides.
+final scanLimitServiceProvider = FutureProvider<ScanLimitService>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final authMode = ref.watch(authStateProvider);
+  return ScanLimitService(
+    prefs: prefs,
+    isSignedIn: authMode == AuthMode.signedIn,
   );
 });

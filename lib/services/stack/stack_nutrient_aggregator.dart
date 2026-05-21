@@ -14,8 +14,8 @@
 // Pipeline schema drift is the biggest risk. `detail_blob.ingredients`
 // has shipped with different field names over time:
 //   * `mapped_name`, `standard_name`, `canonical_id`  — any may exist
-//   * `amount`, `normalizedAmount`, `quantity`         — any may exist
-//   * `unit`, `normalizedUnit`                         — any may exist
+//   * `per_day_max`, `converted_quantity`, `amount`    — any may exist
+//   * `converted_unit`, `normalizedUnit`, `unit`        — any may exist
 // We read every plausible field in priority order. If nothing usable
 // is found, the row is skipped — never crash the app.
 //
@@ -24,19 +24,22 @@
 // * Rows without a usable canonical id
 // * Rows without a numeric amount
 // * Rows marked `is_active: false` (pipeline inactive flag)
+// * Rows marked `is_label_descriptor: true` (non-dose label fragments)
 // * Rows marked `is_proprietary_blend: true` (blend containers are
 //   not nutrients, their children carry the real doses)
 // * Rows marked `is_parent_total: true` (nested-form summaries that
 //   would double-count children)
+// * Rows with missing / "NP" / unsupported units
+// * Rows where the pipeline explicitly skipped UL checking
 //
 // UNIT CONFLICTS
 //
 // When two products report the same nutrient in incompatible units
 // (mg vs mcg, IU vs mg, etc.), we do NOT convert. The first unit
 // seen for a given canonical id becomes canonical. Subsequent
-// contributions in different units are still recorded in the
-// contribution list but excluded from the sum, and the total is
-// flagged with `hasUnitConflict: true` so the UI can surface it.
+// contributions in different units are still recorded in the excluded
+// contribution list but excluded from the sum, and the total is flagged
+// with `hasUnitConflict: true` so the UI can surface it.
 // Silent conversion is how medical-grade bugs ship.
 
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -68,31 +71,63 @@ class StackNutrientAggregator {
 
         final unit = _readUnit(row);
         final displayName = _readDisplayName(row) ?? canonical;
+        final exclusionReason = _exclusionReason(row, unit);
 
         final total = accum.putIfAbsent(
           canonical,
           () => _MutableTotal(
             canonicalId: canonical,
             displayName: displayName,
-            unit: unit,
+            unit: exclusionReason == null ? unit : '',
           ),
         );
 
-        final contribution = NutrientContribution(
+        final rawContribution = NutrientContribution(
           stackEntryId: item.stackEntryId,
           productName: item.productName,
           amount: amount,
           unit: unit,
         );
-        total.contributions.add(contribution);
+
+        if (exclusionReason != null) {
+          total.excludedContributions.add(
+            ExcludedNutrientContribution(
+              contribution: rawContribution,
+              reason: exclusionReason,
+            ),
+          );
+          total.hasUnitConflict = true;
+          continue;
+        }
+
+        if (total.unit.isEmpty) total.unit = unit;
 
         // Only sum into the running total if the unit matches the
         // canonical unit established by the first contribution.
         // Mismatched units flag the total but do not corrupt the sum.
-        if (_unitsMatch(unit, total.unit)) {
-          total.totalAmount += amount;
+        final convertedAmount = _amountInUnit(
+          amount,
+          from: unit,
+          to: total.unit,
+        );
+        if (convertedAmount != null) {
+          total.contributions.add(
+            NutrientContribution(
+              stackEntryId: item.stackEntryId,
+              productName: item.productName,
+              amount: convertedAmount,
+              unit: total.unit,
+            ),
+          );
+          total.totalAmount += convertedAmount;
         } else {
           total.hasUnitConflict = true;
+          total.excludedContributions.add(
+            ExcludedNutrientContribution(
+              contribution: rawContribution,
+              reason: NutrientExclusionReason.unitConflict,
+            ),
+          );
         }
 
         // Prefer the longest display name we see — pipeline rows
@@ -114,6 +149,7 @@ class StackNutrientAggregator {
           unit: value.unit,
           contributions: List.unmodifiable(value.contributions),
           hasUnitConflict: value.hasUnitConflict,
+          excludedContributions: List.unmodifiable(value.excludedContributions),
         ),
       ),
     );
@@ -126,6 +162,9 @@ class StackNutrientAggregator {
   bool _isUsableNutrientRow(Map<String, dynamic> row) {
     final isActive = row['is_active'];
     if (isActive is bool && !isActive) return false;
+
+    final isLabelDescriptor = row['is_label_descriptor'];
+    if (isLabelDescriptor is bool && isLabelDescriptor) return false;
 
     final isBlend = row['is_proprietary_blend'];
     if (isBlend is bool && isBlend) return false;
@@ -172,10 +211,14 @@ class StackNutrientAggregator {
   }
 
   /// Read a numeric amount tolerating int, double, or numeric strings.
-  /// The pipeline has historically used any of: `normalized_amount`,
-  /// `normalizedAmount`, `quantity`, `amount`, `dosage`.
+  /// The pipeline has historically used any of: `per_day_max`,
+  /// `converted_quantity`, `normalized_amount`, `normalizedAmount`,
+  /// `quantity`, `amount`, `dosage`.
   double? _readAmount(Map<String, dynamic> row) {
     final candidates = <dynamic>[
+      row['per_day_max'],
+      row['daily_amount'],
+      row['converted_quantity'],
       row['normalized_amount'],
       row['normalizedAmount'],
       row['quantity'],
@@ -192,6 +235,8 @@ class StackNutrientAggregator {
   /// Read the unit string tolerating both snake_case and camelCase.
   String _readUnit(Map<String, dynamic> row) {
     final candidates = <dynamic>[
+      row['daily_amount_unit'],
+      row['converted_unit'],
       row['normalized_unit'],
       row['normalizedUnit'],
       row['unit'],
@@ -205,6 +250,26 @@ class StackNutrientAggregator {
     return '';
   }
 
+  NutrientExclusionReason? _exclusionReason(
+    Map<String, dynamic> row,
+    String unit,
+  ) {
+    if (row['skip_ul_check'] == true) {
+      return NutrientExclusionReason.skippedByPipeline;
+    }
+    if (unit.isEmpty) return NutrientExclusionReason.missingUnit;
+    final normalized = unit.toLowerCase().trim();
+    if (normalized == 'np' ||
+        normalized == 'n/p' ||
+        normalized == 'not provided') {
+      return NutrientExclusionReason.notProvidedUnit;
+    }
+    if (normalized == 'unspecified' || normalized == 'unknown') {
+      return NutrientExclusionReason.unsupportedUnit;
+    }
+    return null;
+  }
+
   static double? _asDouble(dynamic v) {
     if (v == null) return null;
     if (v is double) return v.isFinite ? v : null;
@@ -216,13 +281,47 @@ class StackNutrientAggregator {
     return null;
   }
 
-  /// Case-insensitive unit equality. Also treats empty-string as a
-  /// match with any unit — some legacy blobs omit the unit entirely,
-  /// and we'd rather sum a row than drop it when the unit is simply
-  /// missing. If this proves too loose we can tighten later.
-  static bool _unitsMatch(String a, String b) {
-    if (a.isEmpty || b.isEmpty) return true;
-    return a.toLowerCase() == b.toLowerCase();
+  /// Convert [amount] into [to] when the units are exactly equal or are
+  /// simple metric mass units. We intentionally do not convert IU, RAE, DFE,
+  /// NE, or alpha-tocopherol units here because those depend on nutrient form
+  /// and must arrive pre-converted from the pipeline.
+  static double? _amountInUnit(
+    double amount, {
+    required String from,
+    required String to,
+  }) {
+    final fromUnit = _normalizeUnit(from);
+    final toUnit = _normalizeUnit(to);
+    if (fromUnit.isEmpty || toUnit.isEmpty) return null;
+    if (fromUnit == toUnit) return amount;
+
+    final fromGrams = _simpleMassGramsFactor(fromUnit);
+    final toGrams = _simpleMassGramsFactor(toUnit);
+    if (fromGrams == null || toGrams == null) return null;
+    return amount * fromGrams / toGrams;
+  }
+
+  static double? _simpleMassGramsFactor(String unit) {
+    return switch (unit) {
+      'g' => 1.0,
+      'gram' => 1.0,
+      'grams' => 1.0,
+      'gram(s)' => 1.0,
+      'mg' => 0.001,
+      'mcg' => 0.000001,
+      'microgram' => 0.000001,
+      'micrograms' => 0.000001,
+      _ => null,
+    };
+  }
+
+  static String _normalizeUnit(String raw) {
+    return raw
+        .trim()
+        .toLowerCase()
+        .replaceAll('µg', 'mcg')
+        .replaceAll('_', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
   }
 }
 
@@ -237,8 +336,9 @@ class _MutableTotal {
 
   final String canonicalId;
   String displayName;
-  final String unit;
+  String unit;
   double totalAmount = 0.0;
   bool hasUnitConflict = false;
   final List<NutrientContribution> contributions = [];
+  final List<ExcludedNutrientContribution> excludedContributions = [];
 }

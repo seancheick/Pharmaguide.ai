@@ -36,3 +36,28 @@ Color verdictFlashColor(String? verdict) {
       return AppTheme.insufficientData;
   }
 }
+
+/// Return the icon paired with the flash color.
+///
+/// Only genuinely positive verdicts use a check mark. Caution, poor,
+/// blocked, and unknown states avoid success iconography so the scanner
+/// cannot imply clearance before the detail screen opens.
+IconData verdictFlashIcon(String? verdict) {
+  switch (verdict?.trim().toUpperCase()) {
+    case 'RECOMMENDED':
+    case 'SAFE':
+    case 'GOOD':
+      return Icons.check_circle_rounded;
+    case 'CAUTION':
+    case 'MODERATE':
+    case 'REVIEW':
+    case 'POOR':
+    case 'BLOCKED':
+    case 'UNSAFE':
+      return Icons.warning_rounded;
+    case 'NOT_SCORED':
+    case 'NUTRITION_ONLY':
+    default:
+      return Icons.info_outline_rounded;
+  }
+}

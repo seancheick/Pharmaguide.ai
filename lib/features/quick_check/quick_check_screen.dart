@@ -455,6 +455,7 @@ class _ProductSearchField extends StatelessWidget {
                   Divider(height: 0.5, color: scheme.outlineVariant),
               itemBuilder: (context, index) {
                 final product = suggestions[index];
+                final score = suggestionScoreForDisplay(product);
                 return PGPressable(
                   onTap: () => onSelect(product),
                   pressedScale: 0.97,
@@ -477,9 +478,9 @@ class _ProductSearchField extends StatelessWidget {
                             ),
                           )
                         : null,
-                    trailing: product.score100Equivalent != null
+                    trailing: score != null
                         ? Text(
-                            '${product.score100Equivalent!.round()}',
+                            '${score.round()}',
                             style: theme.textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),

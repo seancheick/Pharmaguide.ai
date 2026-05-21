@@ -26,7 +26,6 @@ import 'package:pharmaguide/features/product_detail/providers/detail_blob_provid
 import 'package:pharmaguide/features/product_detail/providers/hero_verdict_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
-import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 import 'package:pharmaguide/features/product_detail/blend_grouping.dart';
 import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/widgets/better_alternatives.dart';
@@ -35,14 +34,18 @@ import 'package:pharmaguide/features/product_detail/providers/fit_score_provider
 import 'package:pharmaguide/features/product_detail/widgets/ingredients_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/widgets/review_before_use_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/personal_fit_card.dart';
 import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer.dart';
+import 'package:pharmaguide/services/health/dose_safety.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
 import 'package:pharmaguide/features/product_detail/widgets/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/transparency_footer.dart';
 import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
@@ -138,7 +141,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final verdict = product.verdict ?? '';
     final score = product.score100Equivalent;
     final isBlocked = isUnsafeVerdict(verdict);
+    final mappedCoverage = product.mappedCoverage ?? 0.0;
     return (verdict.trim().toUpperCase() == 'NOT_SCORED' ||
+        (mappedCoverage < 0.3 && !isBlocked) ||
         (score == null && !isBlocked));
   }
 
@@ -150,6 +155,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
+
+    final profileAsync = ref.watch(loadedProfileProvider);
+    final loadedProfile = profileAsync.asData?.value;
 
     final productName = _product?.productName ?? 'Product ${widget.dsldId}';
     final brandName = _product?.brandName ?? '';
@@ -183,6 +191,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // pipeline-detail section below.
     final blobAsync = ref.watch(detailBlobProvider(widget.dsldId));
     final detailBlob = blobAsync.asData?.value;
+    final healthFacts = detailBlob == null
+        ? null
+        : ProductHealthFacts.fromDetailBlob(detailBlob);
     final blobLoading = blobAsync.isLoading;
     final blobError = blobAsync.hasError;
 
@@ -191,7 +202,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     // detail cards) sees the same dose-aware picture. Without this the
     // banner & §7 surfaces fall back to positive-only filtering and
     // sub-clinical aboveDose entries leak through.
-    final ingredientDoses = extractIngredientDoses(detailBlob);
+    final ingredientDoses =
+        healthFacts?.ingredientDoses ?? const <String, IngredientDose>{};
 
     // Detail blob data + personalized interaction warnings from live DB.
     // Personalized warnings (from InteractionDatabase) appear first,
@@ -205,7 +217,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             .watch(personalizedInteractionWarningsProvider(widget.dsldId))
             .value ??
         const <InteractionWarning>[];
-    final blobWarnings = _parseWarnings(detailBlob);
+    final blobWarnings = healthFacts?.warnings ?? const <InteractionWarning>[];
     final seenKeys = <String>{
       for (final w in personalizedWarnings) '${w.severity.name}:${w.mechanism}',
     };
@@ -215,14 +227,31 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         (w) => !seenKeys.contains('${w.severity.name}:${w.mechanism}'),
       ),
     ];
-    final profile = ref.watch(profileProvider);
-    final guardedWarnings = filterProductDetailWarningsForProfile(
-      detailBlob: detailBlob,
-      warnings: warnings,
-      userConditions: profile.conditions.toSet(),
-      userDrugClasses: profile.drugClasses.toSet(),
-      userProfileFlags: profile.evaluatorProfileFlags,
-    );
+    final guardedWarnings = loadedProfile != null
+        ? filterProductDetailWarningsForProfile(
+            detailBlob: detailBlob,
+            healthFacts: healthFacts,
+            ingredientDoses: ingredientDoses,
+            warnings: warnings,
+            userConditions: loadedProfile.conditions.toSet(),
+            userDrugClasses: loadedProfile.drugClasses.toSet(),
+            userProfileFlags: loadedProfile.evaluatorProfileFlags,
+            productForm: formFactor,
+          )
+        : const <InteractionWarning>[];
+    final reviewInteractionSummary =
+        loadedProfile != null && healthFacts != null
+        ? filterProductDetailInteractionSummaryForProfile(
+            interactionSummary: healthFacts.interactionSummary,
+            detailBlob: detailBlob,
+            healthFacts: healthFacts,
+            warnings: warnings,
+            userConditions: loadedProfile.conditions.toSet(),
+            userDrugClasses: loadedProfile.drugClasses.toSet(),
+            userProfileFlags: loadedProfile.evaluatorProfileFlags,
+            productForm: formFactor,
+          )
+        : null;
     // Pipeline nests this under proprietary_blend_detail
     final blendDetail =
         detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
@@ -289,14 +318,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
 
           // ----------------------------------------------------------------
-          // Section 2 ("Personal Fit") — T12 (2026-04-29). Replaces
-          // the old ForYouSection (context chips + verdict + alerts
-          // + Why-this-fits expander) with a much quieter card:
-          // shield icon + headline + max 2 causal bullets + edit
-          // pencil. The bullet generator prefers the T3 Path A
-          // positive-profile bullets ("Magnesium supports your blood
-          // pressure goal") and falls back to FitScoreResult.reasons.
-          // Alerts list moved to T13 Alert Summary card.
+          // Section 2 ("Personal Fit") — quiet personalized fit surface:
+          // shield icon + headline + max 2 causal bullets + edit pencil.
+          // The bullet generator prefers T3 Path A positive-profile
+          // bullets ("Magnesium supports your blood pressure goal") and
+          // falls back to FitScoreResult.reasons. Alerts live in the
+          // Review Before Use card below.
           // ----------------------------------------------------------------
           if (!isBlocked)
             SliverToBoxAdapter(
@@ -309,6 +336,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ),
                 child: Consumer(
                   builder: (context, innerRef, _) {
+                    final profile = loadedProfile;
+                    if (profile == null) {
+                      return const SizedBox.shrink();
+                    }
                     final fitAsync = innerRef.watch(
                       fitScoreForProductProvider(widget.dsldId),
                     );
@@ -320,17 +351,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           )
                         : const FitIncomplete();
                     final ingredientNames =
-                        ((detailBlob?['ingredients'] as List?)
-                            ?.whereType<Map<String, dynamic>>()
-                            .map((e) => e['name']?.toString() ?? '')
-                            .where((n) => n.isNotEmpty)
-                            .toList(growable: false)) ??
-                        const <String>[];
+                        healthFacts?.ingredientNames ?? const <String>[];
                     return PersonalFitCard(
                       fit: fitDisplay,
                       ingredientNames: ingredientNames,
                       fitReasons: fitResult?.reasons ?? const [],
                       topGoalLabel: _topGoalLabelFromFit(fitResult),
+                      profile: profile,
                       onEditProfile: () =>
                           GoRouter.of(context).push(Routes.profileSetup),
                     );
@@ -351,6 +378,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               key: _interactionsKey,
               child: Builder(
                 builder: (_) {
+                  final profile = loadedProfile;
+                  if (profile == null) {
+                    return const SizedBox.shrink();
+                  }
                   // Compute allergen + free-from inputs once. The free-
                   // from matcher only fires for concerns the user has
                   // actually selected; the conflict detector pairs the
@@ -359,7 +390,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   // instead of being silently picked over.
                   final matchedAllergens = matchAllergens(
                     profile.allergens,
-                    detailBlob?['allergens'] as List<dynamic>?,
+                    healthFacts?.allergens,
                   );
                   final userAllergenSet = profile.allergens.toSet();
                   final freeFromClaims = matchFreeFromClaims(
@@ -381,13 +412,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   return ReviewBeforeUseCard(
                     warnings: guardedWarnings,
                     interactionHint: interactionHint,
-                    interactionSummary:
-                        detailBlob?['interaction_summary']
-                            as Map<String, dynamic>?,
+                    interactionSummary: reviewInteractionSummary,
                     ingredientDoses: ingredientDoses,
                     matchedAllergens: matchedAllergens,
                     freeFromClaims: freeFromClaims,
                     freeFromConflicts: freeFromConflicts,
+                    profile: profile,
                   );
                 },
               ),
@@ -475,9 +505,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       onRetry: () =>
                           ref.invalidate(detailBlobProvider(widget.dsldId)),
                     )
+                  : loadedProfile == null
+                  ? const SizedBox.shrink()
                   : DetailSection(
                       detailBlob: detailBlob,
                       warnings: guardedWarnings,
+                      profile: loadedProfile,
                       // T1.7 inputs — trust signals for the
                       // "What we don't know" section. Read off the
                       // product directly here so DetailSection
@@ -506,10 +539,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // allergen rows from the structured list.
           // ----------------------------------------------------------------
           if (!isBlocked &&
+              loadedProfile != null &&
               _product?.allergenSummary != null &&
               matchAllergens(
-                profile.allergens,
-                detailBlob?['allergens'] as List<dynamic>?,
+                loadedProfile.allergens,
+                healthFacts?.allergens,
               ).isEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -550,15 +584,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 child: DeepDiveSection(
                   dsldId: widget.dsldId,
                   activeIngredients:
-                      (detailBlob?['ingredients'] as List?)
-                          ?.whereType<Map<String, dynamic>>()
-                          .toList() ??
-                      [],
+                      healthFacts?.activeIngredients ??
+                      const <Map<String, dynamic>>[],
                   inactiveIngredients:
-                      (detailBlob?['inactive_ingredients'] as List?)
-                          ?.whereType<Map<String, dynamic>>()
-                          .toList() ??
-                      [],
+                      healthFacts?.inactiveIngredients ??
+                      const <Map<String, dynamic>>[],
                   certificationDetail:
                       detailBlob?['certification_detail']
                           as Map<String, dynamic>?,
@@ -599,9 +629,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // T1.12 Section 11 — Better Alternatives, V1 non-personalized.
           // Render gate fires on isBlocked OR score100 < 60 OR fit is
           // FitLimitedFit/FitNotRecommended. The gate lives inside a
-          // Consumer so it has access to the same fit-score provider
-          // ForYouSection uses — keeping the two sections in sync as the
-          // fit math evolves.
+          // Consumer so it has access to the same fit-score provider as
+          // Personal Fit, keeping the two sections in sync as the fit
+          // math evolves.
           // ----------------------------------------------------------------
           SliverToBoxAdapter(
             key: _alternativesKey,
@@ -761,7 +791,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   // CLEANUP.md` S2.1 / T8.
 
   /// Worst-applicable severity across the personalized + blob warnings —
-  /// drives T1.3's risk-gate inside the For You section. Empty list →
+  /// drives T1.3's risk-gate inside the Personal Fit section. Empty list →
   /// `Severity.safe` (the no-issues baseline).
   static Severity _maxSeverityOf(List<InteractionWarning> warnings) {
     Severity worst = Severity.safe;
@@ -823,64 +853,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return tags;
   }
 
-  List<InteractionWarning> _parseWarnings(Map<String, dynamic>? blob) {
-    if (blob == null) return [];
-    // Pipeline emits two separate warning lists:
-    //   `warnings`                — always-visible safety alerts (banned,
-    //                                recalled, harmful additives, allergens,
-    //                                drug/condition interactions).
-    //   `warnings_profile_gated`  — conditionally surfaced alerts that carry
-    //                                condition_ids / drug_class_ids tags and
-    //                                are filtered downstream by the active
-    //                                user profile (e.g. Titanium Dioxide
-    //                                EU-ban high-risk alert for pregnancy).
-    // Both share the InteractionWarning schema, so we concatenate them
-    // here and let the `InteractionWarningsList.filteredWarnings` pass
-    // handle profile-based suppression. Not emitting the gated list would
-    // silently lose high-risk alerts the pipeline has already curated.
-    final result = <InteractionWarning>[];
-    final hasStructuredProductStatus = blob['product_status'] is Map;
-    for (final key in const ['warnings', 'warnings_profile_gated']) {
-      final raw = blob[key];
-      if (raw is! List) continue;
-      result.addAll(
-        raw
-            .whereType<Map<String, dynamic>>()
-            .where(
-              (warning) => !_isLegacyProductStatusWarning(
-                warning,
-                hasStructuredProductStatus: hasStructuredProductStatus,
-              ),
-            )
-            .map(InteractionWarning.fromJson),
-      );
-    }
-    // FLTR-12 — real blobs contain duplicates in two shapes:
-    //   (a) same semantic entry in both `warnings` and
-    //       `warnings_profile_gated`
-    //   (b) pipeline emits the same entry twice inside one list
-    //       (e.g., "Vitamin A / pregnancy" 2× on dsld 15640).
-    // Collapse both via composite dedup key (conditions + drug classes
-    // + normalized headline + normalized body) with severity-normalize-
-    // before-dedup — the highest severity wins when collisions carry
-    // mixed labels ("monitor" + "caution" → keep caution).
-    return InteractionWarning.dedupe(result);
-  }
-
-  bool _isLegacyProductStatusWarning(
-    Map<String, dynamic> warning, {
-    required bool hasStructuredProductStatus,
-  }) {
-    if (!hasStructuredProductStatus) return false;
-    final tokens = [
-      warning['type'],
-      warning['source'],
-      warning['category'],
-      warning['warning_type'],
-    ].map((value) => value?.toString().trim().toLowerCase() ?? '');
-    return tokens.contains('status') || tokens.contains('product_status');
-  }
-
   // T11 (2026-04-29) — `_showScoreEducation` + `_ScoreEducationSheet`
   // removed. The score-ring tap-to-explain flow no longer fires
   // (`ScoreLine` doesn't carry an info affordance in V1). Future
@@ -888,14 +860,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   // to the tier label if user testing surfaces a need.
 }
 
-/// Best-effort top goal label for the For You section's verdict
+/// Best-effort top goal label for the Personal Fit section's verdict
 /// headline copy (e.g. `"Sleep Quality"`,
 /// `"Cardiovascular/Heart Health"`). Pulled from the FitScore result's
 /// `reasons` list, which the engine orders by relevance (see
 /// `FitScoreService._goalReasons` → "Supports your <label> goal.").
 ///
-/// Returns null when no goal-shaped reason surfaces — the For You
-/// section then falls back to the generic "your profile" headline.
+/// Returns null when no goal-shaped reason surfaces — Personal Fit then
+/// falls back to the generic "your profile" headline.
 ///
 /// Pattern note: `(.+?)` is non-greedy and matches ANY character
 /// (including `/`, `&`, `,`) so labels like "Reduce Stress/Anxiety",
@@ -919,39 +891,48 @@ String? topGoalLabelFromFit(FitScoreResult? result) {
   return null;
 }
 
-/// Product-detail warning gate shared by the top "For You" card and the
+/// Product-detail warning gate shared by the Personal Fit card and the
 /// deeper warning stack. Profile-tagged rules only render when the
-/// active profile matches; global critical/informational warnings still
-/// render without a profile match. Product-level UL exceedance warnings
-/// are synthesized here because they live under `rda_ul_data`, not the
-/// top-level warning lists.
+/// active profile matches; global critical/informational warnings from
+/// [ProductHealthFacts] still render without a profile match.
 List<InteractionWarning> filterProductDetailWarningsForProfile({
   required Map<String, dynamic>? detailBlob,
   required List<InteractionWarning> warnings,
   required Set<String> userConditions,
   required Set<String> userDrugClasses,
+  ProductHealthFacts? healthFacts,
+  Map<String, IngredientDose>? ingredientDoses,
   Set<String> userProfileFlags = const <String>{},
+  String? productForm,
 }) {
-  final combinedWarnings = [..._synthesizeUlWarnings(detailBlob), ...warnings];
-
   // T4 (2026-04-29) — apply (condition, ingredient, dose) threshold
   // gating BEFORE the profile-visibility filter. Drops false-positive
   // condition monitor warnings the pipeline emits without dose
   // awareness (Vit D + TTC, Mg + diabetes, etc.). UL warnings carry
   // no conditionIds so they pass through untouched. Spec:
   // INITIATIVE_PRODUCT_DETAIL_CLEANUP.md S2.1 / T3 + T4.
-  final ingredientDoses = extractIngredientDoses(detailBlob);
+  final resolvedIngredientDoses =
+      ingredientDoses ?? extractIngredientDoses(detailBlob);
   final gatedWarnings = applyConditionThresholdGate(
-    warnings: combinedWarnings,
-    ingredientDoses: ingredientDoses,
+    warnings: warnings,
+    ingredientDoses: resolvedIngredientDoses,
   );
 
   return gatedWarnings
       .where((w) {
+        final context = resolveProfileGateProductContext(
+          detailBlob: detailBlob,
+          warning: w,
+          healthFacts: healthFacts,
+          productForm: productForm,
+        );
         if (w.matchesProfile(
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
           userProfileFlags: userProfileFlags,
+          productForm: context.productForm,
+          nutrientForm: context.nutrientForm,
+          dosePerDay: context.dosePerDay,
         )) {
           return true;
         }
@@ -975,25 +956,58 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
       .toList(growable: false);
 }
 
-List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
-  final ulAnalysis =
-      ((blob?['rda_ul_data'] as Map<String, dynamic>?)?['analyzed_ingredients']
-              as List?)
-          ?.whereType<Map<String, dynamic>>()
-          .toList();
-  final ulExceedances = extractUlExceedances(ulAnalysis);
-  return ulExceedances
-      .map(
-        (e) => InteractionWarning(
-          severity: Severity.avoid,
-          evidenceLevel: EvidenceLevel.established,
-          title: 'Exceeds upper limit: ${e.standardName}',
-          mechanism: e.warning,
-          management: 'Reduce dose or consult a healthcare provider.',
-          displayModeDefault: 'critical',
-        ),
-      )
-      .toList(growable: false);
+Map<String, dynamic> filterProductDetailInteractionSummaryForProfile({
+  required Map<String, dynamic> interactionSummary,
+  required Map<String, dynamic>? detailBlob,
+  required List<InteractionWarning> warnings,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  ProductHealthFacts? healthFacts,
+  Set<String> userProfileFlags = const <String>{},
+  String? productForm,
+}) {
+  if (warnings.isEmpty) return interactionSummary;
+
+  final userProfile = UserProfile(
+    conditions: userConditions,
+    drugClasses: userDrugClasses,
+    profileFlags: userProfileFlags,
+  );
+  final productContext = ProductContext(productForm: productForm);
+  final rawConditions = interactionSummary['condition_summary'];
+  final rawDrugs = interactionSummary['drug_class_summary'];
+
+  return {
+    ...interactionSummary,
+    'condition_summary': filterConditionSummaryByProfileGate(
+      conditionSummary: rawConditions is Map
+          ? Map<String, dynamic>.from(rawConditions)
+          : const <String, dynamic>{},
+      warnings: warnings,
+      userProfile: userProfile,
+      productContext: productContext,
+      productContextForWarning: (warning) => resolveProfileGateProductContext(
+        detailBlob: detailBlob,
+        warning: warning,
+        healthFacts: healthFacts,
+        productForm: productForm,
+      ),
+    ),
+    'drug_class_summary': filterDrugClassSummaryByProfileGate(
+      drugClassSummary: rawDrugs is Map
+          ? Map<String, dynamic>.from(rawDrugs)
+          : const <String, dynamic>{},
+      warnings: warnings,
+      userProfile: userProfile,
+      productContext: productContext,
+      productContextForWarning: (warning) => resolveProfileGateProductContext(
+        detailBlob: detailBlob,
+        warning: warning,
+        healthFacts: healthFacts,
+        productForm: productForm,
+      ),
+    ),
+  };
 }
 
 /// Strip noisy numeric or "Tier N" detail strings emitted by the
@@ -1298,7 +1312,7 @@ class _HeaderSection extends ConsumerWidget {
 
     // T1.1: compute the gated verdict. Banner renders only when severity
     // ≥ Avoid; lower-tier verdicts (Caution / Monitor / Safe / Recommended /
-    // etc.) flow through to Section 2 ("For You").
+    // etc.) flow through to Section 2 (Personal Fit).
     final heroVerdict = computeHeroVerdict(
       productVerdict: verdict,
       blockingReason: blockingReason,
@@ -1479,7 +1493,7 @@ class _HeaderSection extends ConsumerWidget {
 
               // Verdict banner — only renders for Blocked / Avoid /
               // Contraindicated. Lower severities (Caution / Monitor /
-              // Safe / Recommended) live in Section 2 ("For You").
+              // Safe / Recommended) live in Section 2 (Personal Fit).
               if (heroVerdict is HeroVerdictBlocked) ...[
                 const SizedBox(height: AppTheme.space16),
                 _BlockedBanner(
@@ -1897,6 +1911,7 @@ class DetailSection extends ConsumerWidget {
   final double? netContentsQuantity;
   final String? netContentsUnit;
   final String? formFactor;
+  final ProfileState profile;
 
   const DetailSection({
     super.key,
@@ -1912,6 +1927,7 @@ class DetailSection extends ConsumerWidget {
     this.netContentsQuantity,
     this.netContentsUnit,
     this.formFactor,
+    required this.profile,
   });
 
   @override
@@ -1928,7 +1944,6 @@ class DetailSection extends ConsumerWidget {
     final guardedWarnings = warnings;
 
     // Profile still needed for populations section + user-conditions display.
-    final profile = ref.watch(profileProvider);
     final userConditions = profile.conditions.toSet();
     final userDrugClasses = profile.drugClasses.toSet();
 
@@ -1946,21 +1961,15 @@ class DetailSection extends ConsumerWidget {
 
     final blob = detailBlob;
 
-    // Parse structured data from blob
-    final ingredients =
-        (blob['ingredients'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        [];
+    final healthFacts = ProductHealthFacts.fromDetailBlob(blob);
+    final ingredients = healthFacts.activeIngredients;
     // FLTR-6 — dedupe by normalized name at the parse boundary.
     // Real blobs repeat excipients (e.g., "cellulose" twice on
     // GlutenAssure Multivitamin, "ethyl vanillin" twice on Enhanced
     // Krill Plus). Dedupe once; downstream renderers see a clean
     // list.
     final inactiveIngredients = dedupeInactivesForDisplay(
-      (blob['inactive_ingredients'] as List?)
-              ?.whereType<Map<String, dynamic>>() ??
-          const <Map<String, dynamic>>[],
+      healthFacts.inactiveIngredients,
     );
 
     // FLTR-11 — per-ingredient UL evaluation lives under the top-level
@@ -1968,11 +1977,9 @@ class DetailSection extends ConsumerWidget {
     // can match each ingredient row to its UL entry once, and so the
     // _SafetyTag can render a dose-safety badge that honors the
     // pipeline's skip_ul_check signal.
-    final ulAnalysis =
-        ((blob['rda_ul_data'] as Map<String, dynamic>?)?['analyzed_ingredients']
-                as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList();
+    final ulAnalysis = healthFacts.ulAnalysis.isEmpty
+        ? null
+        : healthFacts.ulAnalysis;
 
     final ingredientsSummary = blob['ingredients_summary']?.toString() ?? '';
     final whyItems = _extractWhyItems(blob);
@@ -2008,7 +2015,7 @@ class DetailSection extends ConsumerWidget {
     //
     // Outer screen (ProductDetailScreen):
     //   §1 Hero (product identity + score ring)
-    //   §2 Personal Fit (For You section)
+    //   §2 Personal Fit
     //   §3 Review Before Use (severity-toned card)
     //   §4 Label Confidence
     //   §5 Score Breakdown
@@ -2156,7 +2163,7 @@ class DetailSection extends ConsumerWidget {
           warnings: guardedWarnings,
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
-          ageBracket: ref.watch(profileProvider).ageBracket,
+          ageBracket: profile.ageBracket,
         ),
 
         // T17 (2026-04-30) — Bottom Product Details block deleted per

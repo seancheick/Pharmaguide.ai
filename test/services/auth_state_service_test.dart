@@ -11,6 +11,13 @@ void main() {
     expect(service.state, AuthMode.guest);
   });
 
+  test('release validation rejects placeholder Supabase config', () {
+    expect(
+      () => SupabaseConfig.validateForRuntime(releaseMode: true),
+      throwsA(isA<SupabasePlaceholderConfigException>()),
+    );
+  });
+
   test('manual auth transitions still work', () {
     final service = AuthStateService();
 

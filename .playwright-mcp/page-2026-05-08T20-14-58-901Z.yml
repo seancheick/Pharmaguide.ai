@@ -1,0 +1,371 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "PharmaGuide home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: PharmaGuide
+      - navigation "Main" [ref=e7]:
+        - link "How It Works" [ref=e8] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "Methodology" [ref=e9] [cursor=pointer]:
+          - /url: /methodology
+        - link "Blog" [ref=e10] [cursor=pointer]:
+          - /url: /blog
+        - link "About" [ref=e11] [cursor=pointer]:
+          - /url: /about
+      - link "Request Access" [ref=e13] [cursor=pointer]:
+        - /url: "#waitlist"
+        - text: Request Access
+        - generic [ref=e14]: →
+  - main [ref=e15]:
+    - region "The science behind every verdict." [ref=e16]:
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: Methodology
+        - heading "The science behind every verdict." [level=1] [ref=e20]
+        - paragraph [ref=e21]: How we collect, verify, and ship the interaction data that powers PharmaGuide — including who reviews it, what AI does and doesn't do, and where we draw the line.
+    - region "In a market full of opinions, we show our work." [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - paragraph [ref=e25]: 01 · Why methodology matters
+          - heading "In a market full of opinions, we show our work." [level=2] [ref=e26]
+        - list [ref=e27]:
+          - listitem [ref=e28]:
+            - generic [ref=e29]: "01"
+            - heading "Traceability" [level=3] [ref=e30]
+            - paragraph [ref=e31]: Every interaction warning is traceable to a regulatory source, peer-reviewed publication, or professional reference. No anonymous claims.
+          - listitem [ref=e32]:
+            - generic [ref=e33]: "02"
+            - heading "Accuracy" [level=3] [ref=e34]
+            - paragraph [ref=e35]: Content is verified against primary sources and reviewed by licensed clinicians before it ships. Updates are dated and visible.
+          - listitem [ref=e36]:
+            - generic [ref=e37]: "03"
+            - heading "Accountability" [level=3] [ref=e38]
+            - paragraph [ref=e39]: We say what we do — and what we don't. The boundaries are explicit. No marketing-speak hiding the limits.
+    - region "Four primary sources. No anonymous claims." [ref=e40]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - paragraph [ref=e45]: 02 · Where our data comes from
+          - heading "Four primary sources. No anonymous claims." [level=2] [ref=e46]
+        - list [ref=e47]:
+          - listitem [ref=e48]:
+            - generic [ref=e49]:
+              - generic [ref=e51]: FDA
+              - heading "FDA Resources" [level=3] [ref=e52]
+            - list [ref=e53]:
+              - listitem [ref=e54]: Dietary Supplement Label Database (DSLD)
+              - listitem [ref=e55]: Adverse Event Reporting System (FAERS)
+              - listitem [ref=e56]: Warning letters and safety alerts
+              - listitem [ref=e57]: Current Good Manufacturing Practice (cGMP) records
+            - paragraph [ref=e58]: Product identification · safety alerts · manufacturing disclosures
+          - listitem [ref=e59]:
+            - generic [ref=e60]:
+              - generic [ref=e62]: NIH
+              - heading "NIH Resources" [level=3] [ref=e63]
+            - list [ref=e64]:
+              - listitem [ref=e65]: Office of Dietary Supplements (ODS)
+              - listitem [ref=e66]: National Center for Complementary and Integrative Health (NCCIH)
+              - listitem [ref=e67]: DailyMed (drug labeling)
+              - listitem [ref=e68]: Dietary Supplement Ingredient Database
+            - paragraph [ref=e69]: Ingredient information · efficacy research · safety profiles
+          - listitem [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e73]: PUB
+              - heading "Clinical Literature" [level=3] [ref=e74]
+            - list [ref=e75]:
+              - listitem [ref=e76]: PubMed / MEDLINE
+              - listitem [ref=e77]: Cochrane Library systematic reviews
+              - listitem [ref=e78]: Journal of Dietary Supplements
+              - listitem [ref=e79]: Drug-nutrient interaction studies
+            - paragraph [ref=e80]: Interaction mechanisms · clinical evidence · contraindications
+          - listitem [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e84]: PRO
+              - heading "Professional Resources" [level=3] [ref=e85]
+            - list [ref=e86]:
+              - listitem [ref=e87]: Natural Medicines Database
+              - listitem [ref=e88]: Clinical pharmacology references
+              - listitem [ref=e89]: Drug interaction databases
+              - listitem [ref=e90]: Professional society guidelines
+            - paragraph [ref=e91]: Cross-referencing interactions · clinical context
+        - paragraph [ref=e92]: We do not access medical records, pharmacy systems, or any personal health data outside what you put into the app.
+    - region "From source to verdict, every interaction." [ref=e93]:
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - paragraph [ref=e96]: 03 · Our 5-step process
+          - heading "From source to verdict, every interaction." [level=2] [ref=e97]
+        - list [ref=e98]:
+          - listitem [ref=e99]:
+            - generic [ref=e102]: "01"
+            - generic [ref=e103]:
+              - heading "Source identification" [level=3] [ref=e104]
+              - paragraph [ref=e105]: We start from authoritative sources only — peer-reviewed, government-published, or recognized by professional clinical societies. No blog posts, no influencer claims, no unverified registries.
+          - listitem [ref=e106]:
+            - generic [ref=e109]: "02"
+            - generic [ref=e110]:
+              - heading "Data extraction and analysis" [level=3] [ref=e111]
+              - paragraph [ref=e112]: Information is structured into ingredient profiles with explicit citations. Each interaction is mapped to its mechanism, evidence level, and clinical context.
+              - generic [ref=e114]: Output · Structured ingredient profiles with cited sources
+          - listitem [ref=e115]:
+            - generic [ref=e118]: "03"
+            - generic [ref=e119]:
+              - heading "Pharmacist verification" [level=3] [ref=e120]
+              - paragraph [ref=e121]: A licensed clinical pharmacist reviews every interaction before it ships — checking the science, the framing, and the recommendation against current practice standards.
+              - generic [ref=e123]: Reviewer · Dr. Pham L., PharmD
+          - listitem [ref=e124]:
+            - generic [ref=e127]: "04"
+            - generic [ref=e128]:
+              - heading "Clinical advisory review" [level=3] [ref=e129]
+              - paragraph [ref=e130]: "A second reviewer reads from the patient-education angle: is the language clear, the framing accessible, the safety context unambiguous?"
+              - generic [ref=e132]: Reviewer · Miriam D., NP
+          - listitem [ref=e133]:
+            - generic [ref=e135]: "05"
+            - generic [ref=e136]:
+              - heading "Publication and ongoing monitoring" [level=3] [ref=e137]
+              - paragraph [ref=e138]: Once published, content goes into an ongoing review cycle. FDA alerts, new research, or regulatory changes trigger immediate updates.
+              - generic [ref=e140]: Schedule · Quarterly systematic reviews + priority alerts as needed
+    - region "Real clinicians, named." [ref=e141]:
+      - generic [ref=e144]:
+        - generic [ref=e145]:
+          - paragraph [ref=e146]: 04 · Medical advisory team
+          - heading "Real clinicians, named." [level=2] [ref=e147]
+        - list [ref=e148]:
+          - listitem [ref=e149]:
+            - generic [ref=e150]:
+              - generic [ref=e152]: PL
+              - generic [ref=e153]:
+                - paragraph [ref=e154]: Dr. Pham L., PharmD
+                - paragraph [ref=e155]: Clinical Pharmacist
+            - paragraph [ref=e156]: PharmD · 15+ years clinical pharmacy
+            - paragraph [ref=e157]:
+              - generic [ref=e158]: Focus ·
+              - text: Drug-supplement interactions · pharmacovigilance · clinical accuracy review
+          - listitem [ref=e159]:
+            - generic [ref=e160]:
+              - generic [ref=e162]: MD
+              - generic [ref=e163]:
+                - paragraph [ref=e164]: Miriam D., NP
+                - paragraph [ref=e165]: Nurse Practitioner
+            - paragraph [ref=e166]: NP · integrative health practice
+            - paragraph [ref=e167]:
+              - generic [ref=e168]: Focus ·
+              - text: Patient education · integrative health · content accessibility
+    - region "AI does some of the work. Humans do the rest." [ref=e169]:
+      - generic [ref=e170]:
+        - generic [ref=e171]:
+          - paragraph [ref=e172]: 05 · AI transparency
+          - heading "AI does some of the work. Humans do the rest." [level=2] [ref=e173]
+          - paragraph [ref=e174]: We use AI to scale the parts that benefit from scale. We use clinicians for everything else. Here's exactly where the line is.
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - paragraph [ref=e177]: What AI does
+            - list [ref=e178]:
+              - listitem [ref=e179]:
+                - generic [ref=e181]: Process and structure data from multiple sources
+              - listitem [ref=e182]:
+                - generic [ref=e184]: Identify potential interactions documented in the literature
+              - listitem [ref=e185]:
+                - generic [ref=e187]: Generate initial drafts of educational content
+              - listitem [ref=e188]:
+                - generic [ref=e190]: Power the AI Guidance Chat for in-app questions
+          - generic [ref=e191]:
+            - paragraph [ref=e192]: What AI does not do
+            - list [ref=e193]:
+              - listitem [ref=e194]:
+                - img [ref=e195]
+                - generic [ref=e197]: Generate original research or clinical recommendations
+              - listitem [ref=e198]:
+                - img [ref=e199]
+                - generic [ref=e201]: Diagnose medical conditions or symptoms
+              - listitem [ref=e202]:
+                - img [ref=e203]
+                - generic [ref=e205]: Recommend specific treatments or dosages
+              - listitem [ref=e206]:
+                - img [ref=e207]
+                - generic [ref=e209]: Access personal health records or medical history
+              - listitem [ref=e210]:
+                - img [ref=e211]
+                - generic [ref=e213]: Replace the judgment of a licensed healthcare professional
+    - region "Built to inform. Not to replace." [ref=e214]:
+      - generic [ref=e217]:
+        - generic [ref=e218]:
+          - paragraph [ref=e219]: 06 · Limitations and scope
+          - heading "Built to inform. Not to replace." [level=2] [ref=e220]
+        - generic [ref=e221]:
+          - generic [ref=e222]:
+            - paragraph [ref=e223]: PharmaGuide is
+            - list [ref=e224]:
+              - listitem [ref=e225]:
+                - generic [ref=e227]: An educational information platform
+              - listitem [ref=e228]:
+                - generic [ref=e230]: A tool to support informed conversations with your healthcare provider
+              - listitem [ref=e231]:
+                - generic [ref=e233]: A resource for understanding documented interactions
+              - listitem [ref=e234]:
+                - generic [ref=e236]: Reviewed by licensed healthcare professionals
+          - generic [ref=e237]:
+            - paragraph [ref=e238]: PharmaGuide is not
+            - list [ref=e239]:
+              - listitem [ref=e240]:
+                - img [ref=e241]
+                - generic [ref=e243]: A medical device or diagnostic tool
+              - listitem [ref=e244]:
+                - img [ref=e245]
+                - generic [ref=e247]: A replacement for professional medical advice
+              - listitem [ref=e248]:
+                - img [ref=e249]
+                - generic [ref=e251]: A source of treatment recommendations
+              - listitem [ref=e252]:
+                - img [ref=e253]
+                - generic [ref=e255]: A guarantee of supplement safety or efficacy
+        - paragraph [ref=e256]: Always consult a qualified healthcare provider before starting, stopping, or changing any supplement or medication.
+    - region "Next steps" [ref=e257]:
+      - generic [ref=e259]:
+        - paragraph [ref=e260]: Want to see it in action?
+        - paragraph [ref=e261]: The methodology is the foundation. The product is the proof.
+        - generic [ref=e262]:
+          - link "Join the beta" [ref=e263] [cursor=pointer]:
+            - /url: /#waitlist
+            - text: Join the beta
+            - generic [ref=e264]: →
+          - link "Read the FAQ" [ref=e265] [cursor=pointer]:
+            - /url: /faq
+            - text: Read the FAQ
+            - generic [ref=e266]: →
+  - contentinfo [ref=e267]:
+    - generic [ref=e269]:
+      - generic [ref=e270]:
+        - link "PharmaGuide home" [ref=e271] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e273]: PharmaGuide
+        - paragraph [ref=e274]: Supplement intelligence.
+        - generic [ref=e275]:
+          - generic [ref=e276]:
+            - img [ref=e278]
+            - text: Boston, MA
+          - link "info@pharmaguide.io" [ref=e281] [cursor=pointer]:
+            - /url: mailto:info@pharmaguide.io
+            - img [ref=e283]
+            - text: info@pharmaguide.io
+        - list [ref=e286]:
+          - listitem [ref=e287]:
+            - link "X (Twitter)" [ref=e288] [cursor=pointer]:
+              - /url: https://twitter.com/pharmaguideai
+              - img [ref=e289]
+          - listitem [ref=e291]:
+            - link "LinkedIn" [ref=e292] [cursor=pointer]:
+              - /url: https://linkedin.com/company/pharmaguide
+              - img [ref=e293]
+          - listitem [ref=e295]:
+            - link "Instagram" [ref=e296] [cursor=pointer]:
+              - /url: https://instagram.com/pharmaguide.io
+              - img [ref=e297]
+      - generic [ref=e300]:
+        - heading "Product" [level=3] [ref=e301]
+        - list [ref=e302]:
+          - listitem [ref=e303]:
+            - link "Features" [ref=e304] [cursor=pointer]:
+              - /url: /features
+              - text: Features
+          - listitem [ref=e305]:
+            - link "How It Works" [ref=e306] [cursor=pointer]:
+              - /url: /how-it-works
+              - text: How It Works
+          - listitem [ref=e307]:
+            - link "Methodology" [ref=e308] [cursor=pointer]:
+              - /url: /methodology
+              - text: Methodology
+          - listitem [ref=e309]:
+            - link "FAQ" [ref=e310] [cursor=pointer]:
+              - /url: /faq
+              - text: FAQ
+          - listitem [ref=e311]:
+            - generic [ref=e312]:
+              - text: Healthcare Pros
+              - generic [ref=e313]: "2026"
+      - generic [ref=e314]:
+        - heading "Company" [level=3] [ref=e315]
+        - list [ref=e316]:
+          - listitem [ref=e317]:
+            - link "About" [ref=e318] [cursor=pointer]:
+              - /url: /about
+              - text: About
+          - listitem [ref=e319]:
+            - link "Blog" [ref=e320] [cursor=pointer]:
+              - /url: /blog
+              - text: Blog
+          - listitem [ref=e321]:
+            - link "Careers" [ref=e322] [cursor=pointer]:
+              - /url: /careers
+              - text: Careers
+          - listitem [ref=e323]:
+            - link "Press" [ref=e324] [cursor=pointer]:
+              - /url: /press
+              - text: Press
+      - generic [ref=e325]:
+        - heading "Legal" [level=3] [ref=e326]
+        - list [ref=e327]:
+          - listitem [ref=e328]:
+            - link "Privacy" [ref=e329] [cursor=pointer]:
+              - /url: /privacy
+              - text: Privacy
+          - listitem [ref=e330]:
+            - link "Terms" [ref=e331] [cursor=pointer]:
+              - /url: /terms
+              - text: Terms
+          - listitem [ref=e332]:
+            - link "HIPAA" [ref=e333] [cursor=pointer]:
+              - /url: /hipaa
+              - text: HIPAA
+          - listitem [ref=e334]:
+            - link "Accessibility" [ref=e335] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+      - generic [ref=e336]:
+        - heading "Coming Soon" [level=3] [ref=e337]
+        - generic [ref=e338]:
+          - img "Coming soon to App Store" [ref=e339]:
+            - img [ref=e341]
+            - generic [ref=e343]:
+              - generic [ref=e344]: Download on the
+              - generic [ref=e345]: App Store
+          - img "Coming soon to Google Play" [ref=e346]:
+            - img [ref=e348]
+            - generic [ref=e350]:
+              - generic [ref=e351]: Get it on
+              - generic [ref=e352]: Google Play
+    - list [ref=e355]:
+      - listitem [ref=e356]:
+        - img [ref=e358]
+        - generic [ref=e361]: HIPAA Compliant
+      - listitem [ref=e362]:
+        - img [ref=e364]
+        - generic [ref=e367]: AES-256 Encrypted
+      - listitem [ref=e368]:
+        - img [ref=e370]
+        - generic [ref=e373]: Offline-First
+      - listitem [ref=e374]:
+        - img [ref=e376]
+        - generic [ref=e379]: No Data Selling
+      - listitem [ref=e380]:
+        - generic [ref=e381]: Evidence-graded·
+        - generic [ref=e382]: On-device analysis·
+        - generic [ref=e383]: Clinician-informed
+    - generic [ref=e384]:
+      - generic [ref=e386]:
+        - img [ref=e388]
+        - paragraph [ref=e390]: "Disclaimer: PharmaGuide provides educational information only — not a substitute for professional medical advice. Always consult your healthcare provider before making changes."
+      - generic [ref=e393]:
+        - paragraph [ref=e394]:
+          - text: Last reviewed
+          - time [ref=e395]: May 7, 2026
+          - text: · by Dr. Pham L., PharmD
+        - generic [ref=e396]:
+          - paragraph [ref=e397]: © 2026 PharmaGuide Inc.
+          - generic [ref=e398]: ·
+          - link "Sitemap" [ref=e399] [cursor=pointer]:
+            - /url: /sitemap.xml
+    - button:
+      - img
+  - alert [ref=e400]

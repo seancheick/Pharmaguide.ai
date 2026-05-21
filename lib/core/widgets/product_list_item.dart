@@ -5,6 +5,7 @@ import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_score_ring.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
 /// Reusable product list item used in search results, category browsing, etc.
@@ -28,7 +29,14 @@ class ProductListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final score = product.score100Equivalent;
+    final score = scoreForMappedCoverage(
+      product.score100Equivalent,
+      product.mappedCoverage,
+    );
+    final displayVerdict = verdictForMappedCoverage(
+      product.verdict,
+      product.mappedCoverage,
+    );
 
     final scoreLabel = score != null
         ? ', score ${score.round()} out of 100'
@@ -97,18 +105,20 @@ class ProductListItem extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                      if (product.verdict != null &&
-                          product.verdict!.isNotEmpty) ...[
+                      if (displayVerdict != null) ...[
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            VerdictBadge(verdict: product.verdict!),
+                            VerdictBadge(verdict: displayVerdict),
                             if (product.primaryCategory != null &&
                                 product.primaryCategory!.isNotEmpty) ...[
                               const SizedBox(width: AppTheme.space8),
                               Flexible(
                                 child: Text(
-                                  product.primaryCategory!,
+                                  VocabRegistry.instance
+                                          .productType(product.primaryCategory!)
+                                          ?.shortName ??
+                                      product.primaryCategory!,
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: scheme.onSurfaceVariant,
                                     letterSpacing: 0.1,
@@ -150,7 +160,14 @@ class ProductGridItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final score = product.score100Equivalent;
+    final score = scoreForMappedCoverage(
+      product.score100Equivalent,
+      product.mappedCoverage,
+    );
+    final displayVerdict = verdictForMappedCoverage(
+      product.verdict,
+      product.mappedCoverage,
+    );
 
     final gridScoreLabel = score != null
         ? ', score ${score.round()} out of 100'
@@ -185,9 +202,18 @@ class ProductGridItem extends StatelessWidget {
                 ),
                 const SizedBox(width: AppTheme.space8),
                 PGScoreRing(score: score, size: 44, strokeWidth: 3.5),
-                const Spacer(),
-                if (product.verdict != null && product.verdict!.isNotEmpty)
-                  VerdictBadge(verdict: product.verdict!),
+                if (displayVerdict != null)
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: VerdictBadge(verdict: displayVerdict),
+                      ),
+                    ),
+                  )
+                else
+                  const Spacer(),
               ],
             ),
             const Spacer(),
@@ -219,4 +245,22 @@ class ProductGridItem extends StatelessWidget {
       ),
     );
   }
+}
+
+String? verdictForMappedCoverage(String? verdict, double? mappedCoverage) {
+  final normalized = verdict?.trim().toUpperCase();
+  if (normalized == null || normalized.isEmpty) return null;
+
+  final coverage = mappedCoverage ?? 0.0;
+  if (coverage < 0.3 &&
+      const {'RECOMMENDED', 'SAFE', 'GOOD'}.contains(normalized)) {
+    return 'NOT_SCORED';
+  }
+
+  return normalized;
+}
+
+double? scoreForMappedCoverage(double? score, double? mappedCoverage) {
+  if ((mappedCoverage ?? 0.0) < 0.3) return null;
+  return score;
 }

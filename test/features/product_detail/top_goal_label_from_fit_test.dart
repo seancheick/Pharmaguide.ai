@@ -1,6 +1,6 @@
 // Tests for `topGoalLabelFromFit` — extracts the user-facing goal
-// label from a FitScoreResult's `reasons` list for the For You
-// section's verdict headline copy.
+// label from a FitScoreResult's `reasons` list for Personal Fit
+// headline copy.
 //
 // AUDIT NOTE 2026-04-29:
 //   The original regex `[a-z\s]` rejected 11 of 18 SchemaIds goal

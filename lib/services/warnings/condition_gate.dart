@@ -27,16 +27,19 @@
 // the condition.
 
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Single ingredient's dose entry as extracted from the detail blob.
 typedef IngredientDose = ({double value, String unit});
 
 /// Build a `canonical-ingredient-name → (dose, unit)` map from the
-/// pipeline's `detail_blob['ingredients']` array. Skips entries
-/// missing name / dose_amount / dose_unit, and entries with
-/// non-numeric dose_amount.
+/// pipeline's product-detail dose rows. Prefer the pipeline's
+/// `rda_ul_data.analyzed_ingredients` rows when present because they
+/// carry the same evaluated ingredient identity used by stack/UL
+/// logic. Skips entries missing name / dose / unit, entries with
+/// non-numeric dose values, and rows the pipeline marked unsafe for
+/// evaluation (`skip_ul_check == true`).
 ///
 /// Pipeline blob shape (from live data — verified 2026-04-30):
 /// ```
@@ -51,7 +54,7 @@ typedef IngredientDose = ({double value, String unit});
 /// spec). Live pipeline ships `quantity` + `unit`, matching what the
 /// rendering side has always used (see `product_detail_screen.dart`
 /// `_CollapsibleIngredients` row builder, `ingredient_sort.dart`,
-/// `dose_safety.dart`). The mismatch silently broke every `aboveDose`
+/// `services/health/dose_safety.dart`). The mismatch silently broke every `aboveDose`
 /// threshold gate since T3/T4 shipped — `extractIngredientDoses`
 /// returned an empty map for live products, so dose-gated entries
 /// always fail-safe-fired. Live walkthrough caught it via PureLean's
@@ -59,32 +62,45 @@ typedef IngredientDose = ({double value, String unit});
 /// Also accepts the legacy `dose_amount` / `dose_unit` shape so
 /// hand-crafted test fixtures (and any old cached blobs) still gate.
 ///
-/// When the same canonical key appears twice (rare — e.g., two forms
-/// of magnesium both keyed `magnesium_glycinate`), the LAST entry
-/// wins. Pipeline almost never emits dupes; defensive ordering only.
+/// When the same canonical key appears twice, safely comparable doses
+/// are summed. Exact unit matches and simple mass units (`g`/`mg`/`mcg`)
+/// are comparable. Incompatible duplicate units remove the key entirely
+/// so threshold gates fail safe instead of making a false-precision
+/// comparison.
 Map<String, IngredientDose> extractIngredientDoses(
   Map<String, dynamic>? detailBlob,
 ) {
   final result = <String, IngredientDose>{};
+  final blockedKeys = <String>{};
   if (detailBlob == null) return result;
 
-  final ingredients = detailBlob['ingredients'];
-  if (ingredients is! List) return result;
+  for (final entry in _doseRows(detailBlob)) {
+    final keys = _doseNameKeys(entry);
+    if (keys.isEmpty) continue;
 
-  for (final entry in ingredients) {
-    if (entry is! Map) continue;
+    if (entry['skip_ul_check'] == true) {
+      for (final key in keys) {
+        result.remove(key);
+        blockedKeys.add(key);
+      }
+      continue;
+    }
 
-    final rawName = entry['name']?.toString();
-    if (rawName == null || rawName.trim().isEmpty) continue;
-
-    final canonical = canonicalizeIngredientName(rawName);
-    if (canonical.isEmpty) continue;
-
-    // Live pipeline uses `quantity` / `unit`. Legacy spec / hand-built
-    // fixtures use `dose_amount` / `dose_unit`. Try the live names
-    // first; fall through to legacy on null.
-    final rawAmount = entry['quantity'] ?? entry['dose_amount'];
-    final rawUnit = (entry['unit'] ?? entry['dose_unit'])?.toString();
+    // Live pipeline uses `quantity` / `unit` or `daily_amount_unit`.
+    // Legacy spec / hand-built fixtures use `dose_amount` / `dose_unit`.
+    // Try evaluated live names first; fall through to legacy on null.
+    final rawAmount =
+        entry['quantity'] ??
+        entry['dose_amount'] ??
+        entry['converted_quantity'] ??
+        entry['amount'] ??
+        entry['per_day_max'];
+    final rawUnit =
+        (entry['daily_amount_unit'] ??
+                entry['unit'] ??
+                entry['dose_unit'] ??
+                entry['normalized_unit'])
+            ?.toString();
     if (rawAmount == null || rawUnit == null || rawUnit.trim().isEmpty) {
       continue;
     }
@@ -92,12 +108,109 @@ Map<String, IngredientDose> extractIngredientDoses(
     final value = rawAmount is num
         ? rawAmount.toDouble()
         : double.tryParse(rawAmount.toString());
-    if (value == null) continue;
+    if (value == null || !value.isFinite) continue;
 
-    result[canonical] = (value: value, unit: rawUnit.trim());
+    for (final key in keys) {
+      if (blockedKeys.contains(key)) continue;
+
+      final unit = rawUnit.trim();
+      final existing = result[key];
+      if (existing == null) {
+        result[key] = (value: value, unit: unit);
+        continue;
+      }
+
+      final converted = _amountInUnit(value, from: unit, to: existing.unit);
+      if (converted == null) {
+        result.remove(key);
+        blockedKeys.add(key);
+        continue;
+      }
+
+      result[key] = (value: existing.value + converted, unit: existing.unit);
+    }
   }
 
   return result;
+}
+
+double? _amountInUnit(
+  double amount, {
+  required String from,
+  required String to,
+}) {
+  final normalizedFrom = _normalizeDoseUnit(from);
+  final normalizedTo = _normalizeDoseUnit(to);
+  if (normalizedFrom.isEmpty || normalizedTo.isEmpty) return null;
+  if (normalizedFrom == normalizedTo) return amount;
+
+  final fromGrams = _simpleMassGramsFactor(normalizedFrom);
+  final toGrams = _simpleMassGramsFactor(normalizedTo);
+  if (fromGrams == null || toGrams == null) return null;
+  return amount * fromGrams / toGrams;
+}
+
+double? _simpleMassGramsFactor(String unit) {
+  return switch (unit) {
+    'g' || 'gram' || 'grams' || 'gram(s)' => 1.0,
+    'mg' => 0.001,
+    'mcg' || 'microgram' || 'micrograms' => 0.000001,
+    _ => null,
+  };
+}
+
+String _normalizeDoseUnit(String raw) {
+  return raw
+      .trim()
+      .toLowerCase()
+      .replaceAll('µg', 'mcg')
+      .replaceAll('_', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ');
+}
+
+List<Map<String, dynamic>> _doseRows(Map<String, dynamic> detailBlob) {
+  final rows = <Map<String, dynamic>>[];
+
+  final ingredients = detailBlob['ingredients'];
+  if (ingredients is List) {
+    rows.addAll(
+      ingredients.whereType<Map<Object?, Object?>>().map(
+        (entry) => Map<String, dynamic>.from(entry),
+      ),
+    );
+  }
+
+  final rdaUlData = detailBlob['rda_ul_data'];
+  if (rdaUlData is Map) {
+    final analyzed = rdaUlData['analyzed_ingredients'];
+    if (analyzed is List) {
+      rows.addAll(
+        analyzed.whereType<Map<Object?, Object?>>().map(
+          (entry) => Map<String, dynamic>.from(entry),
+        ),
+      );
+    }
+  }
+
+  return rows;
+}
+
+Set<String> _doseNameKeys(Map<String, dynamic> entry) {
+  final keys = <String>{};
+  for (final field in const [
+    'standard_name',
+    'name',
+    'ingredient',
+    'mapped_name',
+    'canonical_id',
+    'normalized_key',
+  ]) {
+    final raw = entry[field]?.toString();
+    if (raw == null || raw.trim().isEmpty) continue;
+    final canonical = canonicalizeIngredientName(raw);
+    if (canonical.isNotEmpty) keys.add(canonical);
+  }
+  return keys;
 }
 
 /// Apply per-condition threshold gating to a list of pipeline-emitted

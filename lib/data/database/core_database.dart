@@ -248,6 +248,8 @@ class CoreDatabase extends _$CoreDatabase {
   }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
+    final tokens = _searchTokens(trimmed);
+    if (tokens.isEmpty) return [];
 
     // Try FTS5 first — dramatically faster and dedup-aware.
     try {
@@ -260,14 +262,7 @@ class CoreDatabase extends _$CoreDatabase {
       // zero. Splitting into tokens — each prefix-matched and AND'd —
       // lets FTS5 match "thorne" against brand and "vitamin" / "a"
       // against product_name simultaneously.
-      final tokens = trimmed
-          .split(RegExp(r'\s+'))
-          .where((t) => t.isNotEmpty)
-          .map((t) => t.replaceAll('"', '""'))
-          .map((t) => '"$t"*')
-          .toList();
-      if (tokens.isEmpty) return [];
-      final ftsQuery = tokens.join(' AND ');
+      final ftsQuery = tokens.map(_ftsToken).join(' AND ');
       final rows = await customSelect(
         'SELECT p.* FROM products_fts f '
         'JOIN products_core p ON p.rowid = f.rowid '
@@ -287,22 +282,57 @@ class CoreDatabase extends _$CoreDatabase {
       // freshly-regenerated `.g.dart` from build_runner — older Drift
       // codegen snapshots that don't yet expose ingredientsText as a
       // typed column still load the bundle.
-      final pattern = '%$trimmed%';
+      final tokenClauses = <String>[];
+      final variables = <Variable<Object>>[];
+      const searchColumns = ['product_name', 'brand_name', 'ingredients_text'];
+      for (final token in tokens) {
+        final clauses = <String>[];
+        final patterns = _likeWordPrefixPatterns(token);
+        for (final column in searchColumns) {
+          for (final pattern in patterns) {
+            clauses.add('$column LIKE ? ESCAPE \'\\\'');
+            variables.add(Variable.withString(pattern));
+          }
+        }
+        tokenClauses.add('(${clauses.join(' OR ')})');
+      }
+      variables.add(Variable.withInt(limit));
       final rows = await customSelect(
         'SELECT * FROM products_core '
-        'WHERE product_name LIKE ? OR brand_name LIKE ? OR ingredients_text LIKE ? '
+        'WHERE ${tokenClauses.join(' AND ')} '
         'ORDER BY COALESCE(score_quality_80, 0) DESC '
         'LIMIT ?',
-        variables: [
-          Variable.withString(pattern),
-          Variable.withString(pattern),
-          Variable.withString(pattern),
-          Variable.withInt(limit),
-        ],
+        variables: variables,
         readsFrom: {productsCore},
       ).get();
       return rows.map((row) => productsCore.map(row.data)).toList();
     }
+  }
+
+  static List<String> _searchTokens(String query) {
+    return query
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((token) => token.isNotEmpty)
+        .toList();
+  }
+
+  static String _ftsToken(String token) {
+    return '"${token.replaceAll('"', '""')}"*';
+  }
+
+  static List<String> _likeWordPrefixPatterns(String token) {
+    final escaped = token
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
+    return [
+      '$escaped%',
+      '% $escaped%',
+      '%-$escaped%',
+      '%/$escaped%',
+      '%($escaped%',
+    ];
   }
 
   /// Find products with higher scores in the same category. Used for

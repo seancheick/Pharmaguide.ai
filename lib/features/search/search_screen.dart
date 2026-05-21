@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/theme/app_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_card.dart';
 import 'package:pharmaguide/core/widgets/pg_empty_state.dart';
@@ -85,18 +86,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _loadCategoryResults(String category) async {
+    final version = ++_searchVersion;
+    if (!mounted) return;
     setState(() => _loading = true);
     final db = ref.read(coreDatabaseProvider);
-    final results = await db.filterProducts(
-      category: category,
-      limit: 50,
-      sortBy: 'score',
-    );
-    if (!mounted) return;
-    setState(() {
-      _results = results;
-      _loading = false;
-    });
+    try {
+      final results = await db.filterProducts(
+        category: category,
+        limit: 50,
+        sortBy: 'score',
+      );
+      if (version != _searchVersion) return;
+      if (!mounted) return;
+      setState(() {
+        _results = results;
+        _loading = false;
+      });
+    } on Exception {
+      if (version != _searchVersion) return;
+      if (!mounted) return;
+      setState(() {
+        _results = <ProductsCoreData>[];
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -115,6 +128,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     });
 
     if (value.trim().isEmpty) {
+      _searchVersion++;
       setState(() {
         _results = _activeCategory == null ? null : _results;
         _loading = false;
@@ -125,6 +139,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return;
     }
 
+    _searchVersion++;
     setState(() => _loading = true);
     _debounce = Timer(const Duration(milliseconds: 300), () {
       _executeSearch(value.trim());
@@ -140,7 +155,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (version != _searchVersion) return; // latest-query-wins
       if (!mounted) return;
       setState(() {
-        _results = results;
+        _results = rankSearchResultsForDisplay(query, results);
         _loading = false;
       });
       if (results.isNotEmpty) {
@@ -159,6 +174,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _clearSearch() {
     _debounce?.cancel();
+    _searchVersion++;
     _controller.clear();
     setState(() {
       _query = '';
@@ -222,7 +238,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
             // Search controls should appear as soon as search intent is
             // clear, not only after the first result payload lands.
-            // Static verdict/quality filters can show immediately while
+            // Static quality/trust filters can show immediately while
             // category chips remain result-derived.
             if (_showFilterChips)
               SizedBox(
@@ -436,6 +452,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildResultsList() {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final items = _filteredResults;
 
     return Column(
       children: [
@@ -484,9 +501,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
         // Results content
         Expanded(
-          child: _isGridView ? _buildGridResults() : _buildListResults(),
+          child: items.isEmpty
+              ? _buildFilteredEmptyState()
+              : _isGridView
+              ? _buildGridResults()
+              : _buildListResults(),
         ),
       ],
+    );
+  }
+
+  Widget _buildFilteredEmptyState() {
+    final filterLabel = _activeCategoryChip != null
+        ? _formatCategoryLabel(_activeCategoryChip!)
+        : _activeFilter.label;
+
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.space20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          PGEmptyState(
+            icon: Icons.filter_alt_off_rounded,
+            title: 'No matches for $filterLabel',
+            description:
+                'Try another filter or return to all results for this search.',
+            variant: PGEmptyStateVariant.info,
+          ),
+          const SizedBox(height: AppTheme.space16),
+          TextButton(
+            onPressed: () => setState(() {
+              _activeFilter = _SearchFilter.all;
+              _activeCategoryChip = null;
+            }),
+            child: const Text('Clear filter'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -604,9 +655,10 @@ class _SearchLoadingList extends StatelessWidget {
 
 enum _SearchFilter {
   all('All'),
-  highQuality('High Quality (80+)'),
-  needsReview('Needs Review'),
-  blockedUnsafe('Blocked / Unsafe');
+  topRated('Top rated'),
+  highConfidence('High confidence'),
+  thirdPartyTested('Third-party tested'),
+  reviewBeforeUse('Review before use');
 
   const _SearchFilter(this.label);
   final String label;
@@ -615,22 +667,106 @@ enum _SearchFilter {
     switch (this) {
       case _SearchFilter.all:
         return true;
-      case _SearchFilter.highQuality:
-        return (p.score100Equivalent ?? 0) >= 80;
-      case _SearchFilter.needsReview:
+      case _SearchFilter.topRated:
+        final score = p.score100Equivalent;
+        if (score == null || score < 80) return false;
+        if ((p.mappedCoverage ?? 0) < 0.3) return false;
+        if (_isUnsafeProduct(p)) return false;
+
+        final displayVerdict = verdictForMappedCoverage(
+          p.verdict,
+          p.mappedCoverage,
+        );
+        return displayVerdict != 'NOT_SCORED';
+      case _SearchFilter.highConfidence:
+        return (p.mappedCoverage ?? 0) >= 0.7;
+      case _SearchFilter.thirdPartyTested:
+        return p.hasThirdPartyTesting == 1;
+      case _SearchFilter.reviewBeforeUse:
         final v = (p.verdict ?? '').toUpperCase();
         return v == 'CAUTION' ||
             v == 'POOR' ||
             v == 'MODERATE' ||
             v == 'REVIEW';
-      case _SearchFilter.blockedUnsafe:
-        final v = (p.verdict ?? '').toUpperCase();
-        return v == 'BLOCKED' || v == 'UNSAFE';
     }
+  }
+
+  static bool _isUnsafeProduct(ProductsCoreData p) {
+    return _isUnsafeVerdict(p.verdict);
   }
 }
 
+List<ProductsCoreData> rankSearchResultsForDisplay(
+  String query,
+  List<ProductsCoreData> results,
+) {
+  final normalizedQuery = _normalizeSearchText(query);
+  if (normalizedQuery.isEmpty || results.length < 2) return results;
+
+  final indexed = <({ProductsCoreData product, int index})>[
+    for (var i = 0; i < results.length; i++) (product: results[i], index: i),
+  ];
+
+  indexed.sort((a, b) {
+    final aMatch = _searchMatchTier(a.product, normalizedQuery);
+    final bMatch = _searchMatchTier(b.product, normalizedQuery);
+    if (aMatch != bMatch) return aMatch.compareTo(bMatch);
+
+    final aUnsafe = _isUnsafeVerdict(a.product.verdict);
+    final bUnsafe = _isUnsafeVerdict(b.product.verdict);
+    if (aUnsafe != bUnsafe) return aUnsafe ? 1 : -1;
+
+    final coverage = (b.product.mappedCoverage ?? 0).compareTo(
+      a.product.mappedCoverage ?? 0,
+    );
+    if (coverage != 0) return coverage;
+
+    final testing = (b.product.hasThirdPartyTesting ?? 0).compareTo(
+      a.product.hasThirdPartyTesting ?? 0,
+    );
+    if (testing != 0) return testing;
+
+    final score = _scoreForRank(b.product).compareTo(_scoreForRank(a.product));
+    if (score != 0) return score;
+
+    return a.index.compareTo(b.index);
+  });
+
+  return [for (final item in indexed) item.product];
+}
+
+int _searchMatchTier(ProductsCoreData product, String normalizedQuery) {
+  final productName = _normalizeSearchText(product.productName);
+  final brandName = _normalizeSearchText(product.brandName ?? '');
+
+  if (productName == normalizedQuery) return 0;
+  if (brandName == normalizedQuery) return 1;
+  if (productName.startsWith(normalizedQuery)) return 2;
+  if (brandName.startsWith(normalizedQuery)) return 3;
+  if (productName.contains(normalizedQuery)) return 4;
+  if (brandName.contains(normalizedQuery)) return 5;
+  return 6;
+}
+
+String _normalizeSearchText(String value) {
+  return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+}
+
+bool _isUnsafeVerdict(String? verdict) {
+  final v = (verdict ?? '').trim().toUpperCase();
+  return v == 'BLOCKED' || v == 'UNSAFE';
+}
+
+double _scoreForRank(ProductsCoreData product) {
+  return product.score100Equivalent ?? product.scoreQuality80 ?? 0;
+}
+
 String _formatCategoryLabel(String category) {
+  final vocabLabel = VocabRegistry.instance.productType(category)?.shortName;
+  if (vocabLabel != null && vocabLabel.trim().isNotEmpty) {
+    return vocabLabel;
+  }
+
   final parts = category.split('_').where((part) => part.trim().isNotEmpty).map(
     (part) {
       final lower = part.toLowerCase();

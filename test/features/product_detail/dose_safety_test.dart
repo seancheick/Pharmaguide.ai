@@ -14,7 +14,7 @@
 // "dose not evaluated" state.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/dose_safety.dart';
+import 'package:pharmaguide/services/health/dose_safety.dart';
 
 void main() {
   group('resolveDoseSafety', () {
@@ -111,6 +111,28 @@ void main() {
       expect(
         resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
         DoseSafety.withinLimits,
+      );
+    });
+
+    test('pipeline warning strings are authoritative for exceedance', () {
+      final ingredient = <String, dynamic>{
+        'standard_name': 'Niacin',
+        'quantity': 35.0,
+      };
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Niacin',
+          'quantity': 35.0,
+          'skip_ul_check': false,
+          'ul_for_default_profile': 35,
+          'highest_ul': 35,
+          'warnings': ['Exceeds UL after pipeline unit/form evaluation'],
+        },
+      ];
+
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.exceedsUl,
       );
     });
 

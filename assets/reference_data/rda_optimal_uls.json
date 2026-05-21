@@ -5371,32 +5371,29 @@
       "synthesis_precursors": null
     },
     {
-      "standard_name": "Omega-3 Fatty Acids",
+      "standard_name": "Alpha-Linolenic Acid",
+      "aliases": [
+        "ALA",
+        "alpha-linolenic acid",
+        "alpha linolenic acid",
+        "linolenic acid (n-3)",
+        "18:3 n-3"
+      ],
       "unit": "g",
       "ul": null,
-      "ul_note": "No official RDA established, AI based on cardiovascular benefits",
-      "optimal_range": "1-3",
+      "ul_note": "No UL established for alpha-linolenic acid (ALA)",
+      "optimal_range": "",
       "highest_ul": null,
-      "warnings": [
-        "High doses may increase bleeding risk",
-        "May affect immune function"
-      ],
-      "special_considerations": "EPA and DHA are the most important forms",
+      "warnings": [],
+      "special_considerations": "AI values are for alpha-linolenic acid (ALA), not EPA, DHA, combined EPA+DHA, or fish-oil parent mass. EPA/DHA dosing is handled by separate omega-specific logic.",
       "deficiency_symptoms": [
         "Dry skin",
         "Fatigue",
         "Poor memory",
         "Heart problems"
       ],
-      "toxicity_symptoms": [
-        "Increased bleeding",
-        "Immune suppression",
-        "GI upset"
-      ],
-      "interaction_warnings": [
-        "May enhance blood thinning medications",
-        "Can affect immune response"
-      ],
+      "toxicity_symptoms": [],
+      "interaction_warnings": [],
       "data": [
         {
           "group": "Male",
@@ -5527,7 +5524,7 @@
           "ul_status": "not_determined"
         }
       ],
-      "id": "omega_3_fatty_acids",
+      "id": "alpha_linolenic_acid",
       "ul_status": "not_determined",
       "cdrr": null,
       "cdrr_note": null,

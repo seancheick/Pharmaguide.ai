@@ -64,7 +64,8 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileProvider);
+    final profileAsync = ref.watch(loadedProfileProvider);
+    final nickname = profileAsync.asData?.value.nickname;
     final firstLaunchAsync = ref.watch(isFirstLaunchHomeProvider);
     final mq = MediaQuery.of(context);
     final theme = Theme.of(context);
@@ -120,7 +121,7 @@ class HomeScreen extends ConsumerWidget {
             0,
           ),
           sliver: SliverToBoxAdapter(
-            child: HomeHeroSection(nickname: profile.nickname),
+            child: HomeHeroSection(nickname: nickname),
           ),
         ),
 

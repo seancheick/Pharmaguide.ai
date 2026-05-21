@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,6 +75,13 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
     await userDb.close();
+  });
+
+  test('app does not globally clamp OS text scaling', () async {
+    final source = await File('lib/app.dart').readAsString();
+
+    expect(source, isNot(contains('textScaler.clamp')));
+    expect(source, isNot(contains('maxScaleFactor: 1.4')));
   });
 
   testWidgets('Tapping Scan tab navigates to scan screen', (tester) async {

@@ -13,14 +13,24 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
+class _SheetProductSafety {
+  final bool found;
+  final String? verdict;
+
+  const _SheetProductSafety({required this.found, required this.verdict});
+}
+
 /// Looks up the verdict for a single product so the safety sheet can
 /// refuse to show "Safe to add" on a BLOCKED/UNSAFE product even if a
 /// future caller skips the upstream FLTR-16 UI guard.
 final _sheetProductVerdictProvider = FutureProvider.family
-    .autoDispose<String?, String>((ref, dsldId) async {
+    .autoDispose<_SheetProductSafety, String>((ref, dsldId) async {
       final db = ref.watch(coreDatabaseProvider);
       final product = await db.findById(dsldId);
-      return product?.verdict;
+      return _SheetProductSafety(
+        found: product != null,
+        verdict: product?.verdict,
+      );
     });
 
 /// Pre-add safety check sheet.
@@ -62,15 +72,20 @@ class _SafetyCheckSheet extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final safetyAsync = ref.watch(safetyCheckForAddProvider(dsldId));
 
-    // FLTR-16 — third-layer defense. If the product's verdict is
-    // BLOCKED/UNSAFE, the sheet must not display a "Safe to add"
-    // banner under any circumstances, even if a direct opener
-    // skipped the [PGStackActionButtons] guard. The verdict loads
-    // alongside the interaction check; we treat pending verdict as
-    // "not yet known, assume safe to render loading" — the check
-    // completes in the same frame as the interaction check.
-    final verdictAsync = ref.watch(_sheetProductVerdictProvider(dsldId));
-    final isUnsafe = isUnsafeVerdict(verdictAsync.asData?.value);
+    // FLTR-16 — third-layer defense. If the product's verdict is still
+    // loading, failed to load, or resolves to BLOCKED/UNSAFE, the sheet must
+    // not display "Safe to add" or enable the primary action. This keeps the
+    // direct-opener path as strict as the product-detail button path.
+    final productSafetyAsync = ref.watch(_sheetProductVerdictProvider(dsldId));
+    final productSafety = productSafetyAsync.asData?.value;
+    final productSafetyReady =
+        productSafetyAsync.hasValue && productSafety?.found == true;
+    final productSafetyUnavailable =
+        productSafetyAsync.hasError ||
+        (productSafetyAsync.hasValue && productSafety?.found != true);
+    final isUnsafe =
+        productSafetyReady && isUnsafeVerdict(productSafety?.verdict);
+    final canEvaluateStack = productSafetyReady && !isUnsafe;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.55,
@@ -111,7 +126,11 @@ class _SafetyCheckSheet extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppTheme.space20),
 
-                if (isUnsafe)
+                if (productSafetyAsync.isLoading && !productSafetyReady)
+                  const _VerifyingSafety(message: 'Checking product safety…')
+                else if (productSafetyUnavailable)
+                  const _ProductSafetyCheckError()
+                else if (isUnsafe)
                   const _UnsafeProductBanner()
                 else
                   safetyAsync.when(
@@ -131,17 +150,22 @@ class _SafetyCheckSheet extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(isUnsafe ? 'Close' : 'Cancel'),
+                        child: Text(
+                          isUnsafe || productSafetyUnavailable
+                              ? 'Close'
+                              : 'Cancel',
+                        ),
                       ),
                     ),
                     const SizedBox(width: AppTheme.space12),
                     Expanded(
-                      child: isUnsafe
+                      child: isUnsafe || productSafetyUnavailable
                           ? const FilledButton(
                               onPressed: null,
                               child: Text('Cannot add'),
                             )
-                          : safetyAsync.maybeWhen(
+                          : canEvaluateStack
+                          ? safetyAsync.maybeWhen(
                               data: (warnings) => FilledButton(
                                 onPressed: () {
                                   _fireHaptic(warnings);
@@ -157,6 +181,10 @@ class _SafetyCheckSheet extends ConsumerWidget {
                                 onPressed: null,
                                 child: Text('Add to stack'),
                               ),
+                            )
+                          : const FilledButton(
+                              onPressed: null,
+                              child: Text('Add to stack'),
                             ),
                     ),
                   ],
@@ -187,7 +215,11 @@ class _SafetyCheckSheet extends ConsumerWidget {
 }
 
 class _VerifyingSafety extends StatelessWidget {
-  const _VerifyingSafety();
+  final String message;
+
+  const _VerifyingSafety({
+    this.message = 'Checking interactions with your stack…',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -206,12 +238,24 @@ class _VerifyingSafety extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppTheme.space12),
-          Text(
-            'Checking interactions with your stack…',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(message, style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
+    );
+  }
+}
+
+class _ProductSafetyCheckError extends StatelessWidget {
+  const _ProductSafetyCheckError();
+
+  @override
+  Widget build(BuildContext context) {
+    return const PGSeverityBanner(
+      tone: PGBannerTone.neutral,
+      title: 'Could not verify product safety',
+      body:
+          'Close this sheet and try again before adding this product to '
+          'your stack.',
     );
   }
 }
