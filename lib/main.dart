@@ -17,6 +17,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
+import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
@@ -236,6 +237,15 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     if (!mounted) {
       await initialDb?.close();
       return;
+    }
+
+    // Awaited before setState so the seeded stack entries are visible
+    // on the very first build of any screen that reads from
+    // userDb.getActiveStack(). The seeder early-returns instantly when
+    // SCREENSHOT_MODE is false, so this adds no overhead to normal
+    // builds (and the entire code path constant-folds away in release).
+    if (initialDb != null) {
+      await ScreenshotSeeder.maybeRun(coreDb: initialDb, userDb: widget.userDb);
     }
 
     setState(() {

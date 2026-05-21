@@ -1,0 +1,133 @@
+{
+  "_metadata": {
+    "description": "Controlled vocabulary for the 20 canonical supplement product types. Single source of truth shared between pipeline (supplement_taxonomy.py) and Flutter app (product_type_vocab.dart). Drives primary_category column, search filter chips, and product badges.",
+    "purpose": "product_classification",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-20",
+    "total_entries": 20,
+    "status": "ACTIVE",
+    "alignment": "Pipeline source: scripts/supplement_taxonomy.py PRIMARY_TYPES list. Flutter consumer: assets/data/product_type_vocab.json loaded by VocabRegistry."
+  },
+  "product_types": [
+    {
+      "id": "single_vitamin",
+      "name": "Single Vitamin",
+      "short_name": "Vitamin",
+      "notes": "Products with one quantified vitamin as the primary active ingredient."
+    },
+    {
+      "id": "single_mineral",
+      "name": "Single Mineral",
+      "short_name": "Mineral",
+      "notes": "Products with one quantified mineral as the primary active ingredient."
+    },
+    {
+      "id": "vitamin_mineral_combo",
+      "name": "Vitamin & Mineral Combo",
+      "short_name": "Vitamin & Mineral",
+      "notes": "Products combining 2-5 vitamins and/or minerals without qualifying as a full multivitamin."
+    },
+    {
+      "id": "multivitamin",
+      "name": "Multivitamin",
+      "short_name": "Multivitamin",
+      "notes": "Broad-spectrum products with 6+ quantified vitamins and minerals across multiple categories."
+    },
+    {
+      "id": "b_complex",
+      "name": "B-Complex",
+      "short_name": "B-Complex",
+      "notes": "Products primarily composed of B-vitamins (B1, B2, B3, B5, B6, B7, B9, B12)."
+    },
+    {
+      "id": "omega_3",
+      "name": "Omega-3 & Fish Oil",
+      "short_name": "Omega-3",
+      "notes": "Fish oil, krill oil, algal oil, and other EPA/DHA-containing products."
+    },
+    {
+      "id": "probiotic",
+      "name": "Probiotic",
+      "short_name": "Probiotic",
+      "notes": "Products containing live microbial strains with documented CFU counts."
+    },
+    {
+      "id": "herbal_botanical",
+      "name": "Herbal & Botanical",
+      "short_name": "Herbal",
+      "notes": "Single-herb or herbal blend products — adaptogens, nervines, botanicals."
+    },
+    {
+      "id": "protein_powder",
+      "name": "Protein Powder",
+      "short_name": "Protein",
+      "notes": "Whey, casein, plant-based, and other protein supplements in powder form."
+    },
+    {
+      "id": "collagen",
+      "name": "Collagen",
+      "short_name": "Collagen",
+      "notes": "Collagen peptides, hydrolyzed collagen, and type-specific collagen supplements."
+    },
+    {
+      "id": "greens_powder",
+      "name": "Greens Powder",
+      "short_name": "Greens",
+      "notes": "Superfood and greens powder blends (spirulina, chlorella, wheatgrass, etc.)."
+    },
+    {
+      "id": "electrolyte",
+      "name": "Electrolyte",
+      "short_name": "Electrolyte",
+      "notes": "Electrolyte and hydration products with sodium, potassium, magnesium."
+    },
+    {
+      "id": "pre_workout",
+      "name": "Pre-Workout",
+      "short_name": "Pre-Workout",
+      "notes": "Pre-workout formulas with caffeine, beta-alanine, citrulline, creatine."
+    },
+    {
+      "id": "amino_acid",
+      "name": "Amino Acid",
+      "short_name": "Amino Acid",
+      "notes": "Free-form amino acid supplements — BCAAs, glutamine, creatine, NAC."
+    },
+    {
+      "id": "fiber_digestive",
+      "name": "Fiber & Digestive",
+      "short_name": "Fiber",
+      "notes": "Fiber supplements, prebiotics, and digestive enzymes."
+    },
+    {
+      "id": "sleep_support",
+      "name": "Sleep Support",
+      "short_name": "Sleep",
+      "notes": "Products formulated for sleep — melatonin, magnesium, L-theanine, valerian."
+    },
+    {
+      "id": "immune_support",
+      "name": "Immune Support",
+      "short_name": "Immune",
+      "notes": "Products targeting immune function — elderberry, echinacea, vitamin C blends."
+    },
+    {
+      "id": "joint_support",
+      "name": "Joint Support",
+      "short_name": "Joint",
+      "notes": "Products for joint health — glucosamine, chondroitin, MSM, collagen type II."
+    },
+    {
+      "id": "beauty_hair_skin_nails",
+      "name": "Hair, Skin & Nails",
+      "short_name": "Beauty",
+      "notes": "Beauty-focused supplements — biotin, collagen, keratin, silica formulas."
+    },
+    {
+      "id": "general_supplement",
+      "name": "General Supplement",
+      "short_name": "Supplement",
+      "notes": "Products that don't fit a specific category — mixed formulations or uncommon ingredients."
+    }
+  ]
+}

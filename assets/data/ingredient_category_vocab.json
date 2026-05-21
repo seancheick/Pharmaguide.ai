@@ -1,0 +1,131 @@
+{
+  "_metadata": {
+    "schema_version": "1.0.0",
+    "last_updated": "2026-05-21",
+    "total_entries": 17,
+    "owner": "pipeline",
+    "notes": "Canonical line-level ingredient category vocabulary. Replaces the hardcoded CATEGORY_ALIASES map in supplement_type_utils.py (which previously did the same job but couldn't be diffed against a JSON source of truth).\n\nLayer contract: this vocab classifies WHAT an ingredient row is. Companion vocabs split the other axes (per SP-0 design doc):\n  - functional_role: WHY it is in the product (filler, sweetener, prebiotic_support, etc.) — SP-5\n  - safety_role: whether it affects safety gates — banned_status / clinical_risk vocabs\n  - ingredient_identity: WHO it is — canonical_id / IQM parent key\n\nDistinct from iqm_category_vocab.json (the LOCKED IQM-parent-level vocab using PLURAL forms for the 12 parent buckets). This vocab uses SINGULAR canonical IDs because that is what the runtime taxonomy classifier already emits and what every scoring consumer reads. Aliases cover the plural IQM forms (`vitamins` -> `vitamin`, `herbs` -> `herb`) so enricher rows coming from IQM parent data canonicalize cleanly.\n\nThe enricher writes `category_canonical` per ingredient row using this vocab; consumers read it instead of re-normalizing at read time. Legacy `category` field is preserved additively for backward compat with pre-2026-05-21 enriched batches.",
+    "iqm_vocab_relationship": "Each plural id in iqm_category_vocab.json maps 1-to-1 to a singular id here (vitamins -> vitamin, herbs -> herb, etc.). Plus this vocab adds non-IQM categories (delivery, additive, inactive, blend_header) for ingredient rows that aren't IQM-parent-classified."
+  },
+  "ingredient_categories": [
+    {
+      "id": "vitamin",
+      "short_name": "Vitamin",
+      "description": "Vitamin compound — fat-soluble (A, D, E, K) or water-soluble (B-family, C).",
+      "aliases": ["vitamin", "vitamins"],
+      "iqm_parent_category": "vitamins"
+    },
+    {
+      "id": "mineral",
+      "short_name": "Mineral",
+      "description": "Essential or trace mineral (Ca, Mg, Zn, Fe, Se, Cu, I, etc.).",
+      "aliases": ["mineral", "minerals"],
+      "iqm_parent_category": "minerals"
+    },
+    {
+      "id": "herb",
+      "short_name": "Herb",
+      "description": "Whole-herb or herbal extract. Distinct from `botanical` for traditional-use herbs that have a long pharmacognosy history (ashwagandha, turmeric, valerian).",
+      "aliases": ["herb", "herbs", "herbal"],
+      "iqm_parent_category": "herbs"
+    },
+    {
+      "id": "botanical",
+      "short_name": "Botanical",
+      "description": "Plant-derived non-herb compound. Often standardized extracts (rutin, quercetin, hesperidin) that don't fit the traditional-use herb bucket.",
+      "aliases": ["botanical", "botanicals"],
+      "iqm_parent_category": "herbs"
+    },
+    {
+      "id": "antioxidant",
+      "short_name": "Antioxidant",
+      "description": "Compound that scavenges reactive oxygen species or upregulates endogenous antioxidant defenses (alpha-lipoic acid, astaxanthin, glutathione, PQQ, resveratrol).",
+      "aliases": ["antioxidant", "antioxidants"],
+      "iqm_parent_category": "antioxidants"
+    },
+    {
+      "id": "fatty_acid",
+      "short_name": "Fatty Acid",
+      "description": "Long-chain fatty acid — EPA, DHA, ALA, GLA, CLA, MCT.",
+      "aliases": ["fatty_acid", "fatty_acids", "fatty acid", "fatty acids"],
+      "iqm_parent_category": "fatty_acids"
+    },
+    {
+      "id": "amino_acid",
+      "short_name": "Amino Acid",
+      "description": "Free-form amino acid or amino-acid derivative (L-glutamine, L-theanine, taurine, L-tyrosine, BCAAs).",
+      "aliases": ["amino_acid", "amino_acids", "amino acid", "amino acids"],
+      "iqm_parent_category": "amino_acids"
+    },
+    {
+      "id": "probiotic",
+      "short_name": "Probiotic",
+      "description": "Probiotic strain with disclosed CFU. Distinct from `bacteria` for strains that don't yet carry the probiotic-grade evidence + viability disclosure.",
+      "aliases": ["probiotic", "probiotics"],
+      "iqm_parent_category": "probiotics"
+    },
+    {
+      "id": "bacteria",
+      "short_name": "Bacteria",
+      "description": "Bacterial strain or live-culture ingredient without disclosed CFU / probiotic-grade designation. Triggers probiotic detection in the taxonomy classifier when present alongside probiotic-name signal.",
+      "aliases": ["bacteria", "bacterial"],
+      "iqm_parent_category": "probiotics"
+    },
+    {
+      "id": "protein",
+      "short_name": "Protein",
+      "description": "Whole protein, isolate, or concentrate (whey, casein, soy, pea).",
+      "aliases": ["protein", "proteins"],
+      "iqm_parent_category": "proteins"
+    },
+    {
+      "id": "fiber",
+      "short_name": "Fiber",
+      "description": "Dietary fiber — soluble or insoluble (inulin, psyllium, glucomannan).",
+      "aliases": ["fiber", "fibers", "fibre", "fibres"],
+      "iqm_parent_category": "fibers"
+    },
+    {
+      "id": "enzyme",
+      "short_name": "Enzyme",
+      "description": "Active enzyme supplement — digestive, systemic, or fibrinolytic (bromelain, papain, serrapeptase, lactase, pancreatin).",
+      "aliases": ["enzyme", "enzymes"],
+      "iqm_parent_category": "enzymes"
+    },
+    {
+      "id": "functional_food",
+      "short_name": "Functional Food",
+      "description": "Whole-food or food-fragment ingredient with bioactivity claims (beet powder, spirulina, chlorella, mushroom blends).",
+      "aliases": ["functional_food", "functional_foods", "functional food", "functional foods"],
+      "iqm_parent_category": "functional_foods"
+    },
+    {
+      "id": "delivery",
+      "short_name": "Delivery",
+      "description": "Delivery-system component (e.g. lozenge base, sublingual strip matrix). Tagged by the enricher when an ingredient row originates from `delivery_data.systems`, not the active panel.",
+      "aliases": ["delivery"],
+      "iqm_parent_category": null
+    },
+    {
+      "id": "additive",
+      "short_name": "Additive",
+      "description": "Inactive additive ingredient (preservative, colorant, sweetener, flavor). Distinct from `inactive` because additives carry their own safety/quality signals via harmful_additives.json. The functional role is split out into the SP-5 functional_role vocab.",
+      "aliases": ["additive", "additives"],
+      "iqm_parent_category": null
+    },
+    {
+      "id": "inactive",
+      "short_name": "Inactive",
+      "description": "Inactive ingredient (binder, filler, capsule shell). Functional role split out into SP-5 functional_role vocab.",
+      "aliases": ["inactive", "inactives", "excipient", "excipients"],
+      "iqm_parent_category": null
+    },
+    {
+      "id": "other",
+      "short_name": "Other",
+      "description": "Residual bucket — ingredient row that matches no other canonical category. Distinct from `unknown` (which means no category data); `other` means data is present but doesn't fit a named bucket.",
+      "aliases": ["other"],
+      "iqm_parent_category": "other"
+    }
+  ]
+}
