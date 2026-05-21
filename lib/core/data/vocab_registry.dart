@@ -32,6 +32,7 @@ import 'package:pharmaguide/core/data/confidence_tier_vocab.dart';
 import 'package:pharmaguide/core/data/drug_class_vocab.dart';
 import 'package:pharmaguide/core/data/effect_direction_vocab.dart';
 import 'package:pharmaguide/core/data/efsa_genotoxicity_vocab.dart';
+import 'package:pharmaguide/core/data/form_factor_vocab.dart';
 import 'package:pharmaguide/core/data/efsa_status_vocab.dart';
 import 'package:pharmaguide/core/data/evidence_level_vocab.dart';
 import 'package:pharmaguide/core/data/evidence_strength_vocab.dart';
@@ -43,6 +44,7 @@ import 'package:pharmaguide/core/data/primary_outcome_vocab.dart';
 import 'package:pharmaguide/core/data/score_contribution_tier_vocab.dart';
 import 'package:pharmaguide/core/data/severity_vocab.dart';
 import 'package:pharmaguide/core/data/signal_strength_vocab.dart';
+import 'package:pharmaguide/core/data/product_type_vocab.dart';
 import 'package:pharmaguide/core/data/study_type_vocab.dart';
 import 'package:pharmaguide/core/data/user_goals_vocab.dart';
 import 'package:pharmaguide/core/data/verdict_vocab.dart';
@@ -80,6 +82,8 @@ class VocabRegistry {
   Map<String, ConfidenceTierEntry> _confidenceTiers = const {};
   Map<String, ScoreContributionTierEntry> _scoreContributionTiers = const {};
   Map<String, PrimaryOutcomeEntry> _primaryOutcomes = const {};
+  Map<String, ProductTypeEntry> _productTypes = const {};
+  Map<String, FormFactorEntry> _formFactors = const {};
 
   /// Eager-load every vocab in parallel. Call once before runApp().
   /// Idempotent — safe to call multiple times.
@@ -111,6 +115,8 @@ class VocabRegistry {
       loadConfidenceTierVocab(),
       loadScoreContributionTierVocab(),
       loadPrimaryOutcomeVocab(),
+      loadProductTypeVocab(),
+      loadFormFactorVocab(),
     ]);
 
     _verdicts = results[0] as Map<String, VerdictEntry>;
@@ -141,6 +147,8 @@ class VocabRegistry {
     _scoreContributionTiers =
         results[23] as Map<String, ScoreContributionTierEntry>;
     _primaryOutcomes = results[24] as Map<String, PrimaryOutcomeEntry>;
+    _productTypes = results[25] as Map<String, ProductTypeEntry>;
+    _formFactors = results[26] as Map<String, FormFactorEntry>;
 
     _initialized = true;
   }
@@ -179,6 +187,8 @@ class VocabRegistry {
   ScoreContributionTierEntry? scoreContributionTier(String id) =>
       _scoreContributionTiers[id];
   PrimaryOutcomeEntry? primaryOutcome(String id) => _primaryOutcomes[id];
+  ProductTypeEntry? productType(String id) => _productTypes[id];
+  FormFactorEntry? formFactor(String id) => _formFactors[id];
 
   /// Test seam — pumps all vocab maps for widget tests without async init.
   @visibleForTesting
@@ -219,6 +229,8 @@ class VocabRegistry {
     _confidenceTiers = const {};
     _scoreContributionTiers = const {};
     _primaryOutcomes = const {};
+    _productTypes = const {};
+    _formFactors = const {};
     _initialized = false;
   }
 }

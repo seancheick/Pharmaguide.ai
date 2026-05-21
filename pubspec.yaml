@@ -224,6 +224,12 @@ flutter:
     # for round-trip lookup until v1.1 source-data migration.
     # Source: pipeline `scripts/data/primary_outcome_vocab.json`.
     - assets/data/primary_outcome_vocab.json
+    # form_factor vocab (SP-3, 2026-05-21): 18 canonical product
+    # physical-state buckets covering DSLD's 10 langual codes plus
+    # finer-grain forms (softgel split from capsule, sublingual from
+    # lozenge, tincture from liquid, etc.).
+    # Source: pipeline `scripts/data/form_factor_vocab.json`.
+    - assets/data/form_factor_vocab.json
 
 sentry:
   upload_debug_symbols: true
