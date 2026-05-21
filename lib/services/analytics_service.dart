@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Analytics facade for PharmaGuide.
 ///
@@ -31,6 +32,9 @@ class AnalyticsService {
   factory AnalyticsService() => _instance;
   AnalyticsService._();
 
+  static const String _collectionEnabledKey =
+      'settings.analyticsCollectionEnabled';
+
   /// Bounded ring buffer of recent events. Useful for debugging and for
   /// replay once a real backend is wired up. Capped to prevent unbounded
   /// memory growth in long sessions.
@@ -38,7 +42,9 @@ class AnalyticsService {
   final List<AnalyticsEvent> _eventBuffer = <AnalyticsEvent>[];
 
   bool _initialized = false;
+  bool _collectionEnabled = false;
   bool get isInitialized => _initialized;
+  bool get collectionEnabled => _collectionEnabled;
 
   /// Read-only view of the event buffer (debug tooling, tests).
   List<AnalyticsEvent> get bufferedEvents => List.unmodifiable(_eventBuffer);
@@ -46,12 +52,22 @@ class AnalyticsService {
   /// Initialize analytics. Safe to call multiple times.
   Future<void> initialize() async {
     if (_initialized) return;
+    final prefs = await SharedPreferences.getInstance();
+    _collectionEnabled = prefs.getBool(_collectionEnabledKey) ?? false;
     _initialized = true;
     if (kDebugMode) debugPrint('AnalyticsService initialized (stub)');
   }
 
+  /// Persist the user's local analytics preference.
+  Future<void> setCollectionEnabled(bool enabled) async {
+    _collectionEnabled = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_collectionEnabledKey, enabled);
+  }
+
   /// Track a named event with optional properties.
   void trackEvent(String name, [Map<String, Object>? properties]) {
+    if (!_collectionEnabled) return;
     final sanitized = properties == null ? null : _sanitize(properties);
     _record(AnalyticsEvent.event(name, sanitized));
     if (kDebugMode) debugPrint('Analytics: $name ${sanitized ?? ""}');
@@ -64,12 +80,14 @@ class AnalyticsService {
 
   /// Set a user property.
   void setUserProperty(String name, String value) {
+    if (!_collectionEnabled) return;
     _record(AnalyticsEvent.property(name, value));
     if (kDebugMode) debugPrint('Analytics: property $name=$value');
   }
 
   /// Set user ID for attribution. Pass null to clear.
   void setUserId(String? userId) {
+    if (!_collectionEnabled) return;
     _record(AnalyticsEvent.userId(userId));
     if (kDebugMode) debugPrint('Analytics: userId=$userId');
   }
@@ -109,6 +127,14 @@ class AnalyticsService {
   /// Test-only helper to clear the buffer between tests.
   @visibleForTesting
   void clearBufferForTest() => _eventBuffer.clear();
+
+  /// Test-only helper to reset singleton state between preference tests.
+  @visibleForTesting
+  void resetForTest() {
+    _eventBuffer.clear();
+    _collectionEnabled = false;
+    _initialized = false;
+  }
 }
 
 /// A recorded analytics event. Immutable.

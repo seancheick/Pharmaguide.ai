@@ -56,6 +56,63 @@ void main() {
       );
     });
 
+    test(
+      'remote older than installed → CatalogUpToDate, no download fired',
+      () async {
+        var stageCalls = 0;
+        final svc = CatalogUpdaterService(
+          probeRemoteVersion: () async => '2026.05.17.171456',
+          stageDownload: ({String? expectedVersion}) async {
+            stageCalls++;
+            return 'should-never-be-returned';
+          },
+        );
+
+        final result = await svc.checkForUpdate(
+          installedVersion: '2026.05.17.204805',
+        );
+
+        expect(result, isA<CatalogUpToDate>());
+        expect((result as CatalogUpToDate).version, '2026.05.17.204805');
+        expect(
+          stageCalls,
+          0,
+          reason: 'a stale remote catalog must not be staged as an update',
+        );
+      },
+    );
+
+    test('malformed remote or installed version fails closed', () async {
+      var stageCalls = 0;
+      final malformedRemote = CatalogUpdaterService(
+        probeRemoteVersion: () async => 'current',
+        stageDownload: ({String? expectedVersion}) async {
+          stageCalls++;
+          return 'should-never-be-returned';
+        },
+      );
+
+      final remoteResult = await malformedRemote.checkForUpdate(
+        installedVersion: '2026.05.17.204805',
+      );
+      expect(remoteResult, isA<CatalogUnreachable>());
+      expect(stageCalls, 0);
+
+      final malformedInstalled = CatalogUpdaterService(
+        probeRemoteVersion: () async => '2026.05.17.204805',
+        stageDownload: ({String? expectedVersion}) async {
+          stageCalls++;
+          return 'should-never-be-returned';
+        },
+      );
+
+      final installedResult = await malformedInstalled.checkForUpdate(
+        installedVersion: 'local-dev',
+      );
+      expect(installedResult, isA<CatalogUnreachable>());
+      expect(stageCalls, 0);
+    });
+
     test('forceDownload bypasses the version-match short-circuit', () async {
       var stageCalls = 0;
       final svc = CatalogUpdaterService(

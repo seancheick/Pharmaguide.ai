@@ -5,17 +5,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/app_motion.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
+import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/features/home/home_screen.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
+import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/scan_limit_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+bool scannerCameraPermissionDenied(MobileScannerState state) {
+  return state.error?.errorCode == MobileScannerErrorCode.permissionDenied;
+}
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -76,6 +89,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _lookUpProduct(String upc) async {
+    final allowed = await _recordAllowedScan();
+    if (!allowed) {
+      _showGuestScanLimitSheet();
+      setState(() => _hasScanned = false);
+      return;
+    }
+
     setState(() => _isLookingUp = true);
 
     try {
@@ -96,9 +116,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               upcSku: product.upcSku,
               productName: product.productName,
             );
-        if (mounted) {
-          refreshHomeSurface(ref);
-        }
+        CrashReportingService().log('scan_complete_camera');
+        // Home v2 picks up new scans via its own
+        // `_v2RecentScansProvider.autoDispose` on tab refocus + pull-
+        // to-refresh; no external invalidation needed after the v1
+        // home screen retirement.
         await _showVerdictFlashAndNavigate(product);
       } else {
         _showProductNotFound(upc);
@@ -174,7 +196,36 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   Future<void> _openManualBarcodeSheet() async {
     final barcode = await showManualBarcodeSheet(context);
     if (!mounted || barcode == null) return;
-    unawaited(_lookUpProduct(barcode.toString()));
+    unawaited(_lookUpProduct(barcode));
+  }
+
+  Future<void> _openAppSettings() {
+    return launchUrl(
+      Uri.parse('app-settings:'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Future<bool> _recordAllowedScan() async {
+    final prefs = await SharedPreferences.getInstance();
+    final authMode = ref.read(authStateProvider);
+    final service = ScanLimitService(
+      prefs: prefs,
+      isSignedIn: authMode == AuthMode.signedIn,
+    );
+    return service.recordScan();
+  }
+
+  void _showGuestScanLimitSheet() {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (ctx) => GuestScanLimitSheet(
+        onSignIn: () {
+          Navigator.pop(ctx);
+          context.push(Routes.authInvitation);
+        },
+      ),
+    );
   }
 
   @override
@@ -183,140 +234,258 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       body: Stack(
         children: [
           // Camera
-          MobileScanner(controller: _scannerController, onDetect: _onDetect),
+          MobileScanner(
+            controller: _scannerController,
+            onDetect: _onDetect,
+            errorBuilder: (_, _) => const ColoredBox(color: Colors.black),
+          ),
           // Overlay
-          SafeArea(
-            child: Column(
-              children: [
-                // Top bar
-                Padding(
-                  padding: const EdgeInsets.all(AppTheme.space16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Scan Product',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.flash_on, color: Colors.white),
-                        onPressed: () => _scannerController.toggleTorch(),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                // Scan guide — uses Flexible so it shrinks gracefully on
-                // compact viewports (e.g. 600px test frames).
-                Flexible(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 250,
-                      maxHeight: 250,
-                    ),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white70, width: 2),
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusLarge,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space16),
-                const Text(
-                  'Center the barcode in the frame',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                const SizedBox(height: AppTheme.space6),
-                const Text(
-                  'We will match it against your on-device product catalog.',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-                const Spacer(),
-                // Bottom actions
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.space24,
-                    AppTheme.space16,
-                    AppTheme.space24,
-                    AppTheme.space24,
-                  ),
+          Positioned.fill(
+            child: ValueListenableBuilder<MobileScannerState>(
+              valueListenable: _scannerController,
+              builder: (context, scannerState, _) {
+                if (scannerCameraPermissionDenied(scannerState)) {
+                  return CameraPermissionV2Screen(
+                    denied: true,
+                    onPrimaryAction: () => unawaited(_openAppSettings()),
+                    onManualEntry: _openManualBarcodeSheet,
+                  );
+                }
+                final cameraUnavailable = scannerState.error != null;
+                return SafeArea(
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.keyboard, color: Colors.white),
-                          label: const Text(
-                            'Enter code manually',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.white54),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: _openManualBarcodeSheet,
+                      // Top bar
+                      Padding(
+                        padding: const EdgeInsets.all(V2Spacing.space16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Scan product',
+                              style: V2Typography.titleSm(color: Colors.white),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.flash_on_rounded,
+                                color: Colors.white,
+                              ),
+                              onPressed: () => _scannerController.toggleTorch(),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: AppTheme.space8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          icon: const Icon(
-                            Icons.medication_outlined,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'Add medication',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.white54),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: () => context.push(Routes.medicationEntry),
+                      Expanded(
+                        child: Center(
+                          child: cameraUnavailable
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: V2Spacing.space24,
+                                  ),
+                                  child: _ScannerUnavailableCard(),
+                                )
+                              : Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 250,
+                                        maxHeight: 250,
+                                      ),
+                                      child: AspectRatio(
+                                        aspectRatio: 1,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.white70,
+                                              width: 2,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              V2Spacing.radiusCard,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: V2Spacing.space16),
+                                    Text(
+                                      'Center the barcode in the frame',
+                                      style: V2Typography.bodyMedium(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: V2Spacing.space8),
+                                    Text(
+                                      'We will match it against your on-device product catalog.',
+                                      style: V2Typography.bodySm(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.72,
+                                        ),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
                         ),
                       ),
+                      // Bottom actions
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          V2Spacing.space24,
+                          V2Spacing.space16,
+                          V2Spacing.space24,
+                          V2Spacing.space24,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PGPillButton(
+                              label: 'Enter code manually',
+                              icon: Icons.keyboard_rounded,
+                              variant: PGPillVariant.primary,
+                              expand: true,
+                              onPressed: _openManualBarcodeSheet,
+                            ),
+                            const SizedBox(height: V2Spacing.space12),
+                            PGPillButton(
+                              label: 'Add medication',
+                              icon: Icons.medication_outlined,
+                              variant: PGPillVariant.secondary,
+                              expand: true,
+                              onPressed: () =>
+                                  context.push(Routes.medicationEntry),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: kPGNavBarHeight),
                     ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
-          // Loading indicator
+          // Loading overlay
           if (_isLookingUp) const ScannerLookupOverlay(),
-          // Verdict flash overlay — always in tree so AnimatedOpacity can animate
-          IgnorePointer(
-            ignoring: !_showFlash,
-            child: AnimatedOpacity(
-              opacity: _showFlash ? 1.0 : 0.0,
-              duration: AppMotion.fast,
-              child: Container(
-                color: (_flashColor ?? Colors.transparent).withAlpha(180),
-                child: Center(
-                  child: Icon(
-                    _flashColor == AppTheme.severityContraindicated
-                        ? Icons.warning_rounded
-                        : Icons.check_circle_rounded,
-                    color: Colors.white,
-                    size: 80,
-                  ),
-                ),
-              ),
+          // Verdict flash
+          if (_showFlash && _flashColor != null)
+            AnimatedOpacity(
+              opacity: _showFlash ? 0.35 : 0.0,
+              duration: V2Motion.fast,
+              child: Container(color: _flashColor),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class GuestScanLimitSheet extends StatelessWidget {
+  final VoidCallback onSignIn;
+
+  const GuestScanLimitSheet({super.key, required this.onSignIn});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        V2Spacing.space24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: V2Colors.accentTint,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            ),
+            child: const Icon(
+              Icons.lock_open_rounded,
+              color: V2Colors.accent,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: V2Spacing.space16),
+          Text(
+            'Sign in to keep scanning',
+            style: V2Typography.titleSm(color: V2Colors.fg),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'Guest mode includes 3 scans per day. Early-access accounts get unlimited scans and can save a stack, profile, and history.',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: V2Spacing.space24),
+          PGPillButton(
+            label: 'Sign in or create account',
+            icon: Icons.person_rounded,
+            expand: true,
+            onPressed: onSignIn,
+          ),
+          const SizedBox(height: V2Spacing.space12),
+          PGPillButton(
+            label: 'Not now',
+            icon: Icons.close_rounded,
+            variant: PGPillVariant.secondary,
+            expand: true,
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScannerUnavailableCard extends StatelessWidget {
+  const _ScannerUnavailableCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+        border: Border.all(color: V2Colors.outline),
+        boxShadow: V2Shadows.lg,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(V2Spacing.space24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: V2Colors.accentTint,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              ),
+              child: const Icon(
+                Icons.qr_code_scanner_rounded,
+                color: V2Colors.accent,
+              ),
+            ),
+            const SizedBox(height: V2Spacing.space12),
+            Text(
+              'Camera unavailable',
+              textAlign: TextAlign.center,
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'Enter the barcode manually to search the same on-device catalog.',
+              textAlign: TextAlign.center,
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -331,35 +500,28 @@ class ScannerLookupOverlay extends StatelessWidget {
       color: Colors.black54,
       child: Center(
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: AppTheme.space24),
-          padding: const EdgeInsets.all(AppTheme.space20),
+          margin: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          padding: const EdgeInsets.all(V2Spacing.space24),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: Colors.white12),
+            color: V2Colors.surfaceDark.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+            border: Border.all(color: V2Colors.outlineDark),
+            boxShadow: V2Shadows.lg,
           ),
-          child: const Column(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CupertinoActivityIndicator(color: Colors.white, radius: 14),
-              SizedBox(height: AppTheme.space16),
+              const CupertinoActivityIndicator(color: Colors.white, radius: 14),
+              const SizedBox(height: V2Spacing.space16),
               Text(
                 'Checking this barcode',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: V2Typography.titleSm(color: V2Colors.fgDark),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: AppTheme.space6),
+              const SizedBox(height: V2Spacing.space8),
               Text(
                 'Comparing it against PharmaGuide’s on-device product database.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
+                style: V2Typography.bodySm(color: V2Colors.fgMutedDark),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -384,14 +546,18 @@ class ScannerNotFoundSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     return Padding(
+      // `PGModal.bottomSheet` already wraps content in `SafeArea` so
+      // adding `kPGNavBarHeight` here pushed the action row up above
+      // the device's safe-area gutter — Sean called this out as the
+      // "modal opens too high" bug on 1.0.0+4. Inside a modal there
+      // is no nav bar to clear, only the safe-area inset which the
+      // SafeArea wrapper already consumes.
       padding: const EdgeInsets.fromLTRB(
-        AppTheme.space24,
-        AppTheme.space8,
-        AppTheme.space24,
-        AppTheme.space24 + kPGNavBarHeight,
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        V2Spacing.space24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -400,85 +566,63 @@ class ScannerNotFoundSheet extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: AppTheme.severityCaution.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              color: V2Colors.cautionTint,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
             ),
             child: const Icon(
               Icons.search_off_rounded,
-              color: AppTheme.severityCaution,
+              color: V2Colors.caution,
               size: 28,
             ),
           ),
-          const SizedBox(height: AppTheme.space16),
+          const SizedBox(height: V2Spacing.space16),
           Text(
             'Product not found',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: V2Typography.titleSm(color: V2Colors.fg),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppTheme.space8),
+          const SizedBox(height: V2Spacing.space8),
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.space12,
-              vertical: AppTheme.space8,
+              horizontal: V2Spacing.space12,
+              vertical: V2Spacing.space8,
             ),
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              color: V2Colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
             ),
             child: Text(
               'UPC: $upc',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontFamily: 'monospace',
-              ),
+              style: V2Typography.monoData(color: V2Colors.fgMuted),
             ),
           ),
-          const SizedBox(height: AppTheme.space12),
+          const SizedBox(height: V2Spacing.space12),
           Text(
-            "We couldn't match this barcode yet. You can submit the "
-            'label so PharmaGuide can review and add it.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.45,
-            ),
+            "We couldn't match this barcode yet. Search by name or "
+            'scan again to check the on-device catalog.',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppTheme.space24),
-          // Primary: Submit Product (placeholder — submission flow TBD)
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Product submission coming soon.'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.upload_rounded),
-              label: const Text('Submit Product'),
-            ),
-          ),
-          const SizedBox(height: AppTheme.space12),
+          const SizedBox(height: V2Spacing.space24),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: PGPillButton(
                   onPressed: onSearchByName,
-                  icon: const Icon(Icons.search_rounded),
-                  label: const Text('Search by name'),
+                  icon: Icons.search_rounded,
+                  label: 'Search by name',
+                  variant: PGPillVariant.secondary,
+                  expand: true,
                 ),
               ),
-              const SizedBox(width: AppTheme.space12),
+              const SizedBox(width: V2Spacing.space12),
               Expanded(
-                child: OutlinedButton.icon(
+                child: PGPillButton(
                   onPressed: onTryAgain,
-                  icon: const Icon(Icons.qr_code_scanner_rounded),
-                  label: const Text('Scan again'),
+                  icon: Icons.qr_code_scanner_rounded,
+                  label: 'Scan again',
+                  variant: PGPillVariant.primary,
+                  expand: true,
                 ),
               ),
             ],

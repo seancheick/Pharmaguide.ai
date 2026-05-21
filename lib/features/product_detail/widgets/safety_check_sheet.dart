@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
-import 'package:pharmaguide/core/widgets/pg_card.dart';
-import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -30,7 +30,7 @@ final _sheetProductVerdictProvider = FutureProvider.family
 ///
 /// - If no warnings → immediately shows the confirm button
 /// - If warnings → shows severity-tinted banners + each warning as a
-///   PGCard with mechanism and management text
+///   v2 sheet card with mechanism and management text
 ///
 /// Pressing "Add anyway" fires the add action. The caller is responsible
 /// for showing the follow-up success snackbar.
@@ -58,8 +58,6 @@ class _SafetyCheckSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final safetyAsync = ref.watch(safetyCheckForAddProvider(dsldId));
 
     // FLTR-16 — third-layer defense. If the product's verdict is
@@ -72,100 +70,87 @@ class _SafetyCheckSheet extends ConsumerWidget {
     final verdictAsync = ref.watch(_sheetProductVerdictProvider(dsldId));
     final isUnsafe = isUnsafeVerdict(verdictAsync.asData?.value);
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.35,
-      maxChildSize: 0.92,
-      expand: false,
-      builder: (context, scrollController) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            // Bottom padding clears the frosted nav bar.
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.space20,
-              AppTheme.space8,
-              AppTheme.space20,
-              AppTheme.space32 + kPGNavBarHeight,
+    return Padding(
+      // `viewInsetsOf.bottom` lifts content above the keyboard when
+      // an input inside the sheet is focused. `PGModal.bottomSheet`
+      // already wraps in `SafeArea`, so the inner padding only needs
+      // the design-system 24pt gutter — the prior
+      // `paddingOf(context).bottom + space24` double-counted the
+      // safe-area inset.
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space8,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Add to your stack',
+              style: V2Typography.titleSm(color: V2Colors.fg),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              productName,
+              style: V2Typography.body(color: V2Colors.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space24),
+
+            if (isUnsafe)
+              const _UnsafeProductBanner()
+            else
+              safetyAsync.when(
+                loading: () => const _VerifyingSafety(),
+                error: (_, __) => const _SafetyCheckError(),
+                data: (warnings) => _SafetyResults(warnings: warnings),
+              ),
+
+            const SizedBox(height: V2Spacing.space24),
+
+            // Action buttons — primary disables entirely when
+            // the product is BLOCKED/UNSAFE. We never offer an
+            // "Add anyway" escape hatch for products that fail
+            // the product-level safety gate.
+            Row(
               children: [
-                Text(
-                  'Add to your stack',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(isUnsafe ? 'Close' : 'Cancel'),
                   ),
                 ),
-                const SizedBox(height: AppTheme.space4),
-                Text(
-                  productName,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space20),
-
-                if (isUnsafe)
-                  const _UnsafeProductBanner()
-                else
-                  safetyAsync.when(
-                    loading: () => const _VerifyingSafety(),
-                    error: (_, __) => const _SafetyCheckError(),
-                    data: (warnings) => _SafetyResults(warnings: warnings),
-                  ),
-
-                const SizedBox(height: AppTheme.space20),
-
-                // Action buttons — primary disables entirely when
-                // the product is BLOCKED/UNSAFE. We never offer an
-                // "Add anyway" escape hatch for products that fail
-                // the product-level safety gate.
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(isUnsafe ? 'Close' : 'Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.space12),
-                    Expanded(
-                      child: isUnsafe
-                          ? const FilledButton(
-                              onPressed: null,
-                              child: Text('Cannot add'),
-                            )
-                          : safetyAsync.maybeWhen(
-                              data: (warnings) => FilledButton(
-                                onPressed: () {
-                                  _fireHaptic(warnings);
-                                  Navigator.of(context).pop(true);
-                                },
-                                child: Text(
-                                  warnings.isEmpty
-                                      ? 'Add to stack'
-                                      : 'Add anyway',
-                                ),
-                              ),
-                              orElse: () => const FilledButton(
-                                onPressed: null,
-                                child: Text('Add to stack'),
-                              ),
+                const SizedBox(width: V2Spacing.space12),
+                Expanded(
+                  child: isUnsafe
+                      ? const FilledButton(
+                          onPressed: null,
+                          child: Text('Cannot add'),
+                        )
+                      : safetyAsync.maybeWhen(
+                          data: (warnings) => FilledButton(
+                            onPressed: () {
+                              _fireHaptic(warnings);
+                              Navigator.of(context).pop(true);
+                            },
+                            child: Text(
+                              warnings.isEmpty ? 'Add to stack' : 'Add anyway',
                             ),
-                    ),
-                  ],
+                          ),
+                          orElse: () => const FilledButton(
+                            onPressed: null,
+                            child: Text('Add to stack'),
+                          ),
+                        ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -191,24 +176,23 @@ class _VerifyingSafety extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return PGCard(
-      variant: PGCardVariant.recessed,
-      padding: const EdgeInsets.all(AppTheme.space16),
+    return _SheetCard(
       child: Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: scheme.primary,
+              color: V2Colors.accent,
             ),
           ),
-          const SizedBox(width: AppTheme.space12),
-          Text(
-            'Checking interactions with your stack…',
-            style: Theme.of(context).textTheme.bodyMedium,
+          const SizedBox(width: V2Spacing.space12),
+          Expanded(
+            child: Text(
+              'Checking interactions with your stack…',
+              style: V2Typography.bodySm(color: V2Colors.fg),
+            ),
           ),
         ],
       ),
@@ -259,9 +243,6 @@ class _SafetyResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     if (warnings.isEmpty) {
       return const PGSeverityBanner(
         tone: PGBannerTone.success,
@@ -299,48 +280,39 @@ class _SafetyResults extends StatelessWidget {
               'Found ${warnings.length} issue'
               '${warnings.length == 1 ? '' : 's'} with your current stack.',
         ),
-        const SizedBox(height: AppTheme.space12),
+        const SizedBox(height: V2Spacing.space12),
         ...warnings.map(
           (w) => Padding(
-            padding: const EdgeInsets.only(bottom: AppTheme.space8),
-            child: PGCard(
-              padding: const EdgeInsets.all(AppTheme.space12),
+            padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+            child: _SheetCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PGSeverityPill(severity: w.severity, compact: true),
-                  const SizedBox(height: AppTheme.space8),
+                  const SizedBox(height: V2Spacing.space8),
                   Text(
                     'With ${w.agent2Name}',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: V2Typography.label(color: V2Colors.fg),
                   ),
-                  const SizedBox(height: AppTheme.space4),
+                  const SizedBox(height: V2Spacing.space4),
                   Text(
                     w.mechanism,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      height: 1.45,
-                    ),
+                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
                   ),
                   if (w.management.isNotEmpty) ...[
-                    const SizedBox(height: AppTheme.space8),
+                    const SizedBox(height: V2Spacing.space8),
                     Container(
-                      padding: const EdgeInsets.all(AppTheme.space8),
+                      padding: const EdgeInsets.all(V2Spacing.space8),
                       decoration: BoxDecoration(
-                        color: scheme.surfaceContainerLow,
+                        color: V2Colors.accentTint,
                         borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
+                          V2Spacing.radiusCard,
                         ),
+                        border: Border.all(color: V2Colors.outline),
                       ),
                       child: Text(
                         w.management,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurface,
-                          fontWeight: FontWeight.w500,
-                          height: 1.45,
-                        ),
+                        style: V2Typography.bodySm(color: V2Colors.fg),
                       ),
                     ),
                   ],
@@ -350,6 +322,25 @@ class _SafetyResults extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SheetCard extends StatelessWidget {
+  final Widget child;
+
+  const _SheetCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(V2Spacing.space12),
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      child: child,
     );
   }
 }

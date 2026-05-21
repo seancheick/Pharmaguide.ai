@@ -47,8 +47,9 @@ const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
 
 /// Number of live (non-tombstoned) interaction rows in the current bundle.
 /// Updated from 20 (golden fixture) → 128 (full curated v1.0.0) → 136
-/// (27 rule fixes in c23d044).
-const _expectedLiveInteractionCount = 136;
+/// (27 rule fixes in c23d044) → 138 (vinpocetine + horse chestnut
+/// anticoagulant release gates).
+const _expectedLiveInteractionCount = 138;
 
 /// Pipeline-built drug classes that the current bundle ships.
 /// v1.0.0 has 21 classes with curated interaction rows.
@@ -276,6 +277,48 @@ void main() {
         'supplement',
       );
       expect(rows, isEmpty);
+    });
+  });
+
+  group('Tier 2 research pair lookups', () {
+    test(
+      'lookupResearchPairsByCanonicalId finds supplement-side evidence',
+      () async {
+        final rows = await db.lookupResearchPairsByCanonicalId('vitamin_k');
+
+        expect(rows, isNotEmpty);
+        expect(
+          rows.any((r) => r.pairId == 'C0042878-C0043031'),
+          isTrue,
+          reason: 'vitamin_k should find the supp.ai Vitamin K + Warfarin row',
+        );
+        expect(
+          rows.first.paperCount,
+          greaterThanOrEqualTo(rows.last.paperCount),
+        );
+      },
+    );
+
+    test(
+      'lookupResearchPairsByRxcui finds bridged drug-side evidence',
+      () async {
+        final rows = await db.lookupResearchPairsByRxcui('11289');
+
+        expect(rows, isNotEmpty);
+        expect(
+          rows.any(
+            (r) =>
+                r.canonicalIdA == 'vitamin_k' || r.canonicalIdB == 'vitamin_k',
+          ),
+          isTrue,
+          reason: 'warfarin RxCUI should bridge back to supplement evidence',
+        );
+      },
+    );
+
+    test('Tier 2 lookups return empty for unknown identities', () async {
+      expect(await db.lookupResearchPairsByCanonicalId('not_real'), isEmpty);
+      expect(await db.lookupResearchPairsByRxcui('00000000'), isEmpty);
     });
   });
 

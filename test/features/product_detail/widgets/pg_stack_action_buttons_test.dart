@@ -8,6 +8,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 
 const _dsldId = 'dsld-test';
 
@@ -43,19 +44,30 @@ Widget _wrap(
   CoreDatabase coreDb,
   UserDatabase userDb, {
   bool isUnsafe = false,
+  bool signedIn = true,
   VoidCallback? onSeeAlternatives,
 }) {
   return ProviderScope(
     overrides: [
       coreDatabaseProvider.overrideWithValue(coreDb),
       userDatabaseProvider.overrideWithValue(userDb),
+      authStateProvider.overrideWith((ref) {
+        final service = AuthStateService();
+        if (signedIn) service.onSignedIn();
+        return service;
+      }),
     ],
     child: MaterialApp(
+      routes: {
+        '/auth': (_) => const Scaffold(body: Text('Auth invitation')),
+      },
       home: Scaffold(
-        body: PGStackActionButtons(
-          dsldId: _dsldId,
-          isUnsafe: isUnsafe,
-          onSeeAlternatives: onSeeAlternatives,
+        body: Builder(
+          builder: (context) => PGStackActionButtons(
+            dsldId: _dsldId,
+            isUnsafe: isUnsafe,
+            onSeeAlternatives: onSeeAlternatives,
+          ),
         ),
       ),
     ),
@@ -223,6 +235,60 @@ void main() {
         isNotNull,
         reason: '_handleAdd handler should be wired up',
       );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    testWidgets('clean safety sheet keeps action row near bottom edge', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb);
+
+      await tester.pumpWidget(_wrap(coreDb, userDb));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Add to my stack'));
+      await tester.pumpAndSettle();
+
+      final addButtonBottom = tester
+          .getBottomLeft(find.text('Add to stack'))
+          .dy;
+      final screenBottom =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      expect(
+        screenBottom - addButtonBottom,
+        lessThan(140),
+        reason:
+            'The short clean-state sheet should not leave a large blank area '
+            'below the confirm buttons.',
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    testWidgets('successful add snackbar offers direct Go to Stack action', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb);
+
+      await tester.pumpWidget(_wrap(coreDb, userDb));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Add to my stack'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add to stack'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Added Test Product'), findsOneWidget);
+      expect(find.text('Go to Stack'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();

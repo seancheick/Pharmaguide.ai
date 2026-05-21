@@ -7,9 +7,11 @@
 // permission is granted. If denied, offers "Open Settings" + manual entry.
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Wraps [child] (the scanner) with a one-time camera permission prompt.
 ///
@@ -31,7 +33,7 @@ class CameraPermissionGate extends StatefulWidget {
   State<CameraPermissionGate> createState() => _CameraPermissionGateState();
 }
 
-enum _PermissionState { checking, prompt, granted, denied }
+enum _PermissionState { checking, prompt, granted }
 
 class _CameraPermissionGateState extends State<CameraPermissionGate> {
   static const _prefKey = 'cameraPermissionPromptShown';
@@ -74,226 +76,59 @@ class _CameraPermissionGateState extends State<CameraPermissionGate> {
   @override
   Widget build(BuildContext context) {
     return switch (_state) {
-      _PermissionState.checking => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      _PermissionState.prompt => _PermissionPromptScreen(
-        onAllow: _requestPermission,
+      _PermissionState.checking => const _CameraPermissionCheckingScreen(),
+      // Phase 11.7j.1 — prompt + denied states use the v2 component
+      // (same callback shape, cream surface + halo + serif headline).
+      // Legacy `_PermissionPromptScreen` / `_PermissionDeniedScreen`
+      // widgets have been deleted; the switch arms below delegate
+      // directly to `CameraPermissionV2Screen`.
+      _PermissionState.prompt => CameraPermissionV2Screen(
+        denied: false,
+        onPrimaryAction: _requestPermission,
         onManualEntry: widget.onManualEntry,
       ),
       _PermissionState.granted => widget.childBuilder(),
-      _PermissionState.denied => _PermissionDeniedScreen(
-        onManualEntry: widget.onManualEntry,
-      ),
     };
   }
 }
 
-// ---------------------------------------------------------------------------
-// Pre-permission prompt — benefit-first, no "No Thanks" button
-// ---------------------------------------------------------------------------
-
-class _PermissionPromptScreen extends StatelessWidget {
-  final VoidCallback onAllow;
-  final VoidCallback onManualEntry;
-
-  const _PermissionPromptScreen({
-    required this.onAllow,
-    required this.onManualEntry,
-  });
+class _CameraPermissionCheckingScreen extends StatelessWidget {
+  const _CameraPermissionCheckingScreen();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     return Scaffold(
+      backgroundColor: V2Colors.bg,
       body: SafeArea(
-        child: LayoutBuilder(
-          // SingleChildScrollView + IntrinsicHeight + minHeight pattern keeps
-          // the Spacer-based layout looking right on tall portrait screens
-          // (Spacers absorb extra space, content stays centered) while
-          // gracefully scrolling on short viewports — e.g. landscape on the
-          // iPhone where this Column overflowed by 12px on iOS 26.5 because
-          // fixed content (icon + title + body + 2 buttons) summed to more
-          // than the ~352px landscape safe-area height.
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.space24,
-                    ),
-                    child: Column(
-                      children: [
-                        const Spacer(flex: 2),
-                        Container(
-                          width: 88,
-                          height: 88,
-                          decoration: BoxDecoration(
-                            color: scheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusFull,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.qr_code_scanner_rounded,
-                            size: 40,
-                            color: scheme.onPrimaryContainer,
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.space24),
-                        Text(
-                          'Scan supplements instantly',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.3,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppTheme.space12),
-                        Text(
-                          'PharmaGuide uses your camera to scan barcodes and '
-                          'product labels.\n\n'
-                          'Photos are only used when you choose to submit a product.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const Spacer(flex: 3),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: FilledButton.icon(
-                            onPressed: onAllow,
-                            icon: const Icon(Icons.camera_alt_rounded),
-                            label: const Text('Allow Camera Access'),
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.space12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: OutlinedButton.icon(
-                            onPressed: onManualEntry,
-                            icon: const Icon(Icons.keyboard_rounded),
-                            label: const Text('Enter code manually'),
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.space24),
-                      ],
-                    ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: V2Colors.accent,
                   ),
                 ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Denied state — camera off, offer Settings + manual fallback
-// ---------------------------------------------------------------------------
-
-class _PermissionDeniedScreen extends StatelessWidget {
-  final VoidCallback onManualEntry;
-
-  const _PermissionDeniedScreen({required this.onManualEntry});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Scaffold(
-      body: SafeArea(
-        // Same SingleChildScrollView + IntrinsicHeight wrap as the prompt
-        // screen above — same Spacer-based layout, same landscape overflow
-        // risk on iPhones. Fixed symmetrically so both permission states
-        // behave the same way.
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.space24,
-                    ),
-                    child: Column(
-                      children: [
-                        const Spacer(flex: 2),
-                        Container(
-                          width: 88,
-                          height: 88,
-                          decoration: BoxDecoration(
-                            color: scheme.errorContainer,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusFull,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.videocam_off_rounded,
-                            size: 40,
-                            color: scheme.onErrorContainer,
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.space24),
-                        Text(
-                          'Camera access is off',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.3,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppTheme.space12),
-                        Text(
-                          'You can still enter a barcode manually or enable '
-                          'camera access in Settings.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const Spacer(flex: 3),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: FilledButton.icon(
-                            onPressed: () =>
-                                launchUrl(Uri.parse('app-settings:')),
-                            icon: const Icon(Icons.settings_rounded),
-                            label: const Text('Open Settings'),
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.space12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: OutlinedButton.icon(
-                            onPressed: onManualEntry,
-                            icon: const Icon(Icons.keyboard_rounded),
-                            label: const Text('Enter code manually'),
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.space24),
-                      ],
-                    ),
-                  ),
+                const SizedBox(height: V2Spacing.space16),
+                Text(
+                  'Checking camera access',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  'Preparing the scanner.',
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

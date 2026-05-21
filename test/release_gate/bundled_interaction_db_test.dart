@@ -199,6 +199,35 @@ void main() {
                 'countLiveInteractions returned 0 — no usable rows in '
                 'the bundled interaction DB',
           );
+
+          final researchRows = await db.lookupResearchPairsByCanonicalId(
+            'vitamin_k',
+          );
+          expect(
+            researchRows,
+            isNotEmpty,
+            reason:
+                'Tier 2 research_pairs are bundled; at least one canonical '
+                'lookup must be reachable from Flutter.',
+          );
+          final bridgedRows = await db.lookupResearchPairsByRxcui('11289');
+          expect(
+            bridgedRows,
+            isNotEmpty,
+            reason:
+                'Tier 2 research_pairs must include the RxCUI bridge so '
+                'medication-context research evidence is queryable.',
+          );
+          expect(
+            bridgedRows.any(
+              (r) =>
+                  r.canonicalIdA == 'vitamin_k' ||
+                  r.canonicalIdB == 'vitamin_k',
+            ),
+            isTrue,
+            reason:
+                'Warfarin RxCUI should connect to Vitamin K research evidence.',
+          );
         } finally {
           await db.close();
         }

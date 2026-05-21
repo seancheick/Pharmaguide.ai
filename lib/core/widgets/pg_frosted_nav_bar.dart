@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 /// Canonical nav bar total height used by [PGFrostedNavBar]. Modal bottom
 /// sheets should add this to their bottom padding when the app is using
@@ -55,30 +56,65 @@ class PGFrostedNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+
+    final surface = isDark ? V2Colors.surfaceDark : V2Colors.surface;
+    final outline = isDark ? V2Colors.outlineDark : V2Colors.outline;
+    final indicator = V2Colors.accent.withValues(alpha: isDark ? 0.18 : 0.12);
+
+    // Subtle cool tint — 8% blend of fg into surface gives the bar a
+    // neutral-cool hue that contrasts noticeably against the warm cream
+    // bg without looking gray.
+    final tinted = Color.lerp(surface, V2Colors.fg, isDark ? 0.0 : 0.08)!;
+    final decoration = BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          // Top: more transparent so the blur of content behind shows
+          // through, selling the "light passes through" feel.
+          tinted.withValues(alpha: isDark ? 0.40 : 0.48),
+          // Bottom: more solid so labels stay perfectly legible against
+          // any content beneath.
+          tinted.withValues(alpha: isDark ? 0.70 : 0.78),
+        ],
+      ),
+      border: Border(top: BorderSide(color: outline, width: 0.5)),
+    );
 
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
         child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: scheme.surface.withValues(alpha: isDark ? 0.72 : 0.78),
-            border: Border(
-              top: BorderSide(color: scheme.outlineVariant, width: 0.5),
-            ),
-          ),
-          child: NavigationBar(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: onDestinationSelected,
-            destinations: destinations,
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            elevation: 0,
-            indicatorColor: scheme.primary.withValues(
-              alpha: isDark ? 0.18 : 0.12,
-            ),
+          decoration: decoration,
+          child: Stack(
+            children: [
+              NavigationBar(
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onDestinationSelected,
+                destinations: destinations,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                elevation: 0,
+                indicatorColor: indicator,
+              ),
+              // 1px top highlight — the "lit edge" iOS gets when light
+              // catches the top surface of glass. Bumped from 0.55 →
+              // 0.85 so it actually reads on cream. Sits just under
+              // the hairline outline.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.85),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/widgets/excipient_density_card.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/excipient_density_section.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  test('ExcipientDensityCard.densityLabel returns correct labels', () {
-    expect(ExcipientDensityCard.densityLabel(10, 0), 'Minimal fillers');
-    expect(ExcipientDensityCard.densityLabel(5, 3), 'Moderate fillers');
-    expect(ExcipientDensityCard.densityLabel(3, 8), 'High filler load');
+  test('excipientDensityLabel returns correct labels', () {
+    expect(excipientDensityLabel(10, 0), 'Minimal fillers');
+    expect(excipientDensityLabel(5, 3), 'Moderate fillers');
+    expect(excipientDensityLabel(3, 8), 'High filler load');
   });
 
   testWidgets('renders nothing when both ingredient lists are empty', (
@@ -16,14 +16,15 @@ void main() {
   ) async {
     await tester.pumpWidget(
       wrap(
-        const ExcipientDensityCard(
-          activeIngredients: [],
-          inactiveIngredients: [],
+        buildExcipientDensitySection(
+          activeIngredients: const [],
+          inactiveIngredients: const [],
+          dosageForm: null,
         ),
       ),
     );
     await tester.pump();
-    expect(find.text('Formulation Purity'), findsNothing);
+    expect(find.text('Formulation purity'), findsNothing);
   });
 
   testWidgets('renders when a non-whitelisted excipient is present', (
@@ -35,19 +36,20 @@ void main() {
     // surface", so the data is non-whitelisted.)
     await tester.pumpWidget(
       wrap(
-        const ExcipientDensityCard(
-          activeIngredients: [
+        buildExcipientDensitySection(
+          activeIngredients: const [
             {'name': 'Magnesium', 'quantity': 200, 'unit': 'mg'},
             {'name': 'Vitamin D', 'quantity': 1000, 'unit': 'IU'},
           ],
-          inactiveIngredients: [
+          inactiveIngredients: const [
             {'name': 'Sucralose'},
           ],
+          dosageForm: null,
         ),
       ),
     );
     await tester.pump();
-    expect(find.text('Formulation Purity'), findsOneWidget);
+    expect(find.text('Formulation purity'), findsOneWidget);
     expect(find.text('2 active'), findsOneWidget);
     expect(find.text('1 filler'), findsOneWidget);
   });
@@ -61,11 +63,12 @@ void main() {
     );
     await tester.pumpWidget(
       wrap(
-        ExcipientDensityCard(
+        buildExcipientDensitySection(
           activeIngredients: const [
             {'name': 'Vitamin C', 'quantity': 500, 'unit': 'mg'},
           ],
           inactiveIngredients: inactives,
+          dosageForm: null,
         ),
       ),
     );
@@ -79,11 +82,11 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           wrap(
-            const ExcipientDensityCard(
-              activeIngredients: [
+            buildExcipientDensitySection(
+              activeIngredients: const [
                 {'name': 'Ashwagandha (KSM-66)', 'quantity': 600, 'unit': 'mg'},
               ],
-              inactiveIngredients: [
+              inactiveIngredients: const [
                 {'name': 'Vegetable Cellulose'},
                 {'name': 'Magnesium Stearate'},
                 {'name': 'Silicon Dioxide'},
@@ -93,7 +96,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Formulation Purity'), findsNothing);
+        expect(find.text('Formulation purity'), findsNothing);
       },
     );
 
@@ -102,12 +105,12 @@ void main() {
     ) async {
       await tester.pumpWidget(
         wrap(
-          const ExcipientDensityCard(
-            activeIngredients: [
+          buildExcipientDensitySection(
+            activeIngredients: const [
               {'name': 'Vitamin C', 'quantity': 500, 'unit': 'mg'},
               {'name': 'Vitamin D', 'quantity': 1000, 'unit': 'IU'},
             ],
-            inactiveIngredients: [
+            inactiveIngredients: const [
               {'name': 'Microcrystalline Cellulose'},
               {'name': 'Sucralose'},
               {'name': 'FD&C Red 40'},
@@ -117,7 +120,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('Formulation Purity'), findsOneWidget);
+      expect(find.text('Formulation purity'), findsOneWidget);
       // "Minimal fillers" would be wrong here — must surface at least Moderate.
       expect(find.text('Minimal fillers'), findsNothing);
     });
@@ -127,11 +130,11 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           wrap(
-            const ExcipientDensityCard(
-              activeIngredients: [
+            buildExcipientDensitySection(
+              activeIngredients: const [
                 {'name': 'Whey Protein', 'quantity': 25, 'unit': 'g'},
               ],
-              inactiveIngredients: [
+              inactiveIngredients: const [
                 {'name': 'Microcrystalline Cellulose'},
                 {'name': 'Silicon Dioxide'},
               ],
@@ -140,7 +143,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Formulation Purity'), findsOneWidget);
+        expect(find.text('Formulation purity'), findsOneWidget);
       },
     );
 
@@ -149,17 +152,17 @@ void main() {
     ) async {
       await tester.pumpWidget(
         wrap(
-          const ExcipientDensityCard(
-            activeIngredients: [
+          buildExcipientDensitySection(
+            activeIngredients: const [
               {'name': 'Magnesium Glycinate', 'quantity': 200, 'unit': 'mg'},
             ],
-            inactiveIngredients: [],
+            inactiveIngredients: const [],
             dosageForm: 'Capsule',
           ),
         ),
       );
       await tester.pump();
-      expect(find.text('Formulation Purity'), findsNothing);
+      expect(find.text('Formulation purity'), findsNothing);
     });
 
     testWidgets(
@@ -168,15 +171,15 @@ void main() {
         // Capsule allowance is 4. Five whitelisted entries = visible.
         await tester.pumpWidget(
           wrap(
-            const ExcipientDensityCard(
-              activeIngredients: [
+            buildExcipientDensitySection(
+              activeIngredients: const [
                 {
                   'name': 'Multivitamin Blend',
                   'quantity': 1,
                   'unit': 'serving',
                 },
               ],
-              inactiveIngredients: [
+              inactiveIngredients: const [
                 {'name': 'Gelatin'},
                 {'name': 'Magnesium Stearate'},
                 {'name': 'Silicon Dioxide'},
@@ -188,7 +191,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Formulation Purity'), findsOneWidget);
+        expect(find.text('Formulation purity'), findsOneWidget);
       },
     );
 
@@ -196,11 +199,11 @@ void main() {
         '(sugars/dyes inherent — always render)', (tester) async {
       await tester.pumpWidget(
         wrap(
-          const ExcipientDensityCard(
-            activeIngredients: [
+          buildExcipientDensitySection(
+            activeIngredients: const [
               {'name': 'Vitamin D3', 'quantity': 1000, 'unit': 'IU'},
             ],
-            inactiveIngredients: [
+            inactiveIngredients: const [
               {'name': 'Gelatin'},
             ],
             dosageForm: 'Gummy',
@@ -208,7 +211,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('Formulation Purity'), findsOneWidget);
+      expect(find.text('Formulation purity'), findsOneWidget);
     });
 
     testWidgets('Unknown dosage form falls back to capsule-like behavior', (
@@ -217,19 +220,20 @@ void main() {
       // Unknown form + 1 whitelisted excipient → hidden (allowance 4).
       await tester.pumpWidget(
         wrap(
-          const ExcipientDensityCard(
-            activeIngredients: [
+          buildExcipientDensitySection(
+            activeIngredients: const [
               {'name': 'Zinc', 'quantity': 15, 'unit': 'mg'},
             ],
-            inactiveIngredients: [
+            inactiveIngredients: const [
               {'name': 'Gelatin'},
             ],
             // dosageForm omitted → DosageForm.unknown
+            dosageForm: null,
           ),
         ),
       );
       await tester.pump();
-      expect(find.text('Formulation Purity'), findsNothing);
+      expect(find.text('Formulation purity'), findsNothing);
     });
 
     testWidgets(
@@ -238,11 +242,11 @@ void main() {
         // Same KSM-66 scenario but with sloppy casing.
         await tester.pumpWidget(
           wrap(
-            const ExcipientDensityCard(
-              activeIngredients: [
+            buildExcipientDensitySection(
+              activeIngredients: const [
                 {'name': 'Ashwagandha', 'quantity': 600, 'unit': 'mg'},
               ],
-              inactiveIngredients: [
+              inactiveIngredients: const [
                 {'name': '  GELATIN '},
                 {'name': 'magnesium stearate'},
               ],
@@ -251,7 +255,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Formulation Purity'), findsNothing);
+        expect(find.text('Formulation purity'), findsNothing);
       },
     );
   });

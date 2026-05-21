@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
 /// Pill badge for a [Severity] value — icon + label + tinted background.
 ///
@@ -23,17 +24,15 @@ class PGSeverityPill extends StatelessWidget {
     switch (severity) {
       case Severity.contraindicated:
         return (
-          bg: AppTheme.severityContraindicated.withValues(
-            alpha: isDark ? 0.22 : 0.10,
-          ),
-          fg: AppTheme.severityContraindicated,
+          bg: V2Colors.contraindicated.withValues(alpha: isDark ? 0.22 : 0.10),
+          fg: V2Colors.contraindicated,
           icon: Icons.block_rounded,
           label: 'Do not use',
         );
       case Severity.avoid:
         return (
-          bg: AppTheme.severityAvoid.withValues(alpha: isDark ? 0.22 : 0.10),
-          fg: AppTheme.severityAvoid,
+          bg: V2Colors.avoid.withValues(alpha: isDark ? 0.22 : 0.10),
+          fg: V2Colors.avoid,
           icon: Icons.error_outline_rounded,
           // Sean 2026-04-30 — see severity.dart for the softer-tone
           // vocab rationale. The word "Avoid" is reserved for
@@ -42,15 +41,15 @@ class PGSeverityPill extends StatelessWidget {
         );
       case Severity.caution:
         return (
-          bg: AppTheme.severityCaution.withValues(alpha: isDark ? 0.22 : 0.12),
-          fg: AppTheme.severityCaution,
+          bg: V2Colors.caution.withValues(alpha: isDark ? 0.22 : 0.12),
+          fg: V2Colors.caution,
           icon: Icons.warning_amber_rounded,
           label: 'Use caution',
         );
       case Severity.monitor:
         return (
-          bg: AppTheme.severityMonitor.withValues(alpha: isDark ? 0.22 : 0.14),
-          fg: AppTheme.severityMonitor,
+          bg: V2Colors.monitor.withValues(alpha: isDark ? 0.22 : 0.14),
+          fg: V2Colors.monitor,
           icon: Icons.visibility_outlined,
           label: 'Monitor',
         );
@@ -59,17 +58,15 @@ class PGSeverityPill extends StatelessWidget {
         // material but the user's profile hasn't declared the triggering
         // condition/drug class.
         return (
-          bg: AppTheme.severityInformational.withValues(
-            alpha: isDark ? 0.22 : 0.12,
-          ),
-          fg: AppTheme.severityInformational,
+          bg: V2Colors.fgMuted.withValues(alpha: isDark ? 0.22 : 0.12),
+          fg: V2Colors.fgMuted,
           icon: Icons.info_outline_rounded,
           label: 'Info',
         );
       case Severity.safe:
         return (
-          bg: AppTheme.severitySafe.withValues(alpha: isDark ? 0.22 : 0.10),
-          fg: AppTheme.severitySafe,
+          bg: V2Colors.safe.withValues(alpha: isDark ? 0.22 : 0.10),
+          fg: V2Colors.safe,
           icon: Icons.check_circle_outline_rounded,
           label: 'Safe',
         );
@@ -90,7 +87,7 @@ class PGSeverityPill extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
       decoration: BoxDecoration(
         color: s.bg,
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -7,7 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/widgets/score_line.dart';
+import 'package:pharmaguide/core/components/pg_score_line.dart';
 
 Future<void> _pump(WidgetTester tester, int score) {
   return tester.pumpWidget(
@@ -15,7 +15,7 @@ Future<void> _pump(WidgetTester tester, int score) {
       home: Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(20),
-          child: ScoreLine(score: score),
+          child: PGScoreLine(score: score),
         ),
       ),
     ),
@@ -23,7 +23,7 @@ Future<void> _pump(WidgetTester tester, int score) {
 }
 
 void main() {
-  group('ScoreLine — renders score + tier + description', () {
+  group('PGScoreLine — renders score + tier + description', () {
     testWidgets('92 → Exceptional (deep green)', (tester) async {
       await _pump(tester, 92);
       expect(find.text('92/100'), findsOneWidget);
@@ -67,7 +67,7 @@ void main() {
     });
   });
 
-  group('ScoreLine — boundary inputs', () {
+  group('PGScoreLine — boundary inputs', () {
     testWidgets('0 → Poor, displays 0/100', (tester) async {
       await _pump(tester, 0);
       expect(find.text('0/100'), findsOneWidget);
@@ -100,7 +100,7 @@ void main() {
     });
   });
 
-  group('ScoreLine — tier dot color', () {
+  group('PGScoreLine — tier dot color', () {
     testWidgets('dot uses tier color (Container with circle decoration)', (
       tester,
     ) async {
@@ -119,14 +119,14 @@ void main() {
     });
   });
 
-  group('ScoreLine — descriptionOverride', () {
+  group('PGScoreLine — descriptionOverride', () {
     testWidgets('override replaces the tier-default description', (
       tester,
     ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: ScoreLine(
+            body: PGScoreLine(
               score: 92,
               descriptionOverride: 'Custom blurb for this product',
             ),

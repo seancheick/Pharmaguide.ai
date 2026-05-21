@@ -50,6 +50,15 @@ class CoreDatabase extends _$CoreDatabase {
       'share_og_image_url TEXT',
       'primary_category TEXT',
       'secondary_categories TEXT',
+      // Phase 11.7L.G (2026-05-16): `supplement_type` is required by
+      // `fetchBetterAlternativesPool` + `rankAlternatives` tier
+      // classifier (tiers 0/1 keyed on this column). Older bundled
+      // catalogs predate the v92 schema where the column was added —
+      // without this defensive backfill, `supplement_type` is NULL on
+      // every row, collapsing tiers 0/1/2 to reject and forcing every
+      // candidate into tier 3 (primary_category only). That was the
+      // KSM-66 Ashwagandha → Magnesium Glycinate failure mode.
+      'supplement_type TEXT',
       'contains_omega3 INTEGER',
       'contains_probiotics INTEGER',
       'contains_collagen INTEGER',
@@ -307,6 +316,20 @@ class CoreDatabase extends _$CoreDatabase {
 
   /// Find products with higher scores in the same category. Used for
   /// "Better Alternatives" on the product detail screen.
+  ///
+  /// **Deprecated 2026-05-16 (Phase 11.7L.F).** This query has the
+  /// failure modes documented in `knowledge/better-alternatives-audit.md`
+  /// — it ignores on-market status, allows score ties, and treats
+  /// `primary_category` as the only intent signal. New call sites
+  /// should use `fetchBetterAlternativesPool` + the pure ranker in
+  /// `lib/services/recommendations/better_alternatives_ranker.dart`.
+  /// The legacy entrypoint is kept on the class for backward
+  /// compatibility with widget tests that seed a custom in-memory
+  /// catalog.
+  @Deprecated(
+    'Use fetchBetterAlternativesPool + BetterAlternativesRanker. '
+    'See knowledge/better-alternatives-audit.md for context.',
+  )
   Future<List<ProductsCoreData>> findAlternatives(
     String category,
     double minScore, {
@@ -330,6 +353,80 @@ class CoreDatabase extends _$CoreDatabase {
             ),
           ])
           ..limit(limit))
+        .get();
+  }
+
+  /// Phase 11.7L.F — wider candidate pool for the Better Alternatives
+  /// ranker. Applies the SQL-side hard filters (on-market, score
+  /// strictly higher, no banned/recalled, not-self) and matches on
+  /// EITHER `primary_category` OR `supplement_type` so the ranker
+  /// has room to find supplement-type-equivalent swaps even when the
+  /// catalog disagrees on primary_category. Defaults to a pool of
+  /// 50 candidates ordered by score — enough headroom for the
+  /// 4-tier ranker without bloating the in-memory list.
+  ///
+  /// Returns `[]` when no candidate clears the SQL hard filters.
+  /// Caller is then expected to hand the pool to
+  /// `BetterAlternativesRanker.rankAlternatives(current, pool, …)`
+  /// for the final tier + tiebreaker pass.
+  Future<List<ProductsCoreData>> fetchBetterAlternativesPool(
+    ProductsCoreData current, {
+    int poolSize = 50,
+  }) {
+    final currentCategory = current.primaryCategory?.trim() ?? '';
+    final currentType = current.supplementType?.trim() ?? '';
+    final currentScore = current.scoreQuality80 ?? 0;
+    if (currentCategory.isEmpty && currentType.isEmpty) {
+      // No intent signal to match on — return nothing rather than
+      // dump the top-N by raw score.
+      return Future.value(const []);
+    }
+    return (select(productsCore)
+          ..where((t) {
+            // Intent match: same category OR same supplement_type.
+            // We already bail above if BOTH current values are
+            // empty, so at least one branch contributes a real
+            // narrowing clause. Treat the missing side as a no-op
+            // by initialising the expression from whichever signal
+            // is present.
+            Expression<bool>? intent;
+            if (currentCategory.isNotEmpty) {
+              intent = t.primaryCategory.equals(currentCategory);
+            }
+            if (currentType.isNotEmpty) {
+              final typeMatch = t.supplementType.equals(currentType);
+              intent = intent == null ? typeMatch : intent | typeMatch;
+            }
+            // `intent` is guaranteed non-null thanks to the early
+            // return above when both currents are empty.
+            // Strictly higher score.
+            var expr =
+                intent! & t.scoreQuality80.isBiggerThanValue(currentScore);
+            // Exclude self.
+            expr = expr & t.dsldId.equals(current.dsldId).not();
+            // On-market only. The column is nullable text; drift's
+            // `isNull()` matches genuine NULLs, and a defensive
+            // equals('') covers older catalogs that stored empty
+            // strings.
+            expr = expr &
+                (t.discontinuedDate.isNull() |
+                    t.discontinuedDate.equals(''));
+            // No banned / recalled.
+            expr = expr &
+                (t.hasBannedSubstance.isNull() |
+                    t.hasBannedSubstance.equals(0));
+            expr = expr &
+                (t.hasRecalledIngredient.isNull() |
+                    t.hasRecalledIngredient.equals(0));
+            return expr;
+          })
+          ..orderBy([
+            (t) => OrderingTerm(
+              expression: t.scoreQuality80,
+              mode: OrderingMode.desc,
+            ),
+          ])
+          ..limit(poolSize))
         .get();
   }
 

@@ -1,24 +1,85 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
-import 'package:pharmaguide/features/home/home_screen.dart';
-import 'package:pharmaguide/features/onboarding/onboarding_screen.dart';
-import 'package:pharmaguide/features/profile/profile_setup_screen.dart';
+import 'package:pharmaguide/dev/v2_gallery.dart';
+// Phase 11.11 hygiene (2026-05-17): legacy v1 widget imports removed
+// after the route-coherence promotion proved stable. Production
+// routes (`/product/:dsldId`, `/search`, `/quick-check`,
+// `/medication-entry`, `/profile/setup`) render their v2 widgets
+// unconditionally. The on-disk v1 files (ProductDetailScreen,
+// SearchScreen, QuickCheckScreen, MedicationEntryScreen,
+// ProfileSetupScreen, AnimatedSplashScreen, OnboardingScreen) are
+// removed in the same hygiene pass — rollback is a git revert away.
+import 'package:pharmaguide/features/profile/v2/profile_setup_v2_screen.dart';
+import 'package:pharmaguide/features/profile/v2/profile_wizard_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
-import 'package:pharmaguide/features/search/search_screen.dart';
-import 'package:pharmaguide/features/product_detail/product_detail_screen.dart';
-import 'package:pharmaguide/features/quick_check/quick_check_screen.dart';
-import 'package:pharmaguide/features/settings/settings_screen.dart';
-import 'package:pharmaguide/features/splash/animated_splash_screen.dart';
-import 'package:pharmaguide/features/medications/medication_entry_screen.dart';
-import 'package:pharmaguide/features/stack/stack_screen.dart';
+import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
+import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
+import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
+import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
+import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
+import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
+import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
+import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
+import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/onboarding_prefs.dart';
+import 'package:pharmaguide/services/scan_limit_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
+// `ScannerV2Screen` / `ScannerV2Preview` are referenced only by the
+// dev gallery route below. Production keeps `ScannerScreen` because it
+// owns the real MobileScanner controller and catalog lookup flow; its
+// permission, fallback, lookup, and not-found surfaces use v2 styling.
+import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
+import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
+import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
+import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.dart';
+
+/// Optional override for [GoRouter.initialLocation]. Set via:
+///
+///     flutter run --dart-define=DEV_ROUTE=/dev/v2
+///     make run-v2     # alias for the gallery
+///
+/// When non-empty the router skips the splash → onboarding/home flow and
+/// launches straight at the named route. Designed for v2 gallery
+/// previews; ignored on release builds (the default empty value means
+/// the normal launch path applies).
+const String _devRoute = String.fromEnvironment('DEV_ROUTE', defaultValue: '');
+
+String? normalizePharmaGuideDeepLink(Uri uri) {
+  if (uri.scheme != 'pharmaguide') return null;
+
+  final host = uri.host.trim();
+  final path = uri.path.trim();
+  final normalizedPath = host.isEmpty
+      ? (path.isEmpty ? Routes.home : path)
+      : '/$host$path';
+
+  final query = uri.query.isEmpty ? '' : '?${uri.query}';
+  return '$normalizedPath$query';
+}
 
 /// App-wide [ScaffoldMessenger] key. `main.dart` uses this to show the
 /// "catalog updated" snackbar from outside the widget tree when the OTA
@@ -28,36 +89,186 @@ import 'package:pharmaguide/features/stack/stack_screen.dart';
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
-// Placeholder screens — will be replaced by real implementations
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const _PlaceholderScreen({required this.title});
+class ScanScreen extends ConsumerWidget {
+  const ScanScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(title, style: Theme.of(context).textTheme.headlineMedium),
+  Future<void> _openManualEntry(BuildContext context, WidgetRef ref) async {
+    final barcode = await showManualBarcodeSheet(context);
+    if (!context.mounted || barcode == null) return;
+
+    try {
+      final allowed = await _recordAllowedScan(ref);
+      if (!context.mounted) return;
+      if (!allowed) {
+        _showGuestScanLimitSheet(context);
+        return;
+      }
+
+      final product = await ref.read(coreDatabaseProvider).findByUpc(barcode);
+      if (!context.mounted) return;
+
+      if (product == null) {
+        _showManualLookupNotFound(context, ref, barcode);
+        return;
+      }
+
+      await ref
+          .read(userDatabaseProvider)
+          .recordScanEvent(
+            dsldId: product.dsldId,
+            upcSku: product.upcSku,
+            productName: product.productName,
+          );
+      CrashReportingService().log('scan_complete_manual');
+      // Home v2 picks the new scan up via its own
+      // `_v2RecentScansProvider.autoDispose` on next tab focus or via
+      // its pull-to-refresh control. No external invalidation needed
+      // after the v1 home screen retirement.
+
+      if (context.mounted) {
+        // Verdict-result haptic — mirrors the in-camera flow at
+        // `scanner_screen.dart:129`. Without this, the manual-entry-
+        // via-permission-gate path silently swallows the safety-
+        // critical tactile signal for CONTRAINDICATED / UNSAFE
+        // verdicts. Severity tiers always fire even under reduce-
+        // motion; success patterns suppress (passes context).
+        unawaited(PGHaptics.forVerdict(product.verdict, context));
+        await context.push(Routes.productDetail(product.dsldId));
+      }
+    } on Object {
+      if (!context.mounted) return;
+      _showManualLookupNotFound(context, ref, barcode);
+    }
+  }
+
+  Future<bool> _recordAllowedScan(WidgetRef ref) async {
+    final prefs = await SharedPreferences.getInstance();
+    final authMode = ref.read(authStateProvider);
+    final service = ScanLimitService(
+      prefs: prefs,
+      isSignedIn: authMode == AuthMode.signedIn,
+    );
+    return service.recordScan();
+  }
+
+  void _showGuestScanLimitSheet(BuildContext context) {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (ctx) => GuestScanLimitSheet(
+        onSignIn: () {
+          Navigator.pop(ctx);
+          context.push(Routes.authInvitation);
+        },
       ),
     );
   }
-}
 
-class ScanScreen extends StatelessWidget {
-  const ScanScreen({super.key});
+  void _showManualLookupNotFound(
+    BuildContext context,
+    WidgetRef ref,
+    String barcode,
+  ) {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (ctx) => ScannerNotFoundSheet(
+        upc: barcode,
+        onTryAgain: () {
+          Navigator.pop(ctx);
+          unawaited(_openManualEntry(context, ref));
+        },
+        onSearchByName: () {
+          Navigator.pop(ctx);
+          context.push(Routes.search);
+        },
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => CameraPermissionGate(
+  Widget build(BuildContext context, WidgetRef ref) => CameraPermissionGate(
     childBuilder: () => const ScannerScreen(),
-    onManualEntry: () => showManualBarcodeSheet(context),
+    onManualEntry: () => unawaited(_openManualEntry(context, ref)),
   );
 }
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
+
   @override
-  Widget build(BuildContext context) =>
-      const _PlaceholderScreen(title: 'AI Pharmacist');
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: V2Colors.bg,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space24,
+            V2Spacing.space24,
+            kPGNavBarHeight + V2Spacing.space32,
+          ),
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: V2Colors.surface,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: V2Colors.accentTint,
+                        borderRadius: BorderRadius.circular(
+                          V2Spacing.radiusCard,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: V2Colors.accent,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space16),
+                    Text(
+                      'Ask PharmaGuide',
+                      style: V2Typography.titleSm(color: V2Colors.fg),
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      'Clinical-grade chat is still being prepared. For now, use the verified catalog flows below for product and interaction decisions.',
+                      style: V2Typography.body(color: V2Colors.fgMuted),
+                    ),
+                    const SizedBox(height: V2Spacing.space24),
+                    PGPillButton(
+                      label: 'Search products',
+                      icon: Icons.search_rounded,
+                      expand: true,
+                      onPressed: () => context.push(Routes.search),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                    PGPillButton(
+                      label: 'Quick Check',
+                      icon: Icons.health_and_safety_outlined,
+                      variant: PGPillVariant.secondary,
+                      expand: true,
+                      onPressed: () => context.push(Routes.quickCheck),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class CatalogUnavailableScreen extends StatelessWidget {
@@ -69,33 +280,68 @@ class CatalogUnavailableScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Catalog Unavailable')),
+      backgroundColor: V2Colors.bg,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_outlined, size: 56),
-              const SizedBox(height: 16),
-              Text(
-                message ??
-                    'The verified supplement catalog is not available on this device yet.',
-                textAlign: TextAlign.center,
+          padding: const EdgeInsets.all(V2Spacing.space24),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: V2Colors.surface,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+              border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.md,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(V2Spacing.space24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: V2Colors.cautionTint,
+                      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                    ),
+                    child: const Icon(
+                      Icons.cloud_off_outlined,
+                      color: V2Colors.caution,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: V2Spacing.space16),
+                  Text(
+                    'Catalog unavailable',
+                    style: V2Typography.titleSm(color: V2Colors.fg),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: V2Spacing.space8),
+                  Text(
+                    message ??
+                        'The verified supplement catalog is not available on this device yet.',
+                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: V2Spacing.space24),
+                  PGPillButton(
+                    label: 'Open Profile',
+                    icon: Icons.person_rounded,
+                    expand: true,
+                    onPressed: () => context.go(Routes.profile),
+                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: V2Spacing.space12),
+                    PGPillButton(
+                      label: 'Retry Catalog Download',
+                      icon: Icons.refresh_rounded,
+                      variant: PGPillVariant.secondary,
+                      expand: true,
+                      onPressed: onRetry,
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => context.go(Routes.profile),
-                child: const Text('Open Profile'),
-              ),
-              if (onRetry != null) ...[
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: onRetry,
-                  child: const Text('Retry Catalog Download'),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -114,12 +360,20 @@ Page<dynamic> _platformPage(GoRouterState state, Widget child) {
       : MaterialPage<void>(key: state.pageKey, child: child);
 }
 
+/// Single-instance app router. Created on first `_buildRouter` call and
+/// memoized so the global `_AuthEventListener` can call `.go(...)` after
+/// the auth round-trip lands (magic link return / Apple / Google native
+/// flows). MaterialApp.router rebuilding doesn't create a new router.
+GoRouter? _appRouter;
+
 GoRouter _buildRouter({
   required bool catalogAvailable,
   required bool hasSeenOnboarding,
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
 }) {
+  if (_appRouter != null) return _appRouter!;
+
   Widget catalogRoute(Widget child) {
     if (catalogAvailable) return child;
     return CatalogUnavailableScreen(
@@ -128,20 +382,33 @@ GoRouter _buildRouter({
     );
   }
 
-  return GoRouter(
+  // DEV_ROUTE dart-define short-circuits the normal launch path so
+  // `make run-v2` (or `flutter run --dart-define=DEV_ROUTE=/dev/v2`) lands
+  // straight in the v2 gallery for design review. Production builds
+  // leave DEV_ROUTE empty and behave normally.
+  final String initialLocation = _devRoute.isNotEmpty
+      ? _devRoute
+      : '${Routes.splashIntro}?next='
+            '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
+
+  final router = GoRouter(
     // Fresh installs start at onboarding; returning users go straight to
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.
-    initialLocation:
-        '${Routes.splashIntro}?next='
-        '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}',
+    initialLocation: initialLocation,
+    redirect: (_, state) => normalizePharmaGuideDeepLink(state.uri),
     routes: [
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
           GoRoute(
             path: Routes.home,
-            builder: (_, __) => catalogRoute(const HomeScreen()),
+            // Phase 11.1 — production Home tab renders the v2 home
+            // screen inside the production shell. showNavBar:false
+            // because the shell already paints the frosted nav bar
+            // — without this we'd stack two of them.
+            builder: (_, __) =>
+                catalogRoute(const HomeV2Screen(showNavBar: false)),
           ),
           GoRoute(
             path: Routes.scan,
@@ -149,12 +416,19 @@ GoRouter _buildRouter({
           ),
           GoRoute(
             path: Routes.stack,
-            builder: (_, __) => catalogRoute(const StackScreen()),
+            // Phase 11.2 — production Stack tab renders the v2 screen
+            // inside the production shell. showNavBar:false because
+            // the shell already paints the frosted nav bar.
+            builder: (_, __) =>
+                catalogRoute(const StackV2Screen(showNavBar: false)),
           ),
           GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
           GoRoute(
             path: Routes.profile,
-            builder: (_, __) => const SettingsScreen(),
+            // Phase 11.0 — production Profile tab now renders the v2
+            // settings screen wired to real providers (profileProvider,
+            // activeStackProvider, recent-scans count, Supabase auth).
+            builder: (_, __) => const SettingsV2Connected(),
           ),
         ],
       ),
@@ -166,43 +440,216 @@ GoRouter _buildRouter({
       // iOS swipe-back-from-edge (Apple HIG default for stack navigation).
       // Onboarding intentionally stays Material — it's a linear flow and
       // swipe-back would let users escape it before completing.
+      // ---------------------------------------------------------------
+      // Debug-only v2 design system gallery. Reachable via
+      // `context.go('/dev/v2')`; not registered in the app shell so it
+      // never appears in the nav bar. Will be removed (or moved behind
+      // a debug-settings toggle) before v2 ships to production.
+      // ---------------------------------------------------------------
+      GoRoute(path: '/dev/v2', builder: (_, __) => const V2Gallery()),
+      // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
+      // hero into the signed-in variant.
+      //
+      // Phase 8.1.0 cleanup (2026-05-14): Product Detail / Home / Scanner /
+      // Stack / floating-shell preview routes were retired. Those v2
+      // screens were built on primitives that didn't mirror production
+      // patterns. Mirror-based rebuilds land in Phase 8.1.1+ and
+      // re-register their routes there.
+      GoRoute(
+        path: '/dev/v2/settings',
+        pageBuilder: (_, state) {
+          final signedIn = state.uri.queryParameters['signedIn'] == '1';
+          return _platformPage(state, SettingsV2Screen(signedIn: signedIn));
+        },
+      ),
+      // v2 splash preview — `autoNavigate: false` so it doesn't redirect
+      // out of the gallery after the entrance animation completes.
+      GoRoute(
+        path: '/dev/v2/splash',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          const AnimatedSplashV2Screen(autoNavigate: false),
+        ),
+      ),
+      // v2 onboarding preview — `autoFinish: false` so completing the
+      // flow loops back to step 1 rather than persisting prefs +
+      // navigating home.
+      GoRoute(
+        path: '/dev/v2/onboarding',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const OnboardingV2Screen(autoFinish: false)),
+      ),
+      // v2 ProfileSetup mirror — dev gallery preview against the live
+      // `profileProvider`. Production `/profile/setup` renders the
+      // same widget unconditionally (Phase 11.11 hygiene).
+      GoRoute(
+        path: '/dev/v2/profile-setup',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProfileSetupV2Screen()),
+      ),
+      // v2 first-time profile wizard — Phase 11.7L.B.9. The
+      // `autoFinish: false` preview keeps `OnboardingPrefs` clean so
+      // reviewers can replay the wizard freely from the gallery.
+      GoRoute(
+        path: '/dev/v2/profile-wizard',
+        pageBuilder: (_, state) => _platformPage(
+          state,
+          const ProfileWizardV2Screen(autoFinish: false),
+        ),
+      ),
+      // Product Detail V2 *Connected*. Driven by a real `dsldId` and
+      // the production provider stack (coreDatabaseProvider, detailBlob,
+      // personalizedInteractionWarnings, profileProvider, fitScore).
+      GoRoute(
+        path: '/dev/v2/product/:dsldId',
+        pageBuilder: (_, state) {
+          final dsldId = state.pathParameters['dsldId']!;
+          final section = state.uri.queryParameters['section'];
+          return _platformPage(
+            state,
+            ProductDetailV2ConnectedScreen(
+              dsldId: dsldId,
+              initialSection: section,
+            ),
+          );
+        },
+      ),
+      // v2 Auth Invitation dev preview — uses the same PGAuthService
+      // methods as production, with a gallery-only back affordance.
+      GoRoute(
+        path: '/dev/v2/auth',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const AuthInvitationV2Preview()),
+      ),
+      // v2 Home dev preview — fixture data + retinted frosted nav
+      // bar. The production `/` route uses the connected v2 widget.
+      GoRoute(
+        path: '/dev/v2/home',
+        pageBuilder: (_, state) => _platformPage(state, const HomeV2Preview()),
+      ),
+      // v2 Scanner dev preview — PGVerdictReveal demo chips for each
+      // severity tier. Camera surrogate stands in for MobileScanner.
+      GoRoute(
+        path: '/dev/v2/scan',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ScannerV2Preview()),
+      ),
+      // v2 camera permission gate — first-ask + denied states.
+      // `?denied=1` flips into the denied variant.
+      GoRoute(
+        path: '/dev/v2/scan/permission',
+        pageBuilder: (_, state) {
+          final denied = state.uri.queryParameters['denied'] == '1';
+          return _platformPage(
+            state,
+            CameraPermissionV2Preview(denied: denied),
+          );
+        },
+      ),
+      // v2 Stack dev preview — two pinned tabs (Stack / Wishlist),
+      // summary card with status tier (no numeric score), supplement
+      // + medication list with swipe-to-remove.
+      GoRoute(
+        path: '/dev/v2/stack',
+        pageBuilder: (_, state) => _platformPage(state, const StackV2Preview()),
+      ),
+      // Splash + Onboarding production routes use the v2 widgets.
       GoRoute(
         path: Routes.splashIntro,
         builder: (_, state) {
           final next = state.uri.queryParameters['next'] ?? Routes.home;
-          return AnimatedSplashScreen(nextRoute: next);
+          return AnimatedSplashV2Screen(nextRoute: next);
         },
       ),
       GoRoute(
         path: Routes.onboarding,
-        builder: (_, __) => const OnboardingScreen(),
+        builder: (_, __) => const OnboardingV2Screen(),
       ),
+      // Phase 11.7i — production AuthInvitation route. Sits between
+      // onboarding completion and home. Wires the four CTAs to the
+      // real PGAuthService methods. Skip lands at home as guest.
       GoRoute(
-        path: Routes.profileSetup,
-        pageBuilder: (_, state) =>
-            _platformPage(state, const ProfileSetupScreen()),
-      ),
-      GoRoute(
-        path: Routes.search,
-        pageBuilder: (_, state) => _platformPage(
+        path: Routes.authInvitation,
+        pageBuilder: (context, state) => _platformPage(
           state,
-          catalogRoute(
-            SearchScreen(
-              initialCategory: state.uri.queryParameters['category'],
-              initialQuery: state.uri.queryParameters['query'],
-            ),
+          AuthInvitationV2Screen(
+            onApple: () => _handleSignInApple(context),
+            onGoogle: () => _handleSignInGoogle(context),
+            onEmail: () => showMagicLinkSheet(context),
+            // Auth skip means "try as guest." Profile completion stays
+            // available through Home/Profile nudges; it should not be
+            // another forced step after the user explicitly skipped auth.
+            onSkip: () => context.go(Routes.home),
           ),
         ),
       ),
       GoRoute(
+        path: '/auth/callback',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const _AuthCallbackScreen()),
+      ),
+      GoRoute(
+        path: Routes.profileSetup,
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProfileSetupV2Screen()),
+      ),
+      // Phase 11.7L.B.9 — first-time profile wizard. Only reached on
+      // the post-auth handoff for accounts that haven't seen it; the
+      // handoff logic that decides between this and home lives in
+      // `_handleSignInSuccess` / the auth flow. Returning users
+      // never land here.
+      GoRoute(
+        path: Routes.profileWizard,
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProfileWizardV2Screen()),
+      ),
+      GoRoute(
+        path: Routes.search,
+        pageBuilder: (_, state) {
+          final initialCategory = state.uri.queryParameters['category'];
+          final initialQuery = state.uri.queryParameters['query'];
+          return _platformPage(
+            state,
+            catalogRoute(
+              SearchV2Screen(
+                initialCategory: initialCategory,
+                initialQuery: initialQuery,
+              ),
+            ),
+          );
+        },
+      ),
+      // Dev-only direct preview — bypasses both env toggle and
+      // `catalogRoute` so reviewers can see the empty-state and
+      // recent-search flows without a populated catalog DB.
+      GoRoute(
+        path: '/dev/v2/search',
+        pageBuilder: (_, state) => _platformPage(state, const SearchV2Screen()),
+      ),
+      GoRoute(
         path: Routes.medicationEntry,
         pageBuilder: (_, state) =>
-            _platformPage(state, const MedicationEntryScreen()),
+            _platformPage(state, const MedicationEntryV2Screen()),
+      ),
+      // Direct dev preview — bypasses the env toggle so reviewers
+      // can poke at the v2 screen without restarting with a flag.
+      GoRoute(
+        path: '/dev/v2/medication-entry',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const MedicationEntryV2Screen()),
       ),
       GoRoute(
         path: Routes.quickCheck,
         pageBuilder: (_, state) =>
-            _platformPage(state, catalogRoute(const QuickCheckScreen())),
+            _platformPage(state, catalogRoute(const QuickCheckV2Screen())),
+      ),
+      // Dev-only direct preview — bypasses both env toggle and the
+      // `catalogRoute` gate so reviewers can poke at the screen
+      // without a populated catalog DB.
+      GoRoute(
+        path: '/dev/v2/quick-check',
+        pageBuilder: (_, state) =>
+            _platformPage(state, const QuickCheckV2Screen()),
       ),
       GoRoute(
         path: '${Routes.product}/:dsldId',
@@ -215,13 +662,73 @@ GoRouter _buildRouter({
           return _platformPage(
             state,
             catalogRoute(
-              ProductDetailScreen(dsldId: dsldId, initialSection: section),
+              ProductDetailV2ConnectedScreen(
+                dsldId: dsldId,
+                initialSection: section,
+              ),
             ),
           );
         },
       ),
     ],
   );
+  _appRouter = router;
+  return router;
+}
+
+// ─── Phase 11.7i — production sign-in handlers ────────────────────────────────
+// Wire the v2 AuthInvitation CTAs to the real Supabase plumbing in
+// PGAuthService. Successful sign-in fires a `signedIn` event handled
+// by `_AuthEventListener` below, which navigates the user to home
+// when they were on an auth path (splash / onboarding / /auth).
+//
+// Cancellation is silent. Errors surface a calm snackbar without
+// blocking the screen.
+
+Future<void> _handleSignInApple(BuildContext context) async {
+  // BuildContext kept on the signature to satisfy the route-handler
+  // call site but intentionally unused inside — snackbar uses the
+  // root scaffoldMessengerKey, so there's no context-across-async-gap
+  // concern.
+  final result = await PGAuthService().signInWithApple();
+  _surfaceAuthError(result);
+}
+
+Future<void> _handleSignInGoogle(BuildContext context) async {
+  final result = await PGAuthService().signInWithGoogle();
+  _surfaceAuthError(result);
+}
+
+/// Phase 11.7L.B.9 — pick the right landing screen after sign-in.
+/// First-time signed-in users land on the profile wizard; everyone
+/// else goes straight home. Guest auth-skip bypasses this gate.
+///
+/// Public so the route handlers and the auth-state listener can
+/// share the same gate. Both paths mark the wizard seen via the
+/// wizard's own Save/Skip handlers, so users see the wizard at
+/// most once per install.
+Future<String> _postAuthDestination({bool isPreview = false}) async {
+  final seenWizard = await OnboardingPrefs.hasSeenProfileWizard();
+  if (!seenWizard) return Routes.profileWizard;
+  return isPreview ? '/dev/v2/home' : Routes.home;
+}
+
+void _surfaceAuthError(PGAuthResult result) {
+  if (result is PGAuthError) {
+    // Use the root scaffold messenger (set in main.dart) so the
+    // snackbar isn't tied to a transient screen scope.
+    scaffoldMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
+  // Success / Handoff / Cancel — no snackbar. Auth listener handles
+  // navigation on success/handoff; cancel is intentional user backout.
 }
 
 class _AppShell extends StatelessWidget {
@@ -297,6 +804,60 @@ class _AppShell extends StatelessWidget {
   }
 }
 
+class _AuthCallbackScreen extends StatelessWidget {
+  const _AuthCallbackScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: V2Colors.bg,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space24),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: V2Colors.surface,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+                border: Border.all(color: V2Colors.outline),
+                boxShadow: V2Shadows.sm,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: V2Colors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space16),
+                    Text(
+                      'Finishing sign in',
+                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      'We are completing the secure handoff.',
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class PharmaGuideApp extends StatelessWidget {
   final bool catalogAvailable;
   final String? catalogUnavailableReason;
@@ -317,8 +878,8 @@ class PharmaGuideApp extends StatelessWidget {
       title: 'PharmaGuide',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: V2Theme.light,
+      darkTheme: V2Theme.dark,
       themeMode: ThemeMode.system,
       routerConfig: _buildRouter(
         catalogAvailable: catalogAvailable,
@@ -344,9 +905,111 @@ class PharmaGuideApp extends StatelessWidget {
         );
         return MediaQuery(
           data: mq.copyWith(textScaler: clamped),
-          child: child!,
+          // _AuthEventListener wraps the router so a successful magic
+          // link return (Supabase emits signedIn after the deep-link
+          // handler completes the OTP exchange) produces a visible
+          // event. Phase 9.1 surfaces it as a snackbar; Phase 9.4
+          // swaps that for an actual routerGo(home) + guest-stack
+          // merge.
+          child: _AuthEventListener(child: child!),
         );
       },
     );
   }
+}
+
+/// Listens to supabase.auth.onAuthStateChange and surfaces signed-in
+/// / signed-out events via the global scaffold messenger. This is the
+/// hook the deep-link round trip lands on after the user taps a
+/// magic-link email — the supabase_flutter SDK auto-handles the
+/// `pharmaguide://auth/callback` URL when the platform configs are
+/// registered.
+class _AuthEventListener extends StatefulWidget {
+  final Widget child;
+  const _AuthEventListener({required this.child});
+
+  @override
+  State<_AuthEventListener> createState() => _AuthEventListenerState();
+}
+
+class _AuthEventListenerState extends State<_AuthEventListener> {
+  StreamSubscription<dynamic>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _sub = supabase.auth.onAuthStateChange.listen(_onAuth);
+    } on Object catch (_) {
+      // Supabase wasn't initialized (placeholder mode) — silent.
+    }
+  }
+
+  void _onAuth(dynamic data) {
+    if (data is! AuthState) return;
+    if (!mounted) return;
+    final messenger = scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    switch (data.event) {
+      case AuthChangeEvent.signedIn:
+      case AuthChangeEvent.tokenRefreshed
+          when data.session?.user.lastSignInAt != null:
+        final email = data.session?.user.email ?? 'your account';
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Signed in as $email'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        // Route to home so the post-auth landing feels complete.
+        // Preview routes (the v2 gallery) land at /dev/v2/home; the
+        // production app lands at Routes.home. Only route when the
+        // listener fires from an auth path — bail if we're already on
+        // a home-adjacent route to avoid a flicker from token-refresh
+        // events that happen on a live home.
+        final router = _appRouter;
+        if (router != null) {
+          final loc = router.routerDelegate.currentConfiguration.uri.path;
+          final onAuthPath =
+              loc.startsWith('/dev/v2/auth') ||
+              loc == Routes.splashIntro ||
+              loc == Routes.onboarding ||
+              loc == Routes.authInvitation;
+          if (onAuthPath) {
+            // Honor the dev-route override: if the gallery is the
+            // active root (DEV_ROUTE=/dev/v2) land at the v2 home
+            // preview; otherwise the production root. Phase 11.7L.B.9
+            // — first-time users land on the wizard instead.
+            final isPreview = _devRoute.isNotEmpty;
+            unawaited(
+              _postAuthDestination(isPreview: isPreview).then((dest) {
+                router.go(dest);
+              }),
+            );
+          }
+        }
+      case AuthChangeEvent.signedOut:
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Signed out'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      default:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

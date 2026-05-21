@@ -58,6 +58,8 @@
 #     manifest on schema_version and total_interactions.
 # I8. The embedded sha256_checksum key is **NOT** present (T7 fix —
 #     storing the file's hash inside the file would invalidate the hash).
+# I9. research_pairs count matches metadata and any non-empty Tier 2
+#     bundle has at least one row with both canonical_id and RxCUI.
 #
 # Only after every required gate passes does the script copy files into
 # assets/db/ via a staged rename. The previous bundled files (if any) are
@@ -390,7 +392,7 @@ fi
 ok "$VERSIONED_ROW_COUNT rows have export_version populated"
 
 # ===========================================================================
-# Interaction DB validation gates (I1–I8) — only if files are present.
+# Interaction DB validation gates (I1–I9) — only if files are present.
 # ===========================================================================
 
 INTERACTION_SCHEMA_VERSION=""
@@ -576,6 +578,40 @@ PY
     exit 1
   fi
   ok "interaction_db_metadata correctly omits sha256_checksum (T7)"
+
+  # ---------------------------------------------------------------------------
+  # Gate I9: Tier 2 research rows are reachable by Flutter lookup paths
+  # ---------------------------------------------------------------------------
+
+  EMBEDDED_SOURCE_SUPPAI="$(read_interaction_embedded source_suppai_count)"
+  RESEARCH_PAIR_COUNT="$(sqlite3 "$SRC_INTERACTION_DB" 'SELECT COUNT(*) FROM research_pairs;' 2>/dev/null || echo 0)"
+  if [[ "$RESEARCH_PAIR_COUNT" != "$EMBEDDED_SOURCE_SUPPAI" ]]; then
+    err "research_pairs count split-brain between SQLite table and metadata"
+    err "  research_pairs: $RESEARCH_PAIR_COUNT"
+    err "  source_suppai_count: $EMBEDDED_SOURCE_SUPPAI"
+    exit 1
+  fi
+
+  if (( RESEARCH_PAIR_COUNT > 0 )); then
+    RESEARCH_RXCUI_CANONICAL_COUNT="$(sqlite3 "$SRC_INTERACTION_DB" "
+      SELECT COUNT(*)
+      FROM research_pairs
+      WHERE (
+        COALESCE(rxcui_a, '') != ''
+        OR COALESCE(rxcui_b, '') != ''
+      )
+      AND (
+        COALESCE(canonical_id_a, '') != ''
+        OR COALESCE(canonical_id_b, '') != ''
+      );
+    " 2>/dev/null || echo 0)"
+    if (( RESEARCH_RXCUI_CANONICAL_COUNT == 0 )); then
+      err "research_pairs are bundled but no row has both canonical_id and RxCUI"
+      err "Tier 2 would be unreachable from medication-aware Flutter paths."
+      exit 1
+    fi
+  fi
+  ok "Tier 2 research_pairs are reachable (rows=$RESEARCH_PAIR_COUNT)"
 fi
 
 # ---------------------------------------------------------------------------

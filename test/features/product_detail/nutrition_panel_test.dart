@@ -1,29 +1,26 @@
-// Tests for NutritionPanel — the v1.3.2 nutrition hybrid widget that
+// Tests for Nutrition section — the v1.3.2 nutrition data path that
 // surfaces calories_per_serving (column) and the four macros packed into
 // detail_blob.nutrition_detail (carbs, fat, protein, fiber).
-//
-// TDD: these tests describe the contract before the widget exists. Run
-// them red, then implement NutritionPanel until they go green.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/widgets/nutrition_panel.dart';
+import 'package:pharmaguide/core/components/pg_nutrition_panel.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 
 Future<void> _pump(WidgetTester tester, Widget child) {
   return tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
 }
 
 void main() {
-  group('NutritionPanel', () {
+  group('Nutrition section', () {
     testWidgets('renders nothing when both inputs are absent', (tester) async {
       await _pump(
         tester,
-        const NutritionPanel(caloriesPerServing: null, nutritionDetail: null),
+        buildNutritionSection(caloriesPerServing: null, nutritionDetail: null),
       );
 
-      expect(find.byType(NutritionPanel), findsOneWidget);
+      expect(find.byType(PGNutritionPanel), findsNothing);
       expect(find.text('Nutrition Facts'), findsNothing);
-      expect(find.byKey(const Key('nutrition-panel-card')), findsNothing);
     });
 
     testWidgets(
@@ -31,7 +28,7 @@ void main() {
       (tester) async {
         await _pump(
           tester,
-          const NutritionPanel(
+          buildNutritionSection(
             caloriesPerServing: null,
             nutritionDetail: <String, dynamic>{
               'calories_per_serving': null,
@@ -43,7 +40,7 @@ void main() {
           ),
         );
 
-        expect(find.byKey(const Key('nutrition-panel-card')), findsNothing);
+        expect(find.byType(PGNutritionPanel), findsNothing);
       },
     );
 
@@ -52,10 +49,10 @@ void main() {
     ) async {
       await _pump(
         tester,
-        const NutritionPanel(caloriesPerServing: 120.0, nutritionDetail: null),
+        buildNutritionSection(caloriesPerServing: 120.0, nutritionDetail: null),
       );
 
-      expect(find.byKey(const Key('nutrition-panel-card')), findsOneWidget);
+      expect(find.byType(PGNutritionPanel), findsOneWidget);
       expect(find.text('Nutrition Facts'), findsOneWidget);
       expect(find.text('Calories'), findsOneWidget);
       expect(find.text('120'), findsOneWidget);
@@ -67,7 +64,7 @@ void main() {
     testWidgets('renders all five macros when blob has them', (tester) async {
       await _pump(
         tester,
-        const NutritionPanel(
+        buildNutritionSection(
           caloriesPerServing: 15.0,
           nutritionDetail: <String, dynamic>{
             'calories_per_serving': 15.0,
@@ -98,7 +95,7 @@ void main() {
     ) async {
       await _pump(
         tester,
-        const NutritionPanel(
+        buildNutritionSection(
           caloriesPerServing: 100.0,
           nutritionDetail: <String, dynamic>{
             'calories_per_serving': 100.0,
@@ -123,7 +120,7 @@ void main() {
     testWidgets('formats whole numbers without trailing .0', (tester) async {
       await _pump(
         tester,
-        const NutritionPanel(
+        buildNutritionSection(
           caloriesPerServing: 200.0,
           nutritionDetail: <String, dynamic>{
             'calories_per_serving': 200.0,
@@ -150,7 +147,7 @@ void main() {
         // (column is the canonical filter source; blob is for display).
         await _pump(
           tester,
-          const NutritionPanel(
+          buildNutritionSection(
             caloriesPerServing: 50.0,
             nutritionDetail: <String, dynamic>{
               'calories_per_serving': 99.0, // intentionally different
@@ -174,7 +171,7 @@ void main() {
       // The widget must accept both without crashing.
       await _pump(
         tester,
-        const NutritionPanel(
+        buildNutritionSection(
           caloriesPerServing: 80.0,
           nutritionDetail: <String, dynamic>{
             'calories_per_serving': 80, // int from JSON

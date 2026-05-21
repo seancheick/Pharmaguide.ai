@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -22,20 +23,34 @@ void main() {
     );
   }
 
-  /// Pump past the 600ms animated splash so the shell (nav bar, tabs) is
+  // Phase 11.11 hygiene (2026-05-17): staged route toggles were
+  // removed after the route-coherence promotion. v2 is now the
+  // unconditional production route; coherence is enforced by the
+  // absence of v1 imports in `lib/app.dart`.
+
+  /// Pump past the v2 animated splash so the shell (nav bar, tabs) is
   /// visible. Tests that interact with tabs must call this helper first.
   ///
   /// Uses explicit time-step pumps (not pumpAndSettle) because HomeScreen
-  /// may contain widgets that keep animations active indefinitely, which
-  /// would cause pumpAndSettle to time out.
+  /// may contain widgets that keep animations active indefinitely
+  /// (the v2 splash accent underline does a slow breath loop after the
+  /// draw-in completes), which would cause pumpAndSettle to time out.
+  ///
+  /// v2 splash timing budget: 900ms ctrl.forward() + 320ms hold +
+  /// post-frame navigation. The hold timer is scheduled after the
+  /// animation future completes, so it needs its own pump after the
+  /// entrance pump.
   Future<void> pumpPastSplash(WidgetTester tester) async {
     await tester.pump(); // initial frame
     await tester.pump(
-      const Duration(milliseconds: 650),
-    ); // past 600ms ctrl.forward()
+      const Duration(milliseconds: 1300),
+    ); // past v2 ctrl.forward (900ms) + hold (320ms)
+    await tester.pump(
+      const Duration(milliseconds: 400),
+    ); // fire the delayed route transition
     await tester.pump(); // process the GoRouter.go() navigation
     await tester.pump(
-      const Duration(milliseconds: 100),
+      const Duration(milliseconds: 150),
     ); // settle first shell frame
   }
 
@@ -46,9 +61,8 @@ void main() {
     await tester.pumpWidget(buildApp(coreDb, userDb));
     await pumpPastSplash(tester);
 
-    // Verify 5 navigation destinations exist
-    expect(find.byType(NavigationDestination), findsNWidgets(5));
-    // Verify nav labels are present (some may appear multiple times due to screen titles)
+    expect(find.byType(PGFrostedNavBar), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.text('Home'), findsWidgets);
     expect(find.text('Scan'), findsWidgets);
     expect(find.text('Stack'), findsWidgets);
@@ -100,11 +114,65 @@ void main() {
     await tester.pumpWidget(buildApp(coreDb, userDb));
     await pumpPastSplash(tester);
 
-    await tester.tap(find.text('Stack'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Stack'),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('My stack'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await coreDb.close();
+    await userDb.close();
+  });
+
+  testWidgets('empty stack keeps Nutrients tab empty', (tester) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+
+    await tester.pumpWidget(buildApp(coreDb, userDb));
+    await pumpPastSplash(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Stack'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.text('Nutrients'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('No nutrient totals yet'), findsOneWidget);
+    expect(find.byKey(const Key('nutrient-accumulation-card')), findsNothing);
+    expect(find.text('Stack Nutrient Totals'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await coreDb.close();
+    await userDb.close();
+  });
+
+  testWidgets('Tapping Chat tab shows the v2 holding surface', (tester) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+
+    await tester.pumpWidget(buildApp(coreDb, userDb));
+    await pumpPastSplash(tester);
+
+    await tester.tap(find.text('Chat'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Ask PharmaGuide'), findsOneWidget);
+    expect(find.text('Search products'), findsOneWidget);
+    expect(find.text('Quick Check'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();

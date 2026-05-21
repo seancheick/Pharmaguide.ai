@@ -14,14 +14,14 @@
 // produces the personalized "Because you're taking X" warning rows that
 // supplement the static blob-parsed warnings.
 
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
@@ -57,9 +57,15 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
       }
       if (product == null) return const [];
 
-      final canonicalIds = _extractCanonicalIds(
-        product.keyIngredientTags,
-        product.ingredientFingerprint,
+      Map<String, dynamic>? detailBlob;
+      try {
+        detailBlob = await ref.watch(detailBlobProvider(dsldId).future);
+      } on Exception {
+        detailBlob = null;
+      }
+      final canonicalIds = canonicalIdsForProduct(
+        product,
+        detailBlob: detailBlob,
       );
       if (canonicalIds.isEmpty) return const [];
 
@@ -131,50 +137,6 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
   } on Exception {
     return const [];
   }
-}
-
-/// Extract canonical ingredient IDs for interaction matching.
-///
-/// Primary source: [tagsJson] from `key_ingredient_tags` column — a JSON
-/// array like `["iron", "calcium", "vitamin_d"]`.
-///
-/// Secondary source: `herbs` list inside [fingerprintJson] for herbal
-/// products whose canonical IDs live in the fingerprint's herbs array.
-List<String> _extractCanonicalIds(String? tagsJson, String? fingerprintJson) {
-  final ids = <String>{};
-
-  if (tagsJson != null && tagsJson.isNotEmpty) {
-    try {
-      final decoded = jsonDecode(tagsJson);
-      if (decoded is List) {
-        for (final tag in decoded) {
-          final s = tag.toString().toLowerCase().trim();
-          if (s.isNotEmpty) ids.add(s);
-        }
-      }
-    } on FormatException {
-      // Fall through.
-    }
-  }
-
-  if (fingerprintJson != null && fingerprintJson.isNotEmpty) {
-    try {
-      final decoded = jsonDecode(fingerprintJson);
-      if (decoded is Map) {
-        final herbs = decoded['herbs'];
-        if (herbs is List) {
-          for (final h in herbs) {
-            final s = h.toString().toLowerCase().trim();
-            if (s.isNotEmpty) ids.add(s);
-          }
-        }
-      }
-    } on FormatException {
-      // Best-effort.
-    }
-  }
-
-  return ids.toList(growable: false);
 }
 
 /// Maps an [InteractionResult] from the curated DB to an

@@ -8,16 +8,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
-import 'package:pharmaguide/data/database/core_database.dart';
 
 /// Shows the manual barcode entry sheet via [PGModal.bottomSheet].
 ///
-/// Returns the looked-up [ProductsCoreData] if found, or `null` if the
-/// user dismisses without a match.
-Future<ProductsCoreData?> showManualBarcodeSheet(BuildContext context) {
-  return PGModal.bottomSheet<ProductsCoreData?>(
+/// Returns the normalized barcode string, or `null` if the user dismisses
+/// without submitting.
+Future<String?> showManualBarcodeSheet(BuildContext context) {
+  return PGModal.bottomSheet<String?>(
     context: context,
     builder: (ctx) => const _ManualBarcodeSheet(),
   );
@@ -56,15 +58,12 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        AppTheme.space24,
-        AppTheme.space8,
-        AppTheme.space24,
-        AppTheme.space24 + MediaQuery.viewInsetsOf(context).bottom,
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        V2Spacing.space24 + MediaQuery.viewInsetsOf(context).bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -72,19 +71,14 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
         children: [
           Text(
             'Enter barcode manually',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: V2Typography.titleSm(color: V2Colors.fg),
           ),
-          const SizedBox(height: AppTheme.space8),
+          const SizedBox(height: V2Spacing.space8),
           Text(
             'Type the UPC, EAN, or barcode number from the product label.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.4,
-            ),
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
           ),
-          const SizedBox(height: AppTheme.space20),
+          const SizedBox(height: V2Spacing.space24),
           TextField(
             controller: _controller,
             autofocus: true,
@@ -95,33 +89,40 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
             ],
             decoration: InputDecoration(
               hintText: 'e.g., 123456789012',
-              hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              hintStyle: V2Typography.body(
+                color: V2Colors.fgSubtle.withValues(alpha: 0.7),
               ),
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.dialpad_rounded),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                borderSide: const BorderSide(color: V2Colors.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                borderSide: const BorderSide(color: V2Colors.accent),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              ),
+              prefixIcon: const Icon(
+                Icons.dialpad_rounded,
+                color: V2Colors.accent,
+              ),
             ),
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontFamily: 'monospace',
-              letterSpacing: 1.5,
-            ),
+            style: V2Typography.monoData(color: V2Colors.fg),
             onChanged: _onChanged,
             onSubmitted: (_) => _submit(),
           ),
-          const SizedBox(height: AppTheme.space8),
+          const SizedBox(height: V2Spacing.space8),
           Text(
             'Most supplement barcodes are 12 or 13 digits.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
+            style: V2Typography.caption(color: V2Colors.fgMuted),
           ),
-          const SizedBox(height: AppTheme.space20),
-          SizedBox(
-            height: 52,
-            child: FilledButton(
-              onPressed: _isValid ? _submit : null,
-              child: const Text('Find Product'),
-            ),
+          const SizedBox(height: V2Spacing.space24),
+          PGPillButton(
+            label: 'Find Product',
+            icon: Icons.search_rounded,
+            expand: true,
+            onPressed: _isValid ? _submit : null,
           ),
         ],
       ),

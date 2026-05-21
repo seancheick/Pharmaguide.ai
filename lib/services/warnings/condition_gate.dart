@@ -49,7 +49,7 @@ typedef IngredientDose = ({double value, String unit});
 /// **T16.2b (2026-04-30) — field-name fix:** pre-T16.2b this read
 /// `dose_amount` + `dose_unit` (the names in an old pipeline draft
 /// spec). Live pipeline ships `quantity` + `unit`, matching what the
-/// rendering side has always used (see `product_detail_screen.dart`
+/// rendering side has always used (see
 /// `_CollapsibleIngredients` row builder, `ingredient_sort.dart`,
 /// `dose_safety.dart`). The mismatch silently broke every `aboveDose`
 /// threshold gate since T3/T4 shipped — `extractIngredientDoses`
@@ -284,10 +284,9 @@ String computeMatchedHighestSeverity({
     if (data is! Map<String, dynamic>) return;
     final raw = data['highest_severity']?.toString().toLowerCase().trim();
     if (raw == null || raw.isEmpty) return;
-    final sev = Severity.values.firstWhere(
-      (s) => s.name == raw,
-      orElse: () => Severity.safe,
-    );
+    final sev = Severity.isKnownString(raw)
+        ? Severity.fromString(raw)
+        : _unknownSeverityFallback(fallback);
     if (sev.weight > max.weight) max = sev;
     anyMatched = true;
   }
@@ -310,6 +309,14 @@ String computeMatchedHighestSeverity({
 
   if (!anyMatched) return fallback;
   return max.name;
+}
+
+Severity _unknownSeverityFallback(String fallback) {
+  final fallbackSeverity = Severity.fromString(fallback);
+  if (fallbackSeverity.weight > Severity.caution.weight) {
+    return fallbackSeverity;
+  }
+  return Severity.caution;
 }
 
 /// Returns `true` when EVERY condition tagged on the warning is gated

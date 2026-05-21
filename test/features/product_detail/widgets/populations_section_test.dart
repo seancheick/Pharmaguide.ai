@@ -3,19 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
-import 'package:pharmaguide/features/product_detail/widgets/populations_section.dart';
-
-/// Walks RichText widgets and matches when their concatenated plain-
-/// text contains [substring]. Needed because the population bullet is
-/// a styled span (head bold + tail muted) — `find.textContaining`
-/// only inspects `Text.data`, which is null for RichText.
-Finder _richTextContaining(String substring) {
-  return find.byWidgetPredicate((w) {
-    if (w is! RichText) return false;
-    return w.text.toPlainText().contains(substring);
-  });
-}
 
 InteractionWarning _w({List<String> populationWarnings = const []}) {
   return InteractionWarning(
@@ -38,7 +27,7 @@ Future<void> _pump(
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: PopulationsSection(
+        body: buildPopulationsSection(
           warnings: warnings,
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
@@ -309,10 +298,8 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('Extra caution if you are…'), findsOneWidget);
-        // Each population renders as a RichText bullet — find via
-        // plain-text walk on the rendered span.
-        expect(_richTextContaining('Pregnancy'), findsOneWidget);
-        expect(_richTextContaining('Children'), findsOneWidget);
+        expect(find.text('Pregnancy'), findsOneWidget);
+        expect(find.text('Children'), findsOneWidget);
         expect(find.textContaining('already covered'), findsNothing);
       },
     );
@@ -335,9 +322,9 @@ void main() {
         await tester.pumpAndSettle();
 
         // Non-matching population renders.
-        expect(_richTextContaining('Children'), findsOneWidget);
+        expect(find.text('Children'), findsOneWidget);
         // Matching population dropped from main list.
-        expect(_richTextContaining('Pregnancy'), findsNothing);
+        expect(find.text('Pregnancy'), findsNothing);
         // No "already covered" line.
         expect(find.textContaining('already covered'), findsNothing);
       },

@@ -50,14 +50,8 @@ abstract final class SupabaseContract {
   /// User supplement/medication stack — synced between devices.
   static const userStacksTable = 'user_stacks';
 
-  /// Usage tracking table (scan limits, rate limiting).
-  static const userUsageTable = 'user_usage';
-
   // ---- RPC ----
 
   /// Atomically rotates the current manifest row.
   static const rotateManifestRpc = 'rotate_manifest';
-
-  /// Increments daily usage counter for a user.
-  static const incrementUsageRpc = 'increment_usage';
 }

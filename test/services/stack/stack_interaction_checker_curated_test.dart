@@ -261,6 +261,71 @@ void main() {
       expect(results, isEmpty);
     });
 
+    test(
+      'legacy structured ingredient_keys object still yields canonical ids',
+      () async {
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const <String>['calcium'],
+          stackSupplements: [
+            _supplement(
+              id: 'legacy_iron',
+              name: 'Legacy Iron',
+              ingredientKeys:
+                  '{"nutrients":{"iron":{}},"herbs":[],"categories":["minerals"],'
+                  '"pharmacological_flags":{"stimulant":false}}',
+            ),
+          ],
+          db: db,
+          newProductName: 'Calcium',
+        );
+
+        expect(results, hasLength(1));
+        expect(results.first.id, 'DDI_IRON_CALCIUM');
+        expect(results.first.severity, Severity.caution);
+      },
+    );
+
+    test(
+      'legacy structured herb names are canonicalized before interaction lookup',
+      () async {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DDI_CALCIUM_SJW_LEGACY',
+                a1Type: 'supplement',
+                a1Id: 'C0006675',
+                a1Name: 'Calcium',
+                a1Canonical: 'calcium',
+                a2Type: 'supplement',
+                a2Id: 'C0085175',
+                a2Name: 'St. Johns Wort',
+                a2Canonical: 'st_johns_wort',
+                severity: 'avoid',
+              ),
+            );
+
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const <String>['calcium'],
+          stackSupplements: [
+            _supplement(
+              id: 'legacy_sjw',
+              name: 'Legacy St. John\'s Wort',
+              ingredientKeys:
+                  '{"nutrients":{},"herbs":["St. John\\u0027s Wort"],'
+                  '"categories":["herbs"],"pharmacological_flags":{}}',
+            ),
+          ],
+          db: db,
+          newProductName: 'Calcium',
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DDI_CALCIUM_SJW_LEGACY');
+        expect(results.single.severity, Severity.avoid);
+      },
+    );
+
     test('returns empty for empty stack', () async {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium'],
@@ -393,7 +458,7 @@ void main() {
       expect(results, hasLength(1));
     });
 
-    test('skips a stack supplement with non-array ingredient_keys', () async {
+    test('decodes legacy keyed-map ingredient_keys', () async {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const ['calcium'],
         stackSupplements: [
@@ -405,7 +470,8 @@ void main() {
         ],
         db: db,
       );
-      expect(results, isEmpty);
+      expect(results, hasLength(1));
+      expect(results.first.id, 'DDI_IRON_CALCIUM');
     });
 
     test('does NOT match an ingredient against itself', () async {
@@ -594,6 +660,43 @@ void main() {
       expect(results.single.id, 'DDI_SSRI_SJW');
       expect(results.single.severity, Severity.contraindicated);
     });
+
+    test(
+      'finds safety-canonical rows when bundle casing differs from stack IDs',
+      () async {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DDI_STATINS_RYR_CASE',
+                a1Type: 'drug_class',
+                a1Id: 'class:statins',
+                a1Name: 'Statins',
+                a2Type: 'supplement',
+                a2Id: 'BANNED_RED_YEAST_RICE',
+                a2Name: 'Red Yeast Rice',
+                a2Canonical: 'BANNED_RED_YEAST_RICE',
+                severity: 'avoid',
+              ),
+            );
+
+        final results = await checker.checkMedicationInteractions(
+          newProductCanonicalIds: const ['banned_red_yeast_rice'],
+          stackMedications: [
+            _medication(
+              id: 'm1',
+              name: 'Atorvastatin',
+              drugClassesJson: '["class:statins"]',
+            ),
+          ],
+          db: db,
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DDI_STATINS_RYR_CASE');
+        expect(results.single.severity, Severity.avoid);
+      },
+    );
 
     test('dedupes when same row reachable via rxcui AND class', () async {
       // Synthesise: medication has both an rxcui AND a class — but the

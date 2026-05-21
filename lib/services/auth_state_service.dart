@@ -6,9 +6,10 @@ enum AuthMode { guest, signedIn }
 
 /// Tracks whether the user is a guest or signed in.
 ///
-/// Guest mode: app is fully usable with limited features (10 lifetime scans,
-/// 3 AI queries/day, no cloud sync).
-/// Signed-in mode: full access (20 scans/day, 5 AI/day, cloud sync).
+/// Guest mode: catalog lookup only (3 scans/day, no AI, no saved stack,
+/// no cloud sync).
+/// Signed-in mode: early-access free account (unlimited scans for now,
+/// limited AI/advanced insights, saved stack/profile/history).
 class AuthStateService extends StateNotifier<AuthMode> {
   AuthStateService() : super(AuthMode.guest) {
     _checkCurrentSession();

@@ -58,3 +58,19 @@ sentry.properties
 
 #Graphiphy
 graphify-out/
+
+# Test coverage — regenerated on every `flutter test --coverage` run.
+# Keep the actual reports out of git; CI can publish them elsewhere.
+coverage/
+
+# Playwright MCP capture output — per-session console logs + page yml
+# snapshots from the browser MCP. Useful while debugging, never part
+# of a release.
+.playwright-mcp/
+
+# Ad-hoc QA screenshots from device / browser sessions. Tracked under
+# `docs/` when they belong to a doc; the loose JPEGs at the repo root
+# are transient.
+/qa-*.jpeg
+/qa-*.png
+/final-cta-live.jpeg

@@ -1,10 +1,10 @@
 {
-  "checksum": "sha256:a7ef64d7ba9fa0a41483a0b75ea9aee130c6c9e79fb9e2c29f76ec9f8ea79e0c",
-  "checksum_sha256": "a7ef64d7ba9fa0a41483a0b75ea9aee130c6c9e79fb9e2c29f76ec9f8ea79e0c",
-  "db_version": "2026.05.15.073733",
-  "detail_blob_count": 8441,
-  "detail_blob_unique_count": 8441,
-  "detail_index_checksum": "sha256:72c90330d63f48263a767faf54ee6e87670aed494d7a6fb3818d39b21d639074",
+  "checksum": "sha256:31c183fdd812e2c572f6513cfef850d8a018b8c0060c6c2126a125952f96ee9f",
+  "checksum_sha256": "31c183fdd812e2c572f6513cfef850d8a018b8c0060c6c2126a125952f96ee9f",
+  "db_version": "2026.05.19.031440",
+  "detail_blob_count": 8440,
+  "detail_blob_unique_count": 8440,
+  "detail_index_checksum": "sha256:3257b97d2cd3001cdfa354f1d7f256b65dbdd7a5c225572544c0283d47ee586f",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -12,28 +12,20 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "203283",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "18480",
+      "error": "review_queue: missing required active identity — product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "203354",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "209444",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "19598",
+      "error": "review_queue: missing required active identity — product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "212518",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "214221",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "269603",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "28548",
+      "error": "review_queue: missing required active identity — product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "328814",
@@ -44,42 +36,38 @@
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "82901",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "855",
       "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-05-15T07:37:33.552457+00:00",
+  "generated_at": "2026-05-19T03:14:40.128209+00:00",
   "integrity": {
-    "contract_failures": 11,
-    "coverage_pct": 61.41,
+    "contract_failures": 8,
+    "coverage_pct": 61.4,
     "enriched_input_count": 13746,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 11,
-    "exported_count": 8441,
+    "excluded_by_gate_count": 8,
+    "exported_count": 8440,
     "has_banned_substance": 119,
     "has_recalled_ingredient": 0,
     "scored_input_count": 13746,
     "scored_only_count": 0,
-    "scoring_config_checksum": "sha256:caf3ce38b5a4a72a6811b74f82a86c76febf3be46a900ee58d2f3a3814218b7d",
-    "skipped_count": 11,
+    "scoring_config_checksum": "sha256:6d613ed416a96320cdbd454e9173bfe1b29288586213435f51d6891b5bf9ccab",
+    "skipped_count": 8,
     "strict_mode": false,
-    "total_skipped": 11,
-    "verdict_blocked": 92,
-    "verdict_not_scored": 11,
+    "total_skipped": 8,
+    "verdict_blocked": 119,
+    "verdict_not_scored": 5,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 8441,
-  "release_staged_at": "2026-05-15T07:37:46Z",
+  "product_count": 8440,
+  "release_staged_at": "2026-05-19T03:50:44Z",
   "schema_version": "1.6.0",
-  "scoring_config_checksum": "sha256:caf3ce38b5a4a72a6811b74f82a86c76febf3be46a900ee58d2f3a3814218b7d",
+  "scoring_config_checksum": "sha256:6d613ed416a96320cdbd454e9173bfe1b29288586213435f51d6891b5bf9ccab",
   "scoring_version": "3.4.0",
   "warnings": []
 }

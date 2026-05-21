@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
 /// A generated product card widget used when no real product photo is
 /// available. Derives a consistent brand color from the brand name hash
@@ -71,7 +71,7 @@ class BrandedPlaceholder extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -91,10 +91,10 @@ class BrandedPlaceholder extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         border: Border.all(color: color.withValues(alpha: 0.18), width: 0.8),
       ),
-      padding: const EdgeInsets.all(AppTheme.space8),
+      padding: const EdgeInsets.all(V2Spacing.space8),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -104,7 +104,7 @@ class BrandedPlaceholder extends StatelessWidget {
             height: size * 0.38,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              borderRadius: BorderRadius.circular(V2Spacing.space8),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -116,7 +116,7 @@ class BrandedPlaceholder extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppTheme.space6),
+          const SizedBox(height: V2Spacing.space8),
           // Product name
           Text(
             productName,
@@ -131,7 +131,7 @@ class BrandedPlaceholder extends StatelessWidget {
             ),
           ),
           if (brand.isNotEmpty) ...[
-            const SizedBox(height: AppTheme.space2),
+            const SizedBox(height: V2Spacing.space4),
             Text(
               brand,
               textAlign: TextAlign.center,
@@ -151,7 +151,7 @@ class BrandedPlaceholder extends StatelessWidget {
             children: [
               Icon(_formIcon(), size: 12, color: color.withValues(alpha: 0.6)),
               if (score != null) ...[
-                const SizedBox(width: AppTheme.space4),
+                const SizedBox(width: V2Spacing.space4),
                 SizedBox(
                   width: 24,
                   height: 4,

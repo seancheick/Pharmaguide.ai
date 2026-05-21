@@ -1,5 +1,5 @@
 name: pharmaguide
-description: "PharmaGuide — Scan, score, and stack supplements safely"
+description: "PharmaGuide helps you understand supplements and medications with clinical-grade safety insights, interaction checks, ingredient analysis, and personalized health guidance. Scan products instantly to evaluate quality, purity, evidence, and compatibility with your health profile — all in a calm, transparent, and easy-to-understand experience."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+4
 
 environment:
   sdk: ^3.8.1
@@ -37,6 +37,11 @@ dependencies:
   path: ^1.9.0
   # Supabase
   supabase_flutter: ^2.5.0
+  # Apple Sign In (iOS native — Android falls back to web OAuth via Supabase)
+  sign_in_with_apple: ^6.1.0
+  # Google Sign In (native flow on both platforms; ID token handed to Supabase)
+  google_sign_in: ^6.2.1
+  crypto: ^3.0.3
   # Barcode scanning
   mobile_scanner: ^7.2.0
   # Sharing
@@ -54,6 +59,7 @@ dependencies:
   shimmer: ^3.0.0
   # URL launching (clinical citations, FDA links)
   url_launcher: ^6.2.0
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.1
@@ -69,9 +75,10 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.0
   # P4 (release-safety verify-bundle) — used by scripts/verify_bundle.dart
   # to compute SHA256, query the bundled SQLite catalog, and parse CLI args.
-  # http is already in `dependencies`. test/ uses flutter_test.
+  # http + crypto are already in `dependencies` (crypto: ^3.0.3 above), so
+  # listing them under dev_dependencies tripped the `unnecessary_dev_dependency`
+  # analyzer warning. test/ uses flutter_test.
   sqlite3: ^2.0.0
-  crypto: ^3.0.0
   args: ^2.4.0
 
 flutter_native_splash:
@@ -85,7 +92,15 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/images/app_icon.png
-  adaptive_icon_background: "#0A7D6F"
+  # Phase 11.7L.A — Sean 2026-05-16 cream icon background.
+  # The splash brand mark is now the app icon source. iOS rejects
+  # icons with transparency (auto-fills with black), so flatten onto
+  # the V2 cream surface (#FAF9F6) to match the splash + launch
+  # screen. Android adaptive icon background also switched to cream
+  # so the home-screen treatment reads consistent across platforms.
+  background_color_ios: "#FAF9F6"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FAF9F6"
   adaptive_icon_foreground: assets/images/app_icon_foreground.png
 
 flutter:

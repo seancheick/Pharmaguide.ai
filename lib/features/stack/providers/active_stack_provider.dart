@@ -10,9 +10,13 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Thrown when [StackActions.addProduct] is called with a product whose
 /// verdict is BLOCKED or UNSAFE (FLTR-16). Safety-first defense in
@@ -28,6 +32,16 @@ class StackAddBlockedException implements Exception {
   @override
   String toString() =>
       'StackAddBlockedException(dsldId=$dsldId, verdict=$verdict)';
+}
+
+/// Thrown when a guest tries to save stack state. Guest mode allows
+/// catalog lookups only; saved stack/profile/history are signed-in
+/// early-access features.
+class StackRequiresSignInException implements Exception {
+  const StackRequiresSignInException();
+
+  @override
+  String toString() => 'StackRequiresSignInException()';
 }
 
 /// All non-deleted stack entries, newest first.
@@ -80,6 +94,7 @@ class StackActions {
         verdict: product.verdict ?? '',
       );
     }
+    _requireSignedIn();
     final userDb = _ref.read(userDatabaseProvider);
     final id = _newId(product.dsldId);
     await userDb.addToStack(
@@ -88,10 +103,11 @@ class StackActions {
         type: const Value('supplement'),
         name: Value(product.productName),
         dsldId: Value(product.dsldId),
-        ingredientKeys: Value(product.ingredientFingerprint),
+        ingredientKeys: Value(jsonEncode(canonicalIdsForProduct(product))),
       ),
     );
     _invalidate();
+    CrashReportingService().log('stack_add_supplement');
     _triggerSync();
     return id;
   }
@@ -125,6 +141,7 @@ class StackActions {
     String? dosage,
     String? frequency,
   }) async {
+    _requireSignedIn();
     assert(
       (rxcui != null && rxcui.isNotEmpty) || drugClasses.isNotEmpty,
       'medication needs at least one of rxcui or drugClasses to participate '
@@ -152,6 +169,7 @@ class StackActions {
       ),
     );
     _invalidate();
+    CrashReportingService().log('stack_add_medication');
     // Intentionally NOT calling _triggerSync — medications never leave
     // the device. See spec §8.5.
     return id;
@@ -198,6 +216,10 @@ class StackActions {
     // must rebuild whenever the stack changes.
     _ref.invalidate(synergyReportProvider);
     _ref.invalidate(recalledIngredientsReportProvider);
+    // The Nutrients tab reads this provider directly, so stack CRUD must
+    // invalidate it explicitly; otherwise removed items can leave stale
+    // nutrient totals visible after the stack list has already updated.
+    _ref.invalidate(stackNutrientStatusesProvider);
   }
 
   /// Fire-and-forget sync attempt after every mutation. Silently skips
@@ -207,6 +229,12 @@ class StackActions {
     final service = _ref.read(stackSyncServiceProvider);
     unawaited(service.pushAll());
     _ref.invalidate(pendingSyncCountProvider);
+  }
+
+  void _requireSignedIn() {
+    if (_ref.read(authStateProvider) == AuthMode.guest) {
+      throw const StackRequiresSignInException();
+    }
   }
 }
 

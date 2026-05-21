@@ -1,6 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -46,19 +52,16 @@ class PGStackActionButtons extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final entryAsync = ref.watch(stackEntryForDsldIdProvider(dsldId));
-    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: EdgeInsets.fromLTRB(
-        AppTheme.space20,
-        AppTheme.space12,
-        AppTheme.space20,
-        MediaQuery.of(context).padding.bottom + AppTheme.space12,
+        V2Spacing.space24,
+        V2Spacing.space12,
+        V2Spacing.space24,
+        MediaQuery.of(context).padding.bottom + V2Spacing.space12,
       ),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        border: Border(
-          top: BorderSide(color: scheme.outlineVariant, width: 0.5),
-        ),
+      decoration: const BoxDecoration(
+        color: V2Colors.surface,
+        border: Border(top: BorderSide(color: V2Colors.outline)),
       ),
       child: _primary(context, ref, entryAsync),
     );
@@ -100,7 +103,7 @@ class PGStackActionButtons extends ConsumerWidget {
   // Add flow.
   // ---------------------------------------------------------------------
   Future<void> _handleAdd(BuildContext context, WidgetRef ref) async {
-    await PGHaptics.press();
+    unawaited(PGHaptics.press());
 
     // Fetch the product up front so we can pass its name into the sheet
     // and into the addProduct call on confirm.
@@ -146,6 +149,10 @@ class PGStackActionButtons extends ConsumerWidget {
     final actions = ref.read(stackActionsProvider);
     try {
       await actions.addProduct(product);
+    } on StackRequiresSignInException {
+      if (!context.mounted) return;
+      await context.push(Routes.authInvitation);
+      return;
     } on Exception {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -154,14 +161,17 @@ class PGStackActionButtons extends ConsumerWidget {
       return;
     }
 
-    // Fire haptic first so the await doesn't reintroduce the context gap.
-    await PGHaptics.success();
+    unawaited(PGHaptics.success());
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Added ${product.productName} to your stack'),
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Go to Stack',
+          onPressed: () => context.go(Routes.stack),
+        ),
       ),
     );
   }
@@ -223,20 +233,19 @@ class _LoadingPrimary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 52,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        color: V2Colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       alignment: Alignment.center,
-      child: SizedBox(
+      child: const SizedBox(
         width: 18,
         height: 18,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: scheme.onSurfaceVariant,
+          color: V2Colors.accent,
         ),
       ),
     );
@@ -251,6 +260,11 @@ class _AddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FilledButton.icon(
       onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: V2Colors.accent,
+        foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(52),
+      ),
       icon: const Icon(Icons.add_rounded, size: 20),
       label: const Text('Add to my stack'),
     );
@@ -269,8 +283,9 @@ class _SeeSaferButton extends StatelessWidget {
     return FilledButton.icon(
       onPressed: onTap,
       style: FilledButton.styleFrom(
-        backgroundColor: AppTheme.severityAvoid,
+        backgroundColor: V2Colors.avoid,
         foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(52),
       ),
       icon: const Icon(Icons.shield_outlined, size: 20),
       label: const Text('See safer alternatives'),
@@ -288,17 +303,14 @@ class _InStackPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     return Container(
       height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.space16),
+      padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
       decoration: BoxDecoration(
-        color: AppTheme.severitySafe.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        color: V2Colors.safeTint,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
         border: Border.all(
-          color: AppTheme.severitySafe.withValues(alpha: 0.22),
+          color: V2Colors.safe.withValues(alpha: 0.22),
           width: 0.8,
         ),
       ),
@@ -307,24 +319,21 @@ class _InStackPanel extends StatelessWidget {
           const Icon(
             Icons.check_circle_outline_rounded,
             size: 20,
-            color: AppTheme.severitySafe,
+            color: V2Colors.safe,
           ),
-          const SizedBox(width: AppTheme.space8),
+          const SizedBox(width: V2Spacing.space8),
           Text(
             'In your stack',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppTheme.severitySafe,
-            ),
+            style: V2Typography.label(color: V2Colors.safe),
           ),
           const Spacer(),
           TextButton.icon(
             onPressed: onRemove,
             style: TextButton.styleFrom(
-              foregroundColor: scheme.onSurfaceVariant,
+              foregroundColor: V2Colors.fgMuted,
               padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.space12,
-                vertical: AppTheme.space8,
+                horizontal: V2Spacing.space12,
+                vertical: V2Spacing.space8,
               ),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,

@@ -1,0 +1,88 @@
+{
+  "version": "0.0.1",
+  "_note": "PharmaGuide is a pure Flutter mobile project — no web/Node/Python dev servers. The entries below are the Flutter run targets defined in the Makefile. Flutter mobile apps aren't browser-previewable, so preview_start can't drive them; use `make <target>` or invoke the flutter CLI directly for a real device/simulator session. The port field is the Dart VM service port (set to 0 = auto-assigned).",
+  "configurations": [
+    {
+      "name": "flutter run (default)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=SUPABASE_URL=$SUPABASE_URL",
+        "--dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY",
+        "--dart-define=GEMINI_API_KEY=$GEMINI_API_KEY",
+        "--dart-define=SENTRY_DSN=$SENTRY_DSN",
+        "--dart-define=SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT",
+        "--dart-define=SENTRY_RELEASE=$SENTRY_RELEASE",
+        "--dart-define=GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID",
+        "--dart-define=GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run -d iPhone (v2 PD on iOS simulator)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_PRODUCT_DETAIL=true",
+        "-d",
+        "iPhone"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run (v2 ProfileSetup)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_PROFILE_SETUP=true"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run (v2 MedicationEntry)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_MEDICATION_ENTRY=true"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run (v2 Search)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_SEARCH=true"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run (v2 QuickCheck)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_QUICK_CHECK=true"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter run (v2 ALL — PD + ProfileSetup + MedicationEntry + Search + QuickCheck)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "--dart-define=USE_V2_PRODUCT_DETAIL=true",
+        "--dart-define=USE_V2_PROFILE_SETUP=true",
+        "--dart-define=USE_V2_MEDICATION_ENTRY=true",
+        "--dart-define=USE_V2_SEARCH=true",
+        "--dart-define=USE_V2_QUICK_CHECK=true"
+      ],
+      "port": 0
+    },
+    {
+      "name": "flutter test",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["test"],
+      "port": 0
+    }
+  ]
+}

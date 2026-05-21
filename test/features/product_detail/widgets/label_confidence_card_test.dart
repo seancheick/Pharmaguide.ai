@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/widgets/label_confidence_card.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -16,12 +16,15 @@ Future<void> _pump(
     MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
-          child: LabelConfidenceCard(
-            mappedCoverage: mappedCoverage,
-            hasProprietaryBlends: hasProprietaryBlends,
-            isNotScored: isNotScored,
-            productStatus: productStatus,
-            unmappedActives: unmappedActives,
+          child: Builder(
+            builder: (context) => buildLabelConfidenceSection(
+              context: context,
+              mappedCoverage: mappedCoverage,
+              hasProprietaryBlends: hasProprietaryBlends,
+              isNotScored: isNotScored,
+              productStatus: productStatus,
+              unmappedActives: unmappedActives,
+            ),
           ),
         ),
       ),
@@ -30,10 +33,10 @@ Future<void> _pump(
 }
 
 void main() {
-  group('LabelConfidenceCard.hasAnySignal', () {
+  group('labelConfidenceHasAnySignal', () {
     test('high confidence (no signals) → false', () {
       expect(
-        LabelConfidenceCard.hasAnySignal(
+        labelConfidenceHasAnySignal(
           mappedCoverage: 1.0,
           hasProprietaryBlends: false,
           isNotScored: false,
@@ -44,7 +47,7 @@ void main() {
 
     test('low coverage → true', () {
       expect(
-        LabelConfidenceCard.hasAnySignal(
+        labelConfidenceHasAnySignal(
           mappedCoverage: 0.4,
           hasProprietaryBlends: false,
           isNotScored: false,
@@ -55,7 +58,7 @@ void main() {
 
     test('blend → true', () {
       expect(
-        LabelConfidenceCard.hasAnySignal(
+        labelConfidenceHasAnySignal(
           mappedCoverage: 1.0,
           hasProprietaryBlends: true,
           isNotScored: false,
@@ -66,7 +69,7 @@ void main() {
 
     test('not scored → true', () {
       expect(
-        LabelConfidenceCard.hasAnySignal(
+        labelConfidenceHasAnySignal(
           mappedCoverage: 1.0,
           hasProprietaryBlends: false,
           isNotScored: true,
@@ -77,7 +80,7 @@ void main() {
 
     test('product status → true', () {
       expect(
-        LabelConfidenceCard.hasAnySignal(
+        labelConfidenceHasAnySignal(
           mappedCoverage: 1.0,
           hasProprietaryBlends: false,
           isNotScored: false,
@@ -89,7 +92,7 @@ void main() {
 
     test('unmapped actives total > 0 → true', () {
       expect(
-        LabelConfidenceCard.hasAnySignal(
+        labelConfidenceHasAnySignal(
           mappedCoverage: 1.0,
           hasProprietaryBlends: false,
           isNotScored: false,
@@ -100,7 +103,7 @@ void main() {
     });
   });
 
-  group('LabelConfidenceCard rendering', () {
+  group('LabelConfidence v2 rendering', () {
     testWidgets('high confidence → renders nothing', (tester) async {
       await _pump(tester);
       expect(find.textContaining('Label confidence'), findsNothing);
@@ -138,10 +141,9 @@ void main() {
           'display': 'Reformulated · 2026-01-15',
         },
       );
-      // Status-only renders as "Product note" — coverage/blend/unmapped
-      // are all clean here, so calling it "Label confidence: Partial"
-      // would mislead. The status row carries the actual signal.
-      expect(find.text('Product note'), findsOneWidget);
+      // Status-only renders as a compact product-status row in v2.
+      // Calling it "Label confidence: Partial" would mislead.
+      expect(find.text('Product note'), findsNothing);
       expect(find.textContaining('Reformulated'), findsWidgets);
     });
 

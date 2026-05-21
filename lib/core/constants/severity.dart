@@ -66,10 +66,50 @@ enum Severity {
   });
 
   static Severity fromString(String value) {
-    return Severity.values.firstWhere(
-      (s) => s.name == value.toLowerCase().trim(),
-      orElse: () => Severity.safe,
-    );
+    final normalized = value.toLowerCase().trim();
+    switch (normalized) {
+      case 'contraindicated':
+      case 'critical':
+        return Severity.contraindicated;
+      case 'avoid':
+      case 'high':
+        return Severity.avoid;
+      case 'caution':
+      case 'moderate':
+        return Severity.caution;
+      case 'monitor':
+      case 'low':
+      case 'no_data':
+        return Severity.monitor;
+      case 'informational':
+      case 'info':
+        return Severity.informational;
+      case 'safe':
+        return Severity.safe;
+      default:
+        return Severity.caution;
+    }
+  }
+
+  static bool isKnownString(String value) {
+    final normalized = value.toLowerCase().trim();
+    switch (normalized) {
+      case 'contraindicated':
+      case 'critical':
+      case 'avoid':
+      case 'high':
+      case 'caution':
+      case 'moderate':
+      case 'monitor':
+      case 'low':
+      case 'no_data':
+      case 'informational':
+      case 'info':
+      case 'safe':
+        return true;
+      default:
+        return false;
+    }
   }
 }
 

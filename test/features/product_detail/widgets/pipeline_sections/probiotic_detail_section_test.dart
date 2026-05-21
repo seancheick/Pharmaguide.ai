@@ -11,18 +11,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/widgets/pipeline_sections/probiotic_detail_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_section.dart';
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
-  group('ProbioticDetailSection — v1.5.x contract', () {
+  group('Probiotic section — v1.5.x contract', () {
     testWidgets('renders pre-formatted CFU label + flattened strain count', (
       tester,
     ) async {
       await tester.pumpWidget(
         _wrap(
-          const ProbioticDetailSection(
+          buildProbioticSection(
             probioticDetail: {
               'total_cfu_label': '25 billion CFU',
               'total_billion_count': 25.0,
@@ -59,13 +59,10 @@ void main() {
       // CFU chip uses the pre-formatted label.
       expect(find.text('25 billion CFU'), findsOneWidget);
       // Strain count is flattened across blends (2 unique).
-      expect(find.text('Strains: '), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
+      expect(find.text('2 strains'), findsOneWidget);
       // Clinical chip reads list length.
-      expect(find.text('Clinically studied: '), findsOneWidget);
-      expect(find.text('1'), findsOneWidget);
+      expect(find.text('1 clinically studied'), findsOneWidget);
       // Survivability chip uses humanized reason.
-      expect(find.text('Survivability: '), findsOneWidget);
       expect(find.text('Spore'), findsOneWidget);
     });
 
@@ -74,7 +71,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _wrap(
-          const ProbioticDetailSection(
+          buildProbioticSection(
             probioticDetail: {
               'total_billion_count': 5.0,
               'probiotic_blends': [
@@ -94,16 +91,16 @@ void main() {
 
     testWidgets('renders nothing for empty probiotic_detail', (tester) async {
       await tester.pumpWidget(
-        _wrap(const ProbioticDetailSection(probioticDetail: {})),
+        _wrap(buildProbioticSection(probioticDetail: {})),
       );
       expect(tester.takeException(), isNull);
-      expect(find.text('Probiotic Profile'), findsNothing);
+      expect(find.text('Probiotic strains'), findsNothing);
     });
 
     testWidgets('postbiotic flag renders the dedicated chip', (tester) async {
       await tester.pumpWidget(
         _wrap(
-          const ProbioticDetailSection(
+          buildProbioticSection(
             probioticDetail: {
               'total_cfu_label': '10 billion CFU',
               'has_postbiotic_strains': true,
@@ -117,8 +114,7 @@ void main() {
         ),
       );
       expect(tester.takeException(), isNull);
-      expect(find.text('Postbiotic: '), findsOneWidget);
-      expect(find.text('Yes'), findsOneWidget);
+      expect(find.text('Postbiotic included'), findsOneWidget);
     });
 
     testWidgets('per-strain row shows cfu + evidence when present', (
@@ -126,7 +122,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _wrap(
-          const ProbioticDetailSection(
+          buildProbioticSection(
             probioticDetail: {
               'total_cfu_label': '5 billion CFU',
               'probiotic_blends': [

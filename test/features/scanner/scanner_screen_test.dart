@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 
 void main() {
@@ -18,6 +20,36 @@ void main() {
     });
   });
 
+  group('scannerCameraPermissionDenied', () {
+    test('returns true only for permissionDenied scanner errors', () {
+      expect(
+        scannerCameraPermissionDenied(
+          const MobileScannerState.uninitialized().copyWith(
+            error: const MobileScannerException(
+              errorCode: MobileScannerErrorCode.permissionDenied,
+            ),
+          ),
+        ),
+        isTrue,
+      );
+
+      expect(
+        scannerCameraPermissionDenied(
+          const MobileScannerState.uninitialized().copyWith(
+            error: const MobileScannerException(
+              errorCode: MobileScannerErrorCode.controllerUninitialized,
+            ),
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        scannerCameraPermissionDenied(const MobileScannerState.uninitialized()),
+        isFalse,
+      );
+    });
+  });
+
   group('ScannerNotFoundSheet', () {
     testWidgets('renders barcode, guidance, and actions', (tester) async {
       await tester.pumpWidget(
@@ -32,10 +64,47 @@ void main() {
 
       expect(find.text('Product not found'), findsOneWidget);
       expect(find.text('UPC: 0123456789012'), findsOneWidget);
-      expect(find.text('Submit Product'), findsOneWidget);
       expect(find.text('Search by name'), findsOneWidget);
       expect(find.text('Scan again'), findsOneWidget);
-      expect(find.textContaining('submit the label'), findsOneWidget);
+      expect(find.text('Submit Product'), findsNothing);
+      expect(find.textContaining('submit the label'), findsNothing);
+      expect(
+        find.textContaining('Search by name or scan again'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('ManualBarcodeSheet', () {
+    testWidgets('returns the normalized barcode string', (tester) async {
+      String? submitted;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () async {
+                    submitted = await showManualBarcodeSheet(context);
+                  },
+                  child: const Text('Open manual entry'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open manual entry'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '048107058432');
+      await tester.pump();
+      await tester.tap(find.text('Find Product'));
+      await tester.pumpAndSettle();
+
+      expect(submitted, '048107058432');
     });
   });
 }

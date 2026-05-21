@@ -186,7 +186,36 @@ class CrashReportingService {
     return out;
   }
 
+  /// Framework debug-only asserts that only fire in `--debug` builds and
+  /// never reach release/TestFlight users. They polluted Sentry with
+  /// hundreds of duplicates from dev runs — drop at source so the live
+  /// signal isn't drowned out. Match against the event message because
+  /// the assertion text is stable across Flutter versions but the
+  /// stacktrace top-frame line number is not.
+  static const List<String> _debugOnlyFrameworkAsserts = [
+    "'!semantics.parentDataDirty'", // 444× — debug semantics pass
+    'A RenderFlex overflowed by', // 77× — debug overflow guide
+    'SliverGeometry is not valid', // 5×/5× — debug sliver validator
+  ];
+
   static SentryEvent? _scrubEvent(SentryEvent event, Hint hint) {
+    // Drop debug-only Flutter framework asserts from dev environments.
+    // These assertions don't fire in release/profile builds, so they
+    // only ever surface from local debug sessions that happen to have a
+    // live SENTRY_DSN. Filtering at source keeps the dashboard focused
+    // on issues real users actually hit.
+    final env = (event.environment ?? '').toLowerCase();
+    if (env == 'development' || env == 'debug') {
+      final msg = event.message?.formatted ?? '';
+      final excMsg = event.exceptions
+              ?.map((e) => e.value ?? '')
+              .join(' ') ??
+          '';
+      final haystack = '$msg $excMsg';
+      for (final pattern in _debugOnlyFrameworkAsserts) {
+        if (haystack.contains(pattern)) return null;
+      }
+    }
     // Scrub tags in-place.
     final tags = event.tags;
     if (tags != null) {

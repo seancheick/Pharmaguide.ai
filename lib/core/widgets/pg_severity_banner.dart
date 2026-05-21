@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/app_theme.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// Severity levels for [PGSeverityBanner] — independent from the clinical
 /// `Severity` enum because banners can also surface neutral info/warning
@@ -58,44 +60,44 @@ class PGSeverityBanner extends StatelessWidget {
   ({Color accent, IconData icon}) _style() {
     switch (tone) {
       case PGBannerTone.info:
-        return (accent: AppTheme.info, icon: Icons.info_outline_rounded);
+        return (accent: V2Colors.accent, icon: Icons.info_outline_rounded);
       case PGBannerTone.caution:
-        return (
-          accent: AppTheme.severityCaution,
-          icon: Icons.warning_amber_rounded,
-        );
+        return (accent: V2Colors.caution, icon: Icons.warning_amber_rounded);
       case PGBannerTone.danger:
-        return (
-          accent: AppTheme.severityContraindicated,
-          icon: Icons.block_rounded,
-        );
+        return (accent: V2Colors.contraindicated, icon: Icons.block_rounded);
       case PGBannerTone.success:
         return (
-          accent: AppTheme.severitySafe,
+          accent: V2Colors.safe,
           icon: Icons.check_circle_outline_rounded,
         );
       case PGBannerTone.neutral:
-        return (
-          accent: AppTheme.insufficientData,
-          icon: Icons.help_outline_rounded,
-        );
+        return (accent: V2Colors.fgMuted, icon: Icons.help_outline_rounded);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final style = _style();
     final tint = style.accent.withValues(alpha: isDark ? 0.14 : 0.06);
+
+    const surfaceColor = V2Colors.surface;
+    const outlineColor = V2Colors.outline;
+    const mutedColor = V2Colors.fgMuted;
+    const horizontalPadding = V2Spacing.space16;
+    const verticalPadding = V2Spacing.space12;
+    const iconGap = V2Spacing.space12;
+    const bodyGap = V2Spacing.space4;
+    const actionGap = V2Spacing.space8;
+    const chevronGap = 2.0;
+    const actionRadius = V2Spacing.radiusPill;
 
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: scheme.outlineVariant, width: 0.8),
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: outlineColor, width: 0.8),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -122,44 +124,36 @@ class PGSeverityBanner extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppTheme.space16 + 3,
-              AppTheme.space12,
-              AppTheme.space16,
-              AppTheme.space12,
+              horizontalPadding + 3,
+              verticalPadding,
+              horizontalPadding,
+              verticalPadding,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(style.icon, size: 20, color: style.accent),
-                const SizedBox(width: AppTheme.space12),
+                const SizedBox(width: iconGap),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          height: 1.35,
-                        ),
+                        style: V2Typography.titleSm(color: V2Colors.fg),
                       ),
                       if (body != null && body!.isNotEmpty) ...[
-                        const SizedBox(height: AppTheme.space4),
+                        const SizedBox(height: bodyGap),
                         Text(
                           body!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.45,
-                          ),
+                          style: V2Typography.bodySm(color: mutedColor),
                         ),
                       ],
                       if (actionLabel != null && onAction != null) ...[
-                        const SizedBox(height: AppTheme.space8),
+                        const SizedBox(height: actionGap),
                         InkWell(
                           onTap: onAction,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusFull,
-                          ),
+                          borderRadius: BorderRadius.circular(actionRadius),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -170,12 +164,11 @@ class PGSeverityBanner extends StatelessWidget {
                               children: [
                                 Text(
                                   actionLabel!,
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    fontSize: 13,
+                                  style: V2Typography.label(
                                     color: style.accent,
                                   ),
                                 ),
-                                const SizedBox(width: AppTheme.space2),
+                                const SizedBox(width: chevronGap),
                                 Icon(
                                   Icons.chevron_right_rounded,
                                   size: 16,

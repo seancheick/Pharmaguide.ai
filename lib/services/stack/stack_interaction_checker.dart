@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 
@@ -342,10 +343,10 @@ class StackInteractionChecker {
         // other side is agent2; otherwise it's agent1.
         final String? otherType;
         final String? otherId;
-        if (row.agent1CanonicalId == newId) {
+        if (row.agent1CanonicalId?.toLowerCase() == newId) {
           otherType = row.agent2Type;
           otherId = row.agent2Id;
-        } else if (row.agent2CanonicalId == newId) {
+        } else if (row.agent2CanonicalId?.toLowerCase() == newId) {
           otherType = row.agent1Type;
           otherId = row.agent1Id;
         } else {
@@ -514,8 +515,13 @@ class StackInteractionChecker {
   /// id at all (drug-side rows have `agent_canonical_id` null on the
   /// drug slot).
   static String? _otherCanonicalId(InteractionRow row, String newId) {
-    if (row.agent1CanonicalId == newId) return row.agent2CanonicalId;
-    if (row.agent2CanonicalId == newId) return row.agent1CanonicalId;
+    final normalizedNewId = newId.toLowerCase();
+    if (row.agent1CanonicalId?.toLowerCase() == normalizedNewId) {
+      return row.agent2CanonicalId?.toLowerCase();
+    }
+    if (row.agent2CanonicalId?.toLowerCase() == normalizedNewId) {
+      return row.agent1CanonicalId?.toLowerCase();
+    }
     return null;
   }
 
@@ -539,21 +545,15 @@ class StackInteractionChecker {
   }
 
   /// Decode a stack row's `ingredient_keys` JSON into a normalized list
-  /// of canonical ids. Returns an empty list on missing/malformed JSON
-  /// rather than throwing — a single broken stack row should never
-  /// abort the whole interaction check.
+  /// of canonical ids.
+  ///
+  /// Current rows store a JSON list. Older rows may contain the structured
+  /// product fingerprint object; use the shared parser so those rows recover
+  /// real IDs instead of dropping the stack entry.
   static List<String> _canonicalIdsFor(UserStacksLocalData row) {
-    final raw = row.ingredientKeys;
-    if (raw == null || raw.isEmpty) return const <String>[];
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return const <String>[];
-      return _normalizeCanonicalIds(
-        decoded.where((e) => e != null).map((e) => e.toString()).toList(),
-      );
-    } on FormatException {
-      return const <String>[];
-    }
+    return _normalizeCanonicalIds(
+      canonicalIdsFromJsonString(row.ingredientKeys),
+    );
   }
 
   /// Decode a medication row's `drug_classes` JSON into a list of
