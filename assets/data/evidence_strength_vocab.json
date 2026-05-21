@@ -6,7 +6,7 @@
     "total_entries": 6,
     "status": "LOCKED — split from evidence_level_vocab 2026-05-01",
     "purpose": "Single source of truth for interaction-rule evidence strength labels and descriptions. Source data still uses the field name evidence_level; this vocab names the concept evidence_strength to avoid conflating rule strength with clinical-study design.",
-    "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json and scripts/data/ingredient_interaction_rules_Reviewed.json evidence_level fields. Flutter consumer: future replacement for lib/core/constants/severity.dart EvidenceLevel enum.",
+    "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json evidence_level fields (single source of truth as of 2026-05-13; the stale ingredient_interaction_rules_Reviewed.json v5.2.0 snapshot was retired). Flutter consumer: future replacement for lib/core/constants/severity.dart EvidenceLevel enum.",
     "field_contract": {
       "id": "Stable snake_case identifier found in interaction-rule evidence_level fields.",
       "name": "User-facing label.",
