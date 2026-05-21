@@ -230,6 +230,15 @@ flutter:
     # lozenge, tincture from liquid, etc.).
     # Source: pipeline `scripts/data/form_factor_vocab.json`.
     - assets/data/form_factor_vocab.json
+    # ingredient_category vocab (SP-4, 2026-05-21): 17 canonical
+    # singular line-level ingredient categories (vitamin, mineral,
+    # herb, antioxidant, fatty_acid, amino_acid, probiotic, protein,
+    # fiber, enzyme, functional_food + delivery / additive / inactive /
+    # other). Distinct from the PLURAL iqm_category_vocab (IQM
+    # parent-level UI labels) — this vocab is line-level row
+    # canonicalization.
+    # Source: pipeline `scripts/data/ingredient_category_vocab.json`.
+    - assets/data/ingredient_category_vocab.json
 
 sentry:
   upload_debug_symbols: true

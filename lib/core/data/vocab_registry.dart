@@ -33,6 +33,7 @@ import 'package:pharmaguide/core/data/drug_class_vocab.dart';
 import 'package:pharmaguide/core/data/effect_direction_vocab.dart';
 import 'package:pharmaguide/core/data/efsa_genotoxicity_vocab.dart';
 import 'package:pharmaguide/core/data/form_factor_vocab.dart';
+import 'package:pharmaguide/core/data/ingredient_category_vocab.dart';
 import 'package:pharmaguide/core/data/efsa_status_vocab.dart';
 import 'package:pharmaguide/core/data/evidence_level_vocab.dart';
 import 'package:pharmaguide/core/data/evidence_strength_vocab.dart';
@@ -84,6 +85,7 @@ class VocabRegistry {
   Map<String, PrimaryOutcomeEntry> _primaryOutcomes = const {};
   Map<String, ProductTypeEntry> _productTypes = const {};
   Map<String, FormFactorEntry> _formFactors = const {};
+  Map<String, IngredientCategoryEntry> _ingredientCategories = const {};
 
   /// Eager-load every vocab in parallel. Call once before runApp().
   /// Idempotent — safe to call multiple times.
@@ -117,6 +119,7 @@ class VocabRegistry {
       loadPrimaryOutcomeVocab(),
       loadProductTypeVocab(),
       loadFormFactorVocab(),
+      loadIngredientCategoryVocab(),
     ]);
 
     _verdicts = results[0] as Map<String, VerdictEntry>;
@@ -149,6 +152,7 @@ class VocabRegistry {
     _primaryOutcomes = results[24] as Map<String, PrimaryOutcomeEntry>;
     _productTypes = results[25] as Map<String, ProductTypeEntry>;
     _formFactors = results[26] as Map<String, FormFactorEntry>;
+    _ingredientCategories = results[27] as Map<String, IngredientCategoryEntry>;
 
     _initialized = true;
   }
@@ -189,6 +193,8 @@ class VocabRegistry {
   PrimaryOutcomeEntry? primaryOutcome(String id) => _primaryOutcomes[id];
   ProductTypeEntry? productType(String id) => _productTypes[id];
   FormFactorEntry? formFactor(String id) => _formFactors[id];
+  IngredientCategoryEntry? ingredientCategory(String id) =>
+      _ingredientCategories[id];
 
   /// Test seam — pumps all vocab maps for widget tests without async init.
   @visibleForTesting
@@ -231,6 +237,7 @@ class VocabRegistry {
     _primaryOutcomes = const {};
     _productTypes = const {};
     _formFactors = const {};
+    _ingredientCategories = const {};
     _initialized = false;
   }
 }
