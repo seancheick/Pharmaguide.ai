@@ -156,7 +156,8 @@ abstract final class V2Theme {
       splashFactory: InkSparkle.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          // iOS uses Flutter's platform default. Keep only the Android
+          // override here so this stays compatible across Flutter SDKs.
           TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
         },
       ),
