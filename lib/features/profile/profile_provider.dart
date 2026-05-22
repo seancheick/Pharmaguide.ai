@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 class ProfileState {
   final String? nickname;
@@ -158,7 +159,14 @@ class ProfileState {
     try {
       final decoded = jsonDecode(json);
       if (decoded is List) return decoded.cast<String>();
-    } on Exception catch (_) {}
+    } on Exception catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: true,
+        hint: 'profile:decode_list',
+      );
+    }
     return [];
   }
 
@@ -440,8 +448,16 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       if (row != null) {
         state = ProfileState.fromDbRow(row);
       }
-    } on Exception catch (_) {
-      // DB read failed — keep default empty state, log if needed.
+    } on Exception catch (e, st) {
+      // DB read failed — keep default empty state. fatal=false intentionally:
+      // loadFromDb fires on every cold start, so a single user with corrupt
+      // profile data would otherwise trigger a fatal alert storm. Recoverable
+      // on next session, so we surface as a non-fatal Sentry event.
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'profile:load_from_db',
+      );
     }
     _isLoaded = true;
   }
@@ -459,10 +475,19 @@ final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((
   UserDatabase? db;
   try {
     db = ref.watch(userDatabaseProvider);
-  } on Object {
+  } on Object catch (e, st) {
     // userDatabaseProvider not overridden (e.g. in tests) — no persistence.
     // Catches Error (UnimplementedError from the default provider stub)
-    // AND Exception — both map to "no DB available" here.
+    // AND Exception — both map to "no DB available" here. fatal=true: in
+    // production the provider is always overridden in main.dart, so hitting
+    // this path means a real bootstrap failure that silently degrades the
+    // profile for every downstream screen.
+    CrashReportingService().recordError(
+      e,
+      st,
+      fatal: true,
+      hint: 'profile:provider_init',
+    );
   }
   final notifier = ProfileNotifier(db);
   // Kick off load — consumers can check notifier.isLoaded if needed.

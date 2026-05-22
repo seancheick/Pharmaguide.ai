@@ -21,6 +21,7 @@
 
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/services/catalog_version.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 typedef RemoteVersionProbe = Future<String?> Function();
 typedef StagedDownload = Future<String> Function({String? expectedVersion});
@@ -95,7 +96,12 @@ class CatalogUpdaterService {
     final String? remoteVersion;
     try {
       remoteVersion = await probeRemoteVersion();
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'catalog_updater:unreachable',
+      );
       return CatalogUnreachable(error: e);
     }
 
@@ -134,7 +140,12 @@ class CatalogUpdaterService {
     try {
       final validated = await stageDownload(expectedVersion: remoteVersion);
       return CatalogStaged(version: validated);
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'catalog_updater:stage_failed',
+      );
       return CatalogStageFailed(
         error: e,
         reason: 'stageCoreDbDownload failed: $e',

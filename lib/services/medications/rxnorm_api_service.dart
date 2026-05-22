@@ -34,6 +34,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Result of an `approximateTerm` autocomplete query.
 @immutable
@@ -89,11 +90,13 @@ typedef RxNormHttpGet = Future<String> Function(Uri url);
 /// the class picker".
 Future<String> defaultRxNormHttpGet(Uri url) async {
   final client = HttpClient();
+  int? statusCode;
   try {
     client.connectionTimeout = const Duration(seconds: 5);
     final req = await client.getUrl(url);
     req.headers.set(HttpHeaders.acceptHeader, 'application/json');
     final res = await req.close().timeout(const Duration(seconds: 5));
+    statusCode = res.statusCode;
     if (res.statusCode != 200) {
       throw HttpException(
         'RxNorm GET ${url.path} returned ${res.statusCode}',
@@ -103,6 +106,21 @@ Future<String> defaultRxNormHttpGet(Uri url) async {
     return res.transform(utf8.decoder).join();
   } finally {
     client.close(force: false);
+    // Manual Sentry breadcrumb — rxnorm uses dart:io HttpClient, not
+    // package:http, so SentryHttpClient can't wrap it. Recording here
+    // gives the same per-request signal we get from the wrapped clients.
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb.http(
+          url: url,
+          method: 'GET',
+          statusCode: statusCode,
+          level: (statusCode == null || statusCode >= 400)
+              ? SentryLevel.warning
+              : SentryLevel.info,
+        ),
+      ),
+    );
   }
 }
 

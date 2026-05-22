@@ -5,6 +5,7 @@ import 'dart:math' show Random;
 import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -114,14 +115,21 @@ class PGAuthService {
         redirectTo: 'pharmaguide://auth/callback',
       );
       return const PGAuthHandoffToBrowser();
-    } on SignInWithAppleAuthorizationException catch (e) {
+    } on SignInWithAppleAuthorizationException catch (e, st) {
       if (e.code == AuthorizationErrorCode.canceled) {
         return const PGAuthCancelled();
       }
+      CrashReportingService().recordError(e, st, hint: 'pg_auth:apple_authz');
       return PGAuthError(_friendlyAppleError(e));
-    } on AuthException catch (e) {
+    } on AuthException catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'pg_auth:apple_supabase',
+      );
       return PGAuthError(_friendlySupabaseError(e));
-    } on Object catch (_) {
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(e, st, hint: 'pg_auth:apple_unknown');
       return const PGAuthError(
         "We couldn't reach the network. Try again in a moment.",
       );
@@ -175,21 +183,33 @@ class PGAuthService {
         );
       }
       return PGAuthSuccess(session);
-    } on AuthException catch (e) {
+    } on AuthException catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'pg_auth:google_supabase',
+      );
       return PGAuthError(_friendlySupabaseError(e));
-    } on Object catch (e) {
+    } on Object catch (e, st) {
       // GoogleSignIn errors don't have a useful exception subclass —
       // surface the message and map common cases to friendly copy.
       final msg = e.toString().toLowerCase();
+      // User-cancel path: don't record — user intent, not an error.
+      if (msg.contains('sign_in_canceled')) {
+        return const PGAuthError('Sign in canceled.');
+      }
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'pg_auth:google_unknown',
+      );
       if (msg.contains('network')) {
         return const PGAuthError(
           "We couldn't reach the network. Try again in a moment.",
         );
       }
-      return PGAuthError(
-        msg.contains('sign_in_canceled')
-            ? 'Sign in canceled.'
-            : 'Something went wrong with Google sign-in. Try again.',
+      return const PGAuthError(
+        'Something went wrong with Google sign-in. Try again.',
       );
     }
   }

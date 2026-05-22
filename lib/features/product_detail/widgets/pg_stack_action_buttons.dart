@@ -14,6 +14,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Sticky action bar at the bottom of the product detail screen.
 ///
@@ -111,7 +112,12 @@ class PGStackActionButtons extends ConsumerWidget {
     ProductsCoreData? product;
     try {
       product = await coreDb.findById(dsldId);
-    } on Exception {
+    } on Exception catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'stack_action:add_lookup',
+      );
       product = null;
     }
     if (!context.mounted) return;
@@ -153,7 +159,12 @@ class PGStackActionButtons extends ConsumerWidget {
       if (!context.mounted) return;
       await context.push(Routes.authInvitation);
       return;
-    } on Exception {
+    } on Exception catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'stack_action:add_save',
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -188,7 +199,12 @@ class PGStackActionButtons extends ConsumerWidget {
     await PGHaptics.press();
     try {
       await actions.remove(entryId);
-    } on Exception {
+    } on Exception catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'stack_action:remove',
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not remove from stack.')),
@@ -214,8 +230,13 @@ class PGStackActionButtons extends ConsumerWidget {
           onPressed: () async {
             try {
               await actions.restore(entryId);
-            } on Exception {
-              // Silent — UI state already optimistic.
+            } on Exception catch (e, st) {
+              // UI state stays optimistic; record for triage only.
+              CrashReportingService().recordError(
+                e,
+                st,
+                hint: 'stack_action:restore',
+              );
             }
           },
         ),

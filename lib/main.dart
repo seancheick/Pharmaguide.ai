@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -81,6 +82,22 @@ Future<void> _runApp() async {
     CrashReportingService().recordError(error, stack, fatal: true);
     return true;
   };
+
+  // Capture uncaught errors from any spawned isolate (e.g. compute()).
+  // Sentry's `appRunner` zone wrap doesn't cross isolate boundaries, so
+  // background work would otherwise crash invisibly.
+  final isolateErrorPort = RawReceivePort((dynamic message) {
+    final pair = (message as List).cast<String?>();
+    final errorMsg = pair.isNotEmpty ? pair.first : null;
+    final stackStr = pair.length > 1 ? pair.last : null;
+    CrashReportingService().recordError(
+      Exception(errorMsg ?? 'isolate-error'),
+      stackStr != null ? StackTrace.fromString(stackStr) : StackTrace.current,
+      fatal: true,
+      hint: 'isolate:uncaught',
+    );
+  });
+  Isolate.current.addErrorListener(isolateErrorPort.sendPort);
 
   // Initialize analytics (stub — safe to call, never throws)
   await AnalyticsService().initialize();

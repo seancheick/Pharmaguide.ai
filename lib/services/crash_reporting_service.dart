@@ -107,13 +107,26 @@ class CrashReportingService {
     }
   }
 
-  void recordError(Object error, StackTrace stackTrace, {bool fatal = false}) {
-    _errorBuffer.add(RecordedCrashError(error.toString(), stackTrace, fatal));
+  /// [hint] is an opaque surface tag like `catalog_swap:backup_failed`. When
+  /// set it is attached to the Sentry event as `pg.surface=<hint>` so the
+  /// dashboard can filter/group by failure surface. Safe to omit.
+  void recordError(
+    Object error,
+    StackTrace stackTrace, {
+    bool fatal = false,
+    String? hint,
+  }) {
+    _errorBuffer.add(
+      RecordedCrashError(error.toString(), stackTrace, fatal, hint),
+    );
     if (_errorBuffer.length > _errorMax) {
       _errorBuffer.removeRange(0, _errorBuffer.length - _errorMax);
     }
     if (kDebugMode) {
-      debugPrint('CrashReport: ${fatal ? "FATAL" : "non-fatal"} — $error');
+      final hintSuffix = hint != null ? ' [$hint]' : '';
+      debugPrint(
+        'CrashReport: ${fatal ? "FATAL" : "non-fatal"}$hintSuffix — $error',
+      );
     }
     if (_sentryEnabled) {
       unawaited(
@@ -121,6 +134,9 @@ class CrashReportingService {
           error,
           stackTrace: stackTrace,
           hint: fatal ? Hint.withMap({'fatal': true}) : null,
+          withScope: hint == null
+              ? null
+              : (scope) => scope.setTag('pg.surface', hint),
         ),
       );
     }
@@ -266,11 +282,14 @@ class RecordedCrashError {
   final String summary;
   final StackTrace stackTrace;
   final bool fatal;
+  final String? hint;
   final DateTime at;
-  RecordedCrashError(this.summary, this.stackTrace, this.fatal)
+  RecordedCrashError(this.summary, this.stackTrace, this.fatal, [this.hint])
     : at = DateTime.now();
 
   @override
-  String toString() =>
-      '[$at] ${fatal ? "FATAL" : "non-fatal"} $summary\n$stackTrace';
+  String toString() {
+    final hintPart = hint != null ? ' [$hint]' : '';
+    return '[$at] ${fatal ? "FATAL" : "non-fatal"}$hintPart $summary\n$stackTrace';
+  }
 }

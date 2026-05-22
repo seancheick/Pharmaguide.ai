@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
@@ -416,6 +417,7 @@ GoRouter _buildRouter({
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.
     initialLocation: initialLocation,
+    observers: [SentryNavigatorObserver()],
     redirect: (_, state) => normalizePharmaGuideDeepLink(state.uri),
     routes: [
       ShellRoute(

@@ -131,7 +131,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       // until app restart — a hard failure mode for a medical-grade
       // lookup screen. Safer to swallow and show "not found".
       // ignore: avoid_catches_without_on_clauses
-    } catch (_) {
+    } catch (e, st) {
+      CrashReportingService().recordError(e, st, hint: 'scanner:db_error');
       if (!mounted) return;
       setState(() => _isLookingUp = false);
       _showProductNotFound(upc);

@@ -7,6 +7,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Resolves the best available product image URL for a given product.
 ///
@@ -25,7 +26,12 @@ import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 /// Rate limiting: max 2 concurrent OFF requests via semaphore.
 class ProductImageResolver {
   ProductImageResolver(this._userDb, {http.Client? httpClient})
-    : _http = httpClient ?? http.Client();
+    : _http =
+          httpClient ??
+          SentryHttpClient(
+            client: http.Client(),
+            captureFailedRequests: true,
+          );
 
   final UserDatabase _userDb;
   final http.Client _http;

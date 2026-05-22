@@ -14,6 +14,7 @@ import 'dart:io';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 typedef CorePathProvider = Future<String> Function();
 typedef CoreDbActivator = Future<void> Function();
@@ -89,7 +90,13 @@ class CatalogSwapper {
     final String dbPath;
     try {
       dbPath = await corePathProvider();
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: true,
+        hint: 'catalog_swap:path_lookup',
+      );
       return SwapRolledBack(error: e, reason: 'Path lookup failed: $e');
     }
 
@@ -97,27 +104,45 @@ class CatalogSwapper {
       if (!await File('$dbPath.staging').exists()) {
         return const SwapNoStaging();
       }
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: true,
+        hint: 'catalog_swap:staging_probe',
+      );
       return SwapRolledBack(error: e, reason: 'Staging probe failed: $e');
     }
 
     try {
       await activator();
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: true,
+        hint: 'catalog_swap:activation',
+      );
       return SwapRolledBack(error: e, reason: 'Activation failed: $e');
     }
 
     final CoreDatabase newDb;
     try {
       newDb = await opener();
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: true,
+        hint: 'catalog_swap:open',
+      );
       return SwapRolledBack(error: e, reason: 'Open failed: $e');
     }
 
     try {
       final version = await newDb.validateCatalogSnapshot();
       return SwapSuccess(newDb: newDb, version: version);
-    } on Object catch (e) {
+    } on Object catch (e, st) {
       // Best-effort close. Drift's `close()` can throw when the
       // underlying connection is already broken, but if we let that
       // secondary error propagate we'd lose the original validation
@@ -129,6 +154,12 @@ class CatalogSwapper {
       } on Object {
         // Best-effort cleanup; nothing actionable for the caller.
       }
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: true,
+        hint: 'catalog_swap:validation',
+      );
       return SwapRolledBack(error: e, reason: 'Validation failed: $e');
     }
   }

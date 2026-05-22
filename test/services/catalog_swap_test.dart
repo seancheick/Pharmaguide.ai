@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 void main() {
   late Directory tempDir;
@@ -147,6 +148,48 @@ void main() {
         isFalse,
         reason: 'No staging file → activator must not run',
       );
+    });
+  });
+
+  group('CatalogSwapper.swap — Sentry telemetry', () {
+    setUp(() async {
+      await CrashReportingService().initialize();
+      CrashReportingService().clearBuffersForTest();
+    });
+
+    test('records pg.surface=catalog_swap:path_lookup on path failure',
+        () async {
+      final swapper = CatalogSwapper(
+        corePathProvider: () async =>
+            throw const FileSystemException('documents dir unavailable'),
+        activator: () async => fail('activator must not run'),
+        opener: () async => fail('opener must not run'),
+      );
+
+      await swapper.swap();
+
+      final errors = CrashReportingService().recordedErrors;
+      expect(errors, hasLength(1));
+      expect(errors.single.hint, equals('catalog_swap:path_lookup'));
+      expect(errors.single.fatal, isTrue);
+      expect(errors.single.summary, contains('documents dir unavailable'));
+    });
+
+    test('records pg.surface=catalog_swap:activation on activator failure',
+        () async {
+      File(stagingPath).writeAsBytesSync([0x00]);
+      final swapper = CatalogSwapper(
+        corePathProvider: tempPath,
+        activator: () async => throw StateError('rename failed'),
+        opener: () async => fail('opener must not run'),
+      );
+
+      await swapper.swap();
+
+      final errors = CrashReportingService().recordedErrors;
+      expect(errors, hasLength(1));
+      expect(errors.single.hint, equals('catalog_swap:activation'));
+      expect(errors.single.fatal, isTrue);
     });
   });
 }
