@@ -14,9 +14,13 @@ Issue ID (optional): `$ARGUMENTS`
 
 - If a Sentry issue ID was provided in the arguments (format
   `PHARMAGUIDE-XXX` or a Sentry shortlink), use that one.
-- If no argument was given, query Sentry MCP for the top unresolved issue
-  from the last 7 days, ranked by user impact (`users_affected` desc,
-  then `event_count` desc). Pick exactly one — don't try to batch-fix.
+- If no argument was given, query Sentry MCP for the top unresolved
+  issue from the last 7 days, ranked by user impact (`users_affected`
+  desc, then `event_count` desc). Filter to
+  `environment:[testflight, production]` and skip any issue whose
+  title contains "App Hanging" or "ANR" (those are iOS/Android
+  native main-thread-block diagnostics — not actionable from Dart).
+  Pick exactly one — don't try to batch-fix.
 
 ## Hard rules (non-negotiable)
 

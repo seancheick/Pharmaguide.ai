@@ -82,6 +82,13 @@ single highest-impact issue that meets ALL of these:
   - Status is `unresolved`
   - users_affected >= 1
   - last_seen within the last 24 hours
+  - environment is `testflight` or `production` (NEVER `development` —
+    those are the founder's local crashes during builds, not user bugs)
+  - title does NOT contain "App Hanging" or "ANR" — those are
+    iOS/Android native main-thread-block diagnostics that aren't
+    fixable from Dart code without specialist platform profiling.
+    Skip them; they're not autofix material.
+  - issue_type is `error` (skip `performance` and `feedback` types)
   - No PR with label `sentry-autofix` is already open for this issue
     (check via the GitHub connector — search for the issue ID in open
     PR titles or bodies)
