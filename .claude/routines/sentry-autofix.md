@@ -94,6 +94,16 @@ single highest-impact issue that meets ALL of these:
     PR titles or bodies)
   - The issue is not older than 30 days
 
+When ranking, prefer issues that carry a `pg.surface` tag — that tag
+is set by `CrashReportingService.recordError(..., hint: ...)` at every
+intentionally-instrumented catch site, so its presence means the bug
+was raised from a known surface (`catalog_swap:*`, `pg_auth:*`,
+`profile:*`, `stack_action:*`, `scanner:db_error`, `catalog_updater:*`,
+`isolate:uncaught`). Untagged issues are framework-level errors from
+`FlutterError.onError` / `PlatformDispatcher.onError` and are usually
+harder to fix without more context — still actionable, just lower
+priority when a tagged issue is also queued.
+
 If nothing matches, post one sentence in the session log ("No
 actionable Sentry issues this cycle.") and end. Do NOT open an empty
 PR or "investigatory" PR.
@@ -101,7 +111,34 @@ PR or "investigatory" PR.
 # Step 3 — Diagnose
 
 For the chosen issue:
-  - Fetch the latest event with full stack trace and breadcrumbs.
+  - Fetch the latest event with full stack trace, breadcrumbs, and tags.
+  - **Fix-already-in-code check (do this FIRST, before reading any
+    code in detail).** Sentry issues stay `unresolved` until users
+    stop hitting them — a fix that shipped in the next build still
+    leaves the issue open while users on the old build keep firing
+    events. Before assuming a fix is needed:
+      a. Grep the offending file (and adjacent files in the same
+         feature directory) for the Sentry issue ID — e.g.
+         `rg PHARMAGUIDE-W lib/`. A comment like
+         `// Sentry PHARMAGUIDE-W fix` is a definitive "already
+         fixed" signal.
+      b. Compare the issue's `release` tag to the release on `main`
+         (read `pubspec.yaml` `version:` or the latest git tag). If
+         the issue's release is strictly older than `main`'s, the
+         fix is likely already in code.
+      c. If either signal hits: do NOT open a PR. Post a comment on
+         the Sentry issue noting the fix is already on main, name
+         the commit/file:line that contains it, recommend the issue
+         be marked `resolved_in_next_release` once the next build
+         ships. End the session.
+  - Read the failure tags for journey context. Useful tags set by
+    the instrumentation:
+      `pg.surface`     — the catch-site identifier (failure mode)
+      `scan_result`    — last scan outcome (`found` / `not_found` / `error`)
+      `auth_state`     — `guest` or `signedIn` (no Supabase UUID)
+    A `pg.surface:profile:load_from_db` event with `auth_state:guest`
+    is a different bug from the same surface with `auth_state:signedIn`
+    — let the tags narrow the diagnosis before reading code.
   - Open the offending file and read +/- 50 lines of context.
   - Grep for related call sites.
   - Write a 3-5 sentence root-cause analysis. If you cannot write a
@@ -169,6 +206,45 @@ session.
 You have one Sentry issue per run. Don't fan out into multiple PRs.
 Don't research adjacent issues "just in case". Stay narrow.
 ```
+
+---
+
+## Available Sentry signal (as of merge)
+
+Layer 3.1 instrumentation landed on `main` in commits `8ba2da3` and
+`3ec101d`. The routine can rely on:
+
+- **`pg.surface` tag** on every intentionally-recorded error. Values
+  follow `<feature>:<reason>` shape. Current registered values:
+  - `catalog_swap:{path_lookup,staging_probe,activation,open,validation}`
+  - `catalog_updater:{unreachable,stage_failed}`
+  - `pg_auth:{apple_authz,apple_supabase,apple_unknown,google_supabase,google_unknown}`
+  - `stack_action:{add_lookup,add_save,remove,restore}`
+  - `profile:{decode_list,load_from_db,provider_init}`
+  - `scanner:db_error`
+  - `isolate:uncaught`
+- **`scan_result` scope tag** — `found` / `not_found` / `error`, set by
+  `CrashReportingService.setScanResult()` at scanner outcomes.
+- **`auth_state` scope tag** — `guest` / `signedIn`, set by
+  `CrashReportingService.setAuthState()` on auth transitions. Never
+  carries the Supabase user UUID.
+- **`SentryNavigatorObserver`** on GoRouter — route breadcrumbs flow
+  automatically; events include the user's navigation trail.
+- **`SentryHttpClient`** wrap on the OFF API HTTP client + manual
+  `Breadcrumb.http` inside `defaultRxNormHttpGet` — HTTP failures
+  appear as breadcrumbs even when caught.
+- **`profile:load_from_db` is intentionally `fatal=false`** — fires
+  on every cold start, would otherwise alert-storm for a single user
+  with corrupt data. Don't treat its low fatality as "low priority";
+  treat it as "high frequency, recoverable per session".
+
+The PII scrubber uses word-boundary matching (exact / `_<sensitive>`
+suffix / `_<sensitive>_` middle) and exposes
+`CrashReportingService.isSensitiveForTest()` for verification. Tags
+like `email_verified`, `condition_id_class`, `ingredient_count`,
+`stack_added_at`, `profile_completed_at` will survive scrubbing and
+carry triage value. Don't assume any tag from a Sentry event is
+scrubbed — read it.
 
 ---
 
