@@ -146,6 +146,12 @@ Short version:
   Cloudflare relay.
 - No marketing-site coverage. Mirror this setup into the marketing
   repo when you point me at it.
+- No instrumentation upgrade yet. The routine is only as good as the
+  Sentry signal it triages, and most user-impacting errors are
+  currently caught and swallowed without reaching Sentry. See
+  `docs/SELF_HEALING_LAYER_3_1_PLAN.md` for the planned upgrade —
+  budget it for after the first wider beta or once a real bug slips
+  through invisibly.
 
 ---
 
