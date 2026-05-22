@@ -143,6 +143,19 @@ class CrashReportingService {
   }
 
   /// Only an opaque id is sent — never email, never profile data.
+  ///
+  /// **Privacy note — do NOT call this with the Supabase auth user ID.**
+  /// The Supabase user UUID is the foreign key to every health-related
+  /// record on the Supabase side; pushing it to Sentry would create a
+  /// join from a crash event back to the user's health data, which
+  /// violates the spirit of the no_health_in_supabase invariant.
+  ///
+  /// Currently this method is intentionally never called — Sentry's
+  /// SDK auto-assigns an anonymous per-install UUID for crash grouping,
+  /// which is the right level of stable identity. If we ever need
+  /// authenticated user context (e.g. to triage a single user's
+  /// recurring bug), pass an opaque salted hash of the Supabase UUID,
+  /// not the UUID itself, so Sentry cannot be joined back to the DB.
   void setUserId(String? userId) {
     _breadcrumbBuffer.add(CrashBreadcrumb('user_id=$userId'));
     _trimBreadcrumbs();

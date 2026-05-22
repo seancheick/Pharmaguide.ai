@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:pharmaguide/data/database/tables/detail_cache_table.dart';
+import 'package:pharmaguide/data/database/tables/failed_scans_table.dart';
 import 'package:pharmaguide/data/database/tables/scan_history_table.dart';
 import 'package:pharmaguide/data/database/tables/user_favorites_table.dart';
 import 'package:pharmaguide/data/database/tables/user_profile_table.dart';
@@ -21,6 +22,7 @@ part 'user_database.g.dart';
     ScanHistory,
     DetailCache,
     ProductImageCache,
+    FailedScans,
   ],
 )
 class UserDatabase extends _$UserDatabase {
@@ -31,7 +33,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -62,6 +64,12 @@ class UserDatabase extends _$UserDatabase {
         // pregnant/breastfeeding/ttc/surgery_scheduled are still derived
         // from conditions[] for backward compatibility.
         await m.addColumn(userProfiles, userProfiles.profileFlags);
+      }
+      if (from < 6) {
+        // v6: failed-scan queue for the Layer 4 missing-UPC sensor. Holds
+        // only the UPC + aggregate counts; no user identifier. See the
+        // privacy contract in failed_scans_table.dart.
+        await m.createTable(failedScans);
       }
     },
   );
@@ -193,6 +201,61 @@ class UserDatabase extends _$UserDatabase {
       readsFrom: {scanHistory},
     ).get();
     return rows.map((r) => scanHistory.map(r.data)).toList();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Failed-scan queue (Layer 4 missing-UPC sensor)
+  // ---------------------------------------------------------------------------
+
+  /// Record a UPC that the catalog couldn't resolve. On first miss inserts
+  /// a row; on subsequent misses bumps `attempt_count` and `last_seen`.
+  /// No user identifier is stored — see failed_scans_table.dart for the
+  /// privacy contract.
+  Future<void> recordFailedScan(String upc) async {
+    final trimmed = upc.trim();
+    if (trimmed.isEmpty) return;
+    final now = DateTime.now().toUtc();
+    await transaction(() async {
+      final existing = await (select(
+        failedScans,
+      )..where((t) => t.upc.equals(trimmed))).getSingleOrNull();
+      if (existing == null) {
+        await into(failedScans).insert(
+          FailedScansCompanion(
+            upc: Value(trimmed),
+            attemptCount: const Value(1),
+            firstSeen: Value(now),
+            lastSeen: Value(now),
+          ),
+        );
+      } else {
+        await (update(
+          failedScans,
+        )..where((t) => t.upc.equals(trimmed))).write(
+          FailedScansCompanion(
+            attemptCount: Value(existing.attemptCount + 1),
+            lastSeen: Value(now),
+          ),
+        );
+      }
+    });
+  }
+
+  /// Returns the failed-scan queue ordered by attempt count desc, then
+  /// last_seen desc. Used by debug surfaces and the
+  /// `/triage-missing-upcs` slash command export flow.
+  Future<List<FailedScan>> getFailedScans({int limit = 100}) {
+    return (select(failedScans)
+          ..orderBy([
+            (t) => OrderingTerm(
+              expression: t.attemptCount,
+              mode: OrderingMode.desc,
+            ),
+            (t) =>
+                OrderingTerm(expression: t.lastSeen, mode: OrderingMode.desc),
+          ])
+          ..limit(limit))
+        .get();
   }
 
   // ---------------------------------------------------------------------------
