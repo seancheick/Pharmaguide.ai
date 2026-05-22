@@ -36,6 +36,7 @@ Deep context lives in `knowledge/` — read these when relevant, not by default:
 - `flutter-patterns.md` — project conventions
 - `debugging-playbook.md` — common issues + fixes
 - `pipeline-reference.md` — pipeline data structures + enums
+- `sentry-autofix-playbook.md` — guardrails when fixing Sentry-flagged issues
 
 ## Knowledge Graph
 
