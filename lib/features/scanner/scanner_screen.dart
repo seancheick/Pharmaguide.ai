@@ -170,6 +170,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   void _showProductNotFound(String upc) {
+    // Layer 4 missing-UPC sensor: persist the miss locally (UPC + count
+    // only; no user identifier per the privacy contract in
+    // failed_scans_table.dart) and breadcrumb to Sentry so it appears
+    // near any crash that follows. Fire-and-forget — a transient DB
+    // error must not block the user-facing not-found sheet.
+    unawaited(ref.read(userDatabaseProvider).recordFailedScan(upc));
+    CrashReportingService().log('scan_failed_missing_upc: $upc');
+
     PGModal.bottomSheet<void>(
       context: context,
       builder: (ctx) => ScannerNotFoundSheet(

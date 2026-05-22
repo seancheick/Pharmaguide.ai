@@ -56,6 +56,12 @@ gate. **If any of these would be violated, stop and ask the user.**
 2. **Read the playbook.** Open `knowledge/sentry-autofix-playbook.md`.
    Pay attention to the "Safety-invariant gate" section.
 
+   **Then read the lessons file** at
+   `.claude/learnings/sentry-autofix-lessons.md`. If a recorded lesson
+   matches the kind of Sentry issue you're looking at, follow the "What
+   to do instead" guidance from that lesson — don't re-derive the wrong
+   fix the loop already learned to avoid.
+
 3. **Read the offending code.** Open the file from the stack trace. Read
    ±50 lines of context. Find related call sites with `Grep`. Do *not*
    skim — guess-fixes are how this loop poisons itself.

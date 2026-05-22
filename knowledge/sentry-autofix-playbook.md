@@ -116,6 +116,54 @@ the gate doing its job. Either revise the fix to satisfy the invariant or
 escalate to a human reviewer who can decide whether the invariant itself
 needs to change (rare, and never agent-initiated).
 
+## Missing-UPC sensor (Layer 4)
+
+Sentry catches crashes and exceptions. Layer 4 catches a different kind
+of bug: a user scanned a real product PharmaGuide's catalog doesn't
+have. That's a data gap, not a code bug, and it needs a different loop.
+
+The Flutter app records every UPC the local catalog can't resolve into
+a Drift table (`user_failed_scans`) with attempt counts and timestamps,
+**no user identifier**. The privacy contract is locked by
+`test/safety_invariants/failed_scans_no_pii_test.dart`.
+
+To triage the queue:
+
+1. Dump the table from the user's local SQLite (the slash command
+   contains the exact sqlite3 invocation).
+2. Run `/triage-missing-upcs` and paste the rows. The command produces
+   a ranked report with DSLD + OFF lookup URLs.
+3. Run `backfill_upc.py` in `~/Downloads/dsld_clean/scripts/` against
+   the UPCs that resolve on DSLD. Manually source the rest.
+4. The next OTA database build picks the new products up; users
+   re-scanning will succeed and the rows fall out of the queue
+   naturally.
+
+This loop is intentionally manual. Auto-syncing the queue to Supabase
+or auto-opening GitHub Issues would invert the cost/benefit until the
+volume justifies it. Revisit if the queue hits >100 unique UPCs/week.
+
+## Lessons file (Layer 5)
+
+`.claude/learnings/sentry-autofix-lessons.md` is the autofix agent's
+institutional memory. Every time a sentry-autofix PR is rejected, the
+reason gets recorded so the next run doesn't repeat the same mistake.
+
+The Layer 3 routine and the `/fix-sentry-issue` slash command both
+read the lessons file before touching code. They follow the "What to
+do instead" guidance from any matching lesson rather than re-deriving
+the fix.
+
+To record a lesson after rejecting an autofix PR, run
+`/record-autofix-lesson <pr-url>`. Claude reads the PR + your review
+comments and drafts an entry; you review and approve before it lands.
+
+Don't be precious about pruning. The file is most useful when it
+holds the patterns that still apply — once a pattern is no longer
+relevant (e.g. the underlying code path changed), delete the lesson.
+Stale lessons that "look like rules" are worse than no lessons at
+all because they nudge the agent toward the wrong fix.
+
 ## Autofix routine + slash command (Layer 3)
 
 Two surfaces exist for running this playbook against a real Sentry issue:

@@ -7,8 +7,10 @@ its own.
 | Layer | What it does | Where it lives | Status |
 |---|---|---|---|
 | 1 | Sentry MCP + agent guardrails: any agent that reads `.mcp.json` (Claude Code CLI, Claude Code on the Web, Cursor, Continue, opencode) can query Sentry directly. No code is auto-generated or auto-merged. | `.mcp.json` + `knowledge/sentry-autofix-playbook.md` | ✅ Shipped |
-| 2 | Medical-safety quality gate: four invariant tests that CI runs on every PR — auto-generated or human. Blocks any change that would silently break the severity order, the low-coverage rule, the no-health-to-Supabase rule, or the FitScore-never-persisted rule. | `test/safety_invariants/` + `.github/workflows/ci.yml` | ✅ Shipped |
-| 3 | Autofix routine: a scheduled Claude Code Routine triages Sentry twice a day and opens a draft PR with the minimum fix. Layer 2 stands between any auto-PR and `main`. | `.claude/routines/sentry-autofix.md` + `.claude/commands/fix-sentry-issue.md` | ✅ Shipped (this branch) |
+| 2 | Medical-safety quality gate: five invariant tests that CI runs on every PR — auto-generated or human. Blocks any change that would silently break the severity order, the low-coverage rule, the no-health-to-Supabase rule, the FitScore-never-persisted rule, or the failed-scan-queue-no-PII rule. | `test/safety_invariants/` + `.github/workflows/ci.yml` | ✅ Shipped |
+| 3 | Autofix routine: a scheduled Claude Code Routine triages Sentry twice a day and opens a draft PR with the minimum fix. Layer 2 stands between any auto-PR and `main`. | `.claude/routines/sentry-autofix.md` + `.claude/commands/fix-sentry-issue.md` | ✅ Shipped |
+| 4 | Missing-UPC sensor: every barcode the catalog can't resolve lands in a local `user_failed_scans` Drift table (UPC + counts only, no user identifier). A `/triage-missing-upcs` slash command produces a ranked report with DSLD + OFF lookup URLs for pipeline backfill. | `lib/data/database/tables/failed_scans_table.dart` + `.claude/commands/triage-missing-upcs.md` | ✅ Shipped (this branch) |
+| 5 | Lessons file: rejected autofix PRs get recorded so the next run doesn't repeat the same mistake. The Layer 3 routine + slash command both read it before touching code. | `.claude/learnings/sentry-autofix-lessons.md` + `.claude/commands/record-autofix-lesson.md` | ✅ Shipped (this branch) |
 
 **No code is ever auto-merged.** Even with all three layers green, a
 human always merges PharmaGuide changes.
@@ -82,7 +84,7 @@ edit it there if you want to tweak the behavior.
 
 ## Layer 2 — Medical-safety quality gate
 
-Four tests under `test/safety_invariants/` lock down the
+Five tests under `test/safety_invariants/` lock down the
 non-negotiables from `CLAUDE.md`:
 
 | Test | What it locks |
@@ -91,6 +93,7 @@ non-negotiables from `CLAUDE.md`:
 | `low_coverage_not_safe_test.dart` | `FitScoreService.calculate` returns `limitedFit` when `mapped_coverage < 0.3`, with strict `<` boundary. |
 | `no_health_in_supabase_test.dart` | The only Supabase write call site (`stack_sync_queue._rowToRemote`) is locked to an explicit column allowlist; every other Supabase write in `lib/` is scanned for forbidden health tokens. |
 | `fit_score_non_persistence_test.dart` | No Drift table, `SharedPreferences` key, or Riverpod `keepAlive: true` ever persists FitScore. |
+| `failed_scans_no_pii_test.dart` | The Layer 4 `FailedScans` table only carries UPC + aggregate counts. No user_id, device_id, profile, location, or any other identifier may be added without an explicit privacy review. |
 
 CI (`.github/workflows/ci.yml`) runs them on every PR alongside the
 existing test suites. **Do not modify these tests to make a fix pass.**
@@ -143,9 +146,84 @@ Short version:
   Cloudflare relay.
 - No marketing-site coverage. Mirror this setup into the marketing
   repo when you point me at it.
-- No "learning mechanism" — every rejected PR is currently re-learned
-  from scratch by the next run. A future Layer 4 may write a
-  machine-readable policy file the routine reads.
+
+---
+
+## Layer 4 — Missing-UPC sensor
+
+The Flutter scanner used to drop failed scans on the floor. Now every
+unresolvable barcode lands in a local Drift table
+(`user_failed_scans`) with attempt count + first/last timestamps.
+
+### Privacy contract
+
+The table stores **only the UPC and aggregate counts**. No user_id,
+device_id, session, location, or any identifier that ties the data to
+a person. UPCs are public product identifiers (the same string is
+printed on every bottle of that product worldwide) — they are not
+health data. The contract is locked by
+`test/safety_invariants/failed_scans_no_pii_test.dart`.
+
+### Triage flow
+
+Triage is intentionally manual in v1 — auto-syncing to Supabase or
+auto-opening GitHub Issues would invert the cost/benefit until volume
+justifies it. Revisit if the queue hits >100 unique UPCs/week.
+
+1. Dump the queue from a Mac terminal:
+   ```bash
+   sqlite3 ~/Library/Containers/<bundle-id>/Data/Documents/user_data.db \
+     -header -csv \
+     'SELECT upc, attempt_count, first_seen, last_seen
+      FROM user_failed_scans
+      ORDER BY attempt_count DESC, last_seen DESC
+      LIMIT 100'
+   ```
+2. Open any Claude Code surface, run `/triage-missing-upcs`, paste
+   the rows. The command produces a ranked Markdown report with DSLD
+   + OFF lookup URLs and writes it to
+   `docs/missing_upcs_<YYYY-MM-DD>.md`.
+3. Run `backfill_upc.py` in `~/Downloads/dsld_clean/scripts/` against
+   the UPCs that resolved on DSLD. Manually source the rest.
+4. The next OTA database build picks the new products up; users
+   re-scanning will succeed and the rows fall out of the queue
+   naturally (no cleanup needed).
+
+---
+
+## Layer 5 — Lessons file
+
+Every time an autofix PR is rejected — closed without merge, reverted,
+or rewritten beyond recognition — the rejection reason gets recorded
+in `.claude/learnings/sentry-autofix-lessons.md`. The next autofix
+run reads the lessons file before touching code, so the loop doesn't
+repeat the same mistake.
+
+### Recording a lesson
+
+1. Reject the autofix PR with a comment explaining why (one sentence
+   is enough; the agent can flesh it out).
+2. Run `/record-autofix-lesson <pr-url>`.
+3. Claude reads the PR + your comments, drafts a lesson entry, shows
+   you the draft. Approve, edit, or reject.
+4. On approval, the entry is prepended to the lessons file and
+   committed locally. Push when you're ready.
+
+### How the routine uses it
+
+The Layer 3 routine and the `/fix-sentry-issue` slash command both
+read the lessons file in Step 1 of their workflow (after the
+playbook, before touching code). If a lesson's Trigger matches the
+current Sentry issue, the agent follows that lesson's "What to do
+instead" guidance — including "abort and ask the human" if that's
+the right answer.
+
+### Pruning
+
+Prune aggressively. Once an underlying code path changes, lessons
+about that path become noise that nudges the agent toward stale
+fixes. If the file grows beyond ~20 lessons, consolidate or delete
+the oldest.
 
 ---
 
@@ -168,4 +246,21 @@ Short version:
    actionable issues" log line. The first draft PR you get is the real
    smoke test.
 
-If step 1 fails, Layers 2 and 3 won't help — fix MCP first.
+4. **Layer 4**: scan a barcode that you know isn't in the catalog
+   (any random book ISBN works for the smoke test). Confirm the row
+   landed in `user_failed_scans`:
+   ```bash
+   sqlite3 ~/Library/Containers/<bundle-id>/Data/Documents/user_data.db \
+     'SELECT * FROM user_failed_scans'
+   ```
+   Run `/triage-missing-upcs` against the dumped rows — you should
+   get a Markdown report with DSLD + OFF lookup links.
+
+5. **Layer 5**: this one verifies itself when you reject your first
+   autofix PR. Run `/record-autofix-lesson <pr-url>`, approve the
+   drafted lesson, then on the next routine run confirm the agent
+   followed the new guidance instead of re-proposing the same fix.
+   Until you have a real rejection, the file stays empty — that's
+   fine.
+
+If step 1 fails, none of the other layers help — fix MCP first.

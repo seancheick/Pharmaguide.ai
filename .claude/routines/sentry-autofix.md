@@ -64,9 +64,14 @@ draft fix PR. You do NOT merge, ever. A human always merges.
 Before touching any code, read these files in the repo:
   - knowledge/sentry-autofix-playbook.md
   - CLAUDE.md (Safety Rules section especially)
+  - .claude/learnings/sentry-autofix-lessons.md
 
-Treat the playbook as a hard contract. If a fix would violate it,
-abort that fix.
+The first two are hard contracts. If a fix would violate them, abort.
+
+The lessons file is the loop's memory of past rejections. If a lesson's
+Trigger matches the Sentry issue you're about to investigate, follow
+its "What to do instead" guidance instead of re-deriving the same
+wrong fix. Newer lessons override older ones if they conflict.
 
 # Step 2 — Triage
 
