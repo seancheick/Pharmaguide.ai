@@ -76,8 +76,10 @@ AI agent attached to this repo:
 - `find_issues`, `get_issue_details` — pull the actual stack trace and
   breadcrumb trail before proposing a fix. Don't guess from the title.
 - `analyze_issue_with_seer` — runs Sentry's Seer to produce a root-cause
-  analysis. Read it; don't trust it blindly. Seer doesn't know PharmaGuide's
-  safety invariants — you do.
+  analysis. **Paid Sentry only.** PharmaGuide currently runs on free
+  Sentry, so this tool will return an error — do your own root-cause
+  analysis instead. If it's later available, read it but don't trust it
+  blindly: Seer doesn't know PharmaGuide's safety invariants — you do.
 - `find_releases` — confirm the issue's affected release matches what's on
   this branch before "fixing" something that may already be fixed.
 - `search_events` — look at frequency and user impact. A 1-event issue isn't
@@ -113,3 +115,23 @@ human-authored or agent-authored — must pass them before merge:
 the gate doing its job. Either revise the fix to satisfy the invariant or
 escalate to a human reviewer who can decide whether the invariant itself
 needs to change (rare, and never agent-initiated).
+
+## Autofix routine + slash command (Layer 3)
+
+Two surfaces exist for running this playbook against a real Sentry issue:
+
+- **Scheduled routine** (`.claude/routines/sentry-autofix.md`) — runs
+  twice daily on Anthropic's cloud via Claude Code Routines. Triages
+  Sentry, picks the highest-impact unresolved issue from the last 24h,
+  opens at most one draft PR per cycle. Setup is in
+  `docs/SELF_HEALING_SETUP.md`. The routine prompt embeds the hard
+  prohibitions from this playbook so the agent cannot drift even if
+  someone forgets to remind it.
+- **On-demand slash command** (`.claude/commands/fix-sentry-issue.md`)
+  — fires the same loop interactively. Invoke as
+  `/fix-sentry-issue PHARMAGUIDE-XYZ` in any Claude Code surface, or
+  `/fix-sentry-issue` with no args to pick the top unresolved issue.
+
+If you find yourself patching either file to make a fix work, stop —
+the right answer is almost always to fix the diagnosis, not the
+guardrails.
