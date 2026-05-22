@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Represents the current authentication state.
 enum AuthMode { guest, signedIn }
@@ -13,6 +14,7 @@ enum AuthMode { guest, signedIn }
 class AuthStateService extends StateNotifier<AuthMode> {
   AuthStateService() : super(AuthMode.guest) {
     _checkCurrentSession();
+    CrashReportingService().setAuthState(state.name);
   }
 
   void _checkCurrentSession() {
@@ -34,10 +36,16 @@ class AuthStateService extends StateNotifier<AuthMode> {
   bool get isSignedIn => state == AuthMode.signedIn;
 
   /// Called after successful sign-in.
-  void onSignedIn() => state = AuthMode.signedIn;
+  void onSignedIn() {
+    state = AuthMode.signedIn;
+    CrashReportingService().setAuthState(state.name);
+  }
 
   /// Called after sign-out.
-  void onSignedOut() => state = AuthMode.guest;
+  void onSignedOut() {
+    state = AuthMode.guest;
+    CrashReportingService().setAuthState(state.name);
+  }
 }
 
 final authStateProvider = StateNotifierProvider<AuthStateService, AuthMode>((

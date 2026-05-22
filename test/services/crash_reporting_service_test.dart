@@ -97,4 +97,63 @@ void main() {
       expect(err.toString(), contains('non-fatal boom'));
     });
   });
+
+  group('CrashReportingService — _isSensitive word-boundary scrubbing', () {
+    // Positive set: exact match + suffix + middle. Must still scrub.
+    const mustScrub = <String>[
+      // Exact matches.
+      'email',
+      'password',
+      'token',
+      'auth',
+      'stack',
+      // Suffix on `_` boundary.
+      'user_email',
+      'request_token',
+      'user_stack',
+      // Middle on `_` boundary.
+      'user_email_v2',
+      'request_token_hash',
+      'access_token_v3',
+      'user_medications_list',
+    ];
+
+    // Negative set: keys that previously got scrubbed by the substring
+    // match but carry no PII. All are `<sensitive>_<descriptor>` — that
+    // prefix shape is intentionally NOT matched (see _isSensitive doc).
+    const mustNotScrub = <String>[
+      'email_verified',
+      'condition_id_class',
+      'ingredient_count',
+      'medication_form',
+      'stack_added_at',
+      'profile_completed_at',
+      'health_check_state',
+      // Bare embed without `_` boundary must not match — `auth` does
+      // not trip `authentication` because there is no `_` delimiter.
+      'authentication',
+      'preauthorized',
+    ];
+
+    for (final key in mustScrub) {
+      test('scrubs sensitive key: $key', () {
+        expect(CrashReportingService.isSensitiveForTest(key), isTrue);
+      });
+    }
+
+    for (final key in mustNotScrub) {
+      test('preserves non-sensitive key: $key', () {
+        expect(CrashReportingService.isSensitiveForTest(key), isFalse);
+      });
+    }
+
+    test('case-insensitive match', () {
+      expect(CrashReportingService.isSensitiveForTest('EMAIL'), isTrue);
+      expect(CrashReportingService.isSensitiveForTest('Access_Token'), isTrue);
+      expect(
+        CrashReportingService.isSensitiveForTest('Email_Verified'),
+        isFalse,
+      );
+    });
+  });
 }

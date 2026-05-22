@@ -107,6 +107,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       setState(() => _isLookingUp = false);
 
       if (product != null) {
+        CrashReportingService().setScanResult('found');
         // Persist the scan before we navigate so any mounted Home shell can
         // leave first-launch mode and refresh Recents immediately.
         await ref
@@ -123,6 +124,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         // home screen retirement.
         await _showVerdictFlashAndNavigate(product);
       } else {
+        CrashReportingService().setScanResult('not_found');
         _showProductNotFound(upc);
       }
       // Bare catch is intentional: DB layer can throw Error subtypes
@@ -132,6 +134,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       // lookup screen. Safer to swallow and show "not found".
       // ignore: avoid_catches_without_on_clauses
     } catch (e, st) {
+      CrashReportingService().setScanResult('error');
       CrashReportingService().recordError(e, st, hint: 'scanner:db_error');
       if (!mounted) return;
       setState(() => _isLookingUp = false);

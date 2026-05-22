@@ -161,6 +161,30 @@ class CrashReportingService {
     }
   }
 
+  /// Outcome of the most recent scan attempt: `found`, `not_found`, or
+  /// `error`. Lets Sentry triage slice events by scan path without
+  /// needing the UPC or product id (which we never send).
+  void setScanResult(String result) {
+    if (!_sentryEnabled) return;
+    Future<void>.sync(() async {
+      await Sentry.configureScope(
+        (scope) => scope.setTag('scan_result', result),
+      );
+    });
+  }
+
+  /// Coarse authentication mode: `guest` or `signedIn`. Enum-level only —
+  /// never the Supabase user UUID. Lets Sentry filter "guest-only" vs.
+  /// "signed-in-only" failure modes without breaking the no-PII rule.
+  void setAuthState(String state) {
+    if (!_sentryEnabled) return;
+    Future<void>.sync(() async {
+      await Sentry.configureScope(
+        (scope) => scope.setTag('auth_state', state),
+      );
+    });
+  }
+
   void log(String message) {
     _breadcrumbBuffer.add(CrashBreadcrumb(message));
     _trimBreadcrumbs();
@@ -183,10 +207,37 @@ class CrashReportingService {
 
   // ───────── PII scrubbing ─────────
 
+  /// True when [key] names a sensitive field. Match shape (snake_case,
+  /// the convention used by every Sentry tag/context key in this app):
+  ///
+  ///   * exact match            (`email`, `token`)
+  ///   * suffix on `_` boundary (`user_email`, `request_token`)
+  ///   * middle on `_` boundary (`user_email_v2`, `access_token_v3`)
+  ///
+  /// Prefix matching (`<sensitive>_<descriptor>`) is intentionally NOT
+  /// applied — it would catch metadata keys like `email_verified` (a
+  /// bool), `ingredient_count` (an int), `stack_added_at` (a timestamp),
+  /// `medication_form` (a generic enum like "tablet"/"capsule"). Those
+  /// keys carry triage value without leaking PII; scrubbing them strips
+  /// context the routine needs to filter Sentry events by surface.
+  ///
+  /// Previously this used a substring `contains` check which over-
+  /// scrubbed every key embedding a sensitive token. Word-boundary
+  /// matching preserves the harmless metadata keys above.
   static bool _isSensitive(String key) {
     final lower = key.toLowerCase();
-    return _sensitiveKeys.any(lower.contains);
+    for (final sensitive in _sensitiveKeys) {
+      if (lower == sensitive ||
+          lower.endsWith('_$sensitive') ||
+          lower.contains('_${sensitive}_')) {
+        return true;
+      }
+    }
+    return false;
   }
+
+  @visibleForTesting
+  static bool isSensitiveForTest(String key) => _isSensitive(key);
 
   static Map<String, dynamic> _scrubMap(Map<String, dynamic> src) {
     final out = <String, dynamic>{};
