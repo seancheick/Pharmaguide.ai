@@ -88,3 +88,28 @@ AI agent attached to this repo:
 If three rounds of fixes haven't closed the Sentry issue, stop iterating and
 write a comment explaining what was tried and where you're stuck. Don't keep
 re-kicking — that's how good code gets broken in pursuit of a bad diagnosis.
+
+## Safety-invariant gate (Layer 2)
+
+CI enforces the four non-negotiable invariants automatically. Every PR —
+human-authored or agent-authored — must pass them before merge:
+
+- `test/safety_invariants/severity_order_test.dart` — locks
+  `contraindicated > avoid > caution > monitor > informational > safe`,
+  weights, and `fromString` aliases.
+- `test/safety_invariants/low_coverage_not_safe_test.dart` — verifies that
+  `mappedCoverage < 0.3` always yields `FitAssessmentState.limitedFit`
+  from `FitScoreService.calculate` and that the `< 0.3` boundary is strict.
+- `test/safety_invariants/no_health_in_supabase_test.dart` — locks
+  `stack_sync_queue._rowToRemote` to an explicit column allowlist and
+  scans the rest of `lib/` for forbidden health tokens (`conditions`,
+  `medications`, `dob`, `birthdate`, `fit_score`, etc.) appearing near
+  any Supabase `.upsert/.insert/.update` call.
+- `test/safety_invariants/fit_score_non_persistence_test.dart` — scans
+  Drift tables, `shared_preferences` keys, and Riverpod providers to
+  verify nothing persists FitScore.
+
+**Do not modify these tests to make a fix pass.** If a test fails, that's
+the gate doing its job. Either revise the fix to satisfy the invariant or
+escalate to a human reviewer who can decide whether the invariant itself
+needs to change (rare, and never agent-initiated).

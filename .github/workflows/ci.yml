@@ -49,8 +49,10 @@ jobs:
         # P4.1 (release-safety verifier) lives in test/scripts/; include
         # it so the verifier's unit tests run on every PR. Real Supabase
         # is not touched — the tests mock the HTTP layer.
+        # test/safety_invariants/ is the medical-safety gate for the
+        # self-healing loop — see knowledge/sentry-autofix-playbook.md.
         # --coverage writes coverage/lcov.info; the next step parses it.
-        run: flutter test --coverage test/services/ test/features/ test/release_gate/ test/data/ test/scripts/
+        run: flutter test --coverage test/services/ test/features/ test/release_gate/ test/data/ test/scripts/ test/safety_invariants/
 
       - name: Coverage summary
         # Parses coverage/lcov.info to compute line coverage across all
