@@ -1,9 +1,9 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 7 clinical study-type tiers used by backed_clinical_studies. Determines base points before evidence-level multipliers are applied.",
+    "description": "Controlled vocabulary for clinical study-type tiers plus a non-scoring reference-only tier used by backed_clinical_studies. Determines base points before evidence-level multipliers are applied.",
     "schema_version": "1.0.0",
     "last_updated": "2026-05-01",
-    "total_entries": 7,
+    "total_entries": 8,
     "status": "LOCKED — verified against backed_clinical_studies 2026-05-01",
     "purpose": "Single source of truth for study-type labels, explanations, and base scoring points in clinical evidence records.",
     "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json study_type field. Base points must match scripts/config/scoring_config.json section_C_evidence_research.study_type_base_points.",
@@ -65,6 +65,13 @@
       "notes": "Cell, tissue, or laboratory evidence only. Useful for mechanism context, not direct clinical benefit.",
       "base_points": 1,
       "tier": 6
+    },
+    {
+      "id": "reference",
+      "name": "Reference-only authority source",
+      "notes": "Authority page, monograph, SmPC, or fact sheet. Context only; not a clinical study and receives no evidence-score credit.",
+      "base_points": 0,
+      "tier": 7
     }
   ]
 }

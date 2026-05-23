@@ -1,6 +1,8 @@
 {
   "_metadata": {
     "schema_version": "1.0.0",
+    "description": "Canonical line-level ingredient category vocabulary for classifying what an ingredient row IS (vitamin / mineral / botanical / amino acid / etc.) — distinct from form (capsule, tablet) and functional role.",
+    "purpose": "Replaces the hardcoded CATEGORY_ALIASES map in supplement_type_utils.py; gives the enricher and router a diffable JSON source of truth for ingredient-category routing decisions.",
     "last_updated": "2026-05-21",
     "total_entries": 17,
     "owner": "pipeline",

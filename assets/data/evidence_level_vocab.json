@@ -1,9 +1,9 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 5 evidence-level study-design tiers used by backed_clinical_studies (197 entries). Determines the scoring multiplier for clinical-evidence bonuses. NOTE: ingredient_interaction_rules.json uses a DIFFERENT field also called `evidence_level` containing strength values (established/probable/theoretical) — that is a separate concept and warrants its own evidence_strength_vocab in a future sprint.",
+    "description": "Controlled vocabulary for clinical evidence-level study-design tiers plus a non-scoring reference-only tier used by backed_clinical_studies (197 entries). Determines the scoring multiplier for clinical-evidence bonuses. NOTE: ingredient_interaction_rules.json uses a DIFFERENT field also called `evidence_level` containing strength values (established/probable/theoretical) — that is a separate concept and warrants its own evidence_strength_vocab in a future sprint.",
     "schema_version": "1.0.0",
     "last_updated": "2026-04-30",
-    "total_entries": 5,
+    "total_entries": 6,
     "status": "LOCKED — clinician sign-off",
     "purpose": "Single source of truth for evidence-tier labels in backed_clinical_studies. The `multiplier` field aligns with scoring_config.json effect_direction_multipliers.",
     "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json `evidence_level` field. Multiplier weights: scripts/config/scoring_config.json. Flutter consumer: lib/core/constants/severity.dart `EvidenceLevel` enum (legacy mapping; future migration target).",
@@ -52,6 +52,13 @@
       "notes": "Animal model or in-vitro evidence only. Mechanistic plausibility but no human confirmation. Used for context, not for primary scoring.",
       "multiplier": 0.3,
       "tier": 5
+    },
+    {
+      "id": "reference",
+      "name": "Reference-only authority source",
+      "notes": "Authority page, monograph, SmPC, or fact sheet used for context. Not clinical trial evidence and receives no evidence-score credit.",
+      "multiplier": 0.0,
+      "tier": 6
     }
   ]
 }

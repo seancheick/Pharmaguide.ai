@@ -1,6 +1,8 @@
 {
   "_metadata": {
     "schema_version": "1.0.0",
+    "description": "Canonical form-factor vocabulary for product physical state. 18 canonical IDs covering DSLD physicalState.langualCodeDescription values and common label variants.",
+    "purpose": "Single source of truth for form-factor normalization, consumed by enricher, v4 router/modules, score_supplements, build_final_db, and the Flutter app.",
     "last_updated": "2026-05-21",
     "total_entries": 18,
     "owner": "pipeline",
