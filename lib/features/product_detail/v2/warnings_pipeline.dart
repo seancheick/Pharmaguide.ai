@@ -21,7 +21,7 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show filterProductDetailWarningsForProfile;
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Compose the warning list every Product Detail surface renders.
 ///

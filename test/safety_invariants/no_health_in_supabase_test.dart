@@ -21,8 +21,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-const _stackSyncQueuePath =
-    'lib/features/stack/services/stack_sync_queue.dart';
+const _stackSyncQueuePath = 'lib/features/stack/services/stack_sync_queue.dart';
 
 // Exact allowlist for the only known Supabase write call site. Adding a
 // column here without updating knowledge/sentry-autofix-playbook.md is
@@ -71,83 +70,88 @@ final _supabaseWriteRegex = RegExp(
 
 void main() {
   group('Safety invariant: no health data leaves the device', () {
-    test('_rowToRemote in stack_sync_queue.dart writes only allowed columns',
-        () {
-      final file = File(_stackSyncQueuePath);
-      expect(
-        file.existsSync(),
-        isTrue,
-        reason: 'Expected $_stackSyncQueuePath to exist. Was it moved? '
-            'If so, update this test AND the playbook to point at the '
-            'new location.',
-      );
+    test(
+      '_rowToRemote in stack_sync_queue.dart writes only allowed columns',
+      () {
+        final file = File(_stackSyncQueuePath);
+        expect(
+          file.existsSync(),
+          isTrue,
+          reason:
+              'Expected $_stackSyncQueuePath to exist. Was it moved? '
+              'If so, update this test AND the playbook to point at the '
+              'new location.',
+        );
 
-      final source = file.readAsStringSync();
+        final source = file.readAsStringSync();
 
-      // Pull the body of _rowToRemote so we don't accidentally match
-      // unrelated map literals elsewhere in the file.
-      final methodStart = source.indexOf('_rowToRemote');
-      expect(
-        methodStart,
-        greaterThan(-1),
-        reason:
-            '_rowToRemote was removed or renamed in $_stackSyncQueuePath. '
-            'If this is intentional, update both this test and the '
-            'sentry-autofix playbook.',
-      );
+        // Pull the body of _rowToRemote so we don't accidentally match
+        // unrelated map literals elsewhere in the file.
+        final methodMatch = RegExp(
+          r'Map<String,\s*dynamic>\s+_rowToRemote\s*\(',
+        ).firstMatch(source);
+        final methodStart = methodMatch?.start ?? -1;
+        expect(
+          methodStart,
+          greaterThan(-1),
+          reason:
+              '_rowToRemote was removed or renamed in $_stackSyncQueuePath. '
+              'If this is intentional, update both this test and the '
+              'sentry-autofix playbook.',
+        );
 
-      final openBrace = source.indexOf('{', methodStart);
-      // Walk forward to find the matching close brace.
-      var depth = 0;
-      var closeBrace = -1;
-      for (var i = openBrace; i < source.length; i++) {
-        if (source[i] == '{') depth++;
-        if (source[i] == '}') {
-          depth--;
-          if (depth == 0) {
-            closeBrace = i;
-            break;
+        final openBrace = source.indexOf('{', methodStart);
+        // Walk forward to find the matching close brace.
+        var depth = 0;
+        var closeBrace = -1;
+        for (var i = openBrace; i < source.length; i++) {
+          if (source[i] == '{') depth++;
+          if (source[i] == '}') {
+            depth--;
+            if (depth == 0) {
+              closeBrace = i;
+              break;
+            }
           }
         }
-      }
-      expect(closeBrace, greaterThan(openBrace));
+        expect(closeBrace, greaterThan(openBrace));
 
-      final body = source.substring(openBrace, closeBrace);
+        final body = source.substring(openBrace, closeBrace);
 
-      // Extract every quoted-string key in the map literal. These are
-      // the column names being upserted.
-      final keyMatches = RegExp("'([a-zA-Z_][a-zA-Z0-9_]*)'\\s*:")
-          .allMatches(body)
-          .map((m) => m.group(1)!)
-          .toSet();
+        // Extract every quoted-string key in the map literal. These are
+        // the column names being upserted.
+        final keyMatches = RegExp(
+          "'([a-zA-Z_][a-zA-Z0-9_]*)'\\s*:",
+        ).allMatches(body).map((m) => m.group(1)!).toSet();
 
-      expect(
-        keyMatches,
-        equals(_userStacksAllowedColumns),
-        reason:
-            'stack_sync_queue._rowToRemote columns drifted from the '
-            'allowlist. If you intentionally added or removed a column, '
-            'update _userStacksAllowedColumns here and document the new '
-            'column in knowledge/sentry-autofix-playbook.md. Do NOT add '
-            'any column that carries health data (conditions, medications, '
-            'profile, DOB, FitScore, etc.).',
-      );
+        expect(
+          keyMatches,
+          equals(_userStacksAllowedColumns),
+          reason:
+              'stack_sync_queue._rowToRemote columns drifted from the '
+              'allowlist. If you intentionally added or removed a column, '
+              'update _userStacksAllowedColumns here and document the new '
+              'column in knowledge/sentry-autofix-playbook.md. Do NOT add '
+              'any column that carries health data (conditions, medications, '
+              'profile, DOB, FitScore, etc.).',
+        );
 
-      // Defense in depth: even if the allowlist is updated, none of
-      // those names may contain a forbidden substring.
-      for (final column in keyMatches) {
-        for (final token in _forbiddenColumnTokens) {
-          expect(
-            column.toLowerCase().contains(token),
-            isFalse,
-            reason:
-                'Column "$column" contains forbidden token "$token" — '
-                'this looks like health data being written to Supabase. '
-                'Health data must stay on-device.',
-          );
+        // Defense in depth: even if the allowlist is updated, none of
+        // those names may contain a forbidden substring.
+        for (final column in keyMatches) {
+          for (final token in _forbiddenColumnTokens) {
+            expect(
+              column.toLowerCase().contains(token),
+              isFalse,
+              reason:
+                  'Column "$column" contains forbidden token "$token" — '
+                  'this looks like health data being written to Supabase. '
+                  'Health data must stay on-device.',
+            );
+          }
         }
-      }
-    });
+      },
+    );
 
     test('no other file in lib/ writes forbidden tokens to Supabase', () {
       final libDir = Directory('lib');
@@ -178,7 +182,9 @@ void main() {
           final window = source.substring(start, end);
 
           for (final token in _forbiddenColumnTokens) {
-            final tokenRegex = RegExp("['\"]([a-zA-Z0-9_]*$token[a-zA-Z0-9_]*)['\"]");
+            final tokenRegex = RegExp(
+              "['\"]([a-zA-Z0-9_]*$token[a-zA-Z0-9_]*)['\"]",
+            );
             for (final hit in tokenRegex.allMatches(window)) {
               offenders.add(
                 '${entity.path}: forbidden token "$token" in column '

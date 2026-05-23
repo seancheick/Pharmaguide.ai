@@ -1,11 +1,11 @@
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
 
@@ -47,6 +47,7 @@ class FitScoreService {
     String? productForm,
     String? nutrientForm,
     num? dosePerDay,
+    ProductContextForWarning? productContextForWarning,
   }) {
     // Apply v6.0 profile_gate filtering once, at the entry point. Both
     // _RelevantMatch (assessment) and E2c (penalty) consume the gated
@@ -62,6 +63,7 @@ class FitScoreService {
             productForm: productForm,
             nutrientForm: nutrientForm,
             dosePerDay: dosePerDay,
+            productContextForWarning: productContextForWarning,
           );
 
     final e1Score = e1.calculate(
@@ -82,6 +84,7 @@ class FitScoreService {
     final e2bScore = e2b.calculate(
       nutrients: nutrients,
       ageBracket: ageBracket,
+      sex: sex,
     );
     final e2cScore = e2c.calculate(
       interactionSummary: gatedSummary,
@@ -148,6 +151,7 @@ class FitScoreService {
     String? productForm,
     String? nutrientForm,
     num? dosePerDay,
+    ProductContextForWarning? productContextForWarning,
   }) {
     final userProfile = UserProfile(
       conditions: userConditions.toSet(),
@@ -170,6 +174,7 @@ class FitScoreService {
       warnings: warnings,
       userProfile: userProfile,
       productContext: productContext,
+      productContextForWarning: productContextForWarning,
     );
     final gatedDrug = filterDrugClassSummaryByProfileGate(
       drugClassSummary: rawDrug is Map
@@ -178,6 +183,7 @@ class FitScoreService {
       warnings: warnings,
       userProfile: userProfile,
       productContext: productContext,
+      productContextForWarning: productContextForWarning,
     );
 
     return {

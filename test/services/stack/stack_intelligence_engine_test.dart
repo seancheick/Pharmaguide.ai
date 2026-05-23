@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
@@ -71,6 +74,26 @@ RecalledIngredientViolation _violation({
         banContext: 'substance',
       ),
     ],
+  );
+}
+
+StackDoseThresholdAlert _doseAlert({
+  String conditionId = 'pregnancy',
+  String canonicalId = 'caffeine',
+  String displayName = 'Caffeine',
+  double totalValue = 240,
+  String unit = 'mg',
+  double thresholdValue = 200,
+}) {
+  return StackDoseThresholdAlert(
+    conditionId: conditionId,
+    canonicalId: canonicalId,
+    displayName: displayName,
+    totalValue: totalValue,
+    unit: unit,
+    thresholdValue: thresholdValue,
+    thresholdUnit: unit,
+    contributions: const [],
   );
 }
 
@@ -230,6 +253,23 @@ void main() {
       expect(intelligence.interactionCount, 0);
     });
 
+    test('cumulative dose threshold alert caps clean stack at decent', () {
+      final intelligence = engine.diagnose(
+        stackSize: 3,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+        doseThresholdAlerts: [_doseAlert()],
+      );
+
+      expect(intelligence.tier, StackTier.decent);
+      expect(intelligence.nutrientWarningCount, 1);
+      expect(intelligence.issues.single.severity, Severity.caution);
+      expect(intelligence.issues.single.headline, contains('Caffeine'));
+      expect(intelligence.issues.single.headline, contains('240 mg'));
+    });
+
     test('clean stack with qualityScore 75 → solid', () {
       final intelligence = engine.diagnose(
         stackSize: 4,
@@ -279,6 +319,67 @@ void main() {
         // Then medication avoid before supplement caution.
         expect(intelligence.issues[1].headline, 'medication conflict');
         expect(intelligence.issues[2].headline, 'mid-tier supplement issue');
+      },
+    );
+  });
+
+  group('StackIntelligenceEngine.diagnoseFromReports', () {
+    test('computes the shared quality score before deriving the tier', () {
+      final synergy = SynergyReport(
+        matches: [
+          SynergyMatch(
+            clusterId: 'sleep_support',
+            clusterName: 'Sleep support',
+            matchedIngredients: const ['magnesium', 'l_theanine'],
+            mechanism: 'Complementary sleep-support stack.',
+            bonusPoints: 8,
+            evidenceTier: 'moderate',
+            citations: const [],
+          ),
+        ],
+        totalBonusPoints: 8,
+      );
+
+      final intelligence = engine.diagnoseFromReports(
+        stackSize: 2,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: synergy,
+      );
+
+      expect(intelligence.qualityScore, 100);
+      expect(intelligence.tier, StackTier.optimized);
+      expect(intelligence.issues, isEmpty);
+    });
+
+    test('stack-health surfaces use the shared diagnosis composition', () {
+      for (final path in const [
+        'lib/features/home/v2/home_v2_screen.dart',
+        'lib/features/stack/v2/stack_v2_screen.dart',
+        'lib/features/stack/widgets/share_clinician_report_button.dart',
+      ]) {
+        final source = File(path).readAsStringSync();
+        expect(source, contains('diagnoseFromReports('), reason: path);
+        expect(source, isNot(contains('StackSafetyScorer().compute')));
+      }
+    });
+
+    test(
+      'stack-health surfaces pass cumulative dose alerts into diagnosis',
+      () {
+        for (final path in const [
+          'lib/features/home/v2/home_v2_screen.dart',
+          'lib/features/stack/v2/stack_v2_screen.dart',
+          'lib/features/stack/widgets/share_clinician_report_button.dart',
+        ]) {
+          final source = File(path).readAsStringSync();
+          expect(
+            source,
+            contains('stackDoseThresholdAlertsProvider'),
+            reason: path,
+          );
+          expect(source, contains('doseThresholdAlerts:'), reason: path);
+        }
       },
     );
   });

@@ -7,15 +7,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/sharing/clinician_report_builder.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
-import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 
 /// Tappable share-icon button. Place inside an `AppBar.actions` list on
 /// the stack screen.
@@ -54,42 +50,16 @@ class ShareClinicianReportButton extends ConsumerWidget {
       final recalledReport = await ref.read(
         recalledIngredientsReportProvider.future,
       );
-
-      // Quality score: feed the safety scorer with the same shape
-      // home_stack_health uses so the diagnosis tier matches what the
-      // user sees on the home screen.
-      final allIssues = <InteractionResult>[
-        ...safetyReport.medicationPairInteractions,
-        ...safetyReport.medicationInteractions,
-        ...safetyReport.stackInteractions,
-        ...safetyReport.categoryWarnings,
-      ];
-      final synergies = synergyReport.matches
-          .map(
-            (m) => SynergyResult(
-              ingredient1: m.matchedIngredients.isNotEmpty
-                  ? m.matchedIngredients.first
-                  : m.clusterId,
-              ingredient2: m.matchedIngredients.length > 1
-                  ? m.matchedIngredients[1]
-                  : m.clusterName,
-              description: m.mechanism,
-              evidenceLevel: EvidenceLevel.established,
-              bonus: m.bonusPoints,
-            ),
-          )
-          .toList(growable: false);
-      final safetyScore = const StackSafetyScorer().compute(
-        issues: allIssues,
-        synergies: synergies,
+      final doseAlerts = await ref.read(
+        stackDoseThresholdAlertsProvider.future,
       );
 
-      final intelligence = const StackIntelligenceEngine().diagnose(
+      final intelligence = const StackIntelligenceEngine().diagnoseFromReports(
         stackSize: stack.length,
         safetyReport: safetyReport,
         recalledReport: recalledReport,
         synergyReport: synergyReport,
-        qualityScore: safetyScore.score,
+        doseThresholdAlerts: doseAlerts,
       );
 
       final markdown = const ClinicianReportBuilder().build(

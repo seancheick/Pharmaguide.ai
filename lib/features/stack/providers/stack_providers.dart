@@ -15,10 +15,13 @@
 //                                       stackSafetyReportProvider,
 //                                       recalledIngredientsReportProvider,
 //                                       depletionReportProvider
+//   - stack_nutrient_providers.dart   → stackNutrientStatusesProvider,
+//                                       stackDoseThresholdAlertsProvider
 //   - synergy_report_provider.dart    → synergyReportProvider
 //   - stack_provider_helpers.dart     → library-internal helpers
 //                                       (NOT re-exported)
 
 export 'active_stack_provider.dart';
+export 'stack_nutrient_providers.dart';
 export 'stack_safety_providers.dart';
 export 'synergy_report_provider.dart';

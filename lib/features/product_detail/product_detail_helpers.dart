@@ -7,8 +7,8 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 // ---------------------------------------------------------------------------
 // `topGoalLabelFromFit`

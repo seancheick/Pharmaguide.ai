@@ -14,12 +14,13 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
 FitScoreService _service() => FitScoreService(
   e1: E1DosageCalculator(const {}),
@@ -123,6 +124,51 @@ void main() {
         expect(result.maxRelevantSeverity, equals('avoid'));
       },
     );
+  });
+
+  group('Fit Score profile_gate consistency — per-warning context', () {
+    test('beta-carotene vitamin A warning is dropped from E2c penalty', () {
+      final result = _service().calculate(
+        nutrients: const [],
+        productClusters: const [],
+        interactionSummary: _aloePregnancyConditionSummary(),
+        userConditions: const ['pregnancy'],
+        warnings: [
+          InteractionWarning(
+            severity: Severity.caution,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Vitamin A pregnancy',
+            mechanism: 'm',
+            management: 'a',
+            conditionIds: const ['pregnancy'],
+            profileGate: {
+              'gate_type': 'profile_flag',
+              'requires': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': ['pregnant'],
+              },
+              'excludes': {
+                ..._emptyExcludes(),
+                'nutrient_forms_any': ['beta_carotene', 'mixed_carotenoids'],
+              },
+              'dose': null,
+            },
+          ),
+        ],
+        userProfileFlags: const {'pregnant'},
+        productContextForWarning: (_) =>
+            const ProductContext(nutrientForm: 'beta_carotene'),
+      );
+
+      expect(
+        result.e2c,
+        8.0,
+        reason:
+            'The warning is only about preformed retinol; beta-carotene '
+            'must not create a pregnancy E2c penalty.',
+      );
+    });
   });
 
   group('Fit Score profile_gate consistency — stale aggregation', () {

@@ -30,9 +30,9 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 const double _lowQualityThreshold = 60.0;
 

@@ -36,9 +36,9 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Build the ReviewBeforeUse section.

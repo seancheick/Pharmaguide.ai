@@ -73,12 +73,12 @@ import 'package:pharmaguide/features/product_detail/v2/sections/synergy_section.
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/transparency_footer_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Production-wired v2 Product Detail screen.
 ///

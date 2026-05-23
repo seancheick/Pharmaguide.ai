@@ -20,7 +20,7 @@ import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 // =========================================================================
 // Hint parsing.

@@ -5,7 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_populations_section.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Output of [splitPopulations] — a deterministic split of the raw
 /// aggregate into "main list" entries and "already covered" labels.

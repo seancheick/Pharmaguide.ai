@@ -298,6 +298,7 @@ class ProfileState {
 
 class ProfileNotifier extends StateNotifier<ProfileState> {
   final UserDatabase? _db;
+  Future<void>? _loadFuture;
   bool _isLoaded = false;
   bool get isLoaded => _isLoaded;
 
@@ -453,13 +454,15 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       // loadFromDb fires on every cold start, so a single user with corrupt
       // profile data would otherwise trigger a fatal alert storm. Recoverable
       // on next session, so we surface as a non-fatal Sentry event.
-      CrashReportingService().recordError(
-        e,
-        st,
-        hint: 'profile:load_from_db',
-      );
+      CrashReportingService().recordError(e, st, hint: 'profile:load_from_db');
     }
     _isLoaded = true;
+  }
+
+  /// Returns the in-flight or completed profile load. This lets async
+  /// consumers wait for persisted state without polling timers.
+  Future<void> ensureLoaded() {
+    return _loadFuture ??= loadFromDb();
   }
 
   /// Persist current state to DB.
@@ -491,7 +494,7 @@ final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((
   }
   final notifier = ProfileNotifier(db);
   // Kick off load — consumers can check notifier.isLoaded if needed.
-  notifier.loadFromDb();
+  notifier.ensureLoaded();
   return notifier;
 });
 
@@ -499,8 +502,16 @@ final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((
 /// Use `ref.watch(profileLoadedProvider)` to gate UI on profile readiness.
 final profileLoadedProvider = FutureProvider<void>((ref) async {
   final notifier = ref.watch(profileProvider.notifier);
-  // Poll briefly — loadFromDb is already running from provider init.
-  while (!notifier.isLoaded) {
-    await Future<void>.delayed(const Duration(milliseconds: 16));
-  }
+  await notifier.ensureLoaded();
+});
+
+/// Resolves to the persisted profile state after the async DB load completes.
+///
+/// Sensitive scoring and safety surfaces should watch this provider instead of
+/// reading [profileProvider] directly during cold start; otherwise they can
+/// briefly compute against the default empty profile before saved profile data
+/// is available.
+final loadedProfileProvider = FutureProvider<ProfileState>((ref) async {
+  await ref.watch(profileLoadedProvider.future);
+  return ref.watch(profileProvider);
 });

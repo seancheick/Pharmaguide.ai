@@ -7,9 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
@@ -17,7 +14,6 @@ import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
-import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
@@ -495,54 +491,26 @@ class _StackHealthCard extends ConsumerWidget {
     final reportAsync = ref.watch(stackSafetyReportProvider);
     final synergyAsync = ref.watch(synergyReportProvider);
     final recallAsync = ref.watch(recalledIngredientsReportProvider);
-    final safetyScore = reportAsync.whenOrNull(
-      data: (report) {
-        final allIssues = <InteractionResult>[
-          ...report.medicationPairInteractions,
-          ...report.medicationInteractions,
-          ...report.stackInteractions,
-          ...report.categoryWarnings,
-        ];
-        final synergies =
-            synergyAsync.whenOrNull(
-              data: (synergyReport) => synergyReport.matches
-                  .map(
-                    (m) => SynergyResult(
-                      ingredient1: m.matchedIngredients.isNotEmpty
-                          ? m.matchedIngredients.first
-                          : m.clusterId,
-                      ingredient2: m.matchedIngredients.length > 1
-                          ? m.matchedIngredients[1]
-                          : m.clusterName,
-                      description: m.mechanism,
-                      evidenceLevel: EvidenceLevel.established,
-                      bonus: m.bonusPoints,
-                    ),
-                  )
-                  .toList(),
-            ) ??
-            const <SynergyResult>[];
-        return const StackSafetyScorer().compute(
-          issues: allIssues,
-          synergies: synergies,
-        );
-      },
-    );
+    final doseAlertsAsync = ref.watch(stackDoseThresholdAlertsProvider);
     final intelligence =
-        (reportAsync.hasValue && synergyAsync.hasValue && recallAsync.hasValue)
-        ? const StackIntelligenceEngine().diagnose(
+        (reportAsync.hasValue &&
+            synergyAsync.hasValue &&
+            recallAsync.hasValue &&
+            doseAlertsAsync.hasValue)
+        ? const StackIntelligenceEngine().diagnoseFromReports(
             stackSize: stack.length,
             safetyReport: reportAsync.value!,
             recalledReport: recallAsync.value!,
             synergyReport: synergyAsync.value!,
-            qualityScore: safetyScore?.score,
+            doseThresholdAlerts: doseAlertsAsync.value!,
           )
         : null;
     final status = intelligence?.tier.healthLabel;
     final isAnalyzing =
         reportAsync.isLoading ||
         synergyAsync.isLoading ||
-        recallAsync.isLoading;
+        recallAsync.isLoading ||
+        doseAlertsAsync.isLoading;
     final Color tone = status?.color ?? V2Colors.safe;
     final statusLabel = isAnalyzing
         ? 'Analyzing'

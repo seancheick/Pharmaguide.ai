@@ -22,9 +22,9 @@ import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
-import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 final personalizedInteractionWarningsProvider = FutureProvider.family
     .autoDispose<List<InteractionWarning>, String>((ref, dsldId) async {

@@ -326,28 +326,64 @@ void main() {
 
   group('StackNutrientAggregator — unit conflict handling', () {
     test(
-      'mismatched units flag the total and sum only matching contributions',
+      'incompatible units flag the total and sum only matching contributions',
       () {
         final stack = [
-          _productOf('s1', 'Folate A', [_ing('folate', 'Folate', 400, 'mcg')]),
-          _productOf('s2', 'Folate B', [_ing('folate', 'Folate', 800, 'mcg')]),
-          _productOf('s3', 'Folate C (weird)', [
-            _ing('folate', 'Folate', 1, 'mg'),
+          _productOf('s1', 'D3 A', [_ing('vitamin_d', 'Vitamin D', 25, 'mcg')]),
+          _productOf('s2', 'D3 B', [_ing('vitamin_d', 'Vitamin D', 25, 'mcg')]),
+          _productOf('s3', 'D3 Legacy IU', [
+            _ing('vitamin_d', 'Vitamin D', 1000, 'IU'),
           ]),
         ];
-        final total = aggregator.aggregate(stack)['folate']!;
+        final total = aggregator.aggregate(stack)['vitamin_d']!;
         // First-seen unit is mcg, so only the two mcg contributions sum.
         expect(total.unit, 'mcg');
-        expect(total.totalAmount, 1200);
+        expect(total.totalAmount, 50);
         expect(total.hasUnitConflict, isTrue);
-        // All three contributions appear for UI transparency.
-        expect(total.contributions, hasLength(3));
+        expect(total.contributions, hasLength(2));
+        expect(total.excludedContributions, hasLength(1));
+        expect(
+          total.excludedContributions.single.reason,
+          NutrientExclusionReason.unitConflict,
+        );
       },
     );
 
-    test('missing unit on one contribution matches any other unit', () {
-      // Intentionally loose: prefer to sum rather than drop a row just
-      // because the unit field is blank.
+    test(
+      'simple metric mass units are normalized into the first seen unit',
+      () {
+        final stack = [
+          _productOf('s1', 'Zinc A', [_ing('zinc', 'Zinc', 15, 'mg')]),
+          _productOf('s2', 'Zinc B', [_ing('zinc', 'Zinc', 5000, 'mcg')]),
+        ];
+
+        final total = aggregator.aggregate(stack)['zinc']!;
+        expect(total.unit, 'mg');
+        expect(total.totalAmount, 20);
+        expect(total.hasUnitConflict, isFalse);
+        expect(total.contributions, hasLength(2));
+        expect(total.contributions.last.amount, 5);
+        expect(total.contributions.last.unit, 'mg');
+      },
+    );
+
+    test('normalizes gram(s) spelling as a simple mass unit', () {
+      final stack = [
+        _productOf('s1', 'ALA A', [
+          _ing('alpha_linolenic_acid', 'Alpha-Linolenic Acid', 500, 'mg'),
+        ]),
+        _productOf('s2', 'ALA B', [
+          _ing('alpha_linolenic_acid', 'Alpha-Linolenic Acid', 1.1, 'gram(s)'),
+        ]),
+      ];
+
+      final total = aggregator.aggregate(stack)['alpha_linolenic_acid']!;
+      expect(total.unit, 'mg');
+      expect(total.totalAmount, 1600);
+      expect(total.hasUnitConflict, isFalse);
+    });
+
+    test('missing unit on one contribution is excluded from the total', () {
       final stack = [
         _productOf('s1', 'A', [_ing('iron', 'Iron', 10, 'mg')]),
         _productOf('s2', 'B', [
@@ -360,8 +396,81 @@ void main() {
         ]),
       ];
       final total = aggregator.aggregate(stack)['iron']!;
-      expect(total.totalAmount, 15);
-      expect(total.hasUnitConflict, isFalse);
+      expect(total.totalAmount, 10);
+      expect(total.hasUnitConflict, isTrue);
+      expect(total.contributions, hasLength(1));
+      expect(total.excludedContributions, hasLength(1));
+      expect(
+        total.excludedContributions.single.reason,
+        NutrientExclusionReason.missingUnit,
+      );
+    });
+
+    test('NP unit is excluded instead of contaminating the sum', () {
+      final stack = [
+        _productOf('s1', 'Folate A', [_ing('folate', 'Folate', 400, 'mcg')]),
+        _productOf('s2', 'Folate B', [_ing('folate', 'Folate', 0.0, 'NP')]),
+        _productOf('s3', 'Folate C', [
+          {
+            'mapped_name': 'folate',
+            'name': 'Folate',
+            'amount': 800,
+            'unit': 'NP',
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['folate']!;
+      expect(total.totalAmount, 400);
+      expect(total.excludedContributions, hasLength(1));
+      expect(
+        total.excludedContributions.single.reason,
+        NutrientExclusionReason.notProvidedUnit,
+      );
+    });
+
+    test('pipeline RDA/UL rows use daily converted amount and unit first', () {
+      final stack = [
+        _productOf('s1', 'D3 Drops', [
+          {
+            'standard_name': 'Vitamin D',
+            'ingredient': 'Vitamin D3',
+            'quantity': 2000,
+            'unit': 'IU',
+            'converted_quantity': 50,
+            'converted_unit': 'mcg',
+            'per_day_max': 100,
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['vitamin d']!;
+      expect(total.totalAmount, 100);
+      expect(total.unit, 'mcg');
+    });
+
+    test('pipeline skipped UL rows are surfaced as excluded', () {
+      final stack = [
+        _productOf('s1', 'Vitamin A', [
+          {
+            'standard_name': 'Vitamin A',
+            'ingredient': 'Vitamin A',
+            'quantity': 25000,
+            'unit': 'IU',
+            'converted_quantity': 25000,
+            'converted_unit': 'IU',
+            'per_day_max': 25000,
+            'skip_ul_check': true,
+            'skip_ul_reason': 'unknown_vitamin_form',
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['vitamin a']!;
+      expect(total.totalAmount, 0);
+      expect(total.contributions, isEmpty);
+      expect(total.excludedContributions, hasLength(1));
+      expect(
+        total.excludedContributions.single.reason,
+        NutrientExclusionReason.skippedByPipeline,
+      );
     });
   });
 

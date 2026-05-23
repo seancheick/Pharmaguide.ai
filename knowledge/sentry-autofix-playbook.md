@@ -111,6 +111,11 @@ human-authored or agent-authored — must pass them before merge:
   Drift tables, `shared_preferences` keys, and Riverpod providers to
   verify nothing persists FitScore.
 
+FitScore may be mentioned by product-detail UI files that consume the
+dedicated provider/result/display helpers. Those mentions are allowed only
+because they render an in-memory computed value; they must not add storage,
+shared-preferences keys, Drift columns, Supabase payloads, or keepAlive caches.
+
 **Do not modify these tests to make a fix pass.** If a test fails, that's
 the gate doing its job. Either revise the fix to satisfy the invariant or
 escalate to a human reviewer who can decide whether the invariant itself

@@ -57,6 +57,29 @@ class NutrientContribution {
   int get hashCode => Object.hash(stackEntryId, productName, amount, unit);
 }
 
+/// Why a disclosed stack contribution was excluded from RDA/UL math.
+///
+/// The contribution still remains visible so users can trace the product,
+/// but the numeric value is not included in [NutrientTotal.totalAmount].
+enum NutrientExclusionReason {
+  missingUnit,
+  notProvidedUnit,
+  unsupportedUnit,
+  unitConflict,
+  skippedByPipeline,
+}
+
+@immutable
+class ExcludedNutrientContribution {
+  const ExcludedNutrientContribution({
+    required this.contribution,
+    required this.reason,
+  });
+
+  final NutrientContribution contribution;
+  final NutrientExclusionReason reason;
+}
+
 /// Aggregated total for one nutrient across every stack item.
 ///
 /// [hasUnitConflict] is true if two contributions reported the same
@@ -75,6 +98,7 @@ class NutrientTotal {
     required this.unit,
     required this.contributions,
     this.hasUnitConflict = false,
+    this.excludedContributions = const [],
   });
 
   final String canonicalId;
@@ -83,6 +107,9 @@ class NutrientTotal {
   final String unit;
   final List<NutrientContribution> contributions;
   final bool hasUnitConflict;
+  final List<ExcludedNutrientContribution> excludedContributions;
+
+  bool get hasExcludedContributions => excludedContributions.isNotEmpty;
 }
 
 /// Classification of a nutrient's stack-level exposure against RDA
@@ -125,6 +152,7 @@ class NutrientStatus {
     this.pctOfUl,
     this.warning,
     this.rdaIsBaseline = false,
+    this.ulIsFallback = false,
   });
 
   final NutrientTotal total;
@@ -140,6 +168,12 @@ class NutrientStatus {
   /// is a generic baseline so users know to complete their profile
   /// for personalized numbers.
   final bool rdaIsBaseline;
+
+  /// True when [ul] came from the reference entry's anonymous `highest_ul`
+  /// fallback instead of an exact demographic match. This is intentionally
+  /// least restrictive, not conservative; UI copy should ask users to add a
+  /// profile for personalized upper-limit checks.
+  final bool ulIsFallback;
 
   /// True when this nutrient should surface a visible warning to the
   /// user. The caller decides whether to render it as a chip, a

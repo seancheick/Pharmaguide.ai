@@ -220,6 +220,7 @@ class StackActions {
     // invalidate it explicitly; otherwise removed items can leave stale
     // nutrient totals visible after the stack list has already updated.
     _ref.invalidate(stackNutrientStatusesProvider);
+    _ref.invalidate(stackDoseThresholdAlertsProvider);
   }
 
   /// Fire-and-forget sync attempt after every mutation. Silently skips

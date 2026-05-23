@@ -7,8 +7,8 @@
 // changes their profile (goals, conditions, age, drug classes). The
 // existing provider at
 //   lib/features/product_detail/providers/fit_score_provider.dart
-// uses FutureProvider.family.autoDispose + watches profileProvider, so
-// any profile change auto-invalidates.
+// uses FutureProvider.family.autoDispose + watches loadedProfileProvider, so
+// any persisted profile load or edit auto-invalidates.
 //
 // This test enforces the rule statically — it does not depend on
 // runtime behavior of the provider system, only on the shape of the
@@ -31,6 +31,11 @@ const _allowedFitScoreReferencesIn = <String>[
   'lib/core/models/fit_score_result.dart',
   // Provider file — the explicit non-persistence contract.
   'lib/features/product_detail/providers/fit_score_provider.dart',
+  // Product-detail UI consumers may import the provider/result/display helpers,
+  // but must not persist or cache the computed FitScore.
+  'lib/features/product_detail/',
+  'lib/core/components/pg_personal_fit_card.dart',
+  'lib/dev/v2_gallery.dart',
 ];
 
 void main() {
@@ -74,9 +79,7 @@ void main() {
         // SQL strings.
         if (source.toLowerCase().contains('fit_score')) {
           // Whitelist nothing inside a Drift tables file.
-          offenders.add(
-            '${entity.path}: source contains "fit_score" literal',
-          );
+          offenders.add('${entity.path}: source contains "fit_score" literal');
         }
       }
 
@@ -143,8 +146,8 @@ void main() {
       // The provider must opt into auto-dispose. Either as
       // `FutureProvider.family.autoDispose` or via the
       // `@Riverpod(keepAlive: false)` annotation. We accept either.
-      final usesAutoDispose = source.contains('autoDispose') ||
-          source.contains('keepAlive: false');
+      final usesAutoDispose =
+          source.contains('autoDispose') || source.contains('keepAlive: false');
       expect(
         usesAutoDispose,
         isTrue,
@@ -163,13 +166,15 @@ void main() {
             'non-persistence rule.',
       );
 
-      // It must watch the profile so any change auto-invalidates.
+      // It must watch the loaded profile so cold-start DB loading and later
+      // profile changes invalidate the computation before a stale/default
+      // profile can be scored.
       expect(
-        source.contains('watch(profileProvider)'),
+        source.contains('watch(loadedProfileProvider.future)'),
         isTrue,
         reason:
-            'FitScore provider must watch(profileProvider) so a profile '
-            'change invalidates the computation.',
+            'FitScore provider must watch(loadedProfileProvider.future) so '
+            'profile load/change invalidates the computation.',
       );
     });
 

@@ -56,14 +56,9 @@
 // RDA and UL are read separately — a nutrient can have a UL
 // without an RDA (and vice versa), so we never assume both exist.
 //
-// NOTE — Pre-existing bug in [E1DosageCalculator]: it reads
-// `entry['nutrient']` and `group['age_bracket']` / `group['rda']`,
-// which do not exist in the real data file (the actual fields are
-// `standard_name`, `age_range`, `rda_ai`). This means the legacy
-// calculator always falls through to `highest_ul` and never applies
-// RDA tier scoring. This checker deliberately reads the correct
-// field names. Out of scope for M1 to fix the legacy path — file an
-// issue instead.
+// FitScore E1/E2b route through this same checker so the product-detail
+// score and stack nutrient panel use the same nutrient identity, unit, and
+// demographic rules.
 
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -104,8 +99,18 @@ class StackUlChecker {
     required String? ageBracket,
     required String? sex,
   }) {
-    final entry = _findEntry(recommendations, total);
-    if (entry == null) {
+    final resolved = _findEntry(recommendations, total);
+    if (resolved == null) {
+      return NutrientStatus(total: total, tier: NutrientTier.noRda);
+    }
+    final entry = resolved.entry;
+
+    final amountInReferenceUnit = _amountInReferenceUnit(
+      total.totalAmount,
+      actualUnit: total.unit,
+      expectedUnit: (entry['unit'] ?? '').toString(),
+    );
+    if (amountInReferenceUnit == null) {
       return NutrientStatus(total: total, tier: NutrientTier.noRda);
     }
 
@@ -115,19 +120,24 @@ class StackUlChecker {
       sex: sex,
     );
     final rda = rdaLookup.value;
-    final ul = _getUl(entry, ageBracket: ageBracket, sex: sex);
+    final ulLookup = _getUlWithProvenance(
+      entry,
+      ageBracket: ageBracket,
+      sex: sex,
+    );
+    final ul = ulLookup.value;
 
     final pctOfRda = (rda != null && rda > 0)
-        ? (total.totalAmount / rda) * 100.0
+        ? (amountInReferenceUnit / rda) * 100.0
         : null;
     final pctOfUl = (ul != null && ul > 0)
-        ? (total.totalAmount / ul) * 100.0
+        ? (amountInReferenceUnit / ul) * 100.0
         : null;
 
     final tier = _classify(pctOfRda: pctOfRda, pctOfUl: pctOfUl);
     final warning =
         (tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl)
-        ? _warningFor(total.canonicalId, tier)
+        ? _warningFor(resolved.id, tier)
         : null;
 
     return NutrientStatus(
@@ -139,6 +149,7 @@ class StackUlChecker {
       pctOfUl: pctOfUl,
       warning: warning,
       rdaIsBaseline: rdaLookup.isBaseline,
+      ulIsFallback: ulLookup.isFallback,
     );
   }
 
@@ -147,18 +158,22 @@ class StackUlChecker {
   /// 2. Exact lowercased standard_name match against display name
   /// 3. Substring match against display name
   /// 4. null
-  Map<String, dynamic>? _findEntry(
+  _ResolvedEntry? _findEntry(
     List<dynamic> recommendations,
     NutrientTotal total,
   ) {
-    final canonical = total.canonicalId.toLowerCase();
+    final canonical = _normalizeKey(total.canonicalId);
     final display = total.displayName.toLowerCase();
+    final aliased = _rdaAliases[canonical];
 
-    // Tier 1: exact id match.
+    // Tier 1: exact id match, with explicit pipeline-id aliases.
     for (final e in recommendations) {
       if (e is! Map<String, dynamic>) continue;
-      final id = (e['id'] ?? '').toString().toLowerCase();
-      if (id.isNotEmpty && id == canonical) return e;
+      final id = _normalizeKey(e['id']);
+      if (id.isEmpty) continue;
+      if (id == canonical || id == aliased) {
+        return _ResolvedEntry(entry: e, id: id);
+      }
     }
 
     // Tier 2: exact standard_name match (lowercased) against our
@@ -168,17 +183,22 @@ class StackUlChecker {
     for (final e in recommendations) {
       if (e is! Map<String, dynamic>) continue;
       final std = (e['standard_name'] ?? '').toString().toLowerCase();
-      if (std.isNotEmpty && std == display) return e;
+      if (std.isNotEmpty && std == display) {
+        return _ResolvedEntry(entry: e, id: _normalizeKey(e['id']));
+      }
     }
 
     // Tier 3: substring fuzzy match. Deliberately last because it
     // can mis-match (e.g. "vitamin a" is a substring of "vitamin a
-    // palmitate"). Only used when no exact match exists.
+    // palmitate"). Only used when no exact match exists, and only
+    // for meaningful word-boundary strings.
     for (final e in recommendations) {
       if (e is! Map<String, dynamic>) continue;
       final std = (e['standard_name'] ?? '').toString().toLowerCase();
       if (std.isEmpty) continue;
-      if (display.contains(std) || std.contains(display)) return e;
+      if (_safeWordContains(display, std) || _safeWordContains(std, display)) {
+        return _ResolvedEntry(entry: e, id: _normalizeKey(e['id']));
+      }
     }
 
     return null;
@@ -233,10 +253,11 @@ class StackUlChecker {
     return const _RdaLookup(null, false);
   }
 
-  /// Look up UL for the requested demographic. Falls back to
-  /// `highest_ul` for anonymous users so the critical
-  /// "exceeds UL" warning still fires without a profile.
-  double? _getUl(
+  /// Look up UL for the requested demographic. Falls back to `highest_ul`
+  /// for anonymous users. This is the least restrictive demographic UL, not
+  /// the most conservative one; callers receive provenance so UI can ask for
+  /// a profile when values are not personalized.
+  _UlLookup _getUlWithProvenance(
     Map<String, dynamic> entry, {
     required String? ageBracket,
     required String? sex,
@@ -248,7 +269,7 @@ class StackUlChecker {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket && g['group'] == sex) {
           final v = _asDouble(g['ul']);
-          if (v != null) return v;
+          if (v != null) return _UlLookup(v, false);
         }
       }
     }
@@ -258,18 +279,17 @@ class StackUlChecker {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket) {
           final v = _asDouble(g['ul']);
-          if (v != null) return v;
+          if (v != null) return _UlLookup(v, false);
         }
       }
     }
 
-    // Anonymous fallback: highest_ul lets us still catch UL breaches
-    // without a profile. This is the most conservative number so it
-    // errs on the side of safety.
+    // Anonymous fallback: least restrictive UL lets us still catch large
+    // overages without alarming users from an unknown demographic.
     final highest = _asDouble(entry['highest_ul']);
-    if (highest != null) return highest;
+    if (highest != null) return _UlLookup(highest, true);
 
-    return null;
+    return const _UlLookup(null, false);
   }
 
   /// Classify into a [NutrientTier]. UL precedence is strict —
@@ -284,7 +304,7 @@ class StackUlChecker {
       if (pctOfUl >= 80.0) return NutrientTier.approachingUl;
     }
     if (pctOfRda == null) return NutrientTier.noRda;
-    if (pctOfRda > 200.0) return NutrientTier.aboveTypical;
+    if (pctOfRda >= 200.0) return NutrientTier.aboveTypical;
     if (pctOfRda >= 100.0) return NutrientTier.abundant;
     if (pctOfRda >= 50.0) return NutrientTier.adequate;
     return NutrientTier.underFifty;
@@ -298,11 +318,8 @@ class StackUlChecker {
     final specific = _specificWarnings[key];
     if (specific != null) {
       return tier == NutrientTier.exceedsUl
-          ? specific
-          : 'Approaching Upper Limit — $specific'.toLowerCase().replaceFirst(
-              'approaching upper limit — ',
-              'Approaching Upper Limit — ',
-            );
+          ? 'Exceeds Upper Limit — $specific'
+          : 'Approaching Upper Limit — $specific';
     }
     return tier == NutrientTier.exceedsUl
         ? 'Exceeds Upper Limit — review with healthcare provider'
@@ -310,30 +327,107 @@ class StackUlChecker {
   }
 
   static const Map<String, String> _specificWarnings = {
-    'zinc': 'Exceeds Upper Limit — risk of copper depletion',
-    'iron': 'Exceeds Upper Limit — risk of GI toxicity and oxidative stress',
-    'vitamin_a':
-        'Exceeds Upper Limit — risk of hepatotoxicity and teratogenicity',
-    'vitamin_d':
-        'Exceeds Upper Limit — risk of hypercalcemia and kidney damage',
-    'vitamin_d3':
-        'Exceeds Upper Limit — risk of hypercalcemia and kidney damage',
-    'vitamin_b6':
-        'Exceeds Upper Limit — risk of sensory neuropathy with chronic use',
-    'vitamin_b3': 'Exceeds Upper Limit — risk of flushing and hepatotoxicity',
-    'niacin': 'Exceeds Upper Limit — risk of flushing and hepatotoxicity',
-    'folate': 'Exceeds Upper Limit — may mask vitamin B12 deficiency',
-    'folic_acid': 'Exceeds Upper Limit — may mask vitamin B12 deficiency',
-    'calcium':
-        'Exceeds Upper Limit — risk of kidney stones and cardiovascular events',
-    'magnesium':
-        'Exceeds Upper Limit — risk of diarrhea and electrolyte imbalance',
-    'selenium': 'Exceeds Upper Limit — risk of selenosis and hair/nail loss',
-    'copper': 'Exceeds Upper Limit — risk of hepatotoxicity',
-    'manganese':
-        'Exceeds Upper Limit — risk of neurotoxicity with chronic exposure',
-    'iodine': 'Exceeds Upper Limit — risk of thyroid dysfunction',
+    'zinc': 'risk of copper depletion',
+    'iron': 'risk of GI toxicity and oxidative stress',
+    'vitamin_a': 'risk of hepatotoxicity and teratogenicity',
+    'vitamin_d': 'risk of hypercalcemia and kidney damage',
+    'vitamin_d3': 'risk of hypercalcemia and kidney damage',
+    'vitamin_b6': 'risk of sensory neuropathy with chronic use',
+    'vitamin_b3': 'risk of flushing and hepatotoxicity',
+    'niacin': 'risk of flushing and hepatotoxicity',
+    'folate': 'may mask vitamin B12 deficiency',
+    'folic_acid': 'may mask vitamin B12 deficiency',
+    'calcium': 'risk of kidney stones and cardiovascular events',
+    'magnesium': 'risk of diarrhea and electrolyte imbalance',
+    'selenium': 'risk of selenosis and hair/nail loss',
+    'copper': 'risk of hepatotoxicity',
+    'manganese': 'risk of neurotoxicity with chronic exposure',
+    'iodine': 'risk of thyroid dysfunction',
   };
+
+  static const Map<String, String> _rdaAliases = {
+    'vitamin_b1_thiamine': 'thiamin',
+    'vitamin_b2_riboflavin': 'riboflavin',
+    'vitamin_b3_niacin': 'niacin',
+    'vitamin_b5_pantothenic_acid': 'pantothenic_acid',
+    'vitamin_b6_pyridoxine': 'vitamin_b6',
+    'vitamin_b7_biotin': 'biotin',
+    'vitamin_b9_folate': 'folate',
+    'vitamin_b12_cobalamin': 'vitamin_b12',
+    'vitamin_d2': 'vitamin_d',
+    'vitamin_d3': 'vitamin_d',
+  };
+
+  static double? _amountInReferenceUnit(
+    double amount, {
+    required String actualUnit,
+    required String expectedUnit,
+  }) {
+    if (_unitMatchesReference(actualUnit, expectedUnit)) return amount;
+
+    final expected = _normalizeUnit(expectedUnit);
+    final actual = _normalizeUnit(actualUnit);
+    final actualGrams = _simpleMassGramsFactor(actual);
+    final expectedGrams = _simpleMassGramsFactor(expected);
+    if (actualGrams == null || expectedGrams == null) return null;
+    return amount * actualGrams / expectedGrams;
+  }
+
+  static bool _unitMatchesReference(String actual, String expected) {
+    final expectedUnit = _normalizeUnit(expected);
+    if (expectedUnit.isEmpty) return true;
+    final actualUnit = _normalizeUnit(actual);
+    if (actualUnit.isEmpty) return false;
+    if (actualUnit == expectedUnit) return true;
+
+    const aliases = <String, Set<String>>{
+      'mcg': {'ug'},
+      'mcg rae': {'ug rae'},
+      'mcg dfe': {'ug dfe'},
+      'mg alpha tocopherol': {'mg alpha-tocopherol', 'mg'},
+      'mg ne': {'mg'},
+    };
+    return aliases[expectedUnit]?.contains(actualUnit) ?? false;
+  }
+
+  static double? _simpleMassGramsFactor(String unit) {
+    return switch (unit) {
+      'g' => 1.0,
+      'gram' => 1.0,
+      'grams' => 1.0,
+      'gram(s)' => 1.0,
+      'mg' => 0.001,
+      'mcg' => 0.000001,
+      'microgram' => 0.000001,
+      'micrograms' => 0.000001,
+      _ => null,
+    };
+  }
+
+  static String _normalizeKey(Object? raw) {
+    return (raw ?? '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+  }
+
+  static String _normalizeUnit(String raw) {
+    return raw
+        .trim()
+        .toLowerCase()
+        .replaceAll('µg', 'mcg')
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  static bool _safeWordContains(String haystack, String needle) {
+    if (haystack.length < 4 || needle.length < 4) return false;
+    final escaped = RegExp.escape(needle);
+    return RegExp('(^|[^a-z0-9])$escaped([^a-z0-9]|\$)').hasMatch(haystack);
+  }
 
   static double? _asDouble(dynamic v) {
     if (v == null) return null;
@@ -354,4 +448,16 @@ class _RdaLookup {
   const _RdaLookup(this.value, this.isBaseline);
   final double? value;
   final bool isBaseline;
+}
+
+class _UlLookup {
+  const _UlLookup(this.value, this.isFallback);
+  final double? value;
+  final bool isFallback;
+}
+
+class _ResolvedEntry {
+  const _ResolvedEntry({required this.entry, required this.id});
+  final Map<String, dynamic> entry;
+  final String id;
 }
