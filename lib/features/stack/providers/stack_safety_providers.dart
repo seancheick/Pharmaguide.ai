@@ -213,6 +213,20 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       }
     }
   }
+  if (medications.isNotEmpty) {
+    try {
+      final hits = await checker.checkMedicationFoodAdvisories(
+        stackMedications: medications,
+        db: interactionDb,
+      );
+      for (final r in hits) {
+        if (seenMedIds.add(r.id)) medicationInteractions.add(r);
+      }
+    } on Object {
+      // Food advisories are additive context; never let them block the
+      // rest of the stack safety report.
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // 3. Heuristic category checks (stim/sed, blood thinners). For the

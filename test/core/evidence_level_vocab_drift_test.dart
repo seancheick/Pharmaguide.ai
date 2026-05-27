@@ -11,13 +11,13 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 5 entries', () {
+    test('schema lock + 6 entries', () {
       final decoded =
           jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
       expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 5);
+      expect(md['total_entries'], 6);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
@@ -36,6 +36,7 @@ void main() {
           'ingredient-human',
           'strain-clinical',
           'preclinical',
+          'reference',
         }),
       );
     });

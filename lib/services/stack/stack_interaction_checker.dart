@@ -379,6 +379,72 @@ class StackInteractionChecker {
     return results;
   }
 
+  /// Return food-advisory notes that are triggered by medications alone.
+  ///
+  /// Food rows are authored with `alert_style='food_advisory_note'` because
+  /// the app does not track foods in the user's stack. A matching medication
+  /// or drug class is therefore sufficient to surface the note.
+  Future<List<InteractionResult>> checkMedicationFoodAdvisories({
+    required List<UserStacksLocalData> stackMedications,
+    required InteractionDatabase db,
+  }) async {
+    if (stackMedications.isEmpty) return const <InteractionResult>[];
+
+    final rxcuiToName = <String, String>{};
+    final classToName = <String, String>{};
+    for (final med in stackMedications) {
+      final rxcui = med.rxcui?.trim();
+      if (rxcui != null && rxcui.isNotEmpty) {
+        rxcuiToName.putIfAbsent(rxcui, () => med.name);
+      }
+      final genericRxcui = med.genericRxcui?.trim();
+      if (genericRxcui != null && genericRxcui.isNotEmpty) {
+        rxcuiToName.putIfAbsent(genericRxcui, () => med.name);
+      }
+      for (final ingRxcui in _ingredientRxcuisFor(med)) {
+        rxcuiToName.putIfAbsent(ingRxcui, () => med.name);
+      }
+      for (final cls in _drugClassesFor(med)) {
+        classToName.putIfAbsent(cls, () => med.name);
+      }
+    }
+    if (rxcuiToName.isEmpty && classToName.isEmpty) {
+      return const <InteractionResult>[];
+    }
+
+    final results = <InteractionResult>[];
+    final seenRowIds = <String>{};
+
+    void addIfFoodAdvisory(InteractionRow row, String medName) {
+      if (row.alertStyle != 'food_advisory_note') return;
+      if (!seenRowIds.add(row.id)) return;
+      results.add(
+        InteractionResult.fromRow(
+          row,
+          source: InteractionSource.pipeline,
+          agent1NameOverride: medName,
+          agent2NameOverride: row.agent2Name,
+        ),
+      );
+    }
+
+    for (final entry in rxcuiToName.entries) {
+      final rows = await db.lookupByRxcui(entry.key);
+      for (final row in rows) {
+        addIfFoodAdvisory(row, entry.value);
+      }
+    }
+
+    for (final entry in classToName.entries) {
+      final rows = await db.lookupByDrugClass(entry.key);
+      for (final row in rows) {
+        addIfFoodAdvisory(row, entry.value);
+      }
+    }
+
+    return results;
+  }
+
   /// Checks medication × medication pair interactions.
   ///
   /// For each medication in [newMedications], fans against every other

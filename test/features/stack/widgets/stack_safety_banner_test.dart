@@ -37,6 +37,7 @@ void main() {
     String agent2 = 'Fish Oil',
     String mechanism = 'Additive antiplatelet effect.',
     String management = 'Monitor INR closely.',
+    String? alertStyle,
   }) {
     return InteractionResult(
       id: id,
@@ -47,6 +48,7 @@ void main() {
       agent2Name: agent2,
       mechanism: mechanism,
       management: management,
+      alertStyle: alertStyle,
       doseDependant: false,
       doseThreshold: null,
       sourceUrls: const <String>[],
@@ -162,6 +164,30 @@ void main() {
     expect(banner.tone, PGBannerTone.caution);
     // 2026-04-30 — softer-tone vocab (severity.dart).
     expect(banner.title, contains('Monitor'));
+  });
+
+  testWidgets('food advisory note uses info tone and food-note title', (
+    tester,
+  ) async {
+    final report = StackSafetyReport(
+      medicationInteractions: [
+        makeInteraction(
+          severity: Severity.informational,
+          agent1: 'Levothyroxine',
+          agent2: 'Coffee',
+          management: 'Take levothyroxine with water and wait before coffee.',
+          alertStyle: 'food_advisory_note',
+        ),
+      ],
+    );
+    await pumpBanner(tester, report: report);
+
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
+    expect(banner.tone, PGBannerTone.info);
+    expect(banner.title, 'Food note — Levothyroxine × Coffee');
+    expect(banner.body, contains('wait before coffee'));
   });
 
   testWidgets(

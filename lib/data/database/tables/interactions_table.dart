@@ -74,6 +74,14 @@ class Interactions extends Table {
   TextColumn get retiredReason => text().named('retired_reason').nullable()();
   TextColumn get lastUpdated => text().named('last_updated')();
 
+  // Optional food-advisory display fields. Present only for rows where
+  // alert_style='food_advisory_note'; clinical pairwise rows leave these
+  // null and render through mechanism/management as before.
+  TextColumn get alertStyle => text().named('alert_style').nullable()();
+  TextColumn get noteBody => text().named('note_body').nullable()();
+  TextColumn get practicalGuidance =>
+      text().named('practical_guidance').nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 

@@ -11,13 +11,13 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 7 entries', () {
+    test('schema lock + 8 entries', () {
       final decoded =
           jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
       expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 7);
+      expect(md['total_entries'], 8);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
@@ -38,6 +38,7 @@ void main() {
           'observational',
           'animal_study',
           'in_vitro',
+          'reference',
         }),
       );
     });
@@ -56,6 +57,7 @@ void main() {
       expect(byId['observational']!['base_points'], 2);
       expect(byId['animal_study']!['base_points'], 2);
       expect(byId['in_vitro']!['base_points'], 1);
+      expect(byId['reference']!['base_points'], 0);
     });
 
     test('every entry has required fields populated', () {

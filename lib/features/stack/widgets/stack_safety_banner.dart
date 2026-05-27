@@ -95,6 +95,7 @@ class StackSafetyBanner extends StatelessWidget {
       case Severity.monitor:
         return PGBannerTone.caution;
       case Severity.informational:
+        return PGBannerTone.info;
       case Severity.safe:
         return PGBannerTone.success;
     }
@@ -106,6 +107,9 @@ class StackSafetyBanner extends StatelessWidget {
   static String _titleFor(Object topWarning, Severity worst) {
     final prefix = worst.label;
     if (topWarning is InteractionResult) {
+      if (topWarning.isFoodAdvisoryNote) {
+        return 'Food note — ${topWarning.agent1Name} × ${topWarning.agent2Name}';
+      }
       return '$prefix — ${topWarning.agent1Name} × ${topWarning.agent2Name}';
     }
     if (topWarning is NutrientStatus) {

@@ -48,8 +48,8 @@ const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
 /// Number of live (non-tombstoned) interaction rows in the current bundle.
 /// Updated from 20 (golden fixture) → 128 (full curated v1.0.0) → 136
 /// (27 rule fixes in c23d044) → 138 (vinpocetine + horse chestnut
-/// anticoagulant release gates).
-const _expectedLiveInteractionCount = 138;
+/// anticoagulant release gates) → 148 (food-advisory schema bundle).
+const _expectedLiveInteractionCount = 148;
 
 /// Pipeline-built drug classes that the current bundle ships.
 /// v1.0.0 has 21 classes with curated interaction rows.
@@ -125,6 +125,17 @@ void main() {
         expect(r.severity, isNotEmpty);
         expect(r.retiredAt, isNull);
       }
+    });
+
+    test('food advisory columns hydrate from bundled interaction DB', () async {
+      final rows = await db.lookupByRxcui('10582');
+      final coffee = rows.singleWhere(
+        (r) => r.id == 'DSI_LEVOTHYROXINE_COFFEE',
+      );
+
+      expect(coffee.alertStyle, 'food_advisory_note');
+      expect(coffee.noteBody, contains('Coffee'));
+      expect(coffee.practicalGuidance, contains('levothyroxine'));
     });
   });
 

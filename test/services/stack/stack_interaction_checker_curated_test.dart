@@ -52,6 +52,9 @@ InteractionsCompanion _row({
   String sourceUrlsJson = '["https://example.org/test"]',
   int doseDependent = 0,
   String? retiredAt,
+  String? alertStyle,
+  String? noteBody,
+  String? practicalGuidance,
 }) {
   return InteractionsCompanion.insert(
     id: id,
@@ -86,6 +89,15 @@ InteractionsCompanion _row({
     retiredAt: retiredAt == null
         ? const drift.Value.absent()
         : drift.Value(retiredAt),
+    alertStyle: alertStyle == null
+        ? const drift.Value.absent()
+        : drift.Value(alertStyle),
+    noteBody: noteBody == null
+        ? const drift.Value.absent()
+        : drift.Value(noteBody),
+    practicalGuidance: practicalGuidance == null
+        ? const drift.Value.absent()
+        : drift.Value(practicalGuidance),
     typeAuthored: 'curated',
     source: 'curated',
     provenance: 'test',
@@ -237,6 +249,40 @@ void main() {
           a2Canonical: 'other_fake',
           severity: 'avoid',
           retiredAt: '2025-01-01T00:00:00Z',
+        ),
+      );
+      b.insert(
+        db.interactions,
+        _row(
+          id: 'DSI_LEVOTHYROXINE_COFFEE',
+          a1Type: 'drug',
+          a1Id: '10582',
+          a1Name: 'Levothyroxine',
+          a2Type: 'food',
+          a2Id: 'food:coffee',
+          a2Name: 'Coffee',
+          severity: 'monitor',
+          alertStyle: 'food_advisory_note',
+          noteBody:
+              'Coffee can reduce how much levothyroxine your body absorbs.',
+          practicalGuidance:
+              'Take levothyroxine with water and wait before coffee.',
+        ),
+      );
+      b.insert(
+        db.interactions,
+        _row(
+          id: 'DSI_STATINS_GRAPEFRUIT',
+          a1Type: 'drug_class',
+          a1Id: 'class:statins',
+          a1Name: 'Statins',
+          a2Type: 'food',
+          a2Id: 'food:grapefruit',
+          a2Name: 'Grapefruit',
+          severity: 'avoid',
+          alertStyle: 'food_advisory_note',
+          noteBody: 'Grapefruit can raise levels of some statins.',
+          practicalGuidance: 'Skip grapefruit or ask about another statin.',
         ),
       );
     });
@@ -583,6 +629,47 @@ void main() {
       expect(asCopper, hasLength(1));
       expect(asZinc.single.id, 'DDI_ZINC_COPPER');
       expect(asCopper.single.id, 'DDI_ZINC_COPPER');
+    });
+  });
+
+  group('checkMedicationFoodAdvisories', () {
+    test(
+      'surfaces a drug-specific food note without a food stack item',
+      () async {
+        final results = await checker.checkMedicationFoodAdvisories(
+          stackMedications: [
+            _medication(id: 'm1', name: 'Synthroid', rxcui: '10582'),
+          ],
+          db: db,
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DSI_LEVOTHYROXINE_COFFEE');
+        expect(results.single.severity, Severity.informational);
+        expect(results.single.isFoodAdvisoryNote, isTrue);
+        expect(results.single.agent1Name, 'Synthroid');
+        expect(results.single.agent2Name, 'Coffee');
+        expect(results.single.mechanism, contains('Coffee can reduce'));
+        expect(results.single.management, contains('wait before coffee'));
+      },
+    );
+
+    test('surfaces a class-level food note from medication classes', () async {
+      final results = await checker.checkMedicationFoodAdvisories(
+        stackMedications: [
+          _medication(
+            id: 'm1',
+            name: 'Atorvastatin',
+            drugClassesJson: '["class:statins"]',
+          ),
+        ],
+        db: db,
+      );
+
+      expect(results, hasLength(1));
+      expect(results.single.id, 'DSI_STATINS_GRAPEFRUIT');
+      expect(results.single.agent1Name, 'Atorvastatin');
+      expect(results.single.agent2Name, 'Grapefruit');
     });
   });
 

@@ -57,6 +57,9 @@ class InteractionResult {
   final String agent2Name;
   final String mechanism;
   final String management;
+  final String? alertStyle;
+  final String? noteBody;
+  final String? practicalGuidance;
   final bool doseDependant;
   final String? doseThreshold;
   final List<String> sourceUrls;
@@ -71,6 +74,9 @@ class InteractionResult {
     required this.agent2Name,
     required this.mechanism,
     required this.management,
+    this.alertStyle,
+    this.noteBody,
+    this.practicalGuidance,
     required this.doseDependant,
     required this.doseThreshold,
     required this.sourceUrls,
@@ -123,24 +129,42 @@ class InteractionResult {
       resolvedType = InteractionType.drugSupplement;
     }
 
+    final isFoodAdvisory = row.alertStyle == 'food_advisory_note';
+    final noteBody = row.noteBody?.trim();
+    final practicalGuidance = row.practicalGuidance?.trim();
+
     return InteractionResult(
       id: row.id,
       type: resolvedType,
-      severity: Severity.fromString(row.severity),
+      severity: isFoodAdvisory
+          ? Severity.informational
+          : Severity.fromString(row.severity),
       evidenceLevel: row.evidenceLevel == null
           ? EvidenceLevel.theoretical
           : EvidenceLevel.fromString(row.evidenceLevel!),
       effectType: EffectType.fromString(row.effectType),
       agent1Name: agent1NameOverride ?? row.agent1Name,
       agent2Name: agent2NameOverride ?? row.agent2Name,
-      mechanism: row.mechanism,
-      management: row.management,
+      mechanism: isFoodAdvisory && noteBody != null && noteBody.isNotEmpty
+          ? noteBody
+          : row.mechanism,
+      management:
+          isFoodAdvisory &&
+              practicalGuidance != null &&
+              practicalGuidance.isNotEmpty
+          ? practicalGuidance
+          : row.management,
+      alertStyle: row.alertStyle,
+      noteBody: row.noteBody,
+      practicalGuidance: row.practicalGuidance,
       doseDependant: row.doseDependent != 0,
       doseThreshold: row.doseThresholdText,
       sourceUrls: _decodeSourceUrls(row.sourceUrlsJson),
       source: source,
     );
   }
+
+  bool get isFoodAdvisoryNote => alertStyle == 'food_advisory_note';
 
   static List<String> _decodeSourceUrls(String json) {
     if (json.isEmpty) return const <String>[];

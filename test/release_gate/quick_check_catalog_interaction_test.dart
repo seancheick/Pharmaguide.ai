@@ -74,6 +74,7 @@ void main() {
               String medicationName,
               String rxcui,
               List<String> drugClasses,
+              String expectedInteractionId,
               Severity expectedSeverity,
             })
           >[
@@ -82,6 +83,7 @@ void main() {
               medicationName: 'Lisinopril',
               rxcui: '29046',
               drugClasses: ['class:ace_inhibitors'],
+              expectedInteractionId: 'DSI_ACEI_POTASSIUM',
               expectedSeverity: Severity.avoid,
             ),
             (
@@ -89,6 +91,7 @@ void main() {
               medicationName: 'Sertraline',
               rxcui: '36437',
               drugClasses: ['class:ssris'],
+              expectedInteractionId: 'DSI_SSRI_SJW',
               expectedSeverity: Severity.contraindicated,
             ),
             (
@@ -96,6 +99,7 @@ void main() {
               medicationName: 'Omeprazole',
               rxcui: '7646',
               drugClasses: ['class:antacids'],
+              expectedInteractionId: 'DSI_PPI_MAGNESIUM',
               expectedSeverity: Severity.caution,
             ),
             (
@@ -103,6 +107,7 @@ void main() {
               medicationName: 'Levothyroxine',
               rxcui: '10582',
               drugClasses: <String>[],
+              expectedInteractionId: 'DSI_LEVOTHYROXINE_CALCIUM',
               expectedSeverity: Severity.avoid,
             ),
             (
@@ -110,6 +115,7 @@ void main() {
               medicationName: 'Levothyroxine',
               rxcui: '10582',
               drugClasses: <String>[],
+              expectedInteractionId: 'DSI_LEVOTHYROXINE_IRON',
               expectedSeverity: Severity.avoid,
             ),
             (
@@ -117,6 +123,7 @@ void main() {
               medicationName: 'Warfarin',
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
+              expectedInteractionId: 'DSI_WAR_VITK',
               expectedSeverity: Severity.avoid,
             ),
             (
@@ -124,6 +131,7 @@ void main() {
               medicationName: 'Metformin',
               rxcui: '6809',
               drugClasses: ['class:diabetes_meds'],
+              expectedInteractionId: 'DSI_DM_ASHWAGANDHA',
               expectedSeverity: Severity.caution,
             ),
             (
@@ -131,6 +139,7 @@ void main() {
               medicationName: 'Warfarin',
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
+              expectedInteractionId: 'DSI_WAR_TURMERIC',
               expectedSeverity: Severity.caution,
             ),
             (
@@ -138,6 +147,7 @@ void main() {
               medicationName: 'Atorvastatin',
               rxcui: '83367',
               drugClasses: ['class:statins'],
+              expectedInteractionId: 'DSI_STATINS_RYR',
               expectedSeverity: Severity.avoid,
             ),
             (
@@ -145,6 +155,7 @@ void main() {
               medicationName: 'Warfarin',
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
+              expectedInteractionId: 'DSI_ANTICOAG_CBD',
               expectedSeverity: Severity.caution,
             ),
             (
@@ -152,6 +163,7 @@ void main() {
               medicationName: 'Warfarin',
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
+              expectedInteractionId: 'DSI_ANTICOAG_VINPOCETINE',
               expectedSeverity: Severity.caution,
             ),
             (
@@ -159,6 +171,7 @@ void main() {
               medicationName: 'Warfarin',
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
+              expectedInteractionId: 'DSI_ANTICOAG_HORSE_CHESTNUT',
               expectedSeverity: Severity.caution,
             ),
           ];
@@ -186,7 +199,16 @@ void main() {
               '${fixture.canonicalId} should fire a curated Quick Check rule',
         );
         expect(
-          results.first.severity,
+          results.map((r) => r.id),
+          contains(fixture.expectedInteractionId),
+          reason:
+              '${fixture.canonicalId} should fire ${fixture.expectedInteractionId}',
+        );
+        final result = results.singleWhere(
+          (r) => r.id == fixture.expectedInteractionId,
+        );
+        expect(
+          result.severity,
           fixture.expectedSeverity,
           reason:
               '${fixture.canonicalId} should render the expected severity tier',
