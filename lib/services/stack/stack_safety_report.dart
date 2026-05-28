@@ -118,10 +118,11 @@ class StackSafetyReport {
   /// expected to runtime-switch on type when rendering.
   ///
   /// Within the same severity tier the order is:
-  ///   1. medication interactions (highest stakes — drug-supp)
-  ///   2. stack supplement-pair interactions
-  ///   3. category heuristics
-  ///   4. nutrient UL warnings
+  ///   1. medication-pair interactions (highest stakes — drug-drug)
+  ///   2. medication interactions (drug-supp)
+  ///   3. stack supplement-pair interactions
+  ///   4. category heuristics
+  ///   5. nutrient UL warnings
   ///
   /// Inside each bucket the relative order from the source list is
   /// preserved so callers passing pre-sorted inputs see deterministic
@@ -142,16 +143,17 @@ class StackSafetyReport {
       }
     }
 
-    addInteractions(medicationInteractions, 0);
-    addInteractions(stackInteractions, 1);
-    addInteractions(categoryWarnings, 2);
+    addInteractions(medicationPairInteractions, 0);
+    addInteractions(medicationInteractions, 1);
+    addInteractions(stackInteractions, 2);
+    addInteractions(categoryWarnings, 3);
 
     final flagged = _flaggedNutrients;
     for (var i = 0; i < flagged.length; i++) {
       entries.add(
         _RankedEntry(
           severity: _severityForNutrient(flagged[i]),
-          bucket: 3,
+          bucket: 4,
           ordinal: i,
           payload: flagged[i],
         ),

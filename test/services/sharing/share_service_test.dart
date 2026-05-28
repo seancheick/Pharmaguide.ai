@@ -89,4 +89,23 @@ void main() {
       },
     );
   });
+
+  group('ShareService.shareClinicianReportPdf', () {
+    test('forwards PDF bytes with the clinician filename', () async {
+      List<int>? capturedBytes;
+      String? capturedFilename;
+      final service = ShareService(
+        pdfShareOverride: (bytes, {required filename}) async {
+          capturedBytes = bytes;
+          capturedFilename = filename;
+        },
+      );
+
+      final bytes = [37, 80, 68, 70, 45];
+      await service.shareClinicianReportPdf(bytes);
+
+      expect(capturedBytes, bytes);
+      expect(capturedFilename, 'pharmaguide-clinician-report.pdf');
+    });
+  });
 }

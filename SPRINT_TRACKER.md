@@ -91,7 +91,7 @@ Two focused initiatives are running outside the numbered-sprint flow above. Each
 |---|---|---|
 | **A** — V1.0 Hardening (analyze clean, full-suite green, OTA bundle-replacement bug fix, "Stack Score" → "Stack Health" copy) | A1, A2, A4, A6 | ✅ All `[x]` (code) — A3 real-device scan + A5 TestFlight build still ⏳ Sean |
 | **B** — V1.1 Stack Intelligence (`StackIntelligence` model + `StackIntelligenceEngine` facade + home headline rewire) | B1, B2, B3 | ✅ All `[x]` (code) — B3 goldens + real-device pass ⏳ Sean |
-| **C** — V1.2 Clinician Share Report (`ClinicianReportBuilder` + `ShareService.shareClinicianReport` + stack-screen entrypoint button) | C1, C2, C3 | ✅ All `[x]` (code) — C3 real-device paste-into-Mail/MyChart ⏳ Sean. C4 PDF export deferred to v1.2.1 |
+| **C** — V1.2 Clinician Share Report (`ClinicianReportBuilder` + `ShareService.shareClinicianReport` + stack-screen entrypoint button) | C1, C2, C3, C4 | ✅ All `[x]` (code) — C3 markdown real-device paste-into-Mail/MyChart ⏳ Sean. C4 PDF export + review fixes code-complete 2026-05-28; real-device share smoke ⏳ Sean |
 | **D** — V1.3 OTA Catalog Refresh (D3 redirected to T0.6 in-session swap) | D1, D2, D3, D4 | ✅ All `[x]` (code) 2026-04-29 — D1 `scripts/tests/test_manifest_contract.py` (12 tests), D2 `lib/services/catalog_updater_service.dart` (8 tests, sealed `CatalogCheckResult`), D3 already-shipped via T0.6, D4 `openCoreDatabase` probe-and-restore fallback (3 new tests). Real-device force-corruption smoke ⏳ Sean. |
 | **E** — V1.4+ Commerce | E6 → E11 | ⏸ Deferred until V1.2 trust ships |
 
@@ -2773,7 +2773,7 @@ Everything below is genuinely NOT DONE, verified against the codebase. Organized
 - [ ] Coach marks / feature tour (overlay system)
 - [ ] "Try Demo Mode" (preloaded dummy scan)
 - [ ] FitScore comparison view (side-by-side two products)
-- [ ] Stack share: "Export PDF for Doctor" (clinician report is markdown-only today)
+- [x] Stack share: "Export PDF for Doctor" — ✅ CODE DONE 2026-05-28. Offline branded PDF uses PharmaGuide logo + Geist fonts, existing stack intelligence/safety/nutrient/timing/depletion signals, and `printing.sharePdf`; verified with `flutter analyze` and `flutter test test/services/sharing test/features/stack/widgets/share_clinician_report_button_test.dart` (19 tests). Real-device share smoke ⏳ Sean.
 - [ ] Deep link handling (`app_links` package) + shared product entry point + edge cases
 - [ ] Build Open Graph preview for shared links
 - [ ] Write deep link routing tests

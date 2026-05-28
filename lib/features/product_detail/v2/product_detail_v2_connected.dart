@@ -438,19 +438,6 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 3.5 Tier 2 research evidence (Sprint 28) ----
-                  // Neutral literature co-occurrence surface. These rows
-                  // never become warnings or score penalties.
-                  if (showDeepDive && canonicalIds.isNotEmpty) ...[
-                    KeyedSubtree(
-                      key: _anchors.researchKey,
-                      child: ResearchEvidenceSection(
-                        canonicalIds: canonicalIds,
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
                   // ---- 4. LabelConfidence (WIRED, 11.7c.4) ---------
                   // PRODUCTION ORDER: LabelConfidence sits BEFORE
                   // ScoreBreakdown so the low-coverage caveat sets
@@ -502,6 +489,19 @@ class _ProductDetailV2ConnectedState
                       sectionBreakdown:
                           detailBlob?['section_breakdown']
                               as Map<String, dynamic>?,
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- 5.5 Tier 2 research evidence (Sprint 28) ----
+                  // Neutral literature co-occurrence surface. These rows
+                  // never become warnings or score penalties.
+                  if (showDeepDive && canonicalIds.isNotEmpty) ...[
+                    KeyedSubtree(
+                      key: _anchors.researchKey,
+                      child: ResearchEvidenceSection(
+                        canonicalIds: canonicalIds,
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

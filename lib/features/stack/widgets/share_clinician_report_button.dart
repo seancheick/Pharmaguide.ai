@@ -1,15 +1,17 @@
 // ShareClinicianReportButton — UI entrypoint that gathers on-device
 // state (profile + stack + safety reports), runs them through
-// `ClinicianReportBuilder`, and hands the markdown to the system share
-// sheet via `ShareService`.
+// `ClinicianPdfBuilder`, and hands the PDF to the system share sheet
+// via `ShareService`.
 //
 // Spec: INITIATIVE_STACK_INTELLIGENCE.md, Track C, C3.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
-import 'package:pharmaguide/services/sharing/clinician_report_builder.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/sharing/clinician_pdf_builder.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 
@@ -50,9 +52,32 @@ class ShareClinicianReportButton extends ConsumerWidget {
       final recalledReport = await ref.read(
         recalledIngredientsReportProvider.future,
       );
+      final depletions = await ref.read(depletionReportProvider.future);
       final doseAlerts = await ref.read(
         stackDoseThresholdAlertsProvider.future,
       );
+      final Uint8List logoBytes;
+      final Uint8List regularFontBytes;
+      final Uint8List mediumFontBytes;
+      try {
+        final logo = await rootBundle.load('assets/images/report_logo.png');
+        final regularFont = await rootBundle.load(
+          'assets/fonts/Geist-Regular.ttf',
+        );
+        final mediumFont = await rootBundle.load(
+          'assets/fonts/Geist-Medium.ttf',
+        );
+        logoBytes = _assetBytes(logo);
+        regularFontBytes = _assetBytes(regularFont);
+        mediumFontBytes = _assetBytes(mediumFont);
+      } on Object catch (error, stackTrace) {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          hint: 'clinician_share_pdf:asset_load_failed',
+        );
+        rethrow;
+      }
 
       final intelligence = const StackIntelligenceEngine().diagnoseFromReports(
         stackSize: stack.length,
@@ -62,15 +87,25 @@ class ShareClinicianReportButton extends ConsumerWidget {
         doseThresholdAlerts: doseAlerts,
       );
 
-      final markdown = const ClinicianReportBuilder().build(
+      final pdfBytes = await const ClinicianPdfBuilder().build(
         profile: profile,
         stack: stack,
         intelligence: intelligence,
+        safetyReport: safetyReport,
+        depletions: depletions,
         generatedAt: DateTime.now(),
+        logoBytes: logoBytes,
+        regularFontBytes: regularFontBytes,
+        mediumFontBytes: mediumFontBytes,
       );
 
-      await service.shareClinicianReport(markdown);
-    } on Object {
+      await service.shareClinicianReportPdf(pdfBytes);
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'clinician_share_pdf:build_failed',
+      );
       // Anything failing in the input collection (DB, providers) drops
       // a non-blocking error to the user and bails. The share sheet
       // never opens with partial data.
@@ -83,5 +118,9 @@ class ShareClinicianReportButton extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Uint8List _assetBytes(ByteData data) {
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
   }
 }

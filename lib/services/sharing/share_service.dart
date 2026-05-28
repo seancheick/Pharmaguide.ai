@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Function shape used to invoke the system share sheet. Production
@@ -6,6 +8,8 @@ import 'package:share_plus/share_plus.dart';
 /// [SharePlus.instance.share]. Unit tests pass a fake to assert the
 /// payload without standing up a platform channel.
 typedef ShareInvocation = Future<void> Function(String text, {String? subject});
+typedef PdfShareInvocation =
+    Future<void> Function(List<int> bytes, {required String filename});
 
 /// Handles sharing products and stack summaries.
 class ShareService {
@@ -15,9 +19,13 @@ class ShareService {
   /// Production constructs `ShareService()` and the default
   /// [SharePlus] path runs.
   final ShareInvocation? _shareOverride;
+  final PdfShareInvocation? _pdfShareOverride;
 
-  ShareService({ShareInvocation? shareOverride})
-    : _shareOverride = shareOverride;
+  ShareService({
+    ShareInvocation? shareOverride,
+    PdfShareInvocation? pdfShareOverride,
+  }) : _shareOverride = shareOverride,
+       _pdfShareOverride = pdfShareOverride;
 
   Future<void> _share(String text, {String? subject}) {
     final override = _shareOverride;
@@ -35,6 +43,18 @@ class ShareService {
   /// with a stable subject line.
   Future<void> shareClinicianReport(String markdown) async {
     await _share(markdown, subject: 'My Supplement Stack — Clinician Summary');
+  }
+
+  Future<void> shareClinicianReportPdf(List<int> bytes) async {
+    const filename = 'pharmaguide-clinician-report.pdf';
+    final override = _pdfShareOverride;
+    if (override != null) {
+      return override(bytes, filename: filename);
+    }
+    await Printing.sharePdf(
+      bytes: Uint8List.fromList(bytes),
+      filename: filename,
+    );
   }
 
   /// Share a product using pre-computed fields from products_core.

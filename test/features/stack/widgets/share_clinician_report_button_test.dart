@@ -4,8 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 // Spec: INITIATIVE_STACK_INTELLIGENCE.md, Track C, C3.
 //
@@ -32,6 +37,18 @@ void main() {
       overrides: [
         coreDatabaseProvider.overrideWithValue(coreDb),
         userDatabaseProvider.overrideWithValue(userDb),
+        activeStackProvider.overrideWith((ref) async => const []),
+        stackSafetyReportProvider.overrideWith(
+          (ref) async => const StackSafetyReport(),
+        ),
+        synergyReportProvider.overrideWith(
+          (ref) async => SynergyReport.empty(),
+        ),
+        recalledIngredientsReportProvider.overrideWith(
+          (ref) async => RecalledIngredientsReport.empty(),
+        ),
+        stackDoseThresholdAlertsProvider.overrideWith((ref) async => const []),
+        depletionReportProvider.overrideWith((ref) async => const []),
       ],
       child: MaterialApp(
         home: Scaffold(appBar: AppBar(actions: [child])),
@@ -57,15 +74,20 @@ void main() {
     await userDb.close();
   });
 
-  testWidgets('tap completes without throwing and either reaches the share '
-      'service or surfaces the failure snackbar — never hangs', (tester) async {
+  testWidgets('tap builds a PDF and sends it to the share service', (
+    tester,
+  ) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
 
-    String? capturedMarkdown;
+    List<int>? capturedPdf;
+    var textShareReached = false;
     final fakeShareService = ShareService(
       shareOverride: (text, {subject}) async {
-        capturedMarkdown = text;
+        textShareReached = true;
+      },
+      pdfShareOverride: (bytes, {required filename}) async {
+        capturedPdf = bytes;
       },
     );
 
@@ -81,40 +103,48 @@ void main() {
     await tester.tap(find.byTooltip('Share with clinician'));
     await tester.pumpAndSettle();
 
-    // With empty memory DBs one of two outcomes is acceptable:
-    //   (a) every provider resolves to its empty-stack fallback and
-    //       the share service captures the builder output, OR
-    //   (b) one of the deep providers (e.g. interaction DB asset
-    //       loading) errors and the catch-block snackbar fires.
-    // The contract under test is: the button never crashes and never
-    // hangs on tap. Markdown shape is verified by C1's golden test;
-    // share invocation by C2's unit tests.
-    final shareReached = capturedMarkdown != null;
-    final snackbarShown = find
-        .text('Could not build the report — try again in a moment.')
-        .evaluate()
-        .isNotEmpty;
+    expect(textShareReached, isFalse);
+    expect(capturedPdf, isNotNull);
+    expect(capturedPdf!.take(5), orderedEquals('%PDF-'.codeUnits));
 
-    expect(
-      shareReached || snackbarShown,
-      isTrue,
-      reason:
-          'tap must result in ONE of: share-service invocation '
-          'OR a user-visible failure snackbar — silent hang is the '
-          'one outcome we forbid',
+    await tester.pumpWidget(const SizedBox.shrink());
+    await coreDb.close();
+    await userDb.close();
+  });
+
+  testWidgets('tap records report build failures before showing snackbar', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    final beforeCount = CrashReportingService().recordedErrors.length;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+          activeStackProvider.overrideWith(
+            (ref) async => throw StateError('stack unavailable'),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: ShareClinicianReportButton()),
+        ),
+      ),
     );
+    await tester.pump();
 
-    if (shareReached) {
-      // When the empty-stack codepath did succeed end-to-end, the
-      // captured payload should be the builder output (not a
-      // placeholder).
-      expect(
-        capturedMarkdown!,
-        contains('# My Supplement Stack — Clinician Summary'),
-      );
-      expect(capturedMarkdown!, contains('Generated on device'));
-      expect(capturedMarkdown!, contains('not medical advice'));
-    }
+    await tester.tap(find.byTooltip('Share with clinician'));
+    await tester.pumpAndSettle();
+
+    final errors = CrashReportingService().recordedErrors;
+    expect(errors.length, beforeCount + 1);
+    expect(errors.last.hint, 'clinician_share_pdf:build_failed');
+    expect(
+      find.text('Could not build the report — try again in a moment.'),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();

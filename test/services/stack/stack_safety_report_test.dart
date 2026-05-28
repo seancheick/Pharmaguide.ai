@@ -152,6 +152,11 @@ void main() {
 
     test('inside same severity tier, medication interactions render before '
         'stack interactions, then category warnings, then nutrients', () {
+      final medPair = _interaction(
+        id: 'med_pair',
+        severity: Severity.caution,
+        type: InteractionType.drugDrug,
+      );
       final med = _interaction(
         id: 'med',
         severity: Severity.caution,
@@ -168,17 +173,19 @@ void main() {
         tier: NutrientTier.approachingUl,
       );
       final report = StackSafetyReport(
+        medicationPairInteractions: [medPair],
         stackInteractions: [stack],
         medicationInteractions: [med],
         categoryWarnings: [cat],
         nutrientStatuses: [nut],
       );
       final ordered = report.orderedWarnings;
-      expect(ordered, hasLength(4));
-      expect((ordered[0] as InteractionResult).id, 'med');
-      expect((ordered[1] as InteractionResult).id, 'stack');
-      expect((ordered[2] as InteractionResult).id, 'cat');
-      expect(ordered[3], isA<NutrientStatus>());
+      expect(ordered, hasLength(5));
+      expect((ordered[0] as InteractionResult).id, 'med_pair');
+      expect((ordered[1] as InteractionResult).id, 'med');
+      expect((ordered[2] as InteractionResult).id, 'stack');
+      expect((ordered[3] as InteractionResult).id, 'cat');
+      expect(ordered[4], isA<NutrientStatus>());
     });
 
     test('orderedWarnings preserves source-list order within a bucket', () {

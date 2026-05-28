@@ -60,6 +60,8 @@ dependencies:
   # URL launching (clinical citations, FDA links)
   url_launcher: ^6.2.0
   google_fonts: ^8.1.0
+  pdf: ^3.12.0
+  printing: ^5.14.3
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.1
@@ -108,6 +110,7 @@ flutter:
   assets:
     - assets/reference_data/
     - assets/images/
+    - assets/fonts/
     # Catalog bundle — produced by the DSLD pipeline release bridge
     # (scripts/import_catalog_artifact.sh). Contains the full SQLite
     # products_core snapshot the app copies to documents on first launch.
