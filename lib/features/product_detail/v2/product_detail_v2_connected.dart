@@ -493,19 +493,6 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 5.5 Tier 2 research evidence (Sprint 28) ----
-                  // Neutral literature co-occurrence surface. These rows
-                  // never become warnings or score penalties.
-                  if (showDeepDive && canonicalIds.isNotEmpty) ...[
-                    KeyedSubtree(
-                      key: _anchors.researchKey,
-                      child: ResearchEvidenceSection(
-                        canonicalIds: canonicalIds,
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
                   // ---- 6. Ingredients (WIRED, 11.7d.2) -------------
                   if (showDeepDive) ...[
                     KeyedSubtree(
@@ -600,6 +587,19 @@ class _ProductDetailV2ConnectedState
                     buildEvidenceSection(
                       evidenceData:
                           detailBlob?['evidence_data'] as Map<String, dynamic>?,
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- 11.1 Tier 2 research evidence (Sprint 28) ---
+                  // Neutral literature co-occurrence surface. These rows
+                  // never become warnings or score penalties.
+                  if (showDeepDive && canonicalIds.isNotEmpty) ...[
+                    KeyedSubtree(
+                      key: _anchors.researchKey,
+                      child: ResearchEvidenceSection(
+                        canonicalIds: canonicalIds,
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
