@@ -262,7 +262,7 @@ void main() {
           hasContraindicatedInteraction: false,
           hasBannedIngredient: false,
         ),
-        safetyReport: StackSafetyReport(
+        safetyReport: const StackSafetyReport(
           medicationPairInteractions: [
             InteractionResult(
               id: 'mp-1',
@@ -275,7 +275,7 @@ void main() {
               management: 'Review with prescriber',
               doseDependant: false,
               doseThreshold: null,
-              sourceUrls: const [],
+              sourceUrls: [],
               source: InteractionSource.pipeline,
             ),
           ],
@@ -291,7 +291,7 @@ void main() {
               management: 'Separate by 2 hours',
               doseDependant: false,
               doseThreshold: null,
-              sourceUrls: const [],
+              sourceUrls: [],
               source: InteractionSource.pipeline,
             ),
           ],
@@ -309,7 +309,7 @@ void main() {
 
       // Medication-pair (drug-drug) should appear before med-supp
       // in orderedWarnings — verify via the safety report directly
-      final report = StackSafetyReport(
+      const report = StackSafetyReport(
         medicationPairInteractions: [
           InteractionResult(
             id: 'mp-1',
@@ -322,7 +322,7 @@ void main() {
             management: 'Review with prescriber',
             doseDependant: false,
             doseThreshold: null,
-            sourceUrls: const [],
+            sourceUrls: [],
             source: InteractionSource.pipeline,
           ),
         ],
@@ -338,7 +338,7 @@ void main() {
             management: 'Separate by 2 hours',
             doseDependant: false,
             doseThreshold: null,
-            sourceUrls: const [],
+            sourceUrls: [],
             source: InteractionSource.pipeline,
           ),
         ],

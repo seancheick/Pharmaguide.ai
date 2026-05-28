@@ -22,6 +22,7 @@ Future<void> _pump(
   List<Map<String, dynamic>> bonuses = const [],
   List<Map<String, dynamic>> penalties = const [],
   List<Map<String, dynamic>> inactives = const [],
+  Map<String, dynamic>? rdaUlData,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -33,6 +34,7 @@ Future<void> _pump(
               'score_bonuses': bonuses,
               'score_penalties': penalties,
               'inactive_ingredients': inactives,
+              if (rdaUlData != null) 'rda_ul_data': rdaUlData,
             },
           ),
         ),
@@ -170,6 +172,36 @@ void main() {
       expect(find.text('Old reformulation'), findsOneWidget);
       expect(find.textContaining('Show'), findsNothing);
     });
+
+    testWidgets(
+      'shows verified UL exceedances even when score penalty threshold does not fire',
+      (tester) async {
+        await _pump(
+          tester,
+          rdaUlData: {
+            'safety_flags': [
+              {
+                'nutrient': 'Niacin',
+                'amount': 50.0,
+                'unit': 'mg NE',
+                'ul': 35,
+                'pct_ul': 142.85714285714286,
+                'over_amount': 15.0,
+                'warning': 'Exceeds UL by 15.0 mg NE',
+                'severity': 'warning',
+              },
+            ],
+          },
+        );
+
+        expect(find.text('WHAT TO CONSIDER'), findsOneWidget);
+        expect(find.text('Niacin exceeds the upper limit'), findsOneWidget);
+        expect(
+          find.text('50 mg NE vs 35 mg NE UL (143% of UL)'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 
   group('Tradeoffs section safety summary', () {

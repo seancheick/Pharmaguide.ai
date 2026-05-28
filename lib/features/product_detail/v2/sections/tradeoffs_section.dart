@@ -1,11 +1,13 @@
 // Tradeoffs section adapter.
 //
 // Composes PGTradeoffsSection from blob['score_bonuses'] (positive)
-// and blob['score_penalties'] (negative).
+// and blob['score_penalties'] (negative), with verified UL exceedances
+// from blob['rda_ul_data'] appended to the consideration column.
 //
 // Production data path (verbatim port):
 //   blob['score_bonuses']  → isPositive=true  → "What's good" column
 //   blob['score_penalties'] → isPositive=false → "What to consider" column
+//   blob['rda_ul_data']     → UL flags       → "What to consider" column
 //
 // Each item: label || reason (headline) + detail || description (caption).
 // Empty-label items are filtered out defensively. `sanitizeWhyDetail`
@@ -25,11 +27,13 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show sanitizeWhyDetail;
+import 'package:pharmaguide/services/health/product_health_facts.dart';
 
 /// Build the Tradeoffs section. Returns `SizedBox.shrink()` when there
 /// are no bonuses, penalties, or inactive-ingredient safety summary.
 Widget buildTradeoffsSection({required Map<String, dynamic>? detailBlob}) {
   if (detailBlob == null) return const SizedBox.shrink();
+  final healthFacts = ProductHealthFacts.fromDetailBlob(detailBlob);
 
   final bonuses =
       (detailBlob['score_bonuses'] as List?)
@@ -49,12 +53,18 @@ Widget buildTradeoffsSection({required Map<String, dynamic>? detailBlob}) {
       .map(_toTradeoff)
       .where((t) => t.headline.trim().isNotEmpty)
       .toList(growable: false);
-  final considerations = _collapseAdditiveConcerns(
-    penalties
-        .map(_toTradeoff)
-        .where((t) => t.headline.trim().isNotEmpty)
-        .toList(growable: false),
-  );
+  final penaltyConsiderations = penalties
+      .map(_toTradeoff)
+      .where((t) => t.headline.trim().isNotEmpty)
+      .toList(growable: false);
+  final considerations = _collapseAdditiveConcerns([
+    ...penaltyConsiderations,
+    ..._buildUlConsiderations(
+      safetyFlags: healthFacts.ulSafetyFlags,
+      ulAnalysis: healthFacts.ulAnalysis,
+      existing: penaltyConsiderations,
+    ),
+  ]);
   if (pros.isEmpty && considerations.isEmpty && safetySummary == null) {
     return const SizedBox.shrink();
   }
@@ -64,6 +74,116 @@ Widget buildTradeoffsSection({required Map<String, dynamic>? detailBlob}) {
     considerations: considerations,
     considerationLeading: safetySummary,
   );
+}
+
+List<PGTradeoff> _buildUlConsiderations({
+  required List<Map<String, dynamic>> safetyFlags,
+  required List<Map<String, dynamic>> ulAnalysis,
+  required List<PGTradeoff> existing,
+}) {
+  final out = <PGTradeoff>[];
+  final seen = <String>{};
+
+  void addFromFlag(Map<Object?, Object?> flag) {
+    final nutrient = _stringValue(
+      flag['nutrient'] ?? flag['standard_name'] ?? flag['ingredient'],
+    );
+    if (nutrient == null) return;
+    final key = _ulKey(nutrient);
+    if (!seen.add(key) || _alreadyHasUlConsideration(existing, key)) return;
+
+    final caption = _formatUlCaption(
+      amount: _asDouble(flag['amount'] ?? flag['quantity']),
+      unit: _stringValue(flag['unit']),
+      ul: _asDouble(flag['ul'] ?? flag['highest_ul']),
+      pctUl: _asDouble(flag['pct_ul']),
+      fallback: _stringValue(flag['warning']),
+    );
+    out.add(
+      PGTradeoff(
+        headline: '$nutrient exceeds the upper limit',
+        caption: caption,
+      ),
+    );
+  }
+
+  for (final flag in safetyFlags) {
+    addFromFlag(flag);
+  }
+
+  for (final row in ulAnalysis) {
+    if (row['skip_ul_check'] == true) continue;
+    final warnings = row['warnings'];
+    if (warnings is! List ||
+        !warnings.any((warning) => _stringValue(warning) != null)) {
+      continue;
+    }
+    addFromFlag(row);
+  }
+
+  return out;
+}
+
+bool _alreadyHasUlConsideration(List<PGTradeoff> existing, String nutrientKey) {
+  for (final item in existing) {
+    final text = '${item.headline} ${item.caption ?? ''}'.toLowerCase();
+    if (!text.contains(nutrientKey)) continue;
+    if (text.contains(' ul') ||
+        text.contains('upper limit') ||
+        text.contains('safe dose limit')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+String _ulKey(String nutrient) => nutrient.trim().toLowerCase();
+
+String? _formatUlCaption({
+  required double? amount,
+  required String? unit,
+  required double? ul,
+  required double? pctUl,
+  required String? fallback,
+}) {
+  final displayUnit = unit == null || unit.isEmpty ? null : unit;
+  final pct =
+      pctUl ??
+      (amount != null && ul != null && ul > 0 ? amount / ul * 100 : null);
+  if (amount != null && ul != null && displayUnit != null) {
+    final base =
+        '${_formatNumber(amount)} $displayUnit vs ${_formatNumber(ul)} '
+        '$displayUnit UL';
+    if (pct != null) return '$base (${_formatPercent(pct)}% of UL)';
+    return base;
+  }
+  return sanitizeWhyDetail(fallback);
+}
+
+String _formatPercent(double value) {
+  if (!value.isFinite) return '';
+  return value.round().toString();
+}
+
+String _formatNumber(double value) {
+  if (!value.isFinite) return '';
+  if ((value - value.round()).abs() < 0.05) return value.round().toString();
+  return value.toStringAsFixed(1);
+}
+
+String? _stringValue(Object? raw) {
+  final value = raw?.toString().trim();
+  return value == null || value.isEmpty ? null : value;
+}
+
+double? _asDouble(Object? raw) {
+  if (raw is int) return raw.toDouble();
+  if (raw is double && raw.isFinite) return raw;
+  if (raw is String) {
+    final parsed = double.tryParse(raw.trim());
+    if (parsed != null && parsed.isFinite) return parsed;
+  }
+  return null;
 }
 
 /// Map a raw bonus/penalty entry to a PGTradeoff. Verbatim port of

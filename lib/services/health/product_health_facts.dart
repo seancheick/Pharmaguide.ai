@@ -17,6 +17,7 @@ class ProductHealthFacts {
     required this.ulAnalysis,
     required this.ingredientContextRows,
     required this.nutrients,
+    required this.ulSafetyFlags,
     required this.interactionSummary,
     required this.warnings,
     required this.allergens,
@@ -42,6 +43,12 @@ class ProductHealthFacts {
   /// Pipeline per-ingredient RDA/UL analysis rows.
   final List<Map<String, dynamic>> ulAnalysis;
 
+  /// Pipeline-level RDA/UL flags such as `rda_ul_data.safety_flags`.
+  /// These are already evaluated at source and may use a different shape
+  /// than [ulAnalysis], so keep them explicit instead of making UI sections
+  /// parse raw `rda_ul_data` independently.
+  final List<Map<String, dynamic>> ulSafetyFlags;
+
   /// Candidate rows for ingredient-specific profile-gate context such as
   /// nutrient form and dose. Includes active rows, RDA/UL rows, and
   /// ingredient-quality rows so warning filtering does not need to reparse
@@ -64,6 +71,7 @@ class ProductHealthFacts {
       activeIngredients: _extractMapList(blob['ingredients']),
       inactiveIngredients: _extractMapList(blob['inactive_ingredients']),
       ulAnalysis: ulAnalysis,
+      ulSafetyFlags: _extractUlSafetyFlags(blob),
       ingredientContextRows: ingredientContextRows,
       nutrients: nutrients,
       interactionSummary: _extractMap(blob['interaction_summary']),
@@ -82,6 +90,14 @@ class ProductHealthFacts {
     final rdaUlData = blob['rda_ul_data'];
     if (rdaUlData is! Map) return const [];
     return _extractMapList(rdaUlData['analyzed_ingredients']);
+  }
+
+  static List<Map<String, dynamic>> _extractUlSafetyFlags(
+    Map<String, dynamic> blob,
+  ) {
+    final rdaUlData = blob['rda_ul_data'];
+    if (rdaUlData is! Map) return const [];
+    return _extractMapList(rdaUlData['safety_flags']);
   }
 
   static List<Map<String, dynamic>> _extractNutrients(
