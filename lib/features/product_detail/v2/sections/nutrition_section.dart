@@ -71,6 +71,16 @@ Widget buildNutritionSection({
       );
     }
 
+    final sugars = _readNumber(nutritionDetail, 'total_sugars_g');
+    if (sugars != null) {
+      facts.add(
+        PGNutritionFact(
+          label: 'Total Sugars',
+          value: '${_formatGrams(sugars)} g',
+        ),
+      );
+    }
+
     final protein = _readNumber(nutritionDetail, 'protein_g');
     if (protein != null) {
       facts.add(
