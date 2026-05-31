@@ -1,11 +1,11 @@
 {
   "artifact_freshness_status": "checked_by_release_strict_gate",
-  "checksum": "sha256:9cdaa83dcf8656dd8e2cc58698104e9693f9d539833e8f4dc24980d5a2c0d454",
-  "checksum_sha256": "9cdaa83dcf8656dd8e2cc58698104e9693f9d539833e8f4dc24980d5a2c0d454",
-  "db_version": "2026.05.28.061435",
-  "detail_blob_count": 8996,
-  "detail_blob_unique_count": 8996,
-  "detail_index_checksum": "sha256:d132b38550ff084f58782ccc998a0897f897607950cc177f9718a2543b8c6bd4",
+  "checksum": "sha256:38d3e08e695c9a9929b5e186ec4f9771d3d944c93dfc7f7275dadf7778e9a038",
+  "checksum_sha256": "38d3e08e695c9a9929b5e186ec4f9771d3d944c93dfc7f7275dadf7778e9a038",
+  "db_version": "2026.05.31.010633",
+  "detail_blob_count": 9184,
+  "detail_blob_unique_count": 9184,
+  "detail_index_checksum": "sha256:dfeaccf78026f1f6548ded40de0e5ac10f8f4e67fb22456b0f967f140a216bf1",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -13,51 +13,15 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "12932",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "13041",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "15698",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16725",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16765",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16766",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16767",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16774",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "16827",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "17091",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "17794",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "178424",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -65,35 +29,7 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "178632",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "178797",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "179625",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "179639",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "179987",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "182174",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "182401",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "182421",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -101,36 +37,8 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "1830",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "184493",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "184497",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "18480",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "186337",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "187602",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "19598",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "199530",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "200826",
@@ -138,119 +46,35 @@
     },
     {
       "dsld_id": "200891",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "203189",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "208587",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "208593",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "209440",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "206443",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "212022",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "212273",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "212398",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "212411",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "212535",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "212544",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "212555",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "212574",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "212892",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "213218",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "213475",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "213690",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "213740",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "213830",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "213831",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "213846",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "213840",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "214221",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "216303",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "216409",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "216978",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "218849",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "219048",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "219049",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "220056",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "220343",
@@ -258,18 +82,6 @@
     },
     {
       "dsld_id": "220662",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "222918",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "222989",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "223046",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -281,59 +93,11 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "2246",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "2248",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "227922",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "228873",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "229109",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "229119",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "229984",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "229998",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "230979",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "231766",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "231780",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "231904",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232039",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232041",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -342,154 +106,30 @@
     },
     {
       "dsld_id": "232080",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232084",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232098",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232321",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232334",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232487",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232720",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "232839",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232921",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232926",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232928",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "232931",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "233013",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "233016",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "239871",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "239891",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "241707",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "241722",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "241729",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "241744",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "241850",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "241863",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "241881",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "242615",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "242617",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "243048",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "243356",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "243713",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "245963",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "24676",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "2512",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251522",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251524",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "24678",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "251530",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251537",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251538",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251545",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251578",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251594",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -497,55 +137,15 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "251629",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251678",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251879",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "251938",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "25537",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "25583",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "256371",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "25915",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "255633",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "25935",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "259358",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "259395",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "259453",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "259891",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -553,248 +153,44 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "26568",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "267311",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "267341",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "267342",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "267643",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "268390",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "268432",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "268535",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "269428",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "269548",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270296",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270610",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270737",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "270961",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "271663",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "273379",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "273799",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "274135",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "274777",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "275343",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "276704",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "278348",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "278349",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "28484",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "28531",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "28548",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "285635",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "293379",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "287495",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "29049",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "29054",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293272",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293273",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293279",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293280",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293400",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293931",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "293959",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "294048",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "294073",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "294063",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "295107",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "295505",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "295535",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
+    },
+    {
+      "dsld_id": "298027",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "298070",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "298940",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "304613",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "302656",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "304632",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "304656",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "304657",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "304708",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "305905",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306224",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306225",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306350",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306351",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306357",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306369",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "306397",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "307585",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "307546",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "307626",
       "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
-    },
-    {
-      "dsld_id": "31034",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "31105",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "313693",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
       "dsld_id": "315318",
@@ -809,91 +205,7 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "315590",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "315597",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "315655",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "315685",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "315840",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "317107",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "317119",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "31996",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "321357",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "326258",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "326267",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327411",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327777",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327888",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327889",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327918",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327941",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327945",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327953",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327957",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327968",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "327974",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -901,43 +213,7 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "327994",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328000",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328005",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328012",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328036",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328301",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328400",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "328444",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328581",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "328798",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -945,19 +221,19 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "332914",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "33358",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "333648",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "33360",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
+    },
+    {
+      "dsld_id": "33361",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "333705",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "333713",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -965,35 +241,11 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "333715",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "333745",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "333753",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "33537",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "333929",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "337212",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "337239",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "337241",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "39523",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -1001,36 +253,12 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "40603",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "4156",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "42277",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "42325",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "47339",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "47813",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "54559",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "54646",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "54464",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "57157",
@@ -1041,19 +269,19 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "59055",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "60241",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "60241",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "60307",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
+    },
+    {
+      "dsld_id": "60310",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "60560",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "60794",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -1061,75 +289,23 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "62056",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "62116",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "62300",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "63161",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "63288",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "63293",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "62130",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "63294",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "64368",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "64382",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "64784",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "66953",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "66957",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "67530",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "68861",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "69501",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "74064",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "74082",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "74457",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "74718",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -1161,67 +337,23 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "76540",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "77044",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "77157",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
-      "dsld_id": "77634",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "78309",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "77190",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "78355",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "78550",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "78762",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "79121",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "dsld_id": "79129",
+      "error": "review_queue: missing required active identity \u2014 product has activeIngredients but no canonical_id in active or IQM rows; opaque/rollup-only labels cannot ship as scored catalog rows."
     },
     {
       "dsld_id": "79163",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "79226",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "79381",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "79431",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "79598",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "80243",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "80295",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
@@ -1241,47 +373,39 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     },
     {
-      "dsld_id": "82603",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
-      "dsld_id": "82935",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
-    },
-    {
       "dsld_id": "855",
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-05-28T06:14:35.207097+00:00",
+  "generated_at": "2026-05-31T01:06:33.740169+00:00",
   "integrity": {
-    "contract_failures": 311,
-    "coverage_pct": 88.68,
+    "contract_failures": 92,
+    "coverage_pct": 90.54,
     "enriched_input_count": 10144,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 311,
-    "exported_count": 8996,
-    "has_banned_substance": 90,
+    "excluded_by_gate_count": 92,
+    "exported_count": 9184,
+    "has_banned_substance": 95,
     "has_recalled_ingredient": 0,
     "scored_input_count": 10144,
     "scored_only_count": 0,
     "scoring_config_checksum": "sha256:4f5bbeebed9870b156ace3049b3d6d2f86921d0d35170baea2908dd706e22e60",
-    "skipped_count": 311,
+    "skipped_count": 92,
     "strict_mode": false,
-    "total_skipped": 311,
-    "verdict_blocked": 90,
-    "verdict_not_scored": 310,
+    "total_skipped": 92,
+    "verdict_blocked": 72,
+    "verdict_not_scored": 58,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
-  "interaction_db_checksum": "a16231777965bea136c070aa9d0999241007d7769d283cea4876eafdf6ebd7a7",
+  "interaction_db_checksum": "99538adc4957a492c1d20740e009b14d1addfa9a63a5f9da462de78f553e7318",
   "interaction_db_version": "1.0.0",
   "min_app_version": "1.0.0",
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "pipeline_version": "3.4.0",
-  "product_count": 8996,
-  "release_staged_at": "2026-05-28T06:16:03Z",
+  "product_count": 9184,
+  "release_staged_at": "2026-05-31T01:07:59Z",
   "schema_version": "1.6.0",
   "scoring_config_checksum": "sha256:4f5bbeebed9870b156ace3049b3d6d2f86921d0d35170baea2908dd706e22e60",
   "scoring_version": "3.4.0",
