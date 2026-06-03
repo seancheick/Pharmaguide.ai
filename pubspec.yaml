@@ -40,7 +40,7 @@ dependencies:
   # Apple Sign In (iOS native — Android falls back to web OAuth via Supabase)
   sign_in_with_apple: ^6.1.0
   # Google Sign In (native flow on both platforms; ID token handed to Supabase)
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
   crypto: ^3.0.3
   # Barcode scanning
   mobile_scanner: ^7.2.0
