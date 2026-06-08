@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
@@ -85,6 +86,27 @@ void main() {
       expect(excipient.severity, Severity.caution);
       expect(excipient.displayModeDefault, 'informational');
       expect(toneForWarning(excipient.severity), PGReviewTone.caution);
+    },
+  );
+
+  test(
+    'Review Before Use warning rows use display copy, not clinical internals',
+    () {
+      final source = File(
+        'lib/features/product_detail/v2/sections/review_before_use_helpers.dart',
+      ).readAsStringSync();
+      final start = source.indexOf('PGReviewRow rowForWarning(');
+      final end = source.indexOf('/// Sort warnings by severity', start);
+
+      expect(start, isNonNegative);
+      expect(end, greaterThan(start));
+
+      final rowForWarningSource = source.substring(start, end);
+      expect(rowForWarningSource, contains('warning.displayHeadline'));
+      expect(rowForWarningSource, contains('warning.displayBody'));
+      expect(rowForWarningSource, isNot(contains('warning.title')));
+      expect(rowForWarningSource, isNot(contains('warning.mechanism')));
+      expect(rowForWarningSource, isNot(contains('warning.management')));
     },
   );
 
