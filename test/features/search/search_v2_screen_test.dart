@@ -9,21 +9,49 @@ import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 
 class _FakeRecentSearchesService extends RecentSearchesService {
+  _FakeRecentSearchesService([List<String> initial = const []])
+    : _items = [...initial];
+
+  final List<String> _items;
+
   @override
-  Future<List<String>> getRecent() async => const [];
+  Future<List<String>> getRecent() async => _items;
+
+  @override
+  Future<void> addSearch(String query) async {
+    _items.remove(query);
+    _items.insert(0, query);
+  }
+
+  @override
+  Future<void> removeSearch(String query) async {
+    _items.remove(query);
+  }
+
+  @override
+  Future<void> clearAll() async {
+    _items.clear();
+  }
 }
 
 void main() {
-  Future<void> seedSearchProduct(CoreDatabase coreDb) async {
+  Future<void> seedSearchProduct(
+    CoreDatabase coreDb, {
+    String dsldId = 'search-v2-1',
+    String productName = 'Search V2 Magnesium',
+    String brandName = 'V2 Brand',
+    String primaryCategory = 'magnesium',
+    double score = 86,
+  }) async {
     await coreDb
         .into(coreDb.productsCore)
         .insert(
           ProductsCoreCompanion.insert(
-            dsldId: 'search-v2-1',
-            productName: 'Search V2 Magnesium',
-            brandName: const drift.Value('V2 Brand'),
-            primaryCategory: const drift.Value('magnesium'),
-            score100Equivalent: const drift.Value(86),
+            dsldId: dsldId,
+            productName: productName,
+            brandName: drift.Value(brandName),
+            primaryCategory: drift.Value(primaryCategory),
+            score100Equivalent: drift.Value(score),
             verdict: const drift.Value('GOOD'),
             exportVersion: 'test',
             exportedAt: '2026-05-18T00:00:00Z',
@@ -60,6 +88,75 @@ void main() {
         .map((w) => w.padding.resolve(TextDirection.ltr).bottom);
 
     expect(bottomPaddings, contains(V2Spacing.space8));
+  });
+
+  testWidgets('idle state renders modern recent and featured sections', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+    });
+
+    await seedSearchProduct(coreDb);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          recentSearchesServiceProvider.overrideWithValue(
+            _FakeRecentSearchesService(['thorne creatine']),
+          ),
+        ],
+        child: const MaterialApp(home: SearchV2Screen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Recent Searches'), findsOneWidget);
+    expect(find.text('Clear All'), findsOneWidget);
+    expect(find.text('thorne creatine'), findsOneWidget);
+    expect(find.text('Featured Products'), findsOneWidget);
+    expect(find.text('Search V2 Magnesium'), findsOneWidget);
+  });
+
+  testWidgets('query state renders suggestions above suggested products', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+    });
+
+    await seedSearchProduct(
+      coreDb,
+      productName: 'Magnesium Citrate Capsules',
+      brandName: 'Pure Encapsulations',
+      primaryCategory: 'magnesium',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          recentSearchesServiceProvider.overrideWithValue(
+            _FakeRecentSearchesService(),
+          ),
+        ],
+        child: const MaterialApp(home: SearchV2Screen(initialQuery: 'magn')),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump();
+
+    expect(find.text('Suggested Searches'), findsOneWidget);
+    expect(find.text('Suggested Products'), findsOneWidget);
+    expect(find.byIcon(Icons.science_outlined), findsWidgets);
+    expect(find.text('Magnesium Citrate Capsules'), findsOneWidget);
   });
 
   testWidgets(

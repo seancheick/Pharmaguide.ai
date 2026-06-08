@@ -84,6 +84,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   String _query = '';
   String? _activeCategory;
   List<ProductsCoreData>? _results;
+  List<ProductsCoreData> _featuredProducts = const [];
   bool _loading = false;
   bool _isGridView = false;
   List<String> _recentSearches = [];
@@ -99,6 +100,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     _focusNode.addListener(() => setState(() {}));
     _activeCategory = widget.initialCategory;
     _loadRecentSearches();
+    _loadFeaturedProducts();
     if (_activeCategory != null && _activeCategory!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadCategoryResults(_activeCategory!);
@@ -120,6 +122,16 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   Future<void> _loadRecentSearches() async {
     final recent = await _recentService.getRecent();
     if (mounted) setState(() => _recentSearches = recent);
+  }
+
+  Future<void> _loadFeaturedProducts() async {
+    try {
+      final db = ref.read(coreDatabaseProvider);
+      final products = await db.filterProducts(sortBy: 'score', limit: 8);
+      if (mounted) setState(() => _featuredProducts = products);
+    } on Exception {
+      if (mounted) setState(() => _featuredProducts = const []);
+    }
   }
 
   Future<void> _loadCategoryResults(String category) async {
@@ -290,73 +302,83 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   // ───────── states ─────────
 
   Widget _buildIdleState() {
+    final children = <Widget>[];
     if (_recentSearches.isNotEmpty) {
-      return ListView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          V2Spacing.space24,
-          V2Spacing.space12,
-          V2Spacing.space24,
-          V2Spacing.space24,
-        ),
-        children: [
-          Row(
-            children: [
-              const PGEyebrow('Recent searches', color: V2Colors.fgMuted),
-              const Spacer(),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () async {
-                  await _recentService.clearAll();
-                  await _loadRecentSearches();
-                },
-                child: Text(
-                  'Clear all',
-                  style: V2Typography.label(color: V2Colors.accent),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: V2Spacing.space12),
-          ..._recentSearches.map(
-            (term) => Padding(
-              padding: const EdgeInsets.only(bottom: V2Spacing.space8),
-              child: _RecentSearchRow(
-                term: term,
-                onTap: () {
-                  _controller.text = term;
-                  _onQueryChanged(term);
-                },
-                onRemove: () async {
-                  await _recentService.removeSearch(term);
-                  await _loadRecentSearches();
-                },
+      children.addAll([
+        Row(
+          children: [
+            const _SearchSectionTitle('Recent Searches'),
+            const Spacer(),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () async {
+                await _recentService.clearAll();
+                await _loadRecentSearches();
+              },
+              child: Text(
+                'Clear All',
+                style: V2Typography.body(color: V2Colors.fgMuted),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: V2Spacing.space16),
+        ..._recentSearches.map(
+          (term) => Padding(
+            padding: const EdgeInsets.only(bottom: V2Spacing.space24),
+            child: _RecentSearchRow(
+              term: term,
+              onTap: () {
+                _controller.text = term;
+                _onQueryChanged(term);
+              },
+              onRemove: () async {
+                await _recentService.removeSearch(term);
+                await _loadRecentSearches();
+              },
+            ),
           ),
-        ],
-      );
+        ),
+      ]);
     }
-    return Padding(
-      padding: const EdgeInsets.all(V2Spacing.space24),
-      child: Column(
-        children: [
-          const PGEmptyState(
-            icon: Icons.search_rounded,
-            headline: 'Search supplements',
-            body:
-                'Search by product name, brand, or ingredient. '
-                "We'll show on-market matches first.",
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          PGPillButton(
-            label: 'Looking for a medication?',
-            variant: PGPillVariant.ghost,
-            icon: Icons.medication_outlined,
-            onPressed: () => context.push(Routes.medicationEntry),
-          ),
-        ],
+
+    if (_featuredProducts.isNotEmpty) {
+      if (children.isNotEmpty) {
+        children.add(const SizedBox(height: V2Spacing.space24));
+      }
+      children.add(const _SearchSectionTitle('Featured Products'));
+      children.add(const SizedBox(height: V2Spacing.space16));
+      children.add(_ProductPreviewGrid(products: _featuredProducts.take(4)));
+    }
+
+    if (children.isEmpty) {
+      children.addAll([
+        const PGEmptyState(
+          icon: Icons.search_rounded,
+          headline: 'Search supplements',
+          body:
+              'Search by product name, brand, or ingredient. '
+              "We'll show on-market matches first.",
+        ),
+        const SizedBox(height: V2Spacing.space16),
+        PGPillButton(
+          label: 'Looking for a medication?',
+          variant: PGPillVariant.ghost,
+          icon: Icons.medication_outlined,
+          onPressed: () => context.push(Routes.medicationEntry),
+        ),
+      ]);
+    }
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space32,
+        V2Spacing.space24,
+        V2Spacing.space24,
       ),
+      children: children,
     );
   }
 
@@ -391,6 +413,9 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   Widget _buildResultsList() {
     final filtered = _filteredResults;
     final partition = _partition(filtered);
+    if (_query.trim().isNotEmpty) {
+      return _buildDiscoveryResults(partition);
+    }
 
     return Column(
       children: [
@@ -431,6 +456,53 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
               ? _buildGridSections(partition)
               : _buildListSections(partition),
         ),
+      ],
+    );
+  }
+
+  Widget _buildDiscoveryResults(_PartitionedResults partition) {
+    final suggestions = _buildSuggestions(_query, partition.onMarket);
+    final products = partition.onMarket.isNotEmpty
+        ? partition.onMarket
+        : partition.offMarket;
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space32,
+        V2Spacing.space24,
+        V2Spacing.space24,
+      ),
+      children: [
+        if (suggestions.isNotEmpty) ...[
+          const _SearchSectionTitle('Suggested Searches'),
+          const SizedBox(height: V2Spacing.space16),
+          for (final suggestion in suggestions)
+            Padding(
+              padding: const EdgeInsets.only(bottom: V2Spacing.space24),
+              child: _SuggestedSearchRow(
+                suggestion: suggestion,
+                onTap: () {
+                  _controller.text = suggestion.query;
+                  _onQueryChanged(suggestion.query);
+                },
+              ),
+            ),
+          const SizedBox(height: V2Spacing.space12),
+        ],
+        const _SearchSectionTitle('Suggested Products'),
+        const SizedBox(height: V2Spacing.space16),
+        _ProductPreviewGrid(products: products.take(8)),
+        if (partition.offMarket.isNotEmpty &&
+            partition.onMarket.isNotEmpty) ...[
+          const SizedBox(height: V2Spacing.space24),
+          _SectionEyebrow(
+            label: 'Off market · older or discontinued',
+            count: partition.offMarket.length,
+            muted: true,
+          ),
+          _ProductPreviewGrid(products: partition.offMarket.take(4)),
+        ],
       ],
     );
   }
@@ -595,7 +667,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   }
 
   bool get _showFilterChips {
-    if (_query.trim().isNotEmpty) return true;
+    if (_query.trim().isNotEmpty) return false;
     if (_loading) return true;
     if (_activeCategory != null && _activeCategory!.isNotEmpty) return true;
     return _results != null && _results!.isNotEmpty;
@@ -657,41 +729,58 @@ class _TopRow extends StatelessWidget {
     final focused = focusNode.hasFocus;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        V2Spacing.space8,
-        V2Spacing.space12,
+        V2Spacing.space24,
         V2Spacing.space16,
-        V2Spacing.space4,
+        V2Spacing.space24,
+        V2Spacing.space8,
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
-            onPressed: onBack,
-            splashRadius: 22,
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: Material(
+              color: V2Colors.surface,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onBack,
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: V2Colors.fg,
+                  size: 27,
+                ),
+              ),
+            ),
           ),
+          const SizedBox(width: V2Spacing.space16),
           Expanded(
             child: AnimatedContainer(
               duration: V2Motion.fast,
               curve: V2Motion.smooth,
+              height: 56,
               padding: const EdgeInsets.symmetric(
-                horizontal: V2Spacing.space12,
+                horizontal: V2Spacing.space16,
               ),
               decoration: BoxDecoration(
                 color: V2Colors.surface,
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                 border: Border.all(
-                  color: focused ? V2Colors.accent : V2Colors.outline,
-                  width: focused ? 1.5 : 1.0,
+                  color: focused
+                      ? V2Colors.safe.withValues(alpha: 0.26)
+                      : Colors.transparent,
+                  width: 1.0,
                 ),
+                boxShadow: focused ? V2Shadows.sm : null,
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.search_rounded,
-                    size: 18,
-                    color: focused ? V2Colors.accent : V2Colors.fgSubtle,
+                    size: 30,
+                    color: focused ? V2Colors.safe : V2Colors.fgMuted,
                   ),
-                  const SizedBox(width: V2Spacing.space8),
+                  const SizedBox(width: V2Spacing.space12),
                   Expanded(
                     child: TextField(
                       controller: controller,
@@ -701,33 +790,41 @@ class _TopRow extends StatelessWidget {
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         hintText: 'Search supplements',
-                        hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+                        hintStyle: V2Typography.bodyXl(
+                          color: V2Colors.fgSubtle,
+                        ),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
-                          vertical: V2Spacing.space12,
+                          vertical: V2Spacing.space16,
                         ),
                         isCollapsed: true,
                         isDense: true,
                       ),
-                      style: V2Typography.body(color: V2Colors.fg),
-                      cursorColor: V2Colors.accent,
-                      cursorWidth: 1.5,
+                      style: V2Typography.bodyXl(color: V2Colors.fg),
+                      cursorColor: V2Colors.safe,
+                      cursorWidth: 2,
                       onChanged: onChanged,
                     ),
                   ),
                   if (query.isNotEmpty)
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        size: 16,
-                        color: V2Colors.fgSubtle,
+                    Material(
+                      color: V2Colors.fgMuted,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onClear,
+                        child: const SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: V2Colors.surface,
+                          ),
+                        ),
                       ),
-                      onPressed: onClear,
-                      splashRadius: 16,
                     ),
                 ],
               ),
@@ -909,34 +1006,22 @@ class _RecentSearchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
-      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
-          ),
-          padding: const EdgeInsets.fromLTRB(
-            V2Spacing.space16,
-            V2Spacing.space12,
-            V2Spacing.space8,
-            V2Spacing.space12,
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
           child: Row(
             children: [
-              const Icon(
-                Icons.history_rounded,
-                size: 18,
-                color: V2Colors.fgMuted,
-              ),
-              const SizedBox(width: V2Spacing.space12),
+              const Icon(Icons.search_rounded, size: 26, color: V2Colors.safe),
+              const SizedBox(width: V2Spacing.space16),
               Expanded(
                 child: Text(
                   term,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodyXl(color: V2Colors.fgMuted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               IconButton(
@@ -952,6 +1037,97 @@ class _RecentSearchRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SearchSectionTitle extends StatelessWidget {
+  final String label;
+
+  const _SearchSectionTitle(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: V2Typography.displayXs(
+        color: V2Colors.fgMuted,
+      ).copyWith(letterSpacing: 0),
+    );
+  }
+}
+
+class _SuggestedSearchRow extends StatelessWidget {
+  final _SearchSuggestion suggestion;
+  final VoidCallback onTap;
+
+  const _SuggestedSearchRow({required this.suggestion, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: suggestion.semanticLabel,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
+            child: Row(
+              children: [
+                Icon(suggestion.icon, size: 25, color: suggestion.iconColor),
+                const SizedBox(width: V2Spacing.space16),
+                Expanded(
+                  child: RichText(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: V2Typography.bodyXl(color: V2Colors.fgMuted),
+                      children: [
+                        TextSpan(
+                          text: suggestion.label,
+                          style: V2Typography.bodyXl(
+                            color: V2Colors.fg,
+                          ).copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        if (suggestion.scopeLabel != null)
+                          TextSpan(text: ' in ${suggestion.scopeLabel}'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProductPreviewGrid extends StatelessWidget {
+  final List<ProductsCoreData> products;
+
+  _ProductPreviewGrid({required Iterable<ProductsCoreData> products})
+    : products = products.toList(growable: false);
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) return const SizedBox.shrink();
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: products.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: V2Spacing.space12,
+        mainAxisSpacing: V2Spacing.space12,
+        childAspectRatio: 0.82,
+      ),
+      itemBuilder: (context, index) =>
+          _SearchProductGridTile(product: products[index]),
     );
   }
 }
@@ -1292,10 +1468,166 @@ class _CategoryText extends StatelessWidget {
 // Helpers
 // =============================================================================
 
+class _SearchSuggestion {
+  final String label;
+  final String query;
+  final String? scopeLabel;
+  final IconData icon;
+  final Color iconColor;
+
+  const _SearchSuggestion({
+    required this.label,
+    required this.query,
+    required this.icon,
+    required this.iconColor,
+    this.scopeLabel,
+  });
+
+  String get semanticLabel =>
+      scopeLabel == null ? label : '$label in $scopeLabel';
+}
+
 class _PartitionedResults {
   final List<ProductsCoreData> onMarket;
   final List<ProductsCoreData> offMarket;
   const _PartitionedResults({required this.onMarket, required this.offMarket});
+}
+
+List<_SearchSuggestion> _buildSuggestions(
+  String query,
+  List<ProductsCoreData> products,
+) {
+  final q = query.trim();
+  if (q.length < 2 || products.isEmpty) return const [];
+
+  final normalizedQuery = q.toLowerCase();
+  final out = <_SearchSuggestion>[];
+  final seen = <String>{};
+
+  void add(_SearchSuggestion suggestion) {
+    final key = '${suggestion.scopeLabel ?? 'search'}:${suggestion.label}'
+        .toLowerCase();
+    if (seen.add(key)) out.add(suggestion);
+  }
+
+  for (final product in products) {
+    final brand = product.brandName?.trim();
+    if (brand != null &&
+        brand.isNotEmpty &&
+        brand.toLowerCase().contains(normalizedQuery)) {
+      add(
+        _SearchSuggestion(
+          label: brand,
+          query: brand,
+          scopeLabel: 'Brand',
+          icon: Icons.layers_rounded,
+          iconColor: V2Colors.accentStrong,
+        ),
+      );
+      break;
+    }
+  }
+
+  for (final term in _candidateIngredientTerms(normalizedQuery, products)) {
+    add(
+      _SearchSuggestion(
+        label: term,
+        query: term,
+        scopeLabel: 'Ingredient',
+        icon: Icons.science_outlined,
+        iconColor: V2Colors.accentStrong,
+      ),
+    );
+    if (out.length >= 4) return out;
+  }
+
+  for (final product in products) {
+    final name = product.productName.trim();
+    if (name.isEmpty) continue;
+    if (!name.toLowerCase().contains(normalizedQuery)) continue;
+    add(
+      _SearchSuggestion(
+        label: _compactProductQuery(name, normalizedQuery),
+        query: _compactProductQuery(name, normalizedQuery),
+        icon: Icons.search_rounded,
+        iconColor: V2Colors.safe,
+      ),
+    );
+    if (out.length >= 4) return out;
+  }
+
+  if (out.isEmpty) {
+    add(
+      _SearchSuggestion(
+        label: q,
+        query: q,
+        icon: Icons.search_rounded,
+        iconColor: V2Colors.safe,
+      ),
+    );
+  }
+  return out.take(4).toList(growable: false);
+}
+
+List<String> _candidateIngredientTerms(
+  String normalizedQuery,
+  List<ProductsCoreData> products,
+) {
+  final out = <String>[];
+  final seen = <String>{};
+
+  void add(String? raw) {
+    final value = raw?.trim();
+    if (value == null || value.length < 2) return;
+    if (!value.toLowerCase().contains(normalizedQuery)) return;
+    final label = _formatSuggestionLabel(value);
+    if (seen.add(label.toLowerCase())) out.add(label);
+  }
+
+  for (final product in products) {
+    add(
+      product.primaryCategory == null
+          ? null
+          : _formatCategoryLabel(product.primaryCategory!),
+    );
+    add(_compactProductQuery(product.productName, normalizedQuery));
+    if (out.length >= 4) return out;
+  }
+  return out;
+}
+
+String _compactProductQuery(String name, String normalizedQuery) {
+  final cleaned = name
+      .replaceAll(RegExp(r'\([^)]*\)'), ' ')
+      .replaceAll(RegExp(r'[^A-Za-z0-9 +&-]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (cleaned.isEmpty) return name.trim();
+
+  final words = cleaned.split(' ');
+  final matchIndex = words.indexWhere(
+    (word) => word.toLowerCase().contains(normalizedQuery),
+  );
+  if (matchIndex < 0) return _formatSuggestionLabel(cleaned);
+  final end = matchIndex + 3 > words.length ? words.length : matchIndex + 3;
+  final start = matchIndex == 0 ? 0 : matchIndex - 1;
+  return _formatSuggestionLabel(words.sublist(start, end).join(' '));
+}
+
+String _formatSuggestionLabel(String raw) {
+  final cleaned = raw
+      .replaceAll('_', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (cleaned.isEmpty) return raw;
+  return cleaned
+      .split(' ')
+      .map((word) {
+        if (word.length <= 2 && word == word.toUpperCase()) return word;
+        final lower = word.toLowerCase();
+        return '${lower[0].toUpperCase()}${lower.substring(1)}';
+      })
+      .join(' ');
 }
 
 enum _SearchFilter {
