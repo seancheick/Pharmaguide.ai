@@ -447,6 +447,11 @@ class _MedicationEntryV2ScreenState
                         name: _selectedName!,
                         resolvingClasses: _resolvingClasses,
                         classes: _selectedClasses,
+                        identityCoverageLimited:
+                            !_resolvingClasses &&
+                            (_selectedRxcui ?? '').trim().isNotEmpty &&
+                            (_selectedGenericRxcui ?? '').trim().isEmpty &&
+                            _ingredientRxcuis.isEmpty,
                         friendlyClassLabel: _friendlyClassLabel,
                         onChange: _clearSelection,
                       ),
@@ -924,6 +929,7 @@ class _SelectionSummary extends StatelessWidget {
   final String name;
   final bool resolvingClasses;
   final List<String> classes;
+  final bool identityCoverageLimited;
   final String Function(String) friendlyClassLabel;
   final VoidCallback onChange;
 
@@ -931,6 +937,7 @@ class _SelectionSummary extends StatelessWidget {
     required this.name,
     required this.resolvingClasses,
     required this.classes,
+    required this.identityCoverageLimited,
     required this.friendlyClassLabel,
     required this.onChange,
   });
@@ -974,6 +981,13 @@ class _SelectionSummary extends StatelessWidget {
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Used to check: ${classes.map(friendlyClassLabel).join(", ")}',
+              style: V2Typography.caption(color: V2Colors.fgMuted),
+            ),
+          ],
+          if (!resolvingClasses && identityCoverageLimited) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'We will check this medication, but generic matching may be limited.',
               style: V2Typography.caption(color: V2Colors.fgMuted),
             ),
           ],

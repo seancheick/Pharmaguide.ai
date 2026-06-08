@@ -20,6 +20,7 @@ import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
@@ -261,6 +262,7 @@ class _StackTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(medicationIdentityHydrationProvider);
     final stackAsync = ref.watch(activeStackProvider);
     final realItems = stackAsync.asData?.value
         .map(

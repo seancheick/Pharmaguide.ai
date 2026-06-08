@@ -74,33 +74,33 @@ class PGDepletionCard extends StatelessWidget {
           stripe: V2Colors.safe,
           iconColor: V2Colors.safe,
           icon: Icons.check_circle_outline_rounded,
-          eyebrow: 'Depletion check',
-          title: 'Coverage looks good',
+          eyebrow: 'Medication nutrient notes',
+          title: 'Nutrient notes look covered',
           subtitle:
-              'Your stack already addresses the nutrients your '
-              'medications can lower over time.',
+              'Your stack already addresses the medication-related '
+              'nutrient notes we found.',
         );
       case _CardState.partial:
         return (
           stripe: V2Colors.monitor,
           iconColor: V2Colors.monitor,
           icon: Icons.info_outline_rounded,
-          eyebrow: 'Depletion check',
+          eyebrow: 'Medication nutrient notes',
           title: 'A couple of things worth knowing',
           subtitle:
-              'Some nutrients your medications can lower over time are '
-              'partly covered — here are gentle suggestions.',
+              'Some medication-related nutrient notes are partly covered '
+              '— here are gentle suggestions.',
         );
       case _CardState.noneOrMixed:
         return (
           stripe: V2Colors.monitor,
           iconColor: V2Colors.monitor,
           icon: Icons.info_outline_rounded,
-          eyebrow: 'Depletion check',
+          eyebrow: 'Medication nutrient notes',
           title: 'Things worth knowing about your medications',
           subtitle:
-              'Some medications can lower certain nutrients gradually '
-              'over time — here are a few to keep in mind.',
+              'Some medications can affect nutrients, supplement timing, '
+              'or monitoring needs — here are a few to keep in mind.',
         );
       case _CardState.empty:
         return (
@@ -196,18 +196,37 @@ class _DepletionRowState extends State<_DepletionRow> {
   String _fallbackHeadline() {
     final d = widget.dep;
     final n = d.nutrientName.isEmpty ? 'a nutrient' : d.nutrientName;
+    if (d.depletionType == 'functional_antagonism') {
+      return '${d.drugDisplayName} changes how your body uses $n';
+    }
+    if (d.depletionType == 'monitoring_stability') {
+      return 'Keep $n status steady while on ${d.drugDisplayName}';
+    }
+    if (d.depletionType == 'supplement_interaction') {
+      return '$n can affect ${d.drugDisplayName} timing';
+    }
+    if (d.depletionType == 'condition_related') {
+      return '${d.drugDisplayName} may be linked with $n status';
+    }
     return 'Your medication may affect $n over time';
   }
 
   String _fallbackAck() {
     final d = widget.dep;
     final n = d.nutrientName.isEmpty ? 'this nutrient' : d.nutrientName;
+    if (d.depletionType == 'condition_related') {
+      return "You're already taking $n — useful context for your clinician.";
+    }
     return "You're already taking $n — helpful while on ${d.drugDisplayName}.";
   }
 
   String _fallbackPartial() {
     final d = widget.dep;
     final n = d.nutrientName.isEmpty ? 'this nutrient' : d.nutrientName;
+    if (d.depletionType == 'condition_related') {
+      return "You're taking some $n — your health context may warrant a "
+          'closer look with your clinician.';
+    }
     return "You're taking some $n — your medication may warrant a "
         'higher dose over time. Worth a quick conversation with your doctor.';
   }

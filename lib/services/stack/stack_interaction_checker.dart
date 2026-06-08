@@ -466,8 +466,10 @@ class StackInteractionChecker {
     for (final newMed in newMedications) {
       final newRxcui = newMed.rxcui?.trim();
       final newGenericRxcui = newMed.genericRxcui?.trim();
+      final newIngredientRxcuis = _ingredientRxcuisFor(newMed);
       if ((newRxcui == null || newRxcui.isEmpty) &&
-          (newGenericRxcui == null || newGenericRxcui.isEmpty)) {
+          (newGenericRxcui == null || newGenericRxcui.isEmpty) &&
+          newIngredientRxcuis.isEmpty) {
         continue;
       }
 
@@ -486,7 +488,7 @@ class StackInteractionChecker {
 
       await lookupAndCollect(newRxcui);
       await lookupAndCollect(newGenericRxcui);
-      for (final ingRxcui in _ingredientRxcuisFor(newMed)) {
+      for (final ingRxcui in newIngredientRxcuis) {
         await lookupAndCollect(ingRxcui);
       }
       // Class-based fallback: if rxcui lookups found nothing, try classes.
@@ -514,6 +516,9 @@ class StackInteractionChecker {
         if (genRx != null && genRx.isNotEmpty) {
           existingRxcuis.putIfAbsent(genRx, () => med.name);
         }
+        for (final ingRxcui in _ingredientRxcuisFor(med)) {
+          existingRxcuis.putIfAbsent(ingRxcui, () => med.name);
+        }
         for (final cls in _drugClassesFor(med)) {
           existingClasses.putIfAbsent(cls, () => med.name);
         }
@@ -525,6 +530,7 @@ class StackInteractionChecker {
       if (newGenericRxcui != null && newGenericRxcui.isNotEmpty) {
         newMedRxcuis.add(newGenericRxcui);
       }
+      newMedRxcuis.addAll(newIngredientRxcuis);
 
       for (final row in allRows) {
         if (seenRowIds.contains(row.id)) continue;

@@ -1,0 +1,96 @@
+import 'dart:convert';
+
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/medications/medication_identity_status.dart';
+import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
+
+class MedicationIdentityHydrator {
+  MedicationIdentityHydrator({
+    required UserDatabase userDb,
+    required RxNormApiService rxNorm,
+  }) : _userDb = userDb,
+       _rxNorm = rxNorm;
+
+  final UserDatabase _userDb;
+  final RxNormApiService _rxNorm;
+
+  Future<int> rehydrateActiveStackMedications() async {
+    final stack = await _userDb.getActiveStack();
+    var updated = 0;
+    for (final row in stack.where((e) => e.type == 'medication')) {
+      if (await rehydrateMedication(row)) updated++;
+    }
+    return updated;
+  }
+
+  Future<bool> rehydrateMedication(UserStacksLocalData row) async {
+    if (row.type != 'medication') return false;
+    final snapshot = MedicationIdentitySnapshot.fromStackRow(row);
+    if (!snapshot.hasExactRxcui) return false;
+    if (snapshot.hasDrugClasses &&
+        (snapshot.hasGenericRxcui || snapshot.hasIngredientRxcuis)) {
+      return false;
+    }
+
+    final rxcui = snapshot.rxcui!;
+    final resolvedGenerics = await _rxNorm.resolveGenericRxcuis(rxcui);
+    final resolvedClasses = await _rxNorm.getClasses(rxcui);
+
+    final nextGeneric =
+        snapshot.genericRxcui ??
+        (resolvedGenerics.isNotEmpty ? resolvedGenerics.first : null);
+    final nextIngredients = snapshot.ingredientRxcuis.isNotEmpty
+        ? snapshot.ingredientRxcuis
+        : (resolvedGenerics.length > 1 ? resolvedGenerics : const <String>[]);
+    final nextClasses = _mergeIdentityLists(
+      snapshot.drugClassIds,
+      resolvedClasses,
+    );
+
+    final nextSnapshot = MedicationIdentitySnapshot(
+      name: snapshot.name,
+      rxcui: snapshot.rxcui,
+      genericRxcui: nextGeneric,
+      ingredientRxcuis: nextIngredients,
+      drugClassIds: nextClasses,
+    );
+    if (nextSnapshot.status.index <= snapshot.status.index &&
+        nextGeneric == snapshot.genericRxcui &&
+        _sameList(nextIngredients, snapshot.ingredientRxcuis) &&
+        _sameList(nextClasses, snapshot.drugClassIds)) {
+      return false;
+    }
+
+    await _userDb.updateMedicationIdentity(
+      id: row.id,
+      genericRxcui: nextGeneric,
+      ingredientRxcuisJson: nextIngredients.isEmpty
+          ? null
+          : jsonEncode(nextIngredients),
+      drugClassesJson: nextClasses.isEmpty ? null : jsonEncode(nextClasses),
+    );
+    return true;
+  }
+
+  static List<String> _mergeIdentityLists(
+    List<String> current,
+    List<String> resolved,
+  ) {
+    final out = <String>[];
+    final seen = <String>{};
+    for (final value in [...current, ...resolved]) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) continue;
+      if (seen.add(trimmed)) out.add(trimmed);
+    }
+    return out;
+  }
+
+  static bool _sameList(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+}

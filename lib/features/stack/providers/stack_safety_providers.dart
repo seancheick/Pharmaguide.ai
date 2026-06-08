@@ -8,13 +8,16 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
@@ -479,24 +482,15 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
   final stack = await ref.watch(activeStackProvider.future);
   final medications = stack
       .where((e) => e.type == 'medication')
-      .expand((e) {
-        // Each medication may have multiple drug classes (JSON array).
-        final classIds = <String>[];
-        if (e.drugClassesCol != null && e.drugClassesCol!.isNotEmpty) {
-          try {
-            final decoded = jsonDecode(e.drugClassesCol!);
-            if (decoded is List) {
-              classIds.addAll(decoded.map((c) => c.toString()));
-            }
-          } on FormatException {
-            // skip
-          }
-        }
-        if (classIds.isEmpty) {
-          return [(name: e.name, drugClassId: null as String?)];
-        }
-        return classIds.map((c) => (name: e.name, drugClassId: c as String?));
-      })
+      .map(
+        (e) => DepletionMedicationIdentity(
+          name: e.name,
+          rxcui: e.rxcui,
+          genericRxcui: e.genericRxcui,
+          ingredientRxcuis: _decodeStackStringList(e.ingredientRxcuisCol),
+          drugClassIds: _decodeStackStringList(e.drugClassesCol),
+        ),
+      )
       .toList(growable: false);
 
   if (medications.isEmpty) return const [];
@@ -504,16 +498,27 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
   final repo = ref.read(referenceDataRepositoryProvider);
   final depletionsData = await repo.loadMedicationDepletions();
 
-  // Build canonical IDs from supplement stack to flag covered nutrients.
+  // Build canonical IDs and real dose rows from the supplement stack.
+  // `keyIngredientTags` is a useful presence fallback, but depletion
+  // thresholds need actual Supplement Facts active rows from the detail blob.
+  // Do not use the RDA/UL nutrient view here: it intentionally skips some
+  // rows that still matter for depletion coverage (CoQ10, melatonin, etc.).
   final coreDb = ref.read(coreDatabaseProvider);
   final supplements = stack.where((e) => e.type == 'supplement').toList();
   final coveredIds = <String>{};
+  final nutrientItems = <StackItemNutrients>[];
   for (final supp in supplements) {
     if (supp.dsldId == null) continue;
-    final product = await coreDb.findById(supp.dsldId!);
-    if (product?.keyIngredientTags != null) {
+    ProductsCoreData? product;
+    try {
+      product = await coreDb.findById(supp.dsldId!);
+    } on Object {
+      continue;
+    }
+    final keyIngredientTags = product?.keyIngredientTags;
+    if (keyIngredientTags != null) {
       try {
-        final tags = jsonDecode(product!.keyIngredientTags!);
+        final tags = jsonDecode(keyIngredientTags);
         if (tags is List) {
           for (final tag in tags) {
             coveredIds.add(tag.toString().toLowerCase());
@@ -523,12 +528,66 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
         // skip
       }
     }
+    Map<String, dynamic>? blob;
+    try {
+      blob = await ref.watch(detailBlobProvider(supp.dsldId!).future);
+    } on Object {
+      blob = null;
+    }
+    if (blob == null) continue;
+
+    final nutrients = ProductHealthFacts.fromDetailBlob(blob).activeIngredients;
+    if (nutrients.isEmpty) continue;
+    nutrientItems.add(
+      StackItemNutrients(
+        stackEntryId: supp.id,
+        productName: supp.name,
+        ingredients: nutrients,
+      ),
+    );
+  }
+
+  final stackDoses = <StackSupplementDose>[];
+  if (nutrientItems.isNotEmpty) {
+    const aggregator = StackNutrientAggregator();
+    final totals = aggregator.aggregate(nutrientItems);
+    for (final total in totals.values) {
+      if (total.totalAmount <= 0 || total.unit.isEmpty) continue;
+      coveredIds.add(total.canonicalId.toLowerCase());
+      stackDoses.add(
+        StackSupplementDose(
+          canonicalId: total.canonicalId,
+          doseAmount: total.totalAmount,
+          doseUnit: total.unit,
+        ),
+      );
+    }
   }
 
   final checker = DepletionChecker();
   return checker.check(
-    medications: medications,
+    medications: const [],
+    medicationIdentities: medications,
     depletionsData: depletionsData,
     stackCanonicalIds: coveredIds,
+    stackDoses: stackDoses,
   );
 });
+
+List<String> _decodeStackStringList(String? raw) {
+  if (raw == null || raw.isEmpty) return const <String>[];
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! List) return const <String>[];
+    final out = <String>[];
+    final seen = <String>{};
+    for (final item in decoded) {
+      final value = item?.toString().trim();
+      if (value == null || value.isEmpty) continue;
+      if (seen.add(value)) out.add(value);
+    }
+    return out;
+  } on FormatException {
+    return const <String>[];
+  }
+}

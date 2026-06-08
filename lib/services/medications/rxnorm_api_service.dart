@@ -262,7 +262,11 @@ class RxNormApiService {
     if (atcRaw != null) classes.addAll(_parseClasses(atcRaw));
     if (medrtRaw != null) classes.addAll(_parseClasses(medrtRaw));
 
-    final result = classes.toList(growable: false);
+    if (classes.isEmpty) {
+      classes.addAll(await _offlineClassesForRxcui(r));
+    }
+
+    final result = classes.toList(growable: false)..sort();
     _writeCache(cacheKey, result);
     return result;
   }
@@ -395,6 +399,12 @@ class RxNormApiService {
     final rows = await db.select(db.drugClassMap).get();
     final ids = rows.map((r) => r.classId).toList()..sort();
     return ids;
+  }
+
+  Future<List<String>> _offlineClassesForRxcui(String rxcui) async {
+    final db = _offlineDb;
+    if (db == null) return const <String>[];
+    return db.drugClassesForRxcui(rxcui);
   }
 
   // ---------------------------------------------------------------------------

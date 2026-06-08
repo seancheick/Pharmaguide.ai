@@ -25,6 +25,7 @@ Map<String, dynamic> _metforminB12Fixture({
           'standard_name': 'Vitamin B12',
           'canonical_id': 'vitamin_b12',
         },
+        'depletion_type': 'depletion',
         'severity': 'significant',
         'mechanism': 'Metformin impairs B12 absorption.',
         'clinical_impact': 'Up to 30% of long-term users develop low B12.',
@@ -61,6 +62,126 @@ void main() {
       expect(out, hasLength(1));
       expect(out.first.depletionId, 'DEP_METFORMIN_VITAMINB12');
     });
+
+    test('matches generic RxCUI when user selected a brand medication', () {
+      final out = checker.check(
+        medications: const [],
+        medicationIdentities: const [
+          DepletionMedicationIdentity(
+            name: 'Xenical',
+            rxcui: '312962',
+            genericRxcui: '37925',
+          ),
+        ],
+        depletionsData: {
+          'depletions': [
+            {
+              'id': 'DEP_ORLISTAT_VITAMIND',
+              'drug_ref': {
+                'type': 'drug',
+                'id': '37925',
+                'display_name': 'Orlistat',
+              },
+              'depleted_nutrient': {
+                'standard_name': 'Vitamin D',
+                'canonical_id': 'vitamin_d',
+              },
+              'severity': 'moderate',
+            },
+          ],
+        },
+      );
+      expect(out, hasLength(1));
+      expect(out.first.depletionId, 'DEP_ORLISTAT_VITAMIND');
+    });
+
+    test('matches ingredient RxCUI for combination medications', () {
+      final out = checker.check(
+        medications: const [],
+        medicationIdentities: const [
+          DepletionMedicationIdentity(
+            name: 'Combination medicine',
+            rxcui: '999999',
+            ingredientRxcuis: ['9524'],
+          ),
+        ],
+        depletionsData: {
+          'depletions': [
+            {
+              'id': 'DEP_SULFASALAZINE_FOLATE',
+              'drug_ref': {
+                'type': 'drug',
+                'id': '9524',
+                'display_name': 'Sulfasalazine',
+              },
+              'depleted_nutrient': {
+                'standard_name': 'Folate',
+                'canonical_id': 'folate',
+              },
+              'severity': 'moderate',
+            },
+          ],
+        },
+      );
+      expect(out, hasLength(1));
+      expect(out.first.depletionId, 'DEP_SULFASALAZINE_FOLATE');
+    });
+
+    test(
+      'matches high-value brand-name prescriptions through generic RxCUI',
+      () {
+        final cases = [
+          (
+            brandName: 'Questran',
+            genericRxcui: '2447',
+            depletionId: 'DEP_CHOLESTYRAMINE_VITAMINK',
+            genericName: 'Cholestyramine',
+            nutrient: 'Vitamin K',
+            canonicalId: 'vitamin_k',
+          ),
+          (
+            brandName: 'Azulfidine',
+            genericRxcui: '9524',
+            depletionId: 'DEP_SULFASALAZINE_FOLATE',
+            genericName: 'Sulfasalazine',
+            nutrient: 'Folate',
+            canonicalId: 'folate',
+          ),
+        ];
+
+        for (final c in cases) {
+          final out = checker.check(
+            medications: const [],
+            medicationIdentities: [
+              DepletionMedicationIdentity(
+                name: c.brandName,
+                rxcui: 'brand-${c.genericRxcui}',
+                genericRxcui: c.genericRxcui,
+              ),
+            ],
+            depletionsData: {
+              'depletions': [
+                {
+                  'id': c.depletionId,
+                  'drug_ref': {
+                    'type': 'drug',
+                    'id': c.genericRxcui,
+                    'display_name': c.genericName,
+                  },
+                  'depleted_nutrient': {
+                    'standard_name': c.nutrient,
+                    'canonical_id': c.canonicalId,
+                  },
+                  'severity': 'moderate',
+                },
+              ],
+            },
+          );
+          expect(out, hasLength(1), reason: c.brandName);
+          expect(out.first.depletionId, c.depletionId);
+        }
+      },
+    );
 
     test('no match returns empty', () {
       final out = checker.check(
@@ -188,9 +309,110 @@ void main() {
       );
       expect(out.first.coverageLevel, CoverageLevel.partial);
     });
+
+    test(
+      'functional antagonism rows are not treated as supplement coverage',
+      () {
+        final out = checker.check(
+          medications: [(name: 'Warfarin', drugClassId: null)],
+          depletionsData: {
+            'depletions': [
+              {
+                'id': 'DEP_ANTICOAGULANTS_VITAMINK',
+                'drug_ref': {'display_name': 'Warfarin'},
+                'depleted_nutrient': {
+                  'standard_name': 'Vitamin K',
+                  'canonical_id': 'vitamin_k',
+                },
+                'depletion_type': 'functional_antagonism',
+                'severity': 'significant',
+              },
+            ],
+          },
+          stackCanonicalIds: {'vitamin_k'},
+          stackDoses: [
+            const StackSupplementDose(
+              canonicalId: 'vitamin_k',
+              doseAmount: 100,
+              doseUnit: 'mcg',
+            ),
+          ],
+        );
+        expect(out.first.coverageLevel, CoverageLevel.none);
+        expect(out.first.isCovered, isFalse);
+      },
+    );
+
+    test('non-coverage taxonomy buckets ignore supplement presence', () {
+      for (final depletionType in const [
+        'functional_antagonism',
+        'monitoring_stability',
+        'supplement_interaction',
+      ]) {
+        final out = checker.check(
+          medications: [(name: 'Test medication', drugClassId: null)],
+          depletionsData: {
+            'depletions': [
+              {
+                'id': 'DEP_$depletionType',
+                'drug_ref': {'display_name': 'Test medication'},
+                'depleted_nutrient': {
+                  'standard_name': 'Calcium',
+                  'canonical_id': 'calcium',
+                },
+                'depletion_type': depletionType,
+                'severity': 'moderate',
+                'adequacy_threshold_mg': 500,
+              },
+            ],
+          },
+          stackCanonicalIds: {'calcium'},
+          stackDoses: [
+            const StackSupplementDose(
+              canonicalId: 'calcium',
+              doseAmount: 1000,
+              doseUnit: 'mg',
+            ),
+          ],
+        );
+        expect(
+          out.first.coverageLevel,
+          CoverageLevel.none,
+          reason: '$depletionType should not render as depletion coverage',
+        );
+      }
+    });
   });
 
   group('DepletionChecker — authored copy passthrough', () {
+    test('depletion_type flows through and defaults to depletion', () {
+      final typed = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(
+          authoredCopy: {'depletion_type': 'functional_antagonism'},
+        ),
+      );
+      expect(typed.first.depletionType, 'functional_antagonism');
+
+      final legacy = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: {
+          'depletions': [
+            {
+              'id': 'DEP_LEGACY',
+              'drug_ref': {'display_name': 'Metformin'},
+              'depleted_nutrient': {
+                'standard_name': 'Vitamin B12',
+                'canonical_id': 'vitamin_b12',
+              },
+              'severity': 'significant',
+            },
+          ],
+        },
+      );
+      expect(legacy.first.depletionType, 'depletion');
+    });
+
     test('authored fields flow through to DepletionMatch', () {
       final out = checker.check(
         medications: [(name: 'Metformin', drugClassId: null)],

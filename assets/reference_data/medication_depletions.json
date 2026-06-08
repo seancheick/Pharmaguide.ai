@@ -1,10 +1,10 @@
 {
   "_metadata": {
-    "description": "Drug-induced nutrient depletions — maps medications/drug classes to nutrients they deplete",
+    "description": "Medication-nutrient effects — true depletions, functional antagonism, monitoring notes, condition-related effects, and supplement interactions",
     "purpose": "depletion_checker",
-    "schema_version": "5.2.1",
-    "last_updated": "2026-04-17",
-    "total_entries": 68,
+    "schema_version": "5.3.0",
+    "last_updated": "2026-06-08",
+    "total_entries": 80,
     "data_sources": [
       "NIH Office of Dietary Supplements",
       "Drug-Induced Nutrient Depletion Handbook (Pelton et al.)",
@@ -13,7 +13,7 @@
     ],
     "clinical_disclaimer": "Informational only. Consult healthcare provider before supplementing.",
     "notes": "Two entries (DEP_BETABLOCKERS_MELATONIN, DEP_BENZODIAZEPINES_MELATONIN) reference canonical_id 'melatonin' which is not in rda_optimal_uls.json. These are valid clinical depletions; rda_optimal_uls.json should be extended to include melatonin if depletion checker requires canonical_id resolution.",
-    "flutter_schema_version": "5.2.1",
+    "flutter_schema_version": "5.3.0",
     "flutter_top_level_key": "depletions",
     "migration": {
       "completed_migrations": [
@@ -28,6 +28,24 @@
           "to": "5.2.1",
           "date": "2026-04-17",
           "summary": "Added optional food_sources_short field + clinical nocebo-safe validator rules (numeric stat ban, absolute claims ban, acute framing ban, catastrophizing warn, symptom-list cap, sentence cap)"
+        },
+        {
+          "from": "5.2.1",
+          "to": "5.3.0",
+          "date": "2026-06-08",
+          "summary": "Added required depletion_type taxonomy so true depletions are separated from functional antagonism, monitoring/stability notes, condition-related nutrient issues, and supplement interactions."
+        },
+        {
+          "from": "5.3.0",
+          "to": "5.3.0",
+          "date": "2026-06-08",
+          "summary": "High-value expansion batch: isoniazid→B6, methotrexate→folate, and orlistat→fat-soluble vitamins A/D/E/K after taxonomy cleanup."
+        },
+        {
+          "from": "5.3.0",
+          "to": "5.3.0",
+          "date": "2026-06-08",
+          "summary": "High-value expansion batch 2: sulfasalazine→folate, colchicine→B12, and cholestyramine→fat-soluble vitamins A/D/E/K."
         }
       ]
     },
@@ -40,8 +58,11 @@
       "food_sources_short": "optional string, 40-160 chars, inclusive framing only. For absorption-blocked depletions (metformin/B12, PPI/B12, statin/CoQ10) use the explicit hint pattern: \"Because <drug> reduces <nutrient> absorption, food sources may not be enough on their own — a supplement is often more reliable.\""
     },
     "reviewed_by": "Lead Clinician (PharmaGuide)",
-    "reviewed_date": "2026-04-17",
-    "review_round": "full_authoring_pass_v1"
+    "reviewed_date": "2026-06-08",
+    "review_round": "taxonomy_audit_v1_plus_high_value_expansion_2",
+    "v53_added_fields": {
+      "depletion_type": "Required taxonomy enum: depletion, functional_antagonism, monitoring_stability, condition_related, supplement_interaction. Flutter uses this to avoid treating interaction/monitoring rows as supplement-covered depletions."
+    }
   },
   "depletions": [
     {
@@ -55,6 +76,7 @@
         "standard_name": "Coenzyme Q10",
         "canonical_id": "coenzyme_q10"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Statins inhibit HMG-CoA reductase, which is required not only for cholesterol synthesis but also for the mevalonate pathway that produces ubiquinone (CoQ10). Blocking this enzyme reduces endogenous CoQ10 biosynthesis.",
       "clinical_impact": "CoQ10 depletion may contribute to statin-associated myopathy (muscle pain, weakness), fatigue, and reduced mitochondrial energy production. Cardiac CoQ10 is particularly affected.",
@@ -87,6 +109,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Statins may impair hepatic hydroxylation of vitamin D by competing for CYP450 enzymes involved in vitamin D metabolism. Cholesterol is also a substrate for vitamin D synthesis, so its reduction may limit precursor availability.",
       "clinical_impact": "Suboptimal vitamin D is associated with musculoskeletal pain, immune dysregulation, and increased fracture risk — symptoms that can overlap with or worsen statin side effects.",
@@ -119,6 +142,7 @@
         "standard_name": "Vitamin B12",
         "canonical_id": "vitamin_b12"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Gastric acid and pepsin are required to cleave vitamin B12 from food proteins. PPIs and H2 blockers suppress acid secretion, impairing this liberation step and reducing B12 absorption from dietary sources (though crystalline B12 supplements are unaffected).",
       "clinical_impact": "B12 deficiency causes megaloblastic anemia, peripheral neuropathy, cognitive decline, and elevated homocysteine. Risk increases significantly with long-term (>2 years) PPI use.",
@@ -156,6 +180,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Long-term PPI use impairs active magnesium transport in the intestine, likely by interfering with TRPM6/TRPM7 channels responsible for intestinal magnesium absorption. The exact mechanism is not fully elucidated.",
       "clinical_impact": "Hypomagnesemia from PPIs can cause muscle cramps, tremors, cardiac arrhythmias, and — by impairing PTH secretion — secondary hypocalcemia and hypokalemia that are refractory to replacement until magnesium is corrected.",
@@ -193,6 +218,7 @@
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Gastric acid converts insoluble calcium salts into ionized calcium for absorption in the small intestine. Acid suppression impairs this conversion, reducing absorption of calcium carbonate specifically. Calcium citrate is less affected.",
       "clinical_impact": "Long-term impaired calcium absorption increases fracture risk. Multiple studies and an FDA label update link long-term PPI use to hip, wrist, and spine fractures.",
@@ -225,6 +251,7 @@
         "standard_name": "Iron",
         "canonical_id": "iron"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Gastric acid is required to reduce dietary non-heme iron (Fe³⁺) to the absorbable ferrous form (Fe²⁺) and to release iron from food complexes. Acid suppression impairs both steps, reducing non-heme iron bioavailability.",
       "clinical_impact": "Chronic iron depletion can cause iron-deficiency anemia, fatigue, reduced exercise capacity, and impaired immune function. Most concerning in premenopausal women and individuals with marginal iron intake.",
@@ -257,6 +284,7 @@
         "standard_name": "Vitamin C",
         "canonical_id": "vitamin_c"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "The acidic gastric environment normally stabilizes vitamin C (ascorbic acid). Elevated gastric pH from acid suppression accelerates oxidation of ascorbic acid to dehydroascorbic acid, reducing its bioavailability. Gastric secretion of vitamin C is also reduced.",
       "clinical_impact": "Mild vitamin C depletion may impair immune function, collagen synthesis, and antioxidant defenses. The clinical significance is generally modest in individuals with adequate dietary intake.",
@@ -289,6 +317,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Zinc absorption from food is partially dependent on gastric acid solubilization. Elevated gastric pH impairs the release of zinc from food-bound complexes, reducing bioavailability of dietary zinc.",
       "clinical_impact": "Zinc deficiency affects immune function, wound healing, taste and smell, and reproductive health. Long-term marginal zinc depletion is most concerning in elderly patients with already-borderline intake.",
@@ -321,6 +350,7 @@
         "standard_name": "Vitamin B12",
         "canonical_id": "vitamin_b12"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Metformin impairs B12 absorption by interfering with a calcium-dependent intrinsic factor-B12 receptor complex on the ileal mucosa. This disrupts the final step of B12 uptake from the small intestine. The effect is dose-dependent and reverses with calcium supplementation in some patients.",
       "clinical_impact": "Up to 30% of long-term metformin users develop B12 deficiency. This causes peripheral neuropathy (which may be misattributed to diabetic neuropathy), megaloblastic anemia, and cognitive changes. Deficiency may develop insidiously over years.",
@@ -363,6 +393,7 @@
         "standard_name": "Folate",
         "canonical_id": "folate"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Metformin may reduce plasma folate levels through inhibition of intestinal folate transport. Some studies also suggest AMPK activation by metformin alters folate-dependent one-carbon metabolism.",
       "clinical_impact": "Reduced folate elevates homocysteine, increasing cardiovascular risk, and may impair DNA methylation and cell division. Particularly important in women of childbearing age (neural tube defect risk).",
@@ -400,6 +431,7 @@
         "standard_name": "Vitamin B6",
         "canonical_id": "vitamin_b6"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Estrogen in oral contraceptives increases tryptophan oxygenase activity, shunting tryptophan toward kynurenine pathway metabolism, which increases demand for vitamin B6 as a cofactor. This accelerated B6 utilization depletes plasma pyridoxal phosphate levels.",
       "clinical_impact": "B6 deficiency causes depression, irritability, cognitive changes, peripheral neuropathy, and impaired immune function. The mood symptoms associated with some OCP use may partly reflect B6 depletion.",
@@ -432,6 +464,7 @@
         "standard_name": "Vitamin B12",
         "canonical_id": "vitamin_b12"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Oral contraceptives appear to reduce serum B12 by lowering plasma binding proteins (transcobalamin I and II), redistributing B12 into tissues and reducing measured serum levels. Intestinal absorption is not significantly impaired.",
       "clinical_impact": "Low serum B12, even if partially artifactual from protein binding changes, may contribute to fatigue, mood disturbances, and elevated homocysteine. Women planning pregnancy after stopping OCPs should ensure B12 repletion.",
@@ -464,6 +497,7 @@
         "standard_name": "Folate",
         "canonical_id": "folate"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Estrogen components of OCPs impair folate metabolism and reduce serum folate levels. The mechanism involves altered folate binding protein expression and possibly impaired intestinal folate absorption.",
       "clinical_impact": "Folate depletion increases homocysteine and neural tube defect risk. Women stopping OCPs who become pregnant within months may have insufficient folate stores during critical early fetal development.",
@@ -496,6 +530,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Estrogen and progesterone in OCPs promote cellular uptake and urinary excretion of magnesium, resulting in lower plasma magnesium levels. Hormonal effects on renal magnesium handling are also implicated.",
       "clinical_impact": "Magnesium deficiency contributes to muscle cramps, headaches/migraines, anxiety, poor sleep, and insulin resistance. Low magnesium is also associated with worsening PMS symptoms.",
@@ -528,6 +563,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Estrogens increase plasma zinc-binding proteins, redistributing zinc from plasma to tissues and reducing measurable serum zinc. Urinary zinc excretion may also increase with estrogen use.",
       "clinical_impact": "Reduced zinc availability affects immune function, skin health, wound healing, and hormonal balance. Zinc is also important for reproductive health when planning pregnancy after stopping OCPs.",
@@ -560,6 +596,7 @@
         "standard_name": "Vitamin C",
         "canonical_id": "vitamin_c"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Estrogens increase the rate of vitamin C catabolism and may compete with vitamin C for cellular transport via SVCT transporters. Plasma ascorbic acid levels are consistently lower in OCP users.",
       "clinical_impact": "Mild reduction in vitamin C status may subtly impair antioxidant defenses and collagen synthesis. The clinical significance is typically modest in women with adequate dietary intake.",
@@ -592,6 +629,7 @@
         "standard_name": "Vitamin E",
         "canonical_id": "vitamin_e"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "OCP use is associated with lower plasma alpha-tocopherol levels, possibly due to increased oxidative stress from estrogen-driven lipid peroxidation consuming vitamin E as a fat-soluble antioxidant.",
       "clinical_impact": "Mild vitamin E reduction has limited overt clinical symptoms but may contribute to increased oxidative stress and slightly impaired immune response over time.",
@@ -624,6 +662,7 @@
         "standard_name": "Potassium",
         "canonical_id": "potassium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Loop diuretics (furosemide, bumetanide) and thiazide diuretics (hydrochlorothiazide, chlorthalidone) increase urine volume and renal potassium wasting. They inhibit sodium reabsorption, which increases tubular flow and potassium secretion in the collecting duct.",
       "clinical_impact": "Hypokalemia causes muscle weakness, leg cramps, fatigue, constipation, and dangerously abnormal heart rhythms (arrhythmias). Particularly serious in patients also taking digoxin, where hypokalemia increases toxicity risk.",
@@ -655,6 +694,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Loop and thiazide diuretics increase renal magnesium excretion by inhibiting magnesium reabsorption in the thick ascending limb of Henle and distal tubule. The increased tubular flow rate also washes out magnesium.",
       "clinical_impact": "Magnesium depletion makes potassium replacement difficult (refractory hypokalemia) and increases arrhythmia risk. Muscle cramps, weakness, and tremors are common symptoms.",
@@ -687,6 +727,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Increased urinary volume from diuretics enhances renal zinc excretion. Thiazide diuretics also reduce proximal tubular zinc reabsorption. Cumulative urinary zinc losses over time deplete body stores.",
       "clinical_impact": "Zinc deficiency impairs wound healing, immune function, taste acuity, and testosterone production. Particularly relevant in elderly patients on long-term diuretics who already have borderline zinc intake.",
@@ -719,6 +760,7 @@
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Loop diuretics (furosemide, torsemide, ethacrynic acid) inhibit the NKCC2 transporter in the thick ascending limb, which is also required for calcium reabsorption, causing substantial urinary calcium losses. Note: thiazide diuretics spare calcium (may actually increase retention).",
       "clinical_impact": "Chronic calcium wasting from loop diuretics increases risk of osteoporosis and fractures, particularly in elderly patients. It also contributes to hypocalcemia in susceptible individuals.",
@@ -751,6 +793,7 @@
         "standard_name": "Thiamin",
         "canonical_id": "thiamin"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Furosemide (loop diuretic) significantly increases renal thiamine excretion through urinary losses. The mechanism involves displacement of thiamine from plasma protein binding and increased proximal tubular secretion. Chronic high-dose furosemide use commonly produces thiamine deficiency.",
       "clinical_impact": "Thiamine deficiency in heart failure patients on furosemide causes Wernicke encephalopathy risk, worsens cardiac function (wet beriberi contributes to heart failure), and may worsen prognosis. This depletion is clinically significant and underrecognized.",
@@ -783,6 +826,7 @@
         "standard_name": "Folate",
         "canonical_id": "folate"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Triamterene (a potassium-sparing diuretic) is a structural analog of folate and acts as a dihydrofolate reductase inhibitor, impairing folate metabolism. It also reduces renal tubular reabsorption of folate.",
       "clinical_impact": "Folate depletion causes elevated homocysteine, increased cardiovascular risk, megaloblastic anemia, and is particularly dangerous in pregnant women (neural tube defects). The combination of triamterene with methotrexate is especially hazardous.",
@@ -815,6 +859,7 @@
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Corticosteroids reduce intestinal calcium absorption by suppressing active vitamin D-dependent transport, increase renal calcium excretion, and directly inhibit osteoblast function. They also stimulate parathyroid hormone, increasing bone resorption.",
       "clinical_impact": "Glucocorticoid-induced osteoporosis is the most common form of secondary osteoporosis. Even short courses increase fracture risk. Vertebral fractures can occur within 3–6 months of high-dose therapy.",
@@ -847,6 +892,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Corticosteroids accelerate hepatic catabolism of 25-hydroxyvitamin D by inducing CYP24A1. They also reduce expression of the vitamin D receptor in intestinal cells, blunting calcitriol-driven calcium absorption.",
       "clinical_impact": "Vitamin D deficiency worsens corticosteroid-induced osteoporosis, impairs immune regulation, and contributes to muscle weakness. Low vitamin D is independently associated with poor outcomes in inflammatory diseases treated with steroids.",
@@ -879,6 +925,7 @@
         "standard_name": "Potassium",
         "canonical_id": "potassium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Corticosteroids, particularly those with mineralocorticoid activity (prednisone, hydrocortisone), increase sodium retention and potassium excretion in the kidney through activation of aldosterone receptors in the collecting duct.",
       "clinical_impact": "Hypokalemia causes muscle weakness, fatigue, leg cramps, constipation, and cardiac arrhythmias. Risk is highest with high-dose or long-term therapy and with drugs having significant mineralocorticoid activity.",
@@ -910,6 +957,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Corticosteroids increase renal magnesium excretion through aldosterone-like effects on tubular transport. Reduced intestinal magnesium absorption has also been documented.",
       "clinical_impact": "Magnesium depletion worsens muscle weakness, increases muscle cramp frequency, impairs bone metabolism, and can cause refractory hypokalemia by impairing potassium retention.",
@@ -942,6 +990,7 @@
         "standard_name": "Vitamin C",
         "canonical_id": "vitamin_c"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Physiological and pharmacological stress states (including corticosteroid use) markedly increase vitamin C utilization. Corticosteroids may also increase vitamin C catabolism and excretion by the adrenal glands, which require vitamin C for cortisol synthesis.",
       "clinical_impact": "Vitamin C depletion impairs collagen synthesis (worsening skin thinning — already a side effect of steroids), reduces immune defense, and increases oxidative damage. Wound healing is compromised.",
@@ -974,6 +1023,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Corticosteroids increase urinary zinc excretion through mechanisms that include altered zinc transporter expression and reduced tubular reabsorption. They also impair metallothionein-mediated zinc storage.",
       "clinical_impact": "Zinc depletion impairs wound healing, immune function, and skin integrity. Particularly relevant given that skin thinning and impaired wound healing are already recognized corticosteroid side effects.",
@@ -1006,6 +1056,7 @@
         "standard_name": "Vitamin B6",
         "canonical_id": "vitamin_b6"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Corticosteroids alter tryptophan-kynurenine pathway metabolism in a manner similar to estrogens, increasing demand for vitamin B6 as a cofactor. Increased hepatic tryptophan oxygenase activity depletes pyridoxal phosphate.",
       "clinical_impact": "B6 deficiency may contribute to mood changes, impaired immune function, and peripheral neuropathy — all concerns in patients on systemic corticosteroids.",
@@ -1038,6 +1089,7 @@
         "standard_name": "Sodium",
         "canonical_id": "sodium"
       },
+      "depletion_type": "monitoring_stability",
       "severity": "significant",
       "mechanism": "SSRIs can cause Syndrome of Inappropriate Antidiuretic Hormone secretion (SIADH), leading to increased water retention and dilutional hyponatremia. Serotonin directly stimulates ADH release from the hypothalamus.",
       "clinical_impact": "Hyponatremia causes nausea, headache, confusion, seizures, and in severe cases coma. Elderly patients and those on diuretics are at highest risk. Onset is often within the first few weeks of treatment.",
@@ -1068,6 +1120,7 @@
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Serotonin signaling (via 5-HT2A receptors on osteoclasts) regulates bone remodeling. SSRI-induced chronic elevation of serotonin activity increases osteoclast activation and bone resorption, leading to measurable decreases in bone density over time.",
       "clinical_impact": "Long-term SSRI use is associated with significantly decreased bone mineral density and increased fracture risk, particularly in elderly women. Calcium depletion from bone contributes to this risk.",
@@ -1100,6 +1153,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "condition_related",
       "severity": "moderate",
       "mechanism": "The bone density effects of SSRIs increase vitamin D demand for calcium regulation. Additionally, depression itself is associated with vitamin D deficiency, and lifestyle factors in depressed patients (reduced sun exposure, poor diet) may compound the association.",
       "clinical_impact": "Low vitamin D worsens depression outcomes (inverse relationship between vitamin D and depression is well-documented), creates a reinforcing cycle, and compounds SSRI-related bone density effects.",
@@ -1132,6 +1186,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Enzyme-inducing antiepileptic drugs (phenytoin, carbamazepine, phenobarbital, primidone) induce hepatic CYP enzymes that accelerate catabolism of 25-hydroxyvitamin D and 1,25-dihydroxyvitamin D, reducing circulating levels. Non-enzyme-inducers (valproate, lamotrigine) also reduce vitamin D through less-defined mechanisms.",
       "clinical_impact": "Vitamin D deficiency from AEDs causes bone disease (osteomalacia, osteoporosis), increased fracture risk, muscle weakness, and secondary hyperparathyroidism. This is a well-recognized AED complication.",
@@ -1164,6 +1219,7 @@
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Secondary to vitamin D depletion: reduced vitamin D impairs intestinal calcium absorption and increases PTH-driven bone resorption. Phenytoin also directly inhibits intestinal calcium transport independent of vitamin D.",
       "clinical_impact": "Hypocalcemia and metabolic bone disease (anticonvulsant osteomalacia) are well-documented. Risk of fragility fractures is significantly elevated, especially in institutionalized or immobile patients on multiple AEDs.",
@@ -1196,6 +1252,7 @@
         "standard_name": "Folate",
         "canonical_id": "folate"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Phenytoin, carbamazepine, and valproate impair folate absorption and metabolism through multiple mechanisms: inhibiting intestinal folate conjugase, competing with folate transport, inhibiting dihydrofolate reductase, and accelerating hepatic folate catabolism via CYP induction.",
       "clinical_impact": "Folate deficiency causes megaloblastic anemia, elevated homocysteine, increased cardiovascular risk, and neural tube defects in offspring. Paradoxically, high-dose folate supplementation can reduce phenytoin efficacy, requiring careful management.",
@@ -1228,6 +1285,7 @@
         "standard_name": "Vitamin B12",
         "canonical_id": "vitamin_b12"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Some AEDs, particularly valproate and phenytoin, may reduce vitamin B12 absorption or impair its utilization. Enzyme-inducing AEDs may also increase B12 catabolism. Additionally, concurrent folate deficiency can mask B12 deficiency in lab values.",
       "clinical_impact": "B12 deficiency contributes to peripheral neuropathy, cognitive changes, and megaloblastic anemia. Particularly concerning when combined with folate depletion by the same drug class.",
@@ -1260,6 +1318,7 @@
         "standard_name": "Vitamin K",
         "canonical_id": "vitamin_k"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Enzyme-inducing AEDs (phenytoin, carbamazepine, phenobarbital) accelerate hepatic metabolism of vitamin K via CYP2C9 induction, reducing vitamin K-dependent clotting factor synthesis. This is critical in pregnant women on these drugs.",
       "clinical_impact": "Neonatal hemorrhagic disease of the newborn is a well-documented risk when mothers take enzyme-inducing AEDs during pregnancy. Maternal bone health is also affected as vitamin K is required for osteocalcin carboxylation.",
@@ -1290,6 +1349,7 @@
         "standard_name": "Biotin",
         "canonical_id": "biotin"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Valproic acid and carbamazepine impair biotin absorption from the gut, accelerate biotin catabolism via beta-oxidation of the valproyl side chain, and may compete with biotin for intestinal transport. They also impair biotinidase activity needed for biotin recycling.",
       "clinical_impact": "Biotin deficiency causes hair loss, skin rash, neurological symptoms (depression, hallucinations, numbness), and impaired glucose metabolism. Symptoms can mimic other conditions and may be overlooked.",
@@ -1322,6 +1382,7 @@
         "standard_name": "L-Carnitine",
         "canonical_id": "l_carnitine"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Valproic acid (valproate) forms acylcarnitine conjugates that are excreted renally, directly depleting carnitine stores. It also inhibits carnitine biosynthesis and transport. Plasma and tissue carnitine levels can fall significantly with long-term valproate therapy.",
       "clinical_impact": "Carnitine depletion from valproate impairs mitochondrial fatty acid oxidation, contributing to hepatotoxicity (Reye-like syndrome), hyperammonemia, and metabolic encephalopathy. Life-threatening in rare cases, especially in children.",
@@ -1354,6 +1415,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "ACE inhibitors chelate zinc ions (zinc is a cofactor at the ACE active site, and the drugs bind it). This binding increases urinary zinc excretion. Captopril in particular has strong zinc-chelating properties due to its sulfhydryl group.",
       "clinical_impact": "Zinc deficiency may contribute to ACE inhibitor-induced side effects including loss of taste (dysgeusia) and cough. Long-term zinc depletion impairs immune function, wound healing, and testosterone levels.",
@@ -1386,6 +1448,7 @@
         "standard_name": "Coenzyme Q10",
         "canonical_id": "coenzyme_q10"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Beta blockers may inhibit mitochondrial enzymes involved in CoQ10 synthesis and utilization, including NADH-CoQ reductase and succinate-CoQ reductase. Propranolol and metoprolol have been specifically studied. The depletion appears less pronounced than with statins.",
       "clinical_impact": "Reduced CoQ10 may contribute to fatigue, exercise intolerance, and worsened cardiac energy metabolism — effects that compound the intrinsic negative chronotropic/inotropic effects of beta blockers.",
@@ -1423,6 +1486,7 @@
         "standard_name": "Melatonin",
         "canonical_id": "melatonin"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Melatonin synthesis in the pineal gland requires beta-adrenergic stimulation to activate arylalkylamine N-acetyltransferase (AANAT). Beta blockers block beta-1 and beta-2 adrenergic receptors on pinealocytes, suppressing the nocturnal melatonin surge by up to 50% or more.",
       "clinical_impact": "Melatonin suppression from beta blockers is a common cause of drug-induced insomnia and sleep disturbance. Patients frequently report difficulty falling or staying asleep, which may be misattributed to anxiety or the underlying condition.",
@@ -1453,6 +1517,7 @@
         "standard_name": "Folate",
         "canonical_id": "folate"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Some NSAIDs, particularly high-dose aspirin and sulindac, inhibit dihydrofolate reductase at high concentrations and may displace folate from plasma binding proteins, increasing urinary excretion. Regular NSAID use may impair intestinal folate transport.",
       "clinical_impact": "Mild folate reduction may elevate homocysteine over time, increasing cardiovascular risk. The effect is most clinically significant with chronic high-dose NSAID use.",
@@ -1485,6 +1550,7 @@
         "standard_name": "Iron",
         "canonical_id": "iron"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "NSAIDs inhibit prostaglandin synthesis, which reduces the protective mucous layer of the GI tract, leading to mucosal erosion, ulceration, and occult or overt GI bleeding. Chronic blood loss depletes iron stores. Even small amounts of daily bleeding accumulate over time.",
       "clinical_impact": "Chronic NSAID-induced GI bleeding is a leading cause of iron deficiency anemia in older adults. The bleeding may be occult (no visible blood in stool) and go undetected for months while iron stores are depleted.",
@@ -1517,6 +1583,7 @@
         "standard_name": "Vitamin C",
         "canonical_id": "vitamin_c"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Aspirin and other salicylates compete with vitamin C for renal tubular reabsorption, increasing urinary vitamin C excretion. Aspirin also increases leukocyte turnover (cells rich in vitamin C) and promotes oxidative conditions that consume ascorbate.",
       "clinical_impact": "Chronic aspirin use can cause vitamin C depletion that may impair antioxidant defenses, collagen synthesis, and immune function. This is particularly relevant for elderly patients on daily low-dose aspirin who also have marginal dietary vitamin C intake.",
@@ -1549,6 +1616,7 @@
         "standard_name": "Vitamin B12",
         "canonical_id": "vitamin_b12"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Gut bacteria synthesize modest amounts of B vitamins including B12, biotin, folate, riboflavin, and pantothenic acid. Broad-spectrum antibiotics disrupt the intestinal microbiome, transiently reducing bacterial B vitamin synthesis. The primary B vitamin source is dietary, so the impact is most significant in individuals with marginal dietary intake.",
       "clinical_impact": "Short-course antibiotics rarely cause clinically significant B12 depletion in well-nourished individuals. The effect is more concerning with repeated or prolonged antibiotic courses, in elderly patients, and those with inadequate dietary B vitamin intake.",
@@ -1581,6 +1649,7 @@
         "standard_name": "Vitamin K",
         "canonical_id": "vitamin_k"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Intestinal bacteria (particularly gram-positive anaerobes like Bacteroides and Prevotella) synthesize menaquinone (vitamin K2), which contributes to vitamin K status. Antibiotics that disrupt these populations reduce endogenous vitamin K2 synthesis. This effect is most significant for individuals on warfarin or with marginal dietary vitamin K1 intake.",
       "clinical_impact": "Antibiotic-induced vitamin K reduction can potentiate anticoagulation in warfarin users, leading to dangerously elevated INR and bleeding risk. In non-anticoagulated patients the effect is generally modest.",
@@ -1611,6 +1680,7 @@
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
+      "depletion_type": "supplement_interaction",
       "severity": "moderate",
       "mechanism": "Calcium supplements and calcium-rich foods bind levothyroxine in the gastrointestinal tract through a direct physicochemical interaction, reducing drug absorption rather than depleting body calcium stores. Hyperthyroid states (levothyroxine excess) also increase bone turnover and urinary calcium loss.",
       "clinical_impact": "Co-administration of calcium with levothyroxine reduces thyroid hormone absorption by up to 40%, leading to inadequate thyroid control and hypothyroid symptoms. Additionally, excessive thyroid hormone (over-replacement) directly increases bone resorption and fracture risk.",
@@ -1643,6 +1713,7 @@
         "standard_name": "Iron",
         "canonical_id": "iron"
       },
+      "depletion_type": "supplement_interaction",
       "severity": "moderate",
       "mechanism": "Iron supplements form insoluble chelation complexes with levothyroxine in the gut, reducing levothyroxine absorption by up to 30–45%. This is a drug-nutrient interaction affecting drug bioavailability rather than a direct iron depletion. Hypothyroid states also impair iron absorption by reducing gastric acid secretion.",
       "clinical_impact": "Co-administration leads to inadequate thyroid hormone levels (persistent hypothyroid symptoms) and poor thyroid control. Iron deficiency anemia itself impairs thyroid hormone synthesis by reducing the heme-containing thyroperoxidase enzyme activity.",
@@ -1675,6 +1746,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "condition_related",
       "severity": "moderate",
       "mechanism": "Atypical antipsychotics promote weight gain and metabolic syndrome, which are associated with reduced vitamin D bioavailability (vitamin D is sequestered in adipose tissue). Sedation and reduced outdoor activity decrease sun exposure and cutaneous vitamin D synthesis.",
       "clinical_impact": "Vitamin D deficiency is highly prevalent in patients on antipsychotics and is associated with metabolic syndrome, depression, immune dysfunction, and bone loss — all already increased by antipsychotic therapy.",
@@ -1707,6 +1779,7 @@
         "standard_name": "Coenzyme Q10",
         "canonical_id": "coenzyme_q10"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Several antipsychotic drugs have been shown to inhibit mitochondrial Complex I activity and reduce CoQ10-dependent electron transport chain function. This may contribute to antipsychotic-induced metabolic side effects and fatigue.",
       "clinical_impact": "Reduced CoQ10 availability may worsen antipsychotic-induced fatigue and contribute to the metabolic and mitochondrial dysfunction increasingly recognized with these medications.",
@@ -1739,6 +1812,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Stimulants increase sympathetic nervous system activity and catecholamine release, which promote urinary magnesium excretion. Appetite suppression (a common stimulant side effect) also reduces dietary magnesium intake.",
       "clinical_impact": "Magnesium deficiency exacerbates hyperactivity, impulsivity, anxiety, and sleep disturbance — the very symptoms being treated in ADHD patients. Low magnesium also worsens insomnia, a common complaint with stimulant therapy.",
@@ -1771,6 +1845,7 @@
         "standard_name": "Vitamin C",
         "canonical_id": "vitamin_c"
       },
+      "depletion_type": "supplement_interaction",
       "severity": "mild",
       "mechanism": "Acidic urine (created by vitamin C supplementation) increases renal excretion of amphetamines by ion trapping, effectively reducing their bioavailability and duration of action. Conversely, vitamin C is not depleted by stimulants, but the interaction can reduce stimulant efficacy. This is an absorption/efficacy interaction rather than a true depletion.",
       "clinical_impact": "Taking high-dose vitamin C within 1–2 hours of amphetamine-based medications can reduce drug absorption and efficacy by up to 50% via pH-dependent ion trapping in the gut and accelerated renal elimination.",
@@ -1801,6 +1876,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "HIV protease inhibitors, particularly ritonavir-boosted regimens, inhibit CYP3A4-mediated vitamin D activation and may also directly impair 25-hydroxylation of vitamin D in the liver. HIV infection itself and immune activation independently reduce vitamin D levels.",
       "clinical_impact": "Vitamin D deficiency is nearly universal in HIV patients on protease inhibitors and contributes to bone disease (osteopenia, osteoporosis), immune dysfunction, increased infection risk, and metabolic complications including insulin resistance.",
@@ -1833,6 +1909,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "condition_related",
       "severity": "moderate",
       "mechanism": "HIV infection causes systemic zinc depletion through increased urinary losses, impaired intestinal absorption, and redistribution of zinc as part of the acute phase response. Protease inhibitors may compound this through GI side effects that reduce dietary zinc absorption.",
       "clinical_impact": "Zinc deficiency is associated with impaired immune function, increased HIV disease progression, poor wound healing, and diarrhea — a vicious cycle given that diarrhea (common with some antiretrovirals) further depletes zinc.",
@@ -1865,6 +1942,7 @@
         "standard_name": "Vitamin K",
         "canonical_id": "vitamin_k"
       },
+      "depletion_type": "functional_antagonism",
       "severity": "significant",
       "mechanism": "Warfarin inhibits vitamin K epoxide reductase (VKORC1), blocking the recycling of vitamin K from its epoxide form back to the active hydroquinone form. This functional depletion of active vitamin K prevents carboxylation of clotting factors II, VII, IX, and X, as well as proteins C and S. This is the intended pharmacological mechanism.",
       "clinical_impact": "While the depletion of active vitamin K is the therapeutic goal of warfarin, it also depletes vitamin K-dependent proteins involved in bone metabolism (osteocalcin, matrix Gla protein), potentially contributing to vascular calcification and osteoporosis with long-term use.",
@@ -1895,6 +1973,7 @@
         "standard_name": "Vitamin B6",
         "canonical_id": "vitamin_b6"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Some MAOIs, particularly hydrazine-based compounds (phenelzine), form hydrazones with pyridoxal phosphate (the active form of vitamin B6), inactivating it and promoting its urinary excretion. This mechanism is similar to isoniazid-induced B6 deficiency.",
       "clinical_impact": "B6 deficiency from hydrazine MAOIs can cause peripheral neuropathy, dermatitis, stomatitis, and mood disturbances. Phenelzine-induced B6 deficiency presenting as peripheral neuropathy is a recognized clinical problem.",
@@ -1932,6 +2011,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "condition_related",
       "severity": "moderate",
       "mechanism": "Type 2 diabetes itself is associated with hypomagnesemia through insulin resistance, glycosuria-induced osmotic diuresis, and altered renal handling of magnesium. Some diabetes medications (particularly insulin secretagogues) may compound this through improved glycemic control and resulting osmotic changes.",
       "clinical_impact": "Low magnesium in diabetic patients worsens insulin resistance, increases cardiovascular risk, and impairs glucose metabolism — potentially creating a worsening cycle. It also contributes to hypertension and neuropathy.",
@@ -1969,6 +2049,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Calcineurin inhibitors (tacrolimus, cyclosporine) directly inhibit renal tubular magnesium reabsorption by downregulating TRPM6/TRPM7 channels, leading to profound renal magnesium wasting. This is a recognized adverse effect of these immunosuppressants.",
       "clinical_impact": "Severe hypomagnesemia from calcineurin inhibitors causes muscle cramps, tremors, cardiac arrhythmias, and neurotoxicity (which can mimic or worsen the neurotoxicity of tacrolimus itself). Post-transplant hypomagnesemia is highly prevalent.",
@@ -2006,6 +2087,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Combined immunosuppressive regimens (often including steroids + calcineurin inhibitors) impair vitamin D via multiple pathways: accelerated hepatic catabolism by corticosteroids, reduced sun exposure from photosensitivity, impaired renal 1-alpha hydroxylation, and reduced dietary intake from medication-induced GI side effects.",
       "clinical_impact": "Vitamin D deficiency after organ transplant contributes to osteoporosis, increased fracture risk, immune dysregulation, and cardiovascular complications. Post-transplant bone disease is a major cause of morbidity.",
@@ -2038,6 +2120,7 @@
         "standard_name": "Potassium",
         "canonical_id": "potassium"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Calcium channel blockers may increase urinary potassium excretion through renal tubular effects on potassium secretion channels. The effect is generally mild compared to diuretics and is not consistently demonstrated across all agents in this class.",
       "clinical_impact": "The potassium-wasting effect is generally clinically minor unless combined with other potassium-depleting medications (loop/thiazide diuretics, corticosteroids). Monitoring is most important in patients on combination antihypertensive regimens.",
@@ -2069,6 +2152,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "depletion",
       "severity": "mild",
       "mechanism": "Several antihypertensive drug classes increase urinary zinc excretion. This is most documented with ACE inhibitors (via zinc chelation) and thiazide diuretics (via increased urinary volume). The combined effect of multi-drug antihypertensive regimens may produce clinically significant zinc depletion.",
       "clinical_impact": "Zinc deficiency impairs taste acuity (contributing to poor dietary compliance), immune function, wound healing, and sexual function — all concerns in the hypertensive patient population, which tends to be older.",
@@ -2101,6 +2185,7 @@
         "standard_name": "Coenzyme Q10",
         "canonical_id": "coenzyme_q10"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Hydralazine (a vasodilating antihypertensive) has been shown to deplete CoQ10 through uncertain mechanisms, possibly involving oxidative stress generation or inhibition of CoQ10 biosynthetic enzymes. This depletion may blunt its antihypertensive efficacy.",
       "clinical_impact": "CoQ10 supplementation has demonstrated blood pressure-lowering properties in clinical trials, and depletion may partially undermine treatment. Fatigue and reduced exercise tolerance are additional concerns.",
@@ -2133,6 +2218,7 @@
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
+      "depletion_type": "condition_related",
       "severity": "moderate",
       "mechanism": "Insulin promotes intracellular uptake of magnesium in muscle and adipose tissue, transiently lowering serum magnesium. In type 1 and insulin-treated type 2 diabetes, urinary magnesium losses are also elevated due to osmotic effects of glycosuria when control is suboptimal.",
       "clinical_impact": "Hypomagnesemia worsens insulin resistance, impairs insulin secretion, and increases cardiovascular risk — all concerns in patients dependent on insulin for glycemic control.",
@@ -2170,6 +2256,7 @@
         "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d"
       },
+      "depletion_type": "condition_related",
       "severity": "mild",
       "mechanism": "Barbiturates and long-acting benzodiazepines induce hepatic CYP enzymes that accelerate vitamin D catabolism. Sedation from these medications also reduces physical activity and outdoor sun exposure, further limiting cutaneous vitamin D synthesis.",
       "clinical_impact": "Chronic sedative use is associated with falls and fractures in elderly patients — vitamin D deficiency compounds fracture risk by reducing bone density and increasing fall propensity through muscle weakness.",
@@ -2202,6 +2289,7 @@
         "standard_name": "Melatonin",
         "canonical_id": "melatonin"
       },
+      "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Benzodiazepines alter circadian rhythm regulation by modulating GABA-A receptors in the suprachiasmatic nucleus (the brain's master clock), which suppresses normal nighttime melatonin secretion. This disrupts the natural sleep-wake cycle architecture.",
       "clinical_impact": "Benzodiazepine-induced suppression of melatonin disrupts the natural sleep architecture, contributing to dependence, rebound insomnia on discontinuation, and long-term circadian disruption. This is separate from the drug's direct sedative effect.",
@@ -2232,6 +2320,7 @@
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
+      "depletion_type": "supplement_interaction",
       "severity": "mild",
       "mechanism": "High-dose folic acid supplementation may compete with zinc for intestinal absorption via shared transport mechanisms. This interaction is most relevant when very high folic acid doses (>5 mg/day) are taken without balanced mineral supplementation.",
       "clinical_impact": "In populations with already marginal zinc intake (elderly, pregnant women), high folic acid could theoretically reduce zinc absorption enough to impair immune function and growth outcomes. Clinical significance at typical supplement doses (400–800 mcg) is low.",
@@ -2252,6 +2341,386 @@
       "monitoring_tip_short": "Consider a balanced multivitamin rather than high single-nutrient doses; check with your clinician.",
       "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+    },
+    {
+      "id": "DEP_ISONIAZID_VITAMINB6",
+      "drug_ref": {
+        "type": "drug",
+        "id": "6038",
+        "display_name": "Isoniazid (tuberculosis medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B6",
+        "canonical_id": "vitamin_b6"
+      },
+      "depletion_type": "depletion",
+      "severity": "significant",
+      "mechanism": "Isoniazid binds and inactivates pyridoxal phosphate, the active coenzyme form of vitamin B6, and increases urinary loss of pyridoxine metabolites. This can lower functional B6 status during tuberculosis therapy.",
+      "clinical_impact": "Low vitamin B6 during isoniazid therapy can contribute to peripheral neuropathy, tingling, burning sensations, and rarely anemia or neuropsychiatric symptoms. Higher-risk patients are often supplemented from the start.",
+      "recommendation": "Pyridoxine is commonly used with isoniazid, especially in people at higher neuropathy risk. Confirm the exact dose with the clinician managing tuberculosis therapy.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Ask about pyridoxine co-therapy if isoniazid is used long term or if neuropathy symptoms appear.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "PubMed — systematic review on anti-tuberculosis treatment and pyridoxine",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21477422/"
+        },
+        {
+          "source_type": "fda",
+          "label": "DailyMed — ISONIAZID prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6dab7b7b-a3a9-47ef-b423-134bc6970d8b"
+        }
+      ],
+      "alert_headline": "May lower vitamin B6 over time",
+      "alert_body": "Isoniazid can gradually lower active vitamin B6 over months, which is why clinicians often pair it with pyridoxine during TB treatment.",
+      "acknowledgement_note": "Good — vitamin B6 intake supports balance during isoniazid therapy.",
+      "monitoring_tip_short": "Consider asking your TB clinician whether pyridoxine is already included in your plan.",
+      "adequacy_threshold_mg": 25
+    },
+    {
+      "id": "DEP_METHOTREXATE_FOLATE",
+      "drug_ref": {
+        "type": "drug",
+        "id": "6851",
+        "display_name": "Methotrexate (antifolate medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Folate",
+        "canonical_id": "folate"
+      },
+      "depletion_type": "functional_antagonism",
+      "severity": "significant",
+      "mechanism": "Methotrexate is an antifolate drug that inhibits folate-dependent metabolic pathways, including dihydrofolate reductase-related recycling. In low-dose inflammatory disease treatment, folic acid is often used to reduce folate-mediated side effects.",
+      "clinical_impact": "Insufficient folate support during methotrexate therapy can contribute to mouth sores, nausea, liver-enzyme elevations, cytopenias, and treatment intolerance. The right schedule depends on the methotrexate regimen.",
+      "recommendation": "Folic acid or folinic acid support should be clinician-directed with methotrexate. Do not change the folate schedule without the prescriber, because timing and dose can matter.",
+      "onset_timeline": "weeks",
+      "evidence_level": "established",
+      "monitoring_note": "Review folate schedule, CBC, and liver-enzyme monitoring with the methotrexate prescriber.",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "PubMed — folate supplementation with methotrexate in rheumatoid arthritis",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18020507/"
+        }
+      ],
+      "alert_headline": "Methotrexate changes folate pathways",
+      "alert_body": "Methotrexate works on folate-dependent pathways over time, so folic acid is often managed as part of the treatment plan rather than added casually.",
+      "acknowledgement_note": "Good — folate intake is worth tracking while your clinician manages methotrexate therapy.",
+      "monitoring_tip_short": "Consider confirming your exact folic-acid schedule with the clinician who prescribes methotrexate."
+    },
+    {
+      "id": "DEP_ORLISTAT_VITAMINA",
+      "drug_ref": {
+        "type": "drug",
+        "id": "37925",
+        "display_name": "Orlistat (fat-blocking weight-loss medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin A",
+        "canonical_id": "vitamin_a"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Orlistat inhibits gastrointestinal lipases and reduces absorption of dietary fat. Because Vitamin A is fat-soluble, lower fat absorption can reduce uptake unless vitamin intake is separated from the orlistat dose.",
+      "clinical_impact": "Lower Vitamin A absorption can matter during long-term orlistat use, especially when dietary intake is marginal or when other conditions already affect fat absorption.",
+      "recommendation": "Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check Vitamin A status if orlistat is used long term or if fat-soluble vitamin intake is low.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — XENICAL (orlistat) prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e"
+        }
+      ],
+      "alert_headline": "May lower vitamin A absorption",
+      "alert_body": "Orlistat can gradually reduce absorption of Vitamin A over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
+      "acknowledgement_note": "Good — vitamin A intake helps cover the fat-soluble vitamin gap during orlistat use.",
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+    },
+    {
+      "id": "DEP_ORLISTAT_VITAMIND",
+      "drug_ref": {
+        "type": "drug",
+        "id": "37925",
+        "display_name": "Orlistat (fat-blocking weight-loss medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Orlistat inhibits gastrointestinal lipases and reduces absorption of dietary fat. Because Vitamin D is fat-soluble, lower fat absorption can reduce uptake unless vitamin intake is separated from the orlistat dose.",
+      "clinical_impact": "Lower Vitamin D absorption can matter during long-term orlistat use, especially when dietary intake is marginal or when other conditions already affect fat absorption.",
+      "recommendation": "Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check Vitamin D status if orlistat is used long term or if fat-soluble vitamin intake is low.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — XENICAL (orlistat) prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e"
+        }
+      ],
+      "alert_headline": "May lower vitamin D absorption",
+      "alert_body": "Orlistat can gradually reduce absorption of Vitamin D over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
+      "acknowledgement_note": "Good — vitamin D intake helps cover the fat-soluble vitamin gap during orlistat use.",
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+    },
+    {
+      "id": "DEP_ORLISTAT_VITAMINE",
+      "drug_ref": {
+        "type": "drug",
+        "id": "37925",
+        "display_name": "Orlistat (fat-blocking weight-loss medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin E",
+        "canonical_id": "vitamin_e"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Orlistat inhibits gastrointestinal lipases and reduces absorption of dietary fat. Because Vitamin E is fat-soluble, lower fat absorption can reduce uptake unless vitamin intake is separated from the orlistat dose.",
+      "clinical_impact": "Lower Vitamin E absorption can matter during long-term orlistat use, especially when dietary intake is marginal or when other conditions already affect fat absorption.",
+      "recommendation": "Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check Vitamin E status if orlistat is used long term or if fat-soluble vitamin intake is low.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — XENICAL (orlistat) prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e"
+        }
+      ],
+      "alert_headline": "May lower vitamin E absorption",
+      "alert_body": "Orlistat can gradually reduce absorption of Vitamin E over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
+      "acknowledgement_note": "Good — vitamin E intake helps cover the fat-soluble vitamin gap during orlistat use.",
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+    },
+    {
+      "id": "DEP_ORLISTAT_VITAMINK",
+      "drug_ref": {
+        "type": "drug",
+        "id": "37925",
+        "display_name": "Orlistat (fat-blocking weight-loss medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin K",
+        "canonical_id": "vitamin_k"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Orlistat inhibits gastrointestinal lipases and reduces absorption of dietary fat. Because Vitamin K is fat-soluble, lower fat absorption can reduce uptake unless vitamin intake is separated from the orlistat dose.",
+      "clinical_impact": "Lower Vitamin K absorption can matter during long-term orlistat use, especially when dietary intake is marginal or when other conditions already affect fat absorption.",
+      "recommendation": "Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Check Vitamin K status if orlistat is used long term or if fat-soluble vitamin intake is low.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — XENICAL (orlistat) prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e"
+        }
+      ],
+      "alert_headline": "May lower vitamin K absorption",
+      "alert_body": "Orlistat can gradually reduce absorption of Vitamin K over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
+      "acknowledgement_note": "Good — steady vitamin K intake helps keep orlistat-related monitoring clearer.",
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+    },
+    {
+      "id": "DEP_SULFASALAZINE_FOLATE",
+      "drug_ref": {
+        "type": "drug",
+        "id": "9524",
+        "display_name": "Sulfasalazine (inflammatory bowel disease / arthritis medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Folate",
+        "canonical_id": "folate"
+      },
+      "depletion_type": "depletion",
+      "severity": "significant",
+      "mechanism": "Sulfasalazine can inhibit intestinal absorption and metabolism of folic acid. This can lower functional folate availability during long-term treatment, especially when baseline folate intake is marginal.",
+      "clinical_impact": "Lower folate status can contribute to mouth soreness, anemia, elevated homocysteine, and pregnancy-related neural tube risk. This matters most with long-term therapy or pregnancy planning.",
+      "recommendation": "Folate support should be clinician-directed with sulfasalazine, especially before pregnancy or during long-term use. Confirm the form and dose with the prescriber.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Review folate status and pregnancy planning needs with the clinician managing sulfasalazine.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — SULFASALAZINE prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=48fbc535-a33a-45ee-85ff-9d1ec9b31d9c"
+        }
+      ],
+      "alert_headline": "May lower folate over time",
+      "alert_body": "Sulfasalazine can gradually reduce folate absorption and metabolism over months, so folate support is often worth reviewing during long-term use.",
+      "acknowledgement_note": "Good — folate intake supports balance during sulfasalazine therapy.",
+      "monitoring_tip_short": "Consider reviewing folate needs with your clinician, especially before pregnancy.",
+      "adequacy_threshold_mcg": 400
+    },
+    {
+      "id": "DEP_COLCHICINE_VITAMINB12",
+      "drug_ref": {
+        "type": "drug",
+        "id": "2683",
+        "display_name": "Colchicine (gout medication)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin B12",
+        "canonical_id": "vitamin_b12"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Colchicine can affect intestinal mucosal function and has been listed among medicines associated with vitamin B12 malabsorption. Long-term use may reduce B12 uptake in susceptible people.",
+      "clinical_impact": "Lower B12 status over time can contribute to anemia, neuropathy symptoms, fatigue, and cognitive changes. Risk is higher when other B12 absorption risks are present.",
+      "recommendation": "Consider periodic B12 monitoring during long-term colchicine therapy, especially if neuropathy symptoms, anemia, or additional B12 risk factors are present.",
+      "onset_timeline": "months",
+      "evidence_level": "probable",
+      "monitoring_note": "Ask about B12 testing if colchicine is used chronically or if neuropathy symptoms develop.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — Cyanocobalamin label, B12 malabsorption causes",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=9172ca9d-6419-41de-829c-4f9a16220b46"
+        }
+      ],
+      "alert_headline": "May affect B12 absorption over time",
+      "alert_body": "With long-term colchicine use, vitamin B12 absorption can gradually become less reliable over months, especially when other B12 risks are present.",
+      "acknowledgement_note": "Good — vitamin B12 intake supports balance during long-term colchicine therapy.",
+      "monitoring_tip_short": "Consider asking about B12 testing if colchicine is part of your long-term plan.",
+      "adequacy_threshold_mcg": 250
+    },
+    {
+      "id": "DEP_CHOLESTYRAMINE_VITAMINA",
+      "drug_ref": {
+        "type": "drug",
+        "id": "2447",
+        "display_name": "Cholestyramine (bile-acid sequestrant)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin A",
+        "canonical_id": "vitamin_a"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Cholestyramine binds bile acids in the gut and can interfere with fat digestion and absorption. Because Vitamin A is fat-soluble, long-term bile-acid binding can reduce absorption unless vitamin timing is managed.",
+      "clinical_impact": "Lower Vitamin A absorption can matter during long-term cholestyramine use, especially when diet is marginal, fat absorption is already impaired, or pregnancy/nutrition needs are higher.",
+      "recommendation": "Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider Vitamin A monitoring during long-term or high-dose cholestyramine therapy.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — CHOLESTYRAMINE prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe"
+        }
+      ],
+      "alert_headline": "May lower vitamin A absorption",
+      "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin A over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
+      "acknowledgement_note": "Good — vitamin A intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
+    },
+    {
+      "id": "DEP_CHOLESTYRAMINE_VITAMIND",
+      "drug_ref": {
+        "type": "drug",
+        "id": "2447",
+        "display_name": "Cholestyramine (bile-acid sequestrant)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin D",
+        "canonical_id": "vitamin_d"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Cholestyramine binds bile acids in the gut and can interfere with fat digestion and absorption. Because Vitamin D is fat-soluble, long-term bile-acid binding can reduce absorption unless vitamin timing is managed.",
+      "clinical_impact": "Lower Vitamin D absorption can matter during long-term cholestyramine use, especially when diet is marginal, fat absorption is already impaired, or pregnancy/nutrition needs are higher.",
+      "recommendation": "Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider Vitamin D monitoring during long-term or high-dose cholestyramine therapy.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — CHOLESTYRAMINE prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe"
+        }
+      ],
+      "alert_headline": "May lower vitamin D absorption",
+      "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin D over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
+      "acknowledgement_note": "Good — vitamin D intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
+    },
+    {
+      "id": "DEP_CHOLESTYRAMINE_VITAMINE",
+      "drug_ref": {
+        "type": "drug",
+        "id": "2447",
+        "display_name": "Cholestyramine (bile-acid sequestrant)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin E",
+        "canonical_id": "vitamin_e"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Cholestyramine binds bile acids in the gut and can interfere with fat digestion and absorption. Because Vitamin E is fat-soluble, long-term bile-acid binding can reduce absorption unless vitamin timing is managed.",
+      "clinical_impact": "Lower Vitamin E absorption can matter during long-term cholestyramine use, especially when diet is marginal, fat absorption is already impaired, or pregnancy/nutrition needs are higher.",
+      "recommendation": "Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider Vitamin E monitoring during long-term or high-dose cholestyramine therapy.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — CHOLESTYRAMINE prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe"
+        }
+      ],
+      "alert_headline": "May lower vitamin E absorption",
+      "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin E over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
+      "acknowledgement_note": "Good — vitamin E intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
+    },
+    {
+      "id": "DEP_CHOLESTYRAMINE_VITAMINK",
+      "drug_ref": {
+        "type": "drug",
+        "id": "2447",
+        "display_name": "Cholestyramine (bile-acid sequestrant)"
+      },
+      "depleted_nutrient": {
+        "standard_name": "Vitamin K",
+        "canonical_id": "vitamin_k"
+      },
+      "depletion_type": "depletion",
+      "severity": "moderate",
+      "mechanism": "Cholestyramine binds bile acids in the gut and can interfere with fat digestion and absorption. Because Vitamin K is fat-soluble, long-term bile-acid binding can reduce absorption unless vitamin timing is managed.",
+      "clinical_impact": "Lower Vitamin K absorption can matter during long-term cholestyramine use, especially when diet is marginal, fat absorption is already impaired, or pregnancy/nutrition needs are higher.",
+      "recommendation": "Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.",
+      "onset_timeline": "months",
+      "evidence_level": "established",
+      "monitoring_note": "Consider Vitamin K monitoring during long-term or high-dose cholestyramine therapy.",
+      "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed — CHOLESTYRAMINE prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe"
+        }
+      ],
+      "alert_headline": "May lower vitamin K absorption",
+      "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin K over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
+      "acknowledgement_note": "Good — steady vitamin K intake helps keep cholestyramine-related monitoring clearer.",
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
     }
   ]
 }

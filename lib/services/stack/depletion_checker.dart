@@ -1,13 +1,13 @@
-// Depletion Checker — matches user's medications against known
-// drug-induced nutrient depletions from medication_depletions.json
-// (schema v5.2).
+// Depletion Checker — matches user's medications against medication-
+// nutrient notes from medication_depletions.json
+// (schema v5.3).
 //
-// Depletion is chronic (onset months-to-years), not acute. The UI
-// tone is deliberately calm — depletion rules surface as "sharing,
-// not alarming." When the user's supplement stack already covers a
-// depleted nutrient, the card switches to a positive acknowledgement
-// ("Nice — you're taking B12, which doctors recommend for long-term
-// metformin users.").
+// Most rows are chronic depletions (onset months-to-years), but schema
+// v5.3 also distinguishes functional antagonism, monitoring/stability,
+// condition-related nutrient issues, and supplement interactions. The UI
+// tone is deliberately calm — rules surface as "sharing, not alarming."
+// When the user's supplement stack already covers a true depleted nutrient,
+// the card switches to positive acknowledgement copy.
 //
 // See scripts/SAFETY_DATA_PATH_C_PLAN.md in the pipeline repo for
 // the authored-copy contract and scripts/safety_copy_exemplars/
@@ -32,13 +32,19 @@ enum CoverageLevel {
       this == CoverageLevel.adequate || this == CoverageLevel.partial;
 }
 
-/// A matched depletion between a user's medication and a nutrient.
+/// A matched medication-nutrient note for a user's medication.
 class DepletionMatch {
   final String depletionId;
   final String drugDisplayName;
   final String drugClassId;
   final String nutrientName;
   final String nutrientCanonicalId;
+
+  /// Schema v5.3 taxonomy. True drug-induced nutrient depletion is only one
+  /// bucket; rows can also describe functional antagonism, monitoring/stability
+  /// notes, condition-related nutrient issues, or supplement interactions.
+  final String depletionType;
+
   final String severity;
 
   /// Clinical mechanism — surfaced only in an expandable "Why does this
@@ -112,6 +118,7 @@ class DepletionMatch {
     required this.drugClassId,
     required this.nutrientName,
     required this.nutrientCanonicalId,
+    this.depletionType = 'depletion',
     required this.severity,
     required this.mechanism,
     required this.recommendation,
@@ -150,11 +157,33 @@ class StackSupplementDose {
   });
 }
 
+/// Medication identity used by the depletion checker.
+///
+/// Depletion rows can be keyed to a generic drug RxCUI, while the user may
+/// add a brand or combination medication. Keep every resolved RxNorm identity
+/// in play so brand picks like Xenical can still match generic rows authored
+/// against orlistat.
+class DepletionMedicationIdentity {
+  final String name;
+  final String? rxcui;
+  final String? genericRxcui;
+  final List<String> ingredientRxcuis;
+  final List<String> drugClassIds;
+
+  const DepletionMedicationIdentity({
+    required this.name,
+    this.rxcui,
+    this.genericRxcui,
+    this.ingredientRxcuis = const [],
+    this.drugClassIds = const [],
+  });
+}
+
 class DepletionChecker {
-  /// Check user's medications against known depletions.
+  /// Check user's medications against known medication-nutrient notes.
   ///
   /// [medications] — user's stack entries of type 'medication'.
-  /// [depletionsData] — parsed `medication_depletions.json` (v5.2 shape).
+  /// [depletionsData] — parsed `medication_depletions.json` (v5.3 shape).
   /// [stackCanonicalIds] — set of canonical IDs from supplement stack,
   ///   used as the baseline coverage signal. Supply this when you only
   ///   have presence/absence data (no doses); results will be
@@ -166,6 +195,7 @@ class DepletionChecker {
   ///   below-threshold coverage.
   List<DepletionMatch> check({
     required List<({String name, String? drugClassId})> medications,
+    List<DepletionMedicationIdentity> medicationIdentities = const [],
     required Map<String, dynamic> depletionsData,
     Set<String> stackCanonicalIds = const {},
     List<StackSupplementDose> stackDoses = const [],
@@ -173,12 +203,36 @@ class DepletionChecker {
     final depletions = depletionsData['depletions'] as List? ?? [];
     final results = <DepletionMatch>[];
 
-    // Build a set of user's drug class IDs for matching.
+    // Build medication identity sets for matching. Keep the legacy
+    // `(name, drugClassId)` record input as a compatibility layer, but prefer
+    // [DepletionMedicationIdentity] for real app wiring because it carries
+    // brand/generic/ingredient RxCUIs.
+    final identities = <DepletionMedicationIdentity>[
+      for (final med in medications)
+        DepletionMedicationIdentity(
+          name: med.name,
+          drugClassIds: [
+            if (med.drugClassId != null && med.drugClassId!.isNotEmpty)
+              med.drugClassId!,
+          ],
+        ),
+      ...medicationIdentities,
+    ];
+
     final userDrugClassIds = <String>{};
     final userDrugNames = <String>{};
-    for (final med in medications) {
-      if (med.drugClassId != null && med.drugClassId!.isNotEmpty) {
-        userDrugClassIds.add(med.drugClassId!.toLowerCase());
+    final userDrugRxcuis = <String>{};
+    for (final med in identities) {
+      for (final id in med.drugClassIds) {
+        final normalized = id.trim().toLowerCase();
+        if (normalized.isNotEmpty) userDrugClassIds.add(normalized);
+      }
+      for (final id in [med.rxcui, med.genericRxcui, ...med.ingredientRxcuis]) {
+        final normalized = id?.trim();
+        if (normalized != null && normalized.isNotEmpty) {
+          userDrugRxcuis.add(normalized);
+          userDrugRxcuis.add(normalized.toLowerCase());
+        }
       }
       userDrugNames.add(med.name.toLowerCase());
     }
@@ -196,12 +250,23 @@ class DepletionChecker {
       if (dep is! Map<String, dynamic>) continue;
 
       final drugRef = dep['drug_ref'] as Map<String, dynamic>? ?? {};
-      final drugId = (drugRef['id']?.toString() ?? '').toLowerCase();
+      final drugIdRaw = drugRef['id']?.toString().trim() ?? '';
+      final drugId = drugIdRaw.toLowerCase();
+      final drugRefType = (drugRef['type']?.toString() ?? '').toLowerCase();
       final drugDisplayName = drugRef['display_name']?.toString() ?? '';
 
-      // Match by drug class ID or drug name substring
+      final isDrugRef =
+          drugRefType == 'drug' || RegExp(r'^\d+$').hasMatch(drugIdRaw);
+      final isClassRef = drugRefType == 'class' || drugId.startsWith('class:');
+
+      // Match by RxCUI, drug class ID, or legacy display-name substring.
       final matches =
-          userDrugClassIds.any((id) => drugId.contains(id)) ||
+          (isDrugRef && userDrugRxcuis.contains(drugIdRaw)) ||
+          (isDrugRef && userDrugRxcuis.contains(drugId)) ||
+          (isClassRef &&
+              userDrugClassIds.any(
+                (id) => drugId == id || drugId.contains(id),
+              )) ||
           userDrugNames.any(
             (name) =>
                 drugDisplayName.toLowerCase().contains(name) ||
@@ -224,14 +289,17 @@ class DepletionChecker {
 
       final adequacyMcg = _asNum(dep['adequacy_threshold_mcg']);
       final adequacyMg = _asNum(dep['adequacy_threshold_mg']);
+      final depletionType = _normalizeDepletionType(dep['depletion_type']);
 
-      final coverage = _resolveCoverage(
-        canonicalId: canonicalId,
-        coveredIds: coveredIdsLower,
-        dose: dosesByCid[canonicalId],
-        thresholdMcg: adequacyMcg,
-        thresholdMg: adequacyMg,
-      );
+      final coverage = _isSupplementCoverageRelevant(depletionType)
+          ? _resolveCoverage(
+              canonicalId: canonicalId,
+              coveredIds: coveredIdsLower,
+              dose: dosesByCid[canonicalId],
+              thresholdMcg: adequacyMcg,
+              thresholdMg: adequacyMg,
+            )
+          : CoverageLevel.none;
 
       results.add(
         DepletionMatch(
@@ -240,6 +308,7 @@ class DepletionChecker {
           drugClassId: drugId,
           nutrientName: nutrient['standard_name']?.toString() ?? '',
           nutrientCanonicalId: canonicalId,
+          depletionType: depletionType,
           severity: dep['severity']?.toString() ?? 'moderate',
           mechanism: dep['mechanism']?.toString() ?? '',
           recommendation: dep['recommendation']?.toString() ?? '',
@@ -354,5 +423,20 @@ class DepletionChecker {
     if (v is num) return v;
     if (v is String) return num.tryParse(v);
     return null;
+  }
+
+  static String _normalizeDepletionType(Object? raw) {
+    final value = raw?.toString().trim().toLowerCase();
+    return switch (value) {
+      'functional_antagonism' => 'functional_antagonism',
+      'monitoring_stability' => 'monitoring_stability',
+      'condition_related' => 'condition_related',
+      'supplement_interaction' => 'supplement_interaction',
+      _ => 'depletion',
+    };
+  }
+
+  static bool _isSupplementCoverageRelevant(String depletionType) {
+    return depletionType == 'depletion' || depletionType == 'condition_related';
   }
 }

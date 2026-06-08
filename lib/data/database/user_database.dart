@@ -124,6 +124,26 @@ class UserDatabase extends _$UserDatabase {
     return into(userStacksLocal).insert(item);
   }
 
+  /// Update resolved RxNorm identity fields for a local medication row.
+  ///
+  /// Medications are PHI and remain local-only; this method is used by the
+  /// background identity hydrator to repair rows saved while RxNorm was flaky.
+  Future<int> updateMedicationIdentity({
+    required String id,
+    String? genericRxcui,
+    String? drugClassesJson,
+    String? ingredientRxcuisJson,
+  }) {
+    return (update(userStacksLocal)..where((t) => t.id.equals(id))).write(
+      UserStacksLocalCompanion(
+        genericRxcui: Value(genericRxcui),
+        drugClassesCol: Value(drugClassesJson),
+        ingredientRxcuisCol: Value(ingredientRxcuisJson),
+        clientUpdatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   /// Soft-delete a stack item by setting [deletedAt].
   Future<void> removeFromStack(String id) {
     return (update(userStacksLocal)..where((t) => t.id.equals(id))).write(
@@ -229,9 +249,7 @@ class UserDatabase extends _$UserDatabase {
           ),
         );
       } else {
-        await (update(
-          failedScans,
-        )..where((t) => t.upc.equals(trimmed))).write(
+        await (update(failedScans)..where((t) => t.upc.equals(trimmed))).write(
           FailedScansCompanion(
             attemptCount: Value(existing.attemptCount + 1),
             lastSeen: Value(now),

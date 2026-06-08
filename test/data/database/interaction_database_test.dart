@@ -354,6 +354,16 @@ void main() {
       final members = await db.rxcuisForDrugClass('class:does_not_exist');
       expect(members, isEmpty);
     });
+
+    test('drugClassesForRxcui returns bundled class memberships', () async {
+      final classes = await db.drugClassesForRxcui('1998');
+      expect(classes, contains('class:ace_inhibitors'));
+    });
+
+    test('drugClassesForRxcui returns empty for unknown rxcui', () async {
+      final classes = await db.drugClassesForRxcui('00000000');
+      expect(classes, isEmpty);
+    });
   });
 
   group('getMetadata', () {

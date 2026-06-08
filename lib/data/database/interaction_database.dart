@@ -336,6 +336,33 @@ class InteractionDatabase extends _$InteractionDatabase {
     }
   }
 
+  /// Resolve every bundled drug class whose membership list contains [rxcui].
+  ///
+  /// This is the local fallback for medication identity hydration when RxNorm
+  /// class endpoints return no classes or the device is offline. The table is
+  /// already curated from RxClass by the pipeline, so this avoids a separate
+  /// hardcoded class map in Flutter.
+  Future<List<String>> drugClassesForRxcui(String rxcui) async {
+    final normalized = rxcui.trim();
+    if (normalized.isEmpty) return const <String>[];
+
+    final rows = await select(drugClassMap).get();
+    final out = <String>[];
+    final seen = <String>{};
+    for (final row in rows) {
+      try {
+        final decoded = jsonDecode(row.drugRxcuisJson);
+        if (decoded is! List) continue;
+        final contains = decoded.any((e) => e?.toString().trim() == normalized);
+        if (contains && seen.add(row.classId)) out.add(row.classId);
+      } on FormatException {
+        continue;
+      }
+    }
+    out.sort();
+    return out;
+  }
+
   // ---------------------------------------------------------------------------
   // Metadata
   // ---------------------------------------------------------------------------

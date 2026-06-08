@@ -127,6 +127,8 @@ UserStacksLocalData _medication({
   required String id,
   required String name,
   String? rxcui,
+  String? genericRxcui,
+  List<String> ingredientRxcuis = const <String>[],
   String? drugClassesJson,
 }) {
   final now = DateTime.utc(2026, 4, 11);
@@ -135,6 +137,10 @@ UserStacksLocalData _medication({
     type: 'medication',
     name: name,
     rxcui: rxcui,
+    genericRxcui: genericRxcui,
+    ingredientRxcuisCol: ingredientRxcuis.isEmpty
+        ? null
+        : '[${ingredientRxcuis.map((e) => '"$e"').join(',')}]',
     drugClassesCol: drugClassesJson,
     addedAt: now,
     clientUpdatedAt: now,
@@ -671,6 +677,51 @@ void main() {
       expect(results.single.agent1Name, 'Atorvastatin');
       expect(results.single.agent2Name, 'Grapefruit');
     });
+  });
+
+  // -------------------------------------------------------------------------
+  // checkMedicationPairInteractions
+  // -------------------------------------------------------------------------
+  group('checkMedicationPairInteractions', () {
+    test(
+      'matches existing combination medication by ingredient RxCUI',
+      () async {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DDI_METHOTREXATE_SULFASALAZINE',
+                a1Type: 'drug',
+                a1Id: '6851',
+                a1Name: 'Methotrexate',
+                a2Type: 'drug',
+                a2Id: '9524',
+                a2Name: 'Sulfasalazine',
+                severity: 'caution',
+              ),
+            );
+
+        final results = await checker.checkMedicationPairInteractions(
+          newMedications: [
+            _medication(id: 'm1', name: 'Methotrexate', rxcui: '6851'),
+          ],
+          existingMedications: [
+            _medication(
+              id: 'm2',
+              name: 'Combination medication',
+              rxcui: '999999',
+              ingredientRxcuis: const ['9524'],
+            ),
+          ],
+          db: db,
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DDI_METHOTREXATE_SULFASALAZINE');
+        expect(results.single.agent1Name, 'Methotrexate');
+        expect(results.single.agent2Name, 'Combination medication');
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
