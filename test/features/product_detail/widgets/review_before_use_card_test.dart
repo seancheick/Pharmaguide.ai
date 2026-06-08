@@ -19,6 +19,8 @@ InteractionWarning _warning({
   String title = 'Interaction',
   String mechanism = '',
   String management = '',
+  String? alertHeadline,
+  String? alertBody,
 }) {
   return InteractionWarning(
     severity: severity,
@@ -26,6 +28,8 @@ InteractionWarning _warning({
     title: title,
     mechanism: mechanism,
     management: management,
+    alertHeadline: alertHeadline,
+    alertBody: alertBody,
   );
 }
 
@@ -145,6 +149,42 @@ void main() {
 
       expect(find.text('A-row'), findsOneWidget);
       expect(find.textContaining('A-mech'), findsOneWidget);
+    });
+
+    testWidgets('uses authored warning copy instead of clinical rationale', (
+      tester,
+    ) async {
+      const longMechanism =
+          'Gastric acid and pepsin are required to cleave vitamin B12 from '
+          'food proteins. Acid suppression impairs liberation and can reduce '
+          'absorption from dietary sources over long-term use.';
+      const longManagement =
+          'Review serum B12, methylmalonic acid, homocysteine, duration of '
+          'therapy, symptoms, dietary intake, and clinician-directed '
+          'supplementation strategy.';
+
+      await _pump(
+        tester,
+        warnings: [
+          _warning(
+            severity: Severity.avoid,
+            title: 'Vitamin B12 / trying to conceive',
+            mechanism: longMechanism,
+            management: longManagement,
+            alertHeadline: 'B12 is recommended preconception',
+            alertBody:
+                'B12 supports early pregnancy nutrition. If you are trying '
+                'to conceive, make sure your prenatal plan covers it.',
+          ),
+        ],
+        profile: const ProfileState(conditions: ['ttc']),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('B12 is recommended preconception'), findsOneWidget);
+      expect(find.textContaining('B12 supports early pregnancy'), findsOneWidget);
+      expect(find.textContaining('Gastric acid and pepsin'), findsNothing);
+      expect(find.textContaining('methylmalonic acid'), findsNothing);
     });
 
     testWidgets('contains allergen bumps tone to danger and auto-expands', (

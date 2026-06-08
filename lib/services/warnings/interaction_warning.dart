@@ -18,7 +18,7 @@ import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 ///   [severity] for contraindicated and substance-level hazards.
 /// - `alertHeadline` / `alertBody` / `informationalNote` — authored
 ///   layperson copy. Optional during authoring transition; fall back to
-///   `title` / `mechanism` / `management` when null.
+///   `title` / short informational copy / clinical mechanism when null.
 class InteractionWarning {
   final Severity severity;
 
@@ -41,9 +41,9 @@ class InteractionWarning {
   /// if null. Pipeline validator enforces 20-60 chars, no all-caps.
   final String? alertHeadline;
 
-  /// Authored body copy (layperson-facing). Falls back to [mechanism]
-  /// if null. Pipeline validator enforces conditional framing for
-  /// avoid/contraindicated severity.
+  /// Authored body copy (layperson-facing). Falls back to
+  /// [informationalNote], then [mechanism] if null. Pipeline validator
+  /// enforces conditional framing for avoid/contraindicated severity.
   final String? alertBody;
 
   /// Authored neutral note shown when the rule is material but no user
@@ -151,9 +151,10 @@ class InteractionWarning {
   /// the derived [title]. Use this in render code.
   String get displayHeadline => alertHeadline ?? title;
 
-  /// Display-ready body — prefers authored [alertBody] over the
-  /// derived [mechanism]. Use this in render code.
-  String get displayBody => alertBody ?? mechanism;
+  /// Display-ready body — prefers authored [alertBody], then the short
+  /// neutral [informationalNote], over the derived [mechanism]. Use this
+  /// in render code.
+  String get displayBody => alertBody ?? informationalNote ?? mechanism;
 
   const InteractionWarning({
     required this.severity,

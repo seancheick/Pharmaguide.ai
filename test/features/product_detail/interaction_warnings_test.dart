@@ -109,6 +109,23 @@ void main() {
       expect(w.informationalNote, contains('blood-sugar effects'));
     });
 
+    test('displayBody falls back to informational note before mechanism', () {
+      final w = InteractionWarning.fromJson({
+        'severity': 'informational',
+        'title': 'Vitamin B12',
+        'mechanism':
+            'Long clinical mechanism text that belongs in the detail sheet, '
+            'not in the collapsed review-before-use card.',
+        'informational_note':
+            'B12 can be worth reviewing when this context applies.',
+      });
+
+      expect(
+        w.displayBody,
+        'B12 can be worth reviewing when this context applies.',
+      );
+    });
+
     test('authored fields are null on legacy blobs (pre-v5.2)', () {
       final json = {'severity': 'avoid', 'title': 'Legacy'};
       final w = InteractionWarning.fromJson(json);

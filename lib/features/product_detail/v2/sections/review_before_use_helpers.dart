@@ -9,10 +9,10 @@
 //   • Preserve all severity rules. Allergen `contains` ALWAYS wins to
 //     danger even with a free-from claim (matches production line 170).
 //   • PGReviewBeforeUseCard's row model is flatter than production's
-//     (no chips, no evidence-pill). The v2 adapter packs management +
-//     evidence + citations COUNT into the caption so users still see
-//     the same information density. The Citations bottom sheet is
-//     surfaced via the row's `onTap`.
+//     (no chips, no evidence-pill). The v2 adapter uses authored
+//     consumer-facing warning copy for row headline/body; technical
+//     mechanism/management stays in the detail surfaces. The Citations
+//     bottom sheet is surfaced via the row's `onTap`.
 
 import 'dart:convert';
 
@@ -215,24 +215,24 @@ PGReviewRow rowForFreeFromClaim(FreeFromClaim claim) {
   }
 }
 
-/// Build a PGReviewRow for an interaction warning. Caption packs
-/// mechanism + management + evidence level + citation count so the
-/// v2 card retains the information production surfaces via chips.
-/// Tap surfacing of citations is deferred to the section adapter.
+/// Build a PGReviewRow for an interaction warning. The row uses authored
+/// consumer-facing copy (`displayHeadline`/`displayBody`) and keeps raw
+/// clinical mechanism/management out of the collapsed card surface. Those
+/// technical fields belong in detail/learn-more surfaces.
 PGReviewRow rowForWarning(
   InteractionWarning warning, {
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final captionParts = <String>[];
-  if (warning.mechanism.isNotEmpty) captionParts.add(warning.mechanism);
-  if (warning.management.isNotEmpty) captionParts.add(warning.management);
+  final body = warning.displayBody.trim();
+  if (body.isNotEmpty) captionParts.add(body);
   captionParts.add(warning.evidenceLevel.label);
   final citationCount = warning.sourceUrls.length;
   if (citationCount > 0) {
     captionParts.add('$citationCount citation${citationCount == 1 ? '' : 's'}');
   }
   return PGReviewRow(
-    headline: warning.title,
+    headline: warning.displayHeadline,
     caption: captionParts.join(' · '),
     rowTone: toneForWarning(warning.severity),
     onTap: citationCount > 0 && onTapCitations != null
