@@ -268,19 +268,21 @@ void main() {
             'back zero — the bundle restore did not happen',
       );
 
-      // After rollback the file length should match the bundled
-      // asset (proves the restore overwrote the garbage), and we
-      // already proved above that countProducts succeeds (proves
-      // the new file is a real SQLite catalog). We don't byte-compare
-      // because Drift's beforeOpen migration bumps the SQLite
-      // file change counter at offset 24-27 the first time
-      // countProducts runs against the restored file.
+      // After rollback the on-disk file is the restored bundle, then opened.
+      // countProducts succeeding above already proves it's a real SQLite
+      // catalog. We assert the length is AT LEAST the bundled asset's — not
+      // exact equality — because the dual-reader `beforeOpen` backfill
+      // (`_ensureCompatColumns`) ALTERs in the cross-schema compat columns
+      // (e.g. the dropped `/80` columns on a v4 bundle), which can allocate a
+      // new SQLite page and grow the file by ~4 KiB. A smaller-than-bundle
+      // file would mean the restore never happened.
       expect(
         await dbFile.length(),
-        assetBytes.length,
+        greaterThanOrEqualTo(assetBytes.length),
         reason:
-            'after rollback, the on-disk file size should match '
-            'the bundled asset (was overwritten verbatim, then opened)',
+            'after rollback, the on-disk file should be at least the bundled '
+            'asset size (restored verbatim, then grown by the beforeOpen '
+            'compat-column backfill)',
       );
     });
 

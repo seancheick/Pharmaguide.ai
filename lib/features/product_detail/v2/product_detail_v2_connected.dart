@@ -489,6 +489,12 @@ class _ProductDetailV2ConnectedState
                       sectionBreakdown:
                           detailBlob?['section_breakdown']
                               as Map<String, dynamic>?,
+                      // v4: prefer the six-pillar breakdown from the blob.
+                      // When absent (legacy bundle / pre-v4 blob) the adapter
+                      // falls back to the v3 four-section pillars above.
+                      qualityPillarsV4:
+                          detailBlob?['quality_pillars_v4']
+                              as Map<String, dynamic>?,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

@@ -133,9 +133,9 @@ List<ProductsCoreData> rankAlternatives({
   // tiebreaker chain Sean approved:
   //   1. family Jaccard DESC
   //   2. goals Jaccard DESC
-  //   3. score_quality_80 DESC
+  //   3. effective quality score DESC (v4 /100, else v3 /100 mirror)
   //   4. mapped_coverage DESC
-  //   5. score_brand_trust DESC
+  //   5. score_brand_trust DESC (vestigial v3 signal; deep tiebreaker only)
   //   6. allergen compatibility DESC
   ranked.sort((a, b) {
     final aEff = a.tier + a.audiencePenalty;
@@ -145,8 +145,8 @@ List<ProductsCoreData> rankAlternatives({
     if (fam != 0) return fam;
     final goals = b.goalsJaccard.compareTo(a.goalsJaccard);
     if (goals != 0) return goals;
-    final score = (b.product.scoreQuality80 ?? 0).compareTo(
-      a.product.scoreQuality80 ?? 0,
+    final score = (effectiveQualityScore(b.product) ?? 0).compareTo(
+      effectiveQualityScore(a.product) ?? 0,
     );
     if (score != 0) return score;
     final coverage = (b.product.mappedCoverage ?? 0).compareTo(
@@ -167,6 +167,23 @@ List<ProductsCoreData> rankAlternatives({
 // Hard filters
 // =============================================================================
 
+/// Effective /100 quality score for ranking: the v4 canonical score
+/// (`quality_score_v4_100`) when present, else the `score_100_equivalent`
+/// mirror (carried by the legacy v3 bundle too), else the dropped v3
+/// `score_quality_80`. Mirrors `CoreDatabase.effectiveScoreSql` on the Dart
+/// side so the pure ranker and the SQL pool agree on ordering.
+double? effectiveQualityScore(ProductsCoreData p) =>
+    p.qualityScoreV4100 ?? p.score100Equivalent ?? p.scoreQuality80;
+
+/// True when a v4 row is safety-suppressed (status present and not
+/// 'scored' → BLOCKED/UNSAFE/NOT_SCORED). A legacy v3 row has NULL status
+/// and is never treated as suppressed here (it relies on the banned /
+/// recalled flag excludes instead).
+bool isSafetySuppressed(ProductsCoreData p) {
+  final s = p.qualityScoreStatus;
+  return s != null && s != 'scored';
+}
+
 /// Hard filters every candidate must pass before audience and tier
 /// checks. These mirror the SQL-side filters in
 /// `fetchBetterAlternativesPool` so the ranker is safe to call on
@@ -177,8 +194,11 @@ bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
   // On-market only.
   final disc = candidate.discontinuedDate;
   if (disc != null && disc.trim().isNotEmpty) return false;
+  // Never recommend a safety-suppressed v4 product (BLOCKED/UNSAFE) — its
+  // score is NULL and the product is unsafe.
+  if (isSafetySuppressed(candidate)) return false;
   // Candidate must carry a score so the section can render a value.
-  final candScore = candidate.scoreQuality80;
+  final candScore = effectiveQualityScore(candidate);
   if (candScore == null) return false;
   // Strictly higher than the current product — UNLESS the current
   // product is itself unscored. Phase 11.7L.F follow-up
@@ -196,7 +216,7 @@ bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
   // Policy in one line: blocked or unscored products may have no
   // quality score; any scored, on-market, non-blocked candidate is
   // considered preferable if it passes relevance ranking.
-  final curScore = current.scoreQuality80;
+  final curScore = effectiveQualityScore(current);
   if (curScore != null && candScore <= curScore) return false;
   // Safety flags — never surface a banned/recalled candidate.
   if ((candidate.hasBannedSubstance ?? 0) == 1) return false;
