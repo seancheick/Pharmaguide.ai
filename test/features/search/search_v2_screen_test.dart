@@ -155,7 +155,12 @@ void main() {
 
     expect(find.text('Suggested Searches'), findsOneWidget);
     expect(find.text('Suggested Products'), findsOneWidget);
-    expect(find.byIcon(Icons.science_outlined), findsWidgets);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget.runtimeType.toString() == '_SuggestionGlyph',
+      ),
+      findsWidgets,
+    );
     expect(find.text('Magnesium Citrate Capsules'), findsOneWidget);
   });
 

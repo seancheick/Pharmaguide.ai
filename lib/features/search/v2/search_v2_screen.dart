@@ -61,6 +61,7 @@ import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -93,6 +94,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
 
   Timer? _debounce;
   int _searchVersion = 0;
+  DateTime? _lastTypingHapticAt;
 
   @override
   void initState() {
@@ -159,6 +161,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
+    _maybeTypingHaptic(value);
     setState(() {
       _query = value;
       if (value.trim().isNotEmpty) _activeCategory = null;
@@ -180,6 +183,19 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     _debounce = Timer(const Duration(milliseconds: 300), () {
       _executeSearch(value.trim());
     });
+  }
+
+  void _maybeTypingHaptic(String value) {
+    final trimmedLength = value.trim().length;
+    if (trimmedLength < 2) return;
+    final now = DateTime.now();
+    final previous = _lastTypingHapticAt;
+    if (previous != null &&
+        now.difference(previous) < const Duration(milliseconds: 140)) {
+      return;
+    }
+    _lastTypingHapticAt = now;
+    unawaited(PGHaptics.tap(context));
   }
 
   Future<void> _executeSearch(String query) async {
@@ -208,6 +224,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   }
 
   void _clearSearch() {
+    unawaited(PGHaptics.tap(context));
     _debounce?.cancel();
     _controller.clear();
     setState(() {
@@ -744,7 +761,10 @@ class _TopRow extends StatelessWidget {
               shape: const CircleBorder(),
               child: InkWell(
                 customBorder: const CircleBorder(),
-                onTap: onBack,
+                onTap: () {
+                  unawaited(PGHaptics.tap(context));
+                  onBack();
+                },
                 child: const Icon(
                   Icons.arrow_back_rounded,
                   color: V2Colors.fg,
@@ -1008,7 +1028,10 @@ class _RecentSearchRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          unawaited(PGHaptics.tap(context));
+          onTap();
+        },
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
@@ -1071,13 +1094,19 @@ class _SuggestedSearchRow extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            unawaited(PGHaptics.tap(context));
+            onTap();
+          },
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
             child: Row(
               children: [
-                Icon(suggestion.icon, size: 25, color: suggestion.iconColor),
+                _SuggestionGlyph(
+                  kind: suggestion.iconKind,
+                  color: suggestion.iconColor,
+                ),
                 const SizedBox(width: V2Spacing.space16),
                 Expanded(
                   child: RichText(
@@ -1129,6 +1158,104 @@ class _ProductPreviewGrid extends StatelessWidget {
       itemBuilder: (context, index) =>
           _SearchProductGridTile(product: products[index]),
     );
+  }
+}
+
+class _SuggestionGlyph extends StatelessWidget {
+  final _SuggestionIconKind kind;
+  final Color color;
+
+  const _SuggestionGlyph({required this.kind, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    if (kind == _SuggestionIconKind.search) {
+      return Icon(Icons.search_rounded, size: 28, color: color);
+    }
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: CustomPaint(
+        painter: switch (kind) {
+          _SuggestionIconKind.brand => _BrandGlyphPainter(color),
+          _SuggestionIconKind.ingredient => _IngredientGlyphPainter(color),
+          _SuggestionIconKind.search => null,
+        },
+      ),
+    );
+  }
+}
+
+class _BrandGlyphPainter extends CustomPainter {
+  final Color color;
+
+  const _BrandGlyphPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final w = size.width;
+    final h = size.height;
+    for (final y in [h * 0.22, h * 0.40, h * 0.58]) {
+      final path = Path()
+        ..moveTo(w * 0.16, y)
+        ..lineTo(w * 0.50, y - h * 0.13)
+        ..lineTo(w * 0.84, y)
+        ..lineTo(w * 0.50, y + h * 0.13)
+        ..close();
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BrandGlyphPainter oldDelegate) {
+    return oldDelegate.color != color;
+  }
+}
+
+class _IngredientGlyphPainter extends CustomPainter {
+  final Color color;
+
+  const _IngredientGlyphPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final w = size.width;
+    final h = size.height;
+    final bowl = Path()
+      ..moveTo(w * 0.18, h * 0.46)
+      ..lineTo(w * 0.82, h * 0.46)
+      ..quadraticBezierTo(w * 0.72, h * 0.78, w * 0.50, h * 0.78)
+      ..quadraticBezierTo(w * 0.28, h * 0.78, w * 0.18, h * 0.46);
+    canvas.drawPath(bowl, paint);
+    canvas.drawLine(
+      Offset(w * 0.34, h * 0.84),
+      Offset(w * 0.66, h * 0.84),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(w * 0.58, h * 0.34),
+      Offset(w * 0.78, h * 0.16),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _IngredientGlyphPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 
@@ -1472,13 +1599,13 @@ class _SearchSuggestion {
   final String label;
   final String query;
   final String? scopeLabel;
-  final IconData icon;
+  final _SuggestionIconKind iconKind;
   final Color iconColor;
 
   const _SearchSuggestion({
     required this.label,
     required this.query,
-    required this.icon,
+    required this.iconKind,
     required this.iconColor,
     this.scopeLabel,
   });
@@ -1492,6 +1619,8 @@ class _PartitionedResults {
   final List<ProductsCoreData> offMarket;
   const _PartitionedResults({required this.onMarket, required this.offMarket});
 }
+
+enum _SuggestionIconKind { brand, ingredient, search }
 
 List<_SearchSuggestion> _buildSuggestions(
   String query,
@@ -1520,7 +1649,7 @@ List<_SearchSuggestion> _buildSuggestions(
           label: brand,
           query: brand,
           scopeLabel: 'Brand',
-          icon: Icons.layers_rounded,
+          iconKind: _SuggestionIconKind.brand,
           iconColor: V2Colors.accentStrong,
         ),
       );
@@ -1534,7 +1663,7 @@ List<_SearchSuggestion> _buildSuggestions(
         label: term,
         query: term,
         scopeLabel: 'Ingredient',
-        icon: Icons.science_outlined,
+        iconKind: _SuggestionIconKind.ingredient,
         iconColor: V2Colors.accentStrong,
       ),
     );
@@ -1549,7 +1678,7 @@ List<_SearchSuggestion> _buildSuggestions(
       _SearchSuggestion(
         label: _compactProductQuery(name, normalizedQuery),
         query: _compactProductQuery(name, normalizedQuery),
-        icon: Icons.search_rounded,
+        iconKind: _SuggestionIconKind.search,
         iconColor: V2Colors.safe,
       ),
     );
@@ -1561,7 +1690,7 @@ List<_SearchSuggestion> _buildSuggestions(
       _SearchSuggestion(
         label: q,
         query: q,
-        icon: Icons.search_rounded,
+        iconKind: _SuggestionIconKind.search,
         iconColor: V2Colors.safe,
       ),
     );
