@@ -10,10 +10,7 @@ void main() {
 
     test('recordError stores summary and stack trace in buffer', () {
       final stack = StackTrace.current;
-      CrashReportingService().recordError(
-        Exception('test boom'),
-        stack,
-      );
+      CrashReportingService().recordError(Exception('test boom'), stack);
 
       final recorded = CrashReportingService().recordedErrors;
       expect(recorded, hasLength(1));

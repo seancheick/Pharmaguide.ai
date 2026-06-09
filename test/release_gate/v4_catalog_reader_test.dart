@@ -41,7 +41,8 @@ void main() {
     expect(
       blocked,
       isNotNull,
-      reason: 'a scan/lookup must still resolve a blocked product so the '
+      reason:
+          'a scan/lookup must still resolve a blocked product so the '
           'detail screen can explain why it is blocked',
     );
     expect(blocked!.qualityScoreV4100, isNull);
@@ -64,12 +65,14 @@ void main() {
     }
   });
 
-  test('recommendation pool never contains a safety-suppressed product',
-      () async {
-    final db = await openCopy(_v4Fixture);
-    final current = await db.findById('78355'); // a scored product
-    expect(current, isNotNull);
-    final pool = await db.fetchBetterAlternativesPool(current!, poolSize: 50);
-    expect(pool.map((r) => r.dsldId), isNot(contains('204468')));
-  });
+  test(
+    'recommendation pool never contains a safety-suppressed product',
+    () async {
+      final db = await openCopy(_v4Fixture);
+      final current = await db.findById('78355'); // a scored product
+      expect(current, isNotNull);
+      final pool = await db.fetchBetterAlternativesPool(current!, poolSize: 50);
+      expect(pool.map((r) => r.dsldId), isNot(contains('204468')));
+    },
+  );
 }

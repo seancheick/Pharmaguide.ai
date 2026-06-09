@@ -160,11 +160,7 @@ class PGStackActionButtons extends ConsumerWidget {
       await context.push(Routes.authInvitation);
       return;
     } on Exception catch (e, st) {
-      CrashReportingService().recordError(
-        e,
-        st,
-        hint: 'stack_action:add_save',
-      );
+      CrashReportingService().recordError(e, st, hint: 'stack_action:add_save');
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -200,11 +196,7 @@ class PGStackActionButtons extends ConsumerWidget {
     try {
       await actions.remove(entryId);
     } on Exception catch (e, st) {
-      CrashReportingService().recordError(
-        e,
-        st,
-        hint: 'stack_action:remove',
-      );
+      CrashReportingService().recordError(e, st, hint: 'stack_action:remove');
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not remove from stack.')),

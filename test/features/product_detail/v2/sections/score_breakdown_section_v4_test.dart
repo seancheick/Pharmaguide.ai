@@ -17,7 +17,11 @@ Map<String, dynamic> _v4Pillars() => {
   'formulation': {'score': 17.6, 'max': 20, 'reason': 'Well formulated.'},
   'dose': {'score': 20.0, 'max': 20, 'reason': 'Clinically studied dose.'},
   'evidence': {'score': 18.9, 'max': 20, 'reason': 'Backed by human trials.'},
-  'transparency': {'score': 13.5, 'max': 15, 'reason': 'No proprietary blends.'},
+  'transparency': {
+    'score': 13.5,
+    'max': 15,
+    'reason': 'No proprietary blends.',
+  },
   'verification': {'score': 15.0, 'max': 15, 'reason': 'Third-party tested.'},
   'safety_hygiene': {'score': 9.0, 'max': 10, 'reason': 'No banned additives.'},
 };

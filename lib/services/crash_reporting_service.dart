@@ -192,9 +192,7 @@ class CrashReportingService {
   void setAuthState(String state) {
     if (!_sentryEnabled) return;
     Future<void>.sync(() async {
-      await Sentry.configureScope(
-        (scope) => scope.setTag('auth_state', state),
-      );
+      await Sentry.configureScope((scope) => scope.setTag('auth_state', state));
     });
   }
 

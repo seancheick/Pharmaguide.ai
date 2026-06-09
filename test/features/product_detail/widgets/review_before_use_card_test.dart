@@ -182,7 +182,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('B12 is recommended preconception'), findsOneWidget);
-      expect(find.textContaining('B12 supports early pregnancy'), findsOneWidget);
+      expect(
+        find.textContaining('B12 supports early pregnancy'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Gastric acid and pepsin'), findsNothing);
       expect(find.textContaining('methylmalonic acid'), findsNothing);
     });

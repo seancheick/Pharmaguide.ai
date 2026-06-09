@@ -154,9 +154,11 @@ class ScreenshotSeeder {
     // the top 10 by raw quality score so the hero shot doesn't pick a
     // ranked-but-unimpressive product.
     if (!seed.preferHighestScore) return results.first;
-    final sorted = [
-      ...results,
-    ]..sort((a, b) => (b.qualityScoreV4100 ?? 0).compareTo(a.qualityScoreV4100 ?? 0));
+    final sorted = [...results]
+      ..sort(
+        (a, b) =>
+            (b.qualityScoreV4100 ?? 0).compareTo(a.qualityScoreV4100 ?? 0),
+      );
     return sorted.first;
   }
 }

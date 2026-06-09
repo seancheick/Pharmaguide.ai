@@ -29,8 +29,9 @@ ProductsCoreData _p({
     qualityScoreV4100: qualityScoreV4100,
     // Mirror the pipeline invariant: score_100_equivalent mirrors the v4
     // score when scored, and is NULL when suppressed.
-    score100Equivalent:
-        qualityScoreStatus == 'scored' ? qualityScoreV4100 : null,
+    score100Equivalent: qualityScoreStatus == 'scored'
+        ? qualityScoreV4100
+        : null,
     qualityScoreStatus: qualityScoreStatus,
     discontinuedDate: discontinuedDate,
     hasBannedSubstance: hasBannedSubstance,
@@ -40,37 +41,45 @@ ProductsCoreData _p({
 }
 
 void main() {
-  test('excludes a safety-suppressed candidate even when on-market + same type',
-      () {
-    final cur = _p(
-      dsldId: 'CUR',
-      name: 'Creatine A',
-      supplementType: 'creatine',
-      primaryCategory: 'sports',
-      qualityScoreV4100: 50,
-    );
-    final suppressed = _p(
-      dsldId: 'BANNED',
-      name: 'Creatine Banned',
-      supplementType: 'creatine',
-      primaryCategory: 'sports',
-      qualityScoreV4100: null,
-      qualityScoreStatus: 'suppressed_safety',
-    );
-    final good = _p(
-      dsldId: 'GOOD',
-      name: 'Creatine Better',
-      supplementType: 'creatine',
-      primaryCategory: 'sports',
-      qualityScoreV4100: 90,
-    );
+  test(
+    'excludes a safety-suppressed candidate even when on-market + same type',
+    () {
+      final cur = _p(
+        dsldId: 'CUR',
+        name: 'Creatine A',
+        supplementType: 'creatine',
+        primaryCategory: 'sports',
+        qualityScoreV4100: 50,
+      );
+      final suppressed = _p(
+        dsldId: 'BANNED',
+        name: 'Creatine Banned',
+        supplementType: 'creatine',
+        primaryCategory: 'sports',
+        qualityScoreV4100: null,
+        qualityScoreStatus: 'suppressed_safety',
+      );
+      final good = _p(
+        dsldId: 'GOOD',
+        name: 'Creatine Better',
+        supplementType: 'creatine',
+        primaryCategory: 'sports',
+        qualityScoreV4100: 90,
+      );
 
-    final out = rankAlternatives(current: cur, candidates: [suppressed, good]);
-    final ids = out.map((p) => p.dsldId);
-    expect(ids, isNot(contains('BANNED')),
-        reason: 'a suppressed product must never be a recommended alternative');
-    expect(ids, contains('GOOD'));
-  });
+      final out = rankAlternatives(
+        current: cur,
+        candidates: [suppressed, good],
+      );
+      final ids = out.map((p) => p.dsldId);
+      expect(
+        ids,
+        isNot(contains('BANNED')),
+        reason: 'a suppressed product must never be a recommended alternative',
+      );
+      expect(ids, contains('GOOD'));
+    },
+  );
 
   test('ranks by the v4 effective score when no legacy /80 is present', () {
     final cur = _p(
@@ -96,8 +105,11 @@ void main() {
     );
 
     final out = rankAlternatives(current: cur, candidates: [lo, hi]);
-    expect(out.first.dsldId, 'HI',
-        reason: 'the higher v4 score must rank first');
+    expect(
+      out.first.dsldId,
+      'HI',
+      reason: 'the higher v4 score must rank first',
+    );
   });
 
   test('a candidate at or below current effective score is filtered out', () {
@@ -117,8 +129,11 @@ void main() {
     );
 
     final out = rankAlternatives(current: cur, candidates: [tie]);
-    expect(out, isEmpty,
-        reason: 'only STRICTLY higher effective scores qualify');
+    expect(
+      out,
+      isEmpty,
+      reason: 'only STRICTLY higher effective scores qualify',
+    );
   });
 
   test('effectiveQualityScore + isSafetySuppressed helpers behave', () {

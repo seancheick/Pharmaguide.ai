@@ -15,7 +15,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-const _failedScansTablePath = 'lib/data/database/tables/failed_scans_table.dart';
+const _failedScansTablePath =
+    'lib/data/database/tables/failed_scans_table.dart';
 
 // Exact allowlist for the FailedScans Drift table. Adding a column here
 // is a privacy decision that requires updating the privacy contract
@@ -116,7 +117,8 @@ void main() {
       // The privacy comment is part of the contract — removing it
       // means the next person to touch this file may not know the
       // rule. The test enforces the comment exists.
-      final hasPrivacyComment = source.toLowerCase().contains('no user_id') ||
+      final hasPrivacyComment =
+          source.toLowerCase().contains('no user_id') ||
           source.toLowerCase().contains('no user identifier') ||
           source.toLowerCase().contains('not tied to the person');
       expect(

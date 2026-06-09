@@ -28,10 +28,7 @@ class ProductImageResolver {
   ProductImageResolver(this._userDb, {http.Client? httpClient})
     : _http =
           httpClient ??
-          SentryHttpClient(
-            client: http.Client(),
-            captureFailedRequests: true,
-          );
+          SentryHttpClient(client: http.Client(), captureFailedRequests: true);
 
   final UserDatabase _userDb;
   final http.Client _http;
