@@ -1,18 +1,19 @@
 {
-  "checksum": "sha256:c3d6d2c0fd45e1c65b372801f8e2071f9189b11f92be7a01474256a33fc2a5cc",
-  "checksum_sha256": "c3d6d2c0fd45e1c65b372801f8e2071f9189b11f92be7a01474256a33fc2a5cc",
-  "db_version": "2026.06.09.025638",
+  "artifact_freshness_status": "checked_by_release_strict_gate",
+  "checksum": "sha256:1f522565f6d31884cf85466c7842110d3d095e3c5e7e50cf437cd5dc7f00746e",
+  "checksum_sha256": "1f522565f6d31884cf85466c7842110d3d095e3c5e7e50cf437cd5dc7f00746e",
+  "db_version": "2026.06.09.035610",
   "detail_blob_count": 9270,
   "detail_blob_unique_count": 9270,
-  "detail_index_checksum": "sha256:114106f56f6dfe165a68c3eae52d40c875ae8d251860a2e049609d4d486b210c",
+  "detail_index_checksum": "sha256:7b1e8afac1888b886143cf7dbd9de1cdc215f6d4d7a5d244f259f979c3add55c",
   "errors": [],
   "excluded_by_gate": [
     {
       "dsld_id": "25935",
-      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-06-09T02:56:38.255733+00:00",
+  "generated_at": "2026-06-09T03:56:10.518889+00:00",
   "integrity": {
     "contract_failures": 1,
     "coverage_pct": 91.38,
@@ -34,19 +35,19 @@
     "verdict_unsafe": 0,
     "warning_count": 0
   },
+  "interaction_db_checksum": null,
+  "interaction_db_version": null,
   "min_app_version": "1.0.0",
+  "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "pipeline_version": "3.4.0",
   "product_count": 9270,
-  "release_staged_at": "2026-06-09T02:56:38Z",
+  "release_staged_at": "2026-06-09T03:57:39Z",
   "schema_version": "2.0.0",
   "score_model": "v4",
   "scoring_config_checksum": "sha256:b7f46d4f1a080ea80b4bf74c4a5eef3fd906c3723ad499ffd3b657b98cbbf3f2",
   "scoring_version": "3.4.0",
-  "warnings": [],
-  "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "source_of_truth_matrix_version": "1.0.0",
   "strict_gate_summary": {
-    "strict_mode": true,
     "gates": [
       "source_of_truth_matrix",
       "cleaner_contract",
@@ -58,9 +59,8 @@
       "artifact_freshness",
       "flutter_bundle_parity"
     ],
-    "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest"
+    "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest",
+    "strict_mode": true
   },
-  "interaction_db_checksum": null,
-  "interaction_db_version": null,
-  "artifact_freshness_status": "checked_by_release_strict_gate"
+  "warnings": []
 }
