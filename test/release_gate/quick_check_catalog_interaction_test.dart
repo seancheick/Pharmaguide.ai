@@ -159,7 +159,7 @@ void main() {
               expectedSeverity: Severity.caution,
             ),
             (
-              canonicalId: 'nootropic_vinpocetine',
+              canonicalId: 'vinpocetine',
               medicationName: 'Warfarin',
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
