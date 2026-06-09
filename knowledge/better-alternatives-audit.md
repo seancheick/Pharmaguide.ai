@@ -8,8 +8,8 @@
 
 ## Why this audit exists
 
-The "Higher quality alternatives" section on Product Detail today
-ranks candidates by **`score_quality_80` alone**, filtered only by
+The "Higher quality alternatives" section on Product Detail originally
+ranked candidates by the legacy **`score_quality_80`** field alone, filtered only by
 `primary_category` and a minimum-score floor that mostly mirrors the
 current product's own score. The result: when the user lands on a
 poor-quality product, the section sometimes recommends products that
@@ -26,22 +26,23 @@ This file documents:
 
 ---
 
-## Current logic (one-paragraph summary)
+## Historical logic that caused the bug
 
 ```dart
 // lib/features/product_detail/widgets/better_alternatives.dart
-final minQuality80 = (currentScore! * 0.8).clamp(0.0, 80.0);
+final minQualityV4 = (currentScore! * 0.8).clamp(0.0, 100.0);
 return coreDb.findAlternatives(
-  category!, minQuality80,
+  category!, minQualityV4,
   excludeDsldId: currentDsldId, limit: 3,
 );
 
 // lib/data/database/core_database.dart::findAlternatives
 SELECT * FROM products_core
 WHERE primary_category = :category
-  AND score_quality_80 >= :minScore
+  AND quality_score_status = 'scored'
+  AND quality_score_v4_100 >= :minScore
   AND dsld_id != :currentDsldId
-ORDER BY score_quality_80 DESC
+ORDER BY quality_score_v4_100 DESC
 LIMIT :limit;
 ```
 
@@ -72,7 +73,10 @@ second-tier (populated on roughly half the catalog).
 
 ---
 
-## Bad examples from live data
+## Bad examples from legacy live data
+
+These examples came from the V3 `/80` catalog. The failure modes still matter,
+but new implementations must use `quality_score_v4_100`.
 
 ### #1 — Staminol (male herbal energy blend) → prenatal vitamin
 
@@ -83,7 +87,7 @@ second-tier (populated on roughly half the catalog).
 | brand | GNC Mega Men | Thorne |
 | supplement_type | **herbal_blend** | **multivitamin** |
 | primary_category | multivitamin | multivitamin |
-| score_quality_80 | 18.5 | 72.4 |
+| legacy score | 18.5 | 72.4 |
 
 A man buying a stamina/energy herbal blend gets a prenatal vitamin
 recommended. Different audience, different intent, different
@@ -103,7 +107,7 @@ mismatch ignored.
 | product_name | A 8,000 IU | SynaQuell | Kids Multi + Strawberry Kiwi |
 | brand | CVS Pharmacy | Thorne | Thorne |
 | supplement_type | **targeted** | multivitamin | multivitamin |
-| score_quality_80 | 37.0 | 69.0 | 68.8 |
+| legacy score | 37.0 | 69.0 | 68.8 |
 | discontinued | no | no | **yes** |
 
 A single-ingredient Vitamin A buyer gets a brain-support multi and a
@@ -122,7 +126,7 @@ on-market gate.
 | product_name | Probiotic Complex 1 | Restore | Magnesium with Pre & Probiotics Gummies |
 | brand | GNC Probiotics | Thorne Performance | Garden of Life Dr. Formulated |
 | supplement_type | probiotic | probiotic | probiotic |
-| score_quality_80 | 25.3 | 62.4 | 58.0 |
+| legacy score | 25.3 | 62.4 | 58.0 |
 | discontinued | no | **yes** | no |
 
 The #1 spot is a discontinued product — user can't buy it. #4 is a
@@ -142,7 +146,7 @@ a magnesium-with-probiotics).
 | dsld_id | 178559 | 336315 / 328830 / 313907 |
 | product_name | Children's Multivitamin Gummies | Thorne A.M. / Basic Prenatal / Advanced Nutrients |
 | audience | kids | adult / prenatal / adult |
-| score_quality_80 | 44.1 | 72.6 / 72.4 / 71.8 |
+| legacy score | 44.1 | 72.6 / 72.4 / 71.8 |
 | discontinued (#3) | no | **yes** |
 
 A parent shopping for their child gets "Basic Prenatal" suggested.
@@ -176,7 +180,7 @@ A candidate is dropped before ranking if any of these are true:
 
 1. `dsld_id == currentDsldId` (don't recommend the same product)
 2. `discontinued_date != NULL` (off-market)
-3. `score_quality_80 <= currentScore` (must be STRICTLY higher)
+3. `quality_score_status != 'scored'` or `quality_score_v4_100 <= currentScore` (must be STRICTLY higher)
 4. `has_banned_substance == 1`
 5. `has_recalled_ingredient == 1`
 
@@ -204,7 +208,7 @@ When multiple candidates qualify for the same tier, rank by:
 
 1. **Ingredient family Jaccard** DESC (closer match wins)
 2. **Goal-match Jaccard** DESC (when both sides have `goal_matches`)
-3. **`score_quality_80`** DESC (higher quality)
+3. **`quality_score_v4_100`** DESC (higher quality)
 4. **`mapped_coverage`** DESC (more complete ingredient data → more
    trustworthy comparison)
 5. **`score_brand_trust`** DESC (transparency / third-party testing)
