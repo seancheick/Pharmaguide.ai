@@ -10,7 +10,7 @@
   "excluded_by_gate": [
     {
       "dsld_id": "25935",
-      "error": "review_queue: NOT_SCORED verdict — mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
+      "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
   "generated_at": "2026-06-09T05:49:12.991104+00:00",
@@ -35,8 +35,8 @@
     "verdict_unsafe": 0,
     "warning_count": 0
   },
-  "interaction_db_checksum": null,
-  "interaction_db_version": null,
+  "interaction_db_checksum": "a394e1220ae9209a3ef0052104edc832164c39669630ff64f9e72e99805c49f0",
+  "interaction_db_version": "1.0.0",
   "min_app_version": "1.0.0",
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "pipeline_version": "3.4.0",
@@ -48,6 +48,7 @@
   "scoring_version": "3.4.0",
   "source_of_truth_matrix_version": "1.0.0",
   "strict_gate_summary": {
+    "strict_mode": true,
     "gates": [
       "source_of_truth_matrix",
       "cleaner_contract",
@@ -59,8 +60,7 @@
       "artifact_freshness",
       "flutter_bundle_parity"
     ],
-    "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest",
-    "strict_mode": true
+    "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest"
   },
   "warnings": []
 }
