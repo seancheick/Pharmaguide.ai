@@ -55,6 +55,7 @@ test/**/failures/
 
 sentry.properties
 .gstack/
+supabase/.temp/
 
 #Graphiphy
 graphify-out/
