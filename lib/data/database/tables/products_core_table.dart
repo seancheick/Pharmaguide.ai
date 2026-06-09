@@ -47,27 +47,11 @@ class ProductsCore extends Table {
   TextColumn get formFactor => text().named('form_factor').nullable()();
   TextColumn get supplementType => text().named('supplement_type').nullable()();
 
-  // Scores
-  //
-  // DUAL-SCHEMA (v3 ↔ v4): every score column here is nullable so the SAME
-  // Drift table opens against BOTH a legacy v3 bundle (has score_quality_80,
-  // no v4 columns) and a v4 build (export schema 2.0.0 — dropped /80, added
-  // the v4 /100 contract). `CoreDatabase.beforeOpen` backfills whichever
-  // side's columns are missing (see `_ensureCompatColumns`), so neither a
-  // typed query nor `SELECT *` ever hits a "no such column".
-  //
-  // Legacy v3 /80 headline — DROPPED by the v4 build. Kept declared (nullable)
-  // only so a still-shipping v3 bundle keeps reading; never the v4 source of
-  // truth. Rank/display on the effective score, not this.
-  RealColumn get scoreQuality80 =>
-      real().named('score_quality_80').nullable()();
-  TextColumn get scoreDisplay80 =>
-      text().named('score_display_80').nullable()();
+  // Scores — v4 production contract (export schema 2.0.0).
   TextColumn get scoreDisplay100Equivalent =>
       text().named('score_display_100_equivalent').nullable()();
-  // Honest /100 mirror — present in BOTH v3 and v4. Mirrors
-  // quality_score_v4_100 on a v4 build (NULL when suppressed) and carries the
-  // v3 /100 on a legacy bundle, so it is the cross-schema score fallback.
+  // Honest /100 mirror. Mirrors quality_score_v4_100 when scored and is NULL
+  // when quality_score_status is suppressed/not_scored.
   RealColumn get score100Equivalent =>
       real().named('score_100_equivalent').nullable()();
   TextColumn get grade => text().named('grade').nullable()();
@@ -75,8 +59,7 @@ class ProductsCore extends Table {
   TextColumn get safetyVerdict => text().named('safety_verdict').nullable()();
   RealColumn get mappedCoverage => real().named('mapped_coverage').nullable()();
 
-  // v4 scoring contract (export schema 2.0.0). Nullable for dual-schema
-  // reads (see note above). `quality_score_v4_100` is the canonical shipped
+  // `quality_score_v4_100` is the canonical shipped
   // score (NULL when status != 'scored'); `quality_score_status` drives
   // display/eligibility; `quality_tier` is the Elite…Poor band;
   // `quality_score_suppressed_reason` says why a suppressed score is NULL.

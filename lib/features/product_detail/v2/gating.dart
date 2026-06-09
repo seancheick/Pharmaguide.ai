@@ -41,7 +41,7 @@ bool productIsBlocked(ProductsCoreData? product) =>
 bool productIsNotScored(ProductsCoreData? product) {
   if (product == null) return false;
   final verdict = product.verdict ?? '';
-  final score = product.score100Equivalent;
+  final score = product.qualityScoreV4100;
   final isBlocked = isUnsafeVerdict(verdict);
   return verdict.trim().toUpperCase() == 'NOT_SCORED' ||
       (score == null && !isBlocked);

@@ -51,7 +51,7 @@ class QuickCheckItem {
       name: product.productName,
       product: product,
       brandName: product.brandName,
-      score: product.score100Equivalent?.round(),
+      score: product.qualityScoreV4100?.round(),
     );
   }
 

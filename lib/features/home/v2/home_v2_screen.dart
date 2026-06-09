@@ -1231,7 +1231,7 @@ final _v2RecentScansProvider = FutureProvider.autoDispose<List<_RecentScan>>((
       formFactor: product.formFactor,
       brand: product.brandName ?? '',
       name: product.productName,
-      score: (product.score100Equivalent ?? 0).round(),
+      score: (product.qualityScoreV4100 ?? 0).round(),
       time: relativeTime(scan.scannedAt),
     ));
   }

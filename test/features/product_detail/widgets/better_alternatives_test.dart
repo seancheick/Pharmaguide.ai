@@ -16,7 +16,7 @@ Future<void> _seedProduct(
   required String dsldId,
   required String productName,
   required String? brandName,
-  required double scoreQuality80,
+  required double qualityScoreV4100,
   required double score100,
   required String category,
 }) async {
@@ -29,8 +29,9 @@ Future<void> _seedProduct(
           exportVersion: 'test',
           exportedAt: '2026-04-29T00:00:00Z',
           brandName: Value(brandName),
-          scoreQuality80: Value(scoreQuality80),
+          qualityScoreV4100: Value(qualityScoreV4100),
           score100Equivalent: Value(score100),
+          qualityScoreStatus: const Value('scored'),
           primaryCategory: Value(category),
         ),
       );
@@ -44,7 +45,7 @@ Future<void> _seedProduct(
 Future<void> _seedCurrent(
   CoreDatabase coreDb, {
   String dsldId = 'cur',
-  double scoreQuality80 = 40,
+  double qualityScoreV4100 = 40,
   double score100 = 50,
   String category = 'multivitamin',
 }) => _seedProduct(
@@ -52,7 +53,7 @@ Future<void> _seedCurrent(
   dsldId: dsldId,
   productName: 'Current Test Product',
   brandName: 'CurrentBrand',
-  scoreQuality80: scoreQuality80,
+  qualityScoreV4100: qualityScoreV4100,
   score100: score100,
   category: category,
 );
@@ -256,7 +257,7 @@ void main() {
           dsldId: 'alt-1',
           productName: 'Premium Multi',
           brandName: 'BrandA',
-          scoreQuality80: 70,
+          qualityScoreV4100: 70,
           score100: 87,
           category: 'multivitamin',
         );
@@ -285,7 +286,7 @@ void main() {
         dsldId: 'alt-1',
         productName: 'Premium Multi',
         brandName: 'BrandA',
-        scoreQuality80: 70,
+        qualityScoreV4100: 70,
         score100: 87,
         category: 'multivitamin',
       );
@@ -294,7 +295,7 @@ void main() {
         dsldId: 'alt-2',
         productName: 'Daily Wellness',
         brandName: 'BrandB',
-        scoreQuality80: 65,
+        qualityScoreV4100: 65,
         score100: 81,
         category: 'multivitamin',
       );
@@ -302,9 +303,9 @@ void main() {
       await tester.pumpWidget(_wrap(coreDb, _section()));
       await tester.pumpAndSettle();
 
-      // Compact v2 score lines (rounded to 0 decimals).
-      expect(find.text('87/100'), findsOneWidget);
-      expect(find.text('81/100'), findsOneWidget);
+      // Compact v4 score lines (rounded to 0 decimals).
+      expect(find.text('70/100'), findsOneWidget);
+      expect(find.text('65/100'), findsOneWidget);
       // Names + brands.
       expect(find.text('Premium Multi'), findsOneWidget);
       expect(find.text('BrandA'), findsOneWidget);
@@ -325,7 +326,7 @@ void main() {
           dsldId: 'alt-$i',
           productName: 'Alt $i',
           brandName: 'Brand$i',
-          scoreQuality80: 70 - i.toDouble(),
+          qualityScoreV4100: 70 - i.toDouble(),
           score100: 87 - i.toDouble(),
           category: 'multivitamin',
         );
@@ -334,7 +335,7 @@ void main() {
       await tester.pumpWidget(_wrap(coreDb, _section()));
       await tester.pumpAndSettle();
 
-      // Top 3 (sorted desc by scoreQuality80) are alt-0, alt-1, alt-2.
+      // Top 3 (sorted desc by qualityScoreV4100) are alt-0, alt-1, alt-2.
       expect(find.text('Alt 0'), findsOneWidget);
       expect(find.text('Alt 1'), findsOneWidget);
       expect(find.text('Alt 2'), findsOneWidget);
@@ -356,7 +357,7 @@ void main() {
         dsldId: 'alt-1',
         productName: 'Premium Multi',
         brandName: 'BrandA',
-        scoreQuality80: 70,
+        qualityScoreV4100: 70,
         score100: 87,
         category: 'multivitamin',
       );

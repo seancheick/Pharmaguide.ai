@@ -156,7 +156,7 @@ class ScreenshotSeeder {
     if (!seed.preferHighestScore) return results.first;
     final sorted = [
       ...results,
-    ]..sort((a, b) => (b.scoreQuality80 ?? 0).compareTo(a.scoreQuality80 ?? 0));
+    ]..sort((a, b) => (b.qualityScoreV4100 ?? 0).compareTo(a.qualityScoreV4100 ?? 0));
     return sorted.first;
   }
 }

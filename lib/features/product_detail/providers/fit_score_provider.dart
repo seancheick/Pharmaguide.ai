@@ -72,7 +72,7 @@ final fitScoreForProductProvider = FutureProvider.family
       // persisted — it's a fresh computation every time.
       final profile = await ref.watch(loadedProfileProvider.future);
 
-      // Product row (for score_quality_80 + primary_category → cluster)
+      // Product row (for quality_score_v4_100 + primary_category → cluster)
       ProductsCoreData? product;
       try {
         product = await coreDb.findById(dsldId);

@@ -705,7 +705,7 @@ class _StackItemRow extends ConsumerWidget {
         : brandName;
     final score = entry.isMedication
         ? null
-        : entry.score ?? product?.score100Equivalent?.round();
+        : entry.score ?? product?.qualityScoreV4100?.round();
     final itemType = entry.isMedication
         ? PGItemType.medication
         : PGItemType.supplement;

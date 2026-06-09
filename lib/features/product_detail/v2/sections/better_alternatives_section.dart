@@ -136,7 +136,7 @@ class BetterAlternativesSection extends ConsumerWidget {
         final alternatives = snapshot.data!;
         final mapped = alternatives
             .map((p) {
-              final score = p.score100Equivalent?.round() ?? 0;
+              final score = p.qualityScoreV4100?.round() ?? 0;
               return PGAlternative(
                 dsldId: p.dsldId,
                 name: p.productName,

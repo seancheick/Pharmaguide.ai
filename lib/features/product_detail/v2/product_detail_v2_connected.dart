@@ -225,7 +225,7 @@ class _ProductDetailV2ConnectedState
     final productName = _product?.productName ?? 'Product ${widget.dsldId}';
     final brandName = _product?.brandName ?? '';
     final formFactor = _product?.formFactor ?? '';
-    final score100 = _product?.score100Equivalent;
+    final score100 = _product?.qualityScoreV4100;
     final mappedCoverage = _product?.mappedCoverage ?? 0.0;
     final trustTags = buildHeroTrustTags(_product);
     final isBlocked = productIsBlocked(_product);

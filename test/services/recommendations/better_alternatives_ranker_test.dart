@@ -29,7 +29,8 @@ ProductsCoreData _product({
   String? brand,
   String? supplementType,
   String? primaryCategory,
-  double? scoreQuality80,
+  double? qualityScoreV4100,
+  String? qualityScoreStatus = 'scored',
   String? discontinuedDate,
   String? keyIngredientTags,
   String? goalMatches,
@@ -57,8 +58,9 @@ ProductsCoreData _product({
     brandName: brand,
     supplementType: supplementType,
     primaryCategory: primaryCategory,
-    scoreQuality80: scoreQuality80,
-    score100Equivalent: scoreQuality80 == null ? null : scoreQuality80 * 1.25,
+    qualityScoreV4100: qualityScoreV4100,
+    score100Equivalent: qualityScoreV4100,
+    qualityScoreStatus: qualityScoreStatus,
     discontinuedDate: discontinuedDate,
     keyIngredientTags: keyIngredientTags,
     goalMatches: goalMatches,
@@ -92,7 +94,7 @@ void main() {
         name: 'Multivitamin',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 30,
+        qualityScoreV4100: 30,
       );
       final result = rankAlternatives(current: cur, candidates: [cur]);
       expect(result, isEmpty);
@@ -104,14 +106,14 @@ void main() {
         name: 'Probiotic',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 25,
+        qualityScoreV4100: 25,
       );
       final offMarket = _product(
         dsldId: 'off',
         name: 'Restore',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 62,
+        qualityScoreV4100: 62,
         discontinuedDate: '2024-01-01',
       );
       final onMarket = _product(
@@ -119,7 +121,7 @@ void main() {
         name: 'Trust Your Gut',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 58,
+        qualityScoreV4100: 58,
       );
       final result = rankAlternatives(
         current: cur,
@@ -131,7 +133,7 @@ void main() {
     test('unscored current (blocked product like Vinpocetine) still returns '
         'scored candidates', () {
       // Sean's Phase 11.7L.F follow-up: blocked products like
-      // dsld 16012 Vinpocetine ship with `score_quality_80 = NULL`.
+      // dsld 16012 Vinpocetine ship with `quality_score_v4_100 = NULL`.
       // The user MUST still see safer alternatives — treat the
       // missing score as "lower than any scored candidate."
       final vinpocetine = _product(
@@ -139,7 +141,7 @@ void main() {
         name: 'Vinpocetine',
         brand: 'Thorne Research',
         supplementType: 'single_nutrient',
-        // primaryCategory + scoreQuality80 intentionally NULL —
+        // primaryCategory + qualityScoreV4100 intentionally NULL —
         // mirrors the live catalog row.
       );
       final saferAlt = _product(
@@ -147,7 +149,7 @@ void main() {
         name: 'Bacopa Monnieri',
         brand: 'Pure Encapsulations',
         supplementType: 'single_nutrient',
-        scoreQuality80: 65,
+        qualityScoreV4100: 65,
       );
       final result = rankAlternatives(
         current: vinpocetine,
@@ -157,7 +159,7 @@ void main() {
         result.map((p) => p.dsldId),
         equals(['safer-alt']),
         reason:
-            'Blocked products with null scoreQuality80 must still '
+            'Blocked products with null qualityScoreV4100 must still '
             "surface scored alternatives — that's the user's whole "
             'reason for landing on this section.',
       );
@@ -169,21 +171,21 @@ void main() {
         name: 'Daily Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 50,
+        qualityScoreV4100: 50,
       );
       final tied = _product(
         dsldId: 'tied',
         name: 'Tied Score Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 50,
+        qualityScoreV4100: 50,
       );
       final higher = _product(
         dsldId: 'higher',
         name: 'Higher Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 65,
+        qualityScoreV4100: 65,
       );
       final result = rankAlternatives(current: cur, candidates: [tied, higher]);
       expect(result.map((p) => p.dsldId), equals(['higher']));
@@ -195,14 +197,14 @@ void main() {
         name: 'X',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 30,
+        qualityScoreV4100: 30,
       );
       final banned = _product(
         dsldId: 'banned',
         name: 'Banned Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 80,
+        qualityScoreV4100: 80,
         hasBannedSubstance: 1,
       );
       final recalled = _product(
@@ -210,7 +212,7 @@ void main() {
         name: 'Recalled Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 78,
+        qualityScoreV4100: 78,
         hasRecalledIngredient: 1,
       );
       final ok = _product(
@@ -218,7 +220,7 @@ void main() {
         name: 'OK Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 70,
+        qualityScoreV4100: 70,
       );
       final result = rankAlternatives(
         current: cur,
@@ -241,7 +243,7 @@ void main() {
         brand: 'GNC Mega Men',
         supplementType: 'herbal_blend',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 18.5,
+        qualityScoreV4100: 18.5,
       );
       // The legacy top recommendation:
       final basicPrenatal = _product(
@@ -250,7 +252,7 @@ void main() {
         brand: 'Thorne',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 72.4,
+        qualityScoreV4100: 72.4,
       );
       // A discontinued legacy recommendation:
       final advancedNutrients = _product(
@@ -259,7 +261,7 @@ void main() {
         brand: 'Thorne',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 71.8,
+        qualityScoreV4100: 71.8,
         discontinuedDate: '2023-05-01',
       );
       // What a sensible swap looks like — same supplement_type,
@@ -270,7 +272,7 @@ void main() {
         brand: 'AnotherBrand',
         supplementType: 'herbal_blend',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 55,
+        qualityScoreV4100: 55,
         keyIngredientTags: '["ginseng","tribulus","maca"]',
       );
 
@@ -307,7 +309,7 @@ void main() {
         brand: 'CVS Pharmacy',
         supplementType: 'targeted',
         primaryCategory: 'omega-3', // legacy mis-categorisation
-        scoreQuality80: 37.0,
+        qualityScoreV4100: 37.0,
       );
       final kidsMulti = _product(
         dsldId: '281264',
@@ -315,7 +317,7 @@ void main() {
         brand: 'Thorne',
         supplementType: 'multivitamin',
         primaryCategory: 'omega-3',
-        scoreQuality80: 68.8,
+        qualityScoreV4100: 68.8,
         discontinuedDate: '2024-06-01',
       );
       final synaQuell = _product(
@@ -324,7 +326,7 @@ void main() {
         brand: 'Thorne',
         supplementType: 'multivitamin',
         primaryCategory: 'omega-3',
-        scoreQuality80: 69.0,
+        qualityScoreV4100: 69.0,
       );
       final aTargeted = _product(
         dsldId: 'better-a-targeted',
@@ -332,7 +334,7 @@ void main() {
         brand: 'GoodBrand',
         supplementType: 'targeted',
         primaryCategory: 'omega-3',
-        scoreQuality80: 58,
+        qualityScoreV4100: 58,
       );
 
       final result = rankAlternatives(
@@ -361,7 +363,7 @@ void main() {
         brand: 'GNC Probiotics',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 25.3,
+        qualityScoreV4100: 25.3,
         isProbiotic: 1,
       );
       final restore = _product(
@@ -370,7 +372,7 @@ void main() {
         brand: 'Thorne Performance',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 62.4,
+        qualityScoreV4100: 62.4,
         discontinuedDate: '2024-02-01',
         isProbiotic: 1,
       );
@@ -380,7 +382,7 @@ void main() {
         brand: 'Garden of Life Dr. Formulated',
         supplementType: 'specialty',
         primaryCategory: 'probiotic',
-        scoreQuality80: 58.0,
+        qualityScoreV4100: 58.0,
         keyIngredientTags: '["magnesium","probiotic"]',
         containsProbiotics: 1,
       );
@@ -390,7 +392,7 @@ void main() {
         brand: 'Ora',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 58.3,
+        qualityScoreV4100: 58.3,
         isProbiotic: 1,
         keyIngredientTags: '["lactobacillus","bifidobacterium"]',
       );
@@ -424,7 +426,7 @@ void main() {
         brand: 'Spring Valley',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 44.1,
+        qualityScoreV4100: 44.1,
       );
       final adultMulti = _product(
         dsldId: '336315',
@@ -432,7 +434,7 @@ void main() {
         brand: 'Thorne',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 72.6,
+        qualityScoreV4100: 72.6,
       );
       final prenatal = _product(
         dsldId: '328830',
@@ -440,7 +442,7 @@ void main() {
         brand: 'Thorne',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 72.4,
+        qualityScoreV4100: 72.4,
       );
       final discontinued = _product(
         dsldId: '313907',
@@ -448,7 +450,7 @@ void main() {
         brand: 'Thorne',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 71.8,
+        qualityScoreV4100: 71.8,
         discontinuedDate: '2023-05-01',
       );
       final betterKids = _product(
@@ -457,7 +459,7 @@ void main() {
         brand: 'NicerBrand',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
       );
 
       final result = rankAlternatives(
@@ -497,14 +499,14 @@ void main() {
           name: 'Tied Multi',
           supplementType: 'multivitamin',
           primaryCategory: 'multivitamin',
-          scoreQuality80: 50,
+          qualityScoreV4100: 50,
         );
         final tied = _product(
           dsldId: 'tied',
           name: 'Tied Multi B',
           supplementType: 'multivitamin',
           primaryCategory: 'multivitamin',
-          scoreQuality80: 50,
+          qualityScoreV4100: 50,
         );
         final result = rankAlternatives(current: cur, candidates: [tied]);
         expect(result, isEmpty);
@@ -524,7 +526,7 @@ void main() {
         name: 'Pre-Workout Cherry',
         supplementType: 'sport',
         primaryCategory: 'sport',
-        scoreQuality80: 40,
+        qualityScoreV4100: 40,
         keyIngredientTags: '["caffeine","beta_alanine","citrulline"]',
       );
       // General product with NO ingredient overlap — should be
@@ -534,7 +536,7 @@ void main() {
         name: 'Magnesium Glycinate',
         supplementType: 'targeted',
         primaryCategory: 'sport',
-        scoreQuality80: 70,
+        qualityScoreV4100: 70,
         keyIngredientTags: '["magnesium"]',
       );
       // General product with HIGH ingredient overlap — should be
@@ -544,7 +546,7 @@ void main() {
         name: 'Caffeine + Beta Alanine Stack',
         supplementType: 'targeted',
         primaryCategory: 'sport',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
         keyIngredientTags: '["caffeine","beta_alanine","creatine"]',
       );
 
@@ -578,7 +580,7 @@ void main() {
         name: 'Omega-3 Fish Oil',
         supplementType: 'targeted',
         primaryCategory: 'omega-3',
-        scoreQuality80: 30,
+        qualityScoreV4100: 30,
         containsOmega3: 1,
         keyIngredientTags: '["fish_oil","epa","dha"]',
       );
@@ -588,7 +590,7 @@ void main() {
         name: 'Vitamin D 5000 IU',
         supplementType: 'targeted',
         primaryCategory: 'omega-3',
-        scoreQuality80: 78, // higher score
+        qualityScoreV4100: 78, // higher score
         keyIngredientTags: '["vitamin_d3"]',
       );
       // Tier A: same supplement_type AND high family overlap.
@@ -597,7 +599,7 @@ void main() {
         name: 'Fish Oil 1200mg',
         supplementType: 'targeted',
         primaryCategory: 'omega-3',
-        scoreQuality80: 50, // lower score
+        qualityScoreV4100: 50, // lower score
         containsOmega3: 1,
         keyIngredientTags: '["fish_oil","epa","dha"]',
       );
@@ -618,7 +620,7 @@ void main() {
         name: 'Probiotic',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 25,
+        qualityScoreV4100: 25,
         isProbiotic: 1,
       );
       final lowerScore = _product(
@@ -626,7 +628,7 @@ void main() {
         name: 'Probiotic A',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
         isProbiotic: 1,
       );
       final higherScore = _product(
@@ -634,7 +636,7 @@ void main() {
         name: 'Probiotic B',
         supplementType: 'probiotic',
         primaryCategory: 'probiotic',
-        scoreQuality80: 75,
+        qualityScoreV4100: 75,
         isProbiotic: 1,
       );
       final result = rankAlternatives(
@@ -663,7 +665,7 @@ void main() {
         name: 'Magnesium Glycinate',
         supplementType: 'targeted',
         primaryCategory: 'mineral',
-        scoreQuality80: 30,
+        qualityScoreV4100: 30,
         keyIngredientTags: '["magnesium","glycinate"]',
       );
       // Both candidates are same tier (same supplement_type + family
@@ -676,7 +678,7 @@ void main() {
         name: 'Magnesium Calm',
         supplementType: 'targeted',
         primaryCategory: 'mineral',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
         keyIngredientTags: '["magnesium","glycinate"]',
         goalMatches: '["GOAL_SLEEP_QUALITY","GOAL_REDUCE_STRESS_ANXIETY"]',
       );
@@ -685,7 +687,7 @@ void main() {
         name: 'Magnesium Boost',
         supplementType: 'targeted',
         primaryCategory: 'mineral',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
         keyIngredientTags: '["magnesium","glycinate"]',
         goalMatches: '["GOAL_MUSCLE_GROWTH_RECOVERY"]',
         // Slight tiebreaker edge if userGoals is ignored — higher
@@ -715,7 +717,7 @@ void main() {
         name: 'Sleep Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 30,
+        qualityScoreV4100: 30,
         goalMatches: '["GOAL_SLEEP_QUALITY"]',
       );
       // Candidate that shares the current product's goal_matches.
@@ -724,7 +726,7 @@ void main() {
         name: 'Sleep Support Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
         goalMatches: '["GOAL_SLEEP_QUALITY"]',
       );
       // Candidate that doesn't share goal_matches but has a brand-trust
@@ -734,7 +736,7 @@ void main() {
         name: 'Daily Multi',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
         goalMatches: '["GOAL_INCREASE_ENERGY"]',
         scoreBrandTrust: 9.0,
       );
@@ -762,14 +764,14 @@ void main() {
         name: 'B-Complex',
         supplementType: 'targeted',
         primaryCategory: 'b-complex',
-        scoreQuality80: 30,
+        qualityScoreV4100: 30,
       );
       final candidate = _product(
         dsldId: 'cand',
         name: 'B-Complex Plus',
         supplementType: 'targeted',
         primaryCategory: 'b-complex',
-        scoreQuality80: 60,
+        qualityScoreV4100: 60,
       );
       final result = rankAlternatives(
         current: cur,
@@ -798,7 +800,7 @@ void main() {
         name: 'M',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 20,
+        qualityScoreV4100: 20,
       );
       final candidates = [
         for (var i = 0; i < 8; i++)
@@ -807,7 +809,7 @@ void main() {
             name: 'Alt $i',
             supplementType: 'multivitamin',
             primaryCategory: 'multivitamin',
-            scoreQuality80: 30 + i.toDouble(),
+            qualityScoreV4100: 30 + i.toDouble(),
           ),
       ];
       final result = rankAlternatives(
@@ -824,7 +826,7 @@ void main() {
         name: 'M',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 20,
+        qualityScoreV4100: 20,
       );
       final result = rankAlternatives(current: cur, candidates: const []);
       expect(result, isEmpty);
@@ -837,7 +839,7 @@ void main() {
         name: 'M',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        scoreQuality80: 50,
+        qualityScoreV4100: 50,
       );
       final candidates = [
         _product(
@@ -845,7 +847,7 @@ void main() {
           name: 'Off',
           supplementType: 'multivitamin',
           primaryCategory: 'multivitamin',
-          scoreQuality80: 80,
+          qualityScoreV4100: 80,
           discontinuedDate: '2024-01-01',
         ),
         _product(
@@ -853,7 +855,7 @@ void main() {
           name: 'Low',
           supplementType: 'multivitamin',
           primaryCategory: 'multivitamin',
-          scoreQuality80: 40,
+          qualityScoreV4100: 40,
         ),
       ];
       final result = rankAlternatives(current: cur, candidates: candidates);

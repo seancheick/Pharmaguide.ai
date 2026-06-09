@@ -1342,7 +1342,7 @@ class _SearchProductListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final score = product.score100Equivalent;
+    final score = product.qualityScoreV4100;
     final scoreLabel = score != null
         ? ', score ${score.round()} out of 100'
         : '';
@@ -1428,7 +1428,7 @@ class _SearchProductGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final score = product.score100Equivalent;
+    final score = product.qualityScoreV4100;
     final scoreLabel = score != null
         ? ', score ${score.round()} out of 100'
         : '';
@@ -1516,7 +1516,7 @@ class _SearchProductImage extends StatelessWidget {
         productName: product.productName,
         brandName: product.brandName ?? '',
         formFactor: product.formFactor,
-        score: product.score100Equivalent,
+        score: product.qualityScoreV4100,
         size: size - (V2Spacing.space4 * 2),
         compact: true,
       ),
@@ -1773,7 +1773,7 @@ enum _SearchFilter {
       case _SearchFilter.all:
         return true;
       case _SearchFilter.highQuality:
-        return (p.score100Equivalent ?? 0) >= 80;
+        return (p.qualityScoreV4100 ?? 0) >= 80;
       case _SearchFilter.needsReview:
         final v = (p.verdict ?? '').toUpperCase();
         return v == 'CAUTION' ||

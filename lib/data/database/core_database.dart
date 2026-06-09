@@ -9,16 +9,9 @@ part 'core_database.g.dart';
 /// READ-ONLY database backed by the pre-built `pharmaguide_core.db` file
 /// downloaded from Supabase (or the bundled asset on first launch).
 ///
-/// DUAL-SCHEMA reader (v3 ↔ v4). The on-disk catalog can be EITHER a legacy
-/// v3 bundle (92 cols, has `score_quality_80`, no v4 columns) OR a v4 build
-/// (102 cols, export schema 2.0.0 — dropped the /80 columns, added the v4
-/// /100 contract). The typed [ProductsCore] table declares the UNION of both
-/// column sets (all nullable), and [_ensureCompatColumns] runs in
-/// `beforeOpen` to ADD whichever side is missing in the file actually opened.
-/// That lets the SAME build of the app read both schemas without a "no such
-/// column" crash during the v4 cutover window (ship the v4 reader first, OTA
-/// the v4 catalog later). Rank/display on the effective score via
-/// [effectiveScoreSql], never the dropped `score_quality_80`.
+/// v4-only reader. The catalog contract is export schema 2.0.0:
+/// `quality_score_v4_100` is the shipped /100 score and
+/// `quality_score_status` controls score eligibility.
 @DriftDatabase(tables: [ProductsCore])
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
@@ -29,14 +22,10 @@ class CoreDatabase extends _$CoreDatabase {
   @override
   int get schemaVersion => 3;
 
-  /// SQL for the effective /100 quality score: the v4 canonical score
-  /// (`quality_score_v4_100`) when present, else the `score_100_equivalent`
-  /// mirror — which the legacy v3 bundle carries too. This is NULL for
-  /// safety-suppressed v4 rows (BLOCKED/UNSAFE), so they sort last and never
-  /// out-rank a real score. Use this everywhere the app ranks or displays a
-  /// numeric quality score, instead of the v4-dropped `score_quality_80`.
-  static const String effectiveScoreSql =
-      'COALESCE(quality_score_v4_100, score_100_equivalent)';
+  /// SQL for the v4 /100 quality score. `quality_score_v4_100` is NULL for
+  /// safety-suppressed rows, so those rows sort last and never outrank a real
+  /// score.
+  static const String effectiveScoreSql = 'quality_score_v4_100';
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,18 +33,16 @@ class CoreDatabase extends _$CoreDatabase {
       // Not used — pre-built DB, no versioned migrations.
     },
     beforeOpen: (details) async {
-      // The pre-built DB from the pipeline may lack columns the current app
-      // build expects (older v1.3.0 cols, or — across the v4 cutover — the
-      // v4 columns on a v3 bundle / the dropped /80 columns on a v4 build).
-      // Add any missing columns so Drift queries don't crash either way.
+      // The pre-built DB from the pipeline may lack additive columns the
+      // current app build expects. Add safe nullable columns so older local
+      // snapshots don't crash during app startup.
       await _ensureCompatColumns();
     },
   );
 
-  /// Add any compat columns missing from the pre-built DB so the typed
-  /// [ProductsCore] table (which declares the v3 ∪ v4 union) reads cleanly
-  /// against either schema. Safe to call multiple times — each ALTER is
-  /// wrapped so an already-present column is ignored.
+  /// Add additive nullable columns missing from the pre-built DB. Safe to call
+  /// multiple times — each ALTER is wrapped so an already-present column is
+  /// ignored.
   Future<void> _ensureCompatColumns() async {
     const columns = [
       'image_is_pdf INTEGER',
@@ -102,9 +89,7 @@ class CoreDatabase extends _$CoreDatabase {
       // A fresh-built v1.6.x DB ships this column already; this is here
       // only for in-place upgrades where the user is on an old snapshot.
       'ingredients_text TEXT',
-      // v2.0.0 (2026-06): v4 /100 scoring contract. A legacy v3 bundle
-      // lacks these — backfill NULL so the typed table + effectiveScoreSql
-      // COALESCE read cleanly. (A v4 build already ships them populated.)
+      // v2.0.0 (2026-06): v4 /100 scoring contract.
       'quality_score_v4_100 REAL',
       'quality_score_status TEXT',
       'quality_tier TEXT',
@@ -113,12 +98,6 @@ class CoreDatabase extends _$CoreDatabase {
       'v4_module TEXT',
       'v4_confidence TEXT',
       'score_model_version TEXT',
-      // v2.0.0 DROPPED the legacy /80 columns. The Drift table still
-      // declares them (nullable) for v3 compat, so backfill NULL against a
-      // v4 build to keep a `SELECT score_quality_80` from crashing. On a v3
-      // bundle these already exist and the ALTER is ignored.
-      'score_quality_80 REAL',
-      'score_display_80 TEXT',
     ];
 
     for (final col in columns) {
@@ -243,7 +222,7 @@ class CoreDatabase extends _$CoreDatabase {
   ///
   /// Ordering when multiple products share a UPC (private-label duplicates):
   ///   1. Active products first
-  ///   2. Highest effective score wins ties (v4 score, else v3 /100 mirror)
+  ///   2. Highest v4 score wins ties
   ///
   /// A barcode scan must still RESOLVE a safety-suppressed product (so the
   /// detail screen can show why it's blocked) — this lookup does not filter
@@ -267,7 +246,7 @@ class CoreDatabase extends _$CoreDatabase {
         "SELECT * FROM products_core "
         "WHERE REPLACE(REPLACE(REPLACE(REPLACE(upc_sku, ' ', ''), '-', ''), '.', ''), '/', '') = ? "
         "ORDER BY (product_status = 'active') DESC, "
-        "         COALESCE(quality_score_v4_100, score_100_equivalent, 0) DESC "
+        "         COALESCE(quality_score_v4_100, 0) DESC "
         "LIMIT 1",
         variables: [Variable.withString(candidate)],
         readsFrom: {productsCore},
@@ -326,7 +305,7 @@ class CoreDatabase extends _$CoreDatabase {
         'JOIN products_core p ON p.rowid = f.rowid '
         'WHERE products_fts MATCH ? '
         'ORDER BY rank, '
-        '         COALESCE(p.quality_score_v4_100, p.score_100_equivalent, 0) DESC '
+        '         COALESCE(p.quality_score_v4_100, 0) DESC '
         'LIMIT ?',
         variables: [Variable.withString(ftsQuery), Variable.withInt(limit)],
         readsFrom: {productsCore},
@@ -345,7 +324,7 @@ class CoreDatabase extends _$CoreDatabase {
       final rows = await customSelect(
         'SELECT * FROM products_core '
         'WHERE product_name LIKE ? OR brand_name LIKE ? OR ingredients_text LIKE ? '
-        'ORDER BY COALESCE(quality_score_v4_100, score_100_equivalent, 0) DESC '
+        'ORDER BY COALESCE(quality_score_v4_100, 0) DESC '
         'LIMIT ?',
         variables: [
           Variable.withString(pattern),
@@ -385,7 +364,7 @@ class CoreDatabase extends _$CoreDatabase {
           ..where((t) {
             var expr =
                 t.primaryCategory.equals(category) &
-                t.scoreQuality80.isBiggerOrEqualValue(minScore);
+                t.qualityScoreV4100.isBiggerOrEqualValue(minScore);
             if (excludeDsldId != null) {
               expr = expr & t.dsldId.equals(excludeDsldId).not();
             }
@@ -393,7 +372,7 @@ class CoreDatabase extends _$CoreDatabase {
           })
           ..orderBy([
             (t) => OrderingTerm(
-              expression: t.scoreQuality80,
+              expression: t.qualityScoreV4100,
               mode: OrderingMode.desc,
             ),
           ])
@@ -420,11 +399,7 @@ class CoreDatabase extends _$CoreDatabase {
   }) {
     final currentCategory = current.primaryCategory?.trim() ?? '';
     final currentType = current.supplementType?.trim() ?? '';
-    final currentScore =
-        current.qualityScoreV4100 ??
-        current.score100Equivalent ??
-        current.scoreQuality80 ??
-        0;
+    final currentScore = current.qualityScoreV4100 ?? 0;
     if (currentCategory.isEmpty && currentType.isEmpty) {
       // No intent signal to match on — return nothing rather than
       // dump the top-N by raw score.
@@ -448,22 +423,15 @@ class CoreDatabase extends _$CoreDatabase {
             }
             // `intent` is guaranteed non-null thanks to the early
             // return above when both currents are empty.
-            // Strictly higher effective score (v4 canonical, else the v3
-            // /100 mirror). currentScore is a numeric literal — safe to
-            // inline into the COALESCE comparison.
+            // Strictly higher v4 score. currentScore is a numeric literal —
+            // safe to inline into the comparison.
             var expr =
                 intent! &
                 CustomExpression<bool>('$effectiveScoreSql > $currentScore');
             // Exclude self.
             expr = expr & t.dsldId.equals(current.dsldId).not();
-            // Never recommend a safety-suppressed v4 row (BLOCKED/UNSAFE):
-            // its score is NULL and the product is unsafe. A legacy v3
-            // bundle has NULL status — keep those (it relies on the
-            // banned/recalled flag excludes below instead).
-            expr =
-                expr &
-                (t.qualityScoreStatus.equals('scored') |
-                    t.qualityScoreStatus.isNull());
+            // Never recommend a safety-suppressed row (BLOCKED/UNSAFE).
+            expr = expr & t.qualityScoreStatus.equals('scored');
             // On-market only. The column is nullable text; drift's
             // `isNull()` matches genuine NULLs, and a defensive
             // equals('') covers older catalogs that stored empty

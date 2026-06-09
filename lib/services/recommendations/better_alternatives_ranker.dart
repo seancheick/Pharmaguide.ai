@@ -133,7 +133,7 @@ List<ProductsCoreData> rankAlternatives({
   // tiebreaker chain Sean approved:
   //   1. family Jaccard DESC
   //   2. goals Jaccard DESC
-  //   3. effective quality score DESC (v4 /100, else v3 /100 mirror)
+  //   3. v4 quality score DESC
   //   4. mapped_coverage DESC
   //   5. score_brand_trust DESC (vestigial v3 signal; deep tiebreaker only)
   //   6. allergen compatibility DESC
@@ -167,21 +167,16 @@ List<ProductsCoreData> rankAlternatives({
 // Hard filters
 // =============================================================================
 
-/// Effective /100 quality score for ranking: the v4 canonical score
-/// (`quality_score_v4_100`) when present, else the `score_100_equivalent`
-/// mirror (carried by the legacy v3 bundle too), else the dropped v3
-/// `score_quality_80`. Mirrors `CoreDatabase.effectiveScoreSql` on the Dart
-/// side so the pure ranker and the SQL pool agree on ordering.
-double? effectiveQualityScore(ProductsCoreData p) =>
-    p.qualityScoreV4100 ?? p.score100Equivalent ?? p.scoreQuality80;
+/// Effective /100 quality score for ranking: the v4 canonical score.
+/// Mirrors `CoreDatabase.effectiveScoreSql` so the pure ranker and SQL pool
+/// agree on ordering.
+double? effectiveQualityScore(ProductsCoreData p) => p.qualityScoreV4100;
 
-/// True when a v4 row is safety-suppressed (status present and not
-/// 'scored' → BLOCKED/UNSAFE/NOT_SCORED). A legacy v3 row has NULL status
-/// and is never treated as suppressed here (it relies on the banned /
-/// recalled flag excludes instead).
+/// True when a row is safety-suppressed (status present and not
+/// 'scored' → BLOCKED/UNSAFE/NOT_SCORED).
 bool isSafetySuppressed(ProductsCoreData p) {
   final s = p.qualityScoreStatus;
-  return s != null && s != 'scored';
+  return s != 'scored';
 }
 
 /// Hard filters every candidate must pass before audience and tier
@@ -194,7 +189,7 @@ bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
   // On-market only.
   final disc = candidate.discontinuedDate;
   if (disc != null && disc.trim().isNotEmpty) return false;
-  // Never recommend a safety-suppressed v4 product (BLOCKED/UNSAFE) — its
+  // Never recommend a safety-suppressed product (BLOCKED/UNSAFE) — its
   // score is NULL and the product is unsafe.
   if (isSafetySuppressed(candidate)) return false;
   // Candidate must carry a score so the section can render a value.
@@ -202,11 +197,10 @@ bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
   if (candScore == null) return false;
   // Strictly higher than the current product — UNLESS the current
   // product is itself unscored. Phase 11.7L.F follow-up
-  // (Sean 2026-05-16): blocked products like Vinpocetine ship with
-  // `score_quality_80 = NULL` because the safety verdict short-
-  // circuits scoring. The user landing on a banned product NEEDS
-  // to see safer alternatives, so we treat "no score" as "lower
-  // than anything that has a score" and let scored candidates pass.
+  // (Sean 2026-05-16): blocked products may ship with no v4 score because the
+  // safety verdict short-circuits scoring. The user landing on a banned
+  // product NEEDS to see safer alternatives, so we treat "no score" as
+  // "lower than anything that has a score" and let scored candidates pass.
   //
   // **Do NOT rewrite this branch to reject `curScore == null`.**
   // The user reason for being on this section is that the current
