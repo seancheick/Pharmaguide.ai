@@ -143,7 +143,7 @@ void main() {
               expectedSeverity: Severity.caution,
             ),
             (
-              canonicalId: 'banned_red_yeast_rice',
+              canonicalId: 'red_yeast_rice',
               medicationName: 'Atorvastatin',
               rxcui: '83367',
               drugClasses: ['class:statins'],
@@ -151,7 +151,7 @@ void main() {
               expectedSeverity: Severity.avoid,
             ),
             (
-              canonicalId: 'banned_cbd_us',
+              canonicalId: 'cbd',
               medicationName: 'Warfarin',
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
