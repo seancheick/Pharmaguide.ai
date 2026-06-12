@@ -225,13 +225,27 @@ class StackUlChecker {
       }
     }
 
-    // Tier 2: age match with any group (first seen).
+    // Tier 2: age matches but sex didn't (null, 'Other', 'Prefer not
+    // to say', or no row for that group). Prefer the Female row at the
+    // same age — the conservative direction for most nutrients (Female
+    // RDA <= Male), consistent with the tier-3 rationale — and FLAG it
+    // as baseline: the value is age-personalized but not
+    // sex-personalized, so the UI's "set your profile" hint applies.
+    // Never silently hand an unspecified-sex user the Male target
+    // (wrong direction on e.g. iron: Male 8 vs Female 18).
     if (ageBracket != null) {
+      for (final g in data) {
+        if (g is! Map<String, dynamic>) continue;
+        if (g['age_range'] == ageBracket && g['group'] == 'Female') {
+          final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
+          if (v != null) return _RdaLookup(v, true);
+        }
+      }
       for (final g in data) {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket) {
           final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
-          if (v != null) return _RdaLookup(v, false);
+          if (v != null) return _RdaLookup(v, true);
         }
       }
     }
@@ -274,14 +288,19 @@ class StackUlChecker {
       }
     }
 
+    // Age matches but sex didn't: take the LOWEST UL across groups at
+    // that age (conservative — never under-warn an unspecified-sex
+    // user), flagged as non-personalized.
     if (ageBracket != null) {
+      double? lowest;
       for (final g in data) {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket) {
           final v = _asDouble(g['ul']);
-          if (v != null) return _UlLookup(v, false);
+          if (v != null && (lowest == null || v < lowest)) lowest = v;
         }
       }
+      if (lowest != null) return _UlLookup(lowest, true);
     }
 
     // Anonymous fallback: least restrictive UL lets us still catch large

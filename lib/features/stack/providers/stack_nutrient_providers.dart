@@ -190,5 +190,10 @@ String? _rdaGroupForProfile(String? sex, List<String> conditions) {
   final normalizedConditions = conditions.map((c) => c.toLowerCase()).toSet();
   if (normalizedConditions.contains('pregnancy')) return 'Pregnancy';
   if (normalizedConditions.contains('lactation')) return 'Lactation';
-  return sex;
+  // Only 'Male'/'Female' exist as reference-data groups. 'Other' /
+  // 'Prefer not to say' normalize to null so the checker takes its
+  // conservative flagged fallback instead of string-matching nothing
+  // and silently landing on the first (Male) row.
+  if (sex == 'Male' || sex == 'Female') return sex;
+  return null;
 }

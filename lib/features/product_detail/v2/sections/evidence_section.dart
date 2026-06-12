@@ -3,10 +3,21 @@
 // Production reads `evidence_data` blob:
 //   match_count          int    — total clinical_matches count
 //   clinical_matches[]   list   — {ingredient, standard_name, study_name,
-//                                  evidence_level, study_type, plus optional
+//                                  evidence_level, study_type, study_id,
+//                                  id (mirrors study_id), plus optional
 //                                  rich fields: references_structured[],
 //                                  total_enrollment, published_rct_count,
 //                                  published_meta_review_count, ...}
+//
+// MATCH-LEVEL DEDUPE (verified pipeline bug, dsld_id 315678): the
+// pipeline emits both an elemental row ('Magnesium') and a compound
+// row ('Magnesium Glycinate') for one nutrient, and the SAME study can
+// match via both — clinical_matches then carries the same study twice
+// under two ingredient names. All tier / count / enrollment / citation
+// computation runs on matches deduped by study identity (study_id,
+// falling back to id) so one study never counts twice and its
+// enrollment sums once. Citations were already PMID-deduped; this
+// extends the dedupe to the match level.
 //   unsubstantiated_claims[]    — flagged marketing claims (deferred)
 //
 // `references_structured` entries: {type, authority, pmid, doi, title,
@@ -55,6 +66,26 @@ const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 /// Max citation rows rendered — the blob can carry dozens of structured
 /// references; the section shows the first few, deduped by PMID.
 const int _maxCitations = 5;
+
+/// Dedupe clinical matches by study identity (`study_id`, falling back
+/// to `id`). The pipeline's dual elemental/compound row emission can
+/// match the same study via both ingredient rows; keep the first
+/// occurrence so tier, study counts, enrollment sums, and citation rows
+/// each see one match per study. Matches with no identity field are
+/// kept (conservative — never silently drop evidence).
+List<Map<String, dynamic>> dedupeClinicalMatches(
+  List<Map<String, dynamic>> matches,
+) {
+  final seen = <String>{};
+  final out = <Map<String, dynamic>>[];
+  for (final m in matches) {
+    var identity = m['study_id']?.toString().trim() ?? '';
+    if (identity.isEmpty) identity = m['id']?.toString().trim() ?? '';
+    if (identity.isNotEmpty && !seen.add(identity)) continue;
+    out.add(m);
+  }
+  return out;
+}
 
 String _level(Map<String, dynamic> m) =>
     (m['evidence_level']?.toString() ?? '').toLowerCase().trim();
@@ -173,7 +204,11 @@ List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
 Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
   if (evidenceData == null) return const SizedBox.shrink();
 
-  final clinicalMatches = evidenceData.safeMapList('clinical_matches');
+  // Match-level dedupe BEFORE any tier/count/citation computation —
+  // see header note on the dual elemental/compound row pipeline bug.
+  final clinicalMatches = dedupeClinicalMatches(
+    evidenceData.safeMapList('clinical_matches'),
+  );
 
   // Suppress when nothing parsed — including the malformed case where
   // match_count > 0 but no clinical_matches survived parsing. A LIMITED

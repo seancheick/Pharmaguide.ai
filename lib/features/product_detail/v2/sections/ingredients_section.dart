@@ -45,6 +45,7 @@ import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_helpers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/functional_roles_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
+import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 
 /// Build the Ingredients section. Composes:
 ///   - Active list: PGActiveIngredientsSection wrapping tiles built from
@@ -63,7 +64,16 @@ Widget buildIngredientsSection({
   required List<Map<String, dynamic>>? ulAnalysis,
   required List<Map<String, dynamic>>? blends,
 }) {
-  final hasActive = ingredients.isNotEmpty;
+  // Elemental vs compound dedupe (verified pipeline bug, dsld_id
+  // 315678): the blob can carry both an elemental row ('Magnesium',
+  // 60 mg — the true dose) and a compound-weight row ('Magnesium
+  // Glycinate', 400 mg) for the same canonical_id. Render ONE row —
+  // the elemental dose with the compound as form context ('Magnesium
+  // (as Magnesium Glycinate)') and a single form-quality badge.
+  // Genuine multi-form labels (no bare elemental sibling) pass through.
+  final dedupedActives = dedupeElementalCompoundRows(ingredients);
+
+  final hasActive = dedupedActives.isNotEmpty;
   final hasInactive = inactiveIngredients.any(
     (m) =>
         (m['name']?.toString().isNotEmpty == true) ||
@@ -79,7 +89,7 @@ Widget buildIngredientsSection({
   if (hasActive) {
     final tiles = _buildActiveTiles(
       context: context,
-      ingredients: ingredients,
+      ingredients: dedupedActives,
       ulAnalysis: ulAnalysis,
       blends: blends,
     );
