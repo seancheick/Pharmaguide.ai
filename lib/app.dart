@@ -858,8 +858,54 @@ class _AppShell extends StatelessWidget {
   }
 }
 
-class _AuthCallbackScreen extends StatelessWidget {
+class _AuthCallbackScreen extends StatefulWidget {
   const _AuthCallbackScreen();
+
+  @override
+  State<_AuthCallbackScreen> createState() => _AuthCallbackScreenState();
+}
+
+class _AuthCallbackScreenState extends State<_AuthCallbackScreen> {
+  Timer? _stuckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Race guard: if the OTP exchange already completed before this
+    // screen mounted, the signedIn event is gone — route now.
+    try {
+      if (supabase.auth.currentSession != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.go(Routes.home);
+        });
+        return;
+      }
+    } on Object catch (_) {
+      // Supabase not initialized (placeholder mode) — fall through.
+    }
+    // Stuck guard: an expired/invalid link never emits signedIn. Don't
+    // spin forever — hand the user back to the auth screen.
+    _stuckTimer = Timer(const Duration(seconds: 20), () {
+      if (!mounted) return;
+      scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            "That sign-in link didn't complete — it may have expired. "
+            'Try sending a new one.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      context.go(Routes.authInvitation);
+    });
+  }
+
+  @override
+  void dispose() {
+    _stuckTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1030,7 +1076,11 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
               loc.startsWith('/dev/v2/auth') ||
               loc == Routes.splashIntro ||
               loc == Routes.onboarding ||
-              loc == Routes.authInvitation;
+              loc == Routes.authInvitation ||
+              // Magic-link deep links land on the /auth/callback spinner;
+              // without this the signedIn event had no navigator and the
+              // handoff spun forever.
+              loc == '/auth/callback';
           if (onAuthPath) {
             // Honor the dev-route override: if the gallery is the
             // active root (DEV_ROUTE=/dev/v2) land at the v2 home
