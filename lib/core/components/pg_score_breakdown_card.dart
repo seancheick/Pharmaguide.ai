@@ -81,15 +81,51 @@ class PGScoreBreakdownCard extends StatelessWidget {
   final double? mappedCoverage;
 
   /// Top-line PG Score (0..100) shown in the card title. Null omits
-  /// the number.
-  final int? heroScore;
+  /// the number. Accepts the unrounded pipeline value so the native-scale
+  /// sum line and the title agree to the decimal.
+  final num? heroScore;
+
+  /// v4 native-scale mode: each pillar renders its REAL score/max
+  /// (18/20, 12.5/15, 10/10) and a "= N/100" sum line closes the card —
+  /// the six v4 pillar weights (20/20/20/15/15/10) sum to exactly 100,
+  /// and `quality_score_v4_100` IS the pillar sum (quality_score.py:583),
+  /// so the visible arithmetic is the explanation. When false (v3
+  /// fallback — legacy 25/30/20/5 scales that sum to 80), scores stay
+  /// normalized to a uniform 0–10 so the odd engineering scales don't
+  /// leak into the UI.
+  final bool nativeScale;
 
   const PGScoreBreakdownCard({
     super.key,
     required this.pillars,
     this.mappedCoverage,
     this.heroScore,
+    this.nativeScale = false,
   });
+
+  /// Format a score: integral values render bare ("18"), fractional keep
+  /// one decimal ("17.5").
+  static String fmtScore(num value) {
+    final rounded = (value * 10).round() / 10;
+    return rounded == rounded.roundToDouble()
+        ? rounded.round().toString()
+        : rounded.toStringAsFixed(1);
+  }
+
+  /// Exact sum of the pillar scores — shown as the "= N/100" line. Null
+  /// (line hidden) unless EVERY pillar carries a score: a partial sum
+  /// would not match the hero and would break the very promise the line
+  /// exists to make.
+  double? get _pillarSum {
+    if (pillars.isEmpty) return null;
+    var sum = 0.0;
+    for (final p in pillars) {
+      final s = p.score;
+      if (s == null) return null;
+      sum += s;
+    }
+    return sum;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,19 +145,33 @@ class PGScoreBreakdownCard extends StatelessWidget {
           // Drives the user's mental anchor for the pillars below.
           Text(
             heroScore != null
-                ? 'Why this scored $heroScore'
+                ? 'Why this scored ${fmtScore(heroScore!)}'
                 : 'Why this scored',
             style: V2Typography.titleSm(color: V2Colors.fg),
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(
-            'Tap any pillar to see what drives it.',
+            nativeScale
+                ? 'Six pillars, out of 100 — they add up to the score.'
+                : 'Tap any pillar to see what drives it.',
             style: V2Typography.caption(color: V2Colors.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space16),
           for (var i = 0; i < pillars.length; i++) ...[
             if (i > 0) const SizedBox(height: V2Spacing.space12),
-            _PGPillarRow(pillar: pillars[i]),
+            _PGPillarRow(pillar: pillars[i], nativeScale: nativeScale),
+          ],
+          if (nativeScale && _pillarSum != null) ...[
+            const SizedBox(height: V2Spacing.space12),
+            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+            const SizedBox(height: V2Spacing.space8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '= ${fmtScore(_pillarSum!)}/100',
+                style: V2Typography.monoData(color: V2Colors.fg),
+              ),
+            ),
           ],
           if (mappedCoverage != null) ...[
             const SizedBox(height: V2Spacing.space16),
@@ -137,7 +187,8 @@ class PGScoreBreakdownCard extends StatelessWidget {
 
 class _PGPillarRow extends StatefulWidget {
   final PGPillar pillar;
-  const _PGPillarRow({required this.pillar});
+  final bool nativeScale;
+  const _PGPillarRow({required this.pillar, this.nativeScale = false});
 
   @override
   State<_PGPillarRow> createState() => _PGPillarRowState();
@@ -167,9 +218,10 @@ class _PGPillarRowState extends State<_PGPillarRow> {
     return fraction >= 0.5 ? V2Colors.safe : V2Colors.monitor;
   }
 
-  /// Normalize pillar raw score to a 0–10 display scale (Sean: users
-  /// don't think in engineering scales of 25/30/20/5 — same number out
-  /// of 10 across every pillar reads cleanly and comparably).
+  /// v3-fallback only: normalize pillar raw score to a 0–10 display scale
+  /// (Sean: users don't think in engineering scales of 25/30/20/5 — same
+  /// number out of 10 reads cleanly). v4 uses native score/max instead
+  /// (`nativeScale`) because its weights are clean and sum to 100.
   int _displayScore(double rawScore, int max) {
     return (rawScore / max * 10).round().clamp(0, 10);
   }
@@ -243,7 +295,9 @@ class _PGPillarRowState extends State<_PGPillarRow> {
               const SizedBox(width: V2Spacing.space8),
               if (hasScore)
                 Text(
-                  '${_displayScore(score, max)}/10',
+                  widget.nativeScale
+                      ? '${PGScoreBreakdownCard.fmtScore(score)}/$max'
+                      : '${_displayScore(score, max)}/10',
                   style: V2Typography.monoData(color: tone),
                 )
               else

@@ -80,7 +80,10 @@ Widget buildScoreBreakdownSection({
   return PGScoreBreakdownCard(
     pillars: pillars,
     mappedCoverage: mappedCoverage,
-    heroScore: heroScore?.round(),
+    // v4: unrounded hero so the title matches the "= N/100" pillar-sum
+    // line to the decimal. v3 fallback keeps the rounded int display.
+    heroScore: v4.isNotEmpty ? heroScore : heroScore?.round(),
+    nativeScale: v4.isNotEmpty,
   );
 }
 
