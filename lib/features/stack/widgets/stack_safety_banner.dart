@@ -32,6 +32,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -104,7 +105,7 @@ class StackSafetyBanner extends StatelessWidget {
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
       tone: PGBannerTone.caution,
-      title: 'Some labels couldn\'t be fully analyzed',
+      title: kCoverageHedgeBase,
       body:
           'One or more products in your stack have limited ingredient '
           'data — results may be incomplete.',

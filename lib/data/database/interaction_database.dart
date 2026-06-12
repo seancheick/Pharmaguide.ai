@@ -465,4 +465,33 @@ class InteractionDatabase extends _$InteractionDatabase {
     ).getSingle();
     return row.read<int>('count');
   }
+
+  /// Live (non-tombstoned) interaction rows that are hand-reviewed:
+  /// `source` ∈ {'curated', 'override'} per the table's source
+  /// vocabulary ('curated'|'suppai'|'override'). Used by the Trust
+  /// Receipts sheet, whose "Hand-reviewed, evidence-graded" subtitle
+  /// must never count machine-extracted source='suppai' rows. Verified
+  /// against the bundled DB: current rows are exclusively 'curated',
+  /// but the filter keeps the claim honest if mixed-source bundles
+  /// ever ship. Health checks / import gates should keep using
+  /// [countLiveInteractions] (total bundle sanity, source-agnostic).
+  Future<int> countCuratedInteractions() async {
+    final row = await customSelect(
+      "SELECT COUNT(*) AS count FROM interactions "
+      "WHERE retired_at IS NULL AND source IN ('curated', 'override')",
+      readsFrom: {interactions},
+    ).getSingle();
+    return row.read<int>('count');
+  }
+
+  /// Total supp.ai research-pair rows in the bundle. Used by the Trust
+  /// Receipts sheet ("Why trust this?") so the displayed pair count always
+  /// reflects the bundled data instead of a hardcoded number.
+  Future<int> countResearchPairs() async {
+    final row = await customSelect(
+      'SELECT COUNT(*) AS count FROM research_pairs',
+      readsFrom: {researchPairs},
+    ).getSingle();
+    return row.read<int>('count');
+  }
 }

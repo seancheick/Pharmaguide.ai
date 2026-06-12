@@ -25,19 +25,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
+import 'package:pharmaguide/core/components/pg_trust_receipts_sheet.dart';
+import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// v4 pillar key → (display label, max) in display order. Maxes match the
-/// pipeline (`scripts/scoring_v4/config/quality_score.json`); the blob also
-/// carries `max` per pillar, used in preference to this fallback.
-const List<(String, String, int)> _v4PillarSpec = [
-  ('formulation', 'Formulation', 20),
-  ('dose', 'Dose', 20),
-  ('evidence', 'Evidence', 20),
-  ('transparency', 'Transparency', 15),
-  ('verification', 'Verification', 15),
-  ('safety_hygiene', 'Safety Hygiene', 10),
-];
+// v4 pillar spec + parsing now live in `core/scoring/v4_pillars.dart`
+// (shared with the Compare surface — single source of truth).
 
 /// Build the ScoreBreakdown section. Gated by
 /// `shouldShowScoreBreakdown(isBlocked, isNotScored)` in the connected
@@ -64,14 +59,19 @@ Widget buildScoreBreakdownSection({
   /// the v3 fallback never deep-links.
   Map<String, VoidCallback>? onPillarTap,
 }) {
-  final v4 = qualityPillarsV4 == null
-      ? const <PGPillar>[]
-      : _buildV4Pillars(
-          qualityPillarsV4,
+  // SHIP RULE: the v4 native-scale render requires ALL SIX pillars.
+  // A partial blob (e.g. 4/6 entries) would draw a "= 62/100" sum line
+  // under a 98.1 hero — visibly contradicting the score. Anything less
+  // than 6/6 falls back to v3 (same rule the Compare surface applies).
+  final parsedV4 = parseV4Pillars(qualityPillarsV4);
+  final v4 = hasAllV4Pillars(parsedV4)
+      ? _buildV4Pillars(
+          parsedV4,
           hasThirdPartyTesting: hasThirdPartyTesting,
           isTrustedManufacturer: isTrustedManufacturer,
           onPillarTap: onPillarTap,
-        );
+        )
+      : const <PGPillar>[];
 
   final pillars = v4.isNotEmpty
       ? v4
@@ -84,36 +84,63 @@ Widget buildScoreBreakdownSection({
           isTrustedManufacturer: isTrustedManufacturer,
         );
 
-  return PGScoreBreakdownCard(
-    pillars: pillars,
-    mappedCoverage: mappedCoverage,
-    // v4: unrounded hero so the title matches the "= N/100" pillar-sum
-    // line to the decimal. v3 fallback keeps the rounded int display.
-    heroScore: v4.isNotEmpty ? heroScore : heroScore?.round(),
-    nativeScale: v4.isNotEmpty,
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      PGScoreBreakdownCard(
+        pillars: pillars,
+        mappedCoverage: mappedCoverage,
+        // v4: unrounded hero so the title matches the "= N/100" pillar-sum
+        // line to the decimal. v3 fallback keeps the rounded int display.
+        heroScore: v4.isNotEmpty ? heroScore : heroScore?.round(),
+        nativeScale: v4.isNotEmpty,
+      ),
+      // Muted "How scoring works" link → Trust Receipts sheet. Wired at
+      // the section level (NOT inside PGScoreBreakdownCard) so the card
+      // stays a pure display component.
+      const SizedBox(height: V2Spacing.space8),
+      const _HowScoringWorksLink(),
+    ],
   );
 }
 
-/// Six v4 pillars from the blob's `quality_pillars_v4`. Returns `[]` when the
-/// map is missing/malformed so the caller can fall back to the v3 pillars.
+/// Quiet text link under the score breakdown card that opens the shared
+/// Trust Receipts sheet (its "How scoring works" section explains the six
+/// v4 pillars).
+class _HowScoringWorksLink extends StatelessWidget {
+  const _HowScoringWorksLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      onTap: () => showTrustReceiptsSheet(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: V2Spacing.space8,
+          vertical: V2Spacing.space4,
+        ),
+        child: Text(
+          'How scoring works',
+          style: V2Typography.caption(color: V2Colors.fgMuted),
+        ),
+      ),
+    );
+  }
+}
+
+/// Six v4 pillars from the pre-parsed (and 6/6-verified) pillar values.
 List<PGPillar> _buildV4Pillars(
-  Map<String, dynamic> pillarsBlob, {
+  List<V4PillarValue> parsed, {
   required bool hasThirdPartyTesting,
   required bool isTrustedManufacturer,
   Map<String, VoidCallback>? onPillarTap,
 }) {
   final out = <PGPillar>[];
-  for (final (key, label, fallbackMax) in _v4PillarSpec) {
-    final raw = pillarsBlob[key];
-    if (raw is! Map) continue;
-    final m = Map<String, dynamic>.from(raw);
-    final score = (m['score'] as num?)?.toDouble();
-    final max = (m['max'] as num?)?.toInt() ?? fallbackMax;
-    final reason = (m['reason'] as String?)?.trim();
-
+  for (final p in parsed) {
     // The verification pillar absorbs the v3 trust badges (third-party
     // testing / trusted manufacturer) — the closest v4 home for them.
-    final badges = key == 'verification'
+    final badges = p.key == 'verification'
         ? <PGPillarBadge>[
             if (hasThirdPartyTesting)
               const PGPillarBadge(
@@ -132,12 +159,12 @@ List<PGPillar> _buildV4Pillars(
 
     out.add(
       PGPillar(
-        label: label,
-        max: max,
-        score: score,
-        microExplanation: (reason != null && reason.isNotEmpty) ? reason : null,
+        label: p.label,
+        max: p.max,
+        score: p.score,
+        microExplanation: p.reason,
         badges: badges,
-        onTap: onPillarTap?[key],
+        onTap: onPillarTap?[p.key],
       ),
     );
   }

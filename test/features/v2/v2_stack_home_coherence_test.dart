@@ -123,10 +123,21 @@ void main() {
         ],
       );
 
-      expect(find.text('Your supplements'), findsOneWidget);
-      expect(find.text('Swipe left to remove'), findsOneWidget);
-      expect(find.byType(Dismissible), findsOneWidget);
-      expect(find.text('Magnesium Glycinate'), findsOneWidget);
+      // The Coverage card above the list can push these below the test
+      // viewport fold — assert presence in the tree, not on-screen.
+      expect(
+        find.text('Your supplements', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Swipe left to remove', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(find.byType(Dismissible, skipOffstage: false), findsOneWidget);
+      expect(
+        find.text('Magnesium Glycinate', skipOffstage: false),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Stack v2 real rows hydrate product brand and score', (
@@ -161,9 +172,14 @@ void main() {
         ],
       );
 
-      expect(find.text('Magnesium Glycinate 200'), findsOneWidget);
-      expect(find.text('Clean Lab'), findsOneWidget);
-      expect(find.text('87/100'), findsOneWidget);
+      // The Coverage card above the list can push the row below the test
+      // viewport fold — assert presence in the tree, not on-screen.
+      expect(
+        find.text('Magnesium Glycinate 200', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(find.text('Clean Lab', skipOffstage: false), findsOneWidget);
+      expect(find.text('87/100', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets(

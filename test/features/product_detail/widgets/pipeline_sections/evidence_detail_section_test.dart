@@ -49,6 +49,38 @@ void main() {
     test('match without references_structured contributes zero studies', () {
       expect(evidenceTotalStudies([_match()]), 0);
     });
+
+    test('preclinical and reference matches never count as human studies', () {
+      expect(
+        evidenceTotalStudies([
+          _match(evidence: 'preclinical', refs: [_ref('1'), _ref('2')]),
+          _match(evidence: 'reference', refs: [_ref('3')]),
+        ]),
+        0,
+      );
+      // Human-grade matches still count alongside excluded ones.
+      expect(
+        evidenceTotalStudies([
+          _match(evidence: 'preclinical', refs: [_ref('1')]),
+          _match(evidence: 'ingredient-human', refs: [_ref('2')]),
+        ]),
+        1,
+      );
+    });
+  });
+
+  group('evidenceTotalEnrollment', () {
+    test('sums enrollment for human-grade matches only', () {
+      expect(
+        evidenceTotalEnrollment([
+          _match(evidence: 'ingredient-human', totalEnrollment: 200),
+          _match(evidence: 'branded-rct', totalEnrollment: 100),
+          _match(evidence: 'preclinical', totalEnrollment: 9999),
+          _match(evidence: 'reference', totalEnrollment: 5000),
+        ]),
+        300,
+      );
+    });
   });
 
   group('evidenceHasMetaQuality', () {
@@ -140,6 +172,18 @@ void main() {
         ]),
         isNull,
       );
+    });
+
+    test('preclinical refs/enrollment never inflate the human headline', () {
+      final headline = evidenceHeadline([
+        _match(refs: [_ref('1')], totalEnrollment: 100),
+        _match(
+          evidence: 'preclinical',
+          refs: [_ref('2'), _ref('3')],
+          totalEnrollment: 9000,
+        ),
+      ]);
+      expect(headline, 'Backed by 1 human study · ~100 participants');
     });
   });
 
@@ -233,7 +277,9 @@ void main() {
       expect(find.text('MODERATE · 1 study'), findsOneWidget);
     });
 
-    testWidgets('preclinical only renders limited tier', (tester) async {
+    testWidgets('preclinical only renders limited tier with no study count', (
+      tester,
+    ) async {
       await _pump(
         tester,
         evidenceData: {
@@ -244,8 +290,64 @@ void main() {
         },
       );
 
-      expect(find.text('LIMITED · 1 study'), findsOneWidget);
+      // Preclinical refs inform the tier only — never a "study" count
+      // that downstream copy could read as human studies.
+      expect(find.text('LIMITED'), findsOneWidget);
+      expect(find.textContaining('study'), findsNothing);
       expect(find.textContaining('meta-analysis'), findsNothing);
+    });
+
+    testWidgets('match_count > 0 with zero parsed matches hides section', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: const {
+          'match_count': 3,
+          'clinical_matches': <Map<String, dynamic>>[],
+        },
+      );
+
+      expect(find.byType(PGEvidenceSection), findsNothing);
+    });
+
+    testWidgets('STRONG helper line never says "Multiple" for one study', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(evidence: 'product-human', refs: [_ref('111')]),
+          ],
+        },
+      );
+
+      expect(
+        find.text('High-quality human research supports these claims.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Multiple'), findsNothing);
+    });
+
+    testWidgets('STRONG helper line says "Multiple" only with 2+ studies', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(evidence: 'product-human', refs: [_ref('111'), _ref('222')]),
+          ],
+        },
+      );
+
+      expect(
+        find.text('Multiple high-quality human studies support these claims.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('match without refs still renders and informs tier', (

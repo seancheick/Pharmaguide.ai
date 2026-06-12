@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
@@ -158,7 +159,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       coverageIncomplete = true;
       continue;
     }
-    if ((product.mappedCoverage ?? 0.0) < 0.3) coverageIncomplete = true;
+    if (isLowCoverage(product.mappedCoverage)) coverageIncomplete = true;
     hydrated.add(HydratedSupplement(entry: entry, product: product));
   }
 

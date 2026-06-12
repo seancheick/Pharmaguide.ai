@@ -122,6 +122,28 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('PMID 12345'), findsOneWidget);
+    // Plural summary line for a 12-paper pair.
+    expect(
+      find.text('12 papers, 3 human, 2 clinical - latest 2024'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('drawer summary uses singular "paper" for a single-paper pair', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(evidence: [_evidence(paperCount: 1)]));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('STUDIED COMBINATIONS'));
+    await tester.pumpAndSettle();
+
+    // Never "1 papers".
+    expect(
+      find.text('1 paper, 3 human, 2 clinical - latest 2024'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('1 papers'), findsNothing);
   });
 
   testWidgets('shows top evidence pills without severity language', (

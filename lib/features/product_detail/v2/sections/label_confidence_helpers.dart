@@ -20,6 +20,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/components/pg_label_confidence_card.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
 
 /// Three-tier classification for the label-confidence card. Verbatim
 /// port of production's private `_Tier` enum.
@@ -45,7 +46,9 @@ LabelConfidenceTier computeLabelConfidenceTier({
   required bool isNotScored,
   Map<String, dynamic>? unmappedActives,
 }) {
-  if (isNotScored || mappedCoverage < 0.3) return LabelConfidenceTier.limited;
+  if (isNotScored || isLowCoverage(mappedCoverage)) {
+    return LabelConfidenceTier.limited;
+  }
   if (mappedCoverage < 0.5) return LabelConfidenceTier.partial;
   if (hasProprietaryBlends) return LabelConfidenceTier.partial;
   if (unmappedTotal(unmappedActives) > 0) return LabelConfidenceTier.partial;
@@ -185,7 +188,7 @@ List<PGLabelConfidenceItem> buildLabelConfidenceItems({
   }
 
   if (mappedCoverage < 0.5) {
-    final lowCoverage = mappedCoverage < 0.3;
+    final lowCoverage = isLowCoverage(mappedCoverage);
     items.add(
       PGLabelConfidenceItem(
         icon: Icons.warning_amber_rounded,

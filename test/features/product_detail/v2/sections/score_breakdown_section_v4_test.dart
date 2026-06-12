@@ -121,6 +121,68 @@ void main() {
     expect(find.text('Ingredient Quality'), findsOneWidget);
     expect(find.text('Formulation'), findsNothing);
   });
+
+  testWidgets('SHIP RULE: partial blob (4/6 pillars) falls back to v3 — '
+      'never a partial native-scale sum under the hero', (tester) async {
+    final partial = _v4Pillars();
+    partial.remove('verification');
+    partial.remove('safety_hygiene');
+
+    await tester.pumpWidget(
+      _wrap(
+        buildScoreBreakdownSection(
+          ingredientQuality: 20,
+          safetyPurity: 28,
+          evidenceResearch: 15,
+          brandTrust: 4,
+          hasThirdPartyTesting: false,
+          isTrustedManufacturer: false,
+          heroScore: 98.1,
+          mappedCoverage: 0.9,
+          qualityPillarsV4: partial,
+        ),
+      ),
+    );
+
+    // v3 fallback rendered — NOT four v4 pillars with a "= 70/100" sum
+    // line contradicting the 98.1 hero.
+    expect(find.text('Ingredient Quality'), findsOneWidget);
+    expect(find.text('Formulation'), findsNothing);
+    expect(find.textContaining('= '), findsNothing);
+  });
+
+  testWidgets('tolerant parsing: numeric-string scores and max<=0 render '
+      'via spec fallback, never throw', (tester) async {
+    final pillars = _v4Pillars();
+    (pillars['formulation'] as Map<String, dynamic>)['score'] = '17.6';
+    (pillars['dose'] as Map<String, dynamic>)['max'] = 0; // → fallback 20
+    await tester.pumpWidget(_wrap(_v4Section(pillars: pillars)));
+
+    expect(find.text('17.6/20'), findsOneWidget); // string score parsed
+    expect(find.text('20/20'), findsOneWidget); // dose against fallback max
+    expect(find.text('= 94/100'), findsOneWidget); // all six still sum
+  });
+
+  testWidgets('sum line matches the 0.1-rounded values the rows display', (
+    tester,
+  ) async {
+    // Raw values whose unrounded sum (93.38 → "93.4") disagrees with the
+    // sum of the displayed 0.1-rounded row values
+    // (17.5 + 20 + 18.5 + 13.5 + 15 + 9 = 93.5).
+    final pillars = _v4Pillars();
+    (pillars['formulation'] as Map<String, dynamic>)['score'] = 17.46;
+    (pillars['evidence'] as Map<String, dynamic>)['score'] = 18.46;
+    (pillars['transparency'] as Map<String, dynamic>)['score'] = 13.46;
+    await tester.pumpWidget(_wrap(_v4Section(pillars: pillars)));
+
+    expect(find.text('17.5/20'), findsOneWidget);
+    expect(find.text('18.5/20'), findsOneWidget);
+    expect(find.text('13.5/15'), findsOneWidget);
+    // The sum line must reproduce the arithmetic a user can do from the
+    // visible rows — 93.5, not the raw 93.4.
+    expect(find.text('= 93.5/100'), findsOneWidget);
+    expect(find.text('= 93.4/100'), findsNothing);
+  });
 }
 
 // ---------------------------------------------------------------------------

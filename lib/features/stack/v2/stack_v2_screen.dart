@@ -24,7 +24,9 @@ import 'package:pharmaguide/features/stack/providers/medication_identity_provide
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
+import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
+import 'package:pharmaguide/features/stack/widgets/stack_coverage_card.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 
@@ -327,6 +329,7 @@ class _StackTab extends ConsumerWidget {
           // these silently disappear on a clean stack.
           const _RecallAlertSlot(),
           const _StackSafetyBannerSlot(),
+          const _CoverageSlot(),
           const _ProfileNudgeSlot(),
           const SizedBox(height: V2Spacing.space24),
           // Empty state — Sean 2026-05-16: replaces the post-clear
@@ -1403,6 +1406,36 @@ class _TimingAdviceSlot extends ConsumerWidget {
         if (!report.hasTimingAdvice) return const SizedBox.shrink();
         return PGTimingAdviceCard(
           optimizations: report.timingOptimizations,
+          margin: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            0,
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Coverage ("is my stack working?") slot — gap analysis card between
+/// the safety banner and the supplements list. Hidden while loading,
+/// on error, or when the stack is empty; the no-goals invitation links
+/// to profile setup.
+class _CoverageSlot extends ConsumerWidget {
+  const _CoverageSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportAsync = ref.watch(coverageReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (report.isEmpty) return const SizedBox.shrink();
+        return StackCoverageCard(
+          report: report,
+          onAddGoals: () => GoRouter.of(context).push(Routes.profileSetup),
           margin: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
             V2Spacing.space12,

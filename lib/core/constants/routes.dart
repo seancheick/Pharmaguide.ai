@@ -16,6 +16,14 @@ abstract final class Routes {
   /// Build a product detail path with dsldId.
   static String productDetail(String dsldId) => '/product/$dsldId';
 
+  /// Side-by-side product comparison — append both dsldIds:
+  /// `'${Routes.compare}/$idA/$idB'`.
+  static const compare = '/compare';
+
+  /// Build a compare path for two products.
+  static String comparePath(String dsldIdA, String dsldIdB) =>
+      '/compare/$dsldIdA/$dsldIdB';
+
   /// Add a medication to the user's stack (RxNorm search + class fallback).
   static const medicationEntry = '/medication-entry';
 

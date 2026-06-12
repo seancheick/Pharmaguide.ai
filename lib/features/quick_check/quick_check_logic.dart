@@ -6,6 +6,7 @@
 
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     as canonical_ids;
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -131,7 +132,7 @@ class QuickCheckItem {
   bool get coverageIncomplete {
     if (hydrationIncomplete) return true;
     if (isSupplement) {
-      return (product?.mappedCoverage ?? 0.0) < 0.3;
+      return isLowCoverage(product?.mappedCoverage);
     }
     return false;
   }

@@ -59,6 +59,64 @@ class ProductDetailScrollAnchors {
     }
   }
 
+  /// Smooth-scroll to an arbitrary anchored [key] with the same
+  /// prime-and-retry mechanism the `?section=` deep links use. SliverList
+  /// lazily builds offscreen children, so `key.currentContext` is null
+  /// for any section below the fold — a plain `ensureVisible` would
+  /// silently no-op. This primes the viewport toward [primeFraction] of
+  /// the max scroll extent, awaits a frame so the target builds, then
+  /// retries `ensureVisible` — capped at [_kScrollToKeyMaxAttempts]
+  /// frames so a target that never renders can't keep the loop alive.
+  ///
+  /// Used by the score-breakdown pillar deep-links ("See details →").
+  static const int _kScrollToKeyMaxAttempts = 120;
+
+  void scrollToKey(
+    GlobalKey key, {
+    required bool Function() isMounted,
+    double primeFraction = 0.5,
+  }) {
+    var attempts = 0;
+    void attempt() {
+      if (!isMounted()) return;
+      final ctx = key.currentContext;
+      if (ctx != null) {
+        try {
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOutCubic,
+            alignment: 0.1,
+          );
+          return;
+        } on Exception {
+          // Built but not yet laid out — fall through to a retry frame.
+        }
+      } else {
+        _primeTowardFraction(primeFraction);
+      }
+      if (++attempts >= _kScrollToKeyMaxAttempts) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) => attempt());
+    }
+
+    attempt();
+  }
+
+  void _primeTowardFraction(double fraction) {
+    if (!scrollController.hasClients) return;
+    if (fraction <= 0) return;
+    final position = scrollController.position;
+    final max = position.maxScrollExtent;
+    if (max <= 0) return;
+    final target = (max * fraction).clamp(0.0, max);
+    if ((target - position.pixels).abs() < 24) return;
+    try {
+      scrollController.jumpTo(target);
+    } on Exception {
+      // Best-effort only; the key-based retry remains the source of truth.
+    }
+  }
+
   void resetInitialScroll() {
     _didScrollToInitialSection = false;
     _lastPrimeMaxScrollExtent = -1;

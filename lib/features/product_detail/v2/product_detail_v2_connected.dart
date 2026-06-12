@@ -32,7 +32,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
+import 'package:pharmaguide/core/components/pg_trust_receipts_sheet.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -41,6 +43,7 @@ import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/compare/compare_picker_sheet.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show topGoalLabelFromFit;
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
@@ -81,6 +84,17 @@ import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+
+/// Null-preserving safe map read for detail-blob fields. Uses the shared
+/// [SafeJson.safeMap] helper (no raw `as Map<String, dynamic>?` casts —
+/// a pipeline shape drift must degrade, not throw) while keeping the
+/// null-vs-present distinction section adapters rely on: absent or
+/// non-map values return null, never an empty `{}`.
+Map<String, dynamic>? _blobMap(Map<String, dynamic>? blob, String key) {
+  if (blob == null || blob[key] == null) return null;
+  final m = blob.safeMap(key);
+  return m.isEmpty ? null : m;
+}
 
 /// Production-wired v2 Product Detail screen.
 ///
@@ -181,26 +195,28 @@ class _ProductDetailV2ConnectedState
     );
   }
 
-  /// Smooth-scroll to a pillar's detail section. No-op when the target
-  /// hasn't been laid out (defensive — callers only wire pillars whose
-  /// section renders on this page).
-  void _scrollToSection(GlobalKey key) {
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-    try {
-      Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOutCubic,
-        alignment: 0.1,
-      );
-    } on Exception {
-      // No-op — same fallback philosophy as scroll_anchors.dart.
-    }
+  /// Smooth-scroll to a pillar's detail section via the shared
+  /// prime-and-retry mechanism (`scroll_anchors.dart`). The lazy
+  /// SliverList doesn't build below-the-fold sections, so the key's
+  /// context is null until the viewport is primed near [primeFraction]
+  /// — a plain ensureVisible would silently drop every deep link to a
+  /// far section.
+  void _scrollToSection(GlobalKey key, {required double primeFraction}) {
+    _anchors.scrollToKey(
+      key,
+      isMounted: () => mounted,
+      primeFraction: primeFraction,
+    );
   }
 
   @override
   void dispose() {
+    // Backing out before the hero verdict ever rendered would leave the
+    // scan→verdict transaction dangling (the NEXT scan would finish it
+    // as 'cancelled' with a junk duration). Abort it now instead.
+    if (!_verdictTraceFinished) {
+      PerfTraceService().abandonScanToVerdict();
+    }
     _anchors.dispose();
     super.dispose();
   }
@@ -305,8 +321,7 @@ class _ProductDetailV2ConnectedState
     final canonicalIds = _product == null
         ? const <String>[]
         : canonicalIdsForProduct(_product!, detailBlob: detailBlob);
-    final blendDetail =
-        detailBlob?['proprietary_blend_detail'] as Map<String, dynamic>?;
+    final blendDetail = _blobMap(detailBlob, 'proprietary_blend_detail');
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
 
     // -------------------------------------------------------------
@@ -317,8 +332,8 @@ class _ProductDetailV2ConnectedState
       mappedCoverage: mappedCoverage,
       hasProprietaryBlends: hasProprietaryBlends,
       isNotScored: isNotScored,
-      productStatus: detailBlob?['product_status'] as Map<String, dynamic>?,
-      unmappedActives: detailBlob?['unmapped_actives'] as Map<String, dynamic>?,
+      productStatus: _blobMap(detailBlob, 'product_status'),
+      unmappedActives: _blobMap(detailBlob, 'unmapped_actives'),
     );
 
     // -------------------------------------------------------------
@@ -347,11 +362,10 @@ class _ProductDetailV2ConnectedState
     // -------------------------------------------------------------
     if (!_verdictTraceFinished) {
       _verdictTraceFinished = true;
-      // Coarse cache signal only: was the detail blob already resolved
-      // when the verdict rendered? Never a product id or barcode.
-      final blobWasReady = detailBlob != null;
+      // Duration only — the former `from_cache` tag was recorded before
+      // the blob resolved (effectively always false) and was dropped.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        PerfTraceService().finishScanToVerdict(fromCache: blobWasReady);
+        PerfTraceService().finishScanToVerdict();
       });
     }
 
@@ -365,15 +379,23 @@ class _ProductDetailV2ConnectedState
     //   formulation / dose  → Ingredients (supplement facts) section
     // Safety Hygiene has no dedicated section — intentionally unwired.
     // -------------------------------------------------------------
+    // Prime fractions approximate each target's position in the page so
+    // the lazy SliverList builds it before the keyed ensureVisible lands
+    // (same approach as scroll_anchors' `?section=` fractions).
     final onPillarTap = <String, VoidCallback>{
       if (showDeepDive) ...{
-        'evidence': () => _scrollToSection(_evidenceSectionKey),
-        'verification': () => _scrollToSection(_certificationsSectionKey),
-        'formulation': () => _scrollToSection(_anchors.ingredientsKey),
-        'dose': () => _scrollToSection(_anchors.ingredientsKey),
+        'evidence': () =>
+            _scrollToSection(_evidenceSectionKey, primeFraction: 0.65),
+        'verification': () =>
+            _scrollToSection(_certificationsSectionKey, primeFraction: 0.60),
+        'formulation': () =>
+            _scrollToSection(_anchors.ingredientsKey, primeFraction: 0.55),
+        'dose': () =>
+            _scrollToSection(_anchors.ingredientsKey, primeFraction: 0.55),
       },
       if (showLabelConfidence)
-        'transparency': () => _scrollToSection(_labelConfidenceSectionKey),
+        'transparency': () =>
+            _scrollToSection(_labelConfidenceSectionKey, primeFraction: 0.25),
     };
 
     // -------------------------------------------------------------
@@ -517,9 +539,10 @@ class _ProductDetailV2ConnectedState
                       child: ReviewBeforeUseSection(
                         warnings: guardedWarnings,
                         interactionHint: interactionHint,
-                        interactionSummary:
-                            detailBlob?['interaction_summary']
-                                as Map<String, dynamic>?,
+                        interactionSummary: _blobMap(
+                          detailBlob,
+                          'interaction_summary',
+                        ),
                         ingredientDoses: ingredientDoses,
                         matchedAllergens: matchedAllergens,
                         freeFromClaims: freeFromClaims,
@@ -541,12 +564,11 @@ class _ProductDetailV2ConnectedState
                         mappedCoverage: mappedCoverage,
                         hasProprietaryBlends: hasProprietaryBlends,
                         isNotScored: isNotScored,
-                        productStatus:
-                            detailBlob?['product_status']
-                                as Map<String, dynamic>?,
-                        unmappedActives:
-                            detailBlob?['unmapped_actives']
-                                as Map<String, dynamic>?,
+                        productStatus: _blobMap(detailBlob, 'product_status'),
+                        unmappedActives: _blobMap(
+                          detailBlob,
+                          'unmapped_actives',
+                        ),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -585,15 +607,17 @@ class _ProductDetailV2ConnectedState
                           _product?.isTrustedManufacturer == 1,
                       heroScore: score100,
                       mappedCoverage: mappedCoverage,
-                      sectionBreakdown:
-                          detailBlob?['section_breakdown']
-                              as Map<String, dynamic>?,
+                      sectionBreakdown: _blobMap(
+                        detailBlob,
+                        'section_breakdown',
+                      ),
                       // v4: prefer the six-pillar breakdown from the blob.
                       // When absent (legacy bundle / pre-v4 blob) the adapter
                       // falls back to the v3 four-section pillars above.
-                      qualityPillarsV4:
-                          detailBlob?['quality_pillars_v4']
-                              as Map<String, dynamic>?,
+                      qualityPillarsV4: _blobMap(
+                        detailBlob,
+                        'quality_pillars_v4',
+                      ),
                       onPillarTap: onPillarTap,
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -615,11 +639,10 @@ class _ProductDetailV2ConnectedState
                                 .whereType<Map<String, dynamic>>()
                                 .toList(growable: false),
                         ulAnalysis:
-                            ((detailBlob?['rda_ul_data']
-                                        as Map<
-                                          String,
-                                          dynamic
-                                        >?)?['analyzed_ingredients']
+                            (_blobMap(
+                                      detailBlob,
+                                      'rda_ul_data',
+                                    )?['analyzed_ingredients']
                                     as List?)
                                 ?.whereType<Map<String, dynamic>>()
                                 .toList(growable: false),
@@ -671,9 +694,7 @@ class _ProductDetailV2ConnectedState
                   if (showDeepDive) ...[
                     buildNutritionSection(
                       caloriesPerServing: _product?.caloriesPerServing,
-                      nutritionDetail:
-                          detailBlob?['nutrition_detail']
-                              as Map<String, dynamic>?,
+                      nutritionDetail: _blobMap(detailBlob, 'nutrition_detail'),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -683,9 +704,10 @@ class _ProductDetailV2ConnectedState
                     KeyedSubtree(
                       key: _certificationsSectionKey,
                       child: buildCertificationsSection(
-                        certificationDetail:
-                            detailBlob?['certification_detail']
-                                as Map<String, dynamic>?,
+                        certificationDetail: _blobMap(
+                          detailBlob,
+                          'certification_detail',
+                        ),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -698,9 +720,7 @@ class _ProductDetailV2ConnectedState
                     KeyedSubtree(
                       key: _evidenceSectionKey,
                       child: buildEvidenceSection(
-                        evidenceData:
-                            detailBlob?['evidence_data']
-                                as Map<String, dynamic>?,
+                        evidenceData: _blobMap(detailBlob, 'evidence_data'),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -731,9 +751,10 @@ class _ProductDetailV2ConnectedState
                   // ---- 12. HeavyMetal (WIRED, 11.7e) ---------------
                   if (showDeepDive) ...[
                     buildHeavyMetalSection(
-                      heavyMetalDetail:
-                          detailBlob?['heavy_metal_detail']
-                              as Map<String, dynamic>?,
+                      heavyMetalDetail: _blobMap(
+                        detailBlob,
+                        'heavy_metal_detail',
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -741,12 +762,14 @@ class _ProductDetailV2ConnectedState
                   // ---- 13. Formulation (WIRED, 11.7e) --------------
                   if (showDeepDive) ...[
                     buildFormulationSection(
-                      formulationDetail:
-                          detailBlob?['formulation_detail']
-                              as Map<String, dynamic>?,
-                      ingredientQualityData:
-                          detailBlob?['ingredient_quality_data']
-                              as Map<String, dynamic>?,
+                      formulationDetail: _blobMap(
+                        detailBlob,
+                        'formulation_detail',
+                      ),
+                      ingredientQualityData: _blobMap(
+                        detailBlob,
+                        'ingredient_quality_data',
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -754,9 +777,7 @@ class _ProductDetailV2ConnectedState
                   // ---- 14. Probiotic (WIRED, 11.7e) ----------------
                   if (showDeepDive) ...[
                     buildProbioticSection(
-                      probioticDetail:
-                          detailBlob?['probiotic_detail']
-                              as Map<String, dynamic>?,
+                      probioticDetail: _blobMap(detailBlob, 'probiotic_detail'),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -764,9 +785,10 @@ class _ProductDetailV2ConnectedState
                   // ---- 15. ManufacturerViolations (WIRED, 11.7e) ---
                   if (showDeepDive) ...[
                     buildManufacturerViolationsSection(
-                      manufacturerDetail:
-                          detailBlob?['manufacturer_detail']
-                              as Map<String, dynamic>?,
+                      manufacturerDetail: _blobMap(
+                        detailBlob,
+                        'manufacturer_detail',
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -813,6 +835,11 @@ class _ProductDetailV2ConnectedState
                   // label — "Updated <Mon DD, YYYY>" — same source the
                   // v2 home screen's citation strip uses.
                   const TransparencyFooterSection(),
+
+                  // ---- 18. Trust Receipts entry ("Why trust this?") --
+                  // Quiet footer row → shared Trust Receipts sheet with
+                  // scoring explanation + live data-source counts.
+                  const _WhyTrustThisRow(),
                 ],
               ),
             ),
@@ -858,6 +885,16 @@ class _ProductDetailV2ConnectedState
         },
       ),
       actions: [
+        // Quiet Compare entry — opens the second-product picker sheet
+        // (stack + recent scans; the current product is excluded).
+        // Scanning-to-compare is out of scope: TODO(compare).
+        if (_product != null)
+          IconButton(
+            tooltip: 'Compare',
+            icon: const Icon(Icons.compare_arrows_rounded, color: V2Colors.fg),
+            onPressed: () =>
+                showComparePickerSheet(context, currentDsldId: widget.dsldId),
+          ),
         if (_product != null)
           IconButton(
             icon: const Icon(Icons.ios_share_rounded, color: V2Colors.fg),
@@ -871,6 +908,52 @@ class _ProductDetailV2ConnectedState
             },
           ),
       ],
+    );
+  }
+}
+
+/// Quiet footer row at the bottom of the page: shield icon + "Why trust
+/// this?" caption. Opens the shared Trust Receipts sheet
+/// (`showTrustReceiptsSheet`) — same sheet the score breakdown's "How
+/// scoring works" link opens.
+class _WhyTrustThisRow extends StatelessWidget {
+  const _WhyTrustThisRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: V2Spacing.space8,
+        bottom: V2Spacing.space12,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+          onTap: () => showTrustReceiptsSheet(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: V2Spacing.space4,
+              vertical: V2Spacing.space4,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.shield_outlined,
+                  size: 13,
+                  color: V2Colors.fgMuted,
+                ),
+                const SizedBox(width: V2Spacing.space4),
+                Text(
+                  'Why trust this?',
+                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

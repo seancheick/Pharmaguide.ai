@@ -23,6 +23,7 @@
 
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -117,6 +118,19 @@ void main() {
         );
       },
     );
+
+    test('countCuratedInteractions equals the live count for the current '
+        'bundle (every shipped row is source=curated today)', () async {
+      // Verified against the bundle: SELECT source, count(*) FROM
+      // interactions GROUP BY source → curated|148. If a future
+      // bundle ships machine-extracted (suppai) rows, the curated
+      // count must drop below the live count — see the in-memory
+      // source-filter test below.
+      final curated = await db.countCuratedInteractions();
+      final live = await db.countLiveInteractions();
+      expect(curated, live);
+      expect(curated, _expectedLiveInteractionCount);
+    });
 
     test('every live row has a non-empty severity', () async {
       final rows = await db.lookupByCanonicalId('calcium');
@@ -389,5 +403,50 @@ void main() {
       final live = await db.countLiveInteractions();
       expect(meta.totalInteractions, live);
     });
+  });
+
+  group('countCuratedInteractions source filter (in-memory fixture)', () {
+    InteractionsCompanion row(String id, String source, {String? retiredAt}) {
+      return InteractionsCompanion.insert(
+        id: id,
+        agent1Type: 'drug',
+        agent1Name: 'Warfarin',
+        agent1Id: '11289',
+        agent2Type: 'supplement',
+        agent2Name: 'Vitamin K',
+        agent2Id: 'vitamin_k',
+        severity: 'caution',
+        mechanism: 'test mechanism',
+        management: 'test management',
+        sourceUrlsJson: '[]',
+        sourcePmidsJson: '[]',
+        typeAuthored: 'Med-Sup',
+        source: source,
+        provenance: 'nih_ods',
+        versionAdded: '1.0.0',
+        versionLastModified: '1.0.0',
+        retiredAt: Value(retiredAt),
+        lastUpdated: '2026-06-12T00:00:00Z',
+      );
+    }
+
+    test(
+      'counts curated + override rows, excludes suppai and tombstoned',
+      () async {
+        final memDb = InteractionDatabase.memory();
+        addTearDown(memDb.close);
+        await memDb.into(memDb.interactions).insert(row('I1', 'curated'));
+        await memDb.into(memDb.interactions).insert(row('I2', 'override'));
+        await memDb.into(memDb.interactions).insert(row('I3', 'suppai'));
+        await memDb
+            .into(memDb.interactions)
+            .insert(row('I4', 'curated', retiredAt: '2026-01-01T00:00:00Z'));
+
+        // Live count is source-agnostic (health checks / import gate).
+        expect(await memDb.countLiveInteractions(), 3);
+        // Trust Receipts count: hand-reviewed only — never suppai.
+        expect(await memDb.countCuratedInteractions(), 2);
+      },
+    );
   });
 }

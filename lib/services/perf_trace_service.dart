@@ -9,8 +9,10 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// `scan_to_verdict` (op `app.flow`).
 ///
 /// Privacy rules (medical-grade app):
-///   * NO product identifiers, barcodes, or PII — duration + coarse tags
-///     only (`from_cache`).
+///   * NO product identifiers, barcodes, or PII — duration only.
+///     (A `from_cache` tag existed briefly but was recorded before the
+///     blob actually resolved, making it effectively always false —
+///     junk telemetry is worse than none, so it was dropped 2026-06.)
 ///   * Every entry point is wrapped in try/catch so this service can NEVER
 ///     throw into the app. When Sentry is disabled (no DSN / placeholder),
 ///     `Sentry.startTransaction` returns a no-op span — every call here
@@ -65,18 +67,34 @@ class PerfTraceService {
   /// Finish the scan→verdict transaction. Call once the hero verdict is
   /// visible. No-op when no transaction is active (e.g. product opened
   /// from search/stack instead of the scanner).
-  ///
-  /// [fromCache] — coarse signal of whether the detail data was already
-  /// on-device/cached when the verdict rendered. Never a product id.
-  void finishScanToVerdict({required bool fromCache}) {
+  void finishScanToVerdict() {
     final span = _scanToVerdict;
     _scanToVerdict = null;
     _startedAt = null;
     if (span == null) return;
     try {
-      span.setData('from_cache', fromCache);
       unawaited(span.finish(status: const SpanStatus.ok()));
       // Never let tracing break the detail screen.
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
+      // Swallow — instrumentation must never surface to users.
+    }
+  }
+
+  /// Abandon the in-flight scan→verdict transaction, finishing it with
+  /// status `cancelled` IMMEDIATELY. Call when the user backs out of the
+  /// detail screen before the verdict ever rendered — otherwise the
+  /// transaction dangles until the NEXT scan starts and gets finished as
+  /// 'cancelled' with a junk duration spanning the whole interlude.
+  /// No-op when no transaction is active.
+  void abandonScanToVerdict() {
+    final span = _scanToVerdict;
+    _scanToVerdict = null;
+    _startedAt = null;
+    if (span == null) return;
+    try {
+      unawaited(span.finish(status: const SpanStatus.cancelled()));
+      // Never let tracing break navigation.
       // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       // Swallow — instrumentation must never surface to users.

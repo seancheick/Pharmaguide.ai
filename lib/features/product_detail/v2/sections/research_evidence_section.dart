@@ -14,8 +14,8 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/core/utils/pubmed_launcher.dart';
 import 'package:pharmaguide/services/stack/research_pair_lookup.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 @visibleForTesting
 final researchEvidenceForProductProvider = FutureProvider.family
@@ -327,7 +327,10 @@ class _ResearchEvidenceRow extends StatelessWidget {
   String _summary(ResearchPairEvidence evidence) {
     final year = evidence.latestPaperYear;
     final yearText = year == null ? '' : ' - latest $year';
-    return '${evidence.paperCount} papers, ${evidence.humanStudyCount} human, ${evidence.clinicalStudyCount} clinical$yearText';
+    final papers = evidence.paperCount;
+    return '$papers ${papers == 1 ? 'paper' : 'papers'}, '
+        '${evidence.humanStudyCount} human, '
+        '${evidence.clinicalStudyCount} clinical$yearText';
   }
 }
 
@@ -340,7 +343,7 @@ class _PmidChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-      onTap: () => unawaited(_launchPubmed(pmid)),
+      onTap: () => unawaited(launchPubmed(pmid)),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: V2Spacing.space8,
@@ -357,11 +360,5 @@ class _PmidChip extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _launchPubmed(String pmid) async {
-    if (!RegExp(r'^\d+$').hasMatch(pmid)) return;
-    final uri = Uri.parse('https://pubmed.ncbi.nlm.nih.gov/$pmid');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

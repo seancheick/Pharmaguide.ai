@@ -12,10 +12,7 @@ import 'package:pharmaguide/services/perf_trace_service.dart';
 void main() {
   group('PerfTraceService — Sentry disabled (no DSN)', () {
     test('finish with no active transaction is a clean no-op', () {
-      expect(
-        () => PerfTraceService().finishScanToVerdict(fromCache: false),
-        returnsNormally,
-      );
+      expect(() => PerfTraceService().finishScanToVerdict(), returnsNormally);
       expect(PerfTraceService().hasActiveScanToVerdict, isFalse);
     });
 
@@ -23,21 +20,15 @@ void main() {
       final service = PerfTraceService();
       expect(service.startScanToVerdict, returnsNormally);
       expect(service.hasActiveScanToVerdict, isTrue);
-      expect(
-        () => service.finishScanToVerdict(fromCache: true),
-        returnsNormally,
-      );
+      expect(() => service.finishScanToVerdict(), returnsNormally);
       expect(service.hasActiveScanToVerdict, isFalse);
     });
 
     test('double finish is a no-op (one-shot rebuild safety)', () {
       final service = PerfTraceService();
       service.startScanToVerdict();
-      service.finishScanToVerdict(fromCache: false);
-      expect(
-        () => service.finishScanToVerdict(fromCache: false),
-        returnsNormally,
-      );
+      service.finishScanToVerdict();
+      expect(() => service.finishScanToVerdict(), returnsNormally);
       expect(service.hasActiveScanToVerdict, isFalse);
     });
 
@@ -47,14 +38,29 @@ void main() {
       expect(service.startScanToVerdict, returnsNormally);
       expect(service.hasActiveScanToVerdict, isTrue);
       // Clean up so the singleton carries no state into other tests.
-      service.finishScanToVerdict(fromCache: false);
+      service.finishScanToVerdict();
     });
 
     test('is a singleton (scanner and detail screen share state)', () {
       PerfTraceService().startScanToVerdict();
       expect(PerfTraceService().hasActiveScanToVerdict, isTrue);
-      PerfTraceService().finishScanToVerdict(fromCache: true);
+      PerfTraceService().finishScanToVerdict();
       expect(PerfTraceService().hasActiveScanToVerdict, isFalse);
+    });
+    test('abandon with no active transaction is a clean no-op', () {
+      expect(() => PerfTraceService().abandonScanToVerdict(), returnsNormally);
+      expect(PerfTraceService().hasActiveScanToVerdict, isFalse);
+    });
+
+    test('abandon finishes the active transaction immediately', () {
+      final service = PerfTraceService();
+      service.startScanToVerdict();
+      expect(service.hasActiveScanToVerdict, isTrue);
+      expect(service.abandonScanToVerdict, returnsNormally);
+      expect(service.hasActiveScanToVerdict, isFalse);
+      // A finish after abandon is a no-op (verdict never rendered).
+      expect(() => service.finishScanToVerdict(), returnsNormally);
+      expect(service.hasActiveScanToVerdict, isFalse);
     });
   });
 }

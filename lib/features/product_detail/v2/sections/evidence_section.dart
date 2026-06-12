@@ -26,12 +26,14 @@
 // The deduped PMID count is a secondary display signal only — it never
 // downgrades a tier earned by evidence_level.
 //
-// Section suppresses when match_count == 0 AND clinical_matches empty.
+// Section suppresses when clinical_matches is empty — including the
+// malformed case where match_count > 0 but no matches parsed (never
+// render a tier badge from nothing).
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:pharmaguide/core/utils/pubmed_launcher.dart';
 
 /// Aggregate clinical-support tier label.
 enum EvidenceTier {
@@ -57,15 +59,27 @@ const int _maxCitations = 5;
 String _level(Map<String, dynamic> m) =>
     (m['evidence_level']?.toString() ?? '').toLowerCase().trim();
 
+/// True when the match's evidence_level is human-grade (strong ∪
+/// moderate sets). Preclinical / reference matches still inform the
+/// tier (as 'limited') but must never feed "human studies" counts.
+bool _isHumanLevel(Map<String, dynamic> m) {
+  final level = _level(m);
+  return _strongLevels.contains(level) || _moderateLevels.contains(level);
+}
+
 /// True when any match is RCT-tested on this product's own formulation.
 bool evidenceHasBrandedRct(List<Map<String, dynamic>> matches) =>
     matches.any((m) => _level(m) == 'branded-rct');
 
-/// Sum the deduped PMID count across all matches' structured references,
-/// so the same study appearing under two ingredients only counts once.
+/// Sum the deduped PMID count across HUMAN-grade matches' structured
+/// references (strong ∪ moderate evidence_level sets), so the same study
+/// appearing under two ingredients only counts once. Preclinical /
+/// reference matches are excluded — this count feeds "human studies"
+/// copy and must never include animal or citation-only work.
 int evidenceTotalStudies(List<Map<String, dynamic>> matches) {
   final unique = <String>{};
   for (final m in matches) {
+    if (!_isHumanLevel(m)) continue;
     for (final ref in m.safeMapList('references_structured')) {
       final pmid = ref['pmid']?.toString().trim() ?? '';
       if (pmid.isEmpty) continue;
@@ -83,10 +97,13 @@ bool evidenceHasMetaQuality(List<Map<String, dynamic>> matches) {
   return false;
 }
 
-/// Sum of reported trial enrollment across matches (0 when absent).
+/// Sum of reported trial enrollment across HUMAN-grade matches only
+/// (0 when absent). Preclinical / reference enrollment never feeds the
+/// "~X participants" copy.
 int evidenceTotalEnrollment(List<Map<String, dynamic>> matches) {
   var total = 0;
   for (final m in matches) {
+    if (!_isHumanLevel(m)) continue;
     total += (m.safeNum('total_enrollment') ?? 0).toInt();
   }
   return total;
@@ -143,7 +160,7 @@ List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
               : (ingredient.isEmpty
                     ? 'PMID $pmid'
                     : 'PMID $pmid · $ingredient'),
-          onTap: () => _launchPubmed(pmid),
+          onTap: () => launchPubmed(pmid),
         ),
       );
     }
@@ -156,10 +173,12 @@ List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
 Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
   if (evidenceData == null) return const SizedBox.shrink();
 
-  final matchCount = evidenceData.safeNum('match_count') ?? 0;
   final clinicalMatches = evidenceData.safeMapList('clinical_matches');
 
-  if (matchCount == 0 && clinicalMatches.isEmpty) {
+  // Suppress when nothing parsed — including the malformed case where
+  // match_count > 0 but no clinical_matches survived parsing. A LIMITED
+  // badge built from zero matches would be invented signal.
+  if (clinicalMatches.isEmpty) {
     return const SizedBox.shrink();
   }
 
@@ -186,12 +205,5 @@ PGEvidenceTier _toPGEvidenceTier(EvidenceTier tier) {
       return PGEvidenceTier.moderate;
     case EvidenceTier.limited:
       return PGEvidenceTier.limited;
-  }
-}
-
-Future<void> _launchPubmed(String pmid) async {
-  final uri = Uri.tryParse('https://pubmed.ncbi.nlm.nih.gov/$pmid');
-  if (uri != null) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

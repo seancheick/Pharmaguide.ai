@@ -1,6 +1,7 @@
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
@@ -290,7 +291,7 @@ class FitScoreService {
       );
     }
 
-    if (mappedCoverage < 0.3) {
+    if (isLowCoverage(mappedCoverage)) {
       reasons.add(
         'Ingredient mapping coverage is low, so this fit is conservative.',
       );

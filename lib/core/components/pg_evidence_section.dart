@@ -91,7 +91,11 @@ class PGEvidenceSection extends StatelessWidget {
   String? _helperLine() {
     switch (tier) {
       case PGEvidenceTier.strong:
-        return 'Multiple high-quality human studies support these claims.';
+        // Count-aware: never claim "Multiple" when we can only show one
+        // (or zero) deduped studies — accuracy over impressiveness.
+        return totalStudies > 1
+            ? 'Multiple high-quality human studies support these claims.'
+            : 'High-quality human research supports these claims.';
       case PGEvidenceTier.moderate:
         return 'Some human studies support these claims, but the body of '
             'evidence is still building.';

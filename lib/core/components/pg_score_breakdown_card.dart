@@ -114,19 +114,45 @@ class PGScoreBreakdownCard extends StatelessWidget {
         : rounded.toStringAsFixed(1);
   }
 
-  /// Exact sum of the pillar scores — shown as the "= N/100" line. Null
-  /// (line hidden) unless EVERY pillar carries a score: a partial sum
-  /// would not match the hero and would break the very promise the line
-  /// exists to make.
+  /// Sum of the pillar scores AS DISPLAYED — shown as the "= N/100" line.
+  /// Each row renders its score rounded to 0.1 (see [fmtScore]); summing
+  /// the raw unrounded values could disagree with the visible arithmetic
+  /// by ~0.3, so the sum uses the same 0.1-rounded values the rows show.
+  /// Null (line hidden) unless EVERY pillar carries a score: a partial
+  /// sum would not match the hero and would break the very promise the
+  /// line exists to make.
   double? get _pillarSum {
     if (pillars.isEmpty) return null;
     var sum = 0.0;
     for (final p in pillars) {
       final s = p.score;
       if (s == null) return null;
-      sum += s;
+      sum += (s * 10).round() / 10;
     }
     return sum;
+  }
+
+  /// **v2 deliberate departure from production's 6-tier ScoreTier.**
+  ///
+  /// Production maps pillar bars through the full 6-tier palette
+  /// (Exceptional / Excellent / Good / Fair / Low Quality / Poor —
+  /// down to deep red #DC2626 at the bottom). Sean's call: pillars are
+  /// QUALITY signals, not SAFETY signals. A 3/10 transparency score
+  /// isn't dangerous, it's just lower-quality — rendering it in red
+  /// reads as alarm. v2 pillar bars use a 2-tone green palette only:
+  ///   - ≥5/10 (≥50% of max): V2Colors.safe
+  ///   - <5/10: V2Colors.monitor
+  /// Both calm — "strong" vs "room to grow", never alarming.
+  ///
+  /// The hero PGScoreLine still uses the full 6-tier ScoreTier because
+  /// that's the top-line clinical verdict. This calming applies ONLY to
+  /// the diagnostic-detail pillar bars. Shared by this card's rows AND
+  /// the Compare surface's [PGComparePillarRow] — single source of the
+  /// 2-tone rule.
+  static Color pillarTone(double? rawScore, num max) {
+    if (rawScore == null || max <= 0) return V2Colors.fgSubtle;
+    final fraction = (rawScore / max).clamp(0.0, 1.0);
+    return fraction >= 0.5 ? V2Colors.safe : V2Colors.monitor;
   }
 
   /// The pillar with the largest (max − score) gap — the one place a
@@ -237,27 +263,6 @@ class _PGPillarRow extends StatefulWidget {
 class _PGPillarRowState extends State<_PGPillarRow> {
   bool _expanded = false;
 
-  /// **v2 deliberate departure from production's 6-tier ScoreTier.**
-  ///
-  /// Production maps pillar bars through the full 6-tier palette
-  /// (Exceptional / Excellent / Good / Fair / Low Quality / Poor —
-  /// down to deep red #DC2626 at the bottom). Sean's call: pillars are
-  /// QUALITY signals, not SAFETY signals. A 3/10 transparency score
-  /// isn't dangerous, it's just lower-quality — rendering it in red
-  /// reads as alarm. v2 pillar bars use a 2-tone green palette only:
-  ///   - ≥5/10 (≥50% of max): V2Colors.safe
-  ///   - <5/10: V2Colors.monitor
-  /// Both calm — "strong" vs "room to grow", never alarming.
-  ///
-  /// The hero PGScoreLine still uses the full 6-tier ScoreTier because
-  /// that's the top-line clinical verdict. This calming applies ONLY to
-  /// the diagnostic-detail pillar bars.
-  Color _toneFor(double? rawScore, int max) {
-    if (rawScore == null) return V2Colors.fgSubtle;
-    final fraction = (rawScore / max).clamp(0.0, 1.0);
-    return fraction >= 0.5 ? V2Colors.safe : V2Colors.monitor;
-  }
-
   /// v3-fallback only: normalize pillar raw score to a 0–10 display scale
   /// (Sean: users don't think in engineering scales of 25/30/20/5 — same
   /// number out of 10 reads cleanly). v4 uses native score/max instead
@@ -287,8 +292,10 @@ class _PGPillarRowState extends State<_PGPillarRow> {
     final score = p.score;
     final max = p.max;
     final hasScore = score != null;
-    final fill = hasScore ? (score / max).clamp(0.0, 1.0) : 0.0;
-    final tone = _toneFor(score, max);
+    // max <= 0 guard: a malformed pillar max must never produce a NaN /
+    // Infinity widthFactor (FractionallySizedBox asserts on NaN).
+    final fill = (hasScore && max > 0) ? (score / max).clamp(0.0, 1.0) : 0.0;
+    final tone = PGScoreBreakdownCard.pillarTone(score, max);
 
     final compact = Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

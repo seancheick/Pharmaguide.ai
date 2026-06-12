@@ -34,6 +34,7 @@ import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
+import 'package:pharmaguide/features/compare/compare_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
@@ -80,6 +81,15 @@ String? normalizePharmaGuideDeepLink(Uri uri) {
 
   final query = uri.query.isEmpty ? '' : '?${uri.query}';
   return '$normalizedPath$query';
+}
+
+/// Redirect target for the `/compare/:idA/:idB` route. Comparing a
+/// product against itself (only reachable by a typed deep link — the
+/// picker excludes the current product) is meaningless: land on the
+/// product detail page instead. Returns null (no redirect) otherwise.
+String? compareSelfRedirect(String idA, String idB) {
+  if (idA.isNotEmpty && idA == idB) return Routes.productDetail(idA);
+  return null;
 }
 
 /// Optional override for [GoRouter.initialLocation] used by the
@@ -689,6 +699,26 @@ GoRouter _buildRouter({
                 initialSection: section,
               ),
             ),
+          );
+        },
+      ),
+      // Side-by-side product comparison. Both ids come from the catalog
+      // (entered via the product-detail Compare action's picker sheet).
+      GoRoute(
+        path: '${Routes.compare}/:idA/:idB',
+        // Comparing a product against itself (reachable only by typed
+        // deep link — the picker excludes the current product) is
+        // meaningless; land on the product page instead.
+        redirect: (context, state) => compareSelfRedirect(
+          state.pathParameters['idA'] ?? '',
+          state.pathParameters['idB'] ?? '',
+        ),
+        pageBuilder: (context, state) {
+          final idA = state.pathParameters['idA'] ?? '';
+          final idB = state.pathParameters['idB'] ?? '';
+          return _platformPage(
+            state,
+            catalogRoute(CompareScreen(dsldIdA: idA, dsldIdB: idB)),
           );
         },
       ),
