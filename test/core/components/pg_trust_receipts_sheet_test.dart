@@ -135,6 +135,38 @@ void main() {
                   isTrustedManufacturer: false,
                   heroScore: 80,
                   mappedCoverage: 0.9,
+                  qualityPillarsV4: const {
+                    'formulation': {
+                      'score': 16,
+                      'max': 20,
+                      'reason': 'Form, dosage, and bioavailability',
+                    },
+                    'dose': {
+                      'score': 16,
+                      'max': 20,
+                      'reason': 'Serving strength and studied ranges',
+                    },
+                    'evidence': {
+                      'score': 16,
+                      'max': 20,
+                      'reason': 'Clinical support behind ingredients',
+                    },
+                    'transparency': {
+                      'score': 12,
+                      'max': 15,
+                      'reason': 'Label clarity and disclosure',
+                    },
+                    'verification': {
+                      'score': 12,
+                      'max': 15,
+                      'reason': 'Independent testing and brand verification',
+                    },
+                    'safety_hygiene': {
+                      'score': 8,
+                      'max': 10,
+                      'reason': 'Clean-label and contaminant risk checks',
+                    },
+                  },
                 ),
               ),
             ),

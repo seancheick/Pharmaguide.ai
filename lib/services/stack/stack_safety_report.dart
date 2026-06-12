@@ -35,6 +35,7 @@ class StackSafetyReport {
     this.categoryWarnings = const <InteractionResult>[],
     this.timingOptimizations = const <TimingOptimization>[],
     this.coverageIncomplete = false,
+    this.checksIncomplete = false,
   });
 
   /// True when at least one product in the stack has a label mapping
@@ -42,6 +43,11 @@ class StackSafetyReport {
   /// fired the interaction checks. The banner must hedge ("results may
   /// be incomplete") instead of rendering a success tone.
   final bool coverageIncomplete;
+
+  /// True when one or more safety subsystems failed while building the report.
+  /// The UI must hedge instead of rendering an all-clear, because an empty
+  /// warning list may mean "not checked" rather than "no warnings found".
+  final bool checksIncomplete;
 
   /// M1 per-nutrient classifications. Only those with `shouldWarn` are
   /// counted toward [overallSeverity] and surfaced in [orderedWarnings];

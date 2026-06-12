@@ -611,9 +611,9 @@ class _ProductDetailV2ConnectedState
                         detailBlob,
                         'section_breakdown',
                       ),
-                      // v4: prefer the six-pillar breakdown from the blob.
-                      // When absent (legacy bundle / pre-v4 blob) the adapter
-                      // falls back to the v3 four-section pillars above.
+                      // v4: require the six-pillar breakdown from the blob.
+                      // Missing/partial pillars render an unavailable state,
+                      // never stale v3 section math.
                       qualityPillarsV4: _blobMap(
                         detailBlob,
                         'quality_pillars_v4',

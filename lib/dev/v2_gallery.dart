@@ -311,54 +311,62 @@ class V2Gallery extends StatelessWidget {
                 style: V2Typography.bodySm(color: V2Colors.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space16),
-              // 1. Score Breakdown — 4 pillar bars
+              // 1. Score Breakdown — v4 six-pillar native scale
               PGScoreBreakdownCard(
-                heroScore: 84,
+                heroScore: 87.3,
                 pillars: [
                   PGPillar(
-                    label: 'Ingredient Quality',
+                    label: 'Formulation',
                     microExplanation: 'Form, dosage, and bioavailability',
-                    score: 22,
-                    max: 25,
+                    score: 17.6,
+                    max: 20,
                     onTap: () {},
                   ),
                   PGPillar(
-                    label: 'Safety & Purity',
-                    microExplanation:
-                        'Free from harmful ingredients and contaminants',
-                    score: 26,
-                    max: 30,
+                    label: 'Dose',
+                    microExplanation: 'Serving strength and studied ranges',
+                    score: 16,
+                    max: 20,
+                    onTap: () {},
+                  ),
+                  PGPillar(
+                    label: 'Evidence',
+                    microExplanation: 'Clinical support behind ingredients',
+                    score: 18.9,
+                    max: 20,
+                    onTap: () {},
+                  ),
+                  PGPillar(
+                    label: 'Transparency',
+                    microExplanation: 'Label clarity and disclosure',
+                    score: 12.5,
+                    max: 15,
+                    onTap: () {},
+                  ),
+                  PGPillar(
+                    label: 'Verification',
+                    microExplanation: 'Independent testing and brand checks',
+                    score: 13,
+                    max: 15,
                     badges: const [
                       PGPillarBadge(
                         icon: Icons.verified_outlined,
                         label: 'Third-party tested',
                         color: V2Colors.safe,
                       ),
-                    ],
-                    onTap: () {},
-                  ),
-                  // Intentionally below-5 to demo the lighter-green
-                  // "<5" tone (a realistic case for many supplements
-                  // with limited clinical evidence).
-                  PGPillar(
-                    label: 'Evidence & Research',
-                    microExplanation: 'Clinical support behind ingredients',
-                    score: 8,
-                    max: 20,
-                    onTap: () {},
-                  ),
-                  PGPillar(
-                    label: 'Transparency & Verification',
-                    microExplanation: 'Label clarity and independent testing',
-                    score: 4,
-                    max: 5,
-                    badges: const [
                       PGPillarBadge(
                         icon: Icons.factory_outlined,
                         label: 'Trusted manufacturer',
                         color: V2Colors.safe,
                       ),
                     ],
+                    onTap: () {},
+                  ),
+                  PGPillar(
+                    label: 'Safety Hygiene',
+                    microExplanation: 'Clean-label and contaminant risk checks',
+                    score: 9.3,
+                    max: 10,
                     onTap: () {},
                   ),
                 ],

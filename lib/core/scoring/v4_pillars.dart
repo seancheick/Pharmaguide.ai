@@ -61,8 +61,8 @@ double? _asDouble(Object? v) {
 /// Parse a blob's `quality_pillars_v4` map into the six pillars in
 /// display order. Pillars whose entry is missing/malformed are skipped —
 /// callers treat an incomplete result (see [hasAllV4Pillars]) as "no v4
-/// data" and degrade (the score breakdown falls back to v3; compare
-/// hides the pillar rows).
+/// data" and degrade (score breakdown shows unavailable; compare hides
+/// the pillar rows).
 ///
 /// Hardened (2026-06): scores accept num-or-numeric-string, `max <= 0`
 /// falls back to the spec max (no NaN/Infinity bar math downstream),

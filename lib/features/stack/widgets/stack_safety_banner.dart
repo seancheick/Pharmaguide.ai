@@ -64,6 +64,7 @@ class StackSafetyBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (report.isEmpty) {
+      if (report.checksIncomplete) return _checksIncompleteBanner();
       // Low label-mapping coverage means the interaction checks may
       // not have seen every ingredient — never imply "all clear".
       if (report.coverageIncomplete) return _coverageHedgeBanner();
@@ -76,6 +77,7 @@ class StackSafetyBanner extends StatelessWidget {
     // at least one warning, but we guard anyway so a malformed report
     // can never tear down the stack screen.
     if (ordered.isEmpty) {
+      if (report.checksIncomplete) return _checksIncompleteBanner();
       if (report.coverageIncomplete) return _coverageHedgeBanner();
       return const SizedBox.shrink();
     }
@@ -85,6 +87,10 @@ class StackSafetyBanner extends StatelessWidget {
     // caution-toned hedge instead.
     if (report.coverageIncomplete && _toneFor(worst) == PGBannerTone.success) {
       return _coverageHedgeBanner();
+    }
+
+    if (report.checksIncomplete && _toneFor(worst) == PGBannerTone.success) {
+      return _checksIncompleteBanner();
     }
 
     return PGSeverityBanner(
@@ -109,6 +115,20 @@ class StackSafetyBanner extends StatelessWidget {
       body:
           'One or more products in your stack have limited ingredient '
           'data — results may be incomplete.',
+      actionLabel: onTap == null ? null : 'View details',
+      onAction: onTap,
+      margin: margin,
+    );
+  }
+
+  Widget _checksIncompleteBanner() {
+    return PGSeverityBanner(
+      key: const Key('stack-safety-banner'),
+      tone: PGBannerTone.caution,
+      title: "Interactions couldn't be checked",
+      body:
+          'One or more stack safety checks could not finish — results may be '
+          'incomplete.',
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,

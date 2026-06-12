@@ -600,7 +600,7 @@ class _TrustBullets extends StatelessWidget {
         SizedBox(height: V2Spacing.space16),
         _TrustRow(
           eyebrow: 'Privacy',
-          label: 'Health data never leaves your device',
+          label: 'Profile, medications, and allergens stay on-device',
         ),
       ],
     );

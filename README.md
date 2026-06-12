@@ -70,13 +70,14 @@ The supplement industry is a **$60B market** with almost no transparency. Consum
 ### 📱 Offline-First Architecture
 
 - **180K+ Products** — Full database stored locally, zero network needed for scanning
-- **Privacy-First** — Health data never leaves your device
+- **Privacy-First** — Profile, medications, and allergens stay on-device
 - **OTA Updates** — Database refreshed from Supabase Storage with atomic swap + rollback
 - **24h Detail Cache** — Rich product details cached locally after first fetch
 
 ### 🔒 Privacy by Design
 
 - **Health data stays on-device** — Conditions, medications, allergens never sent to servers
+- **Signed-in stack sync** — Supplement stack rows can sync for account continuity; medications never sync
 - **No tracking of health choices** — Anonymous analytics only (scan counts, not what you scanned)
 - **Transparent data dashboard** — See exactly what lives on your device vs. cloud
 
@@ -181,7 +182,7 @@ These rules are enforced in code and code review:
 
 | Rule | Enforcement |
 |------|-------------|
-| Health data never leaves device | Supabase gets auth tokens only, never conditions/meds/allergens |
+| Profile, medications, and allergens stay on-device | Supabase never receives conditions/meds/allergens; signed-in supplement stacks sync separately |
 | Never display "safe" when `mapped_coverage < 0.3` | UnknownIngredientBanner renders automatically |
 | Severity order: `contraindicated > avoid > caution > monitor > safe` | Severity enum with weights, sorted in every display |
 | Always show `evidence_level` on interaction warnings | InteractionWarningsList enforces badge display |

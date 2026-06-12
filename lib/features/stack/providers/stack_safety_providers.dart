@@ -22,6 +22,7 @@ import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Runs [StackInteractionChecker] for the candidate product against the
 /// current stack. Returns an empty list when the stack is empty or when
@@ -122,10 +123,17 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // `isEmpty` / `overallSeverity` getters already filter sub-warn tiers.
   // If the nutrient provider errors, we still want the interaction half
   // of the report to render, so we fall back to an empty list.
+  var checksIncomplete = false;
   List<NutrientStatus> nutrientStatuses;
   try {
     nutrientStatuses = await ref.watch(stackNutrientStatusesProvider.future);
-  } on Object {
+  } on Object catch (e, st) {
+    checksIncomplete = true;
+    CrashReportingService().recordError(
+      e,
+      st,
+      hint: 'stack_safety:nutrient_statuses_failed',
+    );
     nutrientStatuses = const <NutrientStatus>[];
   }
 
@@ -191,7 +199,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           db: interactionDb,
           newProductName: self.entry.name,
         );
-      } on Object {
+      } on Object catch (e, st) {
+        checksIncomplete = true;
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'stack_safety:supplement_pairs_failed',
+        );
         continue;
       }
       for (final r in hits) {
@@ -220,7 +234,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           db: interactionDb,
           newProductName: self.entry.name,
         );
-      } on Object {
+      } on Object catch (e, st) {
+        checksIncomplete = true;
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'stack_safety:medication_supplement_failed',
+        );
         continue;
       }
       for (final r in hits) {
@@ -237,7 +257,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       for (final r in hits) {
         if (seenMedIds.add(r.id)) medicationInteractions.add(r);
       }
-    } on Object {
+    } on Object catch (e, st) {
+      checksIncomplete = true;
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'stack_safety:food_advisories_failed',
+      );
       // Food advisories are additive context; never let them block the
       // rest of the stack safety report.
     }
@@ -286,7 +312,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
               .toList(growable: false),
           newProductName: self.entry.name,
         );
-      } on Object {
+      } on Object catch (e, st) {
+        checksIncomplete = true;
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'stack_safety:heuristic_checks_failed',
+        );
         continue;
       }
       for (final r in hits) {
@@ -321,7 +353,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           existingMedications: others,
           db: interactionDb,
         );
-      } on Object {
+      } on Object catch (e, st) {
+        checksIncomplete = true;
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'stack_safety:medication_pairs_failed',
+        );
         continue;
       }
       for (final r in hits) {
@@ -359,7 +397,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       supplementTags: supplementTags,
       medicationNames: medicationNames,
     );
-  } on Object {
+  } on Object catch (e, st) {
+    checksIncomplete = true;
+    CrashReportingService().recordError(
+      e,
+      st,
+      hint: 'stack_safety:timing_failed',
+    );
     // Timing is advisory — never let it crash the safety report.
     timingOptimizations = const <TimingOptimization>[];
   }
@@ -372,6 +416,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     categoryWarnings: categoryWarnings,
     timingOptimizations: timingOptimizations,
     coverageIncomplete: coverageIncomplete,
+    checksIncomplete: checksIncomplete,
   );
 });
 

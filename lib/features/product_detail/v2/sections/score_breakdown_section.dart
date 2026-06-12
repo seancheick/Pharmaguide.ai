@@ -1,4 +1,4 @@
-// ScoreBreakdown section adapter — DUAL-READER (v4 six-pillar / v3 four-section).
+// ScoreBreakdown section adapter — v4 six-pillar reader.
 //
 // v4 (export schema 2.0.0): when the detail blob carries `quality_pillars_v4`,
 // render the SIX v4 pillars sourced from the blob —
@@ -7,15 +7,9 @@
 // each as score/max + a tap-revealed one-line `reason`. The hero is the v4
 // /100 score (`score_100_equivalent` mirrors `quality_score_v4_100`).
 //
-// v3 fallback: when the blob has no `quality_pillars_v4` (a legacy bundle or a
-// pre-v4 blob during the cutover window), render the original FOUR v3 pillars
-// from the product row's section columns. This keeps the section correct on
-// both schemas while the v4 catalog rolls out.
-//
-// ⚠️ The v3 section columns (`scoreIngredientQuality` etc.) are STILL emitted
-// on a v4 build but are stale A/B/C/D math that contradicts the v4 headline
-// (e.g. a ~73/100 four-section breakdown under a 98.1 hero). They are used
-// ONLY for the v3 fallback — never when `quality_pillars_v4` is present.
+// Missing or partial v4 pillar blobs render an unavailable state. The app is
+// now clean-cut v4: stale v3 A/B/C/D section columns must never explain a v4
+// headline score.
 //
 // Suppressed (BLOCKED/UNSAFE/NOT_SCORED) products never reach this section —
 // `shouldShowScoreBreakdown(isBlocked, isNotScored)` gates it off upstream.
@@ -39,8 +33,8 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// screen — when blocked or NOT_SCORED, the section never renders.
 ///
 /// Pass `qualityPillarsV4` (the blob's `quality_pillars_v4` map) to render
-/// the v4 six-pillar breakdown; when null/empty/malformed the adapter falls
-/// back to the v3 four-pillar breakdown built from the row's section columns.
+/// the v4 six-pillar breakdown. When null/empty/malformed, the adapter shows
+/// an unavailable state rather than stale v3 score math.
 Widget buildScoreBreakdownSection({
   required double? ingredientQuality,
   required double? safetyPurity,
@@ -55,34 +49,24 @@ Widget buildScoreBreakdownSection({
 
   /// Optional deep-link callbacks keyed by v4 pillar key (`formulation`,
   /// `dose`, `evidence`, `transparency`, `verification`, `safety_hygiene`).
-  /// Pillars without an entry stay link-free (no dead links). v4 only —
-  /// the v3 fallback never deep-links.
+  /// Pillars without an entry stay link-free (no dead links).
   Map<String, VoidCallback>? onPillarTap,
 }) {
   // SHIP RULE: the v4 native-scale render requires ALL SIX pillars.
   // A partial blob (e.g. 4/6 entries) would draw a "= 62/100" sum line
   // under a 98.1 hero — visibly contradicting the score. Anything less
-  // than 6/6 falls back to v3 (same rule the Compare surface applies).
+  // than 6/6 renders an unavailable state.
   final parsedV4 = parseV4Pillars(qualityPillarsV4);
-  final v4 = hasAllV4Pillars(parsedV4)
-      ? _buildV4Pillars(
-          parsedV4,
-          hasThirdPartyTesting: hasThirdPartyTesting,
-          isTrustedManufacturer: isTrustedManufacturer,
-          onPillarTap: onPillarTap,
-        )
-      : const <PGPillar>[];
+  if (!hasAllV4Pillars(parsedV4)) {
+    return const _ScoreBreakdownUnavailable();
+  }
 
-  final pillars = v4.isNotEmpty
-      ? v4
-      : _buildV3Pillars(
-          ingredientQuality: ingredientQuality,
-          safetyPurity: safetyPurity,
-          evidenceResearch: evidenceResearch,
-          brandTrust: brandTrust,
-          hasThirdPartyTesting: hasThirdPartyTesting,
-          isTrustedManufacturer: isTrustedManufacturer,
-        );
+  final pillars = _buildV4Pillars(
+    parsedV4,
+    hasThirdPartyTesting: hasThirdPartyTesting,
+    isTrustedManufacturer: isTrustedManufacturer,
+    onPillarTap: onPillarTap,
+  );
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,10 +74,9 @@ Widget buildScoreBreakdownSection({
       PGScoreBreakdownCard(
         pillars: pillars,
         mappedCoverage: mappedCoverage,
-        // v4: unrounded hero so the title matches the "= N/100" pillar-sum
-        // line to the decimal. v3 fallback keeps the rounded int display.
-        heroScore: v4.isNotEmpty ? heroScore : heroScore?.round(),
-        nativeScale: v4.isNotEmpty,
+        // Unrounded hero so the title matches the "= N/100" pillar-sum
+        // line to the decimal.
+        heroScore: heroScore,
       ),
       // Muted "How scoring works" link → Trust Receipts sheet. Wired at
       // the section level (NOT inside PGScoreBreakdownCard) so the card
@@ -124,6 +107,39 @@ class _HowScoringWorksLink extends StatelessWidget {
           'How scoring works',
           style: V2Typography.caption(color: V2Colors.fgMuted),
         ),
+      ),
+    );
+  }
+}
+
+class _ScoreBreakdownUnavailable extends StatelessWidget {
+  const _ScoreBreakdownUnavailable();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Score breakdown unavailable',
+            style: V2Typography.titleSm(color: V2Colors.fg),
+          ),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            'This catalog entry is missing the v4 pillar details needed to '
+            'explain the score.',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          const _HowScoringWorksLink(),
+        ],
       ),
     );
   }
@@ -169,66 +185,4 @@ List<PGPillar> _buildV4Pillars(
     );
   }
   return out;
-}
-
-/// Legacy v3 four-pillar breakdown (Ingredient Quality / Safety & Purity /
-/// Evidence & Research / Transparency & Verification) from the row's section
-/// columns. Verbatim port of the original adapter.
-List<PGPillar> _buildV3Pillars({
-  required double? ingredientQuality,
-  required double? safetyPurity,
-  required double? evidenceResearch,
-  required double? brandTrust,
-  required bool hasThirdPartyTesting,
-  required bool isTrustedManufacturer,
-}) {
-  return <PGPillar>[
-    // 1. Ingredient Quality — max 25
-    PGPillar(
-      label: 'Ingredient Quality',
-      max: 25,
-      score: ingredientQuality,
-      microExplanation: 'Form, dosage, and bioavailability',
-    ),
-
-    // 2. Safety & Purity — max 30, optional Third-party tested badge
-    PGPillar(
-      label: 'Safety & Purity',
-      max: 30,
-      score: safetyPurity,
-      microExplanation: 'Free from harmful ingredients and contaminants',
-      badges: [
-        if (hasThirdPartyTesting)
-          const PGPillarBadge(
-            icon: Icons.verified_outlined,
-            label: 'Third-party tested',
-            color: V2Colors.safe,
-          ),
-      ],
-    ),
-
-    // 3. Evidence & Research — max 20
-    PGPillar(
-      label: 'Evidence & Research',
-      max: 20,
-      score: evidenceResearch,
-      microExplanation: 'Clinical support behind ingredients',
-    ),
-
-    // 4. Transparency & Verification — max 5, optional Trusted Mfg badge.
-    PGPillar(
-      label: 'Transparency & Verification',
-      max: 5,
-      score: brandTrust,
-      microExplanation: 'Label clarity and independent testing',
-      badges: [
-        if (isTrustedManufacturer)
-          const PGPillarBadge(
-            icon: Icons.factory_outlined,
-            label: 'Trusted manufacturer',
-            color: V2Colors.safe,
-          ),
-      ],
-    ),
-  ];
 }

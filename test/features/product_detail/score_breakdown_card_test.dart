@@ -4,10 +4,12 @@ import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_
 
 void main() {
   Widget buildTestWidget({
-    double? ingredientQuality,
-    double? safetyPurity,
-    double? evidenceResearch,
-    double? brandTrust,
+    double? formulation,
+    double? dose,
+    double? evidence,
+    double? transparency,
+    double? verification,
+    double? safetyHygiene,
     double? heroScore,
     double? mappedCoverage,
     bool hasThirdPartyTesting = false,
@@ -16,14 +18,22 @@ void main() {
     return MaterialApp(
       home: Scaffold(
         body: buildScoreBreakdownSection(
-          ingredientQuality: ingredientQuality,
-          safetyPurity: safetyPurity,
-          evidenceResearch: evidenceResearch,
-          brandTrust: brandTrust,
+          ingredientQuality: 99,
+          safetyPurity: 99,
+          evidenceResearch: 99,
+          brandTrust: 99,
           hasThirdPartyTesting: hasThirdPartyTesting,
           isTrustedManufacturer: isTrustedManufacturer,
           heroScore: heroScore,
           mappedCoverage: mappedCoverage,
+          qualityPillarsV4: _v4Pillars(
+            formulation: formulation,
+            dose: dose,
+            evidence: evidence,
+            transparency: transparency,
+            verification: verification,
+            safetyHygiene: safetyHygiene,
+          ),
         ),
       ),
     );
@@ -50,49 +60,56 @@ void main() {
     testWidgets('renders locked pillar labels in order', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      expect(find.text('Ingredient Quality'), findsOneWidget);
-      expect(find.text('Safety & Purity'), findsOneWidget);
-      expect(find.text('Evidence & Research'), findsOneWidget);
-      expect(find.text('Transparency & Verification'), findsOneWidget);
+      expect(find.text('Formulation'), findsOneWidget);
+      expect(find.text('Dose'), findsOneWidget);
+      expect(find.text('Evidence'), findsOneWidget);
+      expect(find.text('Transparency'), findsOneWidget);
+      expect(find.text('Verification'), findsOneWidget);
+      expect(find.text('Safety Hygiene'), findsOneWidget);
       expect(find.text('Brand trust'), findsNothing);
     });
 
-    testWidgets('normalizes each pillar to the v2 0-10 display scale', (
+    testWidgets('renders each v4 pillar on its native score/max scale', (
       tester,
     ) async {
       await tester.pumpWidget(
         buildTestWidget(
-          ingredientQuality: 20.5,
-          safetyPurity: 28,
-          evidenceResearch: 15,
-          brandTrust: 4,
+          formulation: 17.6,
+          dose: 16,
+          evidence: 18.9,
+          transparency: 12.5,
+          verification: 13,
+          safetyHygiene: 9.3,
         ),
       );
 
-      expect(find.text('8/10'), findsNWidgets(3));
-      expect(find.text('9/10'), findsOneWidget);
-      expect(find.text('20.5/25'), findsNothing);
-      expect(find.text('4.0/5'), findsNothing);
+      expect(find.text('17.6/20'), findsOneWidget);
+      expect(find.text('16/20'), findsOneWidget);
+      expect(find.text('18.9/20'), findsOneWidget);
+      expect(find.text('12.5/15'), findsOneWidget);
+      expect(find.text('13/15'), findsOneWidget);
+      expect(find.text('9.3/10'), findsOneWidget);
+      expect(find.text('8/10'), findsNothing);
     });
 
     testWidgets('shows "No data" for null pillar scores', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      expect(find.text('No data'), findsNWidgets(4));
+      expect(find.text('No data'), findsNWidgets(6));
     });
 
     testWidgets('reveals micro-explanation and badges when tapped', (
       tester,
     ) async {
       await tester.pumpWidget(
-        buildTestWidget(safetyPurity: 28, hasThirdPartyTesting: true),
+        buildTestWidget(verification: 13, hasThirdPartyTesting: true),
       );
 
-      await tester.tap(find.text('Safety & Purity'));
+      await tester.tap(find.text('Verification'));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Free from harmful ingredients and contaminants'),
+        find.text('Independent testing and brand verification'),
         findsOneWidget,
       );
       expect(find.text('Third-party tested'), findsOneWidget);
@@ -135,10 +152,52 @@ void main() {
     testWidgets('coverage line hidden when mappedCoverage is null', (
       tester,
     ) async {
-      await tester.pumpWidget(buildTestWidget(ingredientQuality: 20));
+      await tester.pumpWidget(buildTestWidget(formulation: 20));
 
       expect(find.textContaining('database'), findsNothing);
       expect(find.textContaining('%'), findsNothing);
     });
   });
+}
+
+Map<String, dynamic> _v4Pillars({
+  double? formulation,
+  double? dose,
+  double? evidence,
+  double? transparency,
+  double? verification,
+  double? safetyHygiene,
+}) {
+  return {
+    'formulation': {
+      'score': formulation,
+      'max': 20,
+      'reason': 'Form, dosage, and bioavailability',
+    },
+    'dose': {
+      'score': dose,
+      'max': 20,
+      'reason': 'Serving strength and studied ranges',
+    },
+    'evidence': {
+      'score': evidence,
+      'max': 20,
+      'reason': 'Clinical support behind ingredients',
+    },
+    'transparency': {
+      'score': transparency,
+      'max': 15,
+      'reason': 'Label clarity and disclosure',
+    },
+    'verification': {
+      'score': verification,
+      'max': 15,
+      'reason': 'Independent testing and brand verification',
+    },
+    'safety_hygiene': {
+      'score': safetyHygiene,
+      'max': 10,
+      'reason': 'Clean-label and contaminant risk checks',
+    },
+  };
 }

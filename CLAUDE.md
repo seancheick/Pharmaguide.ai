@@ -17,11 +17,12 @@ make verify-supabase  # confirm anon key is live
 - **State:** Riverpod | **Nav:** GoRouter | **DB:** Drift (SQLite)
 - `pharmaguide_core.db` — read-only, 180K products, 88 cols, replaced via OTA
 - `user_data.db` — read-write, user profile/stack/cache, never touched by OTA
-- Supabase — detail blob fetch + auth only. Health data never leaves device.
+- Supabase — detail blob fetch, auth, OTA catalog, and signed-in supplement stack sync. Profile data, medications, and allergens stay on-device.
 
 ## Safety Rules (non-negotiable)
 
-- NEVER store health data in Supabase
+- NEVER store profile data, medications, allergens, conditions, goals, or FitScore in Supabase
+- Signed-in supplement stack sync is allowed only through the audited stack-sync path; medication rows must never sync
 - NEVER display "safe" when `mapped_coverage < 0.3`
 - ALWAYS use severity order: `contraindicated > avoid > caution > monitor > safe`
 - ALWAYS show `evidence_level` on interaction warnings

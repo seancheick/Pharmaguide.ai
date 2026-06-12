@@ -86,6 +86,14 @@ void main() {
       expect(find.byKey(const Key('stack-safety-banner')), findsNothing);
     });
 
+    testWidgets('empty report with failed checks renders caution hedge', (
+      tester,
+    ) async {
+      await pump(tester, const StackSafetyReport(checksIncomplete: true));
+      expect(find.text("Interactions couldn't be checked"), findsOneWidget);
+      expect(find.textContaining('results may be incomplete'), findsOneWidget);
+    });
+
     testWidgets('safe-only signals + coverageIncomplete downgrade the '
         'success tone to the caution hedge', (tester) async {
       final report = StackSafetyReport(
@@ -98,6 +106,18 @@ void main() {
         findsOneWidget,
       );
       // The success-toned "Safe — ..." title must NOT render.
+      expect(find.textContaining('Safe —'), findsNothing);
+    });
+
+    testWidgets('safe-only signals + checksIncomplete downgrade success', (
+      tester,
+    ) async {
+      final report = StackSafetyReport(
+        categoryWarnings: [_interaction(severity: Severity.safe)],
+        checksIncomplete: true,
+      );
+      await pump(tester, report);
+      expect(find.text("Interactions couldn't be checked"), findsOneWidget);
       expect(find.textContaining('Safe —'), findsNothing);
     });
 

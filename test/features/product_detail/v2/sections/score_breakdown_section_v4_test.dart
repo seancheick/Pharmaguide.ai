@@ -1,9 +1,8 @@
-// Dual-reader widget tests for the ScoreBreakdown section adapter.
+// v4 widget tests for the ScoreBreakdown section adapter.
 //
 //   * v4: a blob with `quality_pillars_v4` renders the SIX v4 pillars and
 //     suppresses the stale v3 four-section labels.
-//   * v3 fallback: no `quality_pillars_v4` → the original four pillars.
-//   * malformed v4 map → falls back to v3 (never renders an empty card).
+//   * missing/malformed v4 map → unavailable state, never stale v3 math.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,7 +70,7 @@ void main() {
     expect(find.text('Why this scored 95'), findsOneWidget);
   });
 
-  testWidgets('v3 fallback: no quality_pillars_v4 → four v3 pillars', (
+  testWidgets('no quality_pillars_v4 → unavailable state, not v3 math', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -90,16 +89,17 @@ void main() {
       ),
     );
 
-    expect(find.text('Ingredient Quality'), findsOneWidget);
-    expect(find.text('Safety & Purity'), findsOneWidget);
-    expect(find.text('Evidence & Research'), findsOneWidget);
-    expect(find.text('Transparency & Verification'), findsOneWidget);
+    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    expect(find.text('Ingredient Quality'), findsNothing);
+    expect(find.text('Safety & Purity'), findsNothing);
+    expect(find.text('Evidence & Research'), findsNothing);
+    expect(find.text('Transparency & Verification'), findsNothing);
     for (final label in _v4Labels) {
       expect(find.text(label), findsNothing);
     }
   });
 
-  testWidgets('malformed quality_pillars_v4 falls back to v3 (no empty card)', (
+  testWidgets('malformed quality_pillars_v4 shows unavailable state', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -118,11 +118,12 @@ void main() {
       ),
     );
 
-    expect(find.text('Ingredient Quality'), findsOneWidget);
+    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    expect(find.text('Ingredient Quality'), findsNothing);
     expect(find.text('Formulation'), findsNothing);
   });
 
-  testWidgets('SHIP RULE: partial blob (4/6 pillars) falls back to v3 — '
+  testWidgets('SHIP RULE: partial blob (4/6 pillars) shows unavailable state — '
       'never a partial native-scale sum under the hero', (tester) async {
     final partial = _v4Pillars();
     partial.remove('verification');
@@ -144,9 +145,10 @@ void main() {
       ),
     );
 
-    // v3 fallback rendered — NOT four v4 pillars with a "= 70/100" sum
-    // line contradicting the 98.1 hero.
-    expect(find.text('Ingredient Quality'), findsOneWidget);
+    // Unavailable state rendered — NOT four v4 pillars with a "= 70/100"
+    // sum line contradicting the 98.1 hero, and not stale v3 section math.
+    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    expect(find.text('Ingredient Quality'), findsNothing);
     expect(find.text('Formulation'), findsNothing);
     expect(find.textContaining('= '), findsNothing);
   });
@@ -241,7 +243,9 @@ void nativeScaleTests() {
     expect(find.text('No data'), findsOneWidget);
   });
 
-  testWidgets('v3 fallback: keeps the normalized /10 display', (tester) async {
+  testWidgets('missing v4 pillars never renders normalized v3 /10 display', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         buildScoreBreakdownSection(
@@ -258,11 +262,12 @@ void nativeScaleTests() {
       ),
     );
 
-    expect(find.text('8/10'), findsNWidgets(2));
-    expect(find.text('10/10'), findsOneWidget);
-    expect(find.text('5/10'), findsOneWidget);
-    expect(find.textContaining('= '), findsNothing); // no sum line on v3
-    expect(find.text('Tap any pillar to see what drives it.'), findsOneWidget);
+    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    expect(find.text('8/10'), findsNothing);
+    expect(find.text('10/10'), findsNothing);
+    expect(find.text('5/10'), findsNothing);
+    expect(find.textContaining('= '), findsNothing);
+    expect(find.text('Tap any pillar to see what drives it.'), findsNothing);
   });
 }
 
@@ -308,7 +313,9 @@ void gapLineTests() {
     expect(find.textContaining('Biggest opportunity'), findsNothing);
   });
 
-  testWidgets('gap line: hidden on the v3 fallback', (tester) async {
+  testWidgets('gap line: hidden when v4 pillars are unavailable', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         buildScoreBreakdownSection(
