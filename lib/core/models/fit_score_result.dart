@@ -30,7 +30,10 @@ class FitScoreResult {
     this.state = FitAssessmentState.limitedFit,
     this.reasons = const [],
     this.maxRelevantSeverity,
-    this.mappedCoverage = 1.0,
+    // Required on purpose — a silent `= 1.0` default let call sites
+    // imply full label coverage when none was measured (safety rule:
+    // never display "safe" when mapped_coverage < 0.3).
+    required this.mappedCoverage,
   });
 
   String get fitLabel {

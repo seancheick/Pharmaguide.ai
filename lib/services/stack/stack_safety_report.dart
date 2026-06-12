@@ -34,7 +34,14 @@ class StackSafetyReport {
     this.medicationPairInteractions = const <InteractionResult>[],
     this.categoryWarnings = const <InteractionResult>[],
     this.timingOptimizations = const <TimingOptimization>[],
+    this.coverageIncomplete = false,
   });
+
+  /// True when at least one product in the stack has a label mapping
+  /// coverage below the 0.3 trust floor — its ingredients may not have
+  /// fired the interaction checks. The banner must hedge ("results may
+  /// be incomplete") instead of rendering a success tone.
+  final bool coverageIncomplete;
 
   /// M1 per-nutrient classifications. Only those with `shouldWarn` are
   /// counted toward [overallSeverity] and surfaced in [orderedWarnings];

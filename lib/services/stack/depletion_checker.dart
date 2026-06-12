@@ -234,7 +234,17 @@ class DepletionChecker {
           userDrugRxcuis.add(normalized.toLowerCase());
         }
       }
-      userDrugNames.add(med.name.toLowerCase());
+      // Name matching is a legacy fallback for entries that carry NO
+      // structured RxCUI at all. Identity-backed meds match by RxCUI;
+      // including their names too caused substring false positives.
+      final hasRxcui = [
+        med.rxcui,
+        med.genericRxcui,
+        ...med.ingredientRxcuis,
+      ].any((id) => id != null && id.trim().isNotEmpty);
+      if (!hasRxcui) {
+        userDrugNames.add(med.name.toLowerCase());
+      }
     }
 
     // Index stack doses by canonical id (lowercased).
@@ -259,7 +269,11 @@ class DepletionChecker {
           drugRefType == 'drug' || RegExp(r'^\d+$').hasMatch(drugIdRaw);
       final isClassRef = drugRefType == 'class' || drugId.startsWith('class:');
 
-      // Match by RxCUI, drug class ID, or legacy display-name substring.
+      // Match by RxCUI or drug class ID. The legacy display-name
+      // fallback covers user meds with no structured RxCUI; raw
+      // bidirectional substring matching produced false positives
+      // (e.g. "iron" inside unrelated names), so it now requires a
+      // word-boundary match of at least 5 characters.
       final matches =
           (isDrugRef && userDrugRxcuis.contains(drugIdRaw)) ||
           (isDrugRef && userDrugRxcuis.contains(drugId)) ||
@@ -269,8 +283,7 @@ class DepletionChecker {
               )) ||
           userDrugNames.any(
             (name) =>
-                drugDisplayName.toLowerCase().contains(name) ||
-                name.contains(drugDisplayName.toLowerCase()),
+                legacyDrugNameMatches(drugDisplayName.toLowerCase(), name),
           );
 
       if (!matches) continue;
@@ -439,4 +452,22 @@ class DepletionChecker {
   static bool _isSupplementCoverageRelevant(String depletionType) {
     return depletionType == 'depletion' || depletionType == 'condition_related';
   }
+}
+
+/// Word-boundary-ish bidirectional name match for the legacy
+/// display-name fallback (rows with no structured drug/class ref).
+///
+/// The shorter of the two names must be at least 5 characters and must
+/// appear in the longer one as a whole word (bounded by non-letters),
+/// so e.g. "iron" never matches "environ" or "ironwood". Both inputs
+/// are expected lowercased.
+bool legacyDrugNameMatches(String a, String b) {
+  if (a.isEmpty || b.isEmpty) return false;
+  final shorter = a.length <= b.length ? a : b;
+  final longer = identical(shorter, a) ? b : a;
+  if (shorter.length < 5) return false;
+  final pattern = RegExp(
+    '(^|[^a-z0-9])${RegExp.escape(shorter)}([^a-z0-9]|\$)',
+  );
+  return pattern.hasMatch(longer);
 }

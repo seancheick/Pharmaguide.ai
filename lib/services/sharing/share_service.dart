@@ -69,8 +69,10 @@ class ShareService {
     String highlights = '';
     if (shareHighlights != null && shareHighlights.isNotEmpty) {
       try {
-        final list = jsonDecode(shareHighlights) as List;
-        highlights = list.map((e) => '- $e').join('\n');
+        final decoded = jsonDecode(shareHighlights);
+        if (decoded is List) {
+          highlights = decoded.map((e) => '- $e').join('\n');
+        }
       } on FormatException {
         highlights = '';
       }
@@ -83,7 +85,7 @@ class ShareService {
       '\nAnalyzed by PharmaGuide',
     ].join('\n');
 
-    await SharePlus.instance.share(ShareParams(text: text, subject: title));
+    await _share(text, subject: title);
   }
 
   /// Share a stack summary.

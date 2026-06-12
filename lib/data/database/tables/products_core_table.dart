@@ -1,11 +1,14 @@
 import 'package:drift/drift.dart';
 
-/// Products core table — 91 typed columns matching pipeline export schema
-/// v1.3.2+. The pipeline DB also ships an additional `ingredients_text`
-/// column (v1.6.x, 2026-05-12; column 92) indexed by `products_fts` for
-/// ingredient-name search — it's read via raw SQL in core_database.dart
-/// rather than declared here, so the `.g.dart` doesn't need build_runner
-/// regen alongside pipeline schema bumps.
+/// Products core table — 97 typed Drift columns. The bundled DB ships 102;
+/// the 5 intentionally-undeclared columns are:
+///   - `ingredients_text` (v1.6.x, 2026-05-12) — indexed by `products_fts`
+///     for ingredient-name search; read via raw SQL in core_database.dart
+///     so the `.g.dart` doesn't need build_runner regen alongside pipeline
+///     schema bumps.
+///   - `quality_score_version`, `scoring_engine_version`,
+///     `classification_schema_version`, `v4_config_fingerprint` —
+///     pipeline provenance/version metadata the app never reads.
 /// This table is READ-ONLY in the app (populated by pipeline via Supabase).
 ///
 /// v1.3.1 added (2026-04): net_contents_quantity, net_contents_unit

@@ -21,6 +21,9 @@ FitScoreResult _result({
     missingFields: const [],
     maxPossible: 100,
     state: state,
+    // Full coverage — these tests exercise state-driven display, not
+    // the coverage gate.
+    mappedCoverage: 1.0,
   );
 }
 

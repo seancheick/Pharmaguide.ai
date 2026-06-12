@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -106,9 +109,38 @@ Future<void> _restoreBundledCoreDatabase({
     assetData.offsetInBytes,
     assetData.lengthInBytes,
   );
-  final dbFile = File(dbPath);
-  await dbFile.parent.create(recursive: true);
-  await dbFile.writeAsBytes(assetBytes, flush: true);
+  await _writeBytesChunked(File(dbPath), assetBytes);
+}
+
+/// Chunk size for streamed asset → disk copies (4 MiB).
+const int _assetWriteChunkBytes = 4 << 20;
+
+/// Writes [bytes] to [file] in chunks via [File.openWrite].
+///
+/// `rootBundle.load` necessarily materializes the whole asset in memory
+/// (Flutter assets have no streaming read API), but the disk write does
+/// NOT need a second monolithic buffer: a single `writeAsBytes` of a
+/// 100-250 MB catalog both double-buffers and blocks the event loop for
+/// the whole write. Chunked writes through an IOSink keep peak memory at
+/// one asset copy and yield to the event loop between chunks (the flush
+/// awaits real I/O), so first-launch copy doesn't jank the UI isolate.
+Future<void> _writeBytesChunked(File file, Uint8List bytes) async {
+  await file.parent.create(recursive: true);
+  final sink = file.openWrite();
+  try {
+    for (
+      var offset = 0;
+      offset < bytes.length;
+      offset += _assetWriteChunkBytes
+    ) {
+      final end = math.min(offset + _assetWriteChunkBytes, bytes.length);
+      sink.add(Uint8List.sublistView(bytes, offset, end));
+      // Await the actual I/O so the event loop gets a turn per chunk.
+      await sink.flush();
+    }
+  } finally {
+    await sink.close();
+  }
 }
 
 /// Opens the core catalog DB and probes it. If open or the structural
@@ -158,7 +190,13 @@ Future<CoreDatabase> openCoreDatabase({
       }
     }
     await _restoreBundledCoreDatabase(dbPath: dbPath, bundle: assetBundle);
-    return CoreDatabase.open(dbPath);
+    final restored = CoreDatabase.open(dbPath);
+    // Re-run the same structural probe the primary path uses. If the
+    // bundled asset itself is corrupt (a build-gate failure), this throws
+    // loudly here instead of letting a broken catalog limp into runtime
+    // and fail silently downstream.
+    await restored.validateCatalogSnapshot();
+    return restored;
   }
 }
 
@@ -166,7 +204,14 @@ Future<CoreDatabase> openCoreDatabase({
 Future<UserDatabase> openUserDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'user_data.db');
-  return UserDatabase.open(dbPath);
+  final db = UserDatabase.open(dbPath);
+  // Fire-and-forget cache housekeeping — must never block or fail boot.
+  unawaited(
+    db.purgeExpiredCaches().catchError((Object e) {
+      debugPrint('[user-db] purgeExpiredCaches failed: ${e.runtimeType}');
+    }),
+  );
+  return db;
 }
 
 /// Ensures the bundled interaction database has been materialized to a
@@ -198,7 +243,7 @@ Future<void> ensureInteractionDatabaseAvailable({
 /// Used by `main.dart` during bootstrap. The returned future completes
 /// in well under 200 ms on a typical device — the asset is bundled, no
 /// network call is involved, and the largest cost is the one-time
-/// `writeAsBytes` on first launch.
+/// chunked copy to disk on first launch.
 Future<InteractionDatabase> openInteractionDatabase({
   Directory? documentsDirectory,
   AssetBundle? bundle,
@@ -225,8 +270,13 @@ Future<void> _ensureBundledDatabaseAvailable({
     bundle: bundle,
     manifestAssetPath: manifestAssetPath,
   );
-  final expectedChecksum =
-      _manifestChecksum(manifest) ?? sha256.convert(assetBytes).toString();
+  // Fallback hash when the manifest carries no checksum (test fixtures).
+  // Hashing 100-250 MB is pure CPU work — run it off the UI isolate.
+  // Isolate.run copies the byte buffer into the worker; that one-time
+  // copy is the price of not freezing frames for the hash duration.
+  final String expectedChecksum =
+      _manifestChecksum(manifest) ??
+      await Isolate.run(() => sha256.convert(assetBytes).toString());
   final expectedVersion = manifest['db_version']?.toString();
 
   final dbFile = File(dbPath);
@@ -264,8 +314,7 @@ Future<void> _ensureBundledDatabaseAvailable({
     }
   }
 
-  await dbFile.parent.create(recursive: true);
-  await dbFile.writeAsBytes(assetBytes, flush: true);
+  await _writeBytesChunked(dbFile, assetBytes);
   await _writeBundleMarker(
     markerFile: markerFile,
     dbAssetPath: dbAssetPath,

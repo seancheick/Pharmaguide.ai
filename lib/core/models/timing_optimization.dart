@@ -95,11 +95,21 @@ class TimingOptimization {
   /// Whether this is a separation rule (the most actionable type).
   bool get isSeparation => ruleType == TimingRuleType.separate;
 
+  /// Medication names that appear in timing rules. Mirrors
+  /// `TimingEvaluationService._medicationKeywords` — the rule can carry
+  /// the medication on either side, so both ingredients are checked.
+  static const _medicationNames = ['levothyroxine', 'warfarin'];
+
   /// Whether this involves a medication (higher urgency).
-  bool get involvesMedication =>
-      product1Name != null &&
-      (ingredient1.contains('levothyroxine') ||
-          ingredient1.contains('warfarin'));
+  ///
+  /// Checks both ingredient display names, case-insensitively —
+  /// [TimingRuleType] does not encode medication involvement, so the
+  /// ingredient names are the only signal available on the model.
+  bool get involvesMedication {
+    final i1 = ingredient1.toLowerCase();
+    final i2 = ingredient2.toLowerCase();
+    return _medicationNames.any((m) => i1.contains(m) || i2.contains(m));
+  }
 
   /// Priority for display ordering — separation + medication first,
   /// then separation + supplement, then other types.

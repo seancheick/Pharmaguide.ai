@@ -42,6 +42,8 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/utils/async_debouncer.dart';
+import 'package:pharmaguide/core/utils/retry.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
@@ -121,6 +123,26 @@ class StackSyncQueue {
         .write(UserStacksLocalCompanion(syncedAt: Value(DateTime.now())));
   }
 
+  /// Batch variant of [markSynced] — only called after the batched upsert
+  /// succeeds, preserving dirty-until-confirmed semantics.
+  ///
+  /// `synced_at` is set to each row's `client_updated_at` AS PUSHED (not
+  /// `now`): an edit landing between the dirty-row read and this mark
+  /// bumps `client_updated_at` past the recorded `synced_at`, so the row
+  /// stays dirty and the edit is pushed next cycle (no TOCTOU drop).
+  Future<void> markSyncedAll(List<UserStacksLocalData> pushedRows) {
+    if (pushedRows.isEmpty) return Future.value();
+    return _db.transaction(() async {
+      for (final row in pushedRows) {
+        await (_db.update(
+          _db.userStacksLocal,
+        )..where((t) => t.id.equals(row.id))).write(
+          UserStacksLocalCompanion(syncedAt: Value(row.clientUpdatedAt)),
+        );
+      }
+    });
+  }
+
   /// Total count of dirty rows (active + tombstone) awaiting push.
   Future<int> pendingCount() async {
     final dirty = await dirtyRows();
@@ -177,6 +199,11 @@ class StackSyncService {
   final AuthStateService _authState;
   final ConnectivityService _connectivity;
 
+  /// Debounce window for [pushAll]: rapid stack mutations (add 3 products
+  /// in a row) coalesce into a single batched upsert instead of three
+  /// network round-trips. Injectable so tests don't wait wall-clock time.
+  final AsyncDebouncer<SyncResult> _debouncer;
+
   /// Cached reference to the Supabase client. Nullable because
   /// [Supabase.instance.client] throws in debug mode when the placeholder
   /// guard fires (see `supabase_client.dart`). We silently accept that
@@ -189,7 +216,12 @@ class StackSyncService {
     }
   }
 
-  StackSyncService(this._queue, this._authState, this._connectivity);
+  StackSyncService(
+    this._queue,
+    this._authState,
+    this._connectivity, {
+    Duration debounce = const Duration(milliseconds: 1500),
+  }) : _debouncer = AsyncDebouncer<SyncResult>(debounce);
 
   /// Push all locally-dirty stack rows to Supabase.
   ///
@@ -197,10 +229,31 @@ class StackSyncService {
   /// are caught and logged via [debugPrint] so the caller can fire-and-
   /// forget.
   ///
-  /// When `force: true`, bypasses the offline check — used when we want
-  /// to try anyway (e.g. right after a user action in case the status
-  /// cache is stale).
-  Future<SyncResult> pushAll({bool force = false}) async {
+  /// Debounced: calls within the debounce window coalesce into a single
+  /// batched push (all coalesced callers share the same result Future).
+  /// The dirty-row set is read at execution time, so every mutation made
+  /// before the push runs is included.
+  ///
+  /// When `force: true`, bypasses both the debounce and the offline
+  /// check — used when we want to try right now (e.g. right after a user
+  /// action in case the status cache is stale).
+  /// Cancel any scheduled debounce run. Call on teardown.
+  void dispose() => _debouncer.dispose();
+
+  Future<SyncResult> pushAll({bool force = false}) {
+    // Guest users stay fully local — answer immediately instead of
+    // scheduling a debounce timer that would never push anything (and
+    // would leak a pending Timer past widget-test teardown).
+    if (!_authState.isSignedIn) {
+      return Future.value(SyncResult.skippedGuest);
+    }
+    if (force) {
+      return _debouncer.runNow(() => _pushNow(force: true));
+    }
+    return _debouncer.run(_pushNow);
+  }
+
+  Future<SyncResult> _pushNow({bool force = false}) async {
     // Guard 1: auth state. Guest users stay fully local.
     if (!_authState.isSignedIn) {
       return SyncResult.skippedGuest;
@@ -231,6 +284,9 @@ class StackSyncService {
         return SyncResult.ok;
       }
 
+      // Build one batched payload instead of a per-row round-trip loop.
+      final payload = <Map<String, dynamic>>[];
+      final pushedRows = <UserStacksLocalData>[];
       for (final row in dirty) {
         // Belt-and-suspenders PHI check — never push medications even if
         // the upstream query helper changes someday.
@@ -240,20 +296,32 @@ class StackSyncService {
         );
         if (row.type != 'supplement') continue;
 
-        try {
-          await supabase
+        payload.add(_rowToRemote(row, user.id));
+        pushedRows.add(row);
+      }
+
+      if (payload.isEmpty) {
+        return SyncResult.ok;
+      }
+
+      try {
+        await retryWithBackoff(
+          () => supabase
               .from(SupabaseContract.userStacksTable)
-              .upsert(_rowToRemote(row, user.id), onConflict: 'id');
-          await _queue.markSynced(row.id);
-        } on PostgrestException catch (e) {
-          // Leave synced_at alone — row stays dirty, next cycle will retry.
-          debugPrint(
-            'StackSync upsert failed for ${row.id}: '
-            '${e.code} ${e.message}',
-          );
-        } on Object catch (e) {
-          debugPrint('StackSync unexpected error for ${row.id}: $e');
-        }
+              .upsert(payload, onConflict: 'id'),
+          timeout: const Duration(seconds: 10),
+        );
+        // Rows are marked synced ONLY after the batch succeeds — on any
+        // failure every row keeps its dirty state for the next cycle.
+        await _queue.markSyncedAll(pushedRows);
+      } on PostgrestException catch (e) {
+        // Leave synced_at alone — rows stay dirty, next cycle will retry.
+        debugPrint(
+          'StackSync batched upsert failed (${payload.length} rows): '
+          '${e.code} ${e.message}',
+        );
+      } on Object catch (e) {
+        debugPrint('StackSync batched upsert unexpected error: $e');
       }
 
       return SyncResult.ok;
@@ -349,7 +417,11 @@ final stackSyncServiceProvider = Provider<StackSyncService>((ref) {
   final queue = ref.watch(stackSyncQueueProvider);
   final authState = ref.watch(authStateProvider.notifier);
   final connectivity = ref.watch(connectivityServiceProvider);
-  return StackSyncService(queue, authState, connectivity);
+  final service = StackSyncService(queue, authState, connectivity);
+  // Cancel any scheduled debounce when the container goes away (app
+  // teardown / widget-test ProviderScope disposal) so no Timer leaks.
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 /// Stream of pending-count values. Wire to a UI badge showing "N items

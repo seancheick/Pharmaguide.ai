@@ -19,6 +19,7 @@
 // top-level fn as-is.
 
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show filterProductDetailWarningsForProfile;
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -69,17 +70,26 @@ List<InteractionWarning> parseBlobWarnings(Map<String, dynamic>? blob) {
   for (final key in const ['warnings', 'warnings_profile_gated']) {
     final raw = blob[key];
     if (raw is! List) continue;
-    result.addAll(
-      raw
-          .whereType<Map<String, dynamic>>()
-          .where(
-            (warning) => !_isLegacyProductStatusWarning(
-              warning,
-              hasStructuredProductStatus: hasStructuredProductStatus,
-            ),
-          )
-          .map(InteractionWarning.fromJson),
+    final candidates = raw.whereType<Map<String, dynamic>>().where(
+      (warning) => !_isLegacyProductStatusWarning(
+        warning,
+        hasStructuredProductStatus: hasStructuredProductStatus,
+      ),
     );
+    // Parse per-element so one malformed blob entry can't throw away
+    // every other (valid) warning in the list. A skipped entry is
+    // recorded to Sentry; the rest of the warnings still render.
+    for (final warning in candidates) {
+      try {
+        result.add(InteractionWarning.fromJson(warning));
+      } on Object catch (e, st) {
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'warnings_pipeline:skip_malformed',
+        );
+      }
+    }
   }
   return InteractionWarning.dedupe(result);
 }

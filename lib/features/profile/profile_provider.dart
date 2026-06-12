@@ -158,12 +158,15 @@ class ProfileState {
   static List<String> _decodeList(String json) {
     try {
       final decoded = jsonDecode(json);
-      if (decoded is List) return decoded.cast<String>();
+      // whereType eagerly filters non-String entries — `.cast<String>()`
+      // would lazily throw a TypeError (an Error, not Exception) at first
+      // iteration, escaping the catch below and crashing callers.
+      if (decoded is List) return decoded.whereType<String>().toList();
     } on Exception catch (e, st) {
       CrashReportingService().recordError(
         e,
         st,
-        fatal: true,
+        fatal: false,
         hint: 'profile:decode_list',
       );
     }

@@ -3,11 +3,56 @@ import 'package:pharmaguide/services/sharing/share_service.dart';
 
 void main() {
   group('ShareService', () {
-    test('shareProduct builds formatted text with highlights', () {
-      // ShareService uses Share.share() which needs platform channel.
-      // We test the logic by verifying the service instantiates.
-      final service = ShareService();
-      expect(service, isNotNull);
+    test('shareProduct builds formatted text with highlights', () async {
+      String? capturedText;
+      final service = ShareService(
+        shareOverride: (text, {subject}) async => capturedText = text,
+      );
+
+      await service.shareProduct(
+        shareTitle: 'Magnesium Glycinate',
+        shareDescription: 'Well-absorbed form.',
+        shareHighlights: '["Third-party tested","No fillers"]',
+      );
+
+      expect(capturedText, contains('Magnesium Glycinate'));
+      expect(capturedText, contains('- Third-party tested'));
+      expect(capturedText, contains('- No fillers'));
+    });
+
+    test('shareProduct tolerates non-list highlights JSON', () async {
+      // A drifted blob could carry a JSON object instead of a list. The
+      // old `as List` cast threw a TypeError past the FormatException
+      // handler; now it degrades to no highlights.
+      String? capturedText;
+      final service = ShareService(
+        shareOverride: (text, {subject}) async => capturedText = text,
+      );
+
+      await service.shareProduct(
+        shareTitle: 'Magnesium Glycinate',
+        shareDescription: '',
+        shareHighlights: '{"unexpected":"object"}',
+      );
+
+      expect(capturedText, isNotNull);
+      expect(capturedText, isNot(contains('Key highlights')));
+    });
+
+    test('shareProduct tolerates invalid highlights JSON', () async {
+      String? capturedText;
+      final service = ShareService(
+        shareOverride: (text, {subject}) async => capturedText = text,
+      );
+
+      await service.shareProduct(
+        shareTitle: null,
+        shareDescription: null,
+        shareHighlights: 'not-json',
+      );
+
+      expect(capturedText, contains('Check out this supplement'));
+      expect(capturedText, isNot(contains('Key highlights')));
     });
   });
 

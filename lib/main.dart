@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -12,6 +13,7 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/utils/retry.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -176,7 +178,12 @@ class PharmaGuideBootstrap extends StatefulWidget {
 }
 
 class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
-  final SyncService _syncService = SyncService();
+  // Cache invalidation: cached detail blobs were fetched against the
+  // previous catalog snapshot and may not match the new rows'
+  // detail_blob_sha256 — clear them whenever a new catalog activates.
+  late final SyncService _syncService = SyncService(
+    onCatalogActivated: () => widget.userDb.clearDetailCache(),
+  );
   late final CatalogSwapper _swapper = CatalogSwapper.production(
     syncService: _syncService,
   );
@@ -192,6 +199,17 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   bool _syncInFlight = false;
   int _scopeVersion = 0;
   Timer? _catalogRefreshTimer;
+
+  /// Consecutive unhealthy refresh ticks — drives the retry backoff
+  /// (5m → 10m → 20m → 40m → 80m → cap 2h, ±20% jitter). Reset to 0 as
+  /// soon as a catalog is available again (healthy 1h cadence).
+  int _refreshFailureStreak = 0;
+
+  /// True once a routine version-bump detection has already paid its
+  /// 0-60min fleet-desync jitter — the next tick downloads immediately.
+  bool _jitterApplied = false;
+
+  final math.Random _refreshRandom = math.Random();
 
   @override
   void initState() {
@@ -288,31 +306,74 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   }
 
   Future<void> _retryCatalogLoad() async {
-    await _refreshCatalogIfNeeded(forceDownload: true);
+    // Manual retry: re-checks the manifest and only downloads when a
+    // new/needed version exists (no blanket force-download). When no
+    // live DB is open, _refreshCatalogIfNeeded still forces the fetch.
+    await _refreshCatalogIfNeeded(manual: true);
   }
 
   void _scheduleCatalogRefresh({Duration? initialDelay}) {
     _catalogRefreshTimer?.cancel();
     if (!widget.supabaseReady) return;
 
-    final delay =
-        initialDelay ??
-        (_catalogAvailable
-            ? const Duration(hours: 1)
-            : const Duration(minutes: 5));
+    final Duration delay;
+    if (initialDelay != null) {
+      delay = initialDelay;
+    } else if (_catalogAvailable) {
+      // Healthy: reset the failure backoff and resume the 1h cadence.
+      _refreshFailureStreak = 0;
+      delay = const Duration(hours: 1);
+    } else {
+      // Unhealthy: exponential backoff with ±20% jitter so a fleet of
+      // failing clients doesn't hammer Supabase in lockstep.
+      _refreshFailureStreak++;
+      delay = backoffDelay(
+        _refreshFailureStreak,
+        base: const Duration(minutes: 5),
+        cap: const Duration(hours: 2),
+        random: _refreshRandom,
+      );
+    }
 
     _catalogRefreshTimer = Timer(delay, () {
       unawaited(_refreshCatalogIfNeeded());
     });
   }
 
-  Future<void> _refreshCatalogIfNeeded({bool forceDownload = false}) async {
+  Future<void> _refreshCatalogIfNeeded({bool manual = false}) async {
     if (!widget.supabaseReady || _syncInFlight) {
       return;
     }
 
     _syncInFlight = true;
+    Duration? nextDelayOverride;
     try {
+      // Fleet de-sync: when a ROUTINE refresh tick (not first-install,
+      // not a manual retry) detects a remote version bump, defer the
+      // download by a random 0-60min so the whole installed base doesn't
+      // download the new catalog in the same minute. First-install
+      // (_coreDb == null) and manual paths stay immediate.
+      if (!manual &&
+          _coreDb != null &&
+          _activeCatalogVersion != null &&
+          !_jitterApplied) {
+        final bumped = await _syncService.isUpdateAvailable(
+          _activeCatalogVersion!,
+        );
+        if (bumped) {
+          _jitterApplied = true;
+          nextDelayOverride = Duration(
+            minutes: _refreshRandom.nextInt(61), // 0-60 min
+          );
+          debugPrint(
+            'Catalog version bump detected; jittering download by '
+            '$nextDelayOverride to de-synchronize the fleet',
+          );
+          return;
+        }
+      }
+      _jitterApplied = false;
+
       // D2: probe + stage logic lives in CatalogUpdaterService now.
       // The widget keeps ownership of the swap step (which mutates
       // setState and closes the previous DB) — see swap branch below.
@@ -321,7 +382,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       // version with no live DB means we still need to fetch.
       final checkResult = await _updater.checkForUpdate(
         installedVersion: _activeCatalogVersion,
-        forceDownload: forceDownload || _coreDb == null,
+        forceDownload: _coreDb == null,
       );
 
       switch (checkResult) {
@@ -351,8 +412,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           }
           return;
         case CatalogStageFailed(:final reason):
-          // Network drop mid-download or sha mismatch. Partial file
-          // is already cleaned by SyncService.stageCoreDbDownload.
+          // Network drop mid-download (partial .staging is kept for
+          // Range-resume on the next tick) or validation failure
+          // (staged file already cleaned by stageCoreDbDownload).
           debugPrint('Catalog stage failed: $reason');
           if (mounted && _coreDb == null) {
             setState(() {
@@ -370,7 +432,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       }
     } finally {
       _syncInFlight = false;
-      _scheduleCatalogRefresh();
+      _scheduleCatalogRefresh(initialDelay: nextDelayOverride);
     }
   }
 

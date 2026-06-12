@@ -13,6 +13,7 @@ void main() {
         missingFields: [],
         maxPossible: 100.0,
         state: FitAssessmentState.strongMatch,
+        mappedCoverage: 1.0,
       );
       expect(result.displayText, 'Strong match');
     });
@@ -27,6 +28,7 @@ void main() {
         missingFields: ['goals', 'conditions'],
         maxPossible: 90.0,
         state: FitAssessmentState.incompleteProfile,
+        mappedCoverage: 1.0,
       );
       expect(result.displayText, 'Incomplete profile — Complete profile');
     });

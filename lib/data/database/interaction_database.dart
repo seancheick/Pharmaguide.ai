@@ -116,7 +116,49 @@ class InteractionDatabase extends _$InteractionDatabase {
     onUpgrade: (migrator, from, to) async {
       // Pre-built DB — no versioned migrations.
     },
+    beforeOpen: (details) async {
+      await _ensureAppIndexes();
+    },
   );
+
+  /// App-side expression indexes created at open time.
+  ///
+  /// [lookupByCanonicalId] and [lookupResearchPairsByCanonicalId] wrap the
+  /// indexed columns in `lower(...)`, which defeats the pipeline's plain
+  /// column indexes (idx_int_a1_canon etc. — verified SCAN via EXPLAIN
+  /// QUERY PLAN). These lower() expression indexes restore SEARCH on both
+  /// sides of the OR (MULTI-INDEX OR plan).
+  ///
+  /// The local copy of `interaction_db.sqlite` is writable (it's replaced
+  /// wholesale on bundle upgrade), so CREATE INDEX here is legitimate and
+  /// `IF NOT EXISTS` makes it a one-time cost per bundle.
+  ///
+  /// LONG-TERM FIX: the pipeline should store these IDs already lowercased
+  /// (and/or build the lower() indexes in release_interaction_artifact.py)
+  /// so the app never pays the index build cost.
+  ///
+  /// Failures are swallowed — a missing index only degrades performance;
+  /// it must never block interaction-DB open (safety surface).
+  Future<void> _ensureAppIndexes() async {
+    const statements = [
+      'CREATE INDEX IF NOT EXISTS idx_int_a1_canon_lower '
+          'ON interactions (lower(agent1_canonical_id))',
+      'CREATE INDEX IF NOT EXISTS idx_int_a2_canon_lower '
+          'ON interactions (lower(agent2_canonical_id))',
+      'CREATE INDEX IF NOT EXISTS idx_rp_canon_a_lower '
+          'ON research_pairs (lower(canonical_id_a))',
+      'CREATE INDEX IF NOT EXISTS idx_rp_canon_b_lower '
+          'ON research_pairs (lower(canonical_id_b))',
+    ];
+    for (final ddl in statements) {
+      try {
+        await customStatement(ddl);
+      } on Exception {
+        // Read-only filesystem or malformed bundle — performance-only
+        // degradation, never block open.
+      }
+    }
+  }
 
   /// Open a pre-built database file (the bundled asset, copied to the
   /// app documents directory by [ensureInteractionDatabaseAvailable]).

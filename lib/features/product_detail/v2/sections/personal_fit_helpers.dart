@@ -39,17 +39,21 @@ String personalFitHeadline(FitDisplay fit, String? topGoalLabel) {
 ///      `generatePositiveProfileBullets`)
 ///   2. fitReasons fallback (`FitScoreResult.reasons`), cleaned
 ///
-/// FitHidden / FitNotRecommended / FitIncomplete deliberately render
-/// NO positive bullets — pairing "Magnesium supports your blood
-/// pressure goal" next to "Not recommended for your profile" is
-/// incoherent. The headline alone communicates the state.
+/// FitHidden / FitNotRecommended / FitIncomplete / FitLimitedFit
+/// deliberately render NO positive bullets — pairing "Magnesium
+/// supports your blood pressure goal" next to "Not recommended for
+/// your profile" (or a hedged "Limited fit") is incoherent. The
+/// headline alone communicates the state.
 List<String> personalFitBullets({
   required FitDisplay fit,
   required List<String> fitReasons,
   required List<String> ingredientNames,
   required List<String> userConditions,
 }) {
-  if (fit is FitHidden || fit is FitNotRecommended || fit is FitIncomplete) {
+  if (fit is FitHidden ||
+      fit is FitNotRecommended ||
+      fit is FitIncomplete ||
+      fit is FitLimitedFit) {
     return const [];
   }
 

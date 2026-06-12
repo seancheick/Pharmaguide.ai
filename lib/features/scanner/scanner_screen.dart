@@ -90,6 +90,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   Future<void> _lookUpProduct(String upc) async {
     final allowed = await _recordAllowedScan();
+    if (!mounted) return;
     if (!allowed) {
       _showGuestScanLimitSheet();
       setState(() => _hasScanned = false);

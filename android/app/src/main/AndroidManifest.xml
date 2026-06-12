@@ -8,10 +8,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- allowBackup/dataExtractionRules disabled: user_data.db holds health
+         data (medications, conditions) that must never leave the device. -->
     <application
         android:label="PharmaGuide"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -36,7 +41,7 @@
             <!-- pharmaguide:// URL scheme — Supabase magic-link callbacks
                  (and future Apple / Google OAuth redirects) open the app
                  instead of the system browser. Phase 9.1. -->
-            <intent-filter android:autoVerify="true">
+            <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>

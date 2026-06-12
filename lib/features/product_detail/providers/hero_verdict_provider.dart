@@ -20,6 +20,7 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart'
     show isUnsafeVerdict;
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Sealed verdict outcome the hero renders.
 sealed class HeroVerdict {
@@ -85,8 +86,11 @@ final class HeroVerdictAvoid extends HeroVerdict {
     final base = severity == Severity.contraindicated
         ? 'Not recommended'
         : 'Use caution';
-    if (offendingAgent != null && offendingAgent!.trim().isNotEmpty) {
-      return '$base with ${offendingAgent!.trim()}';
+    // Hoist into a local so the null-check and the use can't be torn
+    // apart by a future edit (no `!` on a re-read field).
+    final agent = offendingAgent?.trim();
+    if (agent != null && agent.isNotEmpty) {
+      return '$base with $agent';
     }
     return '$base for your stack';
   }
@@ -114,11 +118,18 @@ final class HeroVerdictNone extends HeroVerdict {
 ///
 /// Pure function — no I/O, no provider deps. Test by constructing
 /// inputs directly and asserting on the returned variant.
+///
+/// When [guardedWarnings] is provided (profile exists and the caller
+/// already ran the warning compose pipeline), the stack-side severity
+/// walk in step (2) uses those typed warnings instead of the raw
+/// [topWarnings] maps — they carry live stack context the static
+/// blob maps can't know about.
 HeroVerdict computeHeroVerdict({
   required String? productVerdict,
   required String blockingReason,
   required List<Map<String, dynamic>> topWarnings,
   Map<String, dynamic>? bannedSubstanceDetail,
+  List<InteractionWarning>? guardedWarnings,
 }) {
   // (1) Product-side blocking takes precedence.
   if (isUnsafeVerdict(productVerdict)) {
@@ -132,6 +143,27 @@ HeroVerdict computeHeroVerdict({
 
   // (2) Walk the stack-side warnings, hold onto the worst severity
   // and the warning that produced it (so we can extract the agent).
+  // Typed guarded warnings (when supplied) take precedence over the
+  // raw blob maps.
+  if (guardedWarnings != null) {
+    Severity? maxTypedSeverity;
+    InteractionWarning? offendingTyped;
+    for (final w in guardedWarnings) {
+      if (w.severity.weight > (maxTypedSeverity?.weight ?? -1)) {
+        maxTypedSeverity = w.severity;
+        offendingTyped = w;
+      }
+    }
+    if (maxTypedSeverity == Severity.contraindicated ||
+        maxTypedSeverity == Severity.avoid) {
+      return HeroVerdictAvoid(
+        severity: maxTypedSeverity!,
+        offendingAgent: _agentNameFromWarning(offendingTyped),
+      );
+    }
+    return const HeroVerdictNone();
+  }
+
   Severity? maxSeverity;
   Map<String, dynamic>? offendingWarning;
   for (final w in topWarnings) {
@@ -172,6 +204,21 @@ HeroVerdict computeHeroVerdict({
 /// likely keys and returns the first non-empty match. Returns null
 /// when no clear name surfaces — caller's headline copy degrades
 /// to a generic "Avoid for your stack".
+/// Best-effort agent name from a typed [InteractionWarning]. The
+/// personalized pipeline stamps titles as "Because you're taking X";
+/// extract X when that shape is present, otherwise return null so the
+/// headline degrades to the generic "for your stack" copy.
+String? _agentNameFromWarning(InteractionWarning? warning) {
+  if (warning == null) return null;
+  const prefix = "Because you're taking ";
+  final title = warning.title.trim();
+  if (title.startsWith(prefix)) {
+    final agent = title.substring(prefix.length).trim();
+    if (agent.isNotEmpty) return agent;
+  }
+  return null;
+}
+
 String? _extractAgentName(Map<String, dynamic>? warning) {
   if (warning == null) return null;
   // Order is intentional: most specific first. `with` is the

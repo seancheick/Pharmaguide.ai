@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:pharmaguide/services/crash_reporting_service.dart';
+
 // Display labels — sentence case, softer-tone vocabulary (Sean 2026-04-30).
 // "AVOID" felt synonymous with "banned" to users; the word is reserved
 // for `contraindicated` shapes (banned / recalled / drug-interaction
@@ -87,9 +89,23 @@ enum Severity {
       case 'safe':
         return Severity.safe;
       default:
+        // Unknown value — pipeline schema drift. Fail safe to caution,
+        // but report it (non-fatal, once per value per session) so
+        // drift is detectable instead of silently swallowed.
+        if (_reportedUnknownValues.add(normalized)) {
+          CrashReportingService().recordError(
+            StateError('Unknown severity string: "$normalized"'),
+            StackTrace.current,
+            hint: 'severity:unknown_value',
+          );
+        }
         return Severity.caution;
     }
   }
+
+  /// Unknown severity strings already reported this session — keeps
+  /// the non-fatal drift report to one Sentry event per value.
+  static final Set<String> _reportedUnknownValues = <String>{};
 
   static bool isKnownString(String value) {
     final normalized = value.toLowerCase().trim();

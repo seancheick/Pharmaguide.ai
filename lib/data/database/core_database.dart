@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:pharmaguide/data/database/tables/products_core_table.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 part 'core_database.g.dart';
 
@@ -27,6 +28,15 @@ class CoreDatabase extends _$CoreDatabase {
   /// score.
   static const String effectiveScoreSql = 'quality_score_v4_100';
 
+  /// SQL expression that normalizes a stored UPC to digits-only form.
+  ///
+  /// IMPORTANT: this exact string is used BOTH in the expression index
+  /// created by [_ensureAppIndexes] AND in the [findByUpc] WHERE clause.
+  /// SQLite only uses an expression index when the query expression matches
+  /// the index expression character-for-character — keep them identical.
+  static const String upcNormalizeSql =
+      "REPLACE(REPLACE(REPLACE(REPLACE(upc_sku, ' ', ''), '-', ''), '.', ''), '/', '')";
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (migrator, from, to) async {
@@ -37,8 +47,55 @@ class CoreDatabase extends _$CoreDatabase {
       // current app build expects. Add safe nullable columns so older local
       // snapshots don't crash during app startup.
       await _ensureCompatColumns();
+      await _ensureAppIndexes();
     },
   );
+
+  /// App-side performance indexes created at open time.
+  ///
+  /// The local copy of `pharmaguide_core.db` lives in the app documents
+  /// directory and IS writable (it's OTA-replaced wholesale), so creating
+  /// indexes here is legitimate. `IF NOT EXISTS` makes this a no-op after
+  /// the first open of any given snapshot; after an OTA swap the new file
+  /// gets re-indexed on its first open.
+  ///
+  /// LONG-TERM FIX: these indexes should be built pipeline-side in
+  /// `build_final_db.py` so the app never pays the one-time index build
+  /// cost (matters as the catalog grows 9K → 250K rows). Keep the app-side
+  /// `IF NOT EXISTS` as a safety net even after the pipeline ships them.
+  ///
+  /// Failures are logged (non-fatal) and swallowed — a missing index only
+  /// degrades performance, it must never block catalog open.
+  Future<void> _ensureAppIndexes() async {
+    const statements = [
+      // findByUpc: the REPLACE(...) normalization wrapper defeats the
+      // plain idx_core_upc index (verified SCAN via EXPLAIN QUERY PLAN).
+      // This expression index restores SEARCH — the expression matches
+      // [upcNormalizeSql] exactly.
+      'CREATE INDEX IF NOT EXISTS idx_core_upc_normalized '
+          'ON products_core ($upcNormalizeSql)',
+      // fetchBetterAlternativesPool: partial composite index matching the
+      // query's quality_score_status = 'scored' predicate, so the
+      // category branch of the intent OR resolves via SEARCH with the
+      // score range folded into the same index (verified via EXPLAIN
+      // QUERY PLAN: SEARCH ... idx_core_cat_score
+      // (primary_category=? AND quality_score_v4_100>?)).
+      "CREATE INDEX IF NOT EXISTS idx_core_cat_score "
+          "ON products_core (primary_category, quality_score_v4_100 DESC) "
+          "WHERE quality_score_status = 'scored'",
+    ];
+    for (final ddl in statements) {
+      try {
+        await customStatement(ddl);
+      } on Exception catch (e, st) {
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'core_db:app_index_create_failed',
+        );
+      }
+    }
+  }
 
   /// Add additive nullable columns missing from the pre-built DB. Safe to call
   /// multiple times — each ALTER is wrapped so an already-present column is
@@ -103,9 +160,23 @@ class CoreDatabase extends _$CoreDatabase {
     for (final col in columns) {
       try {
         await customStatement('ALTER TABLE products_core ADD COLUMN $col');
-      } on Exception {
-        // Column already exists — safe to ignore. Drift wraps the
-        // underlying SqliteException in a generic Exception for this path.
+      } on Exception catch (e, st) {
+        // The expected (and overwhelmingly common) failure is the column
+        // already existing — that is safe to ignore. Anything else
+        // (read-only file, disk full, malformed DB) used to be silently
+        // swallowed here, which hid real catalog problems until a query
+        // failed downstream. Log those non-fatally and continue: a
+        // missing compat column degrades a feature, it must not block
+        // catalog open.
+        final message = e.toString().toLowerCase();
+        if (message.contains('duplicate column name')) {
+          continue;
+        }
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'core_db:compat_column_failed',
+        );
       }
     }
   }
@@ -242,9 +313,11 @@ class CoreDatabase extends _$CoreDatabase {
     }
 
     for (final candidate in candidates) {
+      // Uses [upcNormalizeSql] so the WHERE expression matches the
+      // idx_core_upc_normalized expression index exactly (SEARCH, not SCAN).
       final row = await customSelect(
-        "SELECT * FROM products_core "
-        "WHERE REPLACE(REPLACE(REPLACE(REPLACE(upc_sku, ' ', ''), '-', ''), '.', ''), '/', '') = ? "
+        'SELECT * FROM products_core '
+        'WHERE $upcNormalizeSql = ? '
         "ORDER BY (product_status = 'active') DESC, "
         "         COALESCE(quality_score_v4_100, 0) DESC "
         "LIMIT 1",
@@ -314,28 +387,54 @@ class CoreDatabase extends _$CoreDatabase {
       return rows.map((row) => productsCore.map(row.data)).toList();
     } on Exception {
       // FTS table missing or query syntax error — fall back to LIKE.
-      // v1.6.x: include ingredients_text in the OR so the Capsimax /
-      // by-ingredient search still works when FTS is absent. Uses
-      // customSelect with raw SQL so the fallback doesn't depend on a
-      // freshly-regenerated `.g.dart` from build_runner — older Drift
-      // codegen snapshots that don't yet expose ingredientsText as a
-      // typed column still load the bundle.
-      final pattern = '%$trimmed%';
-      final rows = await customSelect(
-        'SELECT * FROM products_core '
-        'WHERE product_name LIKE ? OR brand_name LIKE ? OR ingredients_text LIKE ? '
-        'ORDER BY COALESCE(quality_score_v4_100, 0) DESC '
-        'LIMIT ?',
-        variables: [
-          Variable.withString(pattern),
-          Variable.withString(pattern),
-          Variable.withString(pattern),
-          Variable.withInt(limit),
-        ],
-        readsFrom: {productsCore},
-      ).get();
-      return rows.map((row) => productsCore.map(row.data)).toList();
+      // The fallback firing at all means the snapshot is missing its FTS
+      // index (older catalog or broken build) — breadcrumb it so Sentry
+      // shows the degraded-search context if anything fails downstream.
+      CrashReportingService().log(
+        'core_db: FTS search unavailable — LIKE fallback fired',
+      );
+      // Prefix-only LIKE ('query%') so idx_core_name / idx_core_brand stay
+      // usable; a leading-wildcard '%query%' forces a full table scan,
+      // which is unacceptable at 250K rows. The trade-off (no mid-string
+      // match) is acceptable for a degraded fallback path.
+      final pattern = '$trimmed%';
+      // v1.6.x: ingredients_text is included so by-ingredient search still
+      // works when FTS is absent — but the column itself is a compat
+      // column that _ensureCompatColumns may have failed to add, so a
+      // missing column degrades to name/brand-only instead of throwing.
+      // Raw SQL keeps the fallback independent of `.g.dart` codegen.
+      try {
+        return await _likeFallback(
+          'product_name LIKE ? OR brand_name LIKE ? OR ingredients_text LIKE ?',
+          [pattern, pattern, pattern],
+          limit,
+        );
+      } on Exception {
+        return _likeFallback('product_name LIKE ? OR brand_name LIKE ?', [
+          pattern,
+          pattern,
+        ], limit);
+      }
     }
+  }
+
+  Future<List<ProductsCoreData>> _likeFallback(
+    String whereClause,
+    List<String> patterns,
+    int limit,
+  ) async {
+    final rows = await customSelect(
+      'SELECT * FROM products_core '
+      'WHERE $whereClause '
+      'ORDER BY COALESCE(quality_score_v4_100, 0) DESC '
+      'LIMIT ?',
+      variables: [
+        for (final p in patterns) Variable.withString(p),
+        Variable.withInt(limit),
+      ],
+      readsFrom: {productsCore},
+    ).get();
+    return rows.map((row) => productsCore.map(row.data)).toList();
   }
 
   /// Find products with higher scores in the same category. Used for
@@ -431,7 +530,12 @@ class CoreDatabase extends _$CoreDatabase {
             // Exclude self.
             expr = expr & t.dsldId.equals(current.dsldId).not();
             // Never recommend a safety-suppressed row (BLOCKED/UNSAFE).
-            expr = expr & t.qualityScoreStatus.equals('scored');
+            // Inlined as a literal (not a Drift bound parameter) so SQLite
+            // can prove the idx_core_cat_score partial-index predicate
+            // (WHERE quality_score_status='scored') and use the index.
+            expr =
+                expr &
+                const CustomExpression<bool>("quality_score_status = 'scored'");
             // On-market only. The column is nullable text; drift's
             // `isNull()` matches genuine NULLs, and a defensive
             // equals('') covers older catalogs that stored empty

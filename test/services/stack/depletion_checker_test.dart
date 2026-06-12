@@ -529,4 +529,120 @@ void main() {
       expect(CoverageLevel.adequate.isAnyCoverage, isTrue);
     });
   });
+
+  group('DepletionChecker — legacy name fallback tightening', () {
+    /// Row whose drug_ref carries no structured RxCUI or class id —
+    /// the only shape that should still rely on display-name matching.
+    Map<String, dynamic> ironNoteFixture() => {
+      'depletions': [
+        {
+          'id': 'DEP_LEGACY_IRON_NOTE',
+          'drug_ref': {'id': 'legacy:iron-note', 'display_name': 'Iron'},
+          'depleted_nutrient': {
+            'standard_name': 'Vitamin C',
+            'canonical_id': 'vitamin_c',
+          },
+          'severity': 'moderate',
+        },
+      ],
+    };
+
+    test('"iron" no longer false-positives inside unrelated names', () {
+      // "environ" contains the substring "iron" — the old bidirectional
+      // substring check matched this. Min-length 5 now rejects it.
+      final out = checker.check(
+        medications: [(name: 'Environ Pills', drugClassId: null)],
+        depletionsData: ironNoteFixture(),
+      );
+      expect(out, isEmpty);
+    });
+
+    test('short row display names cannot match longer med names', () {
+      // Reverse direction of the same false positive: row says "Iron",
+      // user med name contains those letters incidentally.
+      final out = checker.check(
+        medications: [(name: 'Environmental Health Rx', drugClassId: null)],
+        depletionsData: ironNoteFixture(),
+      );
+      expect(out, isEmpty);
+    });
+
+    test('true positives are kept in both directions', () {
+      // med name shorter than row display name.
+      final forward = checker.check(
+        medications: [(name: 'Metformin', drugClassId: null)],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(forward, hasLength(1));
+
+      // row display name shorter than med name.
+      final reverse = checker.check(
+        medications: [(name: 'Metformin Extended Release', drugClassId: null)],
+        depletionsData: {
+          'depletions': [
+            {
+              'id': 'DEP_LEGACY_METFORMIN',
+              'drug_ref': {
+                'id': 'legacy:metformin-note',
+                'display_name': 'Metformin',
+              },
+              'depleted_nutrient': {
+                'standard_name': 'Vitamin B12',
+                'canonical_id': 'vitamin_b12',
+              },
+              'severity': 'significant',
+            },
+          ],
+        },
+      );
+      expect(reverse, hasLength(1));
+      expect(reverse.first.depletionId, 'DEP_LEGACY_METFORMIN');
+    });
+
+    test('identity-backed meds (with RxCUI) do not name-match', () {
+      // The med carries a structured RxCUI that does NOT match the row.
+      // Name matching must not rescue it — names of RxCUI-backed meds
+      // are excluded from the legacy fallback set.
+      final out = checker.check(
+        medications: const [],
+        medicationIdentities: const [
+          DepletionMedicationIdentity(name: 'Metformin', rxcui: '111111'),
+        ],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(out, isEmpty);
+    });
+
+    group('legacyDrugNameMatches', () {
+      test('requires minimum 5-char shorter name', () {
+        expect(legacyDrugNameMatches('iron', 'iron'), isFalse);
+        expect(legacyDrugNameMatches('ironwood extract', 'iron'), isFalse);
+      });
+
+      test('requires word boundaries', () {
+        expect(legacyDrugNameMatches('environ pills', 'iron'), isFalse);
+        expect(legacyDrugNameMatches('prednisone', 'predni'), isFalse);
+      });
+
+      test('matches whole words bidirectionally', () {
+        expect(
+          legacyDrugNameMatches(
+            'metformin (type 2 diabetes medication)',
+            'metformin',
+          ),
+          isTrue,
+        );
+        expect(
+          legacyDrugNameMatches('metformin', 'metformin extended release'),
+          isTrue,
+        );
+        expect(legacyDrugNameMatches('lisinopril', 'lisinopril'), isTrue);
+      });
+
+      test('empty inputs never match', () {
+        expect(legacyDrugNameMatches('', 'metformin'), isFalse);
+        expect(legacyDrugNameMatches('metformin', ''), isFalse);
+      });
+    });
+  });
 }

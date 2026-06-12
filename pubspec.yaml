@@ -50,6 +50,8 @@ dependencies:
   connectivity_plus: ^6.0.0
   # Local storage (guest scan limits)
   shared_preferences: ^2.3.0
+  # Secure storage (Supabase session tokens — Keychain / Android Keystore)
+  flutter_secure_storage: ^10.3.1
   # Utilities
   intl: ^0.20.2
   collection: ^1.18.0

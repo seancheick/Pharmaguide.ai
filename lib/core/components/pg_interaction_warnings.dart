@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
@@ -31,6 +32,13 @@ extension PGEvidenceLevelMeta on PGEvidenceLevel {
 /// production's `InteractionWarning` to this — keeps the widget pure.
 class PGWarning {
   final PGWarningSeverity severity;
+
+  /// Original production [Severity] tier, when known. Threads the real
+  /// tier through so the pill can label `avoid` ("Not recommended") and
+  /// `contraindicated` ("Do not use") distinctly — both map to the same
+  /// danger tone, so tone alone cannot recover the label.
+  final Severity? severityTier;
+
   final PGEvidenceLevel evidence;
   final String title;
   final String mechanism;
@@ -47,6 +55,7 @@ class PGWarning {
 
   const PGWarning({
     required this.severity,
+    this.severityTier,
     required this.evidence,
     required this.title,
     required this.mechanism,
@@ -287,7 +296,10 @@ class _PGWarningCardState extends State<PGWarningCard> {
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        _SeverityPill(severity: w.severity),
+                        _SeverityPill(
+                          severity: w.severity,
+                          severityTier: w.severityTier,
+                        ),
                         _EvidenceBadge(evidence: w.evidence),
                       ],
                     ),
@@ -330,14 +342,21 @@ class _PGWarningCardState extends State<PGWarningCard> {
 
 class _SeverityPill extends StatelessWidget {
   final PGWarningSeverity severity;
-  const _SeverityPill({required this.severity});
+  final Severity? severityTier;
+  const _SeverityPill({required this.severity, this.severityTier});
 
-  String get _label => switch (severity) {
-    PGReviewTone.danger => 'Contraindicated',
-    PGReviewTone.caution => 'Caution',
-    PGReviewTone.safe => 'Monitor',
-    PGReviewTone.info => 'Informational',
-  };
+  /// Prefer the original tier's display label (severity.dart vocabulary:
+  /// "Do not use" / "Not recommended" / "Use caution" / ...) so `avoid`
+  /// is never mislabeled as contraindicated. Tone-only fallback keeps
+  /// callers that haven't threaded the tier working.
+  String get _label =>
+      severityTier?.label ??
+      switch (severity) {
+        PGReviewTone.danger => 'Do not use',
+        PGReviewTone.caution => 'Use caution',
+        PGReviewTone.safe => 'Monitor',
+        PGReviewTone.info => 'Informational',
+      };
 
   @override
   Widget build(BuildContext context) {

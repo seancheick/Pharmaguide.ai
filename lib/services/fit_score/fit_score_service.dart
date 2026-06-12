@@ -349,10 +349,14 @@ class FitScoreService {
     required List<String> userDrugClasses,
   }) {
     final out = <_RelevantMatch>[];
-    final conditionSummary =
-        interactionSummary['condition_summary'] as Map<String, dynamic>? ?? {};
-    final drugSummary =
-        interactionSummary['drug_class_summary'] as Map<String, dynamic>? ?? {};
+    final rawCondSummary = interactionSummary['condition_summary'];
+    final conditionSummary = rawCondSummary is Map
+        ? Map<String, dynamic>.from(rawCondSummary)
+        : <String, dynamic>{};
+    final rawDrugSummary = interactionSummary['drug_class_summary'];
+    final drugSummary = rawDrugSummary is Map
+        ? Map<String, dynamic>.from(rawDrugSummary)
+        : <String, dynamic>{};
 
     for (final id in userConditions) {
       final raw = conditionSummary[id];
@@ -364,11 +368,11 @@ class FitScoreService {
           severity: Severity.fromString(
             data['highest_severity']?.toString() ?? 'safe',
           ),
-          ingredients:
-              (data['ingredients'] as List?)
-                  ?.map((e) => e.toString())
-                  .toList(growable: false) ??
-              const <String>[],
+          ingredients: data['ingredients'] is List
+              ? (data['ingredients'] as List)
+                    .map((e) => e.toString())
+                    .toList(growable: false)
+              : const <String>[],
         ),
       );
     }
@@ -383,11 +387,11 @@ class FitScoreService {
           severity: Severity.fromString(
             data['highest_severity']?.toString() ?? 'safe',
           ),
-          ingredients:
-              (data['ingredients'] as List?)
-                  ?.map((e) => e.toString())
-                  .toList(growable: false) ??
-              const <String>[],
+          ingredients: data['ingredients'] is List
+              ? (data['ingredients'] as List)
+                    .map((e) => e.toString())
+                    .toList(growable: false)
+              : const <String>[],
         ),
       );
     }

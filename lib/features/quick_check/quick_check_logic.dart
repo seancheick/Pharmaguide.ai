@@ -121,6 +121,21 @@ class QuickCheckItem {
     return drugClasses.isEmpty && ingredientRxcuis.isEmpty && !hasGeneric;
   }
 
+  /// True when this item's interaction coverage may be incomplete:
+  /// medications with failed RxNorm hydration ([hydrationIncomplete]),
+  /// or supplements whose label mapping coverage is below the 0.3
+  /// trust floor — their ingredients may never fire the curated rules,
+  /// so an empty result is a likely false-negative. Callers should
+  /// surface a "coverage may be incomplete" notice instead of implying
+  /// a clean check.
+  bool get coverageIncomplete {
+    if (hydrationIncomplete) return true;
+    if (isSupplement) {
+      return (product?.mappedCoverage ?? 0.0) < 0.3;
+    }
+    return false;
+  }
+
   QuickCheckItem copyWithMedicationResolution({
     String? genericRxcui,
     List<String>? ingredientRxcuis,

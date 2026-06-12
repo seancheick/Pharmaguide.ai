@@ -1,5 +1,30 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Session persistence backed by Keychain (iOS) / Keystore (Android) instead
+/// of plaintext SharedPreferences. Sessions stored by older builds in
+/// SharedPreferences are simply dropped — the user signs in again once.
+class SecureSessionStorage extends LocalStorage {
+  static const _key = 'pg_supabase_session';
+  static const _storage = FlutterSecureStorage();
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<String?> accessToken() => _storage.read(key: _key);
+
+  @override
+  Future<bool> hasAccessToken() async => await _storage.read(key: _key) != null;
+
+  @override
+  Future<void> persistSession(String persistSessionString) =>
+      _storage.write(key: _key, value: persistSessionString);
+
+  @override
+  Future<void> removePersistedSession() => _storage.delete(key: _key);
+}
 
 /// Supabase configuration.
 ///
@@ -64,6 +89,10 @@ Future<void> initSupabase() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
+    authOptions: FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+      localStorage: SecureSessionStorage(),
+    ),
   );
 }
 

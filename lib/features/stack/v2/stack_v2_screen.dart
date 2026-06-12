@@ -32,7 +32,7 @@ import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 /// canonical product name, brand, thumbnail, and score.
 final _stackProductProvider = FutureProvider.family
     .autoDispose<ProductsCoreData?, String>((ref, dsldId) async {
-      final coreDb = ref.read(coreDatabaseProvider);
+      final coreDb = ref.watch(coreDatabaseProvider);
       return coreDb.findById(dsldId);
     });
 

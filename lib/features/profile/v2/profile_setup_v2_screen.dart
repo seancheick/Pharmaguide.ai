@@ -84,7 +84,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   // ───────── nav helpers ─────────
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (!mounted || _saving) return;
     setState(() => _saving = true);
     unawaited(HapticFeedback.mediumImpact());
     // Same await-the-drift-write semantics as the legacy screen — see

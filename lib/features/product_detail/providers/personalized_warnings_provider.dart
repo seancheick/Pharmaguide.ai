@@ -23,6 +23,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
@@ -39,20 +40,33 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
       } on UnimplementedError {
         // Test stub for the stack provider — fall back to empty.
         return const [];
-      } on Exception {
+      } on Exception catch (e, st) {
         // DB unavailable or transient — degrade to empty rather than
-        // surfacing an error in the UI for a non-critical signal.
+        // surfacing an error in the UI for a non-critical signal, but
+        // record it so silent degradation is observable in Sentry.
+        CrashReportingService().recordError(
+          e,
+          st,
+          fatal: false,
+          hint: 'personalized_warnings:stack_fetch_failed',
+        );
         return const [];
       }
       if (stack.isEmpty) return const [];
 
-      final coreDb = ref.read(coreDatabaseProvider);
+      final coreDb = ref.watch(coreDatabaseProvider);
       final ProductsCoreData? product;
       try {
         product = await coreDb.findById(dsldId);
       } on UnimplementedError {
         return const [];
-      } on Exception {
+      } on Exception catch (e, st) {
+        CrashReportingService().recordError(
+          e,
+          st,
+          fatal: false,
+          hint: 'personalized_warnings:product_fetch_failed',
+        );
         return const [];
       }
       if (product == null) return const [];
@@ -71,7 +85,7 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
 
       final InteractionDatabase interactionDb;
       try {
-        interactionDb = ref.read(interactionDatabaseProvider);
+        interactionDb = ref.watch(interactionDatabaseProvider);
       } on UnimplementedError {
         return const [];
       }
@@ -134,8 +148,16 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
     return warnings;
   } on UnimplementedError {
     return const [];
-  } on Exception {
-    return const [];
+  } on Exception catch (e, st) {
+    // Safety-critical: swallowing this would render "no interactions"
+    // when the check actually failed. Record + rethrow so the provider
+    // exposes an AsyncError the UI can hedge on.
+    CrashReportingService().recordError(
+      e,
+      st,
+      hint: 'personalized_warnings:lookup_failed',
+    );
+    rethrow;
   }
 }
 

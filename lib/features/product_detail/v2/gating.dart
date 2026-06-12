@@ -102,11 +102,12 @@ bool shouldShowDeepDive({
 ///   • the blob has NO structured allergens (which would have already
 ///     been rendered as personalized rows in ReviewBeforeUseCard)
 ///
-/// Production sliver guard (line 508):
-/// `if (!isBlocked && _product?.allergenSummary != null && matchAllergens(...).isEmpty)`
-///
-/// The caller computes the structured-allergen check via
-/// `matchAllergens(...).isEmpty` and passes the result.
+/// The caller computes the structured-allergen check from the detail
+/// blob itself (`blob['allergens'] == null || blob['allergens'].isEmpty`)
+/// and passes the result. Do NOT use `matchAllergens(...).isEmpty` as
+/// the proxy — that is also true when the user has no allergens in
+/// their profile, which would surface the fallback banner even though
+/// structured rows were available.
 bool shouldShowAllergenSummaryBanner({
   required bool isBlocked,
   required String? allergenSummary,

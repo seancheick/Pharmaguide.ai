@@ -137,6 +137,10 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
 
   // Hydrate each supplement once — we need the core row for fingerprints
   // (category heuristics) and the ingredient_keys JSON for canonical ids.
+  // Track low label-mapping coverage: below the 0.3 trust floor a
+  // product's ingredients may never fire the interaction checks, so the
+  // report must hedge rather than claim a clean result.
+  var coverageIncomplete = false;
   final hydrated = <HydratedSupplement>[];
   for (final entry in supplements) {
     final id = entry.dsldId;
@@ -145,9 +149,16 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     try {
       product = await coreDb.findById(id);
     } on Exception {
+      // Couldn't hydrate this product — it is excluded from every check
+      // below, so the report must hedge rather than claim a clean result.
+      coverageIncomplete = true;
       continue;
     }
-    if (product == null) continue;
+    if (product == null) {
+      coverageIncomplete = true;
+      continue;
+    }
+    if ((product.mappedCoverage ?? 0.0) < 0.3) coverageIncomplete = true;
     hydrated.add(HydratedSupplement(entry: entry, product: product));
   }
 
@@ -359,6 +370,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     medicationPairInteractions: medicationPairInteractions,
     categoryWarnings: categoryWarnings,
     timingOptimizations: timingOptimizations,
+    coverageIncomplete: coverageIncomplete,
   );
 });
 
@@ -391,7 +403,8 @@ final recalledIngredientsReportProvider = FutureProvider<RecalledIngredientsRepo
     return RecalledIngredientsReport.empty();
   }
 
-  final recalledList = recallData['recalled_ingredients'] as List<dynamic>?;
+  final recalledRaw = recallData['recalled_ingredients'];
+  final recalledList = recalledRaw is List ? recalledRaw : null;
   if (recalledList == null || recalledList.isEmpty) {
     return RecalledIngredientsReport.empty();
   }
@@ -399,7 +412,8 @@ final recalledIngredientsReportProvider = FutureProvider<RecalledIngredientsRepo
   // Build a map of canonical_id → RecalledIngredientAlert for fast lookup.
   final recalledMap = <String, RecalledIngredientAlert>{};
   for (final recallJson in recalledList) {
-    final recall = recallJson as Map<String, dynamic>;
+    if (recallJson is! Map) continue;
+    final recall = Map<String, dynamic>.from(recallJson);
     final canonicalId = recall['canonical_id'] as String?;
     if (canonicalId == null) continue;
 
@@ -495,7 +509,7 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
 
   if (medications.isEmpty) return const [];
 
-  final repo = ref.read(referenceDataRepositoryProvider);
+  final repo = ref.watch(referenceDataRepositoryProvider);
   final depletionsData = await repo.loadMedicationDepletions();
 
   // Build canonical IDs and real dose rows from the supplement stack.
@@ -503,7 +517,7 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
   // thresholds need actual Supplement Facts active rows from the detail blob.
   // Do not use the RDA/UL nutrient view here: it intentionally skips some
   // rows that still matter for depletion coverage (CoQ10, melatonin, etc.).
-  final coreDb = ref.read(coreDatabaseProvider);
+  final coreDb = ref.watch(coreDatabaseProvider);
   final supplements = stack.where((e) => e.type == 'supplement').toList();
   final coveredIds = <String>{};
   final nutrientItems = <StackItemNutrients>[];

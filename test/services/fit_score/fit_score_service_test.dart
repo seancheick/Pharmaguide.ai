@@ -171,5 +171,61 @@ void main() {
         contains('Does not strongly support your selected goals.'),
       );
     });
+
+    FitScoreService buildBareService() => FitScoreService(
+      e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
+      e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
+      e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
+      e2c: E2cMedicalCalculator(),
+    );
+
+    test('tolerates untyped condition/drug summaries (jsonDecode shape) '
+        'without throwing', () {
+      final service = buildBareService();
+
+      // Map<dynamic, dynamic> values — the shape a hard
+      // `as Map<String, dynamic>?` cast would reject with a TypeError.
+      final summary = <String, dynamic>{
+        'condition_summary': <dynamic, dynamic>{
+          'hypertension': <dynamic, dynamic>{
+            'label': 'High blood pressure',
+            'highest_severity': 'avoid',
+            'ingredients': <dynamic>['licorice'],
+          },
+        },
+        'drug_class_summary': <dynamic, dynamic>{},
+      };
+
+      final result = service.calculate(
+        nutrients: const [],
+        productClusters: const [],
+        interactionSummary: summary,
+        ageBracket: '19-30',
+        sex: 'Female',
+        userConditions: const ['hypertension'],
+      );
+
+      expect(result.maxRelevantSeverity, 'avoid');
+    });
+
+    test('malformed summaries (non-map values) degrade to no matches', () {
+      final service = buildBareService();
+
+      final result = service.calculate(
+        nutrients: const [],
+        productClusters: const [],
+        interactionSummary: const <String, dynamic>{
+          'condition_summary': 'drifted-to-string',
+          'drug_class_summary': 42,
+        },
+        ageBracket: '19-30',
+        sex: 'Female',
+        userConditions: const ['hypertension'],
+      );
+
+      expect(result.maxRelevantSeverity, isNull);
+      // No interaction penalty — e2c full marks.
+      expect(result.e2c, 8.0);
+    });
   });
 }

@@ -38,6 +38,7 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
+import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
@@ -132,7 +133,7 @@ class _ProductDetailV2ConnectedState
     if (!routeChanged) return;
 
     _anchors.resetInitialScroll();
-    if (oldWidget.dsldId != widget.dsldId) {
+    if (mounted && oldWidget.dsldId != widget.dsldId) {
       setState(() {
         _product = null;
         _productLoading = true;
@@ -242,11 +243,15 @@ class _ProductDetailV2ConnectedState
     // -------------------------------------------------------------
     // Warning compose pipeline (see warnings_pipeline.dart)
     // -------------------------------------------------------------
+    final personalizedWarningsAsync = ref.watch(
+      personalizedInteractionWarningsProvider(widget.dsldId),
+    );
     final personalizedWarnings =
-        ref
-            .watch(personalizedInteractionWarningsProvider(widget.dsldId))
-            .value ??
-        const <InteractionWarning>[];
+        personalizedWarningsAsync.value ?? const <InteractionWarning>[];
+    // When the personalized lookup errored, the warning list above is
+    // empty for the wrong reason — surface a hedge instead of letting
+    // the page imply "no interactions found".
+    final personalizedWarningsFailed = personalizedWarningsAsync.hasError;
     final profile = ref.watch(profileProvider);
     final guardedWarnings = composeGuardedWarnings(
       detailBlob: detailBlob,
@@ -303,10 +308,9 @@ class _ProductDetailV2ConnectedState
     // Computed unconditionally so the no-structured-allergens check
     // is reusable by the free-text allergen summary fallback.
     // -------------------------------------------------------------
-    final matchedAllergens = matchAllergens(
-      profile.allergens,
-      detailBlob?['allergens'] as List<dynamic>?,
-    );
+    final blobAllergensRaw = detailBlob?['allergens'];
+    final blobAllergens = blobAllergensRaw is List ? blobAllergensRaw : null;
+    final matchedAllergens = matchAllergens(profile.allergens, blobAllergens);
     final userAllergenSet = profile.allergens.toSet();
     final freeFromClaims = matchFreeFromClaims(
       userAllergenIds: userAllergenSet,
@@ -339,7 +343,10 @@ class _ProductDetailV2ConnectedState
             blockingReason: _product?.blockingReason ?? '',
             topWarnings: parseTopWarnings(_product),
             bannedSubstanceDetail:
-                detailBlob?['banned_substance_detail'] as Map<String, dynamic>?,
+                switch (detailBlob?['banned_substance_detail']) {
+                  final Map<dynamic, dynamic> m => Map<String, dynamic>.from(m),
+                  _ => null,
+                },
           )
         : null;
 
@@ -420,6 +427,17 @@ class _ProductDetailV2ConnectedState
                   ],
 
                   // ---- 3. ReviewBeforeUse (WIRED, 11.7c.3) ---------
+                  if (personalizedWarningsFailed) ...[
+                    const PGSeverityBanner(
+                      key: Key('personalized-warnings-error-banner'),
+                      tone: PGBannerTone.caution,
+                      title: 'Interactions couldn\'t be checked',
+                      body:
+                          'We couldn\'t check this product against your '
+                          'stack right now — results may be incomplete.',
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
                   if (showReviewBeforeUse) ...[
                     KeyedSubtree(
                       key: _anchors.interactionsKey,
@@ -463,10 +481,15 @@ class _ProductDetailV2ConnectedState
                   // allergenSummary AND the blob has no structured
                   // allergens (which would have already populated
                   // ReviewBeforeUse rows). Suppressed on blocked.
+                  // Gated on the blob actually lacking structured
+                  // allergen data — NOT on matchedAllergens.isEmpty,
+                  // which is also true when the user simply has no
+                  // allergens in their profile.
                   if (shouldShowAllergenSummaryBanner(
                     isBlocked: isBlocked,
                     allergenSummary: _product?.allergenSummary,
-                    noStructuredAllergens: matchedAllergens.isEmpty,
+                    noStructuredAllergens:
+                        blobAllergens == null || blobAllergens.isEmpty,
                   )) ...[
                     buildAllergenSummaryBannerSection(
                       allergenSummary: _product?.allergenSummary,

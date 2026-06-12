@@ -72,6 +72,32 @@ class UserDatabase extends _$UserDatabase {
         await m.createTable(failedScans);
       }
     },
+    beforeOpen: (details) async {
+      // WAL keeps readers from blocking on writes (e.g. scan-history
+      // insert while the home screen reads the stack); synchronous=NORMAL
+      // is the standard safe pairing with WAL on mobile.
+      await customStatement('PRAGMA journal_mode=WAL');
+      await customStatement('PRAGMA synchronous=NORMAL');
+      // Hot-path indexes. Kept outside the versioned migration ladder on
+      // purpose: IF NOT EXISTS is idempotent, runs on every open, and
+      // covers both fresh installs and upgrades without a schema bump.
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_user_stack_active '
+        'ON user_stacks_local (deleted_at, added_at DESC)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_user_stack_dsld '
+        'ON user_stacks_local (dsld_id)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_user_scan_dsld '
+        'ON user_scan_history (dsld_id)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_user_fav_added '
+        'ON user_favorites (added_at DESC)',
+      );
+    },
   );
 
   /// Open (or create) the user database at the given path.
@@ -320,5 +346,70 @@ class UserDatabase extends _$UserDatabase {
         cachedAt: Value(DateTime.now()),
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cache eviction
+  // ---------------------------------------------------------------------------
+
+  /// LRU-style cap on detail-cache rows kept after a purge pass.
+  static const int detailCacheMaxRows = 5000;
+
+  /// Evicts expired cache rows. Fire-and-forget after DB open — best-effort
+  /// housekeeping, never user-facing.
+  ///
+  /// TTLs mirror the read-side conventions (the readers already treat
+  /// expired rows as misses; this just reclaims the storage):
+  ///   - product_detail_cache: 24h ([kDetailBlobCacheTtl] in
+  ///     detail_blob_provider.dart), plus a ~5000-row LRU cap.
+  ///   - product_image_cache: 30d positive / 7d negative ("no_image"),
+  ///     matching ProductImageResolver.
+  ///   - user_failed_scans: 90 days since last_seen.
+  Future<void> purgeExpiredCaches() async {
+    final now = DateTime.now();
+
+    // Detail cache: TTL expiry, then LRU cap on whatever survives.
+    await (delete(detailCache)..where(
+          (t) => t.cachedAt.isSmallerThanValue(
+            now.subtract(const Duration(hours: 24)),
+          ),
+        ))
+        .go();
+    await customStatement(
+      'DELETE FROM product_detail_cache '
+      'WHERE dsld_id NOT IN ('
+      '  SELECT dsld_id FROM product_detail_cache '
+      '  ORDER BY cached_at DESC LIMIT $detailCacheMaxRows'
+      ')',
+    );
+
+    // Image cache: negative entries ("no_image") expire faster.
+    await (delete(productImageCache)..where(
+          (t) =>
+              (t.imageUrl.equals('no_image') &
+                  t.cachedAt.isSmallerThanValue(
+                    now.subtract(const Duration(days: 7)),
+                  )) |
+              (t.imageUrl.equals('no_image').not() &
+                  t.cachedAt.isSmallerThanValue(
+                    now.subtract(const Duration(days: 30)),
+                  )),
+        ))
+        .go();
+
+    // Failed-scan queue: a UPC unseen for 90 days is stale triage data.
+    await (delete(failedScans)..where(
+          (t) => t.lastSeen.isSmallerThanValue(
+            now.toUtc().subtract(const Duration(days: 90)),
+          ),
+        ))
+        .go();
+  }
+
+  /// Deletes ALL detail-cache rows. Called on OTA catalog activation —
+  /// cached blobs were fetched against the previous catalog snapshot and
+  /// may not match the new rows' detail_blob_sha256.
+  Future<void> clearDetailCache() {
+    return delete(detailCache).go();
   }
 }

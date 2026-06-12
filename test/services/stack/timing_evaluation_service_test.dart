@@ -450,5 +450,56 @@ void main() {
       expect(sep.isSeparation, isTrue);
       expect(food.isSeparation, isFalse);
     });
+
+    test('involvesMedication checks both ingredients, case-insensitively', () {
+      const medFirst = TimingOptimization(
+        ruleId: 'test_med_first',
+        ingredient1: 'Levothyroxine',
+        ingredient2: 'iron',
+        advice: 'test',
+        ruleType: TimingRuleType.separate,
+        scoreImpact: -2,
+        evidenceLevel: EvidenceLevel.established,
+      );
+      const medSecond = TimingOptimization(
+        ruleId: 'test_med_second',
+        ingredient1: 'calcium',
+        ingredient2: 'Warfarin',
+        advice: 'test',
+        ruleType: TimingRuleType.separate,
+        scoreImpact: -2,
+        evidenceLevel: EvidenceLevel.established,
+      );
+      const suppOnly = TimingOptimization(
+        ruleId: 'test_supp_only',
+        ingredient1: 'iron',
+        ingredient2: 'calcium',
+        advice: 'test',
+        ruleType: TimingRuleType.separate,
+        scoreImpact: -2,
+        evidenceLevel: EvidenceLevel.established,
+      );
+
+      expect(medFirst.involvesMedication, isTrue);
+      expect(
+        medSecond.involvesMedication,
+        isTrue,
+        reason: 'medication on ingredient2 must also count',
+      );
+      expect(suppOnly.involvesMedication, isFalse);
+    });
+
+    test('involvesMedication does not require product names', () {
+      const med = TimingOptimization(
+        ruleId: 'test_no_products',
+        ingredient1: 'warfarin',
+        ingredient2: 'vitamin k',
+        advice: 'test',
+        ruleType: TimingRuleType.separate,
+        scoreImpact: -2,
+        evidenceLevel: EvidenceLevel.established,
+      );
+      expect(med.involvesMedication, isTrue);
+    });
   });
 }

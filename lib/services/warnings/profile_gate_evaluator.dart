@@ -365,7 +365,7 @@ String? _resolveDoseSeverity(
   final userDose = context.dosePerDay;
 
   if (userDose == null || threshold is! num || comparator is! String) {
-    return dose['severity_if_not_met'] as String?;
+    return _severityString(dose['severity_if_not_met']);
   }
 
   final u = userDose.toDouble();
@@ -389,10 +389,15 @@ String? _resolveDoseSeverity(
       met = u == t;
       break;
     default:
-      return dose['severity_if_not_met'] as String?;
+      return _severityString(dose['severity_if_not_met']);
   }
 
   return met
-      ? dose['severity_if_met'] as String?
-      : dose['severity_if_not_met'] as String?;
+      ? _severityString(dose['severity_if_met'])
+      : _severityString(dose['severity_if_not_met']);
 }
+
+/// Defensive read — pipeline drift could ship a non-String under the
+/// severity keys; an `as String?` hard cast would throw a TypeError
+/// (an Error, not Exception) and escape `on Exception` handlers.
+String? _severityString(Object? value) => value is String ? value : null;

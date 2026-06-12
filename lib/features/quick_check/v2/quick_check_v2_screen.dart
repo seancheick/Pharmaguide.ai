@@ -415,9 +415,12 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
                         // most curated medication rules are
                         // class-keyed and an empty result without
                         // class hydration is a likely false-negative.
+                        // class taxonomy through RxNorm OR either
+                        // supplement has low label mapping coverage
+                        // (< 0.3), surface the coverage banner.
                         coverageIncomplete:
-                            (_item1?.hydrationIncomplete ?? false) ||
-                            (_item2?.hydrationIncomplete ?? false),
+                            (_item1?.coverageIncomplete ?? false) ||
+                            (_item2?.coverageIncomplete ?? false),
                       ),
                   ],
                 ),

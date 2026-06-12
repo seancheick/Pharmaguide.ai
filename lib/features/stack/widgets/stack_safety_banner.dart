@@ -62,20 +62,52 @@ class StackSafetyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (report.isEmpty) return const SizedBox.shrink();
+    if (report.isEmpty) {
+      // Low label-mapping coverage means the interaction checks may
+      // not have seen every ingredient — never imply "all clear".
+      if (report.coverageIncomplete) return _coverageHedgeBanner();
+      return const SizedBox.shrink();
+    }
 
     final worst = report.overallSeverity;
     final ordered = report.orderedWarnings;
     // Defensive — the report claims isEmpty==false so there should be
     // at least one warning, but we guard anyway so a malformed report
     // can never tear down the stack screen.
-    if (ordered.isEmpty) return const SizedBox.shrink();
+    if (ordered.isEmpty) {
+      if (report.coverageIncomplete) return _coverageHedgeBanner();
+      return const SizedBox.shrink();
+    }
+
+    // A success-toned summary is only honest when every label was
+    // analyzed. With low coverage in the stack, downgrade to the
+    // caution-toned hedge instead.
+    if (report.coverageIncomplete && _toneFor(worst) == PGBannerTone.success) {
+      return _coverageHedgeBanner();
+    }
 
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
       tone: _toneFor(worst),
       title: _titleFor(ordered.first, worst),
       body: _bodyFor(ordered, worst),
+      actionLabel: onTap == null ? null : 'View details',
+      onAction: onTap,
+      margin: margin,
+    );
+  }
+
+  /// Caution-toned hedge rendered when at least one stack product has a
+  /// label mapping coverage below the 0.3 trust floor. Copy is
+  /// calm-advisory per the voice guide — no imperatives.
+  Widget _coverageHedgeBanner() {
+    return PGSeverityBanner(
+      key: const Key('stack-safety-banner'),
+      tone: PGBannerTone.caution,
+      title: 'Some labels couldn\'t be fully analyzed',
+      body:
+          'One or more products in your stack have limited ingredient '
+          'data — results may be incomplete.',
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,
@@ -127,10 +159,16 @@ class StackSafetyBanner extends StatelessWidget {
     String? primary;
     if (first is InteractionResult) {
       // Prefer management (what the user should do); fall back to the
-      // mechanism summary if management is empty.
-      primary = first.management.trim().isNotEmpty
+      // mechanism summary if management is empty. Always append the
+      // evidence level — safety rule: interaction warnings must show
+      // their evidence tier (mirrors rowForWarning in
+      // review_before_use_helpers.dart).
+      final base = first.management.trim().isNotEmpty
           ? first.management
           : first.mechanism;
+      primary = base.trim().isEmpty
+          ? first.evidenceLevel.label
+          : '$base · ${first.evidenceLevel.label}';
     } else if (first is NutrientStatus) {
       primary = _nutrientHint(first);
     }

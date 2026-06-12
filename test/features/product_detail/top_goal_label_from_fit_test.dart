@@ -26,6 +26,9 @@ FitScoreResult _result(List<String> reasons) {
     maxPossible: 100,
     state: FitAssessmentState.goodFit,
     reasons: reasons,
+    // Full coverage — these tests exercise goal-label extraction, not
+    // the coverage gate.
+    mappedCoverage: 1.0,
   );
 }
 

@@ -3,6 +3,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/providers/hero_verdict_provider.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 void main() {
   group('computeHeroVerdict — product-side blocking (priority 1)', () {
@@ -369,6 +370,96 @@ void main() {
         () => HeroVerdictAvoid(severity: Severity.safe),
         throwsAssertionError,
       );
+    });
+  });
+
+  group('computeHeroVerdict — typed guardedWarnings (profile path)', () {
+    InteractionWarning warning({
+      required Severity severity,
+      String title = '',
+    }) {
+      return InteractionWarning(
+        severity: severity,
+        evidenceLevel: EvidenceLevel.probable,
+        title: title,
+        mechanism: 'mechanism',
+        management: 'management',
+        sourceUrls: const [],
+      );
+    }
+
+    test('guarded Avoid warning drives the verdict over benign '
+        'topWarnings', () {
+      final out = computeHeroVerdict(
+        productVerdict: 'GOOD',
+        blockingReason: '',
+        topWarnings: const [
+          {'severity': 'safe', 'with': 'blob-only'},
+        ],
+        guardedWarnings: [
+          warning(
+            severity: Severity.avoid,
+            title: "Because you're taking warfarin",
+          ),
+        ],
+      );
+      expect(out, isA<HeroVerdictAvoid>());
+      final avoid = out as HeroVerdictAvoid;
+      expect(avoid.severity, Severity.avoid);
+      expect(avoid.offendingAgent, 'warfarin');
+      expect(avoid.headline, 'Use caution with warfarin');
+    });
+
+    test('guarded list with only sub-Avoid tiers → HeroVerdictNone, '
+        'even when raw topWarnings carry an avoid map', () {
+      final out = computeHeroVerdict(
+        productVerdict: 'GOOD',
+        blockingReason: '',
+        topWarnings: const [
+          // Stale blob map — the guarded (profile-filtered) list wins.
+          {'severity': 'avoid', 'with': 'metformin'},
+        ],
+        guardedWarnings: [warning(severity: Severity.caution)],
+      );
+      expect(out, isA<HeroVerdictNone>());
+    });
+
+    test('contraindicated guarded warning without the personalized '
+        'title shape degrades to generic headline', () {
+      final out = computeHeroVerdict(
+        productVerdict: 'GOOD',
+        blockingReason: '',
+        topWarnings: const [],
+        guardedWarnings: [
+          warning(severity: Severity.contraindicated, title: 'Some warning'),
+        ],
+      );
+      expect(out, isA<HeroVerdictAvoid>());
+      final avoid = out as HeroVerdictAvoid;
+      expect(avoid.offendingAgent, isNull);
+      expect(avoid.headline, 'Not recommended for your stack');
+    });
+
+    test('product-side BLOCKED still wins over guarded warnings', () {
+      final out = computeHeroVerdict(
+        productVerdict: 'BLOCKED',
+        blockingReason: 'FDA action',
+        topWarnings: const [],
+        guardedWarnings: [warning(severity: Severity.contraindicated)],
+      );
+      expect(out, isA<HeroVerdictBlocked>());
+    });
+
+    test('null guardedWarnings falls back to topWarnings walk', () {
+      final out = computeHeroVerdict(
+        productVerdict: 'GOOD',
+        blockingReason: '',
+        topWarnings: const [
+          {'severity': 'avoid', 'with': 'metformin'},
+        ],
+      );
+      expect(out, isA<HeroVerdictAvoid>());
+      expect((out as HeroVerdictAvoid).offendingAgent, 'metformin');
     });
   });
 }

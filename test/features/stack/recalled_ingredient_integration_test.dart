@@ -263,5 +263,85 @@ void main() {
         'sibutramine',
       );
     });
+
+    test('malformed recalled_ingredients (non-list) yields empty report, '
+        'no throw', () async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+
+      await _seedProduct(
+        coreDb,
+        dsldId: 'TEST_MALFORMED_ASSET',
+        keyIngredientTags: ['sibutramine'],
+      );
+      await _seedStack(userDb, dsldId: 'TEST_MALFORMED_ASSET');
+
+      final container = _container(
+        coreDb: coreDb,
+        userDb: userDb,
+        recallPayload: {
+          'schema_version': '1.1',
+          // Drifted shape: a map instead of the expected list. The
+          // provider must degrade to an empty report instead of
+          // throwing a TypeError outside its try/catch.
+          'recalled_ingredients': {'canonical_id': 'sibutramine'},
+        },
+      );
+      addTearDown(container.dispose);
+      addTearDown(() async {
+        await coreDb.close();
+        await userDb.close();
+      });
+
+      final report = await container.read(
+        recalledIngredientsReportProvider.future,
+      );
+      expect(report.isEmpty, isTrue);
+    });
+
+    test('non-map entries in the recall list are skipped without losing '
+        'valid alerts', () async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+
+      await _seedProduct(
+        coreDb,
+        dsldId: 'TEST_MIXED_ASSET',
+        keyIngredientTags: ['sibutramine'],
+      );
+      await _seedStack(userDb, dsldId: 'TEST_MIXED_ASSET');
+
+      final validEntry =
+          (_recallPayload(['sibutramine'])['recalled_ingredients'] as List)
+              .single;
+      final container = _container(
+        coreDb: coreDb,
+        userDb: userDb,
+        recallPayload: {
+          'schema_version': '1.1',
+          'recalled_ingredients': ['not-a-map', 42, validEntry],
+        },
+      );
+      addTearDown(container.dispose);
+      addTearDown(() async {
+        await coreDb.close();
+        await userDb.close();
+      });
+
+      final report = await container.read(
+        recalledIngredientsReportProvider.future,
+      );
+      expect(
+        report.isEmpty,
+        isFalse,
+        reason:
+            'Malformed sibling entries must not suppress the valid '
+            'sibutramine alert.',
+      );
+      expect(
+        report.violations.single.recalledIngredients.single.canonicalId,
+        'sibutramine',
+      );
+    });
   });
 }
