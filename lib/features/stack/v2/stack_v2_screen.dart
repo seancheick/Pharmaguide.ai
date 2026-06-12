@@ -218,10 +218,21 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
 // Stack tab — summary card + supplements list.
 // =============================================================================
 
-class _StackTab extends ConsumerWidget {
+class _StackTab extends ConsumerStatefulWidget {
   final bool showPreviewFixtures;
 
   const _StackTab({required this.showPreviewFixtures});
+
+  @override
+  ConsumerState<_StackTab> createState() => _StackTabState();
+}
+
+class _StackTabState extends ConsumerState<_StackTab> {
+  /// Sentry PHARMAGUIDE-10 ("A dismissed Dismissible widget is still part
+  /// of the tree"): removal is async (DB + provider stream), so for a frame
+  /// the dismissed row was still in the rebuilt list. Hide dismissed ids
+  /// synchronously; unhide on failure so the row reappears with the error.
+  final Set<String> _dismissedIds = <String>{};
 
   /// Fixture used only when no real stack rows have loaded (cold cache
   /// + zero-state during the first frame). Production rows replace
@@ -263,7 +274,8 @@ class _StackTab extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final showPreviewFixtures = widget.showPreviewFixtures;
     ref.watch(medicationIdentityHydrationProvider);
     final stackAsync = ref.watch(activeStackProvider);
     final realItems = stackAsync.asData?.value
@@ -289,9 +301,17 @@ class _StackTab extends ConsumerWidget {
     // including an empty list after the user clears their stack —
     // render the real items or the empty-state widget below.
     final bool hasLoadedOnce = stackAsync.hasValue;
+    // Drop optimistically-dismissed rows; ids the provider no longer
+    // emits are pruned so the set can't grow stale.
+    _dismissedIds.retainAll(
+      (realItems ?? const <_StackEntry>[]).map((e) => e.id).toSet(),
+    );
+    final visibleItems = realItems
+        ?.where((e) => !_dismissedIds.contains(e.id))
+        .toList();
     final List<_StackEntry> items;
     if (hasLoadedOnce) {
-      items = realItems ?? const <_StackEntry>[];
+      items = visibleItems ?? const <_StackEntry>[];
     } else if (showPreviewFixtures) {
       items = _fixtureItems;
     } else {
@@ -396,11 +416,17 @@ class _StackTab extends ConsumerWidget {
                 onRemoved: isShowingFixture
                     ? null
                     : () async {
+                        // Hide the row in the same frame the Dismissible
+                        // completes — async removal lags the rebuild and
+                        // tripped "dismissed Dismissible still in tree"
+                        // (Sentry PHARMAGUIDE-10).
+                        setState(() => _dismissedIds.add(e.id));
                         final actions = ref.read(stackActionsProvider);
                         try {
                           await actions.remove(e.id);
                         } on Exception {
                           if (!context.mounted) return;
+                          setState(() => _dismissedIds.remove(e.id));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Could not remove.'),

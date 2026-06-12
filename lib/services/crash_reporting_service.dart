@@ -306,6 +306,22 @@ class CrashReportingService {
     'ClientException',
   ];
 
+  /// True when [error] is a transient network-availability failure
+  /// (DNS/unreachable/no-route, or a plain request timeout). Call sites
+  /// that probe the network on a schedule (e.g. the catalog manifest
+  /// check) use this to record a breadcrumb instead of an error event —
+  /// Sentry PHARMAGUIDE-14 was a manifest probe timing out on a flaky
+  /// connection, which the OTA flow already handles as
+  /// CatalogUnreachable.
+  static bool isTransientNetworkError(Object error) {
+    if (error is TimeoutException) return true;
+    final text = error.toString();
+    final isNetworkShaped = _networkExceptionTypes.any(text.contains);
+    if (!isNetworkShaped) return false;
+    return _offlineMessageFragments.any(text.contains) ||
+        _offlineErrnoPattern.hasMatch(text);
+  }
+
   static bool _isOfflineNetworkEvent(SentryEvent event) {
     final parts = <String>[
       event.message?.formatted ?? '',

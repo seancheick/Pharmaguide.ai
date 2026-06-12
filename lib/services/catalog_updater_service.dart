@@ -97,11 +97,20 @@ class CatalogUpdaterService {
     try {
       remoteVersion = await probeRemoteVersion();
     } on Object catch (e, st) {
-      CrashReportingService().recordError(
-        e,
-        st,
-        hint: 'catalog_updater:unreachable',
-      );
+      // Transient network failures (timeout, DNS, unreachable) are
+      // expected on a scheduled probe — breadcrumb only, no Sentry
+      // error event (PHARMAGUIDE-14). Real defects still report.
+      if (CrashReportingService.isTransientNetworkError(e)) {
+        CrashReportingService().log(
+          'catalog_updater: manifest probe unreachable ($e)',
+        );
+      } else {
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'catalog_updater:unreachable',
+        );
+      }
       return CatalogUnreachable(error: e);
     }
 
