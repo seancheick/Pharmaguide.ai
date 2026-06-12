@@ -34,6 +34,17 @@
 					<string>pharmaguide</string>
 				</array>
 			</dict>
+			<!-- Reversed Google iOS OAuth client ID — required by
+			     google_sign_in's native flow; missing scheme hard-crashes
+			     the app (NSException) when Google sign-in is tapped. -->
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>com.pharmaguide.google-oauth</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.1062581283617-97n4e5c3v4u3mmps0lfkmio0pg5iq69j</string>
+				</array>
+			</dict>
 		</array>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>

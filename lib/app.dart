@@ -55,6 +55,7 @@ import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 // owns the real MobileScanner controller and catalog lookup flow; its
 // permission, fallback, lookup, and not-found surfaces use v2 styling.
 import 'package:pharmaguide/features/scanner/v2/scanner_v2_screen.dart';
+import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.dart';
@@ -423,6 +424,7 @@ GoRouter _buildRouter({
             '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
 
   final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     // Fresh installs start at onboarding; returning users go straight to
     // home. `OnboardingPrefs.markSeen()` is called in the onboarding
     // screen's Next/Skip handlers so this only fires once per device.

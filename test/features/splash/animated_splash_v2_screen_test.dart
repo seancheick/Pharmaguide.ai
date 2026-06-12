@@ -26,6 +26,22 @@ void main() {
     expect(opacity.opacity, 1);
   });
 
+  testWidgets('holds the centered handoff frame before motion begins', (
+    tester,
+  ) async {
+    await tester.pumpWidget(buildSubject());
+
+    final logo = find.image(const AssetImage('assets/images/splash_logo.png'));
+    final initialCenter = tester.getCenter(logo);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getCenter(logo).dy, closeTo(initialCenter.dy, 0.1));
+
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(tester.getCenter(logo).dy, lessThan(initialCenter.dy - 4));
+  });
+
   testWidgets('completed entrance lifts the logo and reveals the tagline', (
     tester,
   ) async {
@@ -34,6 +50,7 @@ void main() {
     final logo = find.image(const AssetImage('assets/images/splash_logo.png'));
     final initialCenter = tester.getCenter(logo);
 
+    await tester.pump(const Duration(milliseconds: 64));
     await tester.pump(const Duration(milliseconds: 960));
 
     expect(tester.getCenter(logo).dy, lessThan(initialCenter.dy - 70));

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
-import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -60,15 +60,22 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   bool _reduceMotionChecked = false;
+  bool _exiting = false;
+  Timer? _startTimer;
+  Timer? _exitTimer;
 
   static const double _logoSize = 132;
-  static const double _finalLogoScale = 0.94;
+  static const double _minLogoScale = 0.98;
 
   /// Total entrance duration when not overridden.
-  static const _defaultDuration = Duration(milliseconds: 1080);
+  static const _defaultDuration = Duration(milliseconds: 980);
+
+  static const _handoffDelay = Duration(milliseconds: 64);
 
   /// How long the composed splash holds before auto-navigating.
-  static const _hold = Duration(milliseconds: 220);
+  static const _hold = Duration(milliseconds: 100);
+
+  static const _exitFade = Duration(milliseconds: 160);
 
   @override
   void initState() {
@@ -89,28 +96,57 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
       _ctrl.value = 1;
       _scheduleNext(reducedMotion: true);
     } else {
-      _ctrl.forward().whenComplete(_scheduleNext);
+      _startTimer = Timer(_handoffDelay, () {
+        if (!mounted) return;
+        _ctrl.forward().whenComplete(_scheduleNext);
+      });
     }
   }
 
   void _scheduleNext({bool reducedMotion = false}) {
     if (!widget.autoNavigate) return;
     final delay = reducedMotion ? const Duration(milliseconds: 180) : _hold;
-    Future.delayed(delay, () {
+    _exitTimer = Timer(delay, () {
       if (!mounted) return;
-      GoRouter.of(context).go(widget.nextRoute);
+      if (!reducedMotion) {
+        setState(() => _exiting = true);
+      }
+      _exitTimer = Timer(reducedMotion ? Duration.zero : _exitFade, _goNext);
     });
+  }
+
+  void _goNext() {
+    if (!mounted) return;
+    GoRouter.of(context).go(widget.nextRoute);
+  }
+
+  double _logoScale(double logoProgress) {
+    if (logoProgress < 0.82) {
+      return lerpDouble(1, _minLogoScale, logoProgress / 0.82)!;
+    }
+    final settleProgress = ((logoProgress - 0.82) / 0.18).clamp(0.0, 1.0);
+    return lerpDouble(
+      _minLogoScale,
+      1,
+      Curves.easeOutCubic.transform(settleProgress),
+    )!;
+  }
+
+  void _cancelTimers() {
+    _startTimer?.cancel();
+    _exitTimer?.cancel();
   }
 
   @override
   void dispose() {
+    _cancelTimers();
     _ctrl.dispose();
     super.dispose();
   }
 
   double _interval(double start, double end) {
     final local = ((_ctrl.value - start) / (end - start)).clamp(0.0, 1.0);
-    return V2Motion.decelerate.transform(local);
+    return Curves.easeOutCubic.transform(local);
   }
 
   @override
@@ -122,100 +158,101 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
     final muted = dark ? V2Colors.fgMutedDark : V2Colors.fgMuted;
     final accent = dark ? V2Colors.accentDark : V2Colors.accent;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: background,
-        systemNavigationBarIconBrightness: dark
-            ? Brightness.light
-            : Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: background,
-        body: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                background,
-                dark
-                    ? V2Colors.surfaceContainerLowDark
-                    : const Color(0xFFF4F1EA),
-              ],
+    return AnimatedOpacity(
+      opacity: _exiting ? 0 : 1,
+      duration: _exitFade,
+      curve: Curves.easeOutCubic,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+          systemNavigationBarColor: background,
+          systemNavigationBarIconBrightness: dark
+              ? Brightness.light
+              : Brightness.dark,
+        ),
+        child: Scaffold(
+          backgroundColor: background,
+          body: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  background,
+                  dark
+                      ? V2Colors.surfaceContainerLowDark
+                      : const Color(0xFFF4F1EA),
+                ],
+              ),
             ),
-          ),
-          child: PGHaloBackground(
-            origin: const Alignment(0, -0.38),
-            radius: 0.92,
-            intensity: dark ? 0.10 : 0.06,
-            color: accent,
-            child: AnimatedBuilder(
-              animation: _ctrl,
-              builder: (context, _) {
-                final logoProgress = V2Motion.decelerate.transform(_ctrl.value);
-                final wordmarkProgress = _interval(0.28, 0.68);
-                final taglineProgress = _interval(0.40, 0.78);
-                final cueProgress = _interval(0.56, 0.92);
+            child: PGHaloBackground(
+              origin: const Alignment(0, -0.38),
+              radius: 0.92,
+              intensity: dark ? 0.10 : 0.06,
+              color: accent,
+              child: AnimatedBuilder(
+                animation: _ctrl,
+                builder: (context, _) {
+                  final logoProgress = Curves.easeOutCubic.transform(
+                    _ctrl.value,
+                  );
+                  final wordmarkProgress = _interval(0.12, 0.52);
+                  final taglineProgress = _interval(0.16, 0.58);
+                  final cueProgress = _interval(0.36, 0.76);
 
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final centerY = constraints.maxHeight / 2;
-                    final topPadding = MediaQuery.paddingOf(context).top;
-                    final finalCenterY = (constraints.maxHeight * 0.34).clamp(
-                      topPadding + (_logoSize / 2) + V2Spacing.space24,
-                      centerY,
-                    );
-                    final logoLift = centerY - finalCenterY;
-                    final logoScale = lerpDouble(
-                      1,
-                      _finalLogoScale,
-                      logoProgress,
-                    )!;
-                    final contentTop =
-                        finalCenterY +
-                        (_logoSize * _finalLogoScale / 2) +
-                        V2Spacing.space24;
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final centerY = constraints.maxHeight / 2;
+                      final topPadding = MediaQuery.paddingOf(context).top;
+                      final finalCenterY = (constraints.maxHeight * 0.34).clamp(
+                        topPadding + (_logoSize / 2) + V2Spacing.space24,
+                        centerY,
+                      );
+                      final logoLift = centerY - finalCenterY;
+                      final logoScale = _logoScale(logoProgress);
+                      final contentTop =
+                          finalCenterY + (_logoSize / 2) + V2Spacing.space24;
 
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Center(
-                          child: Transform.translate(
-                            offset: Offset(0, -logoLift * logoProgress),
-                            child: Transform.scale(
-                              scale: logoScale,
-                              child: Opacity(
-                                opacity: 1,
-                                child: Image.asset(
-                                  'assets/images/splash_logo.png',
-                                  width: _logoSize,
-                                  height: _logoSize,
-                                  filterQuality: FilterQuality.high,
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Center(
+                            child: Transform.translate(
+                              offset: Offset(0, -logoLift * logoProgress),
+                              child: Transform.scale(
+                                scale: logoScale,
+                                child: Opacity(
+                                  opacity: 1,
+                                  child: Image.asset(
+                                    'assets/images/splash_logo.png',
+                                    width: _logoSize,
+                                    height: _logoSize,
+                                    filterQuality: FilterQuality.high,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        Positioned(
-                          top: contentTop,
-                          left: V2Spacing.space32,
-                          right: V2Spacing.space32,
-                          child: _SplashCopy(
-                            wordmarkProgress: wordmarkProgress,
-                            taglineProgress: taglineProgress,
-                            cueProgress: cueProgress,
-                            foreground: foreground,
-                            muted: muted,
-                            accent: accent,
+                          Positioned(
+                            top: contentTop,
+                            left: V2Spacing.space32,
+                            right: V2Spacing.space32,
+                            child: _SplashCopy(
+                              wordmarkProgress: wordmarkProgress,
+                              taglineProgress: taglineProgress,
+                              cueProgress: cueProgress,
+                              foreground: foreground,
+                              muted: muted,
+                              accent: accent,
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ),

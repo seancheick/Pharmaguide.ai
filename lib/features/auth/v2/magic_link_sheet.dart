@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,8 +32,18 @@ const String kAuthRedirectUrl = 'pharmaguide://auth/callback';
 /// invoked from a router-level callback (see Flutter SDK
 /// `bottom_sheet.dart` doc on `useRootNavigator`).
 Future<void> showMagicLinkSheet(BuildContext context) {
+  // Sentry PHARMAGUIDE-15: router-level callers can hand us a context
+  // that is deactivated or above the Navigator. Fall back to the root
+  // navigator key's live context rather than crashing.
+  var hostContext = context;
+  if (!hostContext.mounted ||
+      Navigator.maybeOf(hostContext, rootNavigator: true) == null) {
+    final rootContext = rootNavigatorKey.currentContext;
+    if (rootContext == null) return Future<void>.value();
+    hostContext = rootContext;
+  }
   return showModalBottomSheet<void>(
-    context: context,
+    context: hostContext,
     useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

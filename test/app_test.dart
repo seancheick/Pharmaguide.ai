@@ -31,27 +31,32 @@ void main() {
   /// Pump past the v2 animated splash so the shell (nav bar, tabs) is
   /// visible. Tests that interact with tabs must call this helper first.
   ///
-  /// Uses explicit time-step pumps (not pumpAndSettle) because HomeScreen
-  /// may contain widgets that keep animations active indefinitely
-  /// (the v2 splash accent underline does a slow breath loop after the
-  /// draw-in completes), which would cause pumpAndSettle to time out.
+  /// Uses explicit time-step pumps (not pumpAndSettle) because downstream
+  /// screens may contain widgets that keep animations active indefinitely.
   ///
-  /// v2 splash timing budget: 900ms ctrl.forward() + 320ms hold +
-  /// post-frame navigation. The hold timer is scheduled after the
-  /// animation future completes, so it needs its own pump after the
-  /// entrance pump.
+  /// v2 splash timing budget: 64ms native-handoff hold + 980ms entrance
+  /// + 100ms composed hold + 160ms exit fade + post-frame navigation.
+  /// Each timer boundary gets its own pump so the fake-async clock gives
+  /// Flutter a frame to start the next animation/timer.
   Future<void> pumpPastSplash(WidgetTester tester) async {
     await tester.pump(); // initial frame
     await tester.pump(
-      const Duration(milliseconds: 1300),
-    ); // past v2 ctrl.forward (900ms) + hold (320ms)
+      const Duration(milliseconds: 64),
+    ); // start entrance after native-handoff hold
     await tester.pump(
-      const Duration(milliseconds: 400),
-    ); // fire the delayed route transition
+      const Duration(milliseconds: 980),
+    ); // complete entrance animation
+    await tester.pump(); // schedule composed hold after entrance completion
+    await tester.pump(
+      const Duration(milliseconds: 100),
+    ); // composed hold before exit fade
+    await tester.pump(); // start exit fade
+    await tester.pump(const Duration(milliseconds: 160)); // exit fade
     await tester.pump(); // process the GoRouter.go() navigation
-    await tester.pump(
-      const Duration(milliseconds: 150),
-    ); // settle first shell frame
+    for (var i = 0; i < 40; i += 1) {
+      if (find.byType(PGFrostedNavBar).evaluate().isNotEmpty) return;
+      await tester.pump(const Duration(milliseconds: 50));
+    }
   }
 
   testWidgets('App renders with 5 navigation tabs', (tester) async {
