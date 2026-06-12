@@ -102,6 +102,11 @@ class _ResearchEvidenceCard extends StatelessWidget {
       (sum, row) => sum + row.paperCount,
     );
     final top = evidence.take(3).toList(growable: false);
+    final topPair = evidence.first;
+    final otherCount = evidence.length - 1;
+    final headline = otherCount == 0
+        ? '${topPair.pairLabel} in ${topPair.paperCount} published ${topPair.paperCount == 1 ? "paper" : "papers"}'
+        : '${topPair.pairLabel} and $otherCount more ${otherCount == 1 ? "combination" : "combinations"} in published research';
 
     return Material(
       color: Colors.transparent,
@@ -142,15 +147,24 @@ class _ResearchEvidenceCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const PGEyebrow('Research available'),
+                        const PGEyebrow('Studied combinations'),
                         const SizedBox(height: V2Spacing.space4),
                         Text(
-                          '$paperCount published ${paperCount == 1 ? "paper" : "papers"} mention related pairs',
+                          headline,
                           style: V2Typography.bodyMedium(color: V2Colors.fg),
                         ),
+                        if (otherCount > 0) ...[
+                          const SizedBox(height: V2Spacing.space4),
+                          Text(
+                            '$paperCount published ${paperCount == 1 ? "paper" : "papers"} across these pairs',
+                            style: V2Typography.caption(
+                              color: V2Colors.fgMuted,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: V2Spacing.space4),
                         Text(
-                          'Informational only. This is literature evidence, not a safety warning.',
+                          "Where this product's ingredients appear in research together with other substances — context, not a warning.",
                           style: V2Typography.caption(color: V2Colors.fgMuted),
                         ),
                       ],
@@ -238,7 +252,7 @@ class _ResearchEvidenceDrawer extends StatelessWidget {
         ),
         shrinkWrap: true,
         children: [
-          const PGEyebrow('Research evidence'),
+          const PGEyebrow('Studied combinations'),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'PubMed co-occurrences from supp.ai',
@@ -246,7 +260,7 @@ class _ResearchEvidenceDrawer extends StatelessWidget {
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
-            'These rows show where a product ingredient and another substance appear together in published literature. They do not create warnings, scores, or clinical instructions.',
+            "Where this product's ingredients and other substances appear together in published literature — context for your reading, not warnings, scores, or clinical instructions.",
             style: V2Typography.bodySm(color: V2Colors.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space16),

@@ -31,7 +31,9 @@ class PGPillar {
   /// (e.g. "Third-party tested" with verified icon).
   final List<PGPillarBadge> badges;
 
-  /// Tap → opens production's expand-to-explain panel. Null = inert.
+  /// Deep-link to the pillar's detail section. When non-null, the
+  /// expanded reveal renders a "See details →" tappable that invokes
+  /// this — tapping the row itself still only toggles the expansion.
   final VoidCallback? onTap;
 
   const PGPillar({
@@ -127,6 +129,35 @@ class PGScoreBreakdownCard extends StatelessWidget {
     return sum;
   }
 
+  /// The pillar with the largest (max − score) gap — the one place a
+  /// product could most improve. Calm explanation, not a judgment. Null
+  /// (line hidden) when:
+  ///   * not nativeScale, or any pillar lacks a score (sum unknown)
+  ///   * total ≥ 95 — excellent products don't get nitpicked
+  ///   * the largest gap is < 3 points — too small to be meaningful
+  PGPillar? get _biggestOpportunity {
+    final sum = _pillarSum;
+    if (!nativeScale || sum == null || sum >= 95) return null;
+    PGPillar? best;
+    var bestGap = 0.0;
+    for (final p in pillars) {
+      final gap = p.max - (p.score ?? 0.0);
+      if (gap > bestGap) {
+        bestGap = gap;
+        best = p;
+      }
+    }
+    if (bestGap < 3) return null;
+    return best;
+  }
+
+  String _opportunityLine(PGPillar p) {
+    final reason = p.microExplanation?.trim() ?? '';
+    return reason.isEmpty
+        ? 'Biggest opportunity: ${p.label}.'
+        : 'Biggest opportunity: ${p.label} — $reason';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -172,6 +203,15 @@ class PGScoreBreakdownCard extends StatelessWidget {
                 style: V2Typography.monoData(color: V2Colors.fg),
               ),
             ),
+            if (_biggestOpportunity != null) ...[
+              const SizedBox(height: V2Spacing.space8),
+              Text(
+                _opportunityLine(_biggestOpportunity!),
+                style: V2Typography.caption(color: V2Colors.fgMuted),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
           if (mappedCoverage != null) ...[
             const SizedBox(height: V2Spacing.space16),
@@ -227,18 +267,18 @@ class _PGPillarRowState extends State<_PGPillarRow> {
   }
 
   /// Whether this pillar has anything to reveal on tap — a micro-
-  /// explanation OR at least one badge. Pillars with neither stay
-  /// inert (no chevron, no tap effect).
+  /// explanation, at least one badge, OR a deep-link target. Pillars
+  /// with none stay inert (no chevron, no tap effect).
   bool get _hasExpansion {
     final p = widget.pillar;
     return (p.microExplanation != null && p.microExplanation!.isNotEmpty) ||
-        p.badges.isNotEmpty;
+        p.badges.isNotEmpty ||
+        p.onTap != null;
   }
 
   void _toggle() {
     if (!_hasExpansion) return;
     setState(() => _expanded = !_expanded);
-    widget.pillar.onTap?.call();
   }
 
   @override
@@ -351,6 +391,23 @@ class _PGPillarRowState extends State<_PGPillarRow> {
                       children: [
                         for (final b in p.badges) _PillarBadgeChip(badge: b),
                       ],
+                    ),
+                  ],
+                  // Deep-link to the pillar's detail section. Rendered
+                  // inside the reveal so the row tap stays a pure
+                  // expand/collapse — only this small affordance jumps.
+                  if (p.onTap != null) ...[
+                    const SizedBox(height: V2Spacing.space8),
+                    GestureDetector(
+                      onTap: p.onTap,
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          'See details →',
+                          style: V2Typography.caption(color: V2Colors.accent),
+                        ),
+                      ),
                     ),
                   ],
                 ],

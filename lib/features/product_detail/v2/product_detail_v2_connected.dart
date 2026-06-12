@@ -77,6 +77,7 @@ import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -117,6 +118,21 @@ class _ProductDetailV2ConnectedState
   /// `scroll_anchors.dart`.
   final ProductDetailScrollAnchors _anchors = ProductDetailScrollAnchors();
 
+  /// Anchors for the score-breakdown pillar deep-links. Ingredients
+  /// reuses `_anchors.ingredientsKey`; these cover the sections that
+  /// have no pre-existing anchor. The evidence key is attached by
+  /// WRAPPING the section's builder call site (KeyedSubtree) — the
+  /// section file itself is owned by another change in flight.
+  final GlobalKey _evidenceSectionKey = GlobalKey();
+  final GlobalKey _certificationsSectionKey = GlobalKey();
+  final GlobalKey _labelConfidenceSectionKey = GlobalKey();
+
+  /// One-shot guard: finish the scan→verdict perf trace exactly once per
+  /// screen, on the first frame where the hero verdict is visible.
+  /// Products opened from search/stack (no active transaction) no-op
+  /// inside PerfTraceService.
+  bool _verdictTraceFinished = false;
+
   @override
   void initState() {
     super.initState();
@@ -134,6 +150,9 @@ class _ProductDetailV2ConnectedState
 
     _anchors.resetInitialScroll();
     if (mounted && oldWidget.dsldId != widget.dsldId) {
+      // New product on the same screen instance — re-arm the one-shot
+      // perf-trace finish for the fresh hero render.
+      _verdictTraceFinished = false;
       setState(() {
         _product = null;
         _productLoading = true;
@@ -160,6 +179,24 @@ class _ProductDetailV2ConnectedState
       initialSection: widget.initialSection,
       isMounted: () => mounted,
     );
+  }
+
+  /// Smooth-scroll to a pillar's detail section. No-op when the target
+  /// hasn't been laid out (defensive — callers only wire pillars whose
+  /// section renders on this page).
+  void _scrollToSection(GlobalKey key) {
+    final ctx = key.currentContext;
+    if (ctx == null) return;
+    try {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+        alignment: 0.1,
+      );
+    } on Exception {
+      // No-op — same fallback philosophy as scroll_anchors.dart.
+    }
   }
 
   @override
@@ -302,6 +339,42 @@ class _ProductDetailV2ConnectedState
       blobLoading: blobLoading,
       blobError: blobError,
     );
+
+    // -------------------------------------------------------------
+    // Scan→verdict perf trace — finish once, after the first frame in
+    // which the hero verdict/score is on screen. Search/stack opens
+    // (no active transaction) no-op inside PerfTraceService.
+    // -------------------------------------------------------------
+    if (!_verdictTraceFinished) {
+      _verdictTraceFinished = true;
+      // Coarse cache signal only: was the detail blob already resolved
+      // when the verdict rendered? Never a product id or barcode.
+      final blobWasReady = detailBlob != null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PerfTraceService().finishScanToVerdict(fromCache: blobWasReady);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // Score-breakdown pillar deep-links (v4 only). ONLY pillars whose
+    // target section actually renders on this page get a callback —
+    // pillars without one render no "See details" link (no dead links).
+    //   evidence            → clinical Evidence section
+    //   verification        → Certifications (third-party) section
+    //   transparency        → Label Confidence section (when gated on)
+    //   formulation / dose  → Ingredients (supplement facts) section
+    // Safety Hygiene has no dedicated section — intentionally unwired.
+    // -------------------------------------------------------------
+    final onPillarTap = <String, VoidCallback>{
+      if (showDeepDive) ...{
+        'evidence': () => _scrollToSection(_evidenceSectionKey),
+        'verification': () => _scrollToSection(_certificationsSectionKey),
+        'formulation': () => _scrollToSection(_anchors.ingredientsKey),
+        'dose': () => _scrollToSection(_anchors.ingredientsKey),
+      },
+      if (showLabelConfidence)
+        'transparency': () => _scrollToSection(_labelConfidenceSectionKey),
+    };
 
     // -------------------------------------------------------------
     // Allergen + free-from match (used by ReviewBeforeUse adapter).
@@ -461,17 +534,20 @@ class _ProductDetailV2ConnectedState
                   // ScoreBreakdown so the low-coverage caveat sets
                   // expectation before the score it caveats.
                   if (showLabelConfidence) ...[
-                    buildLabelConfidenceSection(
-                      context: context,
-                      mappedCoverage: mappedCoverage,
-                      hasProprietaryBlends: hasProprietaryBlends,
-                      isNotScored: isNotScored,
-                      productStatus:
-                          detailBlob?['product_status']
-                              as Map<String, dynamic>?,
-                      unmappedActives:
-                          detailBlob?['unmapped_actives']
-                              as Map<String, dynamic>?,
+                    KeyedSubtree(
+                      key: _labelConfidenceSectionKey,
+                      child: buildLabelConfidenceSection(
+                        context: context,
+                        mappedCoverage: mappedCoverage,
+                        hasProprietaryBlends: hasProprietaryBlends,
+                        isNotScored: isNotScored,
+                        productStatus:
+                            detailBlob?['product_status']
+                                as Map<String, dynamic>?,
+                        unmappedActives:
+                            detailBlob?['unmapped_actives']
+                                as Map<String, dynamic>?,
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -518,6 +594,7 @@ class _ProductDetailV2ConnectedState
                       qualityPillarsV4:
                           detailBlob?['quality_pillars_v4']
                               as Map<String, dynamic>?,
+                      onPillarTap: onPillarTap,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -603,19 +680,28 @@ class _ProductDetailV2ConnectedState
 
                   // ---- 10. Certifications (WIRED, 11.7e) -----------
                   if (showDeepDive) ...[
-                    buildCertificationsSection(
-                      certificationDetail:
-                          detailBlob?['certification_detail']
-                              as Map<String, dynamic>?,
+                    KeyedSubtree(
+                      key: _certificationsSectionKey,
+                      child: buildCertificationsSection(
+                        certificationDetail:
+                            detailBlob?['certification_detail']
+                                as Map<String, dynamic>?,
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
                   // ---- 11. Evidence (WIRED, 11.7e) -----------------
+                  // Anchor attached by WRAPPING the call site — the
+                  // section file itself is owned by a change in flight.
                   if (showDeepDive) ...[
-                    buildEvidenceSection(
-                      evidenceData:
-                          detailBlob?['evidence_data'] as Map<String, dynamic>?,
+                    KeyedSubtree(
+                      key: _evidenceSectionKey,
+                      child: buildEvidenceSection(
+                        evidenceData:
+                            detailBlob?['evidence_data']
+                                as Map<String, dynamic>?,
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

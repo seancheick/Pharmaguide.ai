@@ -2,19 +2,31 @@
 //
 // Production reads `evidence_data` blob:
 //   match_count          int    — total clinical_matches count
-//   clinical_matches[]   list   — {ingredient, pmids[], evidence_level}
+//   clinical_matches[]   list   — {ingredient, standard_name, study_name,
+//                                  evidence_level, study_type, plus optional
+//                                  rich fields: references_structured[],
+//                                  total_enrollment, published_rct_count,
+//                                  published_meta_review_count, ...}
 //   unsubstantiated_claims[]    — flagged marketing claims (deferred)
 //
-// V2 PGEvidenceSection takes:
-//   tier: PGEvidenceTier (none / limited / moderate / strong)
-//   totalStudies, hasMetaAnalysis
-//   citations: List<PGCitation> — each PMID becomes a tappable row
+// `references_structured` entries: {type, authority, pmid, doi, title,
+// citation, url}. There is NO `pmids` field on a match — citations come
+// exclusively from references_structured.
+//
+// evidence_level vocabulary (pipeline-verified):
+//   'branded-rct'      — the product's own formulation was RCT-tested
+//   'product-human'    — human studies on the product itself
+//   'strain-clinical'  — clinical evidence on the specific strain
+//   'ingredient-human' — human studies on the ingredient
+//   'preclinical'      — animal / in-vitro only
+//   'reference'        — citation-only support
+//
+// Tier mapping: branded-rct / product-human → strong;
+// ingredient-human / strain-clinical → moderate; otherwise limited.
+// The deduped PMID count is a secondary display signal only — it never
+// downgrades a tier earned by evidence_level.
 //
 // Section suppresses when match_count == 0 AND clinical_matches empty.
-//
-// Citations title: we don't have full PubMed titles in the blob, so
-// the v2 row title is "PMID <pmid> · <ingredient>" — preserves verbatim
-// data + makes the link discoverable. Tap opens PubMed externally.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
@@ -23,50 +35,120 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Aggregate clinical-support tier label.
 enum EvidenceTier {
-  /// >=5 deduped studies AND at least one meta-quality match.
+  /// At least one match at product-level human evidence
+  /// (branded-rct / product-human).
   strong,
 
-  /// 3-4 studies OR 5+ studies without a meta-quality match.
+  /// At least one match at ingredient/strain-level human evidence
+  /// (ingredient-human / strain-clinical).
   moderate,
 
-  /// <3 studies of any quality.
+  /// Only preclinical / reference matches, or no matches.
   limited,
 }
 
-const Set<String> _metaQualityLevels = {'strong', 'established', 'high'};
+const Set<String> _strongLevels = {'branded-rct', 'product-human'};
+const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 
-/// Sum the PMID count across all clinical matches, deduping by PMID
-/// string so the same study appearing under two ingredients only
-/// counts once.
+/// Max citation rows rendered — the blob can carry dozens of structured
+/// references; the section shows the first few, deduped by PMID.
+const int _maxCitations = 5;
+
+String _level(Map<String, dynamic> m) =>
+    (m['evidence_level']?.toString() ?? '').toLowerCase().trim();
+
+/// True when any match is RCT-tested on this product's own formulation.
+bool evidenceHasBrandedRct(List<Map<String, dynamic>> matches) =>
+    matches.any((m) => _level(m) == 'branded-rct');
+
+/// Sum the deduped PMID count across all matches' structured references,
+/// so the same study appearing under two ingredients only counts once.
 int evidenceTotalStudies(List<Map<String, dynamic>> matches) {
   final unique = <String>{};
   for (final m in matches) {
-    for (final pmid in m.safeStringList('pmids')) {
-      final trimmed = pmid.trim();
-      if (trimmed.isEmpty) continue;
-      unique.add(trimmed);
+    for (final ref in m.safeMapList('references_structured')) {
+      final pmid = ref['pmid']?.toString().trim() ?? '';
+      if (pmid.isEmpty) continue;
+      unique.add(pmid);
     }
   }
   return unique.length;
 }
 
-/// True if any match carries a meta-quality evidence level.
+/// True if any match carries published meta-analyses / reviews.
 bool evidenceHasMetaQuality(List<Map<String, dynamic>> matches) {
   for (final m in matches) {
-    final level = (m['evidence_level']?.toString() ?? '').toLowerCase().trim();
-    if (_metaQualityLevels.contains(level)) return true;
+    if ((m.safeNum('published_meta_review_count') ?? 0) > 0) return true;
   }
   return false;
 }
 
-/// Compute the aggregate clinical-support tier from the deduped study
-/// count and meta-quality flag.
+/// Sum of reported trial enrollment across matches (0 when absent).
+int evidenceTotalEnrollment(List<Map<String, dynamic>> matches) {
+  var total = 0;
+  for (final m in matches) {
+    total += (m.safeNum('total_enrollment') ?? 0).toInt();
+  }
+  return total;
+}
+
+/// Compute the aggregate clinical-support tier from the evidence_level
+/// vocabulary. Matches without references_structured still inform the
+/// tier — they just contribute no citation rows.
 EvidenceTier evidenceTier(List<Map<String, dynamic>> matches) {
+  var sawModerate = false;
+  for (final m in matches) {
+    final level = _level(m);
+    if (_strongLevels.contains(level)) return EvidenceTier.strong;
+    if (_moderateLevels.contains(level)) sawModerate = true;
+  }
+  return sawModerate ? EvidenceTier.moderate : EvidenceTier.limited;
+}
+
+/// Optional enrichment line beneath the tier summary. Calm, factual.
+String? evidenceHeadline(List<Map<String, dynamic>> matches) {
+  if (evidenceHasBrandedRct(matches)) {
+    return "This product's formulation was clinically studied.";
+  }
+  // Only describe studies as "human" when human-level evidence exists —
+  // preclinical/reference-only products get no enrichment line.
+  if (evidenceTier(matches) == EvidenceTier.limited) return null;
   final studies = evidenceTotalStudies(matches);
-  if (studies < 3) return EvidenceTier.limited;
-  final meta = evidenceHasMetaQuality(matches);
-  if (studies >= 5 && meta) return EvidenceTier.strong;
-  return EvidenceTier.moderate;
+  if (studies == 0) return null;
+  final enrollment = evidenceTotalEnrollment(matches);
+  final base = 'Backed by $studies human ${studies == 1 ? 'study' : 'studies'}';
+  if (enrollment > 0) {
+    return '$base · ~$enrollment participants';
+  }
+  return '$base.';
+}
+
+/// Build the citation rows from `references_structured`, deduped by
+/// PMID across matches, using the real paper title when present.
+List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
+  final seenPmids = <String>{};
+  final citations = <PGCitation>[];
+  for (final match in matches) {
+    final ingredient = match['ingredient']?.toString().trim() ?? '';
+    for (final ref in match.safeMapList('references_structured')) {
+      final pmid = ref['pmid']?.toString().trim() ?? '';
+      if (pmid.isEmpty) continue;
+      if (!seenPmids.add(pmid)) continue;
+      final title = ref['title']?.toString().trim() ?? '';
+      citations.add(
+        PGCitation(
+          pmid: pmid,
+          title: title.isNotEmpty
+              ? title
+              : (ingredient.isEmpty
+                    ? 'PMID $pmid'
+                    : 'PMID $pmid · $ingredient'),
+          onTap: () => _launchPubmed(pmid),
+        ),
+      );
+    }
+  }
+  return citations;
 }
 
 /// Build the Evidence section. Returns `SizedBox.shrink()` when the
@@ -75,14 +157,7 @@ Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
   if (evidenceData == null) return const SizedBox.shrink();
 
   final matchCount = evidenceData.safeNum('match_count') ?? 0;
-  final allClinicalMatches = evidenceData.safeMapList('clinical_matches');
-
-  // Filter out PMID-less rows — pipeline can ship clinical_matches
-  // tagged with evidence_level but no PMIDs. Production hides these
-  // (matches production lines 109-111).
-  final clinicalMatches = allClinicalMatches
-      .where((m) => m.safeStringList('pmids').isNotEmpty)
-      .toList(growable: false);
+  final clinicalMatches = evidenceData.safeMapList('clinical_matches');
 
   if (matchCount == 0 && clinicalMatches.isEmpty) {
     return const SizedBox.shrink();
@@ -91,40 +166,15 @@ Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
   final productionTier = evidenceTier(clinicalMatches);
   final totalStudies = evidenceTotalStudies(clinicalMatches);
   final hasMeta = evidenceHasMetaQuality(clinicalMatches);
-
-  // Map production EvidenceTier → v2 PGEvidenceTier.
-  final v2Tier = _toPGEvidenceTier(productionTier);
-
-  // Flatten clinical_matches into PGCitation rows. Each PMID gets its
-  // own row with the ingredient as the title suffix. We dedupe by PMID
-  // across ingredients (production lines 58-67 dedupe-by-PMID for the
-  // study count; we do the same here so the citation list mirrors).
-  final seenPmids = <String>{};
-  final citations = <PGCitation>[];
-  for (final match in clinicalMatches) {
-    final ingredient = match['ingredient']?.toString().trim() ?? '';
-    for (final pmid in match.safeStringList('pmids')) {
-      final trimmed = pmid.trim();
-      if (trimmed.isEmpty) continue;
-      if (seenPmids.contains(trimmed)) continue;
-      seenPmids.add(trimmed);
-      citations.add(
-        PGCitation(
-          pmid: trimmed,
-          title: ingredient.isEmpty
-              ? 'PMID $trimmed'
-              : 'PMID $trimmed · $ingredient',
-          onTap: () => _launchPubmed(trimmed),
-        ),
-      );
-    }
-  }
+  final citations = evidenceCitations(clinicalMatches);
 
   return PGEvidenceSection(
-    tier: v2Tier,
+    tier: _toPGEvidenceTier(productionTier),
     totalStudies: totalStudies,
     hasMetaAnalysis: hasMeta,
-    citations: citations,
+    subtitle: evidenceHeadline(clinicalMatches),
+    citations: citations.take(_maxCitations).toList(growable: false),
+    footnote: 'This research feeds the Evidence pillar in the score above.',
   );
 }
 

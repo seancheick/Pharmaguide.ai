@@ -5,10 +5,22 @@ import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section
 
 Map<String, dynamic> _match({
   String ingredient = 'Ashwagandha',
-  String evidence = 'moderate',
-  List<String> pmids = const [],
+  String evidence = 'ingredient-human',
+  List<Map<String, dynamic>> refs = const [],
+  int? totalEnrollment,
+  int? metaReviewCount,
 }) {
-  return {'ingredient': ingredient, 'evidence_level': evidence, 'pmids': pmids};
+  return {
+    'ingredient': ingredient,
+    'evidence_level': evidence,
+    if (refs.isNotEmpty) 'references_structured': refs,
+    if (totalEnrollment != null) 'total_enrollment': totalEnrollment,
+    if (metaReviewCount != null) 'published_meta_review_count': metaReviewCount,
+  };
+}
+
+Map<String, dynamic> _ref(String pmid, {String? title}) {
+  return {'type': 'pubmed', 'pmid': pmid, if (title != null) 'title': title};
 }
 
 Future<void> _pump(WidgetTester tester, {Map<String, dynamic>? evidenceData}) {
@@ -27,59 +39,106 @@ void main() {
   group('evidenceTotalStudies', () {
     test('dedupes PMIDs across matches and ignores blanks', () {
       final total = evidenceTotalStudies([
-        _match(pmids: const ['1', '2', '']),
-        _match(pmids: const ['2', '3', '   ']),
+        _match(refs: [_ref('1'), _ref('2'), _ref('')]),
+        _match(refs: [_ref('2'), _ref('3'), _ref('   ')]),
       ]);
 
       expect(total, 3);
     });
+
+    test('match without references_structured contributes zero studies', () {
+      expect(evidenceTotalStudies([_match()]), 0);
+    });
   });
 
   group('evidenceHasMetaQuality', () {
-    test('recognizes strong, established, and high levels', () {
-      expect(evidenceHasMetaQuality([_match(evidence: 'strong')]), isTrue);
-      expect(evidenceHasMetaQuality([_match(evidence: 'established')]), isTrue);
-      expect(evidenceHasMetaQuality([_match(evidence: 'High')]), isTrue);
-      expect(evidenceHasMetaQuality([_match(evidence: 'moderate')]), isFalse);
+    test('recognizes published_meta_review_count > 0', () {
+      expect(evidenceHasMetaQuality([_match(metaReviewCount: 2)]), isTrue);
+      expect(evidenceHasMetaQuality([_match(metaReviewCount: 0)]), isFalse);
+      expect(evidenceHasMetaQuality([_match()]), isFalse);
     });
   });
 
   group('evidenceTier', () {
-    test('0-2 studies resolves to limited regardless of meta label', () {
-      expect(evidenceTier(const []), EvidenceTier.limited);
+    test('branded-rct resolves to strong even with zero references', () {
       expect(
-        evidenceTier([
-          _match(evidence: 'strong', pmids: const ['1', '2']),
-        ]),
+        evidenceTier([_match(evidence: 'branded-rct')]),
+        EvidenceTier.strong,
+      );
+    });
+
+    test('product-human resolves to strong', () {
+      expect(
+        evidenceTier([_match(evidence: 'product-human')]),
+        EvidenceTier.strong,
+      );
+    });
+
+    test('ingredient-human only resolves to moderate', () {
+      expect(
+        evidenceTier([_match(evidence: 'ingredient-human')]),
+        EvidenceTier.moderate,
+      );
+    });
+
+    test('strain-clinical resolves to moderate', () {
+      expect(
+        evidenceTier([_match(evidence: 'strain-clinical')]),
+        EvidenceTier.moderate,
+      );
+    });
+
+    test('preclinical / reference only resolves to limited', () {
+      expect(
+        evidenceTier([_match(evidence: 'preclinical')]),
         EvidenceTier.limited,
       );
+      expect(
+        evidenceTier([_match(evidence: 'reference')]),
+        EvidenceTier.limited,
+      );
+      expect(evidenceTier(const []), EvidenceTier.limited);
     });
 
-    test('3-4 studies resolves to moderate', () {
+    test('match without refs still counts toward tier', () {
+      // No references_structured at all — tier comes from evidence_level.
       expect(
         evidenceTier([
-          _match(pmids: const ['1', '2', '3']),
+          _match(evidence: 'preclinical', refs: [_ref('1')]),
+          _match(evidence: 'ingredient-human'),
         ]),
         EvidenceTier.moderate,
       );
     });
+  });
 
-    test('5 studies without meta stays moderate', () {
+  group('evidenceHeadline', () {
+    test('branded-rct leads with formulation copy', () {
       expect(
-        evidenceTier([
-          _match(pmids: const ['1', '2', '3', '4', '5']),
-        ]),
-        EvidenceTier.moderate,
+        evidenceHeadline([_match(evidence: 'branded-rct')]),
+        "This product's formulation was clinically studied.",
       );
     });
 
-    test('5 studies with meta resolves to strong', () {
+    test('aggregates study count and enrollment', () {
+      final headline = evidenceHeadline([
+        _match(refs: [_ref('1'), _ref('2')], totalEnrollment: 400),
+        _match(refs: [_ref('3')], totalEnrollment: 220),
+      ]);
+
+      expect(headline, 'Backed by 3 human studies · ~620 participants');
+    });
+
+    test('null when no studies and not branded-rct', () {
+      expect(evidenceHeadline([_match()]), isNull);
+    });
+
+    test('null for preclinical-only — never claims human studies', () {
       expect(
-        evidenceTier([
-          _match(evidence: 'strong', pmids: const ['1', '2', '3']),
-          _match(pmids: const ['4', '5']),
+        evidenceHeadline([
+          _match(evidence: 'preclinical', refs: [_ref('1')]),
         ]),
-        EvidenceTier.strong,
+        isNull,
       );
     });
   });
@@ -103,26 +162,7 @@ void main() {
       expect(find.byType(PGEvidenceSection), findsNothing);
     });
 
-    testWidgets('strong tier renders summary and citations', (tester) async {
-      await _pump(
-        tester,
-        evidenceData: {
-          'match_count': 1,
-          'clinical_matches': [
-            _match(
-              evidence: 'strong',
-              pmids: const ['111', '222', '333', '444', '555'],
-            ),
-          ],
-        },
-      );
-
-      expect(find.text('Clinical evidence'), findsOneWidget);
-      expect(find.text('STRONG · 5 studies · meta-analysis'), findsOneWidget);
-      expect(find.text('PMID 111 · Ashwagandha'), findsOneWidget);
-    });
-
-    testWidgets('limited tier renders without meta-analysis text', (
+    testWidgets('branded-rct renders strong tier with formulation subtitle', (
       tester,
     ) async {
       await _pump(
@@ -130,7 +170,76 @@ void main() {
         evidenceData: {
           'match_count': 1,
           'clinical_matches': [
-            _match(evidence: 'limited', pmids: const ['111']),
+            _match(
+              evidence: 'branded-rct',
+              refs: [_ref('111', title: 'A randomized trial of ashwagandha')],
+            ),
+          ],
+        },
+      );
+
+      expect(find.text('Clinical evidence'), findsOneWidget);
+      expect(find.text('STRONG · 1 study'), findsOneWidget);
+      expect(
+        find.text("This product's formulation was clinically studied."),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('citations use real paper titles from references_structured', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(
+              evidence: 'ingredient-human',
+              refs: [
+                _ref('111', title: 'Effects of ashwagandha on stress'),
+                _ref('222'), // no title — falls back to PMID label
+              ],
+            ),
+          ],
+        },
+      );
+
+      expect(find.text('Effects of ashwagandha on stress'), findsOneWidget);
+      expect(find.text('PMID 222 · Ashwagandha'), findsOneWidget);
+    });
+
+    testWidgets('dedupes citations by PMID across matches', (tester) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 2,
+          'clinical_matches': [
+            _match(
+              ingredient: 'Ashwagandha',
+              evidence: 'ingredient-human',
+              refs: [_ref('111', title: 'Shared study')],
+            ),
+            _match(
+              ingredient: 'Rhodiola',
+              evidence: 'ingredient-human',
+              refs: [_ref('111', title: 'Shared study')],
+            ),
+          ],
+        },
+      );
+
+      expect(find.text('Shared study'), findsOneWidget);
+      expect(find.text('MODERATE · 1 study'), findsOneWidget);
+    });
+
+    testWidgets('preclinical only renders limited tier', (tester) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(evidence: 'preclinical', refs: [_ref('111')]),
           ],
         },
       );
@@ -139,20 +248,60 @@ void main() {
       expect(find.textContaining('meta-analysis'), findsNothing);
     });
 
-    testWidgets('PMID-less rows do not render citation contradictions', (
+    testWidgets('match without refs still renders and informs tier', (
       tester,
     ) async {
       await _pump(
         tester,
         evidenceData: {
           'match_count': 1,
-          'clinical_matches': [_match(evidence: 'strong', pmids: const [])],
+          'clinical_matches': [_match(evidence: 'ingredient-human')],
         },
       );
 
-      expect(find.text('LIMITED'), findsOneWidget);
+      expect(find.text('MODERATE'), findsOneWidget);
       expect(find.textContaining('PMID'), findsNothing);
-      expect(find.textContaining('0 studies'), findsNothing);
+    });
+
+    testWidgets('renders score-pillar caption', (tester) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(evidence: 'ingredient-human', refs: [_ref('111')]),
+          ],
+        },
+      );
+
+      expect(
+        find.text(
+          'This research feeds the Evidence pillar in the score above.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('caps displayed citations at five', (tester) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(
+              evidence: 'ingredient-human',
+              refs: [
+                for (var i = 1; i <= 8; i++) _ref('$i', title: 'Study $i'),
+              ],
+            ),
+          ],
+        },
+      );
+
+      expect(find.text('Study 5'), findsOneWidget);
+      expect(find.text('Study 6'), findsNothing);
+      // Count still reflects all deduped studies.
+      expect(find.text('MODERATE · 8 studies'), findsOneWidget);
     });
   });
 }

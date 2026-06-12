@@ -55,6 +55,14 @@ class PGEvidenceSection extends StatelessWidget {
   final List<PGCitation> citations;
   final String title;
 
+  /// Optional factual enrichment line beneath the tier summary, e.g.
+  /// "Backed by 4 human studies · ~620 participants".
+  final String? subtitle;
+
+  /// Optional muted caption at the bottom of the card, e.g. connecting
+  /// the evidence to the score pillar above.
+  final String? footnote;
+
   const PGEvidenceSection({
     super.key,
     required this.tier,
@@ -62,6 +70,8 @@ class PGEvidenceSection extends StatelessWidget {
     this.hasMetaAnalysis = false,
     this.citations = const [],
     this.title = 'Clinical evidence',
+    this.subtitle,
+    this.footnote,
   });
 
   String _summaryLine() {
@@ -143,6 +153,16 @@ class PGEvidenceSection extends StatelessWidget {
               ),
             ),
           ],
+          if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Padding(
+              padding: const EdgeInsets.only(left: 18),
+              child: Text(
+                subtitle!,
+                style: V2Typography.bodySm(color: V2Colors.fg),
+              ),
+            ),
+          ],
           if (citations.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space16),
             const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
@@ -154,6 +174,13 @@ class PGEvidenceSection extends StatelessWidget {
                 citation: citations[i],
                 isLast: i == citations.length - 1,
               ),
+          ],
+          if (footnote != null && footnote!.trim().isNotEmpty) ...[
+            const SizedBox(height: V2Spacing.space12),
+            Text(
+              footnote!,
+              style: V2Typography.caption(color: V2Colors.fgMuted),
+            ),
           ],
         ],
       ),

@@ -22,6 +22,7 @@ import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -166,6 +167,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     if (!mounted) return;
 
     setState(() => _showFlash = false);
+    // Scan→verdict latency trace begins at the navigation handoff;
+    // product detail finishes it when the hero verdict first renders.
+    // Duration + coarse tags only — never the barcode or product id.
+    PerfTraceService().startScanToVerdict();
     await context.push('/product/${product.dsldId}');
 
     // Reset after returning from product detail so scanner can detect again.

@@ -57,6 +57,12 @@ Widget buildScoreBreakdownSection({
   required double? mappedCoverage,
   Map<String, dynamic>? sectionBreakdown,
   Map<String, dynamic>? qualityPillarsV4,
+
+  /// Optional deep-link callbacks keyed by v4 pillar key (`formulation`,
+  /// `dose`, `evidence`, `transparency`, `verification`, `safety_hygiene`).
+  /// Pillars without an entry stay link-free (no dead links). v4 only —
+  /// the v3 fallback never deep-links.
+  Map<String, VoidCallback>? onPillarTap,
 }) {
   final v4 = qualityPillarsV4 == null
       ? const <PGPillar>[]
@@ -64,6 +70,7 @@ Widget buildScoreBreakdownSection({
           qualityPillarsV4,
           hasThirdPartyTesting: hasThirdPartyTesting,
           isTrustedManufacturer: isTrustedManufacturer,
+          onPillarTap: onPillarTap,
         );
 
   final pillars = v4.isNotEmpty
@@ -93,6 +100,7 @@ List<PGPillar> _buildV4Pillars(
   Map<String, dynamic> pillarsBlob, {
   required bool hasThirdPartyTesting,
   required bool isTrustedManufacturer,
+  Map<String, VoidCallback>? onPillarTap,
 }) {
   final out = <PGPillar>[];
   for (final (key, label, fallbackMax) in _v4PillarSpec) {
@@ -129,6 +137,7 @@ List<PGPillar> _buildV4Pillars(
         score: score,
         microExplanation: (reason != null && reason.isNotEmpty) ? reason : null,
         badges: badges,
+        onTap: onPillarTap?[key],
       ),
     );
   }

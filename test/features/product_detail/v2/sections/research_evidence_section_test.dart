@@ -51,13 +51,44 @@ Widget _harness({
 }
 
 void main() {
-  testWidgets('renders a neutral research evidence chip', (tester) async {
+  testWidgets('renders a neutral studied-combinations chip', (tester) async {
     await tester.pumpWidget(_harness(evidence: [_evidence()]));
     await tester.pumpAndSettle();
 
-    expect(find.text('RESEARCH AVAILABLE'), findsOneWidget);
-    expect(find.textContaining('published papers mention'), findsOneWidget);
-    expect(find.textContaining('not a safety warning'), findsOneWidget);
+    expect(find.text('STUDIED COMBINATIONS'), findsOneWidget);
+    // Single pair: headline leads with the pair + its paper count.
+    expect(
+      find.text('Vitamin K + Warfarin in 12 published papers'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('context, not a warning'), findsOneWidget);
+  });
+
+  testWidgets('multiple pairs lead with top pair and combination count', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        evidence: [
+          _evidence(paperCount: 12),
+          _evidence(
+            pairId: 'C0042878-C9999999',
+            entityBName: 'Aspirin',
+            paperCount: 8,
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Vitamin K + Warfarin and 1 more combination in published research',
+      ),
+      findsOneWidget,
+    );
+    // Total paper count stays visible but secondary.
+    expect(find.text('20 published papers across these pairs'), findsOneWidget);
   });
 
   testWidgets('does not render when canonical ids are empty', (tester) async {
@@ -66,7 +97,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('RESEARCH AVAILABLE'), findsNothing);
+    expect(find.text('STUDIED COMBINATIONS'), findsNothing);
   });
 
   testWidgets('does not render when lookup returns no evidence', (
@@ -75,17 +106,16 @@ void main() {
     await tester.pumpWidget(_harness(evidence: const []));
     await tester.pumpAndSettle();
 
-    expect(find.text('RESEARCH AVAILABLE'), findsNothing);
+    expect(find.text('STUDIED COMBINATIONS'), findsNothing);
   });
 
   testWidgets('opens drawer with sentences and PMID chips', (tester) async {
     await tester.pumpWidget(_harness(evidence: [_evidence()]));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('RESEARCH AVAILABLE'));
+    await tester.tap(find.text('STUDIED COMBINATIONS'));
     await tester.pumpAndSettle();
 
-    expect(find.text('RESEARCH EVIDENCE'), findsOneWidget);
     expect(find.text('PubMed co-occurrences from supp.ai'), findsOneWidget);
     expect(
       find.text('Vitamin K and warfarin appeared together in patients.'),
@@ -111,8 +141,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Vitamin K + Warfarin'), findsOneWidget);
-    expect(find.textContaining('Vitamin K + Aspirin'), findsOneWidget);
+    expect(find.text('Vitamin K + Warfarin - 12'), findsOneWidget);
+    expect(find.text('Vitamin K + Aspirin - 8'), findsOneWidget);
     expect(find.textContaining('Avoid'), findsNothing);
     expect(find.textContaining('Caution'), findsNothing);
   });
