@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -6,17 +8,16 @@ import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// v2 animated splash — editorial brand moment.
 ///
 /// Replaces the legacy [AnimatedSplashScreen]. Visual direction:
-/// - Warm cream background (`V2Colors.bg`) — not a teal block.
-/// - Subtle radial halo above the logo, very low intensity.
-/// - Logo at refined size with no drop-shadow (the warm bg already
-///   gives it presence — shadows on cream read as a Material 3 demo).
-/// - Below the logo: mono-caps wordmark + thin accent underline.
-/// - Sequential reveal: logo → wordmark, ~80ms apart, each fading
-///   in over 420ms with a slight upward lift.
+/// - First frame: logo fully visible and screen-centered so it can
+///   match the native launch screen without a layout jump.
+/// - Entrance: logo glides into the upper third with a restrained scale
+///   settle while the wordmark, tagline, and activity cue reveal below.
+/// - Warm cream/dark background with a single low-intensity halo.
 ///
 /// Phase 11.7L.B.6 — Sean 2026-05-16: dropped the "Calm clinical
 /// intelligence." Newsreader tagline. The serif positioning line
@@ -60,21 +61,14 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
   late final AnimationController _ctrl;
   bool _reduceMotionChecked = false;
 
-  /// Stagger steps as a fraction of the controller's total duration.
-  /// Each step begins fading in at its t0 fraction. Two-step reveal
-  /// after the tagline drop — logo lands first, then the wordmark
-  /// settles in below.
-  static const _step0Logo = 0.05;
-  static const _step1Wordmark = 0.40;
-
-  /// Fade duration as a fraction of the controller's total.
-  static const _fadeFraction = 0.35;
+  static const double _logoSize = 132;
+  static const double _finalLogoScale = 0.94;
 
   /// Total entrance duration when not overridden.
-  static const _defaultDuration = Duration(milliseconds: 900);
+  static const _defaultDuration = Duration(milliseconds: 1080);
 
   /// How long the composed splash holds before auto-navigating.
-  static const _hold = Duration(milliseconds: 320);
+  static const _hold = Duration(milliseconds: 220);
 
   @override
   void initState() {
@@ -114,74 +108,115 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
     super.dispose();
   }
 
-  /// Compute opacity + vertical-lift offset for a stagger step.
-  ({double opacity, double lift}) _stepValues(double startFraction) {
-    final t = _ctrl.value;
-    final localProgress = ((t - startFraction) / _fadeFraction).clamp(0.0, 1.0);
-    // Decelerate curve — feels like content settling into place.
-    final eased = V2Motion.decelerate.transform(localProgress);
-    return (opacity: eased, lift: 12 * (1 - eased));
+  double _interval(double start, double end) {
+    final local = ((_ctrl.value - start) / (end - start)).clamp(0.0, 1.0);
+    return V2Motion.decelerate.transform(local);
   }
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final dark = brightness == Brightness.dark;
+    final background = dark ? V2Colors.bgDark : V2Colors.bg;
+    final foreground = dark ? V2Colors.fgDark : V2Colors.fg;
+    final muted = dark ? V2Colors.fgMutedDark : V2Colors.fgMuted;
+    final accent = dark ? V2Colors.accentDark : V2Colors.accent;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: V2Colors.bg,
-        systemNavigationBarIconBrightness: Brightness.dark,
+        statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: background,
+        systemNavigationBarIconBrightness: dark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: V2Colors.bg,
-        body: PGHaloBackground(
-          // Halo sits above the logo, fading downward — gives the screen
-          // a single soft focal point without competing with the logo.
-          origin: const Alignment(0, -0.45),
-          radius: 0.95,
-          intensity: 0.06,
-          child: AnimatedBuilder(
-            animation: _ctrl,
-            builder: (context, _) {
-              final logo = _stepValues(_step0Logo);
-              final wordmark = _stepValues(_step1Wordmark);
+        backgroundColor: background,
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                background,
+                dark
+                    ? V2Colors.surfaceContainerLowDark
+                    : const Color(0xFFF4F1EA),
+              ],
+            ),
+          ),
+          child: PGHaloBackground(
+            origin: const Alignment(0, -0.38),
+            radius: 0.92,
+            intensity: dark ? 0.10 : 0.06,
+            color: accent,
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) {
+                final logoProgress = V2Motion.decelerate.transform(_ctrl.value);
+                final wordmarkProgress = _interval(0.28, 0.68);
+                final taglineProgress = _interval(0.40, 0.78);
+                final cueProgress = _interval(0.56, 0.92);
 
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Opacity(
-                      opacity: logo.opacity,
-                      child: Transform.translate(
-                        offset: Offset(0, logo.lift),
-                        child: Image.asset(
-                          'assets/images/splash_logo.png',
-                          width: 132,
-                          height: 132,
-                          filterQuality: FilterQuality.high,
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final centerY = constraints.maxHeight / 2;
+                    final topPadding = MediaQuery.paddingOf(context).top;
+                    final finalCenterY = (constraints.maxHeight * 0.34).clamp(
+                      topPadding + (_logoSize / 2) + V2Spacing.space24,
+                      centerY,
+                    );
+                    final logoLift = centerY - finalCenterY;
+                    final logoScale = lerpDouble(
+                      1,
+                      _finalLogoScale,
+                      logoProgress,
+                    )!;
+                    final contentTop =
+                        finalCenterY +
+                        (_logoSize * _finalLogoScale / 2) +
+                        V2Spacing.space24;
+
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Center(
+                          child: Transform.translate(
+                            offset: Offset(0, -logoLift * logoProgress),
+                            child: Transform.scale(
+                              scale: logoScale,
+                              child: Opacity(
+                                opacity: 1,
+                                child: Image.asset(
+                                  'assets/images/splash_logo.png',
+                                  width: _logoSize,
+                                  height: _logoSize,
+                                  filterQuality: FilterQuality.high,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space32),
-                    Opacity(
-                      opacity: wordmark.opacity,
-                      child: Transform.translate(
-                        offset: Offset(0, wordmark.lift),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PGEyebrow('PharmaGuide'),
-                            SizedBox(height: V2Spacing.space8),
-                            _AccentUnderline(),
-                          ],
+                        Positioned(
+                          top: contentTop,
+                          left: V2Spacing.space32,
+                          right: V2Spacing.space32,
+                          child: _SplashCopy(
+                            wordmarkProgress: wordmarkProgress,
+                            taglineProgress: taglineProgress,
+                            cueProgress: cueProgress,
+                            foreground: foreground,
+                            muted: muted,
+                            accent: accent,
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -189,119 +224,85 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
   }
 }
 
-/// Thin centered accent underline beneath the wordmark.
-///
-/// **Two-phase animation** (Sean 2026-05-16 — addresses the "is the
-/// app stuck on a long cold-boot splash?" concern without turning the
-/// brand moment into a progress bar):
-///
-///   Phase 1 — DRAW IN (one-shot, ~420ms):
-///     Width 0 → 32 with a decelerate curve, kicked off on mount.
-///     Reads like a confident signature stroke completing the wordmark.
-///
-///   Phase 2 — BREATHE (looping, ~5s full cycle):
-///     Once the draw-in finishes, opacity oscillates 0.55 ↔ 1.0 on a
-///     slow easeInOutSine curve. Signals "alive / breathing" — calm
-///     enough that it doesn't read as a loading indicator. Same
-///     emotional register as the AuthInvitation brand-mark heartbeat.
-///
-/// **Reduce-motion accessibility:** both phases suppressed. Static
-/// 32×2 accent line renders immediately.
-class _AccentUnderline extends StatefulWidget {
-  const _AccentUnderline();
+class _SplashCopy extends StatelessWidget {
+  final double wordmarkProgress;
+  final double taglineProgress;
+  final double cueProgress;
+  final Color foreground;
+  final Color muted;
+  final Color accent;
 
-  @override
-  State<_AccentUnderline> createState() => _AccentUnderlineState();
-}
-
-class _AccentUnderlineState extends State<_AccentUnderline>
-    with TickerProviderStateMixin {
-  late final AnimationController _drawIn;
-  late final AnimationController _breathe;
-  late final Animation<double> _width;
-  late final Animation<double> _opacity;
-
-  static const double _targetWidth = 32;
-
-  @override
-  void initState() {
-    super.initState();
-    _drawIn = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 420),
-    );
-    _width = Tween<double>(
-      begin: 0,
-      end: _targetWidth,
-    ).animate(CurvedAnimation(parent: _drawIn, curve: Curves.easeOutCubic));
-
-    _breathe = AnimationController(
-      vsync: this,
-      // 2500ms one-way × 2 (reverse) = 5s full breath. Slow enough
-      // to read as ambient breath, not anxious pulse.
-      duration: const Duration(milliseconds: 2500),
-    );
-    _opacity = Tween<double>(
-      begin: 0.55,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _breathe, curve: Curves.easeInOutSine));
-
-    _drawIn.addStatusListener((status) {
-      if (status == AnimationStatus.completed && mounted) {
-        _breathe.repeat(reverse: true);
-      }
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Honor the OS reduce-motion preference. Sean 2026-05-16: the
-    // previous implementation called `_opacity.removeStatusListener(
-    // (_) {})` here, which was a no-op — the anonymous closure was
-    // never registered, so nothing got removed. Stop `_breathe`
-    // explicitly instead, and snap the draw-in to its end value.
-    // Result: static 32×2 accent line, no motion, clear intent.
-    final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (reduce) {
-      _breathe.stop();
-      _drawIn.value = 1;
-    } else {
-      if (!_drawIn.isAnimating && _drawIn.value == 0) {
-        _drawIn.forward();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _drawIn.dispose();
-    _breathe.dispose();
-    super.dispose();
-  }
+  const _SplashCopy({
+    required this.wordmarkProgress,
+    required this.taglineProgress,
+    required this.cueProgress,
+    required this.foreground,
+    required this.muted,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_width, _opacity]),
-      builder: (context, _) {
-        // While the draw-in is running, opacity stays at 1.0 (the
-        // line is being drawn at full color). Once draw-in is
-        // complete, the breathe controller takes over the opacity.
-        final isDrawing = _drawIn.status != AnimationStatus.completed;
-        final opacity = isDrawing ? 1.0 : _opacity.value;
-        return Opacity(
-          opacity: opacity,
-          child: Container(
-            width: _width.value,
-            height: 2,
-            decoration: BoxDecoration(
-              color: V2Colors.accent,
-              borderRadius: BorderRadius.circular(1),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Opacity(
+          opacity: wordmarkProgress,
+          child: Transform.translate(
+            offset: Offset(0, 12 * (1 - wordmarkProgress)),
+            child: PGEyebrow('PharmaGuide', color: foreground),
+          ),
+        ),
+        const SizedBox(height: V2Spacing.space8),
+        Opacity(
+          opacity: taglineProgress,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - taglineProgress)),
+            child: Text(
+              'Scan with confidence',
+              textAlign: TextAlign.center,
+              style: V2Typography.body(color: muted).copyWith(height: 1.25),
             ),
           ),
-        );
-      },
+        ),
+        const SizedBox(height: V2Spacing.space16),
+        Opacity(
+          opacity: cueProgress,
+          child: _LoadingCue(color: accent),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingCue extends StatelessWidget {
+  final Color color;
+
+  const _LoadingCue({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: SizedBox(
+        width: 44,
+        height: 4,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: 0.58,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.58),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

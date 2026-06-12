@@ -32,8 +32,9 @@
 //   'preclinical'      — animal / in-vitro only
 //   'reference'        — citation-only support
 //
-// Tier mapping: branded-rct / product-human → strong;
-// ingredient-human / strain-clinical → moderate; otherwise limited.
+// Tier mapping: branded-rct / product-human -> strong; ingredient-human /
+// strain-clinical -> moderate unless the match itself is high-grade human
+// evidence (systematic review / meta-analysis), which also displays as strong.
 // The deduped PMID count is a secondary display signal only — it never
 // downgrades a tier earned by evidence_level.
 //
@@ -98,6 +99,31 @@ bool _isHumanLevel(Map<String, dynamic> m) {
   return _strongLevels.contains(level) || _moderateLevels.contains(level);
 }
 
+bool _hasMetaAnalysisSignal(Map<String, dynamic> m) {
+  if ((m.safeNum('published_meta_review_count') ?? 0) > 0) return true;
+
+  final studyType = (m['study_type']?.toString() ?? '').toLowerCase().trim();
+  if (studyType.contains('meta') || studyType.contains('systematic')) {
+    return true;
+  }
+
+  final published = m['published_studies'];
+  if (published is Iterable) {
+    for (final item in published) {
+      final text = item.toString().toLowerCase();
+      if (text.contains('meta') || text.contains('systematic')) return true;
+    }
+  }
+
+  return false;
+}
+
+bool _isStrongHumanMatch(Map<String, dynamic> m) {
+  final level = _level(m);
+  if (_strongLevels.contains(level)) return true;
+  return _moderateLevels.contains(level) && _hasMetaAnalysisSignal(m);
+}
+
 /// True when any match is RCT-tested on this product's own formulation.
 bool evidenceHasBrandedRct(List<Map<String, dynamic>> matches) =>
     matches.any((m) => _level(m) == 'branded-rct');
@@ -123,7 +149,7 @@ int evidenceTotalStudies(List<Map<String, dynamic>> matches) {
 /// True if any match carries published meta-analyses / reviews.
 bool evidenceHasMetaQuality(List<Map<String, dynamic>> matches) {
   for (final m in matches) {
-    if ((m.safeNum('published_meta_review_count') ?? 0) > 0) return true;
+    if (_hasMetaAnalysisSignal(m)) return true;
   }
   return false;
 }
@@ -146,9 +172,8 @@ int evidenceTotalEnrollment(List<Map<String, dynamic>> matches) {
 EvidenceTier evidenceTier(List<Map<String, dynamic>> matches) {
   var sawModerate = false;
   for (final m in matches) {
-    final level = _level(m);
-    if (_strongLevels.contains(level)) return EvidenceTier.strong;
-    if (_moderateLevels.contains(level)) sawModerate = true;
+    if (_isStrongHumanMatch(m)) return EvidenceTier.strong;
+    if (_moderateLevels.contains(_level(m))) sawModerate = true;
   }
   return sawModerate ? EvidenceTier.moderate : EvidenceTier.limited;
 }

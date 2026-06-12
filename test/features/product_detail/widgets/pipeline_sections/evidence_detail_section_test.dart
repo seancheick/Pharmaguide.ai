@@ -9,6 +9,8 @@ Map<String, dynamic> _match({
   List<Map<String, dynamic>> refs = const [],
   int? totalEnrollment,
   int? metaReviewCount,
+  String? studyType,
+  List<String>? publishedStudies,
 }) {
   return {
     'ingredient': ingredient,
@@ -16,6 +18,8 @@ Map<String, dynamic> _match({
     if (refs.isNotEmpty) 'references_structured': refs,
     if (totalEnrollment != null) 'total_enrollment': totalEnrollment,
     if (metaReviewCount != null) 'published_meta_review_count': metaReviewCount,
+    if (studyType != null) 'study_type': studyType,
+    if (publishedStudies != null) 'published_studies': publishedStudies,
   };
 }
 
@@ -140,6 +144,27 @@ void main() {
           _match(evidence: 'ingredient-human'),
         ]),
         EvidenceTier.moderate,
+      );
+    });
+
+    test('human meta-analysis ingredient evidence resolves to strong', () {
+      expect(
+        evidenceTier([
+          _match(
+            evidence: 'ingredient-human',
+            studyType: 'systematic_review_meta',
+          ),
+        ]),
+        EvidenceTier.strong,
+      );
+      expect(
+        evidenceTier([
+          _match(
+            evidence: 'ingredient-human',
+            publishedStudies: ['RCT', 'systematic_review', 'meta-analysis'],
+          ),
+        ]),
+        EvidenceTier.strong,
       );
     });
   });
@@ -363,6 +388,31 @@ void main() {
 
       expect(find.text('MODERATE'), findsOneWidget);
       expect(find.textContaining('PMID'), findsNothing);
+    });
+
+    testWidgets('creatine-style ingredient meta-analysis renders strong', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(
+              evidence: 'ingredient-human',
+              studyType: 'systematic_review_meta',
+              refs: [_ref('39519498'), _ref('39074168')],
+              totalEnrollment: 220,
+            ),
+          ],
+        },
+      );
+
+      expect(find.text('STRONG · 2 studies · meta-analysis'), findsOneWidget);
+      expect(
+        find.text('Backed by 2 human studies · ~220 participants'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders score-pillar caption', (tester) async {

@@ -86,10 +86,12 @@ dev_dependencies:
   args: ^2.4.0
 
 flutter_native_splash:
-  color: "#0A7D6F"
+  color: "#FAF9F6"
+  color_dark: "#0E1011"
   image: assets/images/splash_logo.png
   android_12:
-    color: "#0A7D6F"
+    color: "#FAF9F6"
+    color_dark: "#0E1011"
     image: assets/images/splash_logo.png
 
 flutter_launcher_icons:
