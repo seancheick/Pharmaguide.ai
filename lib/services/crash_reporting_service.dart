@@ -276,6 +276,52 @@ class CrashReportingService {
     'SliverGeometry is not valid', // 5×/5× — debug sliver validator
   ];
 
+  /// Offline is a normal state for this offline-first app. Pure
+  /// network-unavailability errors (DNS failure, unreachable network)
+  /// are operational noise, not crashes — drop them at source so the
+  /// Sentry dashboard stays focused on real defects. Fatal events are
+  /// NEVER dropped: a crash that merely *mentions* a network error
+  /// still needs triage.
+  ///
+  /// Matched shapes (all from `dart:io` / `package:http`):
+  ///   * `OSError` errno 8 (nodename nor servname provided), 50/51
+  ///     (network down/unreachable), 65 (no route to host)
+  ///   * `SocketException` with "Failed host lookup" /
+  ///     "Network is unreachable"
+  ///   * `ClientException` wrapping either of the above
+  static final RegExp _offlineErrnoPattern = RegExp(
+    r'errno\s*=\s*(8|50|51|65)\b',
+  );
+
+  static const List<String> _offlineMessageFragments = [
+    'Failed host lookup',
+    'Network is unreachable',
+    'nodename nor servname provided',
+    'No route to host',
+  ];
+
+  static const List<String> _networkExceptionTypes = [
+    'OSError',
+    'SocketException',
+    'ClientException',
+  ];
+
+  static bool _isOfflineNetworkEvent(SentryEvent event) {
+    final parts = <String>[
+      event.message?.formatted ?? '',
+      ...?event.exceptions?.map((e) => '${e.type ?? ''}: ${e.value ?? ''}'),
+    ];
+    final haystack = parts.join(' ');
+    final isNetworkShaped = _networkExceptionTypes.any(haystack.contains);
+    if (!isNetworkShaped) return false;
+    return _offlineMessageFragments.any(haystack.contains) ||
+        _offlineErrnoPattern.hasMatch(haystack);
+  }
+
+  @visibleForTesting
+  static SentryEvent? scrubEventForTest(SentryEvent event, Hint hint) =>
+      _scrubEvent(event, hint);
+
   static SentryEvent? _scrubEvent(SentryEvent event, Hint hint) {
     // Drop debug-only Flutter framework asserts from dev environments.
     // These assertions don't fire in release/profile builds, so they
@@ -291,6 +337,16 @@ class CrashReportingService {
       for (final pattern in _debugOnlyFrameworkAsserts) {
         if (haystack.contains(pattern)) return null;
       }
+    }
+    // Drop NON-FATAL network-unavailability noise (offline-first app —
+    // being offline is normal, not an error). Fatal crashes always pass.
+    final isFatal =
+        event.level == SentryLevel.fatal || hint.get('fatal') == true;
+    if (!isFatal && _isOfflineNetworkEvent(event)) {
+      // Keep a cheap local/breadcrumb-level trace so a later real
+      // event still shows "device was offline" context.
+      CrashReportingService().log('offline: network-unavailable event dropped');
+      return null;
     }
     // Scrub tags in-place.
     final tags = event.tags;

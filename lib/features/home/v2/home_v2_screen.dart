@@ -675,30 +675,9 @@ class _StackHealthCard extends ConsumerWidget {
                     top: BorderSide(color: V2Colors.outline, width: 0.5),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    _MicroMetric(
-                      icon: Icons.medication_outlined,
-                      label:
-                          '$supplementLabel supplement'
-                          '${supplementLabel == 1 ? '' : 's'}',
-                      color: V2Colors.accent,
-                    ),
-                    const SizedBox(width: V2Spacing.space16),
-                    _MicroMetric(
-                      icon: Icons.local_pharmacy_outlined,
-                      label:
-                          '$medicationLabel medication'
-                          '${medicationLabel == 1 ? '' : 's'}',
-                      color: V2Colors.fgMuted,
-                    ),
-                    const SizedBox(width: V2Spacing.space16),
-                    const _MicroMetric(
-                      icon: Icons.check_circle_outline,
-                      label: 'No conflicts',
-                      color: V2Colors.safe,
-                    ),
-                  ],
+                child: StackHealthMicroMetrics(
+                  supplementCount: supplementLabel,
+                  medicationCount: medicationLabel,
                 ),
               ),
               // CTA footer.
@@ -732,33 +711,105 @@ class _StackHealthCard extends ConsumerWidget {
   }
 }
 
+/// Micro-metrics row for the Stack Health card —
+/// supplements · medications · conflicts.
+///
+/// **Truncation fix (2026-06-12):** the previous single-line
+/// "`0 supplements`" labels ellipsized to "0 supplem…" at iPhone widths
+/// (393pt). Reuses Stack v2's `_CountChip` pattern instead — count on
+/// top, short noun label ("Supplements") underneath — so every label
+/// fits without ellipsis on narrow phones.
+@visibleForTesting
+class StackHealthMicroMetrics extends StatelessWidget {
+  final int supplementCount;
+  final int medicationCount;
+
+  const StackHealthMicroMetrics({
+    super.key,
+    required this.supplementCount,
+    required this.medicationCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _MicroMetric(
+          icon: Icons.medication_outlined,
+          count: supplementCount,
+          label: 'Supplements',
+          color: V2Colors.accent,
+        ),
+        const SizedBox(width: V2Spacing.space16),
+        _MicroMetric(
+          icon: Icons.local_pharmacy_outlined,
+          count: medicationCount,
+          label: 'Medications',
+          color: V2Colors.fgMuted,
+        ),
+        const SizedBox(width: V2Spacing.space16),
+        const _MicroMetric(
+          icon: Icons.check_circle_outline,
+          label: 'No conflicts',
+          color: V2Colors.safe,
+        ),
+      ],
+    );
+  }
+}
+
 class _MicroMetric extends StatelessWidget {
   final IconData icon;
+
+  /// When set, renders the count stacked over the [label] (Stack v2
+  /// `_CountChip` pattern). When null, renders icon + label on one line.
+  final int? count;
   final String label;
   final Color color;
 
   const _MicroMetric({
     required this.icon,
+    this.count,
     required this.label,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final labelText = Text(
+      label,
+      style: V2Typography.caption(
+        color: V2Colors.fgMuted,
+      ).copyWith(fontWeight: FontWeight.w500),
+    );
     return Expanded(
       child: Row(
+        crossAxisAlignment: count == null
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: V2Spacing.space4),
           Flexible(
-            child: Text(
-              label,
-              style: V2Typography.caption(
-                color: V2Colors.fgMuted,
-              ).copyWith(fontWeight: FontWeight.w500),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: count == null
+                ? labelText
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$count',
+                        style: V2Typography.bodyMedium(color: V2Colors.fg)
+                            .copyWith(
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                      ),
+                      labelText,
+                    ],
+                  ),
           ),
         ],
       ),

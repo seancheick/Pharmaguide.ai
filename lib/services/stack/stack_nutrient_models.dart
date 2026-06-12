@@ -67,6 +67,13 @@ enum NutrientExclusionReason {
   unsupportedUnit,
   unitConflict,
   skippedByPipeline,
+
+  /// Within a single product, this row is a compound-form duplicate of a
+  /// bare elemental row for the same canonical nutrient (e.g. 'Magnesium
+  /// Glycinate 400 mg' alongside 'Magnesium 60 mg'). The elemental row is
+  /// the label-declared total; summing the compound weight on top
+  /// double-counts (compound weight includes the non-mineral moiety).
+  compoundFormDuplicate,
 }
 
 @immutable

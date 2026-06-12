@@ -60,6 +60,9 @@ class StackNutrientAggregator {
     final accum = <String, _MutableTotal>{};
 
     for (final item in stack) {
+      // Pass 1 — parse every usable row for THIS product so we can apply
+      // per-product rules (elemental vs compound dedup) before summing.
+      final parsedRows = <_ParsedRow>[];
       for (final row in item.ingredients) {
         if (!_isUsableNutrientRow(row)) continue;
 
@@ -69,9 +72,42 @@ class StackNutrientAggregator {
         final amount = _readAmount(row);
         if (amount == null || amount <= 0) continue;
 
-        final unit = _readUnit(row);
-        final displayName = _readDisplayName(row) ?? canonical;
-        final exclusionReason = _exclusionReason(row, unit);
+        parsedRows.add(
+          _ParsedRow(
+            row: row,
+            canonicalId: canonical,
+            amount: amount,
+            unit: _readUnit(row),
+            displayName: _readDisplayName(row) ?? canonical,
+          ),
+        );
+      }
+
+      // ELEMENTAL vs COMPOUND DEDUP (within one product only).
+      //
+      // Verified pipeline bug (dsld_id 315678, 'Magnesium Glycinate
+      // 400 mg'): the blob carries TWO rows with canonical 'magnesium' —
+      // {'Magnesium', 60 mg} (elemental, the label-declared total) and
+      // {'Magnesium Glycinate', 400 mg} (compound weight; glycinate is
+      // ~14% elemental Mg). Summing both yields 460 mg and a false
+      // exceeds-UL warning. When a product lists a bare elemental row
+      // for a nutrient, that row IS the total — compound-named siblings
+      // are excluded from the sum (but kept visible as excluded
+      // contributions). Products listing only form rows ('Magnesium
+      // (as oxide)' + 'Magnesium (as citrate)') have no bare elemental
+      // row conflict and legitimately sum. Cross-product summing is
+      // never affected.
+      final compoundDuplicates = _compoundDuplicateRows(parsedRows);
+
+      for (final parsed in parsedRows) {
+        final row = parsed.row;
+        final canonical = parsed.canonicalId;
+        final amount = parsed.amount;
+        final unit = parsed.unit;
+        final displayName = parsed.displayName;
+        final exclusionReason = compoundDuplicates.contains(parsed)
+            ? NutrientExclusionReason.compoundFormDuplicate
+            : _exclusionReason(row, unit);
 
         final total = accum.putIfAbsent(
           canonical,
@@ -96,7 +132,12 @@ class StackNutrientAggregator {
               reason: exclusionReason,
             ),
           );
-          total.hasUnitConflict = true;
+          // Compound-form duplicates are a dedup decision, not a unit
+          // problem — don't raise the unit-conflict flag for them.
+          if (exclusionReason !=
+              NutrientExclusionReason.compoundFormDuplicate) {
+            total.hasUnitConflict = true;
+          }
           continue;
         }
 
@@ -323,6 +364,79 @@ class StackNutrientAggregator {
         .replaceAll('_', ' ')
         .replaceAll(RegExp(r'\s+'), ' ');
   }
+
+  /// Identify rows that are compound-form duplicates of a bare elemental
+  /// row for the same canonical nutrient WITHIN one product.
+  ///
+  /// A row is "elemental" when its display name equals the canonical
+  /// nutrient name (case / whitespace / underscore insensitive), either
+  /// directly ('Magnesium') or after stripping parentheticals
+  /// ('Magnesium (elemental)', 'Magnesium (as oxide)'). When a canonical
+  /// group contains BOTH elemental and non-elemental (compound-named)
+  /// rows, the compound rows are duplicates: the elemental row is the
+  /// label-declared total. Groups that are all-elemental (multi-form
+  /// labels) or all-compound are left untouched and sum normally.
+  static Set<_ParsedRow> _compoundDuplicateRows(List<_ParsedRow> rows) {
+    if (rows.length < 2) return const {};
+
+    final byCanonical = <String, List<_ParsedRow>>{};
+    for (final row in rows) {
+      byCanonical.putIfAbsent(row.canonicalId, () => []).add(row);
+    }
+
+    final duplicates = <_ParsedRow>{};
+    for (final group in byCanonical.values) {
+      if (group.length < 2) continue;
+      final hasElemental = group.any(
+        (r) => _isElementalName(r.displayName, r.canonicalId),
+      );
+      if (!hasElemental) continue;
+      for (final row in group) {
+        if (!_isElementalName(row.displayName, row.canonicalId)) {
+          duplicates.add(row);
+        }
+      }
+    }
+    return duplicates;
+  }
+
+  /// True when [displayName] is the bare elemental nutrient name for
+  /// [canonicalId]: equal after normalization, or equal after stripping
+  /// a parenthetical (e.g. 'Magnesium (elemental)' → 'Magnesium').
+  /// Deliberately conservative — anything that doesn't match exactly is
+  /// treated as a distinct (compound) form.
+  static bool _isElementalName(String displayName, String canonicalId) {
+    final canonical = _normalizeNameKey(canonicalId);
+    if (canonical.isEmpty) return false;
+    if (_normalizeNameKey(displayName) == canonical) return true;
+    final stripped = displayName.replaceAll(RegExp(r'\([^)]*\)'), ' ');
+    return _normalizeNameKey(stripped) == canonical;
+  }
+
+  /// Lowercase, trim, and collapse whitespace/underscore runs to single
+  /// spaces so 'vitamin_d3' and 'Vitamin D3' compare equal.
+  static String _normalizeNameKey(String raw) {
+    return raw.trim().toLowerCase().replaceAll(RegExp(r'[\s_]+'), ' ');
+  }
+}
+
+/// One parsed-and-usable ingredient row, scoped to a single product.
+/// Identity semantics (default ==) are intentional: the dedup pass marks
+/// specific row instances, not value-equal rows.
+class _ParsedRow {
+  _ParsedRow({
+    required this.row,
+    required this.canonicalId,
+    required this.amount,
+    required this.unit,
+    required this.displayName,
+  });
+
+  final Map<String, dynamic> row;
+  final String canonicalId;
+  final double amount;
+  final String unit;
+  final String displayName;
 }
 
 /// Internal mutable carrier used during accumulation. We convert to

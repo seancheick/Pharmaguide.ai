@@ -1095,4 +1095,93 @@ void main() {
       expect(result, isEmpty);
     });
   });
+
+  group(
+    'extractIngredientDoses — elemental vs compound dedup (dsld 315678)',
+    () {
+      test('elemental + compound rows mirrored across ingredients and '
+          'rda_ul_data use only the elemental value (60, not 460/920)', () {
+        // Real blob shape: BOTH arrays carry BOTH rows, and both rows
+        // map to canonical 'magnesium'. Elemental Mg is 60 mg; the
+        // 400 mg row is the glycinate compound weight (~14% Mg).
+        final magnesiumRows = [
+          {
+            'name': 'Magnesium',
+            'canonical_id': 'magnesium',
+            'quantity': 60,
+            'unit': 'mg',
+          },
+          {
+            'name': 'Magnesium Glycinate',
+            'canonical_id': 'magnesium',
+            'quantity': 400,
+            'unit': 'mg',
+          },
+        ];
+        final result = extractIngredientDoses({
+          'ingredients': magnesiumRows,
+          'rda_ul_data': {'analyzed_ingredients': magnesiumRows},
+        });
+
+        // Elemental row wins for the shared canonical key, counted once
+        // despite appearing in both arrays.
+        expect(result['magnesium'], (value: 60.0, unit: 'mg'));
+        // The compound row still gates under its own compound-name key.
+        expect(result['magnesium_glycinate'], (value: 400.0, unit: 'mg'));
+      });
+
+      test('"(elemental)" parenthetical counts as the elemental row', () {
+        final result = extractIngredientDoses({
+          'ingredients': [
+            {
+              'name': 'Magnesium (elemental)',
+              'canonical_id': 'magnesium',
+              'quantity': 60,
+              'unit': 'mg',
+            },
+            {
+              'name': 'Magnesium Glycinate',
+              'canonical_id': 'magnesium',
+              'quantity': 400,
+              'unit': 'mg',
+            },
+          ],
+        });
+        expect(result['magnesium']?.value, 60.0);
+      });
+
+      test('multi-form rows with NO bare elemental row legitimately sum '
+          '(200 + 100 = 300)', () {
+        final result = extractIngredientDoses({
+          'ingredients': [
+            {
+              'name': 'Magnesium (as oxide)',
+              'mapped_name': 'magnesium',
+              'quantity': 200,
+              'unit': 'mg',
+            },
+            {
+              'name': 'Magnesium (as citrate)',
+              'mapped_name': 'magnesium',
+              'quantity': 100,
+              'unit': 'mg',
+            },
+          ],
+        });
+        expect(result['magnesium'], (value: 300.0, unit: 'mg'));
+      });
+
+      test('same-name rows with different values still sum (not mirrors)', () {
+        // Mirror dedup keys on name + value + unit. Two genuinely
+        // distinct elemental rows with different values are not mirrors.
+        final result = extractIngredientDoses({
+          'ingredients': [
+            {'name': 'Magnesium', 'quantity': 60, 'unit': 'mg'},
+            {'name': 'Magnesium', 'quantity': 40, 'unit': 'mg'},
+          ],
+        });
+        expect(result['magnesium'], (value: 100.0, unit: 'mg'));
+      });
+    },
+  );
 }

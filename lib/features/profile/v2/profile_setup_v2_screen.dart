@@ -70,6 +70,27 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 /// - The legacy curated 13-chip allergen list (Shellfish / Gluten-
 ///   free as group toggles). The sheet now exposes all 17 canonical
 ///   allergens individually.
+///
+/// ### Guided save-and-continue flow (Phase 11.12)
+/// User feedback: tapping each section one by one with nothing
+/// advancing automatically felt like manual labor. Each sheet's
+/// primary action is now "Save & continue": confirming a section
+/// applies it via the existing notifier methods, persists through
+/// the existing `saveToDb` path (auto-save), marks the section
+/// visited for this session, and auto-opens the next unvisited
+/// section's sheet — wrapping around the section order, so a user
+/// who starts on section 3 of 6 flows 3 → 4 → 5 → 6 → 1 → 2.
+/// The last remaining section's sheet shows "Save & finish";
+/// confirming it runs the existing `_save` (single drift write +
+/// confirmation + navigate home). Dismissing any sheet breaks the
+/// chain — free, direct tile taps keep working exactly as before,
+/// and the sticky bottom bar remains the save-everything-now exit.
+
+/// Sections that participate in the guided save-and-continue flow,
+/// in on-screen order. Nickname is excluded — it edits inline, not
+/// through a sheet.
+enum _Section { goals, conditions, allergens, medications, age, sex }
+
 class ProfileSetupV2Screen extends ConsumerStatefulWidget {
   const ProfileSetupV2Screen({super.key});
 
@@ -80,6 +101,89 @@ class ProfileSetupV2Screen extends ConsumerStatefulWidget {
 
 class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   bool _saving = false;
+
+  /// Sections saved at least once in THIS session. Drives the
+  /// guided flow's skip logic — never persisted; a fresh open of
+  /// the screen starts with a clean slate.
+  final Set<_Section> _visited = <_Section>{};
+
+  static const List<_Section> _sectionOrder = _Section.values;
+
+  // ───────── guided flow ─────────
+
+  /// Sections still unvisited this session, not counting [current].
+  int _remainingExcluding(_Section current) =>
+      _sectionOrder.where((s) => s != current && !_visited.contains(s)).length;
+
+  /// Next unvisited section after [current], wrapping around the
+  /// on-screen order. Null when every other section is visited.
+  _Section? _nextUnvisited(_Section current) {
+    final start = _sectionOrder.indexOf(current);
+    for (var step = 1; step <= _sectionOrder.length; step++) {
+      final candidate = _sectionOrder[(start + step) % _sectionOrder.length];
+      if (candidate != current && !_visited.contains(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  /// Entry point for every section tile tap. Opens the section's
+  /// sheet, and on confirm: applies + persists the picks, marks the
+  /// section visited, then auto-advances to the next unvisited
+  /// section (wrap-around). When the last remaining section is
+  /// confirmed, runs the existing full save + exit. Dismissing any
+  /// sheet ends the chain — the user stays on the dashboard.
+  Future<void> _onSectionTap(_Section section) async {
+    var current = section;
+    while (mounted) {
+      final isLastRemaining = _remainingExcluding(current) == 0;
+      final saved = await _openSectionSheet(
+        current,
+        saveLabel: isLastRemaining ? 'Save & finish' : 'Save & continue',
+      );
+      if (!saved || !mounted) return;
+      _visited.add(current);
+      if (isLastRemaining) {
+        // Final section — the existing save path persists everything
+        // and exits; no separate per-section write needed.
+        await _save();
+        return;
+      }
+      // Auto-save this section's picks through the existing path so
+      // progress survives even if the user bails mid-flow.
+      await ref.read(profileProvider.notifier).saveToDb();
+      if (!mounted) return;
+      final next = _nextUnvisited(current);
+      if (next == null) {
+        await _save();
+        return;
+      }
+      current = next;
+    }
+  }
+
+  /// Opens the sheet for [section]; returns true when the user
+  /// confirmed and the selection was applied to the provider.
+  Future<bool> _openSectionSheet(
+    _Section section, {
+    required String saveLabel,
+  }) {
+    switch (section) {
+      case _Section.goals:
+        return _openGoalsSheet(saveLabel: saveLabel);
+      case _Section.conditions:
+        return _openConditionsSheet(saveLabel: saveLabel);
+      case _Section.allergens:
+        return _openAllergensSheet(saveLabel: saveLabel);
+      case _Section.medications:
+        return _openMedicationsSheet(saveLabel: saveLabel);
+      case _Section.age:
+        return _openAgeSheet(saveLabel: saveLabel);
+      case _Section.sex:
+        return _openSexSheet(saveLabel: saveLabel);
+    }
+  }
 
   // ───────── nav helpers ─────────
 
@@ -123,7 +227,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
 
   // ───────── sheet openers ─────────
 
-  Future<void> _openGoalsSheet() async {
+  Future<bool> _openGoalsSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
     // Goal priority-sort: high → medium → low. Same ordering the
     // legacy screen used so analytics + recommender stay consistent.
@@ -158,17 +262,19 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       maxSelection: 2,
       maxSelectionHint: 'Pick up to 2.',
       searchable: true,
+      saveLabel: saveLabel,
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) return false;
     ref
         .read(profileProvider.notifier)
         .setGoalsWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
+    return true;
   }
 
-  Future<void> _openConditionsSheet() async {
+  Future<bool> _openConditionsSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
     final result = await showPGSelectionSheet(
       context: context,
@@ -193,17 +299,19 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
           'Skip and come back any time — your profile is '
           'fully editable.',
       searchable: true,
+      saveLabel: saveLabel,
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) return false;
     ref
         .read(profileProvider.notifier)
         .setConditionsWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
+    return true;
   }
 
-  Future<void> _openAllergensSheet() async {
+  Future<bool> _openAllergensSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
     final result = await showPGSelectionSheet(
       context: context,
@@ -227,17 +335,19 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
           "We won't surface allergen flags — you can change "
           'this any time.',
       searchable: true,
+      saveLabel: saveLabel,
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) return false;
     ref
         .read(profileProvider.notifier)
         .setAllergensWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
+    return true;
   }
 
-  Future<void> _openMedicationsSheet() async {
+  Future<bool> _openMedicationsSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
     final result = await showPGSelectionSheet(
       context: context,
@@ -259,14 +369,16 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       noneLabel: 'No medications right now',
       noneSubtitle: 'You can update this whenever something changes.',
       searchable: true,
+      saveLabel: saveLabel,
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) return false;
     ref
         .read(profileProvider.notifier)
         .setDrugClassesWithNone(
           selected: result.selected,
           noneSelected: result.noneSelected,
         );
+    return true;
   }
 
   // ───────── demographic sheets (single-select, required) ─────────
@@ -278,7 +390,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   // explicit "I'll add this later" dismiss action so the user can
   // bail without swiping down.
 
-  Future<void> _openAgeSheet() async {
+  Future<bool> _openAgeSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
     // The schema is purely numeric brackets; "Prefer not to say" is
     // tacked on here for the UI. Picked → stored as the literal
@@ -306,13 +418,15 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       singleSelect: true,
       layout: PGSheetLayout.rows,
       dismissLabel: "I'll add this later",
+      saveLabel: saveLabel,
     );
-    if (result == null || !mounted) return;
-    if (result.selected.isEmpty) return;
+    if (result == null || !mounted) return false;
+    if (result.selected.isEmpty) return false;
     ref.read(profileProvider.notifier).setAgeBracket(result.selected.first);
+    return true;
   }
 
-  Future<void> _openSexSheet() async {
+  Future<bool> _openSexSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
     // Sean 2026-05-16: drop "Other" from the v2 sheet — Female /
     // Male / Prefer not to say is the respectful minimum surface
@@ -337,10 +451,12 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       singleSelect: true,
       layout: PGSheetLayout.rows,
       dismissLabel: "I'll add this later",
+      saveLabel: saveLabel,
     );
-    if (result == null || !mounted) return;
-    if (result.selected.isEmpty) return;
+    if (result == null || !mounted) return false;
+    if (result.selected.isEmpty) return false;
     ref.read(profileProvider.notifier).setSex(result.selected.first);
+    return true;
   }
 
   // ───────── build ─────────
@@ -386,7 +502,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                     title: _goalsSummaryTitle(profile),
                     body: _goalsSummaryBody(profile),
                     icon: Icons.flag_outlined,
-                    onTap: _openGoalsSheet,
+                    onTap: () => _onSectionTap(_Section.goals),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
@@ -394,7 +510,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                     title: _conditionsSummaryTitle(profile),
                     body: _conditionsSummaryBody(profile),
                     icon: Icons.favorite_outline_rounded,
-                    onTap: _openConditionsSheet,
+                    onTap: () => _onSectionTap(_Section.conditions),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
@@ -402,7 +518,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                     title: _allergensSummaryTitle(profile),
                     body: _allergensSummaryBody(profile),
                     icon: Icons.warning_amber_outlined,
-                    onTap: _openAllergensSheet,
+                    onTap: () => _onSectionTap(_Section.allergens),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
@@ -410,7 +526,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                     title: _medsSummaryTitle(profile),
                     body: _medsSummaryBody(profile),
                     icon: Icons.medication_outlined,
-                    onTap: _openMedicationsSheet,
+                    onTap: () => _onSectionTap(_Section.medications),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
@@ -418,7 +534,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                     title: _ageSummaryTitle(profile),
                     body: _ageSummaryBody(profile),
                     icon: Icons.cake_outlined,
-                    onTap: _openAgeSheet,
+                    onTap: () => _onSectionTap(_Section.age),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
@@ -426,7 +542,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                     title: _sexSummaryTitle(profile),
                     body: _sexSummaryBody(profile),
                     icon: Icons.person_outline_rounded,
-                    onTap: _openSexSheet,
+                    onTap: () => _onSectionTap(_Section.sex),
                   ),
                   const SizedBox(height: V2Spacing.space24),
                   const _PrivacyFooter(),
@@ -853,7 +969,9 @@ class _PrivacyFooter extends StatelessWidget {
 // =============================================================================
 // Sticky Save bar — sits over the bottom of the scroll, cream
 // background with a soft top divider so content reads through. The
-// pill CTA always shows "Save & continue" since this screen never
+// pill CTA shows "Save profile" — it saves everything as-is and
+// exits, independent of the guided per-section flow ("Save &
+// continue" now lives inside the section sheets). This screen never
 // has a "you must fill X first" gate (the underlying provider
 // accepts any partial profile).
 // =============================================================================
@@ -878,7 +996,7 @@ class _StickySaveBar extends StatelessWidget {
         MediaQuery.of(context).padding.bottom + V2Spacing.space12,
       ),
       child: PGPillButton(
-        label: saving ? 'Saving…' : 'Save & continue',
+        label: saving ? 'Saving…' : 'Save profile',
         expand: true,
         onPressed: saving ? null : onSave,
       ),

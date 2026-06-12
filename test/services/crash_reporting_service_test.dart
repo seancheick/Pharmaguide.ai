@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 void main() {
   group('CrashReportingService — buffer-only mode', () {
@@ -150,6 +151,107 @@ void main() {
       expect(
         CrashReportingService.isSensitiveForTest('Email_Verified'),
         isFalse,
+      );
+    });
+  });
+
+  group('CrashReportingService — beforeSend offline-noise filter', () {
+    SentryEvent event({
+      required String type,
+      required String value,
+      SentryLevel? level,
+    }) {
+      return SentryEvent(
+        exceptions: [SentryException(type: type, value: value)],
+        level: level,
+      );
+    }
+
+    SentryEvent? scrub(SentryEvent e, {Hint? hint}) =>
+        CrashReportingService.scrubEventForTest(e, hint ?? Hint());
+
+    test('drops non-fatal OSError DNS failure (errno = 8)', () {
+      final result = scrub(
+        event(
+          type: 'OSError',
+          value: 'OSError: nodename nor servname provided, errno = 8',
+        ),
+      );
+      expect(result, isNull);
+    });
+
+    test('drops non-fatal SocketException failed host lookup', () {
+      final result = scrub(
+        event(
+          type: 'SocketException',
+          value:
+              "Failed host lookup: 'api.supabase.co' "
+              '(OS Error: nodename nor servname provided, errno = 8)',
+        ),
+      );
+      expect(result, isNull);
+    });
+
+    test('drops non-fatal ClientException wrapping network unreachable', () {
+      final result = scrub(
+        event(
+          type: 'ClientException',
+          value:
+              'ClientException with SocketException: '
+              'Network is unreachable, errno = 51',
+        ),
+      );
+      expect(result, isNull);
+    });
+
+    test('keeps unrelated OSError (errno = 13, permission denied)', () {
+      final result = scrub(
+        event(type: 'OSError', value: 'OSError: Permission denied, errno = 13'),
+      );
+      expect(result, isNotNull);
+    });
+
+    test('keeps non-network exception even if text mentions errno = 8', () {
+      final result = scrub(
+        event(type: 'StateError', value: 'weird state: errno = 8'),
+      );
+      expect(result, isNotNull);
+    });
+
+    test('keeps FATAL offline event (level fatal)', () {
+      final result = scrub(
+        event(
+          type: 'OSError',
+          value: 'OSError: nodename nor servname provided, errno = 8',
+          level: SentryLevel.fatal,
+        ),
+      );
+      expect(result, isNotNull);
+    });
+
+    test('keeps FATAL offline event (hint fatal flag from recordError)', () {
+      final result = scrub(
+        event(
+          type: 'SocketException',
+          value: "Failed host lookup: 'example.com'",
+        ),
+        hint: Hint.withMap({'fatal': true}),
+      );
+      expect(result, isNotNull);
+    });
+
+    test('dropped offline event leaves a local breadcrumb trace', () async {
+      await CrashReportingService().initialize();
+      CrashReportingService().clearBuffersForTest();
+      scrub(
+        event(
+          type: 'OSError',
+          value: 'OSError: nodename nor servname provided, errno = 8',
+        ),
+      );
+      expect(
+        CrashReportingService().breadcrumbs.map((b) => b.message),
+        contains(contains('offline')),
       );
     });
   });

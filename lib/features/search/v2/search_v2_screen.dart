@@ -88,6 +88,12 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   List<ProductsCoreData> _featuredProducts = const [];
   bool _loading = false;
   bool _isGridView = false;
+
+  /// True once the current query has been committed — keyboard submit,
+  /// a Suggested Search tap, or opening a result. While committed the
+  /// Suggested Searches block stays hidden; editing the query text
+  /// flips back to exploring and brings suggestions back.
+  bool _committed = false;
   List<String> _recentSearches = [];
   _SearchFilter _activeFilter = _SearchFilter.all;
   String? _activeCategoryChip;
@@ -164,6 +170,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     _maybeTypingHaptic(value);
     setState(() {
       _query = value;
+      _committed = false;
       if (value.trim().isNotEmpty) _activeCategory = null;
       _activeCategoryChip = null;
     });
@@ -198,7 +205,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     unawaited(PGHaptics.tap(context));
   }
 
-  Future<void> _executeSearch(String query) async {
+  Future<void> _executeSearch(String query, {bool recordRecent = false}) async {
     final version = ++_searchVersion;
     final db = ref.read(coreDatabaseProvider);
     try {
@@ -209,7 +216,9 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         _results = results;
         _loading = false;
       });
-      if (results.isNotEmpty) {
+      // Recents are recorded only on commit (submit / suggestion tap /
+      // result open) — never on debounce ticks while typing.
+      if (recordRecent && results.isNotEmpty) {
         await _recentService.addSearch(query);
         await _loadRecentSearches();
       }
@@ -223,12 +232,39 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     }
   }
 
+  /// Commit a search: run it immediately (no debounce) and record it
+  /// in recent searches. Used by keyboard submit, Suggested Search
+  /// taps, and Recent Search taps.
+  void _commitSearch(String query) {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    _debounce?.cancel();
+    setState(() {
+      _query = q;
+      _committed = true;
+      _activeCategory = null;
+      _activeCategoryChip = null;
+      _loading = true;
+    });
+    _executeSearch(q, recordRecent: true);
+  }
+
+  /// Opening a product result counts as committing the query that led
+  /// there — record it once, without re-running the search.
+  void _recordResultOpen() {
+    final q = _query.trim();
+    if (q.isEmpty) return;
+    setState(() => _committed = true);
+    unawaited(_recentService.addSearch(q).then((_) => _loadRecentSearches()));
+  }
+
   void _clearSearch() {
     unawaited(PGHaptics.tap(context));
     _debounce?.cancel();
     _controller.clear();
     setState(() {
       _query = '';
+      _committed = false;
       _results = null;
       _loading = false;
       _activeCategory = null;
@@ -255,6 +291,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
               focusNode: _focusNode,
               query: _query,
               onChanged: _onQueryChanged,
+              onSubmitted: _commitSearch,
               onClear: _clearSearch,
               onBack: () {
                 if (Navigator.of(context).canPop()) {
@@ -347,7 +384,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
               term: term,
               onTap: () {
                 _controller.text = term;
-                _onQueryChanged(term);
+                _commitSearch(term);
               },
               onRemove: () async {
                 await _recentService.removeSearch(term);
@@ -478,7 +515,11 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   }
 
   Widget _buildDiscoveryResults(_PartitionedResults partition) {
-    final suggestions = _buildSuggestions(_query, partition.onMarket);
+    // Once a search is committed, suggestions hide and results lead.
+    // Editing the query (exploring) brings them back.
+    final suggestions = _committed
+        ? const <_SearchSuggestion>[]
+        : _buildSuggestions(_query, partition.onMarket);
     final products = partition.onMarket.isNotEmpty
         ? partition.onMarket
         : partition.offMarket;
@@ -501,7 +542,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
                 suggestion: suggestion,
                 onTap: () {
                   _controller.text = suggestion.query;
-                  _onQueryChanged(suggestion.query);
+                  _commitSearch(suggestion.query);
                 },
               ),
             ),
@@ -509,7 +550,10 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         ],
         const _SearchSectionTitle('Suggested Products'),
         const SizedBox(height: V2Spacing.space16),
-        _ProductPreviewGrid(products: products.take(8)),
+        _ProductPreviewGrid(
+          products: products.take(8),
+          onProductOpen: _recordResultOpen,
+        ),
         if (partition.offMarket.isNotEmpty &&
             partition.onMarket.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space24),
@@ -518,7 +562,10 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
             count: partition.offMarket.length,
             muted: true,
           ),
-          _ProductPreviewGrid(products: partition.offMarket.take(4)),
+          _ProductPreviewGrid(
+            products: partition.offMarket.take(4),
+            onProductOpen: _recordResultOpen,
+          ),
         ],
       ],
     );
@@ -729,6 +776,7 @@ class _TopRow extends StatelessWidget {
   final FocusNode focusNode;
   final String query;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
   final VoidCallback onBack;
 
@@ -737,6 +785,7 @@ class _TopRow extends StatelessWidget {
     required this.focusNode,
     required this.query,
     required this.onChanged,
+    required this.onSubmitted,
     required this.onClear,
     required this.onBack,
   });
@@ -826,6 +875,7 @@ class _TopRow extends StatelessWidget {
                       cursorColor: V2Colors.safe,
                       cursorWidth: 2,
                       onChanged: onChanged,
+                      onSubmitted: onSubmitted,
                     ),
                   ),
                   if (query.isNotEmpty)
@@ -1138,9 +1188,12 @@ class _SuggestedSearchRow extends StatelessWidget {
 
 class _ProductPreviewGrid extends StatelessWidget {
   final List<ProductsCoreData> products;
+  final VoidCallback? onProductOpen;
 
-  _ProductPreviewGrid({required Iterable<ProductsCoreData> products})
-    : products = products.toList(growable: false);
+  _ProductPreviewGrid({
+    required Iterable<ProductsCoreData> products,
+    this.onProductOpen,
+  }) : products = products.toList(growable: false);
 
   @override
   Widget build(BuildContext context) {
@@ -1155,8 +1208,10 @@ class _ProductPreviewGrid extends StatelessWidget {
         mainAxisSpacing: V2Spacing.space12,
         childAspectRatio: 0.82,
       ),
-      itemBuilder: (context, index) =>
-          _SearchProductGridTile(product: products[index]),
+      itemBuilder: (context, index) => _SearchProductGridTile(
+        product: products[index],
+        onOpen: onProductOpen,
+      ),
     );
   }
 }
@@ -1423,8 +1478,9 @@ class _SearchProductListTile extends StatelessWidget {
 
 class _SearchProductGridTile extends StatelessWidget {
   final ProductsCoreData product;
+  final VoidCallback? onOpen;
 
-  const _SearchProductGridTile({required this.product});
+  const _SearchProductGridTile({required this.product, this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -1444,7 +1500,10 @@ class _SearchProductGridTile extends StatelessWidget {
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
-          onTap: () => context.push('${Routes.product}/${product.dsldId}'),
+          onTap: () {
+            onOpen?.call();
+            context.push('${Routes.product}/${product.dsldId}');
+          },
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Container(
             padding: const EdgeInsets.all(V2Spacing.space12),

@@ -96,6 +96,22 @@ class _SynergySection extends StatelessWidget {
                 ),
             ],
           ),
+          // Single-ingredient matches read random without context
+          // ("Works well with: Dental & Oral Health" on a CoQ10 bottle)
+          // — explain the connection inline with the cluster's authored
+          // benefit text. Multi-ingredient clusters are self-evident
+          // from the matched ingredients, so no caption there.
+          for (final cluster in clusters)
+            if (_isSingleIngredientMatch(cluster) &&
+                singleMatchCaption(cluster).isNotEmpty) ...[
+              const SizedBox(height: V2Spacing.space8),
+              Text(
+                clusters.length > 1
+                    ? '${_clusterName(cluster)} — ${singleMatchCaption(cluster)}'
+                    : singleMatchCaption(cluster),
+                style: V2Typography.caption(color: V2Colors.fgMuted),
+              ),
+            ],
         ],
       ),
     );
@@ -224,6 +240,32 @@ String _clusterName(Map<String, dynamic> cluster) {
   final name =
       cluster['name']?.toString() ?? cluster['cluster_name']?.toString() ?? '';
   return name.trim().isEmpty ? 'Ingredient combination' : name.trim();
+}
+
+bool _isSingleIngredientMatch(Map<String, dynamic> cluster) {
+  final raw = cluster['single_ingredient_match'];
+  return raw == 1 || raw == true;
+}
+
+/// One-line muted caption explaining why a single-ingredient cluster
+/// match applies to this product. Prefers the authored `benefit_short`;
+/// falls back to the first sentence of the mechanism text, truncated.
+/// Never invents copy beyond the authored cluster text.
+@visibleForTesting
+String singleMatchCaption(Map<String, dynamic> cluster) {
+  const maxLength = 140;
+  final benefit = cluster['benefit_short']?.toString().trim() ?? '';
+  var caption = benefit;
+  if (caption.isEmpty) {
+    final mechanism = cluster['mechanism']?.toString().trim() ?? '';
+    if (mechanism.isEmpty) return '';
+    final periodIdx = mechanism.indexOf('. ');
+    caption = periodIdx > 0 ? mechanism.substring(0, periodIdx + 1) : mechanism;
+  }
+  if (caption.length > maxLength) {
+    caption = '${caption.substring(0, maxLength - 1).trimRight()}…';
+  }
+  return caption;
 }
 
 String _clusterExplanation(Map<String, dynamic> cluster) {

@@ -67,6 +67,25 @@ typedef IngredientDose = ({double value, String unit});
 /// are comparable. Incompatible duplicate units remove the key entirely
 /// so threshold gates fail safe instead of making a false-precision
 /// comparison.
+///
+/// **Elemental vs compound dedup (2026-06-12):** verified pipeline bug
+/// (dsld_id 315678, 'Magnesium Glycinate 400 mg') — the blob carries TWO
+/// rows mapping to the same canonical nutrient: {'Magnesium', 60 mg}
+/// (elemental, the label-declared total) and {'Magnesium Glycinate',
+/// 400 mg} (compound weight). Summing both yields 460 mg of "magnesium"
+/// and false UL/threshold breaches. Within ONE blob: when a key has a
+/// bare-elemental-named row (name equals the key, directly or after
+/// stripping a parenthetical), compound-named rows do NOT contribute to
+/// that key (they still contribute to their own compound-name key).
+/// Multi-form labels with no bare elemental row ('Magnesium (as oxide)'
+/// + 'Magnesium (as citrate)') still sum — both names strip to the
+/// elemental name, so neither is a compound duplicate.
+///
+/// **Mirrored-row dedup (2026-06-12):** `_doseRows` concatenates
+/// `ingredients` and `rda_ul_data.analyzed_ingredients`, and live blobs
+/// (315678) carry the SAME rows in both arrays. Rows whose canonical
+/// name + value + normalized unit match an already-seen row are treated
+/// as the same label row and counted once.
 Map<String, IngredientDose> extractIngredientDoses(
   Map<String, dynamic>? detailBlob,
 ) {
@@ -74,15 +93,25 @@ Map<String, IngredientDose> extractIngredientDoses(
   final blockedKeys = <String>{};
   if (detailBlob == null) return result;
 
+  // Pass 1 — parse rows, dropping unusable ones and mirrored duplicates.
+  final parsed = <_ParsedDoseRow>[];
+  final seenSignatures = <String>{};
   for (final entry in _doseRows(detailBlob)) {
     final keys = _doseNameKeys(entry);
     if (keys.isEmpty) continue;
 
+    final primaryName = _primaryDoseName(entry);
+
     if (entry['skip_ul_check'] == true) {
-      for (final key in keys) {
-        result.remove(key);
-        blockedKeys.add(key);
-      }
+      parsed.add(
+        _ParsedDoseRow(
+          keys: keys,
+          primaryName: primaryName,
+          skip: true,
+          value: 0,
+          unit: '',
+        ),
+      );
       continue;
     }
 
@@ -110,17 +139,72 @@ Map<String, IngredientDose> extractIngredientDoses(
         : double.tryParse(rawAmount.toString());
     if (value == null || !value.isFinite) continue;
 
-    for (final key in keys) {
+    // Mirrored-row dedup: the same label row shipped in both
+    // `ingredients` and `rda_ul_data.analyzed_ingredients`.
+    if (primaryName != null) {
+      final signature =
+          '${canonicalizeIngredientName(primaryName)}'
+          '|$value|${_normalizeDoseUnit(rawUnit)}';
+      if (!seenSignatures.add(signature)) continue;
+    }
+
+    parsed.add(
+      _ParsedDoseRow(
+        keys: keys,
+        primaryName: primaryName,
+        skip: false,
+        value: value,
+        unit: rawUnit.trim(),
+      ),
+    );
+  }
+
+  // Elemental vs compound dedup: collect, per key, whether any usable
+  // row names the bare elemental nutrient for that key.
+  final elementalKeys = <String>{};
+  for (final row in parsed) {
+    if (row.skip || row.primaryName == null) continue;
+    for (final key in row.keys) {
+      if (_isElementalDoseName(row.primaryName!, key)) {
+        elementalKeys.add(key);
+      }
+    }
+  }
+
+  // Pass 2 — original summing semantics, minus compound duplicates.
+  for (final row in parsed) {
+    if (row.skip) {
+      for (final key in row.keys) {
+        result.remove(key);
+        blockedKeys.add(key);
+      }
+      continue;
+    }
+
+    for (final key in row.keys) {
       if (blockedKeys.contains(key)) continue;
 
-      final unit = rawUnit.trim();
-      final existing = result[key];
-      if (existing == null) {
-        result[key] = (value: value, unit: unit);
+      // The key has a bare elemental row and this row is a compound
+      // form — the elemental row is the label-declared total for this
+      // key. Skip the compound contribution (it still counts toward
+      // its own compound-name key).
+      if (elementalKeys.contains(key) &&
+          row.primaryName != null &&
+          !_isElementalDoseName(row.primaryName!, key)) {
         continue;
       }
 
-      final converted = _amountInUnit(value, from: unit, to: existing.unit);
+      final existing = result[key];
+      if (existing == null) {
+        result[key] = (value: row.value, unit: row.unit);
+        continue;
+      }
+
+      final converted = _amountInUnit(
+        row.value,
+        from: row.unit,
+        to: existing.unit,
+      );
       if (converted == null) {
         result.remove(key);
         blockedKeys.add(key);
@@ -132,6 +216,46 @@ Map<String, IngredientDose> extractIngredientDoses(
   }
 
   return result;
+}
+
+class _ParsedDoseRow {
+  const _ParsedDoseRow({
+    required this.keys,
+    required this.primaryName,
+    required this.skip,
+    required this.value,
+    required this.unit,
+  });
+
+  final Set<String> keys;
+  final String? primaryName;
+  final bool skip;
+  final double value;
+  final String unit;
+}
+
+/// The label-facing display name of a dose row — used for elemental
+/// detection. Canonical-id-ish fields (`mapped_name`, `canonical_id`)
+/// are intentionally NOT consulted here: a compound row often carries
+/// the elemental canonical id, which is exactly the double-count.
+String? _primaryDoseName(Map<String, dynamic> entry) {
+  for (final field in const ['standard_name', 'name', 'ingredient']) {
+    final raw = entry[field]?.toString().trim();
+    if (raw != null && raw.isNotEmpty) return raw;
+  }
+  return null;
+}
+
+/// True when [rawName] is the bare elemental nutrient name for the
+/// canonical [key]: canonicalizes to the key directly ('Magnesium' →
+/// 'magnesium'), or after stripping a parenthetical ('Magnesium
+/// (elemental)', 'Magnesium (as oxide)'). Conservative: any other name
+/// is a distinct (compound) form.
+bool _isElementalDoseName(String rawName, String key) {
+  if (canonicalizeIngredientName(rawName) == key) return true;
+  final stripped = rawName.replaceAll(RegExp(r'\([^)]*\)'), ' ').trim();
+  if (stripped.isEmpty || stripped == rawName.trim()) return false;
+  return canonicalizeIngredientName(stripped) == key;
 }
 
 double? _amountInUnit(

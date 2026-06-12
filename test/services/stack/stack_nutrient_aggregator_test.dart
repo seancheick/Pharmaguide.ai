@@ -474,6 +474,142 @@ void main() {
     });
   });
 
+  group('StackNutrientAggregator — elemental vs compound dedup', () {
+    test('dsld 315678 regression — elemental + compound rows in one product '
+        'use only the elemental row (60, not 460)', () {
+      // Real blob shape: BOTH rows carry canonical_id 'magnesium'.
+      // 'Magnesium 60 mg' is elemental (label-declared total);
+      // 'Magnesium Glycinate 400 mg' is compound weight (~14% Mg).
+      final stack = [
+        _productOf('s1', 'Magnesium Glycinate 400 mg', [
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium',
+            'quantity': 60,
+            'unit': 'mg',
+          },
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium Glycinate',
+            'quantity': 400,
+            'unit': 'mg',
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['magnesium']!;
+      expect(total.totalAmount, 60);
+      expect(total.contributions, hasLength(1));
+      expect(total.hasUnitConflict, isFalse);
+      expect(total.excludedContributions, hasLength(1));
+      expect(
+        total.excludedContributions.single.reason,
+        NutrientExclusionReason.compoundFormDuplicate,
+      );
+      expect(total.excludedContributions.single.contribution.amount, 400);
+    });
+
+    test('"(elemental)" parenthetical counts as the elemental row', () {
+      final stack = [
+        _productOf('s1', 'Mag Complex', [
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium (elemental)',
+            'quantity': 60,
+            'unit': 'mg',
+          },
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium Glycinate',
+            'quantity': 400,
+            'unit': 'mg',
+          },
+        ]),
+      ];
+      expect(aggregator.aggregate(stack)['magnesium']!.totalAmount, 60);
+    });
+
+    test('multi-form rows with NO bare elemental row legitimately sum '
+        '(200 + 100 = 300)', () {
+      final stack = [
+        _productOf('s1', 'Mag Dual Form', [
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium (as oxide)',
+            'quantity': 200,
+            'unit': 'mg',
+          },
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium (as citrate)',
+            'quantity': 100,
+            'unit': 'mg',
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['magnesium']!;
+      expect(total.totalAmount, 300);
+      expect(total.contributions, hasLength(2));
+      expect(total.excludedContributions, isEmpty);
+    });
+
+    test('cross-product summing is never deduped', () {
+      // Product A: elemental-only. Product B: compound-named row that
+      // maps to the same canonical. Different products → both count.
+      final stack = [
+        _productOf('s1', 'Mag A', [
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium',
+            'quantity': 60,
+            'unit': 'mg',
+          },
+        ]),
+        _productOf('s2', 'Mag B', [
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium Citrate',
+            'quantity': 150,
+            'unit': 'mg',
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['magnesium']!;
+      expect(total.totalAmount, 210);
+      expect(total.contributions, hasLength(2));
+    });
+
+    test('per-product dedup composes with cross-product summing '
+        '(60 from 315678-shape product + 200 from a second product = 260)', () {
+      final stack = [
+        _productOf('s1', 'Magnesium Glycinate 400 mg', [
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium',
+            'quantity': 60,
+            'unit': 'mg',
+          },
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium Glycinate',
+            'quantity': 400,
+            'unit': 'mg',
+          },
+        ]),
+        _productOf('s2', 'Mag Oxide', [
+          {
+            'canonical_id': 'magnesium',
+            'name': 'Magnesium',
+            'quantity': 200,
+            'unit': 'mg',
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['magnesium']!;
+      expect(total.totalAmount, 260);
+      expect(total.contributions, hasLength(2));
+    });
+  });
+
   group('StackNutrientAggregator — display name preference', () {
     test('keeps the longest display name across contributions', () {
       final stack = [

@@ -8,6 +8,8 @@ Map<String, dynamic> _cluster({
   required int matchCount,
   bool allAdequate = true,
   String benefit = 'Why it works',
+  String mechanism = '',
+  bool singleIngredientMatch = false,
   List<String> pmids = const [],
 }) {
   return {
@@ -16,6 +18,8 @@ Map<String, dynamic> _cluster({
     'match_count': matchCount,
     'all_adequate': allAdequate ? 1 : 0,
     'benefit_short': benefit,
+    'mechanism': mechanism,
+    'single_ingredient_match': singleIngredientMatch ? 1 : 0,
     'pmids': pmids,
   };
 }
@@ -158,5 +162,99 @@ void main() {
         expect(find.text('3 published studies'), findsOneWidget);
       },
     );
+  });
+
+  group('Synergy single-ingredient-match caption', () {
+    const dentalBenefit =
+        'CoQ10 has demonstrated benefit in periodontal inflammation.';
+
+    testWidgets('single-ingredient match renders inline caption', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        clusters: [
+          _cluster(
+            name: 'Dental & Oral Health',
+            tier: 1,
+            matchCount: 2,
+            benefit: dentalBenefit,
+            singleIngredientMatch: true,
+          ),
+        ],
+      );
+
+      expect(find.text('Dental & Oral Health'), findsOneWidget);
+      expect(find.text(dentalBenefit), findsOneWidget);
+    });
+
+    testWidgets('multi-ingredient match renders no caption', (tester) async {
+      await _pump(
+        tester,
+        clusters: [
+          _cluster(
+            name: 'Heart Health',
+            tier: 1,
+            matchCount: 3,
+            benefit: dentalBenefit,
+          ),
+        ],
+      );
+
+      expect(find.text('Heart Health'), findsOneWidget);
+      expect(find.text(dentalBenefit), findsNothing);
+    });
+
+    testWidgets('caption is prefixed with cluster name when multiple chips', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        clusters: [
+          _cluster(
+            name: 'Dental & Oral Health',
+            tier: 1,
+            matchCount: 2,
+            benefit: dentalBenefit,
+            singleIngredientMatch: true,
+          ),
+          _cluster(name: 'Heart Health', tier: 1, matchCount: 3),
+        ],
+      );
+
+      expect(
+        find.text('Dental & Oral Health — $dentalBenefit'),
+        findsOneWidget,
+      );
+    });
+
+    test('singleMatchCaption prefers benefit_short', () {
+      final caption = singleMatchCaption({
+        'benefit_short': dentalBenefit,
+        'mechanism': 'Long mechanism text. Second sentence.',
+      });
+      expect(caption, dentalBenefit);
+    });
+
+    test('singleMatchCaption falls back to first sentence of mechanism', () {
+      final caption = singleMatchCaption({
+        'benefit_short': '',
+        'mechanism':
+            'CoQ10 supports gingival tissue energy metabolism. '
+            'Deficiency is associated with periodontal disease.',
+      });
+      expect(caption, 'CoQ10 supports gingival tissue energy metabolism.');
+    });
+
+    test('singleMatchCaption truncates very long text', () {
+      final caption = singleMatchCaption({'benefit_short': 'A' * 300});
+      expect(caption.length, lessThanOrEqualTo(140));
+      expect(caption, endsWith('…'));
+    });
+
+    test('singleMatchCaption empty when no authored text exists', () {
+      expect(singleMatchCaption({'benefit_short': '', 'mechanism': ''}), '');
+      expect(singleMatchCaption(const {}), '');
+    });
   });
 }
