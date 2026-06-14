@@ -71,10 +71,12 @@ class StackActions {
   final Ref _ref;
   StackActions(this._ref);
 
-  /// Generate a reasonably unique local id. We don't have the `uuid`
-  /// package in pubspec, and since stack ids are scoped to a single device
-  /// (server assigns its own id on sync), `dsldId + microseconds` is
-  /// collision-proof for all realistic uses.
+  /// Generate the client-authoritative stack id. This id is the PRIMARY
+  /// KEY pushed to Supabase verbatim (`onConflict: 'id'`), so the remote
+  /// `user_stacks.id` column is `text`, NOT `uuid` — see
+  /// supabase/migrations/20260411_user_stacks.sql and the 20260614 drift
+  /// repair. The server never issues ids; `dsldId + microseconds` is
+  /// collision-proof for all realistic single-device uses.
   String _newId(String? dsldId) {
     final base = dsldId ?? 'manual';
     return '${base}_${DateTime.now().microsecondsSinceEpoch}';
