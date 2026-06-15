@@ -64,7 +64,7 @@ void main() {
       expect(find.text('Dose'), findsOneWidget);
       expect(find.text('Evidence'), findsOneWidget);
       expect(find.text('Transparency'), findsOneWidget);
-      expect(find.text('Verification'), findsOneWidget);
+      expect(find.text('Testing & Brand'), findsOneWidget);
       expect(find.text('Safety Hygiene'), findsOneWidget);
       expect(find.text('Brand trust'), findsNothing);
     });
@@ -105,11 +105,11 @@ void main() {
         buildTestWidget(verification: 13, hasThirdPartyTesting: true),
       );
 
-      await tester.tap(find.text('Verification'));
+      await tester.tap(find.text('Testing & Brand'));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Independent testing and brand verification'),
+        find.text('Independent testing and brand signals'),
         findsOneWidget,
       );
       expect(find.text('Third-party tested'), findsOneWidget);
@@ -192,7 +192,7 @@ Map<String, dynamic> _v4Pillars({
     'verification': {
       'score': verification,
       'max': 15,
-      'reason': 'Independent testing and brand verification',
+      'reason': 'Independent testing and brand signals',
     },
     'safety_hygiene': {
       'score': safetyHygiene,

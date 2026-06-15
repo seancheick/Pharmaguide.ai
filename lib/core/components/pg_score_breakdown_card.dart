@@ -11,7 +11,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// optional sub-breakdown map for tap-to-expand explanation, and badges
 /// for callouts like "Third-party tested" / "Trusted manufacturer".
 class PGPillar {
-  /// Display name, e.g. "Ingredient Quality" or "Transparency & Verification".
+  /// Display name, e.g. "Ingredient Quality" or "Testing & Brand".
   final String label;
 
   /// 1-line context shown beneath the bar. Production examples:
@@ -20,7 +20,7 @@ class PGPillar {
   final String? microExplanation;
 
   /// Raw pillar score on its own scale (e.g. 22/25 for Ingredient Quality,
-  /// 4/5 for Transparency & Verification). Null when no data.
+  /// 4/5 for Testing & Brand). Null when no data.
   final double? score;
 
   /// Pillar's max raw score. Production: 25 / 30 / 20 / 5 for the four
@@ -61,7 +61,7 @@ class PGPillarBadge {
 ///
 /// Structure:
 /// - 4 pillar bars (Ingredient Quality / Safety & Purity / Evidence &
-///   Research / Transparency & Verification), each as a horizontal
+///   Research / Testing & Brand), each as a horizontal
 ///   bar + raw score + microExplanation + optional badges
 /// - Coverage line at the bottom (production `_CoverageLine`) — 3-tier
 ///   confidence indicator based on `mappedCoverage` ratio
@@ -286,8 +286,8 @@ class _PGPillarRowState extends State<_PGPillarRow> {
           // each section to open and read what's in it").
           // Layout fix (Sean 2026-05-15): Flexible+Spacer was splitting
           // leftover horizontal space between the label and the score,
-          // which forced longer labels ("Evidence & Research", "Transparency
-          // & Verification") to wrap unnecessarily AND shifted the chevron
+          // which forced longer labels ("Evidence & Research", "Testing &
+          // Brand") to wrap unnecessarily AND shifted the chevron
           // mid-row. Expanded gives the label all remaining space so the
           // score sits flush at the right edge for every pillar.
           Row(

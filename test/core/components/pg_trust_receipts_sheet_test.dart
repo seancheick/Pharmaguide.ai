@@ -159,7 +159,7 @@ void main() {
                     'verification': {
                       'score': 12,
                       'max': 15,
-                      'reason': 'Independent testing and brand verification',
+                      'reason': 'Independent testing and brand signals',
                     },
                     'safety_hygiene': {
                       'score': 8,

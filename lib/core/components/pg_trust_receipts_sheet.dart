@@ -35,7 +35,8 @@ const Map<String, String> _pillarDefinitions = {
   'dose': 'Whether amounts match what studies actually used.',
   'evidence': 'Clinical research behind the ingredients.',
   'transparency': 'Label clarity — full amounts, no hidden blends.',
-  'verification': 'Third-party testing and manufacturer track record.',
+  'verification':
+      'Third-party testing when available, plus brand and manufacturing signals.',
   'safety_hygiene': 'Flagged additives and contaminant signals.',
 };
 

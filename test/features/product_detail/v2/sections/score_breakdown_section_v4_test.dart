@@ -30,7 +30,7 @@ const _v4Labels = [
   'Dose',
   'Evidence',
   'Transparency',
-  'Verification',
+  'Testing & Brand',
   'Safety Hygiene',
 ];
 

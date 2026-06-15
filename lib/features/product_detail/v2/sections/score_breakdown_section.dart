@@ -3,7 +3,7 @@
 // v4 (export schema 2.0.0): when the detail blob carries `quality_pillars_v4`,
 // render the SIX v4 pillars sourced from the blob —
 //   Formulation /20 · Dose /20 · Evidence /20 · Transparency /15 ·
-//   Verification /15 · Safety Hygiene /10
+//   Testing & Brand /15 · Safety Hygiene /10
 // each as score/max + a tap-revealed one-line `reason`. The hero is the v4
 // /100 score (`score_100_equivalent` mirrors `quality_score_v4_100`).
 //

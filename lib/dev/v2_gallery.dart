@@ -344,7 +344,7 @@ class V2Gallery extends StatelessWidget {
                     onTap: () {},
                   ),
                   PGPillar(
-                    label: 'Verification',
+                    label: 'Testing & Brand',
                     microExplanation: 'Independent testing and brand checks',
                     score: 13,
                     max: 15,

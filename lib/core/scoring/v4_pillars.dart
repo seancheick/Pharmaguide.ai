@@ -13,7 +13,7 @@ const List<(String, String, int)> kV4PillarSpec = [
   ('dose', 'Dose', 20),
   ('evidence', 'Evidence', 20),
   ('transparency', 'Transparency', 15),
-  ('verification', 'Verification', 15),
+  ('verification', 'Testing & Brand', 15),
   ('safety_hygiene', 'Safety Hygiene', 10),
 ];
 

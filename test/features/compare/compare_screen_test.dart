@@ -137,7 +137,7 @@ void main() {
       'Dose',
       'Evidence',
       'Transparency',
-      'Verification',
+      'Testing & Brand',
       'Safety Hygiene',
     ]) {
       expect(find.text(label), findsOneWidget);

@@ -10,7 +10,7 @@
 //     isInferredFromLabel = ingredient['display_type'] == 'inferred_from_label'
 //
 //   raw inactive map → PGInactiveIngredient
-//     name        = display_label || name || raw_source_text
+//     name        = label_display || name || raw_source_text || display_label
 //     tone        = inactiveColorRank(map) — verbatim port
 //     roleHelper  = display_role_label OR comma-joined functional_roles[]
 //                   (capped at 2 roles)
@@ -103,20 +103,29 @@ PGActiveIngredient activeFromMap(
 
 /// Convert a raw inactive-ingredient map into a typed [PGInactiveIngredient].
 ///
-/// Defensive against missing fields — falls back through display_label →
-/// name → raw_source_text, returns empty roleHelper when no roles ship.
+/// Defensive against missing fields — falls back through label_display →
+/// name → raw_source_text → display_label, returns empty roleHelper when no
+/// roles ship.
 PGInactiveIngredient inactiveFromMap(Map<String, dynamic> ingredient) {
-  final name =
-      (ingredient['display_label']?.toString().trim().isNotEmpty == true)
-      ? ingredient['display_label'].toString().trim()
-      : ((ingredient['name']?.toString().trim().isNotEmpty == true)
-            ? ingredient['name'].toString().trim()
-            : (ingredient['raw_source_text']?.toString().trim() ?? ''));
+  final name = _firstNonEmpty([
+    ingredient['label_display'],
+    ingredient['name'],
+    ingredient['raw_source_text'],
+    ingredient['display_label'],
+  ]);
 
   final tone = inactiveColorRank(ingredient);
   final roleHelper = _resolveRoleHelper(ingredient);
 
   return PGInactiveIngredient(name: name, tone: tone, roleHelper: roleHelper);
+}
+
+String _firstNonEmpty(List<Object?> values) {
+  for (final value in values) {
+    final text = value?.toString().trim();
+    if (text != null && text.isNotEmpty) return text;
+  }
+  return '';
 }
 
 /// Pipeline v1.5.0 ships `display_role_label` (one-line, canonical).
