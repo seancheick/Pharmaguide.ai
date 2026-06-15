@@ -865,7 +865,7 @@ class _RecentScansSection extends ConsumerWidget {
         ),
         const SizedBox(height: V2Spacing.space12),
         SizedBox(
-          height: 218,
+          height: _RecentScanCard.height,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
@@ -988,13 +988,16 @@ class _RecentScanCard extends StatelessWidget {
 
   const _RecentScanCard({required this.scan});
 
+  static const double width = 156;
+  static const double height = 224;
   static const double _imageFrameSize = V2Spacing.space64 + V2Spacing.space8;
   static const double _imageSize = V2Spacing.space64 - V2Spacing.space8;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 156,
+      width: width,
+      height: height,
       child: Material(
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -1043,25 +1046,34 @@ class _RecentScanCard extends StatelessWidget {
                 // of v2 product surfaces.
                 Center(child: PGScoreLine(score: scan.score, compact: true)),
                 const SizedBox(height: V2Spacing.space8),
-                Text(
-                  scan.name,
-                  style: V2Typography.bodySm(
-                    color: V2Colors.fg,
-                  ).copyWith(fontWeight: FontWeight.w500),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  scan.brand,
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Spacer(),
-                Text(
-                  scan.time,
-                  style: V2Typography.caption(color: V2Colors.fgSubtle),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        scan.name,
+                        style: V2Typography.bodySm(
+                          color: V2Colors.fg,
+                        ).copyWith(fontWeight: FontWeight.w500),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        scan.brand,
+                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      Text(
+                        scan.time,
+                        style: V2Typography.caption(color: V2Colors.fgSubtle),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

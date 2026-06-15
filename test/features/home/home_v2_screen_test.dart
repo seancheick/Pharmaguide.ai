@@ -13,24 +13,23 @@ void main() {
     CoreDatabase coreDb,
     UserDatabase userDb, {
     String dsldId = 'recent-1',
+    String productName = 'Recent Scan Product',
+    String brandName = 'Good Brand',
   }) async {
     await coreDb
         .into(coreDb.productsCore)
         .insert(
           ProductsCoreCompanion.insert(
             dsldId: dsldId,
-            productName: 'Recent Scan Product',
-            brandName: const drift.Value('Good Brand'),
+            productName: productName,
+            brandName: drift.Value(brandName),
             imageThumbnailUrl: const drift.Value('https://example.com/a.png'),
             score100Equivalent: const drift.Value(82),
             exportVersion: 'test',
             exportedAt: '2026-05-18T00:00:00Z',
           ),
         );
-    await userDb.recordScanEvent(
-      dsldId: dsldId,
-      productName: 'Recent Scan Product',
-    );
+    await userDb.recordScanEvent(dsldId: dsldId, productName: productName);
   }
 
   Future<void> pumpHomeV2(
@@ -92,6 +91,30 @@ void main() {
     expect(find.text('Basic Nutrients 2/Day'), findsNothing);
     expect(find.text('L-Theanine 200mg'), findsNothing);
     expect(find.text('Magnesium Glycinate'), findsNothing);
+  });
+
+  testWidgets('recent scan cards do not overflow with long names', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    await seedRecentScan(
+      coreDb,
+      userDb,
+      productName:
+          'Pure Encapsulations Liposomal Vitamin C Capsules Extra Strength',
+      brandName: 'Pure Encapsulations',
+    );
+
+    await pumpHomeV2(tester, coreDb, userDb);
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('search launcher stays pinned and hit-testable after scroll', (
