@@ -67,14 +67,20 @@ List<InteractionWarning> parseBlobWarnings(Map<String, dynamic>? blob) {
   if (blob == null) return const [];
   final result = <InteractionWarning>[];
   final hasStructuredProductStatus = blob['product_status'] is Map;
+  final hasStructuredAllergens = _hasStructuredAllergens(blob['allergens']);
   for (final key in const ['warnings', 'warnings_profile_gated']) {
     final raw = blob[key];
     if (raw is! List) continue;
     final candidates = raw.whereType<Map<String, dynamic>>().where(
-      (warning) => !_isLegacyProductStatusWarning(
-        warning,
-        hasStructuredProductStatus: hasStructuredProductStatus,
-      ),
+      (warning) =>
+          !_isLegacyProductStatusWarning(
+            warning,
+            hasStructuredProductStatus: hasStructuredProductStatus,
+          ) &&
+          !_isStructuredAllergenDuplicate(
+            warning,
+            hasStructuredAllergens: hasStructuredAllergens,
+          ),
     );
     // Parse per-element so one malformed blob entry can't throw away
     // every other (valid) warning in the list. A skipped entry is
@@ -92,6 +98,34 @@ List<InteractionWarning> parseBlobWarnings(Map<String, dynamic>? blob) {
     }
   }
   return InteractionWarning.dedupe(result);
+}
+
+bool _hasStructuredAllergens(Object? raw) {
+  if (raw is! List) return false;
+  return raw.whereType<Map<Object?, Object?>>().any((entry) {
+    final id = entry['allergen_id']?.toString().trim();
+    final name = entry['display_name']?.toString().trim();
+    return (id != null && id.isNotEmpty) || (name != null && name.isNotEmpty);
+  });
+}
+
+/// Drop legacy allergen warning rows once the structured `allergens[]`
+/// contract is present. Structured allergens are profile-matched via
+/// `matchAllergens(profile.allergens, blob.allergens)`. Keeping the
+/// duplicate warning row here makes "Allergen: X" show for users who
+/// explicitly declared no allergies.
+bool _isStructuredAllergenDuplicate(
+  Map<String, dynamic> warning, {
+  required bool hasStructuredAllergens,
+}) {
+  if (!hasStructuredAllergens) return false;
+  final tokens = [
+    warning['type'],
+    warning['source'],
+    warning['category'],
+    warning['warning_type'],
+  ].map((value) => value?.toString().trim().toLowerCase() ?? '');
+  return tokens.contains('allergen') || tokens.contains('allergen_db');
 }
 
 /// Drop "status" entries that predate structured `product_status`.

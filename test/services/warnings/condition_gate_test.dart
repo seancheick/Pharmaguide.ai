@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
@@ -73,6 +74,32 @@ void main() {
       );
       expect(result, isEmpty);
     });
+
+    test(
+      'Vitamin B-3 20 mg + diabetes profile → suppressed as low-dose niacin',
+      () {
+        final ingredientDoses = extractIngredientDoses({
+          'ingredients': [
+            {
+              'name': 'Vitamin B-3',
+              'mapped_name': 'vitamin_b3_niacin',
+              'quantity': 20,
+              'unit': 'mg',
+            },
+          ],
+        });
+
+        final result = applyConditionThresholdGate(
+          warnings: [
+            _w(conditionIds: ['diabetes'], ingredientName: 'Vitamin B-3'),
+          ],
+          ingredientDoses: ingredientDoses,
+        );
+
+        expect(ingredientDoses['niacin'], (value: 20.0, unit: 'mg'));
+        expect(result, isEmpty);
+      },
+    );
 
     test(
       'Magnesium 600 mg + diabetes profile → STILL suppressed (positive)',
@@ -1184,4 +1211,61 @@ void main() {
       });
     },
   );
+
+  group('parseBlobWarnings — structured allergen contract', () {
+    test(
+      'drops duplicate allergen warnings when structured allergens exist',
+      () {
+        final result = parseBlobWarnings({
+          'allergens': [
+            {
+              'allergen_id': 'ALLERGEN_BARLEY',
+              'display_name': 'Barley',
+              'presence_type': 'ingredient_list',
+            },
+          ],
+          'warnings': [
+            {
+              'type': 'allergen',
+              'source': 'allergen_db',
+              'severity': 'caution',
+              'title': 'Allergen: Barley',
+              'detail': 'Presence: ingredient_list',
+            },
+          ],
+          'warnings_profile_gated': [
+            {
+              'type': 'allergen',
+              'source': 'allergen_db',
+              'severity': 'caution',
+              'title': 'Allergen: Wheat',
+              'detail': 'Presence: ingredient_list',
+            },
+          ],
+        });
+
+        expect(result, isEmpty);
+      },
+    );
+
+    test(
+      'keeps legacy allergen warnings when structured allergens are absent',
+      () {
+        final result = parseBlobWarnings({
+          'warnings': [
+            {
+              'type': 'allergen',
+              'source': 'allergen_db',
+              'severity': 'caution',
+              'title': 'Allergen: Barley',
+              'detail': 'Presence: ingredient_list',
+            },
+          ],
+        });
+
+        expect(result, hasLength(1));
+        expect(result.single.title, 'Allergen: Barley');
+      },
+    );
+  });
 }

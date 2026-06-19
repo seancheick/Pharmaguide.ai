@@ -549,8 +549,19 @@ String canonicalizeIngredientName(String raw) {
   final collapsed = trimmed.replaceAll(RegExp(r'[\s\-,.;:()\[\]/]+'), '_');
   // Strip any leading/trailing underscores left behind by punctuation
   // at the edges.
-  return collapsed.replaceAll(RegExp(r'^_+|_+$'), '');
+  final canonical = collapsed.replaceAll(RegExp(r'^_+|_+$'), '');
+  return _ingredientCanonicalAliases[canonical] ?? canonical;
 }
+
+const Map<String, String> _ingredientCanonicalAliases = {
+  // DSLD and pipeline blobs use all of these for niacin depending on
+  // source row. The threshold table intentionally keys the clinical
+  // rule once as `niacin`, so aliases must collapse before dose lookup.
+  'vitamin_b_3': 'niacin',
+  'vitamin_b3': 'niacin',
+  'vitamin_b_3_niacin': 'niacin',
+  'vitamin_b3_niacin': 'niacin',
+};
 
 // ════════════════════════════════════════════════════════════════════
 // Positive-profile bullet generator (Path A extension, 2026-04-29)
