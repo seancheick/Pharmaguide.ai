@@ -202,11 +202,30 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
     });
 
     final service = ref.read(rxNormApiServiceProvider);
-    final classesFuture = service.getClasses(item.rxcui ?? '');
-    final genericsFuture = service.resolveGenericRxcuis(item.rxcui ?? '');
-    final classes = await classesFuture;
-    final generics = await genericsFuture;
+    var rxcui = item.rxcui ?? '';
+    var classes = await service.getClasses(rxcui);
+    var generics = await service.resolveGenericRxcuis(rxcui);
     if (!mounted) return;
+
+    // Some brand/dose-form RXCUIs (e.g. 583194 "Metforming") are orphaned
+    // in RxNorm — they return zero classes and zero related IN concepts.
+    // When that happens, extract the base drug name and resolve a fresh
+    // RXCUI so common drugs like metformin never fail hydration.
+    if (classes.isEmpty && generics.isEmpty) {
+      final baseName = _extractBaseDrugName(item.name);
+      if (baseName.isNotEmpty) {
+        final baseRxcui = await service.getRxcui(baseName);
+        if (!mounted) return;
+        if (baseRxcui != null && baseRxcui != rxcui) {
+          rxcui = baseRxcui;
+          final retryClasses = service.getClasses(baseRxcui);
+          final retryGenerics = service.resolveGenericRxcuis(baseRxcui);
+          classes = await retryClasses;
+          generics = await retryGenerics;
+          if (!mounted) return;
+        }
+      }
+    }
 
     final hydrated = item.copyWithMedicationResolution(
       genericRxcui: generics.isNotEmpty ? generics.first : null,
@@ -223,6 +242,18 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
         _resolving2 = false;
       }
     });
+  }
+
+  /// Extract the base drug name from a dose-form display name.
+  /// "metformin Oral Tablet [Metforming]" → "metformin"
+  /// "lisinopril 10 MG Oral Tablet" → "lisinopril"
+  static String _extractBaseDrugName(String displayName) {
+    var name = displayName.trim();
+    // Strip bracketed brand suffix: [Metforming], [Glucophage], etc.
+    name = name.replaceAll(RegExp(r'\s*\[.*?\]\s*'), ' ').trim();
+    // Take the first word (the generic name), stopping at dose or form.
+    final match = RegExp(r'^([a-zA-Z][a-zA-Z\-]+)').firstMatch(name);
+    return match?.group(1)?.toLowerCase() ?? '';
   }
 
   void _clearProduct1() {

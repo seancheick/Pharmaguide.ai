@@ -508,11 +508,7 @@ class _ProductDetailV2ConnectedState
                           userConditions: profile.conditions.toList(
                             growable: false,
                           ),
-                          contextChips: contextChipsFromProfile(
-                            goals: profile.goals,
-                            conditions: profile.conditions,
-                            drugClasses: profile.drugClasses,
-                          ),
+                          contextChips: const [],
                           onEditProfile: () =>
                               context.push(Routes.profileSetup),
                         );
