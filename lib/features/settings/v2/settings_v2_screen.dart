@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/features/settings/v2/beta_feedback_sheet.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -230,15 +231,24 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.support_outlined,
                   title: 'Contact support',
-                  caption: 'support@pharmaguide.io',
+                  caption: kSupportEmail,
                   onTap: () => _openExternal(
                     context,
                     openExternal,
                     Uri(
                       scheme: 'mailto',
-                      path: 'support@pharmaguide.io',
+                      path: kSupportEmail,
                       queryParameters: {'subject': 'PharmaGuide support'},
                     ),
+                  ),
+                ),
+                PGSettingsTile(
+                  icon: Icons.feedback_outlined,
+                  title: 'Send beta feedback',
+                  caption: 'Quick note — no health details',
+                  onTap: () => showBetaFeedbackSheet(
+                    context,
+                    openExternal: openExternal,
                   ),
                 ),
                 PGSettingsTile(

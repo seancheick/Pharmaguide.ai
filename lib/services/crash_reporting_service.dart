@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Crash reporting facade for PharmaGuide (Sentry-backed).
 ///
@@ -95,6 +96,11 @@ class CrashReportingService {
       options.debug = kDebugMode;
       options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
       options.beforeSend = _scrubEvent;
+      // Feedback events (type:'feedback') run beforeSendFeedback when set,
+      // otherwise fall through to beforeSend. Wire it explicitly so the scrub
+      // still applies if beforeSend is ever changed, and so the feedback
+      // contact-field drop in _scrubEvent always runs on this path.
+      options.beforeSendFeedback = _scrubEvent;
       options.beforeBreadcrumb = _scrubBreadcrumb;
     }, appRunner: appRunner);
 
@@ -194,6 +200,94 @@ class CrashReportingService {
     Future<void>.sync(() async {
       await Sentry.configureScope((scope) => scope.setTag('auth_state', state));
     });
+  }
+
+  // ───────── Beta feedback ─────────
+
+  /// Sends structured beta feedback to Sentry as a `type:'feedback'` event.
+  ///
+  /// **PHI rule:** this method accepts ONLY enum inputs and synthesizes the
+  /// message itself, so no free-text/prose can reach Sentry. Users who want to
+  /// add prose are routed to the Settings → Contact-support mailto, which lands
+  /// in our own inbox rather than a third-party processor. The synthesized
+  /// message and tags are PHI-free by construction; `_scrubEvent` (wired as
+  /// `beforeSendFeedback`) drops any contact fields as a backstop.
+  ///
+  /// `auth_state`, `environment`, and `release` already ride on the event from
+  /// the global scope/options, so they are not re-set here.
+  Future<PgFeedbackSubmissionResult> captureBetaFeedback({
+    required PgFeedbackCategory category,
+    required PgFeedbackImpact impact,
+  }) async {
+    final message = _feedbackMessage(category, impact);
+    _breadcrumbBuffer.add(
+      CrashBreadcrumb('beta_feedback: ${category.tag}/${impact.tag}'),
+    );
+    _trimBreadcrumbs();
+    if (kDebugMode) debugPrint('CrashReport: $message');
+    if (!_sentryEnabled) return PgFeedbackSubmissionResult.disabled;
+
+    final tags = buildFeedbackTags(
+      category: category,
+      impact: impact,
+      catalogVersion: await _readCatalogVersion(),
+    );
+    try {
+      await Sentry.captureFeedback(
+        SentryFeedback(message: message),
+        withScope: (scope) => tags.forEach(scope.setTag),
+      );
+      return PgFeedbackSubmissionResult.sent;
+    } on Object catch (error, stackTrace) {
+      recordError(
+        error,
+        stackTrace,
+        fatal: false,
+        hint: 'beta_feedback:capture_failed',
+      );
+      return PgFeedbackSubmissionResult.failed;
+    }
+  }
+
+  static String _feedbackMessage(
+    PgFeedbackCategory category,
+    PgFeedbackImpact impact,
+  ) => 'Beta feedback: ${category.label} / ${impact.label}';
+
+  @visibleForTesting
+  static String feedbackMessageForTest(
+    PgFeedbackCategory category,
+    PgFeedbackImpact impact,
+  ) => _feedbackMessage(category, impact);
+
+  /// Safe, structured tags for a beta-feedback event. Pure and side-effect
+  /// free so it is exhaustively unit-tested: it accepts only enum/version
+  /// inputs, so it cannot carry profile, stack, medication, or free-text data.
+  @visibleForTesting
+  static Map<String, String> buildFeedbackTags({
+    required PgFeedbackCategory category,
+    required PgFeedbackImpact impact,
+    String? catalogVersion,
+  }) {
+    return {
+      'pg.kind': 'beta_feedback',
+      'feedback.category': category.tag,
+      'feedback.impact': impact.tag,
+      if (catalogVersion != null && catalogVersion.isNotEmpty)
+        'pg.catalog_version': catalogVersion,
+    };
+  }
+
+  /// Reads the active OTA catalog version for the `pg.catalog_version` tag.
+  /// Mirrors main.dart's `_kCatalogVersionPrefKey`.
+  // ponytail: one duplicated prefs-key literal; not worth a shared module.
+  Future<String?> _readCatalogVersion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('activeCatalogVersion');
+    } on Object catch (_) {
+      return null;
+    }
   }
 
   void log(String message) {
@@ -383,6 +477,15 @@ class CrashReportingService {
         headers: const {},
       );
     }
+    // Feedback events: defense in depth. captureBetaFeedback only sends a
+    // synthesized, PHI-free message and never sets contact fields — but if a
+    // future caller populates them, drop the PII-shaped fields here. The
+    // message is kept: it's the category/impact summary, which is the signal.
+    final feedback = event.contexts.feedback;
+    if (feedback != null) {
+      feedback.contactEmail = null;
+      feedback.name = null;
+    }
     return event;
   }
 
@@ -426,4 +529,48 @@ class RecordedCrashError {
     final hintPart = hint != null ? ' [$hint]' : '';
     return '[$at] ${fatal ? "FATAL" : "non-fatal"}$hintPart $summary\n$stackTrace';
   }
+}
+
+/// Beta-feedback category. `tag` is the safe, stable value sent to Sentry as
+/// `feedback.category`; `label` is the user-facing string (also used in the
+/// synthesized event message). Both are PHI-free.
+enum PgFeedbackCategory {
+  bug('bug', 'Bug'),
+  confusingResult('confusing_result', 'Confusing result'),
+  wrongProductData('wrong_product_data', 'Wrong product data'),
+  missingProduct('missing_product', 'Missing product'),
+  featureRequest('feature_request', 'Feature request'),
+  other('other', 'Other');
+
+  const PgFeedbackCategory(this.tag, this.label);
+
+  /// Safe enum value sent to Sentry.
+  final String tag;
+
+  /// User-facing label.
+  final String label;
+}
+
+/// How much the issue affects the user. `tag` → Sentry, `label` → UI.
+enum PgFeedbackImpact {
+  blocksMe('blocks_me', 'Blocks me'),
+  frustrating('frustrating', 'Frustrating'),
+  minor('minor', 'Minor');
+
+  const PgFeedbackImpact(this.tag, this.label);
+
+  final String tag;
+  final String label;
+}
+
+/// Result of a structured beta-feedback submission attempt.
+enum PgFeedbackSubmissionResult {
+  /// Sentry accepted the synthesized feedback event.
+  sent,
+
+  /// Sentry is not enabled for this build/session; no event was sent.
+  disabled,
+
+  /// Sentry was enabled, but capture threw.
+  failed,
 }
