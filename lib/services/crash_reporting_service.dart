@@ -215,7 +215,7 @@ class CrashReportingService {
   ///
   /// `auth_state`, `environment`, and `release` already ride on the event from
   /// the global scope/options, so they are not re-set here.
-  Future<void> captureBetaFeedback({
+  Future<PgFeedbackSubmissionResult> captureBetaFeedback({
     required PgFeedbackCategory category,
     required PgFeedbackImpact impact,
   }) async {
@@ -225,17 +225,28 @@ class CrashReportingService {
     );
     _trimBreadcrumbs();
     if (kDebugMode) debugPrint('CrashReport: $message');
-    if (!_sentryEnabled) return;
+    if (!_sentryEnabled) return PgFeedbackSubmissionResult.disabled;
 
     final tags = buildFeedbackTags(
       category: category,
       impact: impact,
       catalogVersion: await _readCatalogVersion(),
     );
-    await Sentry.captureFeedback(
-      SentryFeedback(message: message),
-      withScope: (scope) => tags.forEach(scope.setTag),
-    );
+    try {
+      await Sentry.captureFeedback(
+        SentryFeedback(message: message),
+        withScope: (scope) => tags.forEach(scope.setTag),
+      );
+      return PgFeedbackSubmissionResult.sent;
+    } on Object catch (error, stackTrace) {
+      recordError(
+        error,
+        stackTrace,
+        fatal: false,
+        hint: 'beta_feedback:capture_failed',
+      );
+      return PgFeedbackSubmissionResult.failed;
+    }
   }
 
   static String _feedbackMessage(
@@ -550,4 +561,16 @@ enum PgFeedbackImpact {
 
   final String tag;
   final String label;
+}
+
+/// Result of a structured beta-feedback submission attempt.
+enum PgFeedbackSubmissionResult {
+  /// Sentry accepted the synthesized feedback event.
+  sent,
+
+  /// Sentry is not enabled for this build/session; no event was sent.
+  disabled,
+
+  /// Sentry was enabled, but capture threw.
+  failed,
 }

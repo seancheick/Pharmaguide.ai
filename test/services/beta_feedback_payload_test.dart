@@ -68,27 +68,45 @@ void main() {
       expect(msg, 'Beta feedback: Wrong product data / Blocks me');
     });
 
-    test('_scrubEvent drops contact fields on a feedback event, keeps message',
-        () {
-      final event = SentryEvent(
-        type: 'feedback',
-        contexts: Contexts(
-          feedback: SentryFeedback(
-            message: 'Beta feedback: Bug / Minor',
-            contactEmail: 'leak@example.com',
-            name: 'Jane Doe',
+    test(
+      'captureBetaFeedback reports disabled when Sentry is not enabled',
+      () async {
+        final result = await CrashReportingService().captureBetaFeedback(
+          category: PgFeedbackCategory.bug,
+          impact: PgFeedbackImpact.minor,
+        );
+
+        expect(result, PgFeedbackSubmissionResult.disabled);
+      },
+    );
+
+    test(
+      '_scrubEvent drops contact fields on a feedback event, keeps message',
+      () {
+        final event = SentryEvent(
+          type: 'feedback',
+          contexts: Contexts(
+            feedback: SentryFeedback(
+              message: 'Beta feedback: Bug / Minor',
+              contactEmail: 'leak@example.com',
+              name: 'Jane Doe',
+            ),
           ),
-        ),
-        level: SentryLevel.info,
-      );
+          level: SentryLevel.info,
+        );
 
-      final scrubbed = CrashReportingService.scrubEventForTest(event, Hint());
+        final scrubbed = CrashReportingService.scrubEventForTest(event, Hint());
 
-      expect(scrubbed, isNotNull);
-      final fb = scrubbed!.contexts.feedback!;
-      expect(fb.contactEmail, isNull, reason: 'contact email must be dropped');
-      expect(fb.name, isNull, reason: 'name must be dropped');
-      expect(fb.message, 'Beta feedback: Bug / Minor');
-    });
+        expect(scrubbed, isNotNull);
+        final fb = scrubbed!.contexts.feedback!;
+        expect(
+          fb.contactEmail,
+          isNull,
+          reason: 'contact email must be dropped',
+        );
+        expect(fb.name, isNull, reason: 'name must be dropped');
+        expect(fb.message, 'Beta feedback: Bug / Minor');
+      },
+    );
   });
 }

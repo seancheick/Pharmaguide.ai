@@ -246,8 +246,10 @@ class SettingsV2Screen extends StatelessWidget {
                   icon: Icons.feedback_outlined,
                   title: 'Send beta feedback',
                   caption: 'Quick note — no health details',
-                  onTap: () =>
-                      showBetaFeedbackSheet(context, openExternal: openExternal),
+                  onTap: () => showBetaFeedbackSheet(
+                    context,
+                    openExternal: openExternal,
+                  ),
                 ),
                 PGSettingsTile(
                   icon: Icons.star_outline_rounded,

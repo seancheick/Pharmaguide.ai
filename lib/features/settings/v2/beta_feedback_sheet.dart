@@ -24,11 +24,23 @@ Future<void> showBetaFeedbackSheet(
   );
 }
 
+typedef SubmitBetaFeedback =
+    Future<PgFeedbackSubmissionResult> Function({
+      required PgFeedbackCategory category,
+      required PgFeedbackImpact impact,
+    });
+
 @visibleForTesting
 class BetaFeedbackSheet extends StatefulWidget {
   final Future<bool> Function(Uri uri) openExternal;
+  final SubmitBetaFeedback submitFeedback;
 
-  const BetaFeedbackSheet({super.key, required this.openExternal});
+  BetaFeedbackSheet({
+    super.key,
+    required this.openExternal,
+    SubmitBetaFeedback? submitFeedback,
+  }) : submitFeedback =
+           submitFeedback ?? CrashReportingService().captureBetaFeedback;
 
   @override
   State<BetaFeedbackSheet> createState() => _BetaFeedbackSheetState();
@@ -49,19 +61,36 @@ class _BetaFeedbackSheetState extends State<BetaFeedbackSheet> {
     setState(() => _sending = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    await CrashReportingService().captureBetaFeedback(
+    final result = await widget.submitFeedback(
       category: category,
       impact: impact,
     );
     if (!mounted) return;
-    navigator.pop();
+    if (result == PgFeedbackSubmissionResult.sent) {
+      navigator.pop();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Thanks — your feedback was sent.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+
+    setState(() => _sending = false);
+    final message = switch (result) {
+      PgFeedbackSubmissionResult.disabled =>
+        'Feedback is not enabled in this build. Add detail by email instead.',
+      PgFeedbackSubmissionResult.failed =>
+        'Could not send feedback. Add detail by email instead.',
+      PgFeedbackSubmissionResult.sent => 'Thanks — your feedback was sent.',
+    };
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('Thanks — your feedback was sent.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
 
