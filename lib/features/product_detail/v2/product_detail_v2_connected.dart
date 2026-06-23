@@ -318,9 +318,11 @@ class _ProductDetailV2ConnectedState
     // Blob-derived flags + ingredient doses (used by adapters in 11.7c+)
     // -------------------------------------------------------------
     final ingredientDoses = extractIngredientDoses(detailBlob);
-    final canonicalIds = _product == null
+    // Research evidence routes through delivered markers too (e.g. turmeric ->
+    // curcumin), unlike the interaction/safety path which stays source-only.
+    final researchCanonicalIds = _product == null
         ? const <String>[]
-        : canonicalIdsForProduct(_product!, detailBlob: detailBlob);
+        : researchCanonicalIdsForProduct(_product!, detailBlob: detailBlob);
     final blendDetail = _blobMap(detailBlob, 'proprietary_blend_detail');
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
 
@@ -725,11 +727,11 @@ class _ProductDetailV2ConnectedState
                   // ---- 11.1 Tier 2 research evidence (Sprint 28) ---
                   // Neutral literature co-occurrence surface. These rows
                   // never become warnings or score penalties.
-                  if (showDeepDive && canonicalIds.isNotEmpty) ...[
+                  if (showDeepDive && researchCanonicalIds.isNotEmpty) ...[
                     KeyedSubtree(
                       key: _anchors.researchKey,
                       child: ResearchEvidenceSection(
-                        canonicalIds: canonicalIds,
+                        canonicalIds: researchCanonicalIds,
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
