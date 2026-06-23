@@ -114,6 +114,40 @@ List<String> canonicalIdsFromDetailBlob(Map<String, dynamic>? detailBlob) {
   return ids.toList(growable: false);
 }
 
+/// Marker canonical IDs that a product's active ingredients *deliver* — the
+/// pipeline's `delivers_markers` payload (e.g. a turmeric source ingredient
+/// delivers the `curcumin` marker). Each entry carries `marker_canonical_id`.
+///
+/// EVIDENCE ROUTING ONLY. Markers bridge a source botanical to the bioactive
+/// compound that research pairs are keyed on, but are deliberately kept OUT of
+/// the interaction/safety path so a trace botanical cannot manufacture a
+/// marker-keyed warning. Consumed via [researchCanonicalIdsForProduct].
+List<String> markerCanonicalIdsFromDetailBlob(Map<String, dynamic>? detailBlob) {
+  if (detailBlob == null) return const <String>[];
+  final ids = <String>{};
+
+  void scanIngredients(Object? rawIngredients) {
+    if (rawIngredients is! List) return;
+    for (final item in rawIngredients) {
+      if (item is! Map) continue;
+      final markers = item['delivers_markers'];
+      if (markers is! List) continue;
+      for (final marker in markers) {
+        if (marker is Map) _addCanonicalId(ids, marker['marker_canonical_id']);
+      }
+    }
+  }
+
+  scanIngredients(detailBlob['ingredients']);
+
+  final ingredientQualityData = detailBlob['ingredient_quality_data'];
+  if (ingredientQualityData is Map) {
+    scanIngredients(ingredientQualityData['ingredients']);
+  }
+
+  return ids.toList(growable: false);
+}
+
 /// Canonical IDs available from a product row plus, when present, its detail blob.
 ///
 /// Product-row sources are intentionally ordered first because Quick Check must
@@ -127,4 +161,22 @@ List<String> canonicalIdsForProduct(
   ids.addAll(canonicalIdsFromJsonString(product.ingredientFingerprint));
   ids.addAll(canonicalIdsFromDetailBlob(detailBlob));
   return ids.toList(growable: false);
+}
+
+/// Canonical IDs for **research/evidence routing** on the product-detail
+/// surface: everything from [canonicalIdsForProduct] plus the bioactive markers
+/// the actives deliver ([markerCanonicalIdsFromDetailBlob]).
+///
+/// Markers widen evidence reach (a turmeric product also surfaces curcumin
+/// research) without touching the interaction/safety path, which keeps using
+/// [canonicalIdsForProduct] (source ids only). `delivers_markers` lives in the
+/// online detail blob, so this collapses to source ids offline.
+List<String> researchCanonicalIdsForProduct(
+  ProductsCoreData product, {
+  Map<String, dynamic>? detailBlob,
+}) {
+  return <String>{
+    ...canonicalIdsForProduct(product, detailBlob: detailBlob),
+    ...markerCanonicalIdsFromDetailBlob(detailBlob),
+  }.toList(growable: false);
 }
