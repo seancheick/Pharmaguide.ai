@@ -9,5 +9,6 @@ import 'package:flutter/widgets.dart';
 /// operation requested with a context that does not include a
 /// Navigator." Resolving through this key always yields a live context
 /// under the root navigator.
-final GlobalKey<NavigatorState> rootNavigatorKey =
-    GlobalKey<NavigatorState>(debugLabel: 'pg-root-navigator');
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'pg-root-navigator',
+);
