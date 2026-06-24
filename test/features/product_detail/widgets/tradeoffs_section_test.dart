@@ -87,6 +87,39 @@ void main() {
       );
     });
 
+    testWidgets('dedupes vitamin form and nutrient UL considerations', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rdaUlData: {
+          'safety_flags': [
+            {
+              'nutrient': 'Vitamin D3',
+              'amount': 125,
+              'unit': 'mcg',
+              'ul': 100,
+              'pct_ul': 125,
+              'warning': 'Exceeds UL by 25 mcg',
+            },
+          ],
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Vitamin D',
+              'skip_ul_check': false,
+              'quantity': 125,
+              'unit': 'mcg',
+              'highest_ul': 100,
+              'warnings': ['Exceeds UL by 25 mcg'],
+            },
+          ],
+        },
+      );
+
+      expect(find.text('Vitamin D3 exceeds the upper limit'), findsOneWidget);
+      expect(find.text('Vitamin D exceeds the upper limit'), findsNothing);
+    });
+
     testWidgets('4 concerns render fully with no toggle', (tester) async {
       await _pump(
         tester,

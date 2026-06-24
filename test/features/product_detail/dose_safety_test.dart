@@ -319,6 +319,46 @@ void main() {
       expect(extractUlExceedances(ulAnalysis), isEmpty);
     });
 
+    test('dedupes vitamin form and nutrient warning rows', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin D3',
+          'skip_ul_check': false,
+          'warnings': ['Exceeds UL by 25 mcg'],
+        },
+        {
+          'standard_name': 'Vitamin D',
+          'skip_ul_check': false,
+          'warnings': ['Exceeds UL by 25 mcg'],
+        },
+      ];
+
+      final out = extractUlExceedances(ulAnalysis);
+
+      expect(out, hasLength(1));
+      expect(out.single.standardName, 'Vitamin D3');
+    });
+
+    test('dedupe ignores duplicate rows without warning payload', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Vitamin D3',
+          'skip_ul_check': false,
+          'warnings': <String>[],
+        },
+        {
+          'standard_name': 'Vitamin D',
+          'skip_ul_check': false,
+          'warnings': ['Exceeds UL by 25 mcg'],
+        },
+      ];
+
+      final out = extractUlExceedances(ulAnalysis);
+
+      expect(out, hasLength(1));
+      expect(out.single.standardName, 'Vitamin D');
+    });
+
     test('emits one UlExceedance per warning when multiple exist', () {
       final ulAnalysis = <Map<String, dynamic>>[
         {
@@ -381,6 +421,16 @@ void main() {
       final match = matchUlEntry(ingredient, ulAnalysis);
       expect(match, isNotNull);
       expect(match!['quantity'], 2000);
+    });
+
+    test('matches vitamin D forms to canonical nutrient rows', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Vitamin D3'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {'standard_name': 'Vitamin D', 'quantity': 125},
+      ];
+      final match = matchUlEntry(ingredient, ulAnalysis);
+      expect(match, isNotNull);
+      expect(match!['quantity'], 125);
     });
 
     test('returns null when no match', () {

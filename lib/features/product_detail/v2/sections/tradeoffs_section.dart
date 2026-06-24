@@ -137,7 +137,16 @@ bool _alreadyHasUlConsideration(List<PGTradeoff> existing, String nutrientKey) {
   return false;
 }
 
-String _ulKey(String nutrient) => nutrient.trim().toLowerCase();
+String _ulKey(String nutrient) {
+  final normalized = nutrient.trim().toLowerCase();
+  final compact = normalized.replaceAll(RegExp(r'[^a-z0-9]+'), ' ');
+  if (RegExp(
+    r'\b(vitamin d2|vitamin d3|vitamin d|cholecalciferol|ergocalciferol)\b',
+  ).hasMatch(compact)) {
+    return 'vitamin d';
+  }
+  return compact.trim();
+}
 
 String? _formatUlCaption({
   required double? amount,

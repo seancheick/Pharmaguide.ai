@@ -220,9 +220,14 @@ class _BlendHeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasTotal = blend.totalAmount != null && blend.unit.isNotEmpty;
-    final totalLabel = hasTotal
-        ? '${blend.totalAmount} ${blend.unit}'
-        : 'Amount not disclosed';
+    final childCount = blend.childCount;
+    final countLabel = childCount > 0
+        ? '$childCount ${childCount == 1 ? 'ingredient' : 'ingredients'}'
+        : null;
+    final amountLabel = hasTotal ? '${blend.totalAmount} ${blend.unit}' : null;
+    final totalLabel = amountLabel != null && countLabel != null
+        ? '$amountLabel · $countLabel'
+        : amountLabel ?? countLabel ?? 'Amount not disclosed';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
@@ -242,6 +247,8 @@ class _BlendHeaderRow extends StatelessWidget {
           Text(
             totalLabel,
             style: V2Typography.monoData(color: V2Colors.fgMuted),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

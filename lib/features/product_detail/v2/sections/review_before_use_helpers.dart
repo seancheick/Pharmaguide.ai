@@ -188,6 +188,69 @@ PGReviewRow rowForAllergen(MatchedAllergen match) {
   );
 }
 
+/// Group allergen rows by presence type so labels like Wheat + Barley render as
+/// one user-facing source line instead of two repeated warnings.
+List<PGReviewRow> rowsForAllergens(List<MatchedAllergen> matches) {
+  if (matches.isEmpty) return const [];
+  final groups = <String, List<MatchedAllergen>>{};
+  for (final match in matches) {
+    groups
+        .putIfAbsent(match.presenceType, () => <MatchedAllergen>[])
+        .add(match);
+  }
+
+  final rows = <PGReviewRow>[];
+  for (final presenceType in const [
+    'contains',
+    'may_contain',
+    'manufactured_in_facility',
+  ]) {
+    final group = groups.remove(presenceType);
+    if (group == null || group.isEmpty) continue;
+    rows.add(_rowForAllergenGroup(presenceType, group));
+  }
+  for (final entry in groups.entries) {
+    rows.add(_rowForAllergenGroup(entry.key, entry.value));
+  }
+  return rows;
+}
+
+PGReviewRow _rowForAllergenGroup(
+  String presenceType,
+  List<MatchedAllergen> group,
+) {
+  if (group.length == 1) return rowForAllergen(group.single);
+  final names = <String>[];
+  final seenNames = <String>{};
+  final evidence = <String>[];
+  final seenEvidence = <String>{};
+  var hasSevere = false;
+
+  for (final match in group) {
+    final name = match.displayName.trim();
+    final nameKey = name.toLowerCase();
+    if (name.isNotEmpty && seenNames.add(nameKey)) names.add(name);
+    if (match.presenceType == 'contains' && match.severityLevel == 'high') {
+      hasSevere = true;
+    }
+    final ev = match.evidence?.trim();
+    if (ev != null && ev.isNotEmpty && seenEvidence.add(ev.toLowerCase())) {
+      evidence.add('"$ev"');
+    }
+  }
+
+  final captionParts = <String>[
+    _allergenTag(presenceType),
+    if (hasSevere) 'severe',
+    ...evidence,
+  ];
+  return PGReviewRow(
+    headline: 'Allergen: ${names.join(', ')}',
+    caption: captionParts.join(' · '),
+    rowTone: toneForAllergen(presenceType),
+  );
+}
+
 /// Build a PGReviewRow for a free-from claim. `notClaimed` rows are
 /// already filtered upstream (matches production line 134); this helper
 /// handles `certified` and `unknown` only.

@@ -53,11 +53,18 @@ class BlendGroup {
   /// list — renderer can pass it directly to its tile widget.
   final List<Map<String, dynamic>> children;
 
+  /// Number of child ingredients listed in the blend disclosure. This
+  /// can be greater than [children.length] when the active list uses the
+  /// strict scoring contract and blend members are no longer exported as
+  /// primary active rows.
+  final int childCount;
+
   const BlendGroup({
     required this.name,
     required this.totalAmount,
     required this.unit,
     required this.children,
+    this.childCount = 0,
   });
 }
 
@@ -78,7 +85,7 @@ class GroupedActives {
     required this.looseUndisclosed,
   });
 
-  /// True iff there's at least one blend with rendered children.
+  /// True iff there's at least one blend bucket or disclosure summary.
   /// When false, the renderer can fall through to flat rendering for
   /// back-compat / lighter widget trees.
   bool get hasBlends => blends.isNotEmpty;
@@ -159,6 +166,7 @@ GroupedActives groupActivesByBlend({
     blendsRaw.length,
     (_) => <Map<String, dynamic>>[],
   );
+  final activeIngredientKeys = <(String, bool)>{};
   final loose = <Map<String, dynamic>>[];
 
   for (final ing in ingredients) {
@@ -171,6 +179,9 @@ GroupedActives groupActivesByBlend({
 
     final qty = ing['quantity'];
     final isDisclosed = qty is num && qty > 0;
+    if (canonical.isNotEmpty) {
+      activeIngredientKeys.add((canonical, isDisclosed));
+    }
 
     final blendIdx = canonical.isEmpty
         ? null
@@ -183,12 +194,19 @@ GroupedActives groupActivesByBlend({
     }
   }
 
-  // Materialize blend groups, dropping blends with no matched children.
+  // Materialize blend groups. When a blend has disclosed children but
+  // none are present in `ingredients`, keep a summary row so strict
+  // primary-active exports do not hide blend disclosure.
   final blends = <BlendGroup>[];
   for (var i = 0; i < blendsRaw.length; i++) {
     final children = blendBuckets[i];
-    if (children.isEmpty) continue;
     final blend = blendsRaw[i];
+    final rawChildCount = _blendChildCount(blend);
+    if (children.isEmpty &&
+        (rawChildCount == 0 ||
+            _blendHasAnyPresentChild(blend, activeIngredientKeys))) {
+      continue;
+    }
     blends.add(
       BlendGroup(
         name: blend['name']?.toString() ?? 'Proprietary Blend',
@@ -197,6 +215,7 @@ GroupedActives groupActivesByBlend({
             : null,
         unit: blend['unit']?.toString() ?? '',
         children: children,
+        childCount: rawChildCount > 0 ? rawChildCount : children.length,
       ),
     );
   }
@@ -206,6 +225,37 @@ GroupedActives groupActivesByBlend({
     blends: blends,
     looseUndisclosed: _undisclosed(loose),
   );
+}
+
+int _blendChildCount(Map<String, dynamic> blend) {
+  final children = blend['child_ingredients'];
+  if (children is! List) return 0;
+  var count = 0;
+  for (final child in children) {
+    if (child is! Map) continue;
+    final name = child['name']?.toString().trim() ?? '';
+    if (name.isNotEmpty) count++;
+  }
+  return count;
+}
+
+bool _blendHasAnyPresentChild(
+  Map<String, dynamic> blend,
+  Set<(String, bool)> activeIngredientKeys,
+) {
+  final children = blend['child_ingredients'];
+  if (children is! List) return false;
+  for (final child in children) {
+    if (child is! Map) continue;
+    final name = child['name']?.toString().trim() ?? '';
+    if (name.isEmpty) continue;
+    final canonical = canonicalizeIngredientName(name);
+    if (canonical.isEmpty) continue;
+    final amount = child['amount'];
+    final hasAmount = amount is num && amount > 0;
+    if (activeIngredientKeys.contains((canonical, hasAmount))) return true;
+  }
+  return false;
 }
 
 List<Map<String, dynamic>> _disclosed(List<Map<String, dynamic>> ings) {

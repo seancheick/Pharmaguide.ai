@@ -82,9 +82,11 @@ void main() {
       },
     );
 
-    test('blend with no matched children is dropped from result', () {
-      // Pipeline emits a blend but none of its children appear in the
-      // active list — silently drop it (no empty header).
+    test('blend with no matched children renders a disclosure summary', () {
+      // New scoring/export contract emits only primary actives in
+      // detail_blob.ingredients, while blend children stay available
+      // in proprietary_blend_detail.blends[]. Keep the blend visible
+      // as a compact disclosure summary instead of hiding it.
       final result = groupActivesByBlend(
         ingredients: const [
           {'name': 'Vitamin C', 'quantity': 500, 'unit': 'mg'},
@@ -100,8 +102,11 @@ void main() {
           },
         ],
       );
-      expect(result.hasBlends, isFalse);
-      expect(result.blends, isEmpty);
+      expect(result.hasBlends, isTrue);
+      expect(result.blends, hasLength(1));
+      expect(result.blends.first.name, 'Phantom Blend');
+      expect(result.blends.first.children, isEmpty);
+      expect(result.blends.first.childCount, 1);
       expect(result.looseDisclosed, hasLength(1));
     });
 
@@ -237,7 +242,10 @@ void main() {
           },
         ],
       );
-      expect(result.blends, isEmpty);
+      expect(result.blends, hasLength(1));
+      expect(result.blends.first.name, 'Some Blend');
+      expect(result.blends.first.children, isEmpty);
+      expect(result.blends.first.childCount, 1);
       // Nameless entry falls into loose-disclosed (has quantity).
       expect(result.looseDisclosed, hasLength(2));
     });

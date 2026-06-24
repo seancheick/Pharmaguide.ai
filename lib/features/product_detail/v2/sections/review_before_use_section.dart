@@ -139,6 +139,7 @@ class ReviewBeforeUseSection extends ConsumerWidget {
     // no allergens. hasInteractionContext intentionally excluded — context
     // alone never qualifies for the affirmative tone.
     final hasOnlyAffirmatives = !hasWarnings && !hasAllergens;
+    final allergenRows = rowsForAllergens(matchedAllergens);
 
     final tone = computeReviewTone(
       warnings: warnings,
@@ -160,7 +161,7 @@ class ReviewBeforeUseSection extends ConsumerWidget {
               : 'Allergen check')
         : 'Review before use';
 
-    final rowCount = warnings.length + matchedAllergens.length;
+    final rowCount = warnings.length + allergenRows.length;
     String? body;
     if (rowCount > 0) {
       body = countCopy(rowCount);
@@ -180,9 +181,7 @@ class ReviewBeforeUseSection extends ConsumerWidget {
     // Build rows: allergens first (concrete personal facts), warnings
     // sorted by severity desc, then free-from rows.
     final rows = <PGReviewRow>[];
-    for (final m in matchedAllergens) {
-      rows.add(rowForAllergen(m));
-    }
+    rows.addAll(allergenRows);
     for (final w in sortWarningsBySeverity(warnings)) {
       rows.add(
         rowForWarning(

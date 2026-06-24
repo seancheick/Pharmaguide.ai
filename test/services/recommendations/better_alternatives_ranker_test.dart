@@ -790,6 +790,59 @@ void main() {
   });
 
   // ===========================================================================
+  // Near-duplicate suppression
+  // ===========================================================================
+
+  group('Near-duplicate suppression', () {
+    test('keeps best same-brand same-product variant before taking top N', () {
+      final cur = _product(
+        dsldId: '336897',
+        name: 'Vitamin D3 + K2',
+        brand: "Paradise Earth's Blend",
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 56.5,
+        keyIngredientTags: '["vitamin_d","vitamin_k"]',
+      );
+      final lowerDuplicate = _product(
+        dsldId: 'dup-lower',
+        name: 'Vitamin D3 + K2',
+        brand: 'Thorne',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 71,
+        keyIngredientTags: '["vitamin_d","vitamin_k"]',
+      );
+      final bestDuplicate = _product(
+        dsldId: 'dup-best',
+        name: 'Vitamin D3 + K2 1000 IU',
+        brand: 'Thorne',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 74,
+        keyIngredientTags: '["vitamin_d","vitamin_k"]',
+      );
+      final distinctProduct = _product(
+        dsldId: 'distinct',
+        name: 'Vitamin D + K2 Drops',
+        brand: 'Pure Encapsulations',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 70,
+        keyIngredientTags: '["vitamin_d","vitamin_k"]',
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [lowerDuplicate, distinctProduct, bestDuplicate],
+        limit: 3,
+      );
+
+      expect(result.map((p) => p.dsldId), equals(['dup-best', 'distinct']));
+    });
+  });
+
+  // ===========================================================================
   // Limit + empty pool
   // ===========================================================================
 
@@ -818,6 +871,29 @@ void main() {
         limit: 3,
       );
       expect(result, hasLength(3));
+    });
+
+    test('zero limit returns empty result', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'M',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 20,
+      );
+      final candidate = _product(
+        dsldId: 'alt',
+        name: 'Alt',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 30,
+      );
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [candidate],
+        limit: 0,
+      );
+      expect(result, isEmpty);
     });
 
     test('empty pool → empty result', () {

@@ -109,7 +109,7 @@ Map<String, dynamic>? matchUlEntry(
 String? _normalizedName(Object? raw) {
   if (raw == null) return null;
   final s = raw.toString().trim().toLowerCase();
-  return s.isEmpty ? null : s;
+  return s.isEmpty ? null : _ulNutrientKey(s);
 }
 
 /// A single per-ingredient UL exceedance surfaced by the pipeline's
@@ -134,6 +134,7 @@ List<UlExceedance> extractUlExceedances(
 ) {
   if (ulAnalysis == null || ulAnalysis.isEmpty) return const [];
   final out = <UlExceedance>[];
+  final seenNutrients = <String>{};
   for (final entry in ulAnalysis) {
     if (entry['skip_ul_check'] == true) continue;
     final rawName = entry['standard_name'] ?? entry['ingredient'];
@@ -141,13 +142,30 @@ List<UlExceedance> extractUlExceedances(
     if (name == null || name.isEmpty) continue;
     final warnings = entry['warnings'];
     if (warnings is! List) continue;
+    final messages = <String>[];
     for (final w in warnings) {
       final msg = w?.toString().trim() ?? '';
       if (msg.isEmpty) continue;
+      messages.add(msg);
+    }
+    if (messages.isEmpty) continue;
+    if (!seenNutrients.add(_ulNutrientKey(name))) continue;
+    for (final msg in messages) {
       out.add(UlExceedance(standardName: name, warning: msg));
     }
   }
   return out;
+}
+
+String _ulNutrientKey(String name) {
+  final normalized = name.trim().toLowerCase();
+  final compact = normalized.replaceAll(RegExp(r'[^a-z0-9]+'), ' ');
+  if (RegExp(
+    r'\b(vitamin d2|vitamin d3|vitamin d|cholecalciferol|ergocalciferol)\b',
+  ).hasMatch(compact)) {
+    return 'vitamin d';
+  }
+  return compact.trim();
 }
 
 double? _asDouble(dynamic v) {

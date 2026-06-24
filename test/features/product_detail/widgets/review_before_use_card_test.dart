@@ -38,12 +38,14 @@ MatchedAllergen _allergen({
   String displayName = 'Soy',
   String presenceType = 'contains',
   String severityLevel = 'moderate',
+  String? evidence,
 }) {
   return MatchedAllergen(
     id: id,
     displayName: displayName,
     presenceType: presenceType,
     severityLevel: severityLevel,
+    evidence: evidence,
   );
 }
 
@@ -253,6 +255,33 @@ void main() {
 
       expect(find.text('Peanuts'), findsOneWidget);
       expect(find.textContaining('severe'), findsOneWidget);
+    });
+
+    testWidgets('groups multiple contains allergens into one row', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        matchedAllergens: [
+          _allergen(
+            displayName: 'Wheat',
+            presenceType: 'contains',
+            evidence: 'Contains: Wheat',
+          ),
+          _allergen(
+            displayName: 'Barley',
+            presenceType: 'contains',
+            evidence: 'Contains: Barley',
+          ),
+        ],
+        profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 thing to review before use'), findsOneWidget);
+      expect(find.text('Allergen: Wheat, Barley'), findsOneWidget);
+      expect(find.text('Wheat'), findsNothing);
+      expect(find.text('Barley'), findsNothing);
     });
   });
 

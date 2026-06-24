@@ -196,6 +196,72 @@ String? evidenceHeadline(List<Map<String, dynamic>> matches) {
   return '$base.';
 }
 
+/// Ingredient-level attribution for the strongest human evidence signal.
+///
+/// The section's badge remains aggregate, but this line prevents a user from
+/// seeing "STRONG · N studies" without knowing which ingredient earned that
+/// signal. Study counts here are ingredient-specific and PMID-deduped.
+String? evidenceAttributionHeadline(List<Map<String, dynamic>> matches) {
+  if (evidenceHasBrandedRct(matches)) return null;
+
+  final byIngredient = <String, List<Map<String, dynamic>>>{};
+  final labels = <String, String>{};
+  final order = <String, int>{};
+  final deduped = dedupeClinicalMatches(matches);
+
+  for (var i = 0; i < deduped.length; i++) {
+    final match = deduped[i];
+    if (!_isHumanLevel(match)) continue;
+
+    final label = _ingredientLabel(match);
+    if (label.isEmpty) continue;
+
+    final key = label.toLowerCase();
+    byIngredient.putIfAbsent(key, () => <Map<String, dynamic>>[]).add(match);
+    labels.putIfAbsent(key, () => label);
+    order.putIfAbsent(key, () => i);
+  }
+
+  _IngredientEvidenceAttribution? best;
+  for (final entry in byIngredient.entries) {
+    final tier = evidenceTier(entry.value);
+    final attribution = _IngredientEvidenceAttribution(
+      label: labels[entry.key] ?? entry.key,
+      tier: tier,
+      studies: evidenceTotalStudies(entry.value),
+      enrollment: evidenceTotalEnrollment(entry.value),
+      originalOrder: order[entry.key] ?? 0,
+    );
+    if (best == null || attribution.isStrongerThan(best)) {
+      best = attribution;
+    }
+  }
+
+  if (best == null) return null;
+
+  final tierLabel = switch (best.tier) {
+    EvidenceTier.strong => 'strong',
+    EvidenceTier.moderate => 'moderate',
+    EvidenceTier.limited => 'limited',
+  };
+  if (best.studies > 0) {
+    final base =
+        '${best.label}: $tierLabel support · ${best.studies} '
+        'human ${best.studies == 1 ? 'study' : 'studies'}';
+    if (best.enrollment > 0) {
+      return '$base · ~${best.enrollment} participants';
+    }
+    return base;
+  }
+  return '${best.label}: $tierLabel support';
+}
+
+String _ingredientLabel(Map<String, dynamic> match) {
+  final ingredient = match['ingredient']?.toString().trim() ?? '';
+  if (ingredient.isNotEmpty) return ingredient;
+  return match['standard_name']?.toString().trim() ?? '';
+}
+
 /// Build the citation rows from `references_structured`, deduped by
 /// PMID across matches, using the real paper title when present.
 List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
@@ -251,7 +317,9 @@ Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
     tier: _toPGEvidenceTier(productionTier),
     totalStudies: totalStudies,
     hasMetaAnalysis: hasMeta,
-    subtitle: evidenceHeadline(clinicalMatches),
+    subtitle:
+        evidenceAttributionHeadline(clinicalMatches) ??
+        evidenceHeadline(clinicalMatches),
     citations: citations.take(_maxCitations).toList(growable: false),
     footnote: 'This research feeds the Evidence pillar in the score above.',
   );
@@ -265,5 +333,37 @@ PGEvidenceTier _toPGEvidenceTier(EvidenceTier tier) {
       return PGEvidenceTier.moderate;
     case EvidenceTier.limited:
       return PGEvidenceTier.limited;
+  }
+}
+
+class _IngredientEvidenceAttribution {
+  final String label;
+  final EvidenceTier tier;
+  final int studies;
+  final int enrollment;
+  final int originalOrder;
+
+  const _IngredientEvidenceAttribution({
+    required this.label,
+    required this.tier,
+    required this.studies,
+    required this.enrollment,
+    required this.originalOrder,
+  });
+
+  bool isStrongerThan(_IngredientEvidenceAttribution other) {
+    final tierCmp = _tierRank(tier).compareTo(_tierRank(other.tier));
+    if (tierCmp != 0) return tierCmp > 0;
+    final studiesCmp = studies.compareTo(other.studies);
+    if (studiesCmp != 0) return studiesCmp > 0;
+    return originalOrder < other.originalOrder;
+  }
+
+  static int _tierRank(EvidenceTier tier) {
+    return switch (tier) {
+      EvidenceTier.strong => 3,
+      EvidenceTier.moderate => 2,
+      EvidenceTier.limited => 1,
+    };
   }
 }

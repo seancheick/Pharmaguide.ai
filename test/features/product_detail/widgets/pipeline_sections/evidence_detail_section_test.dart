@@ -410,7 +410,38 @@ void main() {
 
       expect(find.text('STRONG · 2 studies · meta-analysis'), findsOneWidget);
       expect(
-        find.text('Backed by 2 human studies · ~220 participants'),
+        find.text(
+          'Ashwagandha: strong support · 2 human studies · ~220 participants',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('surfaces the strongest ingredient attribution', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 2,
+          'clinical_matches': [
+            _match(
+              ingredient: 'Vitamin D3',
+              evidence: 'ingredient-human',
+              studyType: 'systematic_review_meta',
+              refs: [_ref('111'), _ref('222'), _ref('333')],
+            ),
+            _match(
+              ingredient: 'Vitamin K2',
+              evidence: 'ingredient-human',
+              refs: [_ref('444')],
+            ),
+          ],
+        },
+      );
+
+      expect(
+        find.text('Vitamin D3: strong support · 3 human studies'),
         findsOneWidget,
       );
     });

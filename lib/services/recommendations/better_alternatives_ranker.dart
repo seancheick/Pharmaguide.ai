@@ -160,7 +160,64 @@ List<ProductsCoreData> rankAlternatives({
     return b.allergenCompat.compareTo(a.allergenCompat);
   });
 
-  return ranked.take(limit).map((r) => r.product).toList(growable: false);
+  return _takeDistinctProducts(ranked, limit);
+}
+
+List<ProductsCoreData> _takeDistinctProducts(
+  List<_RankedCandidate> ranked,
+  int limit,
+) {
+  if (limit <= 0) return const [];
+
+  final out = <ProductsCoreData>[];
+  final seen = <String>{};
+
+  for (final candidate in ranked) {
+    final key = _nearDuplicateKey(candidate.product);
+    if (key != null && !seen.add(key)) continue;
+    out.add(candidate.product);
+    if (out.length >= limit) break;
+  }
+
+  return List.unmodifiable(out);
+}
+
+String? _nearDuplicateKey(ProductsCoreData product) {
+  final brand = _dedupeToken(product.brandName);
+  final name = _normalizedProductNameForDedupe(product.productName);
+  if (brand.isEmpty || name.isEmpty) return null;
+
+  final type = _dedupeToken(product.supplementType ?? product.primaryCategory);
+  final family = _ingredientFamily(product).toList()..sort();
+  final familyKey = family.join(',');
+
+  return [brand, name, type, familyKey].join('|');
+}
+
+String _dedupeToken(String? value) {
+  return value
+          ?.trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim() ??
+      '';
+}
+
+String _normalizedProductNameForDedupe(String value) {
+  return value
+      .trim()
+      .toLowerCase()
+      .replaceAll(
+        RegExp(
+          r'\b\d+(?:\.\d+)?\s*(?:billion\s*cfu|million\s*cfu|capsules?|'
+          r'tablets?|softgels?|gummies?|servings?|mg|mcg|ug|iu|g|grams?|cfu)\b',
+        ),
+        ' ',
+      )
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }
 
 // =============================================================================

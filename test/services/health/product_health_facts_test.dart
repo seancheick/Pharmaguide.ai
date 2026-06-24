@@ -401,6 +401,50 @@ void main() {
       },
     );
 
+    test('dedupes vitamin form and nutrient UL warnings', () {
+      final facts = ProductHealthFacts.fromDetailBlob({
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Vitamin D3',
+              'skip_ul_check': false,
+              'warnings': ['Exceeds UL by 25 mcg'],
+            },
+            {
+              'standard_name': 'Vitamin D',
+              'skip_ul_check': false,
+              'warnings': ['Exceeds UL by 25 mcg'],
+            },
+          ],
+        },
+      });
+
+      expect(facts.warnings, hasLength(1));
+      expect(facts.warnings.single.title, 'Exceeds upper limit: Vitamin D3');
+    });
+
+    test('UL dedupe ignores duplicate rows that have no warning payload', () {
+      final facts = ProductHealthFacts.fromDetailBlob({
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Vitamin D3',
+              'skip_ul_check': false,
+              'warnings': <String>[],
+            },
+            {
+              'standard_name': 'Vitamin D',
+              'skip_ul_check': false,
+              'warnings': ['Exceeds UL by 25 mcg'],
+            },
+          ],
+        },
+      });
+
+      expect(facts.warnings, hasLength(1));
+      expect(facts.warnings.single.title, 'Exceeds upper limit: Vitamin D');
+    });
+
     test(
       'suppresses legacy product-status warnings when structured status exists',
       () {
