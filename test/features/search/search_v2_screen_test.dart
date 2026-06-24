@@ -94,7 +94,7 @@ void main() {
     expect(bottomPaddings, contains(V2Spacing.space8));
   });
 
-  testWidgets('idle state renders modern recent and featured sections', (
+  testWidgets('idle state renders modern recent and discovery sections', (
     tester,
   ) async {
     final coreDb = CoreDatabase.memory();
@@ -122,8 +122,98 @@ void main() {
     expect(find.text('Recent Searches'), findsOneWidget);
     expect(find.text('Clear All'), findsOneWidget);
     expect(find.text('thorne creatine'), findsOneWidget);
-    expect(find.text('Featured Products'), findsOneWidget);
+    expect(find.text('Worth checking'), findsOneWidget);
+    expect(find.text('Featured Products'), findsNothing);
     expect(find.text('Search V2 Magnesium'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Common searches'),
+      300,
+      scrollable: _verticalScrollable(),
+    );
+    expect(find.text('Common searches'), findsOneWidget);
+    expect(find.text('Vitamin D + K'), findsOneWidget);
+    expect(find.text('EPA/DHA'), findsOneWidget);
+  });
+
+  testWidgets('recent search rows use compact vertical spacing', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          recentSearchesServiceProvider.overrideWithValue(
+            _FakeRecentSearchesService(['thorne', 'creatine']),
+          ),
+        ],
+        child: const MaterialApp(home: SearchV2Screen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final recentRows = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_RecentSearchRow',
+    );
+    expect(recentRows, findsNWidgets(2));
+
+    final rowPadding = tester.widgetList<Padding>(
+      find.ancestor(of: recentRows.first, matching: find.byType(Padding)),
+    );
+    expect(
+      rowPadding
+          .map((p) => p.padding.resolve(TextDirection.ltr).bottom)
+          .where((bottom) => bottom == V2Spacing.space12),
+      isNotEmpty,
+    );
+  });
+
+  testWidgets('common search chip commits a search', (tester) async {
+    final coreDb = CoreDatabase.memory();
+    final recents = _FakeRecentSearchesService();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+    });
+
+    await seedSearchProduct(
+      coreDb,
+      productName: 'Magnesium Citrate Capsules',
+      brandName: 'Pure Encapsulations',
+      primaryCategory: 'magnesium',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          recentSearchesServiceProvider.overrideWithValue(recents),
+        ],
+        child: const MaterialApp(home: SearchV2Screen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.scrollUntilVisible(
+      find.text('Magnesium'),
+      300,
+      scrollable: _verticalScrollable(),
+    );
+    await tester.tap(find.text('Magnesium'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump();
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller?.text, 'Magnesium');
+    expect(recents.items, ['Magnesium']);
   });
 
   testWidgets('query state renders suggestions above suggested products', (
@@ -307,4 +397,13 @@ void main() {
     expect(find.text('Suggested Searches'), findsOneWidget);
     expect(recents.addCount, 1);
   });
+}
+
+Finder _verticalScrollable() {
+  return find
+      .byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      )
+      .first;
 }

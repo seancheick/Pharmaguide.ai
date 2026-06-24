@@ -135,8 +135,12 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   Future<void> _loadFeaturedProducts() async {
     try {
       final db = ref.read(coreDatabaseProvider);
-      final products = await db.filterProducts(sortBy: 'score', limit: 8);
-      if (mounted) setState(() => _featuredProducts = products);
+      final products = await db.filterProducts(sortBy: 'score', limit: 24);
+      if (mounted) {
+        setState(
+          () => _featuredProducts = _selectWorthCheckingProducts(products),
+        );
+      }
     } on Exception {
       if (mounted) setState(() => _featuredProducts = const []);
     }
@@ -379,7 +383,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         const SizedBox(height: V2Spacing.space16),
         ..._recentSearches.map(
           (term) => Padding(
-            padding: const EdgeInsets.only(bottom: V2Spacing.space24),
+            padding: const EdgeInsets.only(bottom: V2Spacing.space12),
             child: _RecentSearchRow(
               term: term,
               onTap: () {
@@ -400,29 +404,22 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
       if (children.isNotEmpty) {
         children.add(const SizedBox(height: V2Spacing.space24));
       }
-      children.add(const _SearchSectionTitle('Featured Products'));
+      children.add(const _SearchSectionTitle('Worth checking'));
       children.add(const SizedBox(height: V2Spacing.space16));
-      children.add(_ProductPreviewGrid(products: _featuredProducts.take(4)));
+      children.add(_ProductPreviewGrid(products: _featuredProducts));
     }
 
-    if (children.isEmpty) {
-      children.addAll([
-        const PGEmptyState(
-          icon: Icons.search_rounded,
-          headline: 'Search supplements',
-          body:
-              'Search by product name, brand, or ingredient. '
-              "We'll show on-market matches first.",
-        ),
-        const SizedBox(height: V2Spacing.space16),
-        PGPillButton(
-          label: 'Looking for a medication?',
-          variant: PGPillVariant.ghost,
-          icon: Icons.medication_outlined,
-          onPressed: () => context.push(Routes.medicationEntry),
-        ),
-      ]);
+    if (children.isNotEmpty) {
+      children.add(const SizedBox(height: V2Spacing.space24));
     }
+    children.add(
+      _CommonSearchesSection(
+        onTap: (query) {
+          _controller.text = query;
+          _commitSearch(query);
+        },
+      ),
+    );
 
     return ListView(
       physics: const BouncingScrollPhysics(),
@@ -765,6 +762,43 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     }
     return 'Showing $on on market · $off off market';
   }
+}
+
+List<ProductsCoreData> _selectWorthCheckingProducts(
+  List<ProductsCoreData> products,
+) {
+  final selected = <ProductsCoreData>[];
+  final seenCategories = <String>{};
+  final seenBrands = <String>{};
+
+  bool eligible(ProductsCoreData product) {
+    final discontinued = product.discontinuedDate?.trim();
+    if (discontinued != null && discontinued.isNotEmpty) return false;
+    final verdict = product.verdict?.trim().toUpperCase();
+    if (verdict == 'BLOCKED' || verdict == 'UNSAFE') return false;
+    final blockingReason = product.blockingReason?.trim();
+    return blockingReason == null || blockingReason.isEmpty;
+  }
+
+  for (final product in products.where(eligible)) {
+    final category = product.primaryCategory?.trim().toLowerCase() ?? '';
+    final brand = product.brandName?.trim().toLowerCase() ?? '';
+    if (category.isNotEmpty && seenCategories.contains(category)) continue;
+    if (brand.isNotEmpty && seenBrands.contains(brand)) continue;
+    selected.add(product);
+    if (category.isNotEmpty) seenCategories.add(category);
+    if (brand.isNotEmpty) seenBrands.add(brand);
+    if (selected.length == 4) return selected;
+  }
+
+  if (selected.length == 4) return selected;
+  final selectedIds = selected.map((p) => p.dsldId).toSet();
+  for (final product in products.where(eligible)) {
+    if (!selectedIds.add(product.dsldId)) continue;
+    selected.add(product);
+    if (selected.length == 4) break;
+  }
+  return selected;
 }
 
 // =============================================================================
@@ -1110,6 +1144,43 @@ class _RecentSearchRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CommonSearchesSection extends StatelessWidget {
+  final ValueChanged<String> onTap;
+
+  const _CommonSearchesSection({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SearchSectionTitle('Common searches'),
+        const SizedBox(height: V2Spacing.space16),
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _commonSearches.length,
+            separatorBuilder: (_, _) => const SizedBox(width: V2Spacing.space8),
+            itemBuilder: (context, index) {
+              final item = _commonSearches[index];
+              return PGGoalChip(
+                label: item.label,
+                selected: false,
+                onTap: () {
+                  unawaited(PGHaptics.tap(context));
+                  onTap(item.query);
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1678,6 +1749,24 @@ class _PartitionedResults {
   final List<ProductsCoreData> offMarket;
   const _PartitionedResults({required this.onMarket, required this.offMarket});
 }
+
+class _CommonSearch {
+  final String label;
+  final String query;
+
+  const _CommonSearch(this.label, this.query);
+}
+
+const _commonSearches = <_CommonSearch>[
+  _CommonSearch('Magnesium', 'Magnesium'),
+  _CommonSearch('Vitamin D + K', 'Vitamin D K'),
+  _CommonSearch('Iron', 'Iron'),
+  _CommonSearch('EPA/DHA', 'EPA DHA'),
+  _CommonSearch('Creatine', 'Creatine'),
+  _CommonSearch('Probiotics', 'Probiotics'),
+  _CommonSearch('CoQ10', 'CoQ10'),
+  _CommonSearch('Ashwagandha', 'Ashwagandha'),
+];
 
 enum _SuggestionIconKind { brand, ingredient, search }
 
