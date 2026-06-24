@@ -58,4 +58,63 @@ void main() {
       expect(InactiveTone.red.color, V2Colors.contraindicated);
     });
   });
+
+  group('inactiveColorRank — display_tone (v1.6.x penalty-aware)', () {
+    test('"green" → green', () {
+      expect(inactiveColorRank({'display_tone': 'green'}), InactiveTone.green);
+    });
+
+    test('"light_orange" → yellow (amber)', () {
+      expect(
+        inactiveColorRank({'display_tone': 'light_orange'}),
+        InactiveTone.yellow,
+      );
+    });
+
+    test('"dark_orange" → orange', () {
+      expect(
+        inactiveColorRank({'display_tone': 'dark_orange'}),
+        InactiveTone.orange,
+      );
+    });
+
+    test('"red" → red', () {
+      expect(inactiveColorRank({'display_tone': 'red'}), InactiveTone.red);
+    });
+
+    test('display_tone overrides severity_status (0-penalty capsule → green)', () {
+      // The veg-capsule case: severity_status=suppress would read amber, but
+      // B1 applied 0 penalty → display_tone=green must win.
+      expect(
+        inactiveColorRank({
+          'display_tone': 'green',
+          'severity_status': 'suppress',
+        }),
+        InactiveTone.green,
+      );
+    });
+
+    test('case-insensitive / whitespace', () {
+      expect(inactiveColorRank({'display_tone': '  RED '}), InactiveTone.red);
+    });
+
+    test('absent display_tone falls back to severity_status', () {
+      expect(
+        inactiveColorRank({'severity_status': 'critical'}),
+        InactiveTone.red,
+      );
+      expect(
+        inactiveColorRank({'severity_status': 'suppress'}),
+        InactiveTone.yellow,
+      );
+      expect(inactiveColorRank({'severity_status': 'n/a'}), InactiveTone.green);
+    });
+
+    test('non-string display_tone falls through (defensive)', () {
+      expect(
+        inactiveColorRank({'display_tone': 7, 'harmful_severity': 'high'}),
+        InactiveTone.red,
+      );
+    });
+  });
 }

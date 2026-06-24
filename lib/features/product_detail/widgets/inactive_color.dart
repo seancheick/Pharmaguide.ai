@@ -1,16 +1,18 @@
 // Inactive-ingredient color rubric.
 //
-// v1.5.0 canonical contract — Flutter reads `severity_status` from the
-// pipeline (single routing decision baked at build time) and renders
-// directly. The pipeline's mapping:
-//   critical      → 🔴 red    — moderate/high/critical hazard, always show
-//   informational → 🟠 orange — flagged but not hazardous on its own
-//   suppress      → 🟡 yellow — low-severity excipient (silicon dioxide,
-//                                MCC) tracked for transparency only
-//   n/a           → 🟢 green  — non-additive or non-harmful inactive
+// v1.6.x canonical contract — Flutter reads `display_tone` from the pipeline
+// (single routing decision baked at build time) and renders directly. The dot
+// reflects the harmful-additive penalty B1 ACTUALLY applied (post-exemption),
+// NOT the additive's file severity — so a 0-penalty capsule shell reads green
+// while disclosed maltodextrin (0.5) reads light orange. The pipeline's mapping:
+//   green        → 🟢 green  — 0 penalty AND no safety/regulatory concern
+//   light_orange → 🟡 amber  — low additive penalty actually applied (~0.5)
+//   dark_orange  → 🟠 orange — moderate additive penalty (~1.0)
+//   red          → 🔴 red    — high/critical additive, or ANY banned_recalled
+//                              (banned/recalled/high_risk/watchlist) signal
 //
-// Legacy `severity_level` is read as a fallback for blobs built before
-// the v1.5.0 refactor and removed once consumers migrate.
+// Falls back to `severity_status`, then legacy `harmful_severity`, for blobs
+// built before display_tone existed (offline cache).
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -21,9 +23,25 @@ enum InactiveTone { green, yellow, orange, red }
 
 /// Map an inactive ingredient row to its visual tone.
 ///
-/// Prefers the v1.5.0 `severity_status` enum (canonical). Falls back
-/// to legacy `severity_level` for stale blobs.
+/// Prefers the v1.6.x penalty-aware `display_tone` (canonical). Falls back to
+/// `severity_status`, then legacy `harmful_severity`, for blobs built before
+/// display_tone existed.
 InactiveTone inactiveColorRank(Map<String, dynamic> inactive) {
+  // Penalty-aware tone baked by the pipeline. Preferred over severity_status so
+  // a 0-penalty excipient (e.g. a capsule shell) reads green, not amber.
+  final toneRaw = inactive['display_tone'];
+  if (toneRaw is String && toneRaw.trim().isNotEmpty) {
+    switch (toneRaw.trim().toLowerCase()) {
+      case 'red':
+        return InactiveTone.red;
+      case 'dark_orange':
+        return InactiveTone.orange;
+      case 'light_orange':
+        return InactiveTone.yellow;
+      case 'green':
+        return InactiveTone.green;
+    }
+  }
   final statusRaw = inactive['severity_status'];
   if (statusRaw is String && statusRaw.trim().isNotEmpty) {
     switch (statusRaw.trim().toLowerCase()) {
