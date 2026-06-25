@@ -234,56 +234,6 @@ void main() {
     );
   });
 
-  group('evidenceHeadline', () {
-    test('product-human leads with direct product copy', () {
-      expect(
-        evidenceHeadline([_match(evidence: 'product-human')]),
-        'Direct human research exists for this product or formulation.',
-      );
-    });
-
-    test('branded-rct leads with branded ingredient copy', () {
-      expect(
-        evidenceHeadline([_match(evidence: 'branded-rct')]),
-        'A branded ingredient in this product has human clinical research.',
-      );
-    });
-
-    test('aggregates study count and enrollment', () {
-      final headline = evidenceHeadline([
-        _match(refs: [_ref('1'), _ref('2')], totalEnrollment: 400),
-        _match(refs: [_ref('3')], totalEnrollment: 220),
-      ]);
-
-      expect(headline, 'Includes 3 human studies · ~620 participants');
-    });
-
-    test('null when no studies and not branded-rct', () {
-      expect(evidenceHeadline([_match()]), isNull);
-    });
-
-    test('null for preclinical-only — never claims human studies', () {
-      expect(
-        evidenceHeadline([
-          _match(evidence: 'preclinical', refs: [_ref('1')]),
-        ]),
-        isNull,
-      );
-    });
-
-    test('preclinical refs/enrollment never inflate the human headline', () {
-      final headline = evidenceHeadline([
-        _match(refs: [_ref('1')], totalEnrollment: 100),
-        _match(
-          evidence: 'preclinical',
-          refs: [_ref('2'), _ref('3')],
-          totalEnrollment: 9000,
-        ),
-      ]);
-      expect(headline, 'Includes 1 human study · ~100 participants');
-    });
-  });
-
   group('Evidence section v2 render', () {
     testWidgets('null evidenceData hides section', (tester) async {
       await _pump(tester);

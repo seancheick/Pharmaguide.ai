@@ -319,28 +319,6 @@ List<Map<String, dynamic>> evidenceDisplayMatches(
   return matches;
 }
 
-/// Optional enrichment line beneath the tier summary. Calm, factual.
-String? evidenceHeadline(List<Map<String, dynamic>> matches) {
-  final scope = evidenceScope(matches);
-  if (scope == EvidenceScope.product) {
-    return 'Direct human research exists for this product or formulation.';
-  }
-  if (scope == EvidenceScope.brandedIngredient) {
-    return 'A branded ingredient in this product has human clinical research.';
-  }
-  // Only describe studies as "human" when human-level evidence exists —
-  // preclinical/reference-only products get no enrichment line.
-  if (evidenceTier(matches) == EvidenceTier.limited) return null;
-  final studies = evidenceTotalStudies(matches);
-  if (studies == 0) return null;
-  final enrollment = evidenceTotalEnrollment(matches);
-  final base = 'Includes $studies human ${studies == 1 ? 'study' : 'studies'}';
-  if (enrollment > 0) {
-    return '$base · ~$enrollment participants';
-  }
-  return '$base.';
-}
-
 /// Ingredient-level attribution for the strongest human evidence signal.
 ///
 /// The section's badge remains aggregate, but this line prevents a user from
