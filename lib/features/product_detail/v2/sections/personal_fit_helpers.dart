@@ -17,8 +17,9 @@ import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
 /// Generate the personal-fit headline from a [FitDisplay] state and an
 /// optional top-goal label.
 ///
-///   • Strong/Good/Limited → "&lt;verb&gt; match for your &lt;X&gt; goal" or
+///   • Strong/Good → "&lt;verb&gt; match for your &lt;X&gt; goal" or
 ///     "&lt;verb&gt; match for your profile" when no top goal label.
+///   • Limited → "Neutral for your profile".
 ///   • NotRecommended / Hidden → "Not recommended for your profile"
 ///   • Incomplete → "Add your profile to personalize"
 String personalFitHeadline(FitDisplay fit, String? topGoalLabel) {
@@ -28,7 +29,7 @@ String personalFitHeadline(FitDisplay fit, String? topGoalLabel) {
   return switch (fit) {
     FitStrongMatch() => 'Strong match for $goalSuffix',
     FitGoodMatch() => 'Good match for $goalSuffix',
-    FitLimitedFit() => 'Limited fit for $goalSuffix',
+    FitLimitedFit() => 'Neutral for your profile',
     FitNotRecommended() || FitHidden() => 'Not recommended for your profile',
     FitIncomplete() => 'Add your profile to personalize',
   };

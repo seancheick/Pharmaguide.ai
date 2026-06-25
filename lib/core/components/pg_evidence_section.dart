@@ -54,6 +54,8 @@ class PGEvidenceSection extends StatelessWidget {
   final bool hasMetaAnalysis;
   final List<PGCitation> citations;
   final String title;
+  final String? summaryPrefix;
+  final String? helperLine;
 
   /// Optional factual enrichment line beneath the tier summary, e.g.
   /// "Backed by 4 human studies · ~620 participants".
@@ -70,6 +72,8 @@ class PGEvidenceSection extends StatelessWidget {
     this.hasMetaAnalysis = false,
     this.citations = const [],
     this.title = 'Clinical evidence',
+    this.summaryPrefix,
+    this.helperLine,
     this.subtitle,
     this.footnote,
   });
@@ -80,7 +84,11 @@ class PGEvidenceSection extends StatelessWidget {
       parts.add('$totalStudies stud${totalStudies == 1 ? 'y' : 'ies'}');
     }
     if (hasMetaAnalysis) parts.add('meta-analysis');
-    return parts.isEmpty ? tier.label : '${tier.label} · ${parts.join(' · ')}';
+    final summary = parts.isEmpty
+        ? tier.label
+        : '${tier.label} · ${parts.join(' · ')}';
+    final prefix = summaryPrefix?.trim() ?? '';
+    return prefix.isEmpty ? summary : '$prefix: $summary';
   }
 
   /// **Phase 11.7h.4 — Sean 2026-05-16 helper-line copy.**
@@ -89,19 +97,17 @@ class PGEvidenceSection extends StatelessWidget {
   /// plain language so users can interpret the verdict without
   /// clinical training.
   String? _helperLine() {
+    final override = helperLine?.trim();
+    if (override != null && override.isNotEmpty) return override;
+
     switch (tier) {
       case PGEvidenceTier.strong:
-        // Count-aware: never claim "Multiple" when we can only show one
-        // (or zero) deduped studies — accuracy over impressiveness.
-        return totalStudies > 1
-            ? 'Multiple high-quality human studies support these claims.'
-            : 'High-quality human research supports these claims.';
+        return 'High-quality human research is available.';
       case PGEvidenceTier.moderate:
-        return 'Some human studies support these claims, but the body of '
+        return 'Some human studies are available, but the body of '
             'evidence is still building.';
       case PGEvidenceTier.limited:
-        return 'Limited means early, sparse, or lower-quality human '
-            'evidence.';
+        return 'Evidence is early, sparse, or indirect.';
       case PGEvidenceTier.none:
         return null;
     }

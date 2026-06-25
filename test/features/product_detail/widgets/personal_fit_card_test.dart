@@ -48,7 +48,7 @@ void main() {
     test('FitLimitedFit without goal label', () {
       expect(
         personalFitHeadline(const FitLimitedFit(), null),
-        'Limited fit for your profile',
+        'Neutral for your profile',
       );
     });
 
@@ -184,7 +184,7 @@ void main() {
         ],
       );
 
-      expect(find.text('YOUR FIT'), findsOneWidget);
+      expect(find.text('PROFILE RELEVANCE'), findsOneWidget);
       expect(find.text('Good match for your sleep goal'), findsOneWidget);
       expect(
         find.text('Magnesium supports your blood pressure goal'),

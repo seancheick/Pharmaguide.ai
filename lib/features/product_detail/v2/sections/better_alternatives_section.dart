@@ -4,12 +4,12 @@
 //
 // Gate rules (verbatim port via `shouldShowBetterAlternatives`):
 //   • product is blocked → ALWAYS render
-//   • product unscored OR score >= 60 + fit is good → hide
+//   • product unscored → hide
 //   • score < 60 → render
-//   • fit is FitLimitedFit or FitNotRecommended → render
+//   • Profile Relevance is review / notRecommended → render
 //
 // Data flow:
-//   1. Watch fitScoreForProductProvider for fit verdict
+//   1. Consume the centralized ProfileRelevanceStatus from product detail
 //   2. Check gate → SizedBox.shrink if not applicable
 //   3. FutureBuilder loads CoreDatabase.findAlternatives by category
 //   4. Map ProductsCoreData → PGAlternative
@@ -28,11 +28,8 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
-import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
-import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
-import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 const double _lowQualityThreshold = 60.0;
 
@@ -42,26 +39,30 @@ bool shouldShowBetterAlternatives({
   required bool isBlocked,
   required bool isNotScored,
   required double? score100,
-  required FitDisplay? fitDisplay,
+  required ProfileRelevanceStatus? profileRelevanceStatus,
+  required bool profileIncomplete,
 }) {
   if (isBlocked) return true;
   if (isNotScored || score100 == null) return false;
   if (score100 < _lowQualityThreshold) return true;
-  if (fitDisplay is FitLimitedFit || fitDisplay is FitNotRecommended) {
+  if (profileIncomplete) return false;
+  if (profileRelevanceStatus == ProfileRelevanceStatus.review ||
+      profileRelevanceStatus == ProfileRelevanceStatus.notRecommended) {
     return true;
   }
   return false;
 }
 
-/// BetterAlternatives section — ConsumerWidget so it can watch the
-/// fit-score provider to decide whether to render at all.
+/// BetterAlternatives section. It consumes the already-resolved Profile
+/// Relevance status so this section does not recompute personalization.
 class BetterAlternativesSection extends ConsumerWidget {
   final String currentDsldId;
   final bool isBlocked;
   final bool isNotScored;
   final double? score100;
   final String? category;
-  final List<InteractionWarning> guardedWarnings;
+  final ProfileRelevanceStatus? profileRelevanceStatus;
+  final bool profileIncomplete;
 
   /// Max alternatives to display (matches PGBetterAlternatives convention).
   final int maxAlternatives;
@@ -73,7 +74,8 @@ class BetterAlternativesSection extends ConsumerWidget {
     required this.isNotScored,
     required this.score100,
     required this.category,
-    required this.guardedWarnings,
+    required this.profileRelevanceStatus,
+    required this.profileIncomplete,
     this.maxAlternatives = 3,
   });
 
@@ -95,22 +97,12 @@ class BetterAlternativesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch fit score for the gate. FitDisplay null when score not yet
-    // computed; the gate handles that (won't fire on null).
-    final fitAsync = ref.watch(fitScoreForProductProvider(currentDsldId));
-    final fitResult = fitAsync.asData?.value;
-    final fitDisplay = fitResult == null
-        ? null
-        : computeFitDisplay(
-            verdict: worstSeverityOf(guardedWarnings),
-            fitResult: fitResult,
-          );
-
     if (!shouldShowBetterAlternatives(
       isBlocked: isBlocked,
       isNotScored: isNotScored,
       score100: score100,
-      fitDisplay: fitDisplay,
+      profileRelevanceStatus: profileRelevanceStatus,
+      profileIncomplete: profileIncomplete,
     )) {
       return const SizedBox.shrink();
     }

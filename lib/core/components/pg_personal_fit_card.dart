@@ -70,7 +70,7 @@ class PGPersonalFitCard extends StatelessWidget {
           // for consistency with the Review Before Use card title and
           // the website's editorial pattern. Pure visual addition — no
           // semantic change.
-          const PGEyebrow('Your fit'),
+          const PGEyebrow('Profile Relevance'),
           const SizedBox(height: V2Spacing.space8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,

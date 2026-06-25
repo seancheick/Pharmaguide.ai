@@ -1,17 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
-import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
-class _StubProfileNotifier extends ProfileNotifier {
-  _StubProfileNotifier(ProfileState initial) : super() {
-    state = initial;
-  }
+FitScoreResult _fit({
+  FitAssessmentState state = FitAssessmentState.limitedFit,
+  List<String> reasons = const [],
+  double mappedCoverage = 1,
+}) {
+  return FitScoreResult(
+    scoreFit20: 10,
+    e1: 0,
+    e2a: 0,
+    e2b: 0,
+    e2c: 0,
+    missingFields: const [],
+    maxPossible: 100,
+    state: state,
+    reasons: reasons,
+    mappedCoverage: mappedCoverage,
+  );
 }
 
 InteractionWarning _warning({
@@ -21,6 +34,8 @@ InteractionWarning _warning({
   String management = '',
   String? alertHeadline,
   String? alertBody,
+  List<String> conditionIds = const [],
+  List<String> drugClassIds = const [],
 }) {
   return InteractionWarning(
     severity: severity,
@@ -30,6 +45,8 @@ InteractionWarning _warning({
     management: management,
     alertHeadline: alertHeadline,
     alertBody: alertBody,
+    conditionIds: conditionIds,
+    drugClassIds: drugClassIds,
   );
 }
 
@@ -49,31 +66,36 @@ MatchedAllergen _allergen({
   );
 }
 
-Future<void> _pump(
-  WidgetTester tester, {
+ProfileRelevanceSummary _summary({
+  FitScoreResult? fitResult,
   List<InteractionWarning> warnings = const [],
   String interactionHint = '',
-  Map<String, dynamic>? interactionSummary,
   List<MatchedAllergen> matchedAllergens = const [],
   List<FreeFromClaim> freeFromClaims = const [],
   List<String> freeFromConflicts = const [],
-  ProfileState profile = const ProfileState(),
+  bool hasInteractionProfile = true,
 }) {
+  return buildProfileRelevanceSummary(
+    fitResult: fitResult ?? _fit(),
+    topGoalLabel: null,
+    ingredientNames: const [],
+    userConditions: const [],
+    warnings: warnings,
+    interactionHint: interactionHint,
+    matchedAllergens: matchedAllergens,
+    freeFromClaims: freeFromClaims,
+    freeFromConflicts: freeFromConflicts,
+    hasInteractionProfile: hasInteractionProfile,
+  );
+}
+
+Future<void> _pump(WidgetTester tester, ProfileRelevanceSummary summary) {
   return tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        profileProvider.overrideWith((_) => _StubProfileNotifier(profile)),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: ReviewBeforeUseSection(
-            warnings: warnings,
-            interactionHint: interactionHint,
-            interactionSummary: interactionSummary,
-            matchedAllergens: matchedAllergens,
-            freeFromClaims: freeFromClaims,
-            freeFromConflicts: freeFromConflicts,
-          ),
+    MaterialApp(
+      home: Scaffold(
+        body: ProfileRelevanceSection(
+          summary: summary,
+          onCompleteProfile: () {},
         ),
       ),
     ),
@@ -81,352 +103,290 @@ Future<void> _pump(
 }
 
 void main() {
-  group('ReviewBeforeUseSection visibility', () {
-    testWidgets('all empty renders nothing', (tester) async {
-      await _pump(tester);
+  group('buildProfileRelevanceSummary', () {
+    test('neutral product uses non-negative copy and no rows', () {
+      final summary = _summary(fitResult: _fit());
 
-      expect(find.text('Review before use'), findsNothing);
-    });
-
-    testWidgets('no profile plus interaction hint renders calm nudge', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        interactionHint:
-            '{"has_any": true, "highest_severity": "caution",'
-            ' "condition_ids": ["diabetes"], "drug_class_ids": []}',
-      );
-
-      expect(find.text('This product has known interactions'), findsOneWidget);
-      expect(find.text('Complete profile'), findsOneWidget);
-    });
-
-    testWidgets('profile populated but no matching warning hides card', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        profile: const ProfileState(conditions: ['hypertension']),
-        interactionHint:
-            '{"has_any": true, "highest_severity": "caution",'
-            ' "condition_ids": ["diabetes"], "drug_class_ids": []}',
-      );
-
-      expect(find.text('Review before use'), findsNothing);
-    });
-  });
-
-  group('ReviewBeforeUseSection warnings', () {
-    testWidgets('caution warning is collapsed by default', (tester) async {
-      await _pump(
-        tester,
-        warnings: [_warning(severity: Severity.caution, title: 'C-row')],
-        profile: const ProfileState(conditions: ['anything']),
-      );
-
-      expect(find.text('Review before use'), findsOneWidget);
-      expect(find.text('1 thing to review before use'), findsOneWidget);
-      expect(find.text('C-row'), findsNothing);
-
-      await tester.tap(find.text('Review before use'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('C-row'), findsOneWidget);
-    });
-
-    testWidgets('avoid warning auto-expands', (tester) async {
-      await _pump(
-        tester,
-        warnings: [
-          _warning(
-            severity: Severity.avoid,
-            title: 'A-row',
-            mechanism: 'A-mech',
-          ),
-        ],
-        profile: const ProfileState(conditions: ['anything']),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('A-row'), findsOneWidget);
-      expect(find.textContaining('A-mech'), findsOneWidget);
-    });
-
-    testWidgets('uses authored warning copy instead of clinical rationale', (
-      tester,
-    ) async {
-      const longMechanism =
-          'Gastric acid and pepsin are required to cleave vitamin B12 from '
-          'food proteins. Acid suppression impairs liberation and can reduce '
-          'absorption from dietary sources over long-term use.';
-      const longManagement =
-          'Review serum B12, methylmalonic acid, homocysteine, duration of '
-          'therapy, symptoms, dietary intake, and clinician-directed '
-          'supplementation strategy.';
-
-      await _pump(
-        tester,
-        warnings: [
-          _warning(
-            severity: Severity.avoid,
-            title: 'Vitamin B12 / trying to conceive',
-            mechanism: longMechanism,
-            management: longManagement,
-            alertHeadline: 'B12 is recommended preconception',
-            alertBody:
-                'B12 supports early pregnancy nutrition. If you are trying '
-                'to conceive, make sure your prenatal plan covers it.',
-          ),
-        ],
-        profile: const ProfileState(conditions: ['ttc']),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('B12 is recommended preconception'), findsOneWidget);
+      expect(summary.status, ProfileRelevanceStatus.neutral);
+      expect(summary.headline, 'Neutral for your profile');
       expect(
-        find.textContaining('B12 supports early pregnancy'),
-        findsOneWidget,
+        summary.body,
+        'General-use product, not targeted to your profile.',
       );
-      expect(find.textContaining('Gastric acid and pepsin'), findsNothing);
-      expect(find.textContaining('methylmalonic acid'), findsNothing);
+      expect(summary.rows, isEmpty);
     });
 
-    testWidgets('contains allergen bumps tone to danger and auto-expands', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        warnings: [_warning(severity: Severity.caution, title: 'C-row')],
-        matchedAllergens: [_allergen(presenceType: 'contains')],
-        profile: const ProfileState(
-          conditions: ['anything'],
-          allergens: ['ALLERGEN_SOY'],
+    test('strong and good fit keep goal/profile match copy', () {
+      final summary = _summary(
+        fitResult: _fit(
+          state: FitAssessmentState.goodFit,
+          reasons: const ['Backed by clinical evidence.'],
         ),
       );
-      await tester.pumpAndSettle();
 
-      expect(find.text('Soy'), findsOneWidget);
-      expect(find.text('C-row'), findsOneWidget);
-
-      final allergenRect = tester.getRect(find.text('Soy'));
-      final warningRect = tester.getRect(find.text('C-row'));
-      expect(allergenRect.top, lessThan(warningRect.top));
+      expect(summary.status, ProfileRelevanceStatus.goodMatch);
+      expect(summary.headline, 'Good match for your profile');
+      expect(summary.body, 'Backed by clinical evidence.');
     });
-  });
 
-  group('ReviewBeforeUseSection allergens', () {
-    testWidgets('may_contain allergen is collapsed until tapped', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
+    test('barley product plus non-barley profile does not show barley', () {
+      final matches = matchAllergens(
+        const ['ALLERGEN_SOY'],
+        const [
+          {
+            'allergen_id': 'ALLERGEN_BARLEY',
+            'display_name': 'Barley',
+            'presence_type': 'contains',
+            'severity_level': 'moderate',
+          },
+        ],
+      );
+      final summary = _summary(matchedAllergens: matches);
+
+      expect(matches, isEmpty);
+      expect(summary.status, ProfileRelevanceStatus.neutral);
+      expect(summary.rows.map((r) => r.headline), isNot(contains('Barley')));
+    });
+
+    test('profile-matched contains allergen is not recommended', () {
+      final matches = matchAllergens(
+        const ['ALLERGEN_BARLEY'],
+        const [
+          {
+            'allergen_id': 'ALLERGEN_BARLEY',
+            'display_name': 'Barley',
+            'presence_type': 'contains',
+            'severity_level': 'moderate',
+          },
+        ],
+      );
+      final summary = _summary(matchedAllergens: matches);
+
+      expect(summary.status, ProfileRelevanceStatus.notRecommended);
+      expect(summary.headline, 'Not recommended for your profile');
+      expect(summary.body, 'Contains an allergen in your profile.');
+      expect(summary.rows.map((r) => r.headline), contains('Barley'));
+    });
+
+    test('profile-matched may-contain allergen requires review', () {
+      final summary = _summary(
         matchedAllergens: [
           _allergen(displayName: 'Tree nuts', presenceType: 'may_contain'),
         ],
-        profile: const ProfileState(allergens: ['ALLERGEN_TREE_NUTS']),
       );
 
-      expect(find.text('Review before use'), findsOneWidget);
-      expect(find.text('Tree nuts'), findsNothing);
-
-      await tester.tap(find.text('Review before use'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Tree nuts'), findsOneWidget);
-      expect(find.textContaining('May contain'), findsOneWidget);
+      expect(summary.status, ProfileRelevanceStatus.review);
+      expect(summary.headline, 'Review for your profile');
+      expect(summary.rows.single.headline, 'Tree nuts');
     });
 
-    testWidgets('severe contains allergen keeps severe signal visible', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        matchedAllergens: [
-          _allergen(
-            displayName: 'Peanuts',
-            presenceType: 'contains',
-            severityLevel: 'high',
-          ),
-        ],
-        profile: const ProfileState(allergens: ['ALLERGEN_PEANUTS']),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Peanuts'), findsOneWidget);
-      expect(find.textContaining('severe'), findsOneWidget);
-    });
-
-    testWidgets('groups multiple contains allergens into one row', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        matchedAllergens: [
-          _allergen(
-            displayName: 'Wheat',
-            presenceType: 'contains',
-            evidence: 'Contains: Wheat',
-          ),
-          _allergen(
-            displayName: 'Barley',
-            presenceType: 'contains',
-            evidence: 'Contains: Barley',
-          ),
-        ],
-        profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('1 thing to review before use'), findsOneWidget);
-      expect(find.text('Allergen: Wheat, Barley'), findsOneWidget);
-      expect(find.text('Wheat'), findsNothing);
-      expect(find.text('Barley'), findsNothing);
-    });
-  });
-
-  group('ReviewBeforeUseSection count copy', () {
-    testWidgets('singular and plural counts include warnings/allergens only', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        warnings: [_warning(severity: Severity.caution, title: 'X')],
-        freeFromClaims: const [
-          FreeFromClaim(
-            label: 'Gluten-free',
-            concern: 'gluten',
-            status: FreeFromStatus.certified,
-          ),
-        ],
-        profile: const ProfileState(
-          conditions: ['anything'],
-          allergens: ['ALLERGEN_WHEAT'],
-        ),
-      );
-      expect(find.text('1 thing to review before use'), findsOneWidget);
-
-      await _pump(
-        tester,
+    test('medication avoid warning is not recommended', () {
+      final summary = _summary(
         warnings: [
-          _warning(severity: Severity.caution, title: 'C1'),
-          _warning(severity: Severity.monitor, title: 'M1'),
-        ],
-        matchedAllergens: [_allergen(presenceType: 'manufactured_in_facility')],
-        profile: const ProfileState(
-          conditions: ['anything'],
-          allergens: ['ALLERGEN_SOY'],
-        ),
-      );
-      expect(find.text('3 things to review before use'), findsOneWidget);
-    });
-  });
-
-  group('ReviewBeforeUseSection free-from claims', () {
-    testWidgets('certified-only renders affirmative card and verified row', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        freeFromClaims: const [
-          FreeFromClaim(
-            label: 'Gluten-free',
-            concern: 'gluten',
-            status: FreeFromStatus.certified,
+          _warning(
+            severity: Severity.avoid,
+            title: 'Medication conflict',
+            drugClassIds: const ['anticoagulants'],
           ),
         ],
-        profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Allergen check passed'), findsOneWidget);
-      expect(find.text('1 allergen claim verified'), findsOneWidget);
-      expect(find.text('Gluten-free'), findsOneWidget);
-      expect(find.textContaining('Verified'), findsOneWidget);
-    });
-
-    testWidgets('unknown-only renders honest unknown row', (tester) async {
-      await _pump(
-        tester,
-        freeFromClaims: const [
-          FreeFromClaim(
-            label: 'Gluten-free',
-            concern: 'gluten',
-            status: FreeFromStatus.unknown,
-          ),
-        ],
-        profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Allergen check'), findsOneWidget);
-      expect(find.text('Gluten-free'), findsOneWidget);
-      expect(find.textContaining('Unverified'), findsOneWidget);
-    });
-
-    testWidgets('notClaimed status hides when it is the only signal', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        freeFromClaims: const [
-          FreeFromClaim(
-            label: 'Gluten-free',
-            concern: 'gluten',
-            status: FreeFromStatus.notClaimed,
-          ),
-        ],
-        profile: const ProfileState(allergens: ['ALLERGEN_WHEAT']),
       );
 
-      expect(find.text('Allergen check'), findsNothing);
-      expect(find.text('Allergen check passed'), findsNothing);
+      expect(summary.status, ProfileRelevanceStatus.notRecommended);
+      expect(summary.body, 'Conflicts with your medication profile.');
     });
 
-    testWidgets('mixed warning plus certified claim keeps action count', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
+    test('condition caution warning requires review', () {
+      final summary = _summary(
         warnings: [
-          _warning(severity: Severity.contraindicated, title: 'X-warn'),
+          _warning(
+            severity: Severity.caution,
+            title: 'Condition note',
+            conditionIds: const ['hypertension'],
+          ),
         ],
+      );
+
+      expect(summary.status, ProfileRelevanceStatus.review);
+      expect(summary.body, '1 thing to review before use');
+    });
+
+    test(
+      'incomplete profile with caution still shows review plus CTA state',
+      () {
+        final summary = _summary(
+          fitResult: _fit(state: FitAssessmentState.incompleteProfile),
+          warnings: [
+            _warning(
+              severity: Severity.caution,
+              title: 'Condition note',
+              conditionIds: const ['hypertension'],
+            ),
+          ],
+        );
+
+        expect(summary.status, ProfileRelevanceStatus.review);
+        expect(summary.profileIncomplete, isTrue);
+        expect(summary.headline, 'Review for your profile');
+        expect(summary.body, '1 thing to review before use');
+      },
+    );
+
+    test('free-from conflict requires review inside the same rows', () {
+      final summary = _summary(
         freeFromClaims: const [
           FreeFromClaim(
-            label: 'Soy-free',
-            concern: 'soy',
+            label: 'Gluten-free',
+            concern: 'gluten',
             status: FreeFromStatus.certified,
           ),
         ],
-        profile: const ProfileState(
-          conditions: ['anything'],
-          allergens: ['ALLERGEN_SOY'],
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Review before use'), findsOneWidget);
-      expect(find.text('1 thing to review before use'), findsOneWidget);
-      expect(find.text('X-warn'), findsOneWidget);
-      expect(find.text('Soy-free'), findsOneWidget);
-    });
-  });
-
-  group('ReviewBeforeUseSection conflict footer', () {
-    testWidgets('free-from conflict footer renders below card', (tester) async {
-      await _pump(
-        tester,
-        warnings: [_warning(severity: Severity.caution, title: 'C-warn')],
         freeFromConflicts: const ['gluten'],
-        profile: const ProfileState(
-          conditions: ['anything'],
-          allergens: ['ALLERGEN_WHEAT'],
+      );
+
+      expect(summary.status, ProfileRelevanceStatus.review);
+      expect(
+        summary.rows.map((r) => r.headline),
+        contains('Conflicting label evidence'),
+      );
+    });
+
+    test('missing fit result renders incomplete profile action state', () {
+      final summary = buildProfileRelevanceSummary(
+        fitResult: null,
+        topGoalLabel: null,
+        ingredientNames: const [],
+        userConditions: const [],
+        warnings: const [],
+        interactionHint: '{"has_any": true}',
+        matchedAllergens: const [],
+        freeFromClaims: const [],
+        freeFromConflicts: const [],
+        hasInteractionProfile: false,
+      );
+
+      expect(summary.status, ProfileRelevanceStatus.incomplete);
+      expect(summary.headline, 'Add your profile to personalize');
+      expect(summary.body, contains('known interactions'));
+    });
+
+    test('low-coverage limited fit uses coverage hedge, not neutral copy', () {
+      final summary = _summary(
+        fitResult: _fit(
+          mappedCoverage: 0.2,
+          reasons: const [
+            'Ingredient mapping coverage is low, so this fit is conservative.',
+          ],
         ),
       );
 
-      expect(find.text('C-warn'), findsNothing);
-      expect(find.text('Conflicting label evidence'), findsOneWidget);
-      expect(find.textContaining('Marked gluten-free'), findsOneWidget);
+      expect(summary.status, ProfileRelevanceStatus.coverageLimited);
+      expect(summary.headline, 'More label detail needed');
+      expect(summary.body, contains("couldn't be fully analyzed"));
+      expect(
+        summary.body,
+        isNot('General-use product, not targeted to your profile.'),
+      );
+    });
+  });
+
+  group('ProfileRelevanceSection rendering', () {
+    testWidgets('renders one Profile Relevance card for neutral state', (
+      tester,
+    ) async {
+      await _pump(tester, _summary());
+
+      expect(find.text('PROFILE RELEVANCE'), findsOneWidget);
+      expect(find.text('Neutral for your profile'), findsOneWidget);
+      expect(find.text('Review before use'), findsNothing);
+      expect(find.text('YOUR FIT'), findsNothing);
+    });
+
+    testWidgets('review rows render inside Profile Relevance', (tester) async {
+      await _pump(
+        tester,
+        _summary(
+          warnings: [
+            _warning(severity: Severity.caution, title: 'Caution row'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('PROFILE RELEVANCE'), findsOneWidget);
+      expect(find.text('Review for your profile'), findsOneWidget);
+      expect(find.text('Caution row'), findsOneWidget);
+    });
+
+    testWidgets('contains allergen row renders as not recommended', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _summary(matchedAllergens: [_allergen(displayName: 'Soy')]),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not recommended for your profile'), findsOneWidget);
+      expect(find.text('Soy'), findsOneWidget);
+    });
+
+    testWidgets('incomplete state keeps complete-profile action in card', (
+      tester,
+    ) async {
+      final summary = buildProfileRelevanceSummary(
+        fitResult: null,
+        topGoalLabel: null,
+        ingredientNames: const [],
+        userConditions: const [],
+        warnings: const [],
+        interactionHint: '',
+        matchedAllergens: const [],
+        freeFromClaims: const [],
+        freeFromConflicts: const [],
+        hasInteractionProfile: false,
+      );
+
+      await _pump(tester, summary);
+
+      expect(find.text('Add your profile to personalize'), findsOneWidget);
+      expect(find.text('Complete profile'), findsOneWidget);
+    });
+
+    testWidgets(
+      'review state keeps complete-profile action when fit incomplete',
+      (tester) async {
+        await _pump(
+          tester,
+          _summary(
+            fitResult: _fit(state: FitAssessmentState.incompleteProfile),
+            warnings: [
+              _warning(severity: Severity.caution, title: 'Caution row'),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Review for your profile'), findsOneWidget);
+        expect(find.text('Caution row'), findsOneWidget);
+        expect(find.text('Complete profile'), findsOneWidget);
+      },
+    );
+
+    testWidgets('positive match keeps why-this-fits and edit action', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _summary(
+          fitResult: _fit(
+            state: FitAssessmentState.goodFit,
+            reasons: const ['Backed by clinical evidence.'],
+          ),
+        ),
+      );
+
+      expect(find.text('Why this fits you'), findsOneWidget);
+      expect(find.text('Edit profile'), findsOneWidget);
     });
   });
 }

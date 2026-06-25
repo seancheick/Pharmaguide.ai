@@ -92,6 +92,9 @@ class PGReviewBeforeUseCard extends StatefulWidget {
   /// Header title — production uses "Review before use" / "Looks safe".
   final String title;
 
+  /// Optional small section label rendered above [title].
+  final String? eyebrow;
+
   /// 1-line body under the title — caller can pass interactionHint
   /// ("3 interactions need review") or a tone-specific summary.
   final String? body;
@@ -99,6 +102,9 @@ class PGReviewBeforeUseCard extends StatefulWidget {
   /// All review rows (allergens + free-from + warnings). Empty list
   /// hides the row section entirely (only the banner shows).
   final List<PGReviewRow> rows;
+
+  /// Optional in-card footer action/content.
+  final Widget? footer;
 
   /// Deprecated compatibility field retained for old call sites. Row
   /// expansion is controlled by [startExpanded] or danger-tier rows.
@@ -112,8 +118,10 @@ class PGReviewBeforeUseCard extends StatefulWidget {
     super.key,
     required this.tone,
     required this.title,
+    this.eyebrow,
     this.body,
     this.rows = const [],
+    this.footer,
     this.collapseThreshold = 3,
     this.startExpanded = false,
   });
@@ -191,6 +199,15 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  if (widget.eyebrow != null) ...[
+                                    Text(
+                                      widget.eyebrow!.toUpperCase(),
+                                      style: V2Typography.eyebrow(
+                                        color: V2Colors.fgMuted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: V2Spacing.space4),
+                                  ],
                                   Row(
                                     children: [
                                       Expanded(
@@ -267,6 +284,13 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                   )
                 : const SizedBox(width: double.infinity),
           ),
+          if (widget.footer != null) ...[
+            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+            Padding(
+              padding: const EdgeInsets.all(V2Spacing.space16),
+              child: widget.footer!,
+            ),
+          ],
         ],
       ),
     );

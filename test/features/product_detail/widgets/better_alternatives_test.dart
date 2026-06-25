@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/better_alternatives_section.dart';
-import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 
 Future<void> _seedProduct(
   CoreDatabase coreDb, {
@@ -87,6 +86,9 @@ BetterAlternativesSection _section({
   String? category = 'multivitamin',
   bool isBlocked = false,
   bool isNotScored = false,
+  ProfileRelevanceStatus? profileRelevanceStatus =
+      ProfileRelevanceStatus.neutral,
+  bool profileIncomplete = false,
 }) {
   return BetterAlternativesSection(
     currentDsldId: currentDsldId,
@@ -94,57 +96,101 @@ BetterAlternativesSection _section({
     isNotScored: isNotScored,
     score100: score100,
     category: category,
-    guardedWarnings: const [],
+    profileRelevanceStatus: profileRelevanceStatus,
+    profileIncomplete: profileIncomplete,
   );
 }
 
 void main() {
   group('shouldShowBetterAlternatives — pure logic', () {
-    test('strong fit + high quality → hidden', () {
+    test('strong match + high quality → hidden', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 85,
-          fitDisplay: const FitStrongMatch(),
+          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
+          profileIncomplete: false,
         ),
         isFalse,
       );
     });
 
-    test('good fit + adequate quality (60..84) → hidden', () {
+    test('good match + adequate quality (60..84) → hidden', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 70,
-          fitDisplay: const FitGoodMatch(),
+          profileRelevanceStatus: ProfileRelevanceStatus.goodMatch,
+          profileIncomplete: false,
         ),
         isFalse,
       );
     });
 
-    test('limited fit → visible (regardless of score)', () {
+    test('neutral relevance → hidden when quality is adequate', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 90,
-          fitDisplay: const FitLimitedFit(),
+          profileRelevanceStatus: ProfileRelevanceStatus.neutral,
+          profileIncomplete: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('review relevance → visible (regardless of score)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 90,
+          profileRelevanceStatus: ProfileRelevanceStatus.review,
+          profileIncomplete: false,
         ),
         isTrue,
       );
     });
 
-    test('not-recommended fit → visible (regardless of score)', () {
+    test('review relevance + incomplete profile → hidden', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 90,
-          fitDisplay: const FitNotRecommended(),
+          profileRelevanceStatus: ProfileRelevanceStatus.review,
+          profileIncomplete: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('not-recommended relevance → visible (regardless of score)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 90,
+          profileRelevanceStatus: ProfileRelevanceStatus.notRecommended,
+          profileIncomplete: false,
         ),
         isTrue,
+      );
+    });
+
+    test('not-recommended relevance + incomplete profile → hidden', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 90,
+          profileRelevanceStatus: ProfileRelevanceStatus.notRecommended,
+          profileIncomplete: true,
+        ),
+        isFalse,
       );
     });
 
@@ -154,7 +200,8 @@ void main() {
           isBlocked: false,
           isNotScored: false,
           score100: 59,
-          fitDisplay: const FitStrongMatch(),
+          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
+          profileIncomplete: true,
         ),
         isTrue,
       );
@@ -167,7 +214,8 @@ void main() {
           isBlocked: false,
           isNotScored: false,
           score100: 60,
-          fitDisplay: const FitStrongMatch(),
+          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
+          profileIncomplete: false,
         ),
         isFalse,
       );
@@ -179,7 +227,8 @@ void main() {
           isBlocked: true,
           isNotScored: false,
           score100: null,
-          fitDisplay: const FitHidden(verdict: Severity.avoid),
+          profileRelevanceStatus: null,
+          profileIncomplete: true,
         ),
         isTrue,
       );
@@ -191,36 +240,38 @@ void main() {
           isBlocked: false,
           isNotScored: true,
           score100: null,
-          fitDisplay: null,
+          profileRelevanceStatus: null,
+          profileIncomplete: false,
         ),
         isFalse,
       );
     });
 
-    test('null fitDisplay + adequate quality → hidden', () {
-      // Fit math hasn't run yet (e.g. profile incomplete and we
-      // haven't computed FitIncomplete yet). Don't surface
-      // alternatives based on missing signal alone.
+    test('null profileRelevanceStatus + adequate quality → hidden', () {
+      // Profile relevance hasn't resolved yet. Do not surface
+      // alternatives based on missing personalization alone.
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 75,
-          fitDisplay: null,
+          profileRelevanceStatus: null,
+          profileIncomplete: false,
         ),
         isFalse,
       );
     });
 
-    test('FitIncomplete + adequate quality → hidden', () {
-      // Profile incomplete — we lack data to call the fit limited.
+    test('incomplete profile + adequate quality → hidden', () {
+      // Profile incomplete — we lack enough data to recommend alternatives.
       // Defer the alternative push until the profile fills in.
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 75,
-          fitDisplay: const FitIncomplete(),
+          profileRelevanceStatus: ProfileRelevanceStatus.incomplete,
+          profileIncomplete: true,
         ),
         isFalse,
       );

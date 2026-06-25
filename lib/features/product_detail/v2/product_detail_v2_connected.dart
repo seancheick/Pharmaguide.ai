@@ -59,7 +59,6 @@ import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_h
 import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/certifications_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/excipient_density_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/formulation_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/heavy_metal_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
@@ -79,10 +78,8 @@ import 'package:pharmaguide/features/product_detail/v2/sections/transparency_foo
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
-import 'package:pharmaguide/services/fit_score/fit_display.dart';
 import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
-import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Null-preserving safe map read for detail-blob fields. Uses the shared
@@ -313,11 +310,12 @@ class _ProductDetailV2ConnectedState
       userDrugClasses: profile.drugClasses.toSet(),
       userProfileFlags: profile.evaluatorProfileFlags,
     );
+    final fitAsync = ref.watch(fitScoreForProductProvider(widget.dsldId));
+    final fitResult = fitAsync.asData?.value;
 
     // -------------------------------------------------------------
-    // Blob-derived flags + ingredient doses (used by adapters in 11.7c+)
+    // Blob-derived flags used by downstream sections.
     // -------------------------------------------------------------
-    final ingredientDoses = extractIngredientDoses(detailBlob);
     // Research evidence routes through delivered markers too (e.g. turmeric ->
     // curcumin), unlike the interaction/safety path which stays source-only.
     final researchCanonicalIds = _product == null
@@ -341,8 +339,9 @@ class _ProductDetailV2ConnectedState
     // -------------------------------------------------------------
     // Gate booleans (see gating.dart)
     // -------------------------------------------------------------
-    final showPersonalFit = shouldShowPersonalFit(isBlocked: isBlocked);
-    final showReviewBeforeUse = shouldShowReviewBeforeUse(isBlocked: isBlocked);
+    final showProfileRelevance = shouldShowProfileRelevance(
+      isBlocked: isBlocked,
+    );
     final showLabelConfidence = shouldShowLabelConfidence(
       isBlocked: isBlocked,
       hasAnySignal: labelConfidenceHasSignal,
@@ -401,7 +400,7 @@ class _ProductDetailV2ConnectedState
     };
 
     // -------------------------------------------------------------
-    // Allergen + free-from match (used by ReviewBeforeUse adapter).
+    // Profile-relevant allergen + free-from match.
     // Computed unconditionally so the no-structured-allergens check
     // is reusable by the free-text allergen summary fallback.
     // -------------------------------------------------------------
@@ -426,6 +425,22 @@ class _ProductDetailV2ConnectedState
       isSoyFree: _product?.isSoyFree,
     );
     final interactionHint = _product?.interactionSummaryHint ?? '';
+    final profileRelevanceSummary = buildProfileRelevanceSummary(
+      fitResult: fitResult,
+      topGoalLabel: topGoalLabelFromFit(fitResult),
+      ingredientNames: ingredientNamesFromBlob(detailBlob),
+      userConditions: profile.conditionsForEvaluator,
+      warnings: guardedWarnings,
+      interactionHint: interactionHint,
+      matchedAllergens: matchedAllergens,
+      freeFromClaims: freeFromClaims,
+      freeFromConflicts: freeFromConflicts,
+      hasInteractionProfile:
+          profile.conditionsForEvaluator.isNotEmpty ||
+          profile.drugClassesForEvaluator.isNotEmpty,
+      onTapCitations: (urls) =>
+          showProfileRelevanceCitationsSheet(context, urls),
+    );
 
     // -------------------------------------------------------------
     // Hero `bottomBanner` slot — blocked-product banner (11.7c.1).
@@ -485,41 +500,7 @@ class _ProductDetailV2ConnectedState
                   ),
                   const SizedBox(height: V2Spacing.space12),
 
-                  // ---- 2. PersonalFit (WIRED, 11.7c.2) -------------
-                  // Lazy-watch via Consumer so fitScoreForProductProvider
-                  // only fires when the section actually renders (mirrors
-                  // production line 311's inner Consumer pattern).
-                  if (showPersonalFit) ...[
-                    Consumer(
-                      builder: (context, innerRef, _) {
-                        final fitAsync = innerRef.watch(
-                          fitScoreForProductProvider(widget.dsldId),
-                        );
-                        final fitResult = fitAsync.asData?.value;
-                        final fitDisplay = fitResult != null
-                            ? computeFitDisplay(
-                                verdict: worstSeverityOf(guardedWarnings),
-                                fitResult: fitResult,
-                              )
-                            : const FitIncomplete();
-                        return buildPersonalFitSection(
-                          fit: fitDisplay,
-                          topGoalLabel: topGoalLabelFromFit(fitResult),
-                          fitReasons: fitResult?.reasons ?? const [],
-                          ingredientNames: ingredientNamesFromBlob(detailBlob),
-                          userConditions: profile.conditions.toList(
-                            growable: false,
-                          ),
-                          contextChips: const [],
-                          onEditProfile: () =>
-                              context.push(Routes.profileSetup),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 3. ReviewBeforeUse (WIRED, 11.7c.3) ---------
+                  // ---- 2. ProfileRelevance (personalized) ----------
                   if (personalizedWarningsFailed) ...[
                     const PGSeverityBanner(
                       key: Key('personalized-warnings-error-banner'),
@@ -531,20 +512,13 @@ class _ProductDetailV2ConnectedState
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
-                  if (showReviewBeforeUse) ...[
+                  if (showProfileRelevance) ...[
                     KeyedSubtree(
                       key: _anchors.interactionsKey,
-                      child: ReviewBeforeUseSection(
-                        warnings: guardedWarnings,
-                        interactionHint: interactionHint,
-                        interactionSummary: _blobMap(
-                          detailBlob,
-                          'interaction_summary',
-                        ),
-                        ingredientDoses: ingredientDoses,
-                        matchedAllergens: matchedAllergens,
-                        freeFromClaims: freeFromClaims,
-                        freeFromConflicts: freeFromConflicts,
+                      child: ProfileRelevanceSection(
+                        summary: profileRelevanceSummary,
+                        onCompleteProfile: () =>
+                            context.push(Routes.profileSetup),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -648,25 +622,6 @@ class _ProductDetailV2ConnectedState
                             ?.whereType<Map<String, dynamic>>()
                             .toList(growable: false),
                       ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 6.5 Excipient density (WIRED, 11.11) --------
-                  // Quality signal: ratio of actives to inactive fillers.
-                  // Whitelist-aware suppression handled inside the card.
-                  if (showDeepDive) ...[
-                    buildExcipientDensitySection(
-                      activeIngredients:
-                          ((detailBlob?['ingredients'] as List?) ?? const [])
-                              .whereType<Map<String, dynamic>>()
-                              .toList(growable: false),
-                      inactiveIngredients:
-                          ((detailBlob?['inactive_ingredients'] as List?) ??
-                                  const [])
-                              .whereType<Map<String, dynamic>>()
-                              .toList(growable: false),
-                      dosageForm: _product?.formFactor,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -804,7 +759,9 @@ class _ProductDetailV2ConnectedState
                       isNotScored: isNotScored,
                       score100: score100,
                       category: _product?.primaryCategory,
-                      guardedWarnings: guardedWarnings,
+                      profileRelevanceStatus: profileRelevanceSummary.status,
+                      profileIncomplete:
+                          profileRelevanceSummary.profileIncomplete,
                     ),
                   ),
                   const SizedBox(height: V2Spacing.space12),

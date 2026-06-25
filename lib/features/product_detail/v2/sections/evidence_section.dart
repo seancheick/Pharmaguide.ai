@@ -25,7 +25,7 @@
 // exclusively from references_structured.
 //
 // evidence_level vocabulary (pipeline-verified):
-//   'branded-rct'      — the product's own formulation was RCT-tested
+//   'branded-rct'      — human RCT evidence on a branded ingredient
 //   'product-human'    — human studies on the product itself
 //   'strain-clinical'  — clinical evidence on the specific strain
 //   'ingredient-human' — human studies on the ingredient
@@ -33,8 +33,9 @@
 //   'reference'        — citation-only support
 //
 // Tier mapping: branded-rct / product-human -> strong; ingredient-human /
-// strain-clinical -> moderate unless the match itself is high-grade human
-// evidence (systematic review / meta-analysis), which also displays as strong.
+// strain-clinical -> moderate unless the match itself is supportive high-grade
+// human evidence (systematic review / meta-analysis), which displays as strong
+// under an explicit ingredient scope.
 // The deduped PMID count is a secondary display signal only — it never
 // downgrades a tier earned by evidence_level.
 //
@@ -60,6 +61,10 @@ enum EvidenceTier {
   /// Only preclinical / reference matches, or no matches.
   limited,
 }
+
+/// Evidence scope shown to users. This prevents ingredient or branded-ingredient
+/// studies from reading as proof that the finished product was studied.
+enum EvidenceScope { product, brandedIngredient, ingredient, indirect }
 
 const Set<String> _strongLevels = {'branded-rct', 'product-human'};
 const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
@@ -118,15 +123,136 @@ bool _hasMetaAnalysisSignal(Map<String, dynamic> m) {
   return false;
 }
 
+bool _isSupportiveEffect(Map<String, dynamic> m) {
+  final effect = (m['effect_direction']?.toString() ?? '').toLowerCase().trim();
+  if (effect.isEmpty) return true;
+  return effect == 'positive_strong' || effect == 'positive_weak';
+}
+
+bool _isNegativeEffect(Map<String, dynamic> m) {
+  final effect = (m['effect_direction']?.toString() ?? '').toLowerCase().trim();
+  return effect == 'negative';
+}
+
+bool _hasMixedOrNullHumanEvidence(List<Map<String, dynamic>> matches) {
+  for (final m in matches) {
+    if (!_isHumanLevel(m)) continue;
+    if (!_isSupportiveEffect(m) && !_isNegativeEffect(m)) return true;
+  }
+  return false;
+}
+
+bool _hasNegativeHumanEvidence(List<Map<String, dynamic>> matches) {
+  for (final m in matches) {
+    if (!_isHumanLevel(m)) continue;
+    if (_isNegativeEffect(m)) return true;
+  }
+  return false;
+}
+
 bool _isStrongHumanMatch(Map<String, dynamic> m) {
   final level = _level(m);
+  if (!_isSupportiveEffect(m)) return false;
   if (_strongLevels.contains(level)) return true;
   return _moderateLevels.contains(level) && _hasMetaAnalysisSignal(m);
 }
 
-/// True when any match is RCT-tested on this product's own formulation.
+/// True when any match is RCT-tested on a branded ingredient present in
+/// this product.
 bool evidenceHasBrandedRct(List<Map<String, dynamic>> matches) =>
     matches.any((m) => _level(m) == 'branded-rct');
+
+EvidenceScope evidenceScope(List<Map<String, dynamic>> matches) {
+  var strongest = EvidenceScope.indirect;
+  for (final match in matches) {
+    final scope = _matchEvidenceScope(match);
+    if (_scopeRank(scope) > _scopeRank(strongest)) {
+      strongest = scope;
+    }
+  }
+  return strongest;
+}
+
+EvidenceScope _matchEvidenceScope(Map<String, dynamic> match) {
+  final fallback = _scopeFromEvidenceLevel(match);
+  final explicit = _scopeFromUiField(match);
+  if (explicit != null && _scopeRank(explicit) <= _scopeRank(fallback)) {
+    return explicit;
+  }
+  return fallback;
+}
+
+EvidenceScope _scopeFromEvidenceLevel(Map<String, dynamic> match) {
+  final level = _level(match);
+  if (level == 'product-human') return EvidenceScope.product;
+  if (level == 'branded-rct') return EvidenceScope.brandedIngredient;
+  if (_moderateLevels.contains(level)) return EvidenceScope.ingredient;
+  return EvidenceScope.indirect;
+}
+
+EvidenceScope? _scopeFromUiField(Map<String, dynamic> match) {
+  final explicit = (match['ui_evidence_scope']?.toString() ?? '')
+      .toLowerCase()
+      .trim();
+  if (explicit == 'product') return EvidenceScope.product;
+  if (explicit == 'branded_ingredient') return EvidenceScope.brandedIngredient;
+  if (explicit == 'ingredient') return EvidenceScope.ingredient;
+  if (explicit == 'indirect') return EvidenceScope.indirect;
+  return null;
+}
+
+int _scopeRank(EvidenceScope scope) {
+  return switch (scope) {
+    EvidenceScope.product => 4,
+    EvidenceScope.brandedIngredient => 3,
+    EvidenceScope.ingredient => 2,
+    EvidenceScope.indirect => 1,
+  };
+}
+
+String evidenceSummaryPrefix(EvidenceScope scope) {
+  return switch (scope) {
+    EvidenceScope.product => 'Product evidence',
+    EvidenceScope.brandedIngredient => 'Branded ingredient evidence',
+    EvidenceScope.ingredient => 'Ingredient evidence',
+    EvidenceScope.indirect => 'Early evidence',
+  };
+}
+
+String evidenceHelperLine(List<Map<String, dynamic>> matches) {
+  final scope = evidenceScope(matches);
+  final hasNegative = _hasNegativeHumanEvidence(matches);
+  final hasMixedOrNull = _hasMixedOrNullHumanEvidence(matches);
+
+  return switch (scope) {
+    EvidenceScope.product when hasNegative =>
+      'Human studies for this product or formulation show no benefit or possible unfavorable results.',
+    EvidenceScope.product when hasMixedOrNull =>
+      'Direct human studies exist for this product or formulation; results may be mixed.',
+    EvidenceScope.product =>
+      'Direct human research exists for this product or formulation.',
+    EvidenceScope.brandedIngredient when hasNegative =>
+      'Human studies for a branded ingredient show no benefit or possible unfavorable results.',
+    EvidenceScope.brandedIngredient when hasMixedOrNull =>
+      'Human studies exist for a branded ingredient used in this product; results may be mixed.',
+    EvidenceScope.brandedIngredient =>
+      'Human research exists for a branded ingredient used in this product, not necessarily the finished product.',
+    EvidenceScope.ingredient when hasNegative =>
+      'Human studies for one or more ingredients show no benefit or possible unfavorable results; this does not support the product.',
+    EvidenceScope.ingredient when hasMixedOrNull =>
+      'Human studies exist for one or more ingredients; results may be mixed and do not prove this exact product.',
+    EvidenceScope.ingredient =>
+      'Human research supports one or more ingredients, not necessarily this exact product.',
+    EvidenceScope.indirect => 'Evidence is early, indirect, or citation-only.',
+  };
+}
+
+String evidenceFootnote(EvidenceScope scope) {
+  if (scope == EvidenceScope.product) {
+    return 'This research feeds the Evidence pillar in the score above.';
+  }
+  return 'This research feeds the Evidence pillar; only Product evidence means the exact product or formulation was studied.';
+}
 
 /// Sum the deduped PMID count across HUMAN-grade matches' structured
 /// references (strong ∪ moderate evidence_level sets), so the same study
@@ -173,15 +299,34 @@ EvidenceTier evidenceTier(List<Map<String, dynamic>> matches) {
   var sawModerate = false;
   for (final m in matches) {
     if (_isStrongHumanMatch(m)) return EvidenceTier.strong;
-    if (_moderateLevels.contains(_level(m))) sawModerate = true;
+    if (_isHumanLevel(m) && !_isNegativeEffect(m)) sawModerate = true;
   }
   return sawModerate ? EvidenceTier.moderate : EvidenceTier.limited;
 }
 
+List<Map<String, dynamic>> evidenceDisplayMatches(
+  List<Map<String, dynamic>> matches,
+) {
+  final tier = evidenceTier(matches);
+  final filtered = switch (tier) {
+    EvidenceTier.strong => matches.where(_isStrongHumanMatch).toList(),
+    EvidenceTier.moderate =>
+      matches.where((m) => _isHumanLevel(m) && !_isNegativeEffect(m)).toList(),
+    EvidenceTier.limited =>
+      matches.where((m) => _isHumanLevel(m) && _isNegativeEffect(m)).toList(),
+  };
+  if (filtered.isNotEmpty) return filtered;
+  return matches;
+}
+
 /// Optional enrichment line beneath the tier summary. Calm, factual.
 String? evidenceHeadline(List<Map<String, dynamic>> matches) {
-  if (evidenceHasBrandedRct(matches)) {
-    return "This product's formulation was clinically studied.";
+  final scope = evidenceScope(matches);
+  if (scope == EvidenceScope.product) {
+    return 'Direct human research exists for this product or formulation.';
+  }
+  if (scope == EvidenceScope.brandedIngredient) {
+    return 'A branded ingredient in this product has human clinical research.';
   }
   // Only describe studies as "human" when human-level evidence exists —
   // preclinical/reference-only products get no enrichment line.
@@ -189,7 +334,7 @@ String? evidenceHeadline(List<Map<String, dynamic>> matches) {
   final studies = evidenceTotalStudies(matches);
   if (studies == 0) return null;
   final enrollment = evidenceTotalEnrollment(matches);
-  final base = 'Backed by $studies human ${studies == 1 ? 'study' : 'studies'}';
+  final base = 'Includes $studies human ${studies == 1 ? 'study' : 'studies'}';
   if (enrollment > 0) {
     return '$base · ~$enrollment participants';
   }
@@ -202,7 +347,7 @@ String? evidenceHeadline(List<Map<String, dynamic>> matches) {
 /// seeing "STRONG · N studies" without knowing which ingredient earned that
 /// signal. Study counts here are ingredient-specific and PMID-deduped.
 String? evidenceAttributionHeadline(List<Map<String, dynamic>> matches) {
-  if (evidenceHasBrandedRct(matches)) return null;
+  if (evidenceScope(matches) != EvidenceScope.ingredient) return null;
 
   final byIngredient = <String, List<Map<String, dynamic>>>{};
   final labels = <String, String>{};
@@ -245,9 +390,13 @@ String? evidenceAttributionHeadline(List<Map<String, dynamic>> matches) {
     EvidenceTier.limited => 'limited',
   };
   if (best.studies > 0) {
-    final base =
-        '${best.label}: $tierLabel support · ${best.studies} '
-        'human ${best.studies == 1 ? 'study' : 'studies'}';
+    final evidenceLabel = '$tierLabel ingredient evidence';
+    final base = byIngredient.length > 1
+        ? 'Evidence found for ${byIngredient.length} ingredients; strongest: '
+              '${best.label} · $evidenceLabel · ${best.studies} '
+              'human ${best.studies == 1 ? 'study' : 'studies'}'
+        : '${best.label}: $evidenceLabel · ${best.studies} '
+              'human ${best.studies == 1 ? 'study' : 'studies'}';
     if (best.enrollment > 0) {
       return '$base · ~${best.enrollment} participants';
     }
@@ -308,20 +457,24 @@ Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
     return const SizedBox.shrink();
   }
 
-  final productionTier = evidenceTier(clinicalMatches);
-  final totalStudies = evidenceTotalStudies(clinicalMatches);
-  final hasMeta = evidenceHasMetaQuality(clinicalMatches);
+  final displayMatches = evidenceDisplayMatches(clinicalMatches);
+  final productionTier = evidenceTier(displayMatches);
+  final scope = evidenceScope(displayMatches);
+  final totalStudies = evidenceTotalStudies(displayMatches);
+  final hasMeta = evidenceHasMetaQuality(displayMatches);
   final citations = evidenceCitations(clinicalMatches);
 
   return PGEvidenceSection(
     tier: _toPGEvidenceTier(productionTier),
     totalStudies: totalStudies,
     hasMetaAnalysis: hasMeta,
-    subtitle:
-        evidenceAttributionHeadline(clinicalMatches) ??
-        evidenceHeadline(clinicalMatches),
+    summaryPrefix: evidenceSummaryPrefix(scope),
+    helperLine: evidenceHelperLine(displayMatches),
+    subtitle: scope == EvidenceScope.ingredient
+        ? evidenceAttributionHeadline(displayMatches)
+        : null,
     citations: citations.take(_maxCitations).toList(growable: false),
-    footnote: 'This research feeds the Evidence pillar in the score above.',
+    footnote: evidenceFootnote(scope),
   );
 }
 

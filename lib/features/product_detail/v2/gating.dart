@@ -34,7 +34,7 @@ bool productIsBlocked(ProductsCoreData? product) =>
 ///
 /// A blocked product has a clinical reason it shouldn't be used; a
 /// not-scored product simply lacks coverage. They get different UI
-/// treatment downstream (blocked hides PersonalFit + ScoreBreakdown +
+/// treatment downstream (blocked hides Profile Relevance + ScoreBreakdown +
 /// DeepDive; not-scored hides only ScoreBreakdown).
 ///
 /// Verbatim mirror of production's `_isNotScored` method.
@@ -47,13 +47,9 @@ bool productIsNotScored(ProductsCoreData? product) {
       (score == null && !isBlocked);
 }
 
-/// PersonalFit card renders when product is not blocked. Production
-/// sliver guard: `if (!isBlocked)` (line 301).
-bool shouldShowPersonalFit({required bool isBlocked}) => !isBlocked;
-
-/// ReviewBeforeUse card renders when product is not blocked. Production
-/// sliver guard: `if (!isBlocked)` (line 349).
-bool shouldShowReviewBeforeUse({required bool isBlocked}) => !isBlocked;
+/// Profile Relevance renders when product is not blocked. Blocked products
+/// carry their safety message in the hero banner instead.
+bool shouldShowProfileRelevance({required bool isBlocked}) => !isBlocked;
 
 /// LabelConfidence card renders when:
 ///   • product is not blocked AND

@@ -11,6 +11,8 @@ Map<String, dynamic> _match({
   int? metaReviewCount,
   String? studyType,
   List<String>? publishedStudies,
+  String? effectDirection,
+  String? uiEvidenceScope,
 }) {
   return {
     'ingredient': ingredient,
@@ -20,6 +22,8 @@ Map<String, dynamic> _match({
     if (metaReviewCount != null) 'published_meta_review_count': metaReviewCount,
     if (studyType != null) 'study_type': studyType,
     if (publishedStudies != null) 'published_studies': publishedStudies,
+    if (effectDirection != null) 'effect_direction': effectDirection,
+    if (uiEvidenceScope != null) 'ui_evidence_scope': uiEvidenceScope,
   };
 }
 
@@ -147,33 +151,101 @@ void main() {
       );
     });
 
-    test('human meta-analysis ingredient evidence resolves to strong', () {
+    test(
+      'supportive human meta-analysis ingredient evidence resolves to strong',
+      () {
+        expect(
+          evidenceTier([
+            _match(
+              evidence: 'ingredient-human',
+              studyType: 'systematic_review_meta',
+              effectDirection: 'positive_strong',
+            ),
+          ]),
+          EvidenceTier.strong,
+        );
+        expect(
+          evidenceTier([
+            _match(
+              evidence: 'ingredient-human',
+              publishedStudies: ['RCT', 'systematic_review', 'meta-analysis'],
+              effectDirection: 'positive_weak',
+            ),
+          ]),
+          EvidenceTier.strong,
+        );
+      },
+    );
+
+    test('mixed or null meta-analysis evidence does not resolve to strong', () {
       expect(
         evidenceTier([
           _match(
             evidence: 'ingredient-human',
             studyType: 'systematic_review_meta',
+            effectDirection: 'mixed',
           ),
         ]),
-        EvidenceTier.strong,
+        EvidenceTier.moderate,
       );
       expect(
         evidenceTier([
           _match(
             evidence: 'ingredient-human',
-            publishedStudies: ['RCT', 'systematic_review', 'meta-analysis'],
+            studyType: 'systematic_review_meta',
+            effectDirection: 'null',
           ),
         ]),
-        EvidenceTier.strong,
+        EvidenceTier.moderate,
+      );
+    });
+
+    test('negative human evidence resolves to limited', () {
+      expect(
+        evidenceTier([
+          _match(
+            evidence: 'ingredient-human',
+            studyType: 'systematic_review_meta',
+            effectDirection: 'negative',
+          ),
+        ]),
+        EvidenceTier.limited,
       );
     });
   });
 
+  group('evidenceScope', () {
+    test(
+      'uses pipeline ui_evidence_scope only when it does not overstate level',
+      () {
+        expect(
+          evidenceScope([
+            _match(evidence: 'product-human', uiEvidenceScope: 'ingredient'),
+          ]),
+          EvidenceScope.ingredient,
+        );
+        expect(
+          evidenceScope([
+            _match(evidence: 'reference', uiEvidenceScope: 'product'),
+          ]),
+          EvidenceScope.indirect,
+        );
+      },
+    );
+  });
+
   group('evidenceHeadline', () {
-    test('branded-rct leads with formulation copy', () {
+    test('product-human leads with direct product copy', () {
+      expect(
+        evidenceHeadline([_match(evidence: 'product-human')]),
+        'Direct human research exists for this product or formulation.',
+      );
+    });
+
+    test('branded-rct leads with branded ingredient copy', () {
       expect(
         evidenceHeadline([_match(evidence: 'branded-rct')]),
-        "This product's formulation was clinically studied.",
+        'A branded ingredient in this product has human clinical research.',
       );
     });
 
@@ -183,7 +255,7 @@ void main() {
         _match(refs: [_ref('3')], totalEnrollment: 220),
       ]);
 
-      expect(headline, 'Backed by 3 human studies · ~620 participants');
+      expect(headline, 'Includes 3 human studies · ~620 participants');
     });
 
     test('null when no studies and not branded-rct', () {
@@ -208,7 +280,7 @@ void main() {
           totalEnrollment: 9000,
         ),
       ]);
-      expect(headline, 'Backed by 1 human study · ~100 participants');
+      expect(headline, 'Includes 1 human study · ~100 participants');
     });
   });
 
@@ -231,7 +303,33 @@ void main() {
       expect(find.byType(PGEvidenceSection), findsNothing);
     });
 
-    testWidgets('branded-rct renders strong tier with formulation subtitle', (
+    testWidgets('product-human renders product-scoped strong evidence', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(
+              evidence: 'product-human',
+              refs: [_ref('111', title: 'A randomized trial of ashwagandha')],
+            ),
+          ],
+        },
+      );
+
+      expect(find.text('Clinical evidence'), findsOneWidget);
+      expect(find.text('Product evidence: STRONG · 1 study'), findsOneWidget);
+      expect(
+        find.text(
+          'Direct human research exists for this product or formulation.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('branded-rct renders branded-ingredient scoped evidence', (
       tester,
     ) async {
       await _pump(
@@ -241,18 +339,23 @@ void main() {
           'clinical_matches': [
             _match(
               evidence: 'branded-rct',
-              refs: [_ref('111', title: 'A randomized trial of ashwagandha')],
+              refs: [_ref('111', title: 'A randomized trial of KSM-66')],
             ),
           ],
         },
       );
 
-      expect(find.text('Clinical evidence'), findsOneWidget);
-      expect(find.text('STRONG · 1 study'), findsOneWidget);
       expect(
-        find.text("This product's formulation was clinically studied."),
+        find.text('Branded ingredient evidence: STRONG · 1 study'),
         findsOneWidget,
       );
+      expect(
+        find.text(
+          'Human research exists for a branded ingredient used in this product, not necessarily the finished product.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining("product's formulation"), findsNothing);
     });
 
     testWidgets('citations use real paper titles from references_structured', (
@@ -299,7 +402,10 @@ void main() {
       );
 
       expect(find.text('Shared study'), findsOneWidget);
-      expect(find.text('MODERATE · 1 study'), findsOneWidget);
+      expect(
+        find.text('Ingredient evidence: MODERATE · 1 study'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('preclinical only renders limited tier with no study count', (
@@ -317,7 +423,7 @@ void main() {
 
       // Preclinical refs inform the tier only — never a "study" count
       // that downstream copy could read as human studies.
-      expect(find.text('LIMITED'), findsOneWidget);
+      expect(find.text('Early evidence: LIMITED'), findsOneWidget);
       expect(find.textContaining('study'), findsNothing);
       expect(find.textContaining('meta-analysis'), findsNothing);
     });
@@ -336,27 +442,30 @@ void main() {
       expect(find.byType(PGEvidenceSection), findsNothing);
     });
 
-    testWidgets('STRONG helper line never says "Multiple" for one study', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        evidenceData: {
-          'match_count': 1,
-          'clinical_matches': [
-            _match(evidence: 'product-human', refs: [_ref('111')]),
-          ],
-        },
-      );
+    testWidgets(
+      'product evidence helper line never claims generic claims support',
+      (tester) async {
+        await _pump(
+          tester,
+          evidenceData: {
+            'match_count': 1,
+            'clinical_matches': [
+              _match(evidence: 'product-human', refs: [_ref('111')]),
+            ],
+          },
+        );
 
-      expect(
-        find.text('High-quality human research supports these claims.'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Multiple'), findsNothing);
-    });
+        expect(
+          find.text(
+            'Direct human research exists for this product or formulation.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('support these claims'), findsNothing);
+      },
+    );
 
-    testWidgets('STRONG helper line says "Multiple" only with 2+ studies', (
+    testWidgets('strong product evidence keeps product scope with 2+ studies', (
       tester,
     ) async {
       await _pump(
@@ -370,7 +479,9 @@ void main() {
       );
 
       expect(
-        find.text('Multiple high-quality human studies support these claims.'),
+        find.text(
+          'Direct human research exists for this product or formulation.',
+        ),
         findsOneWidget,
       );
     });
@@ -386,11 +497,50 @@ void main() {
         },
       );
 
-      expect(find.text('MODERATE'), findsOneWidget);
+      expect(find.text('Ingredient evidence: MODERATE'), findsOneWidget);
       expect(find.textContaining('PMID'), findsNothing);
     });
 
-    testWidgets('creatine-style ingredient meta-analysis renders strong', (
+    testWidgets(
+      'creatine-style ingredient meta-analysis renders scoped strong evidence',
+      (tester) async {
+        await _pump(
+          tester,
+          evidenceData: {
+            'match_count': 1,
+            'clinical_matches': [
+              _match(
+                evidence: 'ingredient-human',
+                studyType: 'systematic_review_meta',
+                effectDirection: 'positive_strong',
+                refs: [_ref('39519498'), _ref('39074168')],
+                totalEnrollment: 220,
+              ),
+            ],
+          },
+        );
+
+        expect(
+          find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Ashwagandha: strong ingredient evidence · 2 human studies · ~220 participants',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Human research supports one or more ingredients, not necessarily this exact product.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('support these claims'), findsNothing);
+      },
+    );
+
+    testWidgets('mixed ingredient meta-analysis renders review-style copy', (
       tester,
     ) async {
       await _pump(
@@ -401,21 +551,97 @@ void main() {
             _match(
               evidence: 'ingredient-human',
               studyType: 'systematic_review_meta',
-              refs: [_ref('39519498'), _ref('39074168')],
-              totalEnrollment: 220,
+              effectDirection: 'mixed',
+              refs: [_ref('15537682')],
             ),
           ],
         },
       );
 
-      expect(find.text('STRONG · 2 studies · meta-analysis'), findsOneWidget);
+      expect(
+        find.text('Ingredient evidence: MODERATE · 1 study · meta-analysis'),
+        findsOneWidget,
+      );
       expect(
         find.text(
-          'Ashwagandha: strong support · 2 human studies · ~220 participants',
+          'Human studies exist for one or more ingredients; results may be mixed and do not prove this exact product.',
         ),
         findsOneWidget,
       );
+      expect(find.textContaining('support these claims'), findsNothing);
     });
+
+    testWidgets(
+      'product mixed evidence plus supportive ingredient meta renders ingredient scope',
+      (tester) async {
+        await _pump(
+          tester,
+          evidenceData: {
+            'match_count': 2,
+            'clinical_matches': [
+              _match(
+                ingredient: 'Exact Product',
+                evidence: 'product-human',
+                effectDirection: 'mixed',
+                refs: [_ref('111')],
+              ),
+              _match(
+                ingredient: 'Creatine Monohydrate',
+                evidence: 'ingredient-human',
+                studyType: 'systematic_review_meta',
+                effectDirection: 'positive_strong',
+                refs: [_ref('222'), _ref('333')],
+              ),
+            ],
+          },
+        );
+
+        expect(
+          find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Product evidence: STRONG'), findsNothing);
+        expect(
+          find.text(
+            'Human research supports one or more ingredients, not necessarily this exact product.',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'negative ingredient evidence renders non-supportive limited copy',
+      (tester) async {
+        await _pump(
+          tester,
+          evidenceData: {
+            'match_count': 1,
+            'clinical_matches': [
+              _match(
+                evidence: 'ingredient-human',
+                studyType: 'systematic_review_meta',
+                effectDirection: 'negative',
+                refs: [_ref('999')],
+              ),
+            ],
+          },
+        );
+
+        expect(
+          find.text('Ingredient evidence: LIMITED · 1 study · meta-analysis'),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Human studies for one or more ingredients show no benefit or possible unfavorable results; this does not support the product.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('MODERATE'), findsNothing);
+        expect(find.textContaining('support these claims'), findsNothing);
+      },
+    );
 
     testWidgets('surfaces the strongest ingredient attribution', (
       tester,
@@ -429,6 +655,7 @@ void main() {
               ingredient: 'Vitamin D3',
               evidence: 'ingredient-human',
               studyType: 'systematic_review_meta',
+              effectDirection: 'positive_strong',
               refs: [_ref('111'), _ref('222'), _ref('333')],
             ),
             _match(
@@ -441,7 +668,7 @@ void main() {
       );
 
       expect(
-        find.text('Vitamin D3: strong support · 3 human studies'),
+        find.text('Vitamin D3: strong ingredient evidence · 3 human studies'),
         findsOneWidget,
       );
     });
@@ -459,7 +686,7 @@ void main() {
 
       expect(
         find.text(
-          'This research feeds the Evidence pillar in the score above.',
+          'This research feeds the Evidence pillar; only Product evidence means the exact product or formulation was studied.',
         ),
         findsOneWidget,
       );
@@ -484,7 +711,10 @@ void main() {
       expect(find.text('Study 5'), findsOneWidget);
       expect(find.text('Study 6'), findsNothing);
       // Count still reflects all deduped studies.
-      expect(find.text('MODERATE · 8 studies'), findsOneWidget);
+      expect(
+        find.text('Ingredient evidence: MODERATE · 8 studies'),
+        findsOneWidget,
+      );
     });
   });
 }
