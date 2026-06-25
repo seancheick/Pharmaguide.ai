@@ -714,11 +714,8 @@ class _StackHealthCard extends ConsumerWidget {
 /// Micro-metrics row for the Stack Health card —
 /// supplements · medications · conflicts.
 ///
-/// **Truncation fix (2026-06-12):** the previous single-line
-/// "`0 supplements`" labels ellipsized to "0 supplem…" at iPhone widths
-/// (393pt). Reuses Stack v2's `_CountChip` pattern instead — count on
-/// top, short noun label ("Supplements") underneath — so every label
-/// fits without ellipsis on narrow phones.
+/// Compact one-line metrics. The text uses scale-down rather than wrap or
+/// ellipsis so plural suffixes never drop to a second line on narrow phones.
 @visibleForTesting
 class StackHealthMicroMetrics extends StatelessWidget {
   final int supplementCount;
@@ -732,23 +729,26 @@ class StackHealthMicroMetrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final supplementLabel =
+        '$supplementCount ${supplementCount == 1 ? 'Supplement' : 'Supplements'}';
+    final medicationLabel =
+        '$medicationCount ${medicationCount == 1 ? 'Medication' : 'Medications'}';
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _MicroMetric(
           icon: Icons.medication_outlined,
-          count: supplementCount,
-          label: 'Supplements',
+          label: supplementLabel,
           color: V2Colors.accent,
         ),
-        const SizedBox(width: V2Spacing.space16),
+        const SizedBox(width: V2Spacing.space8),
         _MicroMetric(
           icon: Icons.local_pharmacy_outlined,
-          count: medicationCount,
-          label: 'Medications',
+          label: medicationLabel,
           color: V2Colors.fgMuted,
         ),
-        const SizedBox(width: V2Spacing.space16),
+        const SizedBox(width: V2Spacing.space8),
         const _MicroMetric(
           icon: Icons.check_circle_outline,
           label: 'No conflicts',
@@ -761,55 +761,37 @@ class StackHealthMicroMetrics extends StatelessWidget {
 
 class _MicroMetric extends StatelessWidget {
   final IconData icon;
-
-  /// When set, renders the count stacked over the [label] (Stack v2
-  /// `_CountChip` pattern). When null, renders icon + label on one line.
-  final int? count;
   final String label;
   final Color color;
 
   const _MicroMetric({
     required this.icon,
-    this.count,
     required this.label,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final labelText = Text(
-      label,
-      style: V2Typography.caption(
-        color: V2Colors.fgMuted,
-      ).copyWith(fontWeight: FontWeight.w500),
-    );
     return Expanded(
       child: Row(
-        crossAxisAlignment: count == null
-            ? CrossAxisAlignment.center
-            : CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: V2Spacing.space4),
           Flexible(
-            child: count == null
-                ? labelText
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$count',
-                        style: V2Typography.bodyMedium(color: V2Colors.fg)
-                            .copyWith(
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
-                      ),
-                      labelText,
-                    ],
-                  ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                style: V2Typography.caption(
+                  color: V2Colors.fgMuted,
+                ).copyWith(fontWeight: FontWeight.w600),
+                maxLines: 1,
+                softWrap: false,
+              ),
+            ),
           ),
         ],
       ),
