@@ -192,12 +192,7 @@ class StackIntelligenceEngine {
   }
 
   String _medicationProfileIssueHeadline(MedicationProfileWarning warning) {
-    final parts = <String>[
-      '${warning.medicationName}: ${warning.headline}',
-      if (warning.body.trim().isNotEmpty) warning.body.trim(),
-      if (warning.management.trim().isNotEmpty) warning.management.trim(),
-    ];
-    return parts.join(' ');
+    return '${warning.medicationName}: ${warning.headline}';
   }
 
   List<InteractionResult> _interactionIssuesForScore(

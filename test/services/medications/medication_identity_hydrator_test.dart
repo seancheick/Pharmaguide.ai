@@ -179,6 +179,49 @@ void main() {
     );
 
     test(
+      'backfills Motrin brand RxCUI from bundled class map when offline',
+      () async {
+        final userDb = UserDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        addTearDown(userDb.close);
+        addTearDown(interactionDb.close);
+
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'med_motrin_brand',
+            type: const Value('medication'),
+            name: 'Motrin',
+            rxcui: const Value('202488'),
+          ),
+        );
+        await interactionDb
+            .into(interactionDb.drugClassMap)
+            .insert(
+              DrugClassMapCompanion.insert(
+                classId: 'class:nsaids',
+                className: 'NSAIDs',
+                drugRxcuisJson: '["5640"]',
+                source: 'manual',
+                lastUpdated: '2026-06-27',
+              ),
+            );
+
+        final fake = _FakeHttp(const {});
+        final hydrator = MedicationIdentityHydrator(
+          userDb: userDb,
+          rxNorm: RxNormApiService(
+            httpGet: fake.call,
+            offlineDb: interactionDb,
+          ),
+        );
+
+        expect(await hydrator.rehydrateActiveStackMedications(), 1);
+        final row = (await userDb.getActiveStack()).single;
+        expect(jsonDecode(row.drugClassesCol!) as List, ['class:nsaids']);
+      },
+    );
+
+    test(
       'merges curated class ids when RxNorm returns runtime slugs',
       () async {
         final userDb = UserDatabase.memory();

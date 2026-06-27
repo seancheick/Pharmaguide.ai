@@ -19,15 +19,10 @@ void main() {
       expect((conditions.first as Map)['id'], 'pregnancy');
     });
 
-    test('loads clinical_risk_taxonomy with 14 drug classes', () async {
-      // Count bumped 9→14 when round 2b-full added authored copy to
-      // previously-missing drug classes (sedatives, immunosuppressants,
-      // statins, antidepressants_ssri_snri, maois, cardiac_glycosides,
-      // anticholinergics, anticonvulsants). See pipeline repo commit
-      // 46971b8.
+    test('loads clinical_risk_taxonomy with 28 drug classes', () async {
       final taxonomy = await repo.loadClinicalRiskTaxonomy();
       final drugClasses = taxonomy['drug_classes'] as List;
-      expect(drugClasses.length, 14);
+      expect(drugClasses.length, 28);
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
     });
 

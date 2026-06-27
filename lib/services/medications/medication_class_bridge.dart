@@ -55,6 +55,20 @@ class MedicationClassBridge {
   static const Map<String, String> _profileGateClassOverrides = {
     'class:antiplatelet_agents': 'antiplatelets',
   };
+  static const Map<String, List<String>> _offlineIngredientRxcuiAliases = {
+    // RxNorm Motrin brand/product concepts that resolve to ibuprofen (5640).
+    // This prevents a silent offline miss if autocomplete succeeds but the
+    // follow-up brand -> ingredient hydration fails.
+    '202488': ['5640'], // Motrin
+    '1182821': ['5640'], // Motrin Pill
+    '1182818': ['5640'], // Motrin Oral Product
+    '1296120': ['5640'], // Motrin Chewable Product
+    '1182817': ['5640'], // Motrin Oral Liquid Product
+    '93358': ['5640'], // ibuprofen Oral Tablet [Motrin]
+    '606989': ['5640'], // ibuprofen Oral Capsule [Motrin]
+    '792241': ['5640'], // ibuprofen Chewable Tablet [Motrin]
+    '544392': ['5640'], // ibuprofen Oral Suspension [Motrin]
+  };
 
   Future<MedicationClassResolution> resolve({
     String? selectedRxcui,
@@ -62,11 +76,9 @@ class MedicationClassBridge {
     List<String> ingredientRxcuis = const <String>[],
     List<String> runtimeClassIds = const <String>[],
   }) async {
-    final rxcuis = _normalizeRxcuis([
-      selectedRxcui,
-      genericRxcui,
-      ...ingredientRxcuis,
-    ]);
+    final rxcuis = _expandOfflineAliases(
+      _normalizeRxcuis([selectedRxcui, genericRxcui, ...ingredientRxcuis]),
+    );
     final runtime = _normalizeClassIds(runtimeClassIds);
 
     final curated = <String>[];
@@ -124,6 +136,19 @@ class MedicationClassBridge {
           ? trimmed
           : 'class:$trimmed';
       if (seen.add(normalized)) out.add(normalized);
+    }
+    return out;
+  }
+
+  static List<String> _expandOfflineAliases(List<String> rxcuis) {
+    final out = <String>[];
+    final seen = <String>{};
+    for (final rxcui in rxcuis) {
+      if (seen.add(rxcui)) out.add(rxcui);
+      for (final alias
+          in _offlineIngredientRxcuiAliases[rxcui] ?? const <String>[]) {
+        if (seen.add(alias)) out.add(alias);
+      }
     }
     return out;
   }

@@ -200,6 +200,9 @@ void main() {
 
         final decoded =
             jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+        final metadata = decoded['_metadata'] as Map<String, dynamic>;
+        expect(metadata['purpose'], 'standalone_medication_profile_gate_rules');
+        expect(metadata['total_entries'], isA<int>());
         expect(decoded['schema_version'], isA<String>());
         expect(decoded['updated_at'], isA<String>());
 
@@ -213,6 +216,7 @@ void main() {
         );
 
         final rules = rawRules! as List<dynamic>;
+        expect(metadata['total_entries'], rules.length);
         expect(
           rules,
           isNotEmpty,

@@ -250,7 +250,7 @@ void main() {
       final issue = intelligence.issues.single;
       expect(issue.headline, contains('Motrin'));
       expect(issue.headline, contains('Review NSAID use in pregnancy'));
-      expect(issue.headline, contains('20 weeks'));
+      expect(issue.headline, isNot(contains('20 weeks')));
     });
 
     test('two nutrients approaching/exceeding UL → concerning', () {

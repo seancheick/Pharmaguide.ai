@@ -150,15 +150,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'pregnant profile plus Motrin produces medication-profile warning',
+    'pregnant profile plus Motrin brand RxCUI produces profile warning offline',
     () async {
       final container = await _container(
         profile: const ProfileState(conditions: ['pregnancy']),
-        medication: _medication(
-          name: 'Motrin',
-          rxcui: '5640',
-          drugClasses: '["class:anti_inflammatory_agents_non_steroidal"]',
-        ),
+        medication: _medication(name: 'Motrin', rxcui: '202488'),
       );
 
       final report = await container.read(stackSafetyReportProvider.future);
@@ -203,6 +199,23 @@ void main() {
           rxcui: '5640',
           drugClasses: '["class:anti_inflammatory_agents_non_steroidal"]',
         ),
+        supplement: _supplement(id: 'TURMERIC_1', name: 'Turmeric Complex'),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.medicationInteractions, hasLength(1));
+      expect(report.medicationInteractions.single.id, 'DSI_NSAID_TURMERIC');
+      expect(report.medicationInteractions.single.agent1Name, 'Motrin');
+    },
+  );
+
+  test(
+    'old Motrin brand row with no classes still triggers class interactions',
+    () async {
+      final container = await _containerWithSupplementAndMedication(
+        profile: const ProfileState(),
+        medication: _medication(name: 'Motrin', rxcui: '202488'),
         supplement: _supplement(id: 'TURMERIC_1', name: 'Turmeric Complex'),
       );
 

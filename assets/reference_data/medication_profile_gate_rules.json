@@ -1,4 +1,18 @@
 {
+  "_metadata": {
+    "description": "Standalone medication profile-gate rules for stack medications. Rules use the same v6.0 profile_gate schema as ingredient interaction warnings, but the product context is a stack medication class.",
+    "purpose": "standalone_medication_profile_gate_rules",
+    "schema_version": "1.0.0",
+    "contract_test": "scripts/tests/test_medication_profile_gate_rules_contract.py",
+    "last_updated": "2026-06-27",
+    "total_entries": 1,
+    "change_log": [
+      {
+        "date": "2026-06-27",
+        "change": "Add pregnancy NSAID medication-profile rule for stack medication review."
+      }
+    ]
+  },
   "schema_version": "1.0.0",
   "updated_at": "2026-06-27",
   "medication_profile_gate_rules": [

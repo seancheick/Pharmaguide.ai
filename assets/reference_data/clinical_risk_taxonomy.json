@@ -2,10 +2,22 @@
   "_metadata": {
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
-    "schema_version": "5.1.0",
-    "last_updated": "2026-06-27",
-    "total_entries": 49,
-    "flutter_top_level_key": "clinical_risk_taxonomy"
+    "schema_version": "5.2.0",
+    "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
+    "last_updated": "2026-05-26",
+    "total_entries": 76,
+    "flutter_top_level_key": "clinical_risk_taxonomy",
+    "drug_classes_count": 28,
+    "migration": {
+      "completed_migrations": [
+        {
+          "from": "5.1.0",
+          "to": "5.2.0",
+          "date": "2026-05-05",
+          "summary": "Additive: introduced profile_flags[] and product_forms[] blocks to support v6.0 profile_gate schema (see scripts/INTERACTION_RULE_SCHEMA_V6_ADR.md). No existing fields renamed or removed; conditions[], drug_classes[], severity_levels[], evidence_levels[] unchanged."
+        }
+      ]
+    }
   },
   "conditions": [
     {
@@ -49,7 +61,7 @@
       "label": "Diabetes",
       "category": "metabolic",
       "display_priority": 7,
-      "note": "Covers type 1 and type 2. Merged from diabetes_type1/diabetes_type2 — supplement interactions are the same for both types (blood sugar impact, hypoglycemic risk)."
+      "note": "Covers type 1 and type 2. Merged from diabetes_type1/diabetes_type2 \u2014 supplement interactions are the same for both types (blood sugar impact, hypoglycemic risk)."
     },
     {
       "id": "bleeding_disorders",
@@ -94,56 +106,6 @@
       "display_priority": 14
     }
   ],
-  "profile_flags": [
-    {
-      "id": "pregnant",
-      "label": "Pregnant",
-      "category": "reproductive",
-      "display_priority": 1
-    },
-    {
-      "id": "breastfeeding",
-      "label": "Breastfeeding",
-      "category": "reproductive",
-      "display_priority": 2
-    },
-    {
-      "id": "trying_to_conceive",
-      "label": "Trying to Conceive",
-      "category": "reproductive",
-      "display_priority": 3
-    },
-    {
-      "id": "surgery_scheduled",
-      "label": "Upcoming Surgery",
-      "category": "perioperative",
-      "display_priority": 4
-    },
-    {
-      "id": "post_op_recovery",
-      "label": "Post-Op Recovery",
-      "category": "perioperative",
-      "display_priority": 5
-    },
-    {
-      "id": "hypoglycemia_history",
-      "label": "Hypoglycemia History",
-      "category": "metabolic",
-      "display_priority": 6
-    },
-    {
-      "id": "bleeding_history",
-      "label": "Bleeding History",
-      "category": "hematologic",
-      "display_priority": 7
-    },
-    {
-      "id": "severely_immunocompromised",
-      "label": "Severely Immunocompromised",
-      "category": "immunologic",
-      "display_priority": 8
-    }
-  ],
   "drug_classes": [
     {
       "id": "anticoagulants",
@@ -170,8 +132,20 @@
       "display_priority": 4
     },
     {
-      "id": "hypoglycemics",
-      "label": "Glucose-Lowering Medications",
+      "id": "hypoglycemics_high_risk",
+      "label": "Glucose-Lowering Medications (High-Risk)",
+      "category": "metabolic",
+      "display_priority": 5
+    },
+    {
+      "id": "hypoglycemics_lower_risk",
+      "label": "Glucose-Lowering Medications (Lower-Risk)",
+      "category": "metabolic",
+      "display_priority": 5
+    },
+    {
+      "id": "hypoglycemics_unknown",
+      "label": "Glucose-Lowering Medications (Unspecified)",
       "category": "metabolic",
       "display_priority": 5
     },
@@ -235,6 +209,79 @@
         "topiramate"
       ],
       "mechanism_note": "Supplements that affect CYP3A4/2C19 metabolism or GABAergic signaling may alter anticonvulsant drug levels or seizure threshold."
+    },
+    {
+      "id": "thiazide_diuretics",
+      "label": "Thiazide Diuretics",
+      "category": "cardiology",
+      "display_priority": 14,
+      "description": "Thiazide and thiazide-like diuretics. Distinct from other diuretics because they retain calcium (relevant for vitamin D + calcium supplements)."
+    },
+    {
+      "id": "lithium",
+      "label": "Lithium",
+      "category": "psychiatric",
+      "display_priority": 16
+    },
+    {
+      "id": "calcium_channel_blockers",
+      "label": "Calcium Channel Blockers",
+      "category": "cardiovascular",
+      "display_priority": 17
+    },
+    {
+      "id": "oral_contraceptives",
+      "label": "Oral Contraceptives",
+      "category": "endocrine",
+      "display_priority": 18
+    },
+    {
+      "id": "antiarrhythmics",
+      "label": "Antiarrhythmics",
+      "category": "cardiovascular",
+      "display_priority": 19
+    },
+    {
+      "id": "cyp3a4_substrates",
+      "label": "CYP3A4-Metabolized Drugs",
+      "category": "drug_metabolism",
+      "display_priority": 20
+    },
+    {
+      "id": "cyp2d6_substrates",
+      "label": "CYP2D6-Metabolized Drugs",
+      "category": "drug_metabolism",
+      "display_priority": 21
+    },
+    {
+      "id": "doacs",
+      "label": "Direct Oral Anticoagulants",
+      "category": "hematology",
+      "display_priority": 18
+    },
+    {
+      "id": "potassium_sparing_diuretics",
+      "label": "Potassium-Sparing Diuretics",
+      "category": "cardiovascular",
+      "display_priority": 19
+    },
+    {
+      "id": "tetracycline_antibiotics",
+      "label": "Tetracycline Antibiotics",
+      "category": "antiinfective",
+      "display_priority": 20
+    },
+    {
+      "id": "beta_blockers",
+      "label": "Beta Blockers",
+      "category": "cardiovascular",
+      "display_priority": 21
+    },
+    {
+      "id": "fluoroquinolones",
+      "label": "Fluoroquinolone Antibiotics",
+      "category": "antiinfective",
+      "display_priority": 22
     }
   ],
   "severity_levels": [
@@ -263,10 +310,16 @@
       "weight": 2
     },
     {
-      "id": "info",
+      "id": "informational",
       "label": "Informational",
       "color": "gray",
       "weight": 1
+    },
+    {
+      "id": "no_data",
+      "label": "No Data",
+      "color": "gray",
+      "weight": 0
     }
   ],
   "evidence_levels": [
@@ -285,6 +338,133 @@
     {
       "id": "insufficient",
       "description": "Insufficient evidence for a firm interaction conclusion"
+    },
+    {
+      "id": "limited",
+      "label": "Limited",
+      "weight": 0.5,
+      "color": "yellow",
+      "description": "Some data exists but is sparse or methodologically weak."
+    },
+    {
+      "id": "moderate",
+      "label": "Moderate",
+      "weight": 0.7,
+      "color": "yellow",
+      "description": "Reasonable evidence base; not strong enough for established."
+    },
+    {
+      "id": "no_data",
+      "label": "No Data",
+      "weight": 0.0,
+      "color": "gray",
+      "description": "No evidence \u2014 used as gap-fill default in pregnancy_lactation."
+    }
+  ],
+  "profile_flags": [
+    {
+      "id": "pregnant",
+      "label": "Pregnant",
+      "category": "reproductive",
+      "description": "User is currently pregnant. Gates pregnancy-specific alerts."
+    },
+    {
+      "id": "trying_to_conceive",
+      "label": "Trying to Conceive",
+      "category": "reproductive",
+      "description": "User is actively trying to conceive (preconception). Gates TTC and many pregnancy-precautionary alerts."
+    },
+    {
+      "id": "breastfeeding",
+      "label": "Breastfeeding",
+      "category": "reproductive",
+      "description": "User is breastfeeding. Gates lactation-specific alerts."
+    },
+    {
+      "id": "post_op_recovery",
+      "label": "Post-Op Recovery",
+      "category": "perioperative",
+      "description": "User is in post-operative recovery. Gates bleeding/wound-healing-related alerts that taper off after surgery."
+    },
+    {
+      "id": "surgery_scheduled",
+      "label": "Surgery Scheduled",
+      "category": "perioperative",
+      "description": "User has a scheduled surgery within a relevant time window. Gates pre-op bleeding-risk alerts (replaces previous condition_id usage)."
+    },
+    {
+      "id": "hypoglycemia_history",
+      "label": "Hypoglycemia History",
+      "category": "metabolic",
+      "description": "User has a history of hypoglycemia. Used to escalate diabetes interaction severity (e.g., berberine baseline caution \u2192 avoid)."
+    },
+    {
+      "id": "bleeding_history",
+      "label": "Bleeding History",
+      "category": "hematologic",
+      "description": "User has a personal/family bleeding-disorder history. Used to escalate antiplatelet/anticoagulant interaction severity."
+    },
+    {
+      "id": "severely_immunocompromised",
+      "label": "Severely immunocompromised",
+      "category": "immune",
+      "description": "User is severely immunocompromised (e.g. chemotherapy, organ transplant, high-dose immunosuppressants). Gates probiotic infection risk and other severe-only warnings."
+    }
+  ],
+  "product_forms": [
+    {
+      "id": "topical_only",
+      "label": "Topical Only",
+      "category": "delivery_route",
+      "description": "Product is applied topically only (e.g., aloe gel for skin). Used in excludes.product_forms_any to suppress oral-systemic alerts."
+    },
+    {
+      "id": "oral",
+      "label": "Oral",
+      "category": "delivery_route",
+      "description": "Generic oral delivery (capsule/tablet/powder/liquid)."
+    },
+    {
+      "id": "capsule",
+      "label": "Capsule",
+      "category": "delivery_route",
+      "description": "Encapsulated oral form."
+    },
+    {
+      "id": "tablet",
+      "label": "Tablet",
+      "category": "delivery_route",
+      "description": "Compressed oral tablet."
+    },
+    {
+      "id": "powder",
+      "label": "Powder",
+      "category": "delivery_route",
+      "description": "Powdered oral form (mixed into liquid/food)."
+    },
+    {
+      "id": "liquid_oral",
+      "label": "Liquid Oral",
+      "category": "delivery_route",
+      "description": "Oral liquid (e.g., tincture, syrup, oil)."
+    },
+    {
+      "id": "culinary_turmeric",
+      "label": "Culinary Turmeric",
+      "category": "potency_class",
+      "description": "Food-grade turmeric used as spice; not a high-potency curcumin extract. Used in excludes.product_forms_any to suppress curcumin extract pregnancy alert for tiny culinary amounts."
+    },
+    {
+      "id": "high_potency_extract",
+      "label": "High-Potency Extract",
+      "category": "potency_class",
+      "description": "Standardized high-potency extract (e.g., curcumin extract, mulberry leaf DNJ-standardized). Used to scope alerts to extract-strength dosing only."
+    },
+    {
+      "id": "unknown",
+      "label": "Unknown",
+      "category": "potency_class",
+      "description": "Product form not yet classified. Default for products without explicit form_scope; should not appear in excludes lists."
     }
   ],
   "sources": [

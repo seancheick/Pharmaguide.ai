@@ -53,6 +53,27 @@ void main() {
     );
   });
 
+  test(
+    'Motrin brand RxCUI resolves to NSAIDs without runtime classes',
+    () async {
+      final result = await bridge.resolve(selectedRxcui: '202488');
+
+      expect(result.curatedInteractionClassIds, ['class:nsaids']);
+      expect(result.profileGateClassIds, ['nsaids']);
+      expect(result.mergedInteractionClassIds, ['class:nsaids']);
+    },
+  );
+
+  test(
+    'Motrin product RxCUI resolves to NSAIDs without network hydration',
+    () async {
+      final result = await bridge.resolve(selectedRxcui: '93358');
+
+      expect(result.curatedInteractionClassIds, ['class:nsaids']);
+      expect(result.profileGateClassIds, ['nsaids']);
+    },
+  );
+
   test('naproxen RxCUI resolves to NSAIDs', () async {
     final result = await bridge.resolve(selectedRxcui: '7258');
 

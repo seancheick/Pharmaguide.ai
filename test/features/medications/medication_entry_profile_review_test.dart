@@ -14,28 +14,11 @@ class _FakeRxNormHttp {
       {
         "approximateGroup": {
           "candidate": [
-            {"rxcui": "5640", "name": "Motrin", "score": "100"}
+            {"rxcui": "202488", "name": "Motrin", "score": "100"}
           ]
         }
       }
     ''',
-    '/REST/rxcui/5640/related.json?tty=IN':
-        '{"relatedGroup": {"conceptGroup": []}}',
-    '/REST/rxclass/class/byRxcui.json?rxcui=5640&relaSource=ATC': '''
-      {
-        "rxclassDrugInfoList": {
-          "rxclassDrugInfo": [
-            {
-              "rxclassMinConceptItem": {
-                "className": "Anti-Inflammatory Agents, Non-Steroidal"
-              }
-            }
-          ]
-        }
-      }
-    ''',
-    '/REST/rxclass/class/byRxcui.json?rxcui=5640&relaSource=MEDRT':
-        '{"rxclassDrugInfoList": {"rxclassDrugInfo": []}}',
   };
 
   Future<String> call(Uri url) async {
@@ -88,7 +71,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('med-entry-suggestion-5640')));
+      await tester.tap(find.byKey(const Key('med-entry-suggestion-202488')));
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
