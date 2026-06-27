@@ -3,8 +3,8 @@
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
     "schema_version": "5.1.0",
-    "last_updated": "2026-04-14",
-    "total_entries": 41,
+    "last_updated": "2026-06-27",
+    "total_entries": 49,
     "flutter_top_level_key": "clinical_risk_taxonomy"
   },
   "conditions": [
@@ -92,6 +92,56 @@
       "label": "High Cholesterol",
       "category": "cardiovascular",
       "display_priority": 14
+    }
+  ],
+  "profile_flags": [
+    {
+      "id": "pregnant",
+      "label": "Pregnant",
+      "category": "reproductive",
+      "display_priority": 1
+    },
+    {
+      "id": "breastfeeding",
+      "label": "Breastfeeding",
+      "category": "reproductive",
+      "display_priority": 2
+    },
+    {
+      "id": "trying_to_conceive",
+      "label": "Trying to Conceive",
+      "category": "reproductive",
+      "display_priority": 3
+    },
+    {
+      "id": "surgery_scheduled",
+      "label": "Upcoming Surgery",
+      "category": "perioperative",
+      "display_priority": 4
+    },
+    {
+      "id": "post_op_recovery",
+      "label": "Post-Op Recovery",
+      "category": "perioperative",
+      "display_priority": 5
+    },
+    {
+      "id": "hypoglycemia_history",
+      "label": "Hypoglycemia History",
+      "category": "metabolic",
+      "display_priority": 6
+    },
+    {
+      "id": "bleeding_history",
+      "label": "Bleeding History",
+      "category": "hematologic",
+      "display_priority": 7
+    },
+    {
+      "id": "severely_immunocompromised",
+      "label": "Severely Immunocompromised",
+      "category": "immunologic",
+      "display_priority": 8
     }
   ],
   "drug_classes": [

@@ -19,6 +19,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
@@ -59,6 +60,24 @@ NutrientStatus _nutrient({
       contributions: const <NutrientContribution>[],
     ),
     tier: tier,
+  );
+}
+
+MedicationProfileWarning _profileWarning({
+  required String id,
+  required Severity severity,
+  String medicationName = 'Motrin',
+}) {
+  return MedicationProfileWarning(
+    id: id,
+    ruleId: id,
+    medicationName: medicationName,
+    severity: severity,
+    evidenceLevel: EvidenceLevel.established,
+    headline: 'Review NSAID use in pregnancy',
+    body: 'NSAID use needs profile review.',
+    management: 'Check with your clinician.',
+    sourceUrls: const <String>[],
   );
 }
 
@@ -150,12 +169,15 @@ void main() {
       expect((ordered[2] as InteractionResult).id, 'M');
     });
 
-    test('inside same severity tier, medication interactions render before '
-        'stack interactions, then category warnings, then nutrients', () {
+    test('inside same severity tier, warning buckets render in risk order', () {
       final medPair = _interaction(
         id: 'med_pair',
         severity: Severity.caution,
         type: InteractionType.drugDrug,
+      );
+      final medProfile = _profileWarning(
+        id: 'med_profile',
+        severity: Severity.caution,
       );
       final med = _interaction(
         id: 'med',
@@ -174,18 +196,33 @@ void main() {
       );
       final report = StackSafetyReport(
         medicationPairInteractions: [medPair],
+        medicationProfileWarnings: [medProfile],
         stackInteractions: [stack],
         medicationInteractions: [med],
         categoryWarnings: [cat],
         nutrientStatuses: [nut],
       );
       final ordered = report.orderedWarnings;
-      expect(ordered, hasLength(5));
+      expect(ordered, hasLength(6));
       expect((ordered[0] as InteractionResult).id, 'med_pair');
-      expect((ordered[1] as InteractionResult).id, 'med');
-      expect((ordered[2] as InteractionResult).id, 'stack');
-      expect((ordered[3] as InteractionResult).id, 'cat');
-      expect(ordered[4], isA<NutrientStatus>());
+      expect((ordered[1] as MedicationProfileWarning).id, 'med_profile');
+      expect((ordered[2] as InteractionResult).id, 'med');
+      expect((ordered[3] as InteractionResult).id, 'stack');
+      expect((ordered[4] as InteractionResult).id, 'cat');
+      expect(ordered[5], isA<NutrientStatus>());
+    });
+
+    test('medication-profile warnings contribute counts and emptiness', () {
+      final report = StackSafetyReport(
+        medicationProfileWarnings: [
+          _profileWarning(id: 'pregnancy_nsaid', severity: Severity.caution),
+        ],
+      );
+
+      expect(report.isEmpty, isFalse);
+      expect(report.overallSeverity, Severity.caution);
+      expect(report.severityCounts[Severity.caution], 1);
+      expect(report.orderedWarnings.single, isA<MedicationProfileWarning>());
     });
 
     test('orderedWarnings preserves source-list order within a bucket', () {

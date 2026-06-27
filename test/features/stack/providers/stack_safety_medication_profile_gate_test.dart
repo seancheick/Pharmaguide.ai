@@ -1,0 +1,216 @@
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+
+UserStacksLocalData _medication({
+  required String name,
+  required String rxcui,
+  String? drugClasses,
+}) {
+  final now = DateTime.utc(2026, 6, 27);
+  return UserStacksLocalData(
+    id: 'med_$rxcui',
+    type: 'medication',
+    name: name,
+    rxcui: rxcui,
+    drugClassesCol: drugClasses,
+    addedAt: now,
+    clientUpdatedAt: now,
+  );
+}
+
+UserStacksLocalData _supplement({required String id, required String name}) {
+  final now = DateTime.utc(2026, 6, 27);
+  return UserStacksLocalData(
+    id: 'stack_$id',
+    type: 'supplement',
+    name: name,
+    dsldId: id,
+    addedAt: now,
+    clientUpdatedAt: now,
+  );
+}
+
+Future<ProviderContainer> _container({
+  required ProfileState profile,
+  required UserStacksLocalData medication,
+}) async {
+  final coreDb = CoreDatabase.memory();
+  final interactionDb = InteractionDatabase.memory();
+  addTearDown(coreDb.close);
+  addTearDown(interactionDb.close);
+
+  await interactionDb
+      .into(interactionDb.drugClassMap)
+      .insert(
+        DrugClassMapCompanion.insert(
+          classId: 'class:nsaids',
+          className: 'NSAIDs',
+          drugRxcuisJson: '["5640"]',
+          source: 'fixture',
+          lastUpdated: '2026-06-27',
+        ),
+      );
+
+  final container = ProviderContainer(
+    overrides: [
+      coreDatabaseProvider.overrideWithValue(coreDb),
+      interactionDatabaseProvider.overrideWithValue(interactionDb),
+      activeStackProvider.overrideWith((ref) async => [medication]),
+      loadedProfileProvider.overrideWith((ref) async => profile),
+      stackNutrientStatusesProvider.overrideWith((ref) async => const []),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+Future<ProviderContainer> _containerWithSupplementAndMedication({
+  required ProfileState profile,
+  required UserStacksLocalData medication,
+  required UserStacksLocalData supplement,
+}) async {
+  final coreDb = CoreDatabase.memory();
+  final interactionDb = InteractionDatabase.memory();
+  addTearDown(coreDb.close);
+  addTearDown(interactionDb.close);
+
+  await interactionDb
+      .into(interactionDb.drugClassMap)
+      .insert(
+        DrugClassMapCompanion.insert(
+          classId: 'class:nsaids',
+          className: 'NSAIDs',
+          drugRxcuisJson: '["5640"]',
+          source: 'fixture',
+          lastUpdated: '2026-06-27',
+        ),
+      );
+  await interactionDb
+      .into(interactionDb.interactions)
+      .insert(
+        InteractionsCompanion.insert(
+          id: 'DSI_NSAID_TURMERIC',
+          agent1Type: 'drug_class',
+          agent1Name: 'NSAIDs',
+          agent1Id: 'class:nsaids',
+          agent2Type: 'supplement',
+          agent2Name: 'Turmeric',
+          agent2Id: 'umls:turmeric',
+          agent2CanonicalId: const Value('turmeric'),
+          severity: 'caution',
+          mechanism: 'NSAIDs and turmeric may add bleeding-risk context.',
+          management: 'Review with your clinician before combining.',
+          evidenceLevel: const Value('established'),
+          sourceUrlsJson: '[]',
+          sourcePmidsJson: '[]',
+          typeAuthored: 'drug_supplement',
+          source: 'curated',
+          provenance: 'fixture',
+          versionAdded: 'test',
+          versionLastModified: 'test',
+          lastUpdated: '2026-06-27',
+        ),
+      );
+  await coreDb
+      .into(coreDb.productsCore)
+      .insert(
+        ProductsCoreCompanion.insert(
+          dsldId: supplement.dsldId!,
+          productName: supplement.name,
+          productStatus: const Value('active'),
+          keyIngredientTags: const Value('["turmeric"]'),
+          exportVersion: 'test',
+          exportedAt: '2026-06-27T00:00:00Z',
+        ),
+      );
+
+  final container = ProviderContainer(
+    overrides: [
+      coreDatabaseProvider.overrideWithValue(coreDb),
+      interactionDatabaseProvider.overrideWithValue(interactionDb),
+      activeStackProvider.overrideWith((ref) async => [medication, supplement]),
+      loadedProfileProvider.overrideWith((ref) async => profile),
+      stackNutrientStatusesProvider.overrideWith((ref) async => const []),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'pregnant profile plus Motrin produces medication-profile warning',
+    () async {
+      final container = await _container(
+        profile: const ProfileState(conditions: ['pregnancy']),
+        medication: _medication(
+          name: 'Motrin',
+          rxcui: '5640',
+          drugClasses: '["class:anti_inflammatory_agents_non_steroidal"]',
+        ),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.medicationProfileWarnings, hasLength(1));
+      expect(
+        report.medicationProfileWarnings.single.ruleId,
+        'MCR_PREGNANCY_NSAIDS',
+      );
+      expect(
+        report.orderedWarnings.first,
+        report.medicationProfileWarnings.single,
+      );
+    },
+  );
+
+  test(
+    'non-pregnant profile plus Motrin does not produce pregnancy warning',
+    () async {
+      final container = await _container(
+        profile: const ProfileState(),
+        medication: _medication(
+          name: 'Motrin',
+          rxcui: '5640',
+          drugClasses: '["class:anti_inflammatory_agents_non_steroidal"]',
+        ),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.medicationProfileWarnings, isEmpty);
+    },
+  );
+
+  test(
+    'old Motrin row with only runtime RxClass slug still triggers class interactions',
+    () async {
+      final container = await _containerWithSupplementAndMedication(
+        profile: const ProfileState(),
+        medication: _medication(
+          name: 'Motrin',
+          rxcui: '5640',
+          drugClasses: '["class:anti_inflammatory_agents_non_steroidal"]',
+        ),
+        supplement: _supplement(id: 'TURMERIC_1', name: 'Turmeric Complex'),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.medicationInteractions, hasLength(1));
+      expect(report.medicationInteractions.single.id, 'DSI_NSAID_TURMERIC');
+      expect(report.medicationInteractions.single.agent1Name, 'Motrin');
+    },
+  );
+}

@@ -177,5 +177,79 @@ void main() {
         ]);
       },
     );
+
+    test(
+      'merges curated class ids when RxNorm returns runtime slugs',
+      () async {
+        final userDb = UserDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        addTearDown(userDb.close);
+        addTearDown(interactionDb.close);
+
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'med_motrin',
+            type: const Value('medication'),
+            name: 'Motrin',
+            rxcui: const Value('5640'),
+            drugClassesCol: const Value(
+              '["class:anti_inflammatory_agents_non_steroidal"]',
+            ),
+          ),
+        );
+        await interactionDb
+            .into(interactionDb.drugClassMap)
+            .insert(
+              DrugClassMapCompanion.insert(
+                classId: 'class:nsaids',
+                className: 'NSAIDs',
+                drugRxcuisJson: '["5640"]',
+                source: 'manual',
+                lastUpdated: '2026-06-27',
+              ),
+            );
+
+        final fake = _FakeHttp(const {
+          '/REST/rxcui/5640/related.json?tty=IN':
+              '{"relatedGroup": {"conceptGroup": []}}',
+          '/REST/rxclass/class/byRxcui.json?rxcui=5640&relaSource=ATC': '''
+        {
+          "rxclassDrugInfoList": {
+            "rxclassDrugInfo": [
+              {
+                "rxclassMinConceptItem": {
+                  "className": "Anti-Inflammatory Agents, Non-Steroidal"
+                }
+              }
+            ]
+          }
+        }
+        ''',
+          '/REST/rxclass/class/byRxcui.json?rxcui=5640&relaSource=MEDRT':
+              '{"rxclassDrugInfoList": {"rxclassDrugInfo": []}}',
+        });
+        final hydrator = MedicationIdentityHydrator(
+          userDb: userDb,
+          rxNorm: RxNormApiService(
+            httpGet: fake.call,
+            offlineDb: interactionDb,
+          ),
+        );
+
+        expect(await hydrator.rehydrateActiveStackMedications(), 1);
+        final firstRow = (await userDb.getActiveStack()).single;
+        expect(jsonDecode(firstRow.drugClassesCol!) as List, [
+          'class:anti_inflammatory_agents_non_steroidal',
+          'class:nsaids',
+        ]);
+
+        expect(await hydrator.rehydrateActiveStackMedications(), 0);
+        final secondRow = (await userDb.getActiveStack()).single;
+        expect(jsonDecode(secondRow.drugClassesCol!) as List, [
+          'class:anti_inflammatory_agents_non_steroidal',
+          'class:nsaids',
+        ]);
+      },
+    );
   });
 }

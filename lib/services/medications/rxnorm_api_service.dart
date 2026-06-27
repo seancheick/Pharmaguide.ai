@@ -34,6 +34,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Result of an `approximateTerm` autocomplete query.
@@ -262,8 +263,15 @@ class RxNormApiService {
     if (atcRaw != null) classes.addAll(_parseClasses(atcRaw));
     if (medrtRaw != null) classes.addAll(_parseClasses(medrtRaw));
 
-    if (classes.isEmpty) {
-      classes.addAll(await _offlineClassesForRxcui(r));
+    final db = _offlineDb;
+    if (db != null) {
+      final resolution = await MedicationClassBridge(db: db).resolve(
+        selectedRxcui: r,
+        runtimeClassIds: classes.toList(growable: false),
+      );
+      classes
+        ..clear()
+        ..addAll(resolution.mergedInteractionClassIds);
     }
 
     final result = classes.toList(growable: false)..sort();
@@ -399,12 +407,6 @@ class RxNormApiService {
     final rows = await db.select(db.drugClassMap).get();
     final ids = rows.map((r) => r.classId).toList()..sort();
     return ids;
-  }
-
-  Future<List<String>> _offlineClassesForRxcui(String rxcui) async {
-    final db = _offlineDb;
-    if (db == null) return const <String>[];
-    return db.drugClassesForRxcui(rxcui);
   }
 
   // ---------------------------------------------------------------------------

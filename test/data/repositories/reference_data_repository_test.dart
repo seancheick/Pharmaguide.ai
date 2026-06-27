@@ -31,6 +31,16 @@ void main() {
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
     });
 
+    test('loads clinical_risk_taxonomy with 8 profile flags', () async {
+      final taxonomy = await repo.loadClinicalRiskTaxonomy();
+      final profileFlags = taxonomy['profile_flags'] as List;
+      expect(profileFlags.length, 8);
+      expect(
+        profileFlags.map((entry) => (entry as Map)['id']),
+        containsAll(['pregnant', 'trying_to_conceive', 'bleeding_history']),
+      );
+    });
+
     test('loads user_goals_to_clusters with 18 goals', () async {
       final goals = await repo.loadGoalMappings();
       final mappings = goals['user_goal_mappings'] as List;
@@ -52,9 +62,22 @@ void main() {
       expect(timing['timing_rules'], isA<List<dynamic>>());
     });
 
+    test('loads medication_profile_gate_rules asset', () async {
+      final rulesData = await repo.loadMedicationProfileGateRules();
+      final rules = rulesData['medication_profile_gate_rules'] as List;
+      expect(rules, isNotEmpty);
+      expect((rules.first as Map)['id'], 'MCR_PREGNANCY_NSAIDS');
+    });
+
     test('caches after first load', () async {
       final first = await repo.loadClinicalRiskTaxonomy();
       final second = await repo.loadClinicalRiskTaxonomy();
+      expect(identical(first, second), true);
+    });
+
+    test('caches medication_profile_gate_rules after first load', () async {
+      final first = await repo.loadMedicationProfileGateRules();
+      final second = await repo.loadMedicationProfileGateRules();
       expect(identical(first, second), true);
     });
   });

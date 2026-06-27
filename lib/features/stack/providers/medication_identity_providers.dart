@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/medications/medication_identity_hydrator.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
@@ -11,6 +12,9 @@ final medicationIdentityHydrationProvider = FutureProvider<int>((ref) async {
   final hydrator = MedicationIdentityHydrator(
     userDb: ref.read(userDatabaseProvider),
     rxNorm: ref.read(rxNormApiServiceProvider),
+    classBridge: MedicationClassBridge(
+      db: ref.read(interactionDatabaseProvider),
+    ),
   );
   final updated = await hydrator.rehydrateActiveStackMedications();
   if (updated > 0) {

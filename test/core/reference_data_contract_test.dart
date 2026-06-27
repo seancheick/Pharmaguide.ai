@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Contract tests for the bundled reference-data JSON assets.
@@ -183,5 +184,80 @@ void main() {
             '+ safety_warning_one_liner + ban_context instead.',
       );
     });
+
+    test(
+      'medication_profile_gate_rules.json exposes validated standalone rules',
+      () {
+        final file = File(
+          'assets/reference_data/medication_profile_gate_rules.json',
+        );
+        expect(
+          file.existsSync(),
+          isTrue,
+          reason:
+              'Bundled medication profile-gate asset missing at ${file.path}',
+        );
+
+        final decoded =
+            jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+        expect(decoded['schema_version'], isA<String>());
+        expect(decoded['updated_at'], isA<String>());
+
+        final rawRules = decoded['medication_profile_gate_rules'];
+        expect(
+          rawRules,
+          isA<List<dynamic>>(),
+          reason:
+              'Medication profile-gate asset must expose top-level '
+              '"medication_profile_gate_rules".',
+        );
+
+        final rules = rawRules! as List<dynamic>;
+        expect(
+          rules,
+          isNotEmpty,
+          reason:
+              'No standalone medication profile-gate rules are bundled; '
+              'pregnancy × NSAID stack checks cannot fire.',
+        );
+
+        final taxonomy =
+            jsonDecode(
+                  File(
+                    'assets/reference_data/clinical_risk_taxonomy.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>;
+
+        final first = rules.first as Map<String, dynamic>;
+        expect(first['id'], 'MCR_PREGNANCY_NSAIDS');
+        expect(first['severity'], 'caution');
+        expect(first['evidence_level'], isA<String>());
+        expect((first['headline'] as String).trim(), isNotEmpty);
+        expect((first['body'] as String).trim(), isNotEmpty);
+        expect((first['management'] as String).trim(), isNotEmpty);
+        expect(first['sources'], isA<List<dynamic>>());
+        expect(first['sources'], isNot(isEmpty));
+
+        final profileGate = first['profile_gate'] as Map<String, dynamic>;
+        expect(
+          validateProfileGate(profileGate, taxonomy: taxonomy),
+          isEmpty,
+          reason:
+              'Standalone medication rules must use the same v6.0 '
+              'profile_gate schema and controlled vocabulary as product '
+              'warnings.',
+        );
+
+        final requires = profileGate['requires'] as Map<String, dynamic>;
+        expect(requires['profile_flags_any'], contains('pregnant'));
+        expect(requires['drug_classes_any'], contains('nsaids'));
+        expect(
+          requires['profile_flags_any'],
+          isNot(contains('trying_to_conceive')),
+          reason: 'v1 rule intentionally applies to pregnancy only.',
+        );
+      },
+    );
   });
 }

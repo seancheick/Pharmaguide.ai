@@ -9,6 +9,7 @@ class ReferenceDataRepository {
   Map<String, dynamic>? _synergyClustersCache;
   Map<String, dynamic>? _bannedRecalledCache;
   Map<String, dynamic>? _depletionsCache;
+  Map<String, dynamic>? _medicationProfileGateRulesCache;
 
   Future<Map<String, dynamic>> loadClinicalRiskTaxonomy() async {
     _taxonomyCache ??= await _loadJson(
@@ -53,6 +54,13 @@ class ReferenceDataRepository {
       'assets/reference_data/medication_depletions.json',
     );
     return _depletionsCache!;
+  }
+
+  Future<Map<String, dynamic>> loadMedicationProfileGateRules() async {
+    _medicationProfileGateRulesCache ??= await _loadJson(
+      'assets/reference_data/medication_profile_gate_rules.json',
+    );
+    return _medicationProfileGateRulesCache!;
   }
 
   Future<Map<String, dynamic>> _loadJson(String path) async {

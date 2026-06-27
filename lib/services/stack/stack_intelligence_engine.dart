@@ -14,6 +14,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart' as core_models;
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -84,7 +85,10 @@ class StackIntelligenceEngine {
     ];
 
     int countBy(Severity s) =>
-        allInteractions.where((i) => i.severity == s).length;
+        allInteractions.where((i) => i.severity == s).length +
+        safetyReport.medicationProfileWarnings
+            .where((warning) => warning.severity == s)
+            .length;
 
     final contraindicatedCount = countBy(Severity.contraindicated);
     final avoidCount = countBy(Severity.avoid);
@@ -145,6 +149,13 @@ class StackIntelligenceEngine {
         out.add(
           StackIssue(severity: entry.severity, headline: entry.mechanism),
         );
+      } else if (entry is MedicationProfileWarning) {
+        out.add(
+          StackIssue(
+            severity: entry.severity,
+            headline: _medicationProfileIssueHeadline(entry),
+          ),
+        );
       } else if (entry is NutrientStatus) {
         final warning = entry.warning;
         if (warning == null) continue;
@@ -178,6 +189,15 @@ class StackIntelligenceEngine {
   String _formatDose(double value) {
     if (value == value.roundToDouble()) return value.toStringAsFixed(0);
     return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
+  }
+
+  String _medicationProfileIssueHeadline(MedicationProfileWarning warning) {
+    final parts = <String>[
+      '${warning.medicationName}: ${warning.headline}',
+      if (warning.body.trim().isNotEmpty) warning.body.trim(),
+      if (warning.management.trim().isNotEmpty) warning.management.trim(),
+    ];
+    return parts.join(' ');
   }
 
   List<InteractionResult> _interactionIssuesForScore(

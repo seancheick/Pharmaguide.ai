@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 @immutable
@@ -32,6 +33,7 @@ class StackSafetyReport {
     this.stackInteractions = const <InteractionResult>[],
     this.medicationInteractions = const <InteractionResult>[],
     this.medicationPairInteractions = const <InteractionResult>[],
+    this.medicationProfileWarnings = const <MedicationProfileWarning>[],
     this.categoryWarnings = const <InteractionResult>[],
     this.timingOptimizations = const <TimingOptimization>[],
     this.coverageIncomplete = false,
@@ -69,6 +71,11 @@ class StackSafetyReport {
   /// Drug × drug pairs from the curated interaction DB. PHI-bound.
   final List<InteractionResult> medicationPairInteractions;
 
+  /// Profile-specific medication warnings evaluated through the shared
+  /// profile_gate engine (for example, pregnant profile × NSAID medication).
+  /// These are PHI-bound and local-only.
+  final List<MedicationProfileWarning> medicationProfileWarnings;
+
   /// Heuristic category warnings from the legacy
   /// `StackInteractionChecker.checkSafety` path (stim/sed antagonism,
   /// blood-thinner stacking, duplicate active ingredients).
@@ -87,6 +94,7 @@ class StackSafetyReport {
       stackInteractions.isEmpty &&
       medicationInteractions.isEmpty &&
       medicationPairInteractions.isEmpty &&
+      medicationProfileWarnings.isEmpty &&
       categoryWarnings.isEmpty;
 
   /// True when timing advice is available.
@@ -102,6 +110,9 @@ class StackSafetyReport {
     Severity worst = Severity.safe;
     for (final r in _allInteractions) {
       if (r.severity.weight > worst.weight) worst = r.severity;
+    }
+    for (final w in medicationProfileWarnings) {
+      if (w.severity.weight > worst.weight) worst = w.severity;
     }
     for (final n in _flaggedNutrients) {
       final ns = _severityForNutrient(n);
@@ -119,6 +130,9 @@ class StackSafetyReport {
     for (final r in _allInteractions) {
       counts[r.severity] = (counts[r.severity] ?? 0) + 1;
     }
+    for (final w in medicationProfileWarnings) {
+      counts[w.severity] = (counts[w.severity] ?? 0) + 1;
+    }
     for (final n in _flaggedNutrients) {
       final s = _severityForNutrient(n);
       counts[s] = (counts[s] ?? 0) + 1;
@@ -132,10 +146,11 @@ class StackSafetyReport {
   ///
   /// Within the same severity tier the order is:
   ///   1. medication-pair interactions (highest stakes — drug-drug)
-  ///   2. medication interactions (drug-supp)
-  ///   3. stack supplement-pair interactions
-  ///   4. category heuristics
-  ///   5. nutrient UL warnings
+  ///   2. medication-profile warnings (condition/profile × medication)
+  ///   3. medication interactions (drug-supp)
+  ///   4. stack supplement-pair interactions
+  ///   5. category heuristics
+  ///   6. nutrient UL warnings
   ///
   /// Inside each bucket the relative order from the source list is
   /// preserved so callers passing pre-sorted inputs see deterministic
@@ -157,16 +172,26 @@ class StackSafetyReport {
     }
 
     addInteractions(medicationPairInteractions, 0);
-    addInteractions(medicationInteractions, 1);
-    addInteractions(stackInteractions, 2);
-    addInteractions(categoryWarnings, 3);
+    for (var i = 0; i < medicationProfileWarnings.length; i++) {
+      entries.add(
+        _RankedEntry(
+          severity: medicationProfileWarnings[i].severity,
+          bucket: 1,
+          ordinal: i,
+          payload: medicationProfileWarnings[i],
+        ),
+      );
+    }
+    addInteractions(medicationInteractions, 2);
+    addInteractions(stackInteractions, 3);
+    addInteractions(categoryWarnings, 4);
 
     final flagged = _flaggedNutrients;
     for (var i = 0; i < flagged.length; i++) {
       entries.add(
         _RankedEntry(
           severity: _severityForNutrient(flagged[i]),
-          bucket: 4,
+          bucket: 5,
           ordinal: i,
           payload: flagged[i],
         ),

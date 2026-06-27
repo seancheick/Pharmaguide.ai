@@ -5,9 +5,14 @@
 // the defense-in-depth domain guard that protects any caller bypassing
 // the UI short-circuit (deep links, bulk import, automation).
 
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 
@@ -111,5 +116,49 @@ void main() {
       expect(e.toString(), contains('DS_X'));
       expect(e.toString(), contains('BLOCKED'));
     });
+
+    test(
+      'addMedication persists curated class ids with runtime RxClass slugs',
+      () async {
+        final userDb = UserDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        addTearDown(userDb.close);
+        addTearDown(interactionDb.close);
+
+        await interactionDb
+            .into(interactionDb.drugClassMap)
+            .insert(
+              DrugClassMapCompanion.insert(
+                classId: 'class:nsaids',
+                className: 'NSAIDs',
+                drugRxcuisJson: '["5640"]',
+                source: 'fixture',
+                lastUpdated: '2026-06-27',
+              ),
+            );
+
+        final localContainer = ProviderContainer(
+          overrides: [
+            userDatabaseProvider.overrideWithValue(userDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+          ],
+        );
+        addTearDown(localContainer.dispose);
+        localContainer.read(authStateProvider.notifier).onSignedIn();
+
+        final actions = localContainer.read(stackActionsProvider);
+        await actions.addMedication(
+          name: 'Motrin',
+          rxcui: '5640',
+          drugClasses: const ['class:anti_inflammatory_agents_non_steroidal'],
+        );
+
+        final row = (await userDb.getActiveStack()).single;
+        expect(jsonDecode(row.drugClassesCol!) as List, [
+          'class:anti_inflammatory_agents_non_steroidal',
+          'class:nsaids',
+        ]);
+      },
+    );
   });
 }

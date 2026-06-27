@@ -75,9 +75,16 @@ import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart'
+    as reference_data;
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/app.dart' show scaffoldMessengerKey;
 
 class MedicationEntryV2Screen extends ConsumerStatefulWidget {
@@ -111,6 +118,9 @@ class _MedicationEntryV2ScreenState
   List<String> _selectedClasses = const <String>[];
   String? _selectedGenericRxcui;
   List<String> _ingredientRxcuis = const <String>[];
+  List<MedicationProfileWarning> _profileReviewWarnings =
+      const <MedicationProfileWarning>[];
+  bool _resolvingProfileReview = false;
   bool _resolvingClasses = false;
   bool _saving = false;
 
@@ -153,6 +163,8 @@ class _MedicationEntryV2ScreenState
       _selectedName = null;
       _selectedRxcui = null;
       _selectedClasses = const <String>[];
+      _profileReviewWarnings = const <MedicationProfileWarning>[];
+      _resolvingProfileReview = false;
       _offlineFallbackVisible = false;
     });
 
@@ -203,6 +215,8 @@ class _MedicationEntryV2ScreenState
       _selectedGenericRxcui = null;
       _ingredientRxcuis = const <String>[];
       _selectedClasses = const <String>[];
+      _profileReviewWarnings = const <MedicationProfileWarning>[];
+      _resolvingProfileReview = false;
       _resolvingClasses = true;
       _searchController.text = suggestion.name;
       _searchController.selection = TextSelection.fromPosition(
@@ -230,6 +244,17 @@ class _MedicationEntryV2ScreenState
           : const <String>[];
       _resolvingClasses = false;
     });
+    unawaited(
+      _refreshProfileReview(
+        name: suggestion.name,
+        rxcui: suggestion.rxcui,
+        genericRxcui: genericsResult.isNotEmpty ? genericsResult.first : null,
+        ingredientRxcuis: genericsResult.length > 1
+            ? genericsResult
+            : const <String>[],
+        drugClasses: classesResult,
+      ),
+    );
   }
 
   void _selectOfflineClass(String classId) {
@@ -237,6 +262,10 @@ class _MedicationEntryV2ScreenState
       _selectedName = _friendlyClassLabel(classId);
       _selectedRxcui = null;
       _selectedClasses = <String>[classId];
+      _selectedGenericRxcui = null;
+      _ingredientRxcuis = const <String>[];
+      _profileReviewWarnings = const <MedicationProfileWarning>[];
+      _resolvingProfileReview = false;
       _searchController.text = _friendlyClassLabel(classId);
       _searchController.selection = TextSelection.fromPosition(
         TextPosition(offset: _searchController.text.length),
@@ -245,6 +274,15 @@ class _MedicationEntryV2ScreenState
       _offlineFallbackVisible = false;
     });
     _searchFocusNode.unfocus();
+    unawaited(
+      _refreshProfileReview(
+        name: _friendlyClassLabel(classId),
+        rxcui: null,
+        genericRxcui: null,
+        ingredientRxcuis: const <String>[],
+        drugClasses: <String>[classId],
+      ),
+    );
   }
 
   /// 'class:ace_inhibitors' → 'ACE Inhibitors'. Resolves through
@@ -272,6 +310,8 @@ class _MedicationEntryV2ScreenState
       _selectedGenericRxcui = null;
       _ingredientRxcuis = const <String>[];
       _selectedClasses = const <String>[];
+      _profileReviewWarnings = const <MedicationProfileWarning>[];
+      _resolvingProfileReview = false;
       _searchController.clear();
       _query = '';
       _suggestions = const <RxNormSuggestion>[];
@@ -288,6 +328,59 @@ class _MedicationEntryV2ScreenState
       _selectedName != null &&
       ((_selectedRxcui != null && _selectedRxcui!.isNotEmpty) ||
           _selectedClasses.isNotEmpty);
+
+  Future<void> _refreshProfileReview({
+    required String name,
+    required String? rxcui,
+    required String? genericRxcui,
+    required List<String> ingredientRxcuis,
+    required List<String> drugClasses,
+  }) async {
+    if (!mounted) return;
+    setState(() {
+      _resolvingProfileReview = true;
+      _profileReviewWarnings = const <MedicationProfileWarning>[];
+    });
+
+    List<MedicationProfileWarning> warnings =
+        const <MedicationProfileWarning>[];
+    try {
+      final profile = await ref.read(loadedProfileProvider.future);
+      final rulesData = await ref
+          .read(reference_data.referenceDataRepositoryProvider)
+          .loadMedicationProfileGateRules();
+      final rules = MedicationProfileGateRule.listFromJson(rulesData);
+      final resolution =
+          await MedicationClassBridge(
+            db: ref.read(interactionDatabaseProvider),
+          ).resolve(
+            selectedRxcui: rxcui,
+            genericRxcui: genericRxcui,
+            ingredientRxcuis: ingredientRxcuis,
+            runtimeClassIds: drugClasses,
+          );
+      warnings = const MedicationProfileGateEvaluator().evaluate(
+        rules: rules,
+        medicationName: name,
+        medicationProfileGateClassIds: resolution.profileGateClassIds.toSet(),
+        userConditions: profile.conditionsForEvaluator.toSet(),
+        userProfileFlags: profile.evaluatorProfileFlags,
+      );
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'med_entry:profile_review_failed',
+      );
+      warnings = const <MedicationProfileWarning>[];
+    }
+
+    if (!mounted || _selectedName != name) return;
+    setState(() {
+      _profileReviewWarnings = warnings;
+      _resolvingProfileReview = false;
+    });
+  }
 
   Future<void> _save() async {
     if (!_canSave) return;
@@ -454,6 +547,14 @@ class _MedicationEntryV2ScreenState
                             _ingredientRxcuis.isEmpty,
                         friendlyClassLabel: _friendlyClassLabel,
                         onChange: _clearSelection,
+                      ),
+                    ],
+                    if (_resolvingProfileReview ||
+                        _profileReviewWarnings.isNotEmpty) ...[
+                      const SizedBox(height: V2Spacing.space12),
+                      _MedicationProfileReviewCard(
+                        resolving: _resolvingProfileReview,
+                        warnings: _profileReviewWarnings,
                       ),
                     ],
                     const SizedBox(height: V2Spacing.space32),
@@ -991,6 +1092,82 @@ class _SelectionSummary extends StatelessWidget {
               style: V2Typography.caption(color: V2Colors.fgMuted),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MedicationProfileReviewCard extends StatelessWidget {
+  const _MedicationProfileReviewCard({
+    required this.resolving,
+    required this.warnings,
+  });
+
+  final bool resolving;
+  final List<MedicationProfileWarning> warnings;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!resolving && warnings.isEmpty) return const SizedBox.shrink();
+    final warning = warnings.isNotEmpty ? warnings.first : null;
+    return Container(
+      key: const Key('med-entry-profile-review-card'),
+      decoration: BoxDecoration(
+        color: V2Colors.cautionTint,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.caution.withValues(alpha: 0.32)),
+      ),
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: V2Colors.surface,
+              borderRadius: BorderRadius.circular(V2Spacing.space8),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.assignment_late_outlined,
+              size: 18,
+              color: V2Colors.caution,
+            ),
+          ),
+          const SizedBox(width: V2Spacing.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PGEyebrow('Profile review', color: V2Colors.caution),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  resolving
+                      ? 'Checking your profile'
+                      : warning?.headline ?? 'Review for your profile',
+                  style: V2Typography.titleSm(color: V2Colors.fg),
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  resolving
+                      ? 'Looking for medication guidance tied to your profile.'
+                      : warning?.body ?? '',
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                ),
+                if (!resolving &&
+                    warning != null &&
+                    warning.management.trim().isNotEmpty) ...[
+                  const SizedBox(height: V2Spacing.space8),
+                  Text(
+                    warning.management,
+                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

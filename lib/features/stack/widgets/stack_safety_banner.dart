@@ -35,6 +35,7 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
@@ -165,6 +166,9 @@ class StackSafetyBanner extends StatelessWidget {
       }
       return '$prefix — ${topWarning.agent1Name} × ${topWarning.agent2Name}';
     }
+    if (topWarning is MedicationProfileWarning) {
+      return '$prefix — ${topWarning.medicationName}';
+    }
     if (topWarning is NutrientStatus) {
       return '$prefix — ${topWarning.total.displayName}';
     }
@@ -187,6 +191,11 @@ class StackSafetyBanner extends StatelessWidget {
       final base = first.management.trim().isNotEmpty
           ? first.management
           : first.mechanism;
+      primary = base.trim().isEmpty
+          ? first.evidenceLevel.label
+          : '$base · ${first.evidenceLevel.label}';
+    } else if (first is MedicationProfileWarning) {
+      final base = first.body.trim().isNotEmpty ? first.body : first.management;
       primary = base.trim().isEmpty
           ? first.evidenceLevel.label
           : '$base · ${first.evidenceLevel.label}';

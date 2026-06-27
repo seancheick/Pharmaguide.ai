@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 
@@ -8,11 +9,14 @@ class MedicationIdentityHydrator {
   MedicationIdentityHydrator({
     required UserDatabase userDb,
     required RxNormApiService rxNorm,
+    MedicationClassBridge? classBridge,
   }) : _userDb = userDb,
-       _rxNorm = rxNorm;
+       _rxNorm = rxNorm,
+       _classBridge = classBridge;
 
   final UserDatabase _userDb;
   final RxNormApiService _rxNorm;
+  final MedicationClassBridge? _classBridge;
 
   Future<int> rehydrateActiveStackMedications() async {
     final stack = await _userDb.getActiveStack();
@@ -27,14 +31,22 @@ class MedicationIdentityHydrator {
     if (row.type != 'medication') return false;
     final snapshot = MedicationIdentitySnapshot.fromStackRow(row);
     if (!snapshot.hasExactRxcui) return false;
-    if (snapshot.hasDrugClasses &&
+    if (_classBridge == null &&
+        snapshot.hasDrugClasses &&
         (snapshot.hasGenericRxcui || snapshot.hasIngredientRxcuis)) {
       return false;
     }
 
     final rxcui = snapshot.rxcui!;
-    final resolvedGenerics = await _rxNorm.resolveGenericRxcuis(rxcui);
-    final resolvedClasses = await _rxNorm.getClasses(rxcui);
+    final needsNetworkHydration =
+        !snapshot.hasDrugClasses ||
+        (!snapshot.hasGenericRxcui && !snapshot.hasIngredientRxcuis);
+    final resolvedGenerics = needsNetworkHydration
+        ? await _rxNorm.resolveGenericRxcuis(rxcui)
+        : const <String>[];
+    final resolvedClasses = needsNetworkHydration
+        ? await _rxNorm.getClasses(rxcui)
+        : const <String>[];
 
     final nextGeneric =
         snapshot.genericRxcui ??
@@ -42,10 +54,19 @@ class MedicationIdentityHydrator {
     final nextIngredients = snapshot.ingredientRxcuis.isNotEmpty
         ? snapshot.ingredientRxcuis
         : (resolvedGenerics.length > 1 ? resolvedGenerics : const <String>[]);
-    final nextClasses = _mergeIdentityLists(
+    final mergedClasses = _mergeIdentityLists(
       snapshot.drugClassIds,
       resolvedClasses,
     );
+    final bridge = _classBridge;
+    final nextClasses = bridge == null
+        ? mergedClasses
+        : (await bridge.resolve(
+            selectedRxcui: snapshot.rxcui,
+            genericRxcui: nextGeneric,
+            ingredientRxcuis: nextIngredients,
+            runtimeClassIds: mergedClasses,
+          )).mergedInteractionClassIds;
 
     final nextSnapshot = MedicationIdentitySnapshot(
       name: snapshot.name,

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
@@ -48,6 +49,24 @@ NutrientStatus _nutrient({
     ),
     tier: tier,
     warning: warning,
+  );
+}
+
+MedicationProfileWarning _profileWarning({
+  required String id,
+  required Severity severity,
+  String headline = 'Review NSAID use in pregnancy',
+}) {
+  return MedicationProfileWarning(
+    id: id,
+    ruleId: id,
+    medicationName: 'Motrin',
+    severity: severity,
+    evidenceLevel: EvidenceLevel.established,
+    headline: headline,
+    body: 'NSAIDs are generally avoided from 20 weeks of pregnancy.',
+    management: 'Check with your clinician.',
+    sourceUrls: const <String>[],
   );
 }
 
@@ -206,6 +225,32 @@ void main() {
       expect(intelligence.tier, StackTier.concerning);
       expect(intelligence.interactionCount, 1);
       expect(intelligence.hasContraindicatedInteraction, isFalse);
+    });
+
+    test('medication-profile warning counts as a stack interaction issue', () {
+      final report = StackSafetyReport(
+        medicationProfileWarnings: [
+          _profileWarning(
+            id: 'MCR_PREGNANCY_NSAIDS',
+            severity: Severity.caution,
+          ),
+        ],
+      );
+
+      final intelligence = engine.diagnose(
+        stackSize: 2,
+        safetyReport: report,
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+      );
+
+      expect(intelligence.interactionCount, 1);
+      expect(intelligence.tier, StackTier.decent);
+      final issue = intelligence.issues.single;
+      expect(issue.headline, contains('Motrin'));
+      expect(issue.headline, contains('Review NSAID use in pregnancy'));
+      expect(issue.headline, contains('20 weeks'));
     });
 
     test('two nutrients approaching/exceeding UL → concerning', () {
