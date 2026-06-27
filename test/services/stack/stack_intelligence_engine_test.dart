@@ -397,6 +397,37 @@ void main() {
       expect(intelligence.issues, isEmpty);
     });
 
+    test(
+      'medication-profile warning flows through to clinician/share diagnosis',
+      () {
+        // The clinician report + share surfaces build from
+        // diagnoseFromReports (asserted structurally in the next test). This
+        // proves that exact method carries the medication-profile warning,
+        // with its medication-specific context, into the issue list those
+        // surfaces render — so a pregnancy-NSAID warning is never silently
+        // dropped from a shared clinician summary.
+        final report = StackSafetyReport(
+          medicationProfileWarnings: [
+            _profileWarning(
+              id: 'MCR_PREGNANCY_NSAIDS',
+              severity: Severity.caution,
+            ),
+          ],
+        );
+
+        final intelligence = engine.diagnoseFromReports(
+          stackSize: 2,
+          safetyReport: report,
+          recalledReport: emptyRecall,
+          synergyReport: emptySynergy,
+        );
+
+        final issue = intelligence.issues.single;
+        expect(issue.headline, contains('Motrin'));
+        expect(issue.headline, contains('Review NSAID use in pregnancy'));
+      },
+    );
+
     test('stack-health surfaces use the shared diagnosis composition', () {
       for (final path in const [
         'lib/features/home/v2/home_v2_screen.dart',

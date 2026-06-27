@@ -5,10 +5,20 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+
+/// Forces the medication-profile-gate rule asset to fail loading so the
+/// fail-open path (report still returns, flagged incomplete) can be exercised.
+class _ThrowingMedicationRulesRepository extends ReferenceDataRepository {
+  @override
+  Future<Map<String, dynamic>> loadMedicationProfileGateRules() async {
+    throw StateError('medication profile gate rules unavailable');
+  }
+}
 
 UserStacksLocalData _medication({
   required String name,
@@ -42,6 +52,7 @@ UserStacksLocalData _supplement({required String id, required String name}) {
 Future<ProviderContainer> _container({
   required ProfileState profile,
   required UserStacksLocalData medication,
+  ReferenceDataRepository? referenceDataRepo,
 }) async {
   final coreDb = CoreDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
@@ -67,6 +78,10 @@ Future<ProviderContainer> _container({
       activeStackProvider.overrideWith((ref) async => [medication]),
       loadedProfileProvider.overrideWith((ref) async => profile),
       stackNutrientStatusesProvider.overrideWith((ref) async => const []),
+      if (referenceDataRepo != null)
+        referenceDataRepositoryProvider.overrideWith(
+          (ref) => referenceDataRepo,
+        ),
     ],
   );
   addTearDown(container.dispose);
@@ -168,6 +183,63 @@ void main() {
         report.orderedWarnings.first,
         report.medicationProfileWarnings.single,
       );
+    },
+  );
+
+  test(
+    'medication whose drug class cannot be resolved marks checks incomplete',
+    () async {
+      // A brand/product RxCUI (here Advil 153010) saved before its ingredient
+      // + classes hydrated, then evaluated offline: the bridge resolves no
+      // drug class, so no class-level NSAID/condition check can run for it.
+      // The report must hedge ("checks may be incomplete") rather than render
+      // a false clean result — under-warning is the worse failure here, and
+      // this is the generic safety net for every unresolvable brand, not just
+      // the Motrin alias special-case.
+      final container = await _container(
+        profile: const ProfileState(),
+        medication: _medication(name: 'Advil', rxcui: '153010'),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.checksIncomplete, isTrue);
+    },
+  );
+
+  test(
+    'medication that resolves a drug class keeps checks complete',
+    () async {
+      // Control: ibuprofen ingredient RxCUI resolves class:nsaids from the
+      // bundled membership, so the result is NOT flagged incomplete.
+      final container = await _container(
+        profile: const ProfileState(),
+        medication: _medication(name: 'ibuprofen', rxcui: '5640'),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.checksIncomplete, isFalse);
+    },
+  );
+
+  test(
+    'medication-profile rule load failure fails open as checks incomplete',
+    () async {
+      // If the rule asset cannot be loaded, the stack safety pass must still
+      // return a report — degraded (checksIncomplete) — never throw or drop
+      // the whole result. ibuprofen 5640 resolves cleanly, so the only reason
+      // checks are incomplete here is the rule-load failure itself.
+      final container = await _container(
+        profile: const ProfileState(),
+        medication: _medication(name: 'ibuprofen', rxcui: '5640'),
+        referenceDataRepo: _ThrowingMedicationRulesRepository(),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.checksIncomplete, isTrue);
+      expect(report.medicationProfileWarnings, isEmpty);
     },
   );
 

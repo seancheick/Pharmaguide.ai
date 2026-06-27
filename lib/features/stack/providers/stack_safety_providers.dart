@@ -155,10 +155,16 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   var safetyMedications = medications;
   if (medications.isNotEmpty) {
     try {
-      safetyMedications = await _normalizeMedicationRowsForSafety(
+      final normalized = await _normalizeMedicationRowsForSafety(
         medications,
         classBridge,
       );
+      safetyMedications = normalized.rows;
+      if (normalized.identityIncomplete) {
+        // At least one medication could not be classified, so its class-level
+        // interaction / profile-gate checks did not run — hedge the report.
+        checksIncomplete = true;
+      }
     } on Object catch (e, st) {
       checksIncomplete = true;
       CrashReportingService().recordError(
@@ -491,11 +497,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   );
 });
 
-Future<List<UserStacksLocalData>> _normalizeMedicationRowsForSafety(
+Future<({List<UserStacksLocalData> rows, bool identityIncomplete})>
+_normalizeMedicationRowsForSafety(
   List<UserStacksLocalData> medications,
   MedicationClassBridge bridge,
 ) async {
   final out = <UserStacksLocalData>[];
+  var identityIncomplete = false;
   for (final med in medications) {
     final snapshot = MedicationIdentitySnapshot.fromStackRow(med);
     final resolution = await bridge.resolve(
@@ -505,6 +513,16 @@ Future<List<UserStacksLocalData>> _normalizeMedicationRowsForSafety(
       runtimeClassIds: snapshot.drugClassIds,
     );
     final mergedClasses = resolution.mergedInteractionClassIds;
+    if (mergedClasses.isEmpty) {
+      // No drug class could be resolved for this medication from any source
+      // (e.g. a brand RxCUI like Advil saved before its ingredient + classes
+      // hydrated, then evaluated offline). Class-level interaction and
+      // profile-gate checks (NSAID-in-pregnancy, etc.) cannot run for it, so
+      // flag the result as incomplete rather than letting the stack render a
+      // false "all clear". This is the generic safety net for every
+      // unresolvable medication, not just the Motrin alias special-case.
+      identityIncomplete = true;
+    }
     final nextClassesJson = mergedClasses.isEmpty
         ? null
         : jsonEncode(mergedClasses);
@@ -514,7 +532,7 @@ Future<List<UserStacksLocalData>> _normalizeMedicationRowsForSafety(
       out.add(med.copyWith(drugClassesCol: Value(nextClassesJson)));
     }
   }
-  return out;
+  return (rows: out, identityIncomplete: identityIncomplete);
 }
 
 /// Recall detection: finds products in the user's stack that contain banned
