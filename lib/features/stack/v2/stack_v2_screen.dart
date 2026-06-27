@@ -349,7 +349,6 @@ class _StackTabState extends ConsumerState<_StackTab> {
           // these silently disappear on a clean stack.
           const _RecallAlertSlot(),
           const _StackSafetyBannerSlot(),
-          const _CoverageSlot(),
           const _ProfileNudgeSlot(),
           const SizedBox(height: V2Spacing.space24),
           // Empty state — Sean 2026-05-16: replaces the post-clear
@@ -459,10 +458,11 @@ class _StackTabState extends ConsumerState<_StackTab> {
               ),
             ),
           ),
-          // Timing + depletion advice — same conditional behavior as
-          // the safety slots above (collapse when nothing to show).
+          // Timing + depletion advice, then the broader coverage review
+          // at the bottom. Each slot collapses when nothing applies.
           const _TimingAdviceSlot(),
           const _DepletionSlot(),
+          const _CoverageSlot(),
         ],
       ),
     );
@@ -1446,10 +1446,10 @@ class _TimingAdviceSlot extends ConsumerWidget {
   }
 }
 
-/// Coverage ("is my stack working?") slot — gap analysis card between
-/// the safety banner and the supplements list. Hidden while loading,
-/// on error, or when the stack is empty; the no-goals invitation links
-/// to profile setup.
+/// Coverage ("is my stack working?") slot — broader goal/nutrient gap
+/// analysis shown after the user's concrete stack items and timing advice.
+/// Hidden while loading, on error, or when the stack is empty; the no-goals
+/// invitation links to profile setup.
 class _CoverageSlot extends ConsumerWidget {
   const _CoverageSlot();
 
