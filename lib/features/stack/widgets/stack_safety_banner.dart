@@ -225,6 +225,7 @@ class StackSafetyBanner extends StatelessWidget {
         return '$name is near its upper limit across your stack.';
       case NutrientTier.aboveTypical:
       case NutrientTier.abundant:
+      case NutrientTier.aboveAdequateNoUl:
       case NutrientTier.adequate:
       case NutrientTier.underFifty:
       case NutrientTier.noRda:

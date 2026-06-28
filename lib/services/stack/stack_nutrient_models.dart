@@ -131,10 +131,18 @@ enum NutrientTier {
   /// Total is below 50% of RDA — informational, not flagged.
   underFifty,
 
-  /// 50–100% of RDA — adequate.
+  /// 50–100% of the intake target — adequate.
   adequate,
 
-  /// 100–200% of RDA — abundant but safe.
+  /// ≥100% of the intake target for a nutrient with NO established UL
+  /// (vitamin K, B12, biotin, omega-3, CoQ10, potassium, etc.). High intake
+  /// here is benign — there is no ceiling to approach — so it renders as a
+  /// calm "above adequate" state, never the amber abundant/aboveTypical
+  /// warning tiers, which are reserved for UL-bounded nutrients. Placed just
+  /// above [adequate] so it sorts low (it is not a concern).
+  aboveAdequateNoUl,
+
+  /// 100–200% of RDA (UL-bounded nutrient) — abundant but safe.
   abundant,
 
   /// >200% of RDA but <80% of UL — above typical, monitor.

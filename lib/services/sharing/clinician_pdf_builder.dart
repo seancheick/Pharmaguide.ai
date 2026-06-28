@@ -413,6 +413,7 @@ class ClinicianPdfBuilder {
     NutrientTier.noRda => 'No RDA data',
     NutrientTier.underFifty => 'Below 50% RDA',
     NutrientTier.adequate => 'Adequate',
+    NutrientTier.aboveAdequateNoUl => 'Above target (no upper limit)',
     NutrientTier.abundant => 'Above RDA',
     NutrientTier.aboveTypical => 'Above typical',
     NutrientTier.approachingUl => 'Approaching upper limit',

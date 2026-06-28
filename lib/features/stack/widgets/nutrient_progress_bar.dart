@@ -26,6 +26,8 @@ class NutrientProgressBar extends StatefulWidget {
       case NutrientTier.abundant:
         return V2Colors.monitor;
       case NutrientTier.adequate:
+      // Above the target but no UL exists — calm/green, never a warning tone.
+      case NutrientTier.aboveAdequateNoUl:
         return V2Colors.safe;
       case NutrientTier.underFifty:
       case NutrientTier.noRda:
@@ -151,7 +153,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
     if (ul != null) {
       text = '${ul.round()}% UL';
     } else if (rda != null) {
-      final formatted = _formatRdaPercent(rda);
+      final formatted = _formatTargetPercent(rda);
       text = widget.status.rdaIsBaseline ? '$formatted*' : formatted;
     } else {
       text = '—';
@@ -160,14 +162,17 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
     return Text(text, style: _captionStyle(V2Colors.fgMuted));
   }
 
-  /// Format RDA percentage in a human-friendly way.
-  /// Instead of "25000% RDA" show "250x RDA" for extreme values.
-  static String _formatRdaPercent(double pct) {
+  /// Format intake-vs-target percentage. Labeled "target" rather than "RDA"
+  /// because many tracked nutrients have an Adequate Intake (AI) or Daily
+  /// Value, not an RDA — e.g. vitamin K, biotin, and pantothenic acid use an
+  /// AI. Calling those "% RDA" is clinically inaccurate. Extreme values
+  /// collapse to "Nx target" instead of "2500% target".
+  static String _formatTargetPercent(double pct) {
     if (pct > 1000) {
       final multiplier = (pct / 100).round();
-      return '${multiplier}x RDA';
+      return '${multiplier}x target';
     }
-    return '${pct.round()}% RDA';
+    return '${pct.round()}% target';
   }
 
   Widget _buildContributions() {

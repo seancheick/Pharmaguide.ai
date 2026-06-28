@@ -238,6 +238,7 @@ class StackSafetyReport {
       case NutrientTier.noRda:
       case NutrientTier.underFifty:
       case NutrientTier.adequate:
+      case NutrientTier.aboveAdequateNoUl:
       case NutrientTier.abundant:
       case NutrientTier.aboveTypical:
         return Severity.safe;

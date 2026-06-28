@@ -323,6 +323,17 @@ class StackUlChecker {
       if (pctOfUl >= 80.0) return NutrientTier.approachingUl;
     }
     if (pctOfRda == null) return NutrientTier.noRda;
+    // No UL exists for this nutrient (vitamin K, B12, biotin, omega-3,
+    // CoQ10, potassium, ...). High intake is benign — there is no ceiling to
+    // approach — so it must NEVER escalate to the amber abundant/aboveTypical
+    // tiers (those imply a UL to monitor toward). Anything at or above the
+    // intake target is a calm "above adequate".
+    if (pctOfUl == null) {
+      if (pctOfRda >= 100.0) return NutrientTier.aboveAdequateNoUl;
+      if (pctOfRda >= 50.0) return NutrientTier.adequate;
+      return NutrientTier.underFifty;
+    }
+    // UL-bounded nutrient, currently below 80% of its UL — classify by target.
     if (pctOfRda >= 200.0) return NutrientTier.aboveTypical;
     if (pctOfRda >= 100.0) return NutrientTier.abundant;
     if (pctOfRda >= 50.0) return NutrientTier.adequate;
