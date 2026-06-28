@@ -59,6 +59,29 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
+  testWidgets('partially supported bucket renders and expands', (tester) async {
+    const report = CoverageReport(
+      partiallySupported: [
+        SupportedGoal(
+          goalId: 'GOAL_REDUCE_STRESS_ANXIETY',
+          goalLabel: 'Reduce Stress/Anxiety',
+          productNames: ['Magnesium Glycinate'],
+        ),
+      ],
+      hasGoals: true,
+      hasStack: true,
+    );
+    await tester.pumpWidget(host(const StackCoverageCard(report: report)));
+
+    expect(find.byKey(const Key('coverage-partial')), findsOneWidget);
+    expect(find.text('Partially supported'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('coverage-partial')));
+    await tester.pumpAndSettle();
+    expect(find.text('Reduce Stress/Anxiety'), findsOneWidget);
+    expect(find.textContaining('below an effective dose'), findsOneWidget);
+  });
+
   testWidgets('expanding a section reveals its rows', (tester) async {
     await tester.pumpWidget(host(const StackCoverageCard(report: fullReport)));
 

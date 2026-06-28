@@ -134,6 +134,8 @@ class CoreDatabase extends _$CoreDatabase {
       'key_ingredient_tags TEXT',
       'goal_matches TEXT',
       'goal_match_confidence REAL',
+      // v2.x: Coverage "Partially supported" — goals present but underdosed.
+      'goal_matches_underdosed TEXT',
       'dosing_summary TEXT',
       'servings_per_container INTEGER',
       'allergen_summary TEXT',

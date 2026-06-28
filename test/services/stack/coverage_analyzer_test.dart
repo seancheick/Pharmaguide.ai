@@ -7,8 +7,16 @@ import 'package:pharmaguide/services/stack/coverage_analyzer.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
-CoverageProductInput product(String name, Set<String> goals) =>
-    CoverageProductInput(name: name, goalMatches: goals);
+CoverageProductInput product(
+  String name,
+  Set<String> goals, {
+  Set<String> underdosed = const {},
+}) =>
+    CoverageProductInput(
+      name: name,
+      goalMatches: goals,
+      goalMatchesUnderdosed: underdosed,
+    );
 
 DepletionMatch depletion({
   String drug = 'Metformin',
@@ -90,6 +98,57 @@ void main() {
         ],
       );
       expect(report.supported.single.productNames, ['Vitamin C', 'Zinc']);
+    });
+  });
+
+  group('PARTIALLY SUPPORTED bucket', () {
+    test('goal only in goalMatchesUnderdosed lands in partiallySupported', () {
+      // The magnesium-only screenshot case: magnesium present but below the
+      // effective stress dose → partially supported, NOT unaddressed.
+      final report = analyzer.analyze(
+        goals: const ['GOAL_REDUCE_STRESS_ANXIETY'],
+        products: [
+          product(
+            'Magnesium Glycinate',
+            const {},
+            underdosed: {'GOAL_REDUCE_STRESS_ANXIETY'},
+          ),
+        ],
+      );
+      expect(report.partiallySupported, hasLength(1));
+      expect(
+        report.partiallySupported.first.goalId,
+        'GOAL_REDUCE_STRESS_ANXIETY',
+      );
+      expect(
+        report.partiallySupported.first.productNames,
+        ['Magnesium Glycinate'],
+      );
+      // Mutually exclusive with the other goal buckets.
+      expect(report.supported, isEmpty);
+      expect(report.unaddressedGoals, isEmpty);
+    });
+
+    test('full support wins when a goal is both supported and underdosed', () {
+      final report = analyzer.analyze(
+        goals: const ['GOAL_SLEEP_QUALITY'],
+        products: [
+          product('Strong Sleep Formula', {'GOAL_SLEEP_QUALITY'}),
+          product('Trace Magnesium', const {},
+              underdosed: {'GOAL_SLEEP_QUALITY'}),
+        ],
+      );
+      expect(report.supported, hasLength(1));
+      expect(report.partiallySupported, isEmpty);
+      expect(report.unaddressedGoals, isEmpty);
+    });
+
+    test('no underdosed goals → empty partiallySupported', () {
+      final report = analyzer.analyze(
+        goals: const ['GOAL_SLEEP_QUALITY'],
+        products: [product('Melatonin', {'GOAL_SLEEP_QUALITY'})],
+      );
+      expect(report.partiallySupported, isEmpty);
     });
   });
 

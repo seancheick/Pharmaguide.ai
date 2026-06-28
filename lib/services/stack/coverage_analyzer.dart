@@ -33,15 +33,26 @@ import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 /// stack supplement. Built by the provider from `products_core` rows.
 @immutable
 class CoverageProductInput {
-  const CoverageProductInput({required this.name, required this.goalMatches});
+  const CoverageProductInput({
+    required this.name,
+    required this.goalMatches,
+    this.goalMatchesUnderdosed = const {},
+  });
 
   /// Display name of the product (stack entry name).
   final String name;
 
   /// Decoded `products_core.goal_matches` — set of `GOAL_*` ids this
-  /// product serves per the pipeline contract. Empty when the column
-  /// is null/unpopulated for this product.
+  /// product serves at a dose-adequate level per the pipeline contract.
+  /// Empty when the column is null/unpopulated for this product.
   final Set<String> goalMatches;
+
+  /// Decoded `products_core.goal_matches_underdosed` — `GOAL_*` ids this
+  /// product matches on ingredient presence but BELOW the goal's effective
+  /// dose. The pipeline guarantees this is disjoint from [goalMatches] (a
+  /// goal is never both supported and underdosed for the same product).
+  /// Empty when the column is null/unpopulated.
+  final Set<String> goalMatchesUnderdosed;
 }
 
 /// One SUPPORTED row: a user goal plus the stack products serving it.
@@ -138,6 +149,7 @@ class UnreplenishedDepletion {
 class CoverageReport {
   const CoverageReport({
     this.supported = const [],
+    this.partiallySupported = const [],
     this.underdosed = const [],
     this.unaddressedGoals = const [],
     this.unreplenishedDepletions = const [],
@@ -148,6 +160,13 @@ class CoverageReport {
   });
 
   final List<SupportedGoal> supported;
+
+  /// Goals matched only by present-but-underdosed ingredients (pipeline
+  /// `goal_matches_underdosed`). The honest middle state between Supported
+  /// and Unaddressed: the right ingredient is in the stack, just below its
+  /// effective dose for this goal. Reuses [SupportedGoal] (goal + the
+  /// products carrying the underdosed ingredient).
+  final List<SupportedGoal> partiallySupported;
   final List<UnderdosedNutrient> underdosed;
   final List<UnaddressedGoal> unaddressedGoals;
   final List<UnreplenishedDepletion> unreplenishedDepletions;
@@ -221,6 +240,7 @@ class CoverageAnalyzer {
     // SUPPORTED / UNADDRESSED goals — offline goal_matches pass.
     // -------------------------------------------------------------------
     final supported = <SupportedGoal>[];
+    final partiallySupported = <SupportedGoal>[];
     final unaddressedGoals = <UnaddressedGoal>[];
     if (hasGoals && hasStack) {
       for (final goalId in goals) {
@@ -230,11 +250,30 @@ class CoverageAnalyzer {
             .map((p) => p.name)
             .toList(growable: false);
         if (serving.isNotEmpty) {
+          // Dose-adequate support wins outright (a goal is never both
+          // supported and partially supported).
           supported.add(
             SupportedGoal(
               goalId: goalId,
               goalLabel: label,
               productNames: serving,
+            ),
+          );
+          continue;
+        }
+        // Not fully supported — is the goal carried by a present-but-
+        // underdosed ingredient? If so it is partially supported, not
+        // "Unaddressed".
+        final partial = products
+            .where((p) => p.goalMatchesUnderdosed.contains(goalId))
+            .map((p) => p.name)
+            .toList(growable: false);
+        if (partial.isNotEmpty) {
+          partiallySupported.add(
+            SupportedGoal(
+              goalId: goalId,
+              goalLabel: label,
+              productNames: partial,
             ),
           );
         } else {
@@ -317,6 +356,7 @@ class CoverageAnalyzer {
 
     return CoverageReport(
       supported: supported,
+      partiallySupported: partiallySupported,
       underdosed: underdosedByName.values.toList(growable: false),
       unaddressedGoals: unaddressedGoals,
       unreplenishedDepletions: unreplenished,

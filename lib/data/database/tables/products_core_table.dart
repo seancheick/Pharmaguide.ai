@@ -204,6 +204,10 @@ class ProductsCore extends Table {
   TextColumn get goalMatches => text().named('goal_matches').nullable()();
   RealColumn get goalMatchConfidence =>
       real().named('goal_match_confidence').nullable()();
+  // v2.x: goals present but below effective dose (Coverage "Partially
+  // supported" bucket). JSON array of GOAL_* ids, disjoint from goal_matches.
+  TextColumn get goalMatchesUnderdosed =>
+      text().named('goal_matches_underdosed').nullable()();
 
   // v1.3.0: Dosing
   TextColumn get dosingSummary => text().named('dosing_summary').nullable()();

@@ -96,6 +96,26 @@ class StackCoverageCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: V2Spacing.space8),
+              // Present-but-underdosed goals: the right ingredient is in the
+              // stack, just below its effective dose for this goal. The honest
+              // middle state between Supported and Unaddressed.
+              _CoverageSection(
+                key: const Key('coverage-partial'),
+                title: 'Partially supported',
+                count: report.partiallySupported.length,
+                tone: V2Colors.monitor,
+                emptyLine:
+                    'No goals are partly covered — matched goals are either '
+                    'fully supported or not yet addressed.',
+                rows: [
+                  for (final g in report.partiallySupported)
+                    _CoverageRow(
+                      title: g.goalLabel,
+                      detail: _partialDetail(g),
+                    ),
+                ],
+              ),
+              const SizedBox(height: V2Spacing.space8),
             ],
             _CoverageSection(
               key: const Key('coverage-underdosed'),
@@ -182,6 +202,13 @@ class StackCoverageCard extends StatelessWidget {
       return 'Covered by ${names.first}.';
     }
     return 'Covered by ${names.length} products: ${names.join(", ")}.';
+  }
+
+  static String _partialDetail(SupportedGoal g) {
+    final names = g.productNames;
+    final who = names.length == 1 ? names.first : '${names.length} products';
+    return 'Present via $who, but likely below an effective dose for '
+        'this goal.';
   }
 }
 

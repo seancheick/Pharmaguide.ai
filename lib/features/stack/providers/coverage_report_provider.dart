@@ -72,6 +72,7 @@ final coverageReportProvider = FutureProvider.autoDispose<CoverageReport>((
       CoverageProductInput(
         name: entry.name,
         goalMatches: decodeGoalMatches(product.goalMatches),
+        goalMatchesUnderdosed: decodeGoalMatches(product.goalMatchesUnderdosed),
       ),
     );
   }
