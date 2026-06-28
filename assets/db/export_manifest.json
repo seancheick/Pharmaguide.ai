@@ -83,8 +83,8 @@
     "verdict_unsafe": 0,
     "warning_count": 0
   },
-  "interaction_db_checksum": "b7fdba70d736dab13e37e47517b5b9bed7d82ff2b793a9430ac774dcc39693c8",
-  "interaction_db_version": "1.0.0",
+  "interaction_db_checksum": "4b3595e104ae664541a276811c62861f202ac1ce8dd4ac38faa83aac26b18900",
+  "interaction_db_version": "1.0.2",
   "min_app_version": "1.0.0",
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "pipeline_version": "3.4.0",
