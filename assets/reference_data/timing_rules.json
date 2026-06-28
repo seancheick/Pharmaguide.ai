@@ -4,7 +4,7 @@
     "purpose": "timing_optimization",
     "schema_version": "5.0.0",
     "last_updated": "2026-06-28",
-    "total_entries": 35
+    "total_entries": 36
   },
   "timing_rules": [
     {
@@ -163,7 +163,7 @@
       "ingredient2": "food",
       "rule_type": "take_with_food",
       "advice": "Take magnesium with food to ease the loose stools or stomach upset it can cause on an empty stomach.",
-      "mechanism": "Unabsorbed magnesium salts are osmotically active in the gut and can cause diarrhea, especially in poorly-absorbed forms (oxide, citrate). Taking magnesium with a meal slows transit and eases this without meaningfully reducing absorption. On sleep: any benefit is modest and mainly in people who are low in magnesium, and no study has shown that taking it at night works better than any other time — but evening dosing is a reasonable wind-down habit (it is well-tolerated), just not a proven sleep trigger.",
+      "mechanism": "Unabsorbed magnesium salts are osmotically active in the gut and can cause diarrhea, especially in poorly-absorbed forms (oxide, citrate). Taking magnesium with a meal slows transit and eases this without meaningfully reducing absorption.",
       "separation_hours": null,
       "score_impact": 0,
       "evidence_level": "probable",
@@ -172,6 +172,29 @@
           "source_type": "reference",
           "label": "NIH ODS — Magnesium Fact Sheet for Health Professionals (forms, absorption, and GI tolerance)",
           "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_magnesium_evening",
+      "ingredient1": "magnesium",
+      "ingredient2": "sleep",
+      "rule_type": "time_of_day",
+      "advice": "If you take magnesium for sleep, evening is a reasonable time — but mainly as a well-tolerated wind-down habit, not a proven sleep aid.",
+      "mechanism": "Magnesium's effect on sleep is modest and seen mainly in people who are low in magnesium or have insomnia, and the evidence is limited and low-certainty. No trial has compared morning versus evening dosing, so taking it at night is a sensible routine rather than a proven timing effect — magnesium is well-tolerated in the evening and pairs naturally with a wind-down routine.",
+      "separation_hours": null,
+      "score_impact": 0,
+      "evidence_level": "possible",
+      "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Arab A, Rafie N, Amani R, Shirani F — The Role of Magnesium in Sleep Health: a Systematic Review of Available Literature (Biol Trace Elem Res 2023)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/35184264/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Mah J, Pitre T — Oral magnesium supplementation for insomnia in older adults: a Systematic Review & Meta-Analysis (BMC Complement Med Ther 2021)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33865376/"
         }
       ]
     },
