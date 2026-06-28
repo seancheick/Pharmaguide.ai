@@ -128,6 +128,49 @@ void main() {
       expect(aggregator.aggregate(stack)['iron']!.totalAmount, 10);
     });
 
+    test('nutrient_group_id rolls form_of children up (K1 + K2 → one '
+        'Vitamin K), but canonical_id still differs per contribution', () {
+      final stack = [
+        _productOf('s1', 'Calcium K/D', [
+          {
+            'canonical_id': 'vitamin_k1',
+            'nutrient_group_id': 'vitamin_k',
+            'name': 'Vitamin K1',
+            'amount': 100,
+            'unit': 'mcg',
+          },
+          {
+            'canonical_id': 'vitamin_k',
+            'name': 'Vitamin K2 (MK-7)',
+            'amount': 30,
+            'unit': 'mcg',
+          },
+        ]),
+      ];
+      final result = aggregator.aggregate(stack);
+      // Both forms aggregate into ONE Vitamin K total — never split/orphaned.
+      expect(result.keys, contains('vitamin_k'));
+      expect(result.keys, isNot(contains('vitamin_k1')));
+      expect(result['vitamin_k']!.totalAmount, 130);
+      expect(result['vitamin_k']!.contributions, hasLength(2));
+    });
+
+    test('nutrient_group_id absent → groups by canonical_id (old catalog)', () {
+      final stack = [
+        _productOf('s1', 'Old K1', [
+          {
+            'canonical_id': 'vitamin_k1',
+            'name': 'Vitamin K1',
+            'amount': 100,
+            'unit': 'mcg',
+          },
+        ]),
+      ];
+      // Dual-read safety: a catalog built before nutrient_group_id existed
+      // still groups by canonical_id.
+      expect(aggregator.aggregate(stack).keys, contains('vitamin_k1'));
+    });
+
     test(
       'reads standard_name when canonical_id and mapped_name are absent',
       () {

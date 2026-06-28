@@ -222,6 +222,12 @@ class StackNutrientAggregator {
   /// for older or differently-shaped blobs.
   String? _readCanonicalId(Map<String, dynamic> row) {
     final candidates = <dynamic>[
+      // Display roll-up of `form_of` children to their parent (e.g.
+      // vitamin_k1 → vitamin_k), pipeline-computed from the IQM
+      // match_rules.target_id. Lets Vitamin K1 + K2 aggregate as one
+      // "Vitamin K". Null on most rows and on catalogs built before this
+      // field existed, so it falls through to canonical_id (dual-read safe).
+      row['nutrient_group_id'],
       row['canonical_id'],
       row['mapped_name'],
       row['standard_name'],
