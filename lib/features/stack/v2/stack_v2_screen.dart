@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,7 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -182,8 +185,8 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.add_rounded, color: V2Colors.fg),
-          tooltip: 'Add medication',
-          onPressed: () => GoRouter.of(context).push(Routes.medicationEntry),
+          tooltip: 'Add to stack',
+          onPressed: () => unawaited(_showAddToStackSheet(context)),
         ),
         // Reuse production `ShareClinicianReportButton` — wraps the full
         // profile/stack/safety snapshot + share_plus flow. IconTheme
@@ -207,6 +210,141 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
             segments: const ['Stack', 'Nutrients', 'Wishlist'],
             selectedIndex: segment,
             onChanged: onSegmentChanged,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _StackAddChoice { supplement, medication }
+
+Future<void> _showAddToStackSheet(BuildContext context) async {
+  final choice = await PGModal.bottomSheet<_StackAddChoice>(
+    context: context,
+    backgroundColor: V2Colors.surface,
+    builder: (_) => const _AddToStackSheet(),
+  );
+  if (!context.mounted || choice == null) return;
+
+  switch (choice) {
+    case _StackAddChoice.supplement:
+      unawaited(GoRouter.of(context).push(Routes.search));
+      return;
+    case _StackAddChoice.medication:
+      unawaited(GoRouter.of(context).push(Routes.medicationEntry));
+      return;
+  }
+}
+
+class _AddToStackSheet extends StatelessWidget {
+  const _AddToStackSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space8,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PGEyebrow('Add to stack'),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'What are you adding?',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space16),
+            _StackAddOption(
+              icon: Icons.spa_outlined,
+              title: 'Supplement',
+              subtitle: 'Search products and add from the product page.',
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).pop(_StackAddChoice.supplement);
+              },
+            ),
+            const SizedBox(height: V2Spacing.space12),
+            _StackAddOption(
+              icon: Icons.medication_outlined,
+              title: 'Medication',
+              subtitle: 'Add a medication for interaction checks.',
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).pop(_StackAddChoice.medication);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StackAddOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _StackAddOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(V2Spacing.space16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            border: Border.all(color: V2Colors.outline),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: V2Colors.accentTint,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: V2Colors.accent, size: 22),
+              ),
+              const SizedBox(width: V2Spacing.space16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    ),
+                    const SizedBox(height: V2Spacing.space4),
+                    Text(
+                      subtitle,
+                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: V2Spacing.space12),
+              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+            ],
           ),
         ),
       ),

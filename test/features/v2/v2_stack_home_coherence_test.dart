@@ -5,6 +5,8 @@ import 'package:drift/drift.dart' as drift;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
@@ -85,6 +87,60 @@ void main() {
     return pumpWithStack(tester, child);
   }
 
+  Future<void> pumpStackRouteHarness(WidgetTester tester) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    final router = GoRouter(
+      initialLocation: Routes.stack,
+      routes: [
+        GoRoute(
+          path: Routes.stack,
+          builder: (_, __) => const StackV2Screen(showNavBar: false),
+        ),
+        GoRoute(
+          path: Routes.search,
+          builder: (_, __) =>
+              const Scaffold(body: Center(child: Text('Search route opened'))),
+        ),
+        GoRoute(
+          path: Routes.medicationEntry,
+          builder: (_, __) => const Scaffold(
+            body: Center(child: Text('Medication route opened')),
+          ),
+        ),
+      ],
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      router.dispose();
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+          activeStackProvider.overrideWith((ref) async => const []),
+          stackSafetyReportProvider.overrideWith(
+            (ref) async => const StackSafetyReport(),
+          ),
+          synergyReportProvider.overrideWith(
+            (ref) async => SynergyReport.empty(),
+          ),
+          recalledIngredientsReportProvider.overrideWith(
+            (ref) async => RecalledIngredientsReport.empty(),
+          ),
+          profileProvider.overrideWith((ref) => ProfileNotifier()),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+  }
+
   group('v2 stack/home coherence', () {
     testWidgets('Stack v2 never shows fixture counts after empty stack loads', (
       tester,
@@ -107,6 +163,45 @@ void main() {
       expect(find.text('No nutrient totals yet'), findsOneWidget);
       expect(find.text('Vitamin A'), findsNothing);
       expect(find.text('120% of UL'), findsNothing);
+    });
+
+    testWidgets('Stack v2 add button opens supplement/medication choices', (
+      tester,
+    ) async {
+      await pumpStackRouteHarness(tester);
+
+      await tester.tap(find.byTooltip('Add to stack'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('What are you adding?'), findsOneWidget);
+      expect(find.text('Supplement'), findsOneWidget);
+      expect(find.text('Medication'), findsOneWidget);
+    });
+
+    testWidgets('Stack v2 add supplement choice opens search route', (
+      tester,
+    ) async {
+      await pumpStackRouteHarness(tester);
+
+      await tester.tap(find.byTooltip('Add to stack'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Supplement'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Search route opened'), findsOneWidget);
+    });
+
+    testWidgets('Stack v2 add medication choice opens medication route', (
+      tester,
+    ) async {
+      await pumpStackRouteHarness(tester);
+
+      await tester.tap(find.byTooltip('Add to stack'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Medication'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Medication route opened'), findsOneWidget);
     });
 
     testWidgets('Stack v2 real list uses dismissible v2 rows', (tester) async {
