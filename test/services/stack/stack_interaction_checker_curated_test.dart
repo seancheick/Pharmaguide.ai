@@ -251,7 +251,7 @@ void main() {
           a2Type: 'drug_class',
           a2Id: 'class:stimulants',
           a2Name: 'CNS stimulants',
-          severity: 'avoid',
+          severity: 'contraindicated',
         ),
       );
       // Tombstoned row that must NEVER appear in results.
@@ -721,7 +721,7 @@ void main() {
 
       expect(results, hasLength(1));
       expect(results.single.id, 'DDI_MAOI_STIMULANTS');
-      expect(results.single.severity, Severity.avoid);
+      expect(results.single.severity, Severity.contraindicated);
       expect(results.single.type, InteractionType.drugDrug);
       expect(results.single.agent1Name, 'Phenelzine');
       expect(results.single.agent2Name, 'Adderall XR');
