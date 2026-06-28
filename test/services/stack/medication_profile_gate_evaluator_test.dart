@@ -36,6 +36,36 @@ void main() {
           },
         },
       },
+      <String, dynamic>{
+        'id': 'MCR_KIDNEY_DISEASE_NSAIDS',
+        'severity': 'avoid',
+        'evidence_level': 'established',
+        'headline': 'NSAIDs are not recommended with kidney disease',
+        'body':
+            'NSAIDs such as ibuprofen and naproxen can reduce kidney blood '
+            'flow and may worsen kidney function.',
+        'management':
+            'Avoid NSAID use unless your kidney clinician or prescriber '
+            'specifically directs it.',
+        'sources': <String>[
+          'https://www.niddk.nih.gov/health-information/kidney-disease/keeping-kidneys-safe',
+        ],
+        'profile_gate': <String, dynamic>{
+          'gate_type': 'combination',
+          'requires': <String, dynamic>{
+            'conditions_any': <String>['kidney_disease'],
+            'drug_classes_any': <String>['nsaids'],
+            'profile_flags_any': <String>[],
+          },
+          'excludes': <String, dynamic>{
+            'conditions_any': <String>[],
+            'drug_classes_any': <String>[],
+            'profile_flags_any': <String>[],
+            'product_forms_any': <String>[],
+            'nutrient_forms_any': <String>[],
+          },
+        },
+      },
     ],
   };
 
@@ -76,7 +106,10 @@ void main() {
     );
 
     expect(warnings, isEmpty);
-    expect(rules.single.management.toLowerCase(), isNot(contains('safe')));
+    final pregnancyRule = rules.firstWhere(
+      (rule) => rule.id == 'MCR_PREGNANCY_NSAIDS',
+    );
+    expect(pregnancyRule.management.toLowerCase(), isNot(contains('safe')));
   });
 
   test('pregnant plus aspirin antiplatelet class does not fire in v1', () {
@@ -85,6 +118,36 @@ void main() {
       medicationName: 'Aspirin',
       medicationProfileGateClassIds: const {'antiplatelet_agents'},
       userProfileFlags: const {'pregnant'},
+    );
+
+    expect(warnings, isEmpty);
+  });
+
+  test('kidney disease plus ibuprofen NSAID class fires warning', () {
+    final warnings = evaluator.evaluate(
+      rules: rules,
+      medicationName: 'ibuprofen',
+      medicationProfileGateClassIds: const {'nsaids'},
+      userProfileFlags: const {},
+      userConditions: const {'kidney_disease'},
+    );
+
+    expect(warnings, hasLength(1));
+    expect(warnings.single.ruleId, 'MCR_KIDNEY_DISEASE_NSAIDS');
+    expect(warnings.single.medicationName, 'ibuprofen');
+    expect(
+      warnings.single.headline,
+      'NSAIDs are not recommended with kidney disease',
+    );
+  });
+
+  test('kidney disease without NSAID class does not fire', () {
+    final warnings = evaluator.evaluate(
+      rules: rules,
+      medicationName: 'Tylenol',
+      medicationProfileGateClassIds: const {},
+      userProfileFlags: const {},
+      userConditions: const {'kidney_disease'},
     );
 
     expect(warnings, isEmpty);

@@ -5,8 +5,12 @@
     "schema_version": "1.0.0",
     "contract_test": "scripts/tests/test_medication_profile_gate_rules_contract.py",
     "last_updated": "2026-06-27",
-    "total_entries": 1,
+    "total_entries": 2,
     "change_log": [
+      {
+        "date": "2026-06-27",
+        "change": "Add kidney disease NSAID medication-profile rule for stack medication review."
+      },
       {
         "date": "2026-06-27",
         "change": "Add pregnancy NSAID medication-profile rule for stack medication review."
@@ -35,6 +39,33 @@
           "conditions_any": [],
           "drug_classes_any": ["nsaids"],
           "profile_flags_any": ["pregnant"]
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        }
+      }
+    },
+    {
+      "id": "MCR_KIDNEY_DISEASE_NSAIDS",
+      "severity": "avoid",
+      "evidence_level": "established",
+      "headline": "NSAIDs are not recommended with kidney disease",
+      "body": "NSAIDs such as ibuprofen and naproxen can reduce kidney blood flow and may worsen kidney function, especially with existing kidney disease, dehydration, low blood pressure, longer use, or advanced kidney disease.",
+      "management": "Avoid NSAID use unless your kidney clinician or prescriber specifically directs it. Ask about alternatives and monitoring if pain or inflammation treatment is needed.",
+      "sources": [
+        "https://www.niddk.nih.gov/health-information/kidney-disease/keeping-kidneys-safe",
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2007/017463s105lbl.pdf"
+      ],
+      "profile_gate": {
+        "gate_type": "combination",
+        "requires": {
+          "conditions_any": ["kidney_disease"],
+          "drug_classes_any": ["nsaids"],
+          "profile_flags_any": []
         },
         "excludes": {
           "conditions_any": [],

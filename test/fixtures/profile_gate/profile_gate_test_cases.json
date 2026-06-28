@@ -3,10 +3,10 @@
     "description": "Shared evaluator fixture for v6.0 profile_gate. Python (scripts/profile_gate_evaluator.py) and Dart (Flutter alert-rendering layer) MUST both produce the same fires/severity output for every case below. Drift between the two implementations is the failure this fixture catches.",
     "purpose": "profile_gate_evaluator_cross_runtime_fixture",
     "schema_version": "1.0.0",
-    "total_entries": 19,
+    "total_entries": 20,
     "evaluator_contract_version": "6.0",
     "last_updated": "2026-06-27",
-    "case_count": 19,
+    "case_count": 20,
     "see_also": [
       "scripts/INTERACTION_RULE_SCHEMA_V6_ADR.md",
       "scripts/profile_gate_evaluator.py"
@@ -124,6 +124,20 @@
       "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
       "base_severity": "caution",
       "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "combination_gate_kidney_disease_and_nsaids_match",
+      "description": "Kidney disease profile with a stack medication resolved to NSAIDs matches the standalone medication profile-gate predicate.",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["kidney_disease"], "drug_classes_any": ["nsaids"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": ["kidney_disease"], "drug_classes": ["nsaids"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": true, "severity": "avoid"}
     },
     {
       "name": "combination_gate_diabetes_and_hypoglycemics_both_match",

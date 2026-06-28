@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
+import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
@@ -25,6 +27,71 @@ class _FakeRxNormHttp {
     return responses['${url.path}?${url.query}'] ??
         responses[url.path] ??
         (throw StateError('No fake RxNorm response for $url'));
+  }
+}
+
+class _FakeReferenceDataRepository extends ReferenceDataRepository {
+  @override
+  Future<Map<String, dynamic>> loadMedicationProfileGateRules() async {
+    return const {
+      'medication_profile_gate_rules': [
+        {
+          'id': 'MCR_PREGNANCY_NSAIDS',
+          'severity': 'caution',
+          'evidence_level': 'established',
+          'headline': 'Review NSAID use in pregnancy',
+          'body':
+              'NSAIDs such as ibuprofen and naproxen are generally avoided from 20 weeks of pregnancy.',
+          'management': 'Check with your OB/clinician before using NSAIDs.',
+          'sources': [
+            'https://www.fda.gov/drugs/drug-safety-and-availability/fda-recommends-avoiding-use-nsaids-pregnancy-20-weeks-or-later-because-they-can-result-low-amniotic',
+          ],
+          'profile_gate': {
+            'gate_type': 'combination',
+            'requires': {
+              'conditions_any': <String>[],
+              'drug_classes_any': <String>['nsaids'],
+              'profile_flags_any': <String>['pregnant'],
+            },
+            'excludes': {
+              'conditions_any': <String>[],
+              'drug_classes_any': <String>[],
+              'profile_flags_any': <String>[],
+              'product_forms_any': <String>[],
+              'nutrient_forms_any': <String>[],
+            },
+          },
+        },
+        {
+          'id': 'MCR_KIDNEY_DISEASE_NSAIDS',
+          'severity': 'avoid',
+          'evidence_level': 'established',
+          'headline': 'NSAIDs are not recommended with kidney disease',
+          'body':
+              'NSAIDs such as ibuprofen and naproxen can reduce kidney blood flow and may worsen kidney function.',
+          'management':
+              'Avoid NSAID use unless your kidney clinician or prescriber specifically directs it.',
+          'sources': [
+            'https://www.niddk.nih.gov/health-information/kidney-disease/keeping-kidneys-safe',
+          ],
+          'profile_gate': {
+            'gate_type': 'combination',
+            'requires': {
+              'conditions_any': <String>['kidney_disease'],
+              'drug_classes_any': <String>['nsaids'],
+              'profile_flags_any': <String>[],
+            },
+            'excludes': {
+              'conditions_any': <String>[],
+              'drug_classes_any': <String>[],
+              'profile_flags_any': <String>[],
+              'product_forms_any': <String>[],
+              'nutrient_forms_any': <String>[],
+            },
+          },
+        },
+      ],
+    };
   }
 }
 
@@ -53,8 +120,82 @@ void main() {
         ProviderScope(
           overrides: [
             interactionDatabaseProvider.overrideWithValue(interactionDb),
+            referenceDataRepositoryProvider.overrideWith(
+              (ref) => _FakeReferenceDataRepository(),
+            ),
             loadedProfileProvider.overrideWith(
               (ref) async => const ProfileState(conditions: ['pregnancy']),
+            ),
+            rxNormApiServiceProvider.overrideWithValue(
+              RxNormApiService(httpGet: fakeRx.call, offlineDb: interactionDb),
+            ),
+          ],
+          child: const MaterialApp(home: MedicationEntryV2Screen()),
+        ),
+      );
+
+      await tester.enterText(
+        find.byKey(const Key('med-entry-search')),
+        'motrin',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('med-entry-suggestion-202488')));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('med-entry-profile-review-card')),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 30; i++) {
+        if (find.text('Review NSAID use in pregnancy').evaluate().isNotEmpty) {
+          break;
+        }
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(
+        find.byKey(const Key('med-entry-profile-review-card')),
+        findsOneWidget,
+      );
+      expect(find.text('Review NSAID use in pregnancy'), findsOneWidget);
+      expect(
+        find.textContaining('generally avoided from 20 weeks'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'kidney disease profile plus Motrin shows pre-save profile review card',
+    (tester) async {
+      final interactionDb = InteractionDatabase.memory();
+      addTearDown(interactionDb.close);
+      await interactionDb
+          .into(interactionDb.drugClassMap)
+          .insert(
+            DrugClassMapCompanion.insert(
+              classId: 'class:nsaids',
+              className: 'NSAIDs',
+              drugRxcuisJson: '["5640"]',
+              source: 'fixture',
+              lastUpdated: '2026-06-27',
+            ),
+          );
+
+      final fakeRx = _FakeRxNormHttp();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            referenceDataRepositoryProvider.overrideWith(
+              (ref) => _FakeReferenceDataRepository(),
+            ),
+            loadedProfileProvider.overrideWith(
+              (ref) async => const ProfileState(conditions: ['kidney_disease']),
             ),
             rxNormApiServiceProvider.overrideWithValue(
               RxNormApiService(httpGet: fakeRx.call, offlineDb: interactionDb),
@@ -85,11 +226,11 @@ void main() {
         find.byKey(const Key('med-entry-profile-review-card')),
         findsOneWidget,
       );
-      expect(find.text('Review NSAID use in pregnancy'), findsOneWidget);
       expect(
-        find.textContaining('generally avoided from 20 weeks'),
+        find.text('NSAIDs are not recommended with kidney disease'),
         findsOneWidget,
       );
+      expect(find.textContaining('kidney function'), findsOneWidget);
     },
   );
 }

@@ -187,6 +187,32 @@ void main() {
   );
 
   test(
+    'kidney disease profile plus ibuprofen produces profile warning',
+    () async {
+      final container = await _container(
+        profile: const ProfileState(conditions: ['kidney_disease']),
+        medication: _medication(name: 'ibuprofen', rxcui: '5640'),
+      );
+
+      final report = await container.read(stackSafetyReportProvider.future);
+
+      expect(report.medicationProfileWarnings, hasLength(1));
+      expect(
+        report.medicationProfileWarnings.single.ruleId,
+        'MCR_KIDNEY_DISEASE_NSAIDS',
+      );
+      expect(
+        report.medicationProfileWarnings.single.headline,
+        'NSAIDs are not recommended with kidney disease',
+      );
+      expect(
+        report.orderedWarnings.first,
+        report.medicationProfileWarnings.single,
+      );
+    },
+  );
+
+  test(
     'medication whose drug class cannot be resolved marks checks incomplete',
     () async {
       // A brand/product RxCUI (here Advil 153010) saved before its ingredient
@@ -207,21 +233,18 @@ void main() {
     },
   );
 
-  test(
-    'medication that resolves a drug class keeps checks complete',
-    () async {
-      // Control: ibuprofen ingredient RxCUI resolves class:nsaids from the
-      // bundled membership, so the result is NOT flagged incomplete.
-      final container = await _container(
-        profile: const ProfileState(),
-        medication: _medication(name: 'ibuprofen', rxcui: '5640'),
-      );
+  test('medication that resolves a drug class keeps checks complete', () async {
+    // Control: ibuprofen ingredient RxCUI resolves class:nsaids from the
+    // bundled membership, so the result is NOT flagged incomplete.
+    final container = await _container(
+      profile: const ProfileState(),
+      medication: _medication(name: 'ibuprofen', rxcui: '5640'),
+    );
 
-      final report = await container.read(stackSafetyReportProvider.future);
+    final report = await container.read(stackSafetyReportProvider.future);
 
-      expect(report.checksIncomplete, isFalse);
-    },
-  );
+    expect(report.checksIncomplete, isFalse);
+  });
 
   test(
     'medication-profile rule load failure fails open as checks incomplete',
