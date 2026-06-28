@@ -3,8 +3,8 @@
     "description": "Supplement timing and absorption interaction rules for optimal nutrient uptake",
     "purpose": "timing_optimization",
     "schema_version": "5.0.0",
-    "last_updated": "2026-06-27",
-    "total_entries": 37
+    "last_updated": "2026-06-28",
+    "total_entries": 35
   },
   "timing_rules": [
     {
@@ -46,24 +46,6 @@
           "source_type": "pubmed",
           "label": "Kordas K, Stoltzfus RJ — New evidence of iron and zinc interplay at the enterocyte and neural tissues",
           "url": "https://pubmed.ncbi.nlm.nih.gov/15173386/"
-        }
-      ]
-    },
-    {
-      "id": "timing_iron_magnesium_separate",
-      "ingredient1": "iron",
-      "ingredient2": "magnesium",
-      "rule_type": "separate",
-      "advice": "Take iron and magnesium at least 2 hours apart — magnesium can reduce non-heme iron absorption.",
-      "mechanism": "Magnesium at high supplemental doses may interfere with non-heme iron absorption, though the mechanism is less clear than for calcium or zinc. Magnesium is primarily absorbed via TRPM6/TRPM7 channels, not DMT1, so direct transporter competition is limited. The interaction is most relevant at high doses (>400 mg) and the clinical significance is debated.",
-      "separation_hours": 2,
-      "score_impact": -1,
-      "evidence_level": "possible",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
         }
       ]
     },
@@ -181,7 +163,7 @@
       "ingredient2": "food",
       "rule_type": "take_with_food",
       "advice": "Take magnesium with food to ease the loose stools or stomach upset it can cause on an empty stomach.",
-      "mechanism": "Unabsorbed magnesium salts are osmotically active in the gut and can cause diarrhea, especially in poorly-absorbed forms (oxide, citrate). Taking magnesium with a meal slows transit and eases this without meaningfully reducing absorption. Note: the older claim that evening dosing improves sleep is not well-supported — trials tested daily intake rather than time of day, and any sleep benefit is modest and limited to people with low magnesium status.",
+      "mechanism": "Unabsorbed magnesium salts are osmotically active in the gut and can cause diarrhea, especially in poorly-absorbed forms (oxide, citrate). Taking magnesium with a meal slows transit and eases this without meaningfully reducing absorption. On sleep: any benefit is modest and mainly in people who are low in magnesium, and no study has shown that taking it at night works better than any other time — but evening dosing is a reasonable wind-down habit (it is well-tolerated), just not a proven sleep trigger.",
       "separation_hours": null,
       "score_impact": 0,
       "evidence_level": "probable",
@@ -354,18 +336,6 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/6402915/"
         }
       ]
-    },
-    {
-      "id": "timing_nac_zinc_separate",
-      "ingredient1": "nac",
-      "ingredient2": "zinc",
-      "rule_type": "separate",
-      "advice": "Take NAC and zinc at least 2 hours apart — NAC can chelate zinc and reduce its absorption.",
-      "mechanism": "N-acetylcysteine contains a thiol group capable of chelating divalent metals including zinc. In vitro, thiol-based chelators can bind intracellular zinc. However, direct clinical evidence for NAC reducing zinc absorption in supplement users is limited. Separation is a precautionary recommendation based on biochemical plausibility rather than clinical trials.",
-      "separation_hours": 2,
-      "score_impact": -1,
-      "evidence_level": "possible",
-      "sources": []
     },
     {
       "id": "timing_thyroid_med_minerals_separate",
