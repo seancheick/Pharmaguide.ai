@@ -227,12 +227,14 @@ class CoverageAnalyzer {
     final hasStack = hasStackOverride ?? products.isNotEmpty;
     final hasGoals = goals.isNotEmpty;
 
-    // 3,560/9,270 products ship with null/empty goal_matches — that
-    // column is UNPOPULATED for them, not evidence the product supports
-    // no goals (see e2a_goal_calculator.dart). Any such product in the
-    // stack makes a confident "nothing supports X" claim unsafe.
+    // 3,560/9,270 legacy products ship with null/empty goal_matches — that
+    // column can be UNPOPULATED, not evidence the product supports no goals
+    // (see e2a_goal_calculator.dart). With the v2.x partial-support column,
+    // a product can legitimately have no dose-adequate goals but still carry
+    // goal_matches_underdosed. Treat that as populated coverage data; otherwise
+    // partial-only products would trigger a false "coverage incomplete" hedge.
     final anyUnpopulatedGoalMatches = products.any(
-      (p) => p.goalMatches.isEmpty,
+      (p) => p.goalMatches.isEmpty && p.goalMatchesUnderdosed.isEmpty,
     );
     final effectiveIncomplete = coverageIncomplete || anyUnpopulatedGoalMatches;
 

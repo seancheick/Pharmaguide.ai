@@ -11,12 +11,11 @@ CoverageProductInput product(
   String name,
   Set<String> goals, {
   Set<String> underdosed = const {},
-}) =>
-    CoverageProductInput(
-      name: name,
-      goalMatches: goals,
-      goalMatchesUnderdosed: underdosed,
-    );
+}) => CoverageProductInput(
+  name: name,
+  goalMatches: goals,
+  goalMatchesUnderdosed: underdosed,
+);
 
 DepletionMatch depletion({
   String drug = 'Metformin',
@@ -120,13 +119,33 @@ void main() {
         report.partiallySupported.first.goalId,
         'GOAL_REDUCE_STRESS_ANXIETY',
       );
-      expect(
-        report.partiallySupported.first.productNames,
-        ['Magnesium Glycinate'],
-      );
+      expect(report.partiallySupported.first.productNames, [
+        'Magnesium Glycinate',
+      ]);
       // Mutually exclusive with the other goal buckets.
       expect(report.supported, isEmpty);
       expect(report.unaddressedGoals, isEmpty);
+    });
+
+    test('partial-only product does not mark coverage incomplete', () {
+      final report = analyzer.analyze(
+        goals: const ['GOAL_REDUCE_STRESS_ANXIETY'],
+        products: [
+          product(
+            'Magnesium Glycinate',
+            const {},
+            underdosed: {'GOAL_REDUCE_STRESS_ANXIETY'},
+          ),
+        ],
+      );
+
+      expect(report.partiallySupported, hasLength(1));
+      expect(
+        report.coverageIncomplete,
+        isFalse,
+        reason:
+            'goal_matches can be empty when goal_matches_underdosed is populated',
+      );
     });
 
     test('full support wins when a goal is both supported and underdosed', () {
@@ -134,8 +153,11 @@ void main() {
         goals: const ['GOAL_SLEEP_QUALITY'],
         products: [
           product('Strong Sleep Formula', {'GOAL_SLEEP_QUALITY'}),
-          product('Trace Magnesium', const {},
-              underdosed: {'GOAL_SLEEP_QUALITY'}),
+          product(
+            'Trace Magnesium',
+            const {},
+            underdosed: {'GOAL_SLEEP_QUALITY'},
+          ),
         ],
       );
       expect(report.supported, hasLength(1));
@@ -146,7 +168,9 @@ void main() {
     test('no underdosed goals → empty partiallySupported', () {
       final report = analyzer.analyze(
         goals: const ['GOAL_SLEEP_QUALITY'],
-        products: [product('Melatonin', {'GOAL_SLEEP_QUALITY'})],
+        products: [
+          product('Melatonin', {'GOAL_SLEEP_QUALITY'}),
+        ],
       );
       expect(report.partiallySupported, isEmpty);
     });
