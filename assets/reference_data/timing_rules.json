@@ -4,7 +4,7 @@
     "purpose": "timing_optimization",
     "schema_version": "5.0.0",
     "last_updated": "2026-06-27",
-    "total_entries": 38
+    "total_entries": 37
   },
   "timing_rules": [
     {
@@ -230,10 +230,10 @@
       ]
     },
     {
-      "id": "timing_probiotics_empty_stomach",
+      "id": "timing_probiotics_by_formulation",
       "ingredient1": "probiotics",
       "ingredient2": "food",
-      "rule_type": "take_on_empty_stomach",
+      "rule_type": "take_with_food",
       "advice": "Probiotic timing depends on formulation. Enteric-coated capsules can be taken any time. For standard probiotics, taking with a small meal may improve survival. Follow manufacturer guidance when available.",
       "mechanism": "The optimal timing for probiotics is debated. Fasted gastric pH is actually lower (more acidic, ~1.5-2.0) than postprandial pH (~3-5 due to food buffering). However, fasted gastric transit is faster, reducing total acid exposure time. Some evidence (Tompkins 2011, PMID 22146689) suggests probiotic survival is better WITH a meal containing fat or oatmeal due to acid buffering. Enteric-coated formulations bypass this concern. Net effect depends on strain, formulation, and meal composition.",
       "separation_hours": null,
@@ -241,9 +241,9 @@
       "evidence_level": "possible",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Probiotics",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/probiotics"
+          "source_type": "pubmed",
+          "label": "Tompkins TA et al. — The impact of meals on a probiotic during transit through a model of the human upper gastrointestinal tract",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22146689/"
         }
       ]
     },
@@ -297,7 +297,7 @@
         {
           "source_type": "reference",
           "label": "Linus Pauling Institute — Curcumin",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/curcumin"
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/phytochemicals/curcumin"
         }
       ]
     },
@@ -365,13 +365,7 @@
       "separation_hours": 2,
       "score_impact": -1,
       "evidence_level": "possible",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "Precautionary recommendation based on NAC thiol-metal chelation chemistry. No controlled human clinical trial directly demonstrates this interaction.",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/phytochemicals/N-acetylcysteine"
-        }
-      ]
+      "sources": []
     },
     {
       "id": "timing_thyroid_med_minerals_separate",
@@ -386,8 +380,8 @@
       "sources": [
         {
           "source_type": "reference",
-          "label": "FDA Drug Label — Levothyroxine Drug Interactions",
-          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2020/021402s043lbl.pdf"
+          "label": "FDA Drugs@FDA — Levothyroxine sodium product labels",
+          "url": "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=021402"
         }
       ]
     },
@@ -421,9 +415,9 @@
       "evidence_level": "possible",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Berberine",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/berberine"
+          "source_type": "pubmed",
+          "label": "Bauman WA et al. — Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10977010/"
         }
       ]
     },
@@ -440,26 +434,8 @@
       "sources": [
         {
           "source_type": "reference",
-          "label": "Linus Pauling Institute — Alpha-Lipoic Acid",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/alpha-lipoic-acid"
-        }
-      ]
-    },
-    {
-      "id": "timing_collagen_empty_stomach",
-      "ingredient1": "collagen peptides",
-      "ingredient2": "food",
-      "rule_type": "take_on_empty_stomach",
-      "advice": "Take collagen peptides on an empty stomach for optimal absorption — competing dietary proteins can reduce uptake of specific collagen-derived dipeptides.",
-      "mechanism": "Collagen-derived di- and tripeptides (hydroxyproline-proline, proline-hydroxyproline) are absorbed intact via peptide transporters (PEPT1); a protein-rich meal saturates these transporters and reduces the proportion of intact collagen peptides that reach systemic circulation.",
-      "separation_hours": null,
-      "score_impact": -1,
-      "evidence_level": "possible",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Hydrolyzed Collagen",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/collagen"
+          "label": "Linus Pauling Institute — Lipoic Acid",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/lipoic-acid"
         }
       ]
     },
@@ -494,8 +470,8 @@
       "sources": [
         {
           "source_type": "reference",
-          "label": "Linus Pauling Institute — Quercetin",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/quercetin"
+          "label": "Linus Pauling Institute — Flavonoids: Quercetin",
+          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/phytochemicals/flavonoids#quercetin"
         }
       ]
     },
@@ -511,9 +487,9 @@
       "evidence_level": "probable",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Bromelain",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/bromelain"
+          "source_type": "pubmed",
+          "label": "Castell JV et al. — Intestinal absorption of undegraded proteins in men: presence of bromelain in plasma after oral intake",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9252520/"
         }
       ]
     },
@@ -530,8 +506,8 @@
       "sources": [
         {
           "source_type": "reference",
-          "label": "Linus Pauling Institute — Ashwagandha",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/ashwagandha"
+          "label": "NCCIH — Ashwagandha: Usefulness and Safety",
+          "url": "https://www.nccih.nih.gov/health/ashwagandha"
         }
       ]
     },

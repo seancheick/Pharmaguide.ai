@@ -73,8 +73,14 @@ void main() {
         'timing_vitamin_d_morning',
         'timing_b_vitamins_morning',
         'timing_magnesium_evening',
+        'timing_collagen_empty_stomach',
+        'timing_probiotics_empty_stomach',
       ]) {
-        expect(ids, isNot(contains(removed)), reason: '$removed is folklore');
+        expect(
+          ids,
+          isNot(contains(removed)),
+          reason: '$removed is unsupported as timing advice',
+        );
       }
 
       // The magnesium rule was reframed to evidence-based GI-tolerance guidance.
@@ -82,6 +88,33 @@ void main() {
         (r) => r['id'] == 'timing_magnesium_with_food',
       );
       expect(mag['rule_type'], 'take_with_food');
+    });
+
+    test('timing_rules excludes dead legacy source URLs', () async {
+      final timing = await repo.loadTimingRules();
+      final rules = (timing['timing_rules']! as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final urls = <String>[
+        for (final rule in rules)
+          for (final source in (rule['sources'] as List<dynamic>? ?? const []))
+            if (source is Map && source['url'] is String)
+              source['url'] as String,
+      ];
+
+      for (final deadUrl in const [
+        'https://lpi.oregonstate.edu/mic/dietary-factors/probiotics',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/curcumin',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/phytochemicals/N-acetylcysteine',
+        'https://www.accessdata.fda.gov/drugsatfda_docs/label/2020/021402s043lbl.pdf',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/berberine',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/alpha-lipoic-acid',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/collagen',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/quercetin',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/bromelain',
+        'https://lpi.oregonstate.edu/mic/dietary-factors/ashwagandha',
+      ]) {
+        expect(urls, isNot(contains(deadUrl)), reason: '$deadUrl returned 404');
+      }
     });
 
     test('loads medication_profile_gate_rules asset', () async {

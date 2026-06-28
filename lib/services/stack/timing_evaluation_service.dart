@@ -25,9 +25,9 @@ import 'package:pharmaguide/core/models/timing_optimization.dart';
 ///
 /// **Performance:**
 ///
-/// Index build: O(R) where R = number of rules (38 currently).
+/// Index build: O(R) where R = number of rules (37 currently).
 /// Stack evaluation: O(S × avg_rules_per_ingredient) where S = stack size.
-/// For a 50-item stack with 38 rules, this is <1ms on modern devices.
+/// For a 50-item stack with 37 rules, this is <1ms on modern devices.
 class TimingEvaluationService {
   TimingEvaluationService._({
     required List<_ParsedTimingRule> rules,
@@ -243,16 +243,15 @@ class TimingEvaluationService {
             // Suppressing this is the fix for the "Take X with X" self-pairing
             // bug (e.g. a calcium + vitamin-D + K product tripping the
             // calcium↔vitamin-D synergy rule against itself).
-            final p1 = product1Names.first;
-            final p2 = product2Names.firstWhere(
-              (name) => name != p1,
-              orElse: () => '',
+            final pair = _firstDifferentProductPair(
+              product1Names,
+              product2Names,
             );
-            if (p2.isNotEmpty) {
+            if (pair != null) {
               results[indexed.rule.id] = _buildResult(
                 indexed.rule,
-                product1Name: p1,
-                product2Name: p2,
+                product1Name: pair.$1,
+                product2Name: pair.$2,
               );
             }
             break;
@@ -347,6 +346,18 @@ class TimingEvaluationService {
     if (p2 == null) return '$type|$p1';
     final pair = [p1, p2]..sort();
     return '$type|${pair.join('|')}';
+  }
+
+  static (String, String)? _firstDifferentProductPair(
+    List<String> product1Names,
+    List<String> product2Names,
+  ) {
+    for (final p1 in product1Names) {
+      for (final p2 in product2Names) {
+        if (p1 != p2) return (p1, p2);
+      }
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------

@@ -126,6 +126,55 @@ void main() {
     );
   });
 
+  testWidgets('visible rows preserve engine priority order', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: PGTimingAdviceCard(
+              maxVisible: 2,
+              optimizations: [
+                TimingOptimization(
+                  ruleId: 'timing_vitamin_k_warfarin',
+                  ingredient1: 'vitamin k',
+                  ingredient2: 'warfarin',
+                  advice: 'Maintain a consistent daily intake of vitamin K.',
+                  ruleType: TimingRuleType.takeWithFood,
+                  scoreImpact: -2,
+                  evidenceLevel: EvidenceLevel.established,
+                ),
+                TimingOptimization(
+                  ruleId: 'timing_iron_calcium',
+                  ingredient1: 'iron',
+                  ingredient2: 'calcium',
+                  advice: 'Take iron and calcium at least 2 hours apart.',
+                  ruleType: TimingRuleType.separate,
+                  separationHours: 2,
+                  scoreImpact: -2,
+                  evidenceLevel: EvidenceLevel.established,
+                ),
+                TimingOptimization(
+                  ruleId: 'timing_iron_magnesium',
+                  ingredient1: 'iron',
+                  ingredient2: 'magnesium',
+                  advice: 'Take iron and magnesium at least 2 hours apart.',
+                  ruleType: TimingRuleType.separate,
+                  separationHours: 2,
+                  scoreImpact: -1,
+                  evidenceLevel: EvidenceLevel.theoretical,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('consistent daily intake'), findsOneWidget);
+    expect(find.textContaining('iron and calcium'), findsOneWidget);
+    expect(find.textContaining('iron and magnesium'), findsNothing);
+  });
+
   testWidgets('tapping a tip opens a detail sheet with mechanism + sources', (
     tester,
   ) async {

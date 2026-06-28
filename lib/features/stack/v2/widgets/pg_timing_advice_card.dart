@@ -54,13 +54,7 @@ class PGTimingAdviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (optimizations.isEmpty) return const SizedBox.shrink();
 
-    final separations = optimizations
-        .where((o) => o.isSeparation)
-        .toList(growable: false);
-    final others = optimizations
-        .where((o) => !o.isSeparation)
-        .toList(growable: false);
-    final visible = [...separations, ...others].take(maxVisible).toList();
+    final visible = optimizations.take(maxVisible).toList();
 
     final card = Container(
       decoration: BoxDecoration(
@@ -483,7 +477,10 @@ class _AllTimingTipsSheet extends StatelessWidget {
             color: V2Colors.accent,
           ),
           const SizedBox(height: V2Spacing.space8),
-          Text('Timing guidance', style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(
+            'Timing guidance',
+            style: V2Typography.titleSm(color: V2Colors.fg),
+          ),
           const SizedBox(height: V2Spacing.space12),
           Flexible(
             child: ListView.separated(
@@ -584,9 +581,12 @@ class _SourceLink extends StatelessWidget {
       final id = uri.pathSegments.where((s) => s.isNotEmpty).join('/');
       return id.isEmpty ? 'PubMed' : 'PubMed · $id';
     }
-    if (host.contains('ods.od.nih.gov')) return 'NIH Office of Dietary Supplements';
+    if (host.contains('ods.od.nih.gov')) {
+      return 'NIH Office of Dietary Supplements';
+    }
+    if (host.contains('nccih.nih.gov')) return 'NCCIH';
     if (host.contains('lpi.oregonstate.edu')) return 'Linus Pauling Institute';
-    if (host.contains('fda.gov')) return 'FDA drug label';
+    if (host.contains('accessdata.fda.gov')) return 'FDA Drugs@FDA';
     return host;
   }
 }

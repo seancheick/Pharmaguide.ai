@@ -415,21 +415,24 @@ void main() {
       late TimingEvaluationService svc;
       setUp(() => svc = TimingEvaluationService.fromJson(rulesJson));
 
-      test('suppresses take_together when both ingredients are one product', () {
-        // Calcium K/D carries vitamin D and K in the SAME pill — the
-        // "Take X with X" self-pairing bug.
-        final results = svc.evaluateStack(
-          supplementTags: {
-            'Calcium K/D': {'vitamin_d', 'vitamin_k'},
-          },
-          medicationNames: [],
-        );
-        expect(
-          results.where((r) => r.ruleId == 'vitd_vitk_together'),
-          isEmpty,
-          reason: 'a co-formulated pair is already taken together — no tip',
-        );
-      });
+      test(
+        'suppresses take_together when both ingredients are one product',
+        () {
+          // Calcium K/D carries vitamin D and K in the SAME pill — the
+          // "Take X with X" self-pairing bug.
+          final results = svc.evaluateStack(
+            supplementTags: {
+              'Calcium K/D': {'vitamin_d', 'vitamin_k'},
+            },
+            medicationNames: [],
+          );
+          expect(
+            results.where((r) => r.ruleId == 'vitd_vitk_together'),
+            isEmpty,
+            reason: 'a co-formulated pair is already taken together — no tip',
+          );
+        },
+      );
 
       test('still fires take_together across two different products', () {
         final results = svc.evaluateStack(
@@ -459,6 +462,25 @@ void main() {
           reason: "ingredients in one pill can't be separated",
         );
       });
+
+      test(
+        'uses a different product pair when one product contains both sides',
+        () {
+          final results = svc.evaluateStack(
+            supplementTags: {
+              'Multivitamin': {'iron', 'calcium'},
+              'Iron Solo': {'iron'},
+            },
+            medicationNames: [],
+          );
+
+          final hit = results
+              .where((r) => r.ruleId == 'iron_calcium_separate')
+              .single;
+          expect(hit.product1Name, 'Iron Solo');
+          expect(hit.product2Name, 'Multivitamin');
+        },
+      );
 
       test('collapses duplicate take-with-food tips for the same product', () {
         // Vitamin D and K each trip their own with-food rule, but the user
