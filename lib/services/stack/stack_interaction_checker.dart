@@ -467,9 +467,12 @@ class StackInteractionChecker {
       final newRxcui = newMed.rxcui?.trim();
       final newGenericRxcui = newMed.genericRxcui?.trim();
       final newIngredientRxcuis = _ingredientRxcuisFor(newMed);
+      final newClasses = _drugClassesFor(newMed);
+      final newClassSet = newClasses.toSet();
       if ((newRxcui == null || newRxcui.isEmpty) &&
           (newGenericRxcui == null || newGenericRxcui.isEmpty) &&
-          newIngredientRxcuis.isEmpty) {
+          newIngredientRxcuis.isEmpty &&
+          newClasses.isEmpty) {
         continue;
       }
 
@@ -491,13 +494,10 @@ class StackInteractionChecker {
       for (final ingRxcui in newIngredientRxcuis) {
         await lookupAndCollect(ingRxcui);
       }
-      // Class-based fallback: if rxcui lookups found nothing, try classes.
-      if (allRows.isEmpty) {
-        for (final cls in _drugClassesFor(newMed)) {
-          final classRows = await db.lookupByDrugClass(cls);
-          for (final row in classRows) {
-            if (seenLookupRows.add(row.id)) allRows.add(row);
-          }
+      for (final cls in newClasses) {
+        final classRows = await db.lookupByDrugClass(cls);
+        for (final row in classRows) {
+          if (seenLookupRows.add(row.id)) allRows.add(row);
         }
       }
 
@@ -506,8 +506,11 @@ class StackInteractionChecker {
       final existingRxcuis = <String, String>{};
       final existingClasses = <String, String>{};
       for (final med in existingMedications) {
-        if (med.rxcui == newMed.rxcui) continue; // skip self
         final rx = med.rxcui?.trim();
+        if (med.id == newMed.id) continue; // skip self
+        if (newRxcui != null && newRxcui.isNotEmpty && rx == newRxcui) {
+          continue;
+        }
         if (rx != null && rx.isNotEmpty) {
           existingRxcuis.putIfAbsent(rx, () => med.name);
         }
@@ -544,17 +547,16 @@ class StackInteractionChecker {
         } else if (newMedRxcuis.contains(row.agent2Id)) {
           otherType = row.agent1Type;
           otherId = row.agent1Id;
+        } else if (row.agent1Type == 'drug_class' &&
+            newClassSet.contains(row.agent1Id)) {
+          otherType = row.agent2Type;
+          otherId = row.agent2Id;
+        } else if (row.agent2Type == 'drug_class' &&
+            newClassSet.contains(row.agent2Id)) {
+          otherType = row.agent1Type;
+          otherId = row.agent1Id;
         } else {
-          // Row came from class lookup — check agent types.
-          if (row.agent1Type == 'drug_class') {
-            otherType = row.agent2Type;
-            otherId = row.agent2Id;
-          } else if (row.agent2Type == 'drug_class') {
-            otherType = row.agent1Type;
-            otherId = row.agent1Id;
-          } else {
-            continue;
-          }
+          continue;
         }
 
         String? matchedName;

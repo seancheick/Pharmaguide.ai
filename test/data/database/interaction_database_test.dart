@@ -49,11 +49,12 @@ const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
 /// Number of live (non-tombstoned) interaction rows in the current bundle.
 /// Updated from 20 (golden fixture) → 128 (full curated v1.0.0) → 136
 /// (27 rule fixes in c23d044) → 138 (vinpocetine + horse chestnut
-/// anticoagulant release gates) → 148 (food-advisory schema bundle).
-const _expectedLiveInteractionCount = 148;
+/// anticoagulant release gates) → 148 (food-advisory schema bundle)
+/// → 149 (MAOI × CNS stimulants).
+const _expectedLiveInteractionCount = 149;
 
 /// Pipeline-built drug classes that the current bundle ships.
-/// v1.0.0 has 21 classes with curated interaction rows.
+/// v1.0.1 has 22 classes with curated interaction rows.
 const _classesWithLiveInteractions = <String>{
   'class:ace_inhibitors',
   'class:antacids',
@@ -75,6 +76,7 @@ const _classesWithLiveInteractions = <String>{
   'class:sedatives',
   'class:ssris',
   'class:statins',
+  'class:stimulants',
   'class:triptans',
 };
 

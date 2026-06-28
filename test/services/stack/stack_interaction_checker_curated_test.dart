@@ -240,6 +240,20 @@ void main() {
           severity: 'contraindicated',
         ),
       );
+      // drug_class ↔ drug_class: MAOIs ↔ CNS stimulants.
+      b.insert(
+        db.interactions,
+        _row(
+          id: 'DDI_MAOI_STIMULANTS',
+          a1Type: 'drug_class',
+          a1Id: 'class:maois',
+          a1Name: 'MAOIs',
+          a2Type: 'drug_class',
+          a2Id: 'class:stimulants',
+          a2Name: 'CNS stimulants',
+          severity: 'avoid',
+        ),
+      );
       // Tombstoned row that must NEVER appear in results.
       b.insert(
         db.interactions,
@@ -683,6 +697,59 @@ void main() {
   // checkMedicationPairInteractions
   // -------------------------------------------------------------------------
   group('checkMedicationPairInteractions', () {
+    test('matches class-level MAOI and CNS stimulant interaction', () async {
+      final directRows = await db.lookupByDrugClass('class:maois');
+      expect(directRows.map((row) => row.id), contains('DDI_MAOI_STIMULANTS'));
+
+      final results = await checker.checkMedicationPairInteractions(
+        newMedications: [
+          _medication(
+            id: 'm1',
+            name: 'Phenelzine',
+            drugClassesJson: '["class:maois"]',
+          ),
+        ],
+        existingMedications: [
+          _medication(
+            id: 'm2',
+            name: 'Adderall XR',
+            drugClassesJson: '["class:stimulants"]',
+          ),
+        ],
+        db: db,
+      );
+
+      expect(results, hasLength(1));
+      expect(results.single.id, 'DDI_MAOI_STIMULANTS');
+      expect(results.single.severity, Severity.avoid);
+      expect(results.single.type, InteractionType.drugDrug);
+      expect(results.single.agent1Name, 'Phenelzine');
+      expect(results.single.agent2Name, 'Adderall XR');
+
+      final reversed = await checker.checkMedicationPairInteractions(
+        newMedications: [
+          _medication(
+            id: 'm2',
+            name: 'Adderall XR',
+            drugClassesJson: '["class:stimulants"]',
+          ),
+        ],
+        existingMedications: [
+          _medication(
+            id: 'm1',
+            name: 'Phenelzine',
+            drugClassesJson: '["class:maois"]',
+          ),
+        ],
+        db: db,
+      );
+
+      expect(reversed, hasLength(1));
+      expect(reversed.single.id, 'DDI_MAOI_STIMULANTS');
+      expect(reversed.single.agent1Name, 'Adderall XR');
+      expect(reversed.single.agent2Name, 'Phenelzine');
+    });
+
     test(
       'matches existing combination medication by ingredient RxCUI',
       () async {
