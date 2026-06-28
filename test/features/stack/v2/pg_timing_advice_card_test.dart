@@ -89,46 +89,47 @@ void main() {
     );
   });
 
-  testWidgets('separation advice keeps hours visible; mechanism folds to detail', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: PGTimingAdviceCard(
-              optimizations: [
-                TimingOptimization(
-                  ruleId: 'timing_iron_magnesium_separate',
-                  ingredient1: 'iron',
-                  ingredient2: 'magnesium',
-                  advice:
-                      'Take iron and magnesium at least 2 hours apart — '
-                      'magnesium can reduce non-heme iron absorption.',
-                  mechanism:
-                      'Magnesium at high supplemental doses may interfere '
-                      'with non-heme iron absorption.',
-                  ruleType: TimingRuleType.separate,
-                  separationHours: 2,
-                  scoreImpact: -1,
-                  evidenceLevel: EvidenceLevel.theoretical,
-                ),
-              ],
+  testWidgets(
+    'separation advice keeps hours visible; mechanism folds to detail',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: PGTimingAdviceCard(
+                optimizations: [
+                  TimingOptimization(
+                    ruleId: 'timing_iron_magnesium_separate',
+                    ingredient1: 'iron',
+                    ingredient2: 'magnesium',
+                    advice:
+                        'Take iron and magnesium at least 2 hours apart — '
+                        'magnesium can reduce non-heme iron absorption.',
+                    mechanism:
+                        'Magnesium at high supplemental doses may interfere '
+                        'with non-heme iron absorption.',
+                    ruleType: TimingRuleType.separate,
+                    separationHours: 2,
+                    scoreImpact: -1,
+                    evidenceLevel: EvidenceLevel.theoretical,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.textContaining('Take iron and magnesium'), findsOneWidget);
-    // The actionable separation window stays inline...
-    expect(find.textContaining('Keep at least 2h apart'), findsOneWidget);
-    // ...but the explanatory mechanism is folded into the detail sheet.
-    expect(
-      find.textContaining('Magnesium at high supplemental doses'),
-      findsNothing,
-    );
-  });
+      expect(find.textContaining('Take iron and magnesium'), findsOneWidget);
+      // The actionable separation window stays inline...
+      expect(find.textContaining('Keep at least 2h apart'), findsOneWidget);
+      // ...but the explanatory mechanism is folded into the detail sheet.
+      expect(
+        find.textContaining('Magnesium at high supplemental doses'),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('separation rules render under a "Space these apart" subsection', (
     tester,

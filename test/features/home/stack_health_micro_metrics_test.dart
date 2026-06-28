@@ -42,11 +42,7 @@ void main() {
       isNot(TextOverflow.ellipsis),
       reason: '"$text" must not be ellipsizable',
     );
-    expect(
-      widget.maxLines,
-      1,
-      reason: '"$text" must be locked to one line',
-    );
+    expect(widget.maxLines, 1, reason: '"$text" must be locked to one line');
     expect(
       widget.softWrap,
       isFalse,

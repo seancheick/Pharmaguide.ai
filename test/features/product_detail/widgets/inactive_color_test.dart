@@ -82,17 +82,20 @@ void main() {
       expect(inactiveColorRank({'display_tone': 'red'}), InactiveTone.red);
     });
 
-    test('display_tone overrides severity_status (0-penalty capsule → green)', () {
-      // The veg-capsule case: severity_status=suppress would read amber, but
-      // B1 applied 0 penalty → display_tone=green must win.
-      expect(
-        inactiveColorRank({
-          'display_tone': 'green',
-          'severity_status': 'suppress',
-        }),
-        InactiveTone.green,
-      );
-    });
+    test(
+      'display_tone overrides severity_status (0-penalty capsule → green)',
+      () {
+        // The veg-capsule case: severity_status=suppress would read amber, but
+        // B1 applied 0 penalty → display_tone=green must win.
+        expect(
+          inactiveColorRank({
+            'display_tone': 'green',
+            'severity_status': 'suppress',
+          }),
+          InactiveTone.green,
+        );
+      },
+    );
 
     test('case-insensitive / whitespace', () {
       expect(inactiveColorRank({'display_tone': '  RED '}), InactiveTone.red);

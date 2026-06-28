@@ -150,10 +150,8 @@ class PGTimingAdviceCard extends StatelessWidget {
         .where((o) => o.ruleType != TimingRuleType.separate)
         .toList(growable: false);
 
-    Widget rowFor(TimingOptimization opt) => _TimingRow(
-          opt: opt,
-          onTap: () => showTimingTipSheet(context, opt),
-        );
+    Widget rowFor(TimingOptimization opt) =>
+        _TimingRow(opt: opt, onTap: () => showTimingTipSheet(context, opt));
 
     List<Widget> spacedRows(List<TimingOptimization> opts) {
       final out = <Widget>[];

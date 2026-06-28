@@ -109,10 +109,7 @@ class StackCoverageCard extends StatelessWidget {
                     'fully supported or not yet addressed.',
                 rows: [
                   for (final g in report.partiallySupported)
-                    _CoverageRow(
-                      title: g.goalLabel,
-                      detail: _partialDetail(g),
-                    ),
+                    _CoverageRow(title: g.goalLabel, detail: _partialDetail(g)),
                 ],
               ),
               const SizedBox(height: V2Spacing.space8),

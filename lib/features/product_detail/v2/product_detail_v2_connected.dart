@@ -877,9 +877,7 @@ class _WhyTrustThisRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: V2Spacing.space12,
-      ),
+      padding: const EdgeInsets.only(bottom: V2Spacing.space12),
       child: Align(
         alignment: Alignment.center,
         child: InkWell(

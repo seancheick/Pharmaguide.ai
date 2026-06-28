@@ -57,56 +57,59 @@ void main() {
       expect(timing['timing_rules'], isA<List<dynamic>>());
     });
 
-    test('timing_rules keeps only corrected evidence-based timing rules', () async {
-      // Regression guard for the evidence-based corrections: Ca↔Mg
-      // "competition" was removed; zinc↔copper is a chronic-dose concern, not
-      // a timing one. Magnesium sleep timing was later re-added only as a
-      // cautious, non-scoring evening-routine suggestion with sleep-specific
-      // evidence.
-      // See knowledge/timing-rules-research.md.
-      final timing = await repo.loadTimingRules();
-      final rules = (timing['timing_rules']! as List<dynamic>)
-          .cast<Map<String, dynamic>>();
-      final ids = rules.map((r) => r['id'] as String).toSet();
+    test(
+      'timing_rules keeps only corrected evidence-based timing rules',
+      () async {
+        // Regression guard for the evidence-based corrections: Ca↔Mg
+        // "competition" was removed; zinc↔copper is a chronic-dose concern, not
+        // a timing one. Magnesium sleep timing was later re-added only as a
+        // cautious, non-scoring evening-routine suggestion with sleep-specific
+        // evidence.
+        // See knowledge/timing-rules-research.md.
+        final timing = await repo.loadTimingRules();
+        final rules = (timing['timing_rules']! as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final ids = rules.map((r) => r['id'] as String).toSet();
 
-      for (final removed in const [
-        'timing_calcium_magnesium_separate',
-        'timing_zinc_copper_separate',
-        'timing_vitamin_d_morning',
-        'timing_b_vitamins_morning',
-        'timing_collagen_empty_stomach',
-        'timing_probiotics_empty_stomach',
-      ]) {
-        expect(
-          ids,
-          isNot(contains(removed)),
-          reason: '$removed is unsupported as timing advice',
+        for (final removed in const [
+          'timing_calcium_magnesium_separate',
+          'timing_zinc_copper_separate',
+          'timing_vitamin_d_morning',
+          'timing_b_vitamins_morning',
+          'timing_collagen_empty_stomach',
+          'timing_probiotics_empty_stomach',
+        ]) {
+          expect(
+            ids,
+            isNot(contains(removed)),
+            reason: '$removed is unsupported as timing advice',
+          );
+        }
+
+        // The magnesium rule was reframed to evidence-based GI-tolerance guidance.
+        final mag = rules.firstWhere(
+          (r) => r['id'] == 'timing_magnesium_with_food',
         );
-      }
+        expect(mag['rule_type'], 'take_with_food');
 
-      // The magnesium rule was reframed to evidence-based GI-tolerance guidance.
-      final mag = rules.firstWhere(
-        (r) => r['id'] == 'timing_magnesium_with_food',
-      );
-      expect(mag['rule_type'], 'take_with_food');
-
-      final magEvening = rules.firstWhere(
-        (r) => r['id'] == 'timing_magnesium_evening',
-      );
-      expect(magEvening['rule_type'], 'time_of_day');
-      expect(magEvening['score_impact'], 0);
-      expect(magEvening['evidence_level'], 'possible');
-      expect(magEvening['advice'], contains('not a proven sleep aid'));
-      expect(
-        (magEvening['sources'] as List<dynamic>)
-            .cast<Map<String, dynamic>>()
-            .map((s) => s['url']),
-        containsAll([
-          'https://pubmed.ncbi.nlm.nih.gov/35184264/',
-          'https://pubmed.ncbi.nlm.nih.gov/33865376/',
-        ]),
-      );
-    });
+        final magEvening = rules.firstWhere(
+          (r) => r['id'] == 'timing_magnesium_evening',
+        );
+        expect(magEvening['rule_type'], 'time_of_day');
+        expect(magEvening['score_impact'], 0);
+        expect(magEvening['evidence_level'], 'possible');
+        expect(magEvening['advice'], contains('not a proven sleep aid'));
+        expect(
+          (magEvening['sources'] as List<dynamic>)
+              .cast<Map<String, dynamic>>()
+              .map((s) => s['url']),
+          containsAll([
+            'https://pubmed.ncbi.nlm.nih.gov/35184264/',
+            'https://pubmed.ncbi.nlm.nih.gov/33865376/',
+          ]),
+        );
+      },
+    );
 
     test('timing_rules excludes dead legacy source URLs', () async {
       final timing = await repo.loadTimingRules();

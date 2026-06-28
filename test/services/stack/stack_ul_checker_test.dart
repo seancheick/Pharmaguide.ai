@@ -464,15 +464,20 @@ void main() {
   });
 
   group('StackUlChecker — nutrients with no UL', () {
-    test('vitamin B12 (no UL) above target is benign, not an amber warning', () {
-      final totals = _totals([_total('vitamin_b12', 'Vitamin B12', 5, 'mcg')]);
-      final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
-      // RDA=2.4, 5mcg = 208% RDA, NO UL → calm "above adequate", NOT the
-      // amber aboveTypical/abundant tiers (those imply a ceiling to monitor).
-      expect(results.first.tier, NutrientTier.aboveAdequateNoUl);
-      expect(results.first.ul, isNull);
-      expect(results.first.shouldWarn, isFalse);
-    });
+    test(
+      'vitamin B12 (no UL) above target is benign, not an amber warning',
+      () {
+        final totals = _totals([
+          _total('vitamin_b12', 'Vitamin B12', 5, 'mcg'),
+        ]);
+        final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
+        // RDA=2.4, 5mcg = 208% RDA, NO UL → calm "above adequate", NOT the
+        // amber aboveTypical/abundant tiers (those imply a ceiling to monitor).
+        expect(results.first.tier, NutrientTier.aboveAdequateNoUl);
+        expect(results.first.ul, isNull);
+        expect(results.first.shouldWarn, isFalse);
+      },
+    );
 
     test('vitamin B12 at target level is above-adequate (no UL)', () {
       final totals = _totals([
@@ -486,9 +491,7 @@ void main() {
       // B12 at 24 mcg = 1000% of the 2.4 mcg target — common in supplements,
       // clinically benign (no ceiling exists). Must stay calm/green.
       final totals = _totals([_total('vitamin_b12', 'Vitamin B12', 24, 'mcg')]);
-      final s = checker
-          .check(totals, ageBracket: '19-30', sex: 'Male')
-          .first;
+      final s = checker.check(totals, ageBracket: '19-30', sex: 'Male').first;
       expect(s.tier, NutrientTier.aboveAdequateNoUl);
       expect(s.tier, isNot(NutrientTier.aboveTypical));
       expect(s.tier, isNot(NutrientTier.abundant));
@@ -498,10 +501,10 @@ void main() {
     test('a no-UL nutrient below target still reads adequate/underFifty', () {
       // Adequacy classification is unchanged below 100% — only the
       // above-target amber escalation is removed for no-UL nutrients.
-      final totals = _totals([_total('vitamin_b12', 'Vitamin B12', 1.5, 'mcg')]);
-      final s = checker
-          .check(totals, ageBracket: '19-30', sex: 'Male')
-          .first;
+      final totals = _totals([
+        _total('vitamin_b12', 'Vitamin B12', 1.5, 'mcg'),
+      ]);
+      final s = checker.check(totals, ageBracket: '19-30', sex: 'Male').first;
       expect(s.tier, NutrientTier.adequate); // 1.5/2.4 = 62%
     });
   });
