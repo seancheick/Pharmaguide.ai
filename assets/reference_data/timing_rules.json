@@ -401,7 +401,7 @@
       "ingredient1": "berberine",
       "ingredient2": "vitamin b12",
       "rule_type": "separate",
-      "advice": "Take berberine and B vitamins (especially B12) at different times — berberine may reduce B12 absorption with long-term use.",
+      "advice": "If you use berberine long-term, space it from B12 and consider monitoring your levels. Berberine acts like metformin, which can lower B12 over time — berberine's own effect is plausible but not proven.",
       "mechanism": "Berberine may impair B12 absorption through metformin-like effects on ileal intrinsic factor-mediated transport and gut microbiome changes. The precise mechanism is not established — no controlled human trials have directly demonstrated this interaction. The analogy is drawn from metformin's well-documented B12 depletion effect (PMID 10977010, Bauman 2000). Berberine's effects on folate transport (via PCFT) are a separate pathway and do not explain B12 impairment.",
       "separation_hours": 2,
       "score_impact": -1,
@@ -409,7 +409,7 @@
       "sources": [
         {
           "source_type": "pubmed",
-          "label": "Bauman WA et al. — Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin",
+          "label": "Bauman WA et al. — Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin (the metformin analogy this berberine precaution is based on; no direct berberine trial exists)",
           "url": "https://pubmed.ncbi.nlm.nih.gov/10977010/"
         }
       ]
