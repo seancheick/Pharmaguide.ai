@@ -1,4 +1,4 @@
-// Widget tests for the Trust Receipts sheet ("Why trust this?").
+// Widget tests for the Trust Receipts sheet ("How we score").
 //
 // Covers:
 //   - both sections render (How scoring works + Our sources)
@@ -37,7 +37,8 @@ void main() {
       _useTallSurface(tester);
       await tester.pumpWidget(_host(const PGTrustReceiptsSheet(data: null)));
 
-      expect(find.text('Why trust this?'), findsOneWidget);
+      expect(find.text('How we score'), findsOneWidget);
+      expect(find.text('Why trust this?'), findsNothing);
       // PGEyebrow renders uppercase.
       expect(find.text('HOW SCORING WORKS'), findsOneWidget);
       expect(find.text('OUR SOURCES'), findsOneWidget);
@@ -179,7 +180,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Sheet is open with the live count from the (overridden) provider.
-      expect(find.text('Why trust this?'), findsOneWidget);
+      expect(find.text('How we score'), findsWidgets);
+      expect(find.text('Why trust this?'), findsNothing);
       expect(find.text('OUR SOURCES'), findsOneWidget);
       expect(find.text('42 products'), findsOneWidget);
     });

@@ -791,7 +791,7 @@ class _ProductDetailV2ConnectedState
                   // v2 home screen's citation strip uses.
                   const TransparencyFooterSection(),
 
-                  // ---- 18. Trust Receipts entry ("Why trust this?") --
+                  // ---- 18. Trust Receipts entry ("How we score") ----
                   // Quiet footer row → shared Trust Receipts sheet with
                   // scoring explanation + live data-source counts.
                   const _WhyTrustThisRow(),
@@ -867,8 +867,8 @@ class _ProductDetailV2ConnectedState
   }
 }
 
-/// Quiet footer row at the bottom of the page: shield icon + "Why trust
-/// this?" caption. Opens the shared Trust Receipts sheet
+/// Quiet footer row at the bottom of the page: shield icon + "How we
+/// score" caption. Opens the shared Trust Receipts sheet
 /// (`showTrustReceiptsSheet`) — same sheet the score breakdown's "How
 /// scoring works" link opens.
 class _WhyTrustThisRow extends StatelessWidget {
@@ -878,11 +878,10 @@ class _WhyTrustThisRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(
-        left: V2Spacing.space8,
         bottom: V2Spacing.space12,
       ),
       child: Align(
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
         child: InkWell(
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
           onTap: () => showTrustReceiptsSheet(context),
@@ -901,7 +900,7 @@ class _WhyTrustThisRow extends StatelessWidget {
                 ),
                 const SizedBox(width: V2Spacing.space4),
                 Text(
-                  'Why trust this?',
+                  'How we score',
                   style: V2Typography.caption(color: V2Colors.fgMuted),
                 ),
               ],

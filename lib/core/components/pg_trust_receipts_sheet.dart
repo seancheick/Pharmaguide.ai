@@ -1,4 +1,4 @@
-// Trust Receipts sheet — the single "Why trust this?" surface.
+// Trust Receipts sheet — the single "How we score" surface.
 //
 // One reusable bottom sheet with two sections:
 //   1. "How scoring works" — the six v4 pillars, one calm line each.
@@ -7,7 +7,7 @@
 //      is simply omitted (no invented or hardcoded numbers — they drift).
 //
 // Entry points (both open the SAME sheet):
-//   • Product Detail footer row ("Why trust this?")
+//   • Product Detail footer row ("How we score")
 //   • Score breakdown section link ("How scoring works")
 //
 // Copy rules: calm-advisory voice, no imperatives, no overclaiming. The
@@ -98,7 +98,7 @@ class PGTrustReceiptsSheet extends StatelessWidget {
             const PGEyebrow('Trust receipts'),
             const SizedBox(height: V2Spacing.space8),
             Text(
-              'Why trust this?',
+              'How we score',
               style: V2Typography.titleSm(color: V2Colors.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
