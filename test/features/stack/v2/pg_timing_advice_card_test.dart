@@ -125,4 +125,48 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('tapping a tip opens a detail sheet with mechanism + sources', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: PGTimingAdviceCard(
+              optimizations: [
+                TimingOptimization(
+                  ruleId: 'timing_iron_calcium_separate',
+                  ingredient1: 'iron',
+                  ingredient2: 'calcium',
+                  advice: 'Take iron and calcium at least 2 hours apart.',
+                  mechanism: 'Calcium transiently blocks iron transfer.',
+                  ruleType: TimingRuleType.separate,
+                  separationHours: 2,
+                  scoreImpact: -2,
+                  evidenceLevel: EvidenceLevel.established,
+                  sourceUrls: ['https://pubmed.ncbi.nlm.nih.gov/1899425/'],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Sheet content is not in the tree until the row is tapped.
+    expect(find.text('Why this matters'), findsNothing);
+
+    await tester.tap(find.textContaining('Take iron and calcium'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Why this matters'), findsOneWidget);
+    // Mechanism shows both in the card row's inline context and the sheet.
+    expect(
+      find.textContaining('Calcium transiently blocks iron transfer'),
+      findsWidgets,
+    );
+    expect(find.text('Sources'), findsOneWidget);
+    expect(find.textContaining('PubMed'), findsOneWidget);
+  });
 }

@@ -362,6 +362,181 @@ void main() {
         expect(results, isNotEmpty);
       });
     });
+
+    group('same-product suppression + semantic dedup', () {
+      final rulesJson = {
+        'timing_rules': [
+          {
+            'id': 'vitd_vitk_together',
+            'ingredient1': 'vitamin d',
+            'ingredient2': 'vitamin k',
+            'rule_type': 'take_together',
+            'advice': 'Take vitamin D and K together.',
+            'separation_hours': null,
+            'score_impact': 1,
+            'evidence_level': 'established',
+            'sources': <Map<String, String>>[],
+          },
+          {
+            'id': 'iron_calcium_separate',
+            'ingredient1': 'iron',
+            'ingredient2': 'calcium',
+            'rule_type': 'separate',
+            'advice': 'Take iron and calcium 2h apart.',
+            'separation_hours': 2,
+            'score_impact': -2,
+            'evidence_level': 'established',
+            'sources': <Map<String, String>>[],
+          },
+          {
+            'id': 'vitd_food',
+            'ingredient1': 'vitamin d',
+            'ingredient2': 'dietary fat',
+            'rule_type': 'take_with_food',
+            'advice': 'Take vitamin D with a fatty meal.',
+            'separation_hours': null,
+            'score_impact': -1,
+            'evidence_level': 'established',
+            'sources': <Map<String, String>>[],
+          },
+          {
+            'id': 'vitk_food',
+            'ingredient1': 'vitamin k',
+            'ingredient2': 'dietary fat',
+            'rule_type': 'take_with_food',
+            'advice': 'Take vitamin K with a fatty meal.',
+            'separation_hours': null,
+            'score_impact': -1,
+            'evidence_level': 'established',
+            'sources': <Map<String, String>>[],
+          },
+        ],
+      };
+      late TimingEvaluationService svc;
+      setUp(() => svc = TimingEvaluationService.fromJson(rulesJson));
+
+      test('suppresses take_together when both ingredients are one product', () {
+        // Calcium K/D carries vitamin D and K in the SAME pill — the
+        // "Take X with X" self-pairing bug.
+        final results = svc.evaluateStack(
+          supplementTags: {
+            'Calcium K/D': {'vitamin_d', 'vitamin_k'},
+          },
+          medicationNames: [],
+        );
+        expect(
+          results.where((r) => r.ruleId == 'vitd_vitk_together'),
+          isEmpty,
+          reason: 'a co-formulated pair is already taken together — no tip',
+        );
+      });
+
+      test('still fires take_together across two different products', () {
+        final results = svc.evaluateStack(
+          supplementTags: {
+            'Vitamin D3': {'vitamin_d'},
+            'Vitamin K2': {'vitamin_k'},
+          },
+          medicationNames: [],
+        );
+        final hit = results
+            .where((r) => r.ruleId == 'vitd_vitk_together')
+            .toList();
+        expect(hit, hasLength(1));
+        expect(hit.first.product1Name, isNot(hit.first.product2Name));
+      });
+
+      test('suppresses separate when both minerals are one product', () {
+        final results = svc.evaluateStack(
+          supplementTags: {
+            'Multivitamin': {'iron', 'calcium'},
+          },
+          medicationNames: [],
+        );
+        expect(
+          results.where((r) => r.ruleId == 'iron_calcium_separate'),
+          isEmpty,
+          reason: "ingredients in one pill can't be separated",
+        );
+      });
+
+      test('collapses duplicate take-with-food tips for the same product', () {
+        // Vitamin D and K each trip their own with-food rule, but the user
+        // should be told to take THAT product with a meal only once.
+        final results = svc.evaluateStack(
+          supplementTags: {
+            'Calcium K/D': {'vitamin_d', 'vitamin_k'},
+          },
+          medicationNames: [],
+        );
+        final withFood = results
+            .where((r) => r.ruleType == TimingRuleType.takeWithFood)
+            .toList();
+        expect(withFood, hasLength(1));
+        expect(withFood.first.product1Name, 'Calcium K/D');
+      });
+    });
+
+    group('dose gating', () {
+      final rulesJson = {
+        'timing_rules': [
+          {
+            'id': 'iron_zinc',
+            'ingredient1': 'iron',
+            'ingredient2': 'zinc',
+            'rule_type': 'separate',
+            'advice': 'Space higher-dose iron from zinc.',
+            'separation_hours': 2,
+            'score_impact': -2,
+            'evidence_level': 'established',
+            'min_dose': {'ingredient': 'iron', 'mg': 25},
+            'sources': <Map<String, String>>[],
+          },
+        ],
+      };
+      late TimingEvaluationService svc;
+      setUp(() => svc = TimingEvaluationService.fromJson(rulesJson));
+
+      const both = {
+        'Iron': {'iron'},
+        'Zinc': {'zinc'},
+      };
+
+      test('fires when the gated dose is at/above threshold', () {
+        final results = svc.evaluateStack(
+          supplementTags: both,
+          medicationNames: [],
+          ingredientDosesMg: {'iron': 65},
+        );
+        expect(results.where((r) => r.ruleId == 'iron_zinc'), hasLength(1));
+      });
+
+      test('suppressed when the gated dose is below threshold', () {
+        final results = svc.evaluateStack(
+          supplementTags: both,
+          medicationNames: [],
+          ingredientDosesMg: {'iron': 18},
+        );
+        expect(
+          results.where((r) => r.ruleId == 'iron_zinc'),
+          isEmpty,
+          reason: 'iron 18mg is below the 25mg competition threshold',
+        );
+      });
+
+      test('fires (fail-open) when the gated dose is unknown', () {
+        final results = svc.evaluateStack(
+          supplementTags: both,
+          medicationNames: [],
+          // no doses supplied
+        );
+        expect(
+          results.where((r) => r.ruleId == 'iron_zinc'),
+          hasLength(1),
+          reason: "can't prove it's below threshold → still surface it",
+        );
+      });
+    });
   });
 
   group('TimingRuleType', () {

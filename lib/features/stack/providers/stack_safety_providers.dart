@@ -469,9 +469,21 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
         .map((m) => m.name)
         .toList(growable: false);
 
+    // Per-nutrient total doses (mg only) for dose-gated timing rules — reuse
+    // the already-computed nutrient totals so there's no extra blob fetch.
+    // Non-mg units (mcg/IU) are skipped; their rules fail open.
+    final ingredientDosesMg = <String, double>{};
+    for (final status in nutrientStatuses) {
+      final total = status.total;
+      if (total.unit.toLowerCase() == 'mg') {
+        ingredientDosesMg[total.canonicalId.toLowerCase()] = total.totalAmount;
+      }
+    }
+
     timingOptimizations = timingService.evaluateStack(
       supplementTags: supplementTags,
       medicationNames: medicationNames,
+      ingredientDosesMg: ingredientDosesMg,
     );
   } on Object catch (e, st) {
     checksIncomplete = true;

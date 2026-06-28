@@ -454,13 +454,18 @@ void main() {
   });
 
   group('StackUlChecker — warning strings', () {
-    test('zinc excess produces copper depletion warning', () {
+    test('zinc excess warns copper depletion with chronic-dose action', () {
       final results = checker.check(
         _totals([_total('zinc', 'Zinc', 60, 'mg')]),
         ageBracket: '19-30',
         sex: 'Male',
       );
-      expect(results.first.warning, contains('copper depletion'));
+      final warning = results.first.warning;
+      expect(warning, contains('copper depletion'));
+      // Cumulative-dose framing (IOM Zn UL 40 mg/d; PMID 18525032), not a
+      // "space apart" timing tip, plus actionable guidance.
+      expect(warning, contains('over time'));
+      expect(warning, contains('copper alongside'));
     });
 
     test('iron excess produces GI/oxidative warning', () {

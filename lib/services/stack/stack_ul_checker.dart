@@ -346,7 +346,13 @@ class StackUlChecker {
   }
 
   static const Map<String, String> _specificWarnings = {
-    'zinc': 'risk of copper depletion',
+    // Chronic cumulative-dose risk, not a timing-separation one: sustained
+    // high-dose zinc depletes copper (intestinal metallothionein sequestration);
+    // the IOM Tolerable Upper Intake Level for zinc is 40 mg/d. PMID 18525032
+    // documents zinc-induced copper deficiency causing neurologic disease.
+    // See knowledge/timing-rules-research.md §1.
+    'zinc':
+        'risk of copper depletion over time; consider a lower dose or taking copper alongside',
     'iron': 'risk of GI toxicity and oxidative stress',
     'vitamin_a': 'risk of hepatotoxicity and teratogenicity',
     'vitamin_d': 'risk of hypercalcemia and kidney damage',

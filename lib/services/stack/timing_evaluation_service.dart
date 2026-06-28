@@ -25,9 +25,9 @@ import 'package:pharmaguide/core/models/timing_optimization.dart';
 ///
 /// **Performance:**
 ///
-/// Index build: O(R) where R = number of rules (42 currently).
+/// Index build: O(R) where R = number of rules (38 currently).
 /// Stack evaluation: O(S × avg_rules_per_ingredient) where S = stack size.
-/// For a 50-item stack with 42 rules, this is <1ms on modern devices.
+/// For a 50-item stack with 38 rules, this is <1ms on modern devices.
 class TimingEvaluationService {
   TimingEvaluationService._({
     required List<_ParsedTimingRule> rules,
@@ -184,6 +184,7 @@ class TimingEvaluationService {
   List<TimingOptimization> evaluateStack({
     required Map<String, Set<String>> supplementTags,
     required List<String> medicationNames,
+    Map<String, double> ingredientDosesMg = const {},
   }) {
     final results = <String, TimingOptimization>{};
 
@@ -210,6 +211,7 @@ class TimingEvaluationService {
 
       for (final indexed in matchingRules) {
         if (results.containsKey(indexed.rule.id)) continue;
+        if (!_passesDoseGate(indexed.rule, ingredientDosesMg)) continue;
 
         // Find the OTHER side of this rule.
         final otherIngredient = indexed.isIngredient1
@@ -234,18 +236,23 @@ class TimingEvaluationService {
           if (tagToProducts.containsKey(alias)) {
             final product1Names = tagToProducts[tag]!;
             final product2Names = tagToProducts[alias]!;
-            // Only fire if they're in DIFFERENT products (same product
-            // already has them together — that's the formulator's intent).
-            final differentProducts = product1Names.any(
-              (p1) => product2Names.any((p2) => p1 != p2),
+            // Pick a DIFFERENT product for each side. When both ingredients
+            // live only in the same single product there is no actionable
+            // timing advice — a "separate" pair can't be pulled apart inside
+            // one pill, and a "take together" pair is already co-formulated.
+            // Suppressing this is the fix for the "Take X with X" self-pairing
+            // bug (e.g. a calcium + vitamin-D + K product tripping the
+            // calcium↔vitamin-D synergy rule against itself).
+            final p1 = product1Names.first;
+            final p2 = product2Names.firstWhere(
+              (name) => name != p1,
+              orElse: () => '',
             );
-            // For single-product stacks with both ingredients, still fire
-            // — the advice about timing within the day is still relevant.
-            if (differentProducts || product1Names.length == 1) {
+            if (p2.isNotEmpty) {
               results[indexed.rule.id] = _buildResult(
                 indexed.rule,
-                product1Name: product1Names.first,
-                product2Name: product2Names.first,
+                product1Name: p1,
+                product2Name: p2,
               );
             }
             break;
@@ -272,6 +279,7 @@ class TimingEvaluationService {
 
         for (final indexed in matchingRules) {
           if (results.containsKey(indexed.rule.id)) continue;
+          if (!_passesDoseGate(indexed.rule, ingredientDosesMg)) continue;
 
           // Find the supplement side of the rule.
           final suppIngredient = indexed.isIngredient1
@@ -311,7 +319,34 @@ class TimingEvaluationService {
     final sorted = results.values.toList()
       ..sort((a, b) => b.displayPriority.compareTo(a.displayPriority));
 
-    return sorted;
+    // Collapse semantically-identical tips. Several distinct rule IDs can
+    // describe the SAME user action for the SAME product(s) — e.g. a product
+    // carrying both vitamin D and vitamin K trips two "take with food" rules,
+    // but the user only needs to be told once to take that product with a
+    // meal. Rule-ID dedup (above) can't catch this; key on the resolved
+    // product(s) + rule type instead. Sorted-first wins, so the highest
+    // priority / strongest-evidence variant is the one kept.
+    final deduped = <TimingOptimization>[];
+    final seenSemanticKeys = <String>{};
+    for (final opt in sorted) {
+      if (seenSemanticKeys.add(_semanticKey(opt))) deduped.add(opt);
+    }
+
+    return deduped;
+  }
+
+  /// A key that identifies the *user-facing action* of a tip, independent of
+  /// which rule produced it. Single-product tips (take with food, time of
+  /// day, empty stomach) key on (product, type); pair tips key on the
+  /// unordered product pair + type so "A & B separate" and "B & A separate"
+  /// collapse to one.
+  static String _semanticKey(TimingOptimization opt) {
+    final type = opt.ruleType.name;
+    final p1 = opt.product1Name ?? opt.ingredient1;
+    final p2 = opt.product2Name;
+    if (p2 == null) return '$type|$p1';
+    final pair = [p1, p2]..sort();
+    return '$type|${pair.join('|')}';
   }
 
   // ---------------------------------------------------------------------------
@@ -346,6 +381,22 @@ class TimingEvaluationService {
     if (aliases != null) return aliases;
     // Fallback: the normalized name itself might be a direct tag match.
     return [normalizedIngredient.replaceAll(' ', '_').replaceAll('-', '_')];
+  }
+
+  /// True if [rule]'s optional dose gate is satisfied (or absent).
+  ///
+  /// Fail-open: when no doses are supplied, or the gated ingredient's dose is
+  /// unknown, the rule still fires — we can't prove it's below threshold, and
+  /// dropping a real interaction is worse than showing a possibly-moot tip.
+  bool _passesDoseGate(_ParsedTimingRule rule, Map<String, double> doses) {
+    final ingredient = rule.minDoseIngredient;
+    final threshold = rule.minDoseMg;
+    if (ingredient == null || threshold == null || doses.isEmpty) return true;
+    for (final alias in _resolveAliases(ingredient)) {
+      final dose = doses[alias];
+      if (dose != null) return dose >= threshold;
+    }
+    return true; // dose unknown → fail-open
   }
 
   static bool _isMedicationIngredient(String normalized) {
@@ -417,6 +468,12 @@ class _ParsedTimingRule {
   final EvidenceLevel evidenceLevel;
   final List<String> sourceUrls;
 
+  /// Optional dose gate: the rule only fires when [minDoseIngredient]'s total
+  /// stack dose is at or above [minDoseMg]. Both null = no gate (always fire).
+  /// e.g. iron↔zinc competition only matters at iron ≥ 25 mg fasting.
+  final String? minDoseIngredient;
+  final double? minDoseMg;
+
   _ParsedTimingRule({
     required this.id,
     required this.ingredient1Display,
@@ -430,6 +487,8 @@ class _ParsedTimingRule {
     required this.scoreImpact,
     required this.evidenceLevel,
     this.sourceUrls = const [],
+    this.minDoseIngredient,
+    this.minDoseMg,
   });
 
   factory _ParsedTimingRule.fromJson(Map<String, dynamic> json) {
@@ -449,6 +508,18 @@ class _ParsedTimingRule {
     final ingredient2 = json.safeString('ingredient2');
     final separationRaw = json['separation_hours'];
 
+    final minDose = json['min_dose'];
+    String? minDoseIngredient;
+    double? minDoseMg;
+    if (minDose is Map) {
+      final ing = minDose['ingredient'];
+      final mg = minDose['mg'];
+      if (ing is String && mg is num) {
+        minDoseIngredient = ing.toLowerCase().trim();
+        minDoseMg = mg.toDouble();
+      }
+    }
+
     return _ParsedTimingRule(
       id: json.safeString('id'),
       ingredient1Display: ingredient1,
@@ -466,6 +537,8 @@ class _ParsedTimingRule {
       scoreImpact: json.safeInt('score_impact'),
       evidenceLevel: EvidenceLevel.fromString(mappedEvidence),
       sourceUrls: sources,
+      minDoseIngredient: minDoseIngredient,
+      minDoseMg: minDoseMg,
     );
   }
 }

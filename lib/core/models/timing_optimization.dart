@@ -111,13 +111,29 @@ class TimingOptimization {
     return _medicationNames.any((m) => i1.contains(m) || i2.contains(m));
   }
 
-  /// Priority for display ordering — separation + medication first,
-  /// then separation + supplement, then other types.
+  /// Clinical importance tier (higher = more important), mirroring the
+  /// research prioritization in `knowledge/timing-rules-research.md`:
+  ///   3 — a medication can lose efficacy (drug–nutrient): always surface
+  ///   2 — supplement absorption that can genuinely matter (separations)
+  ///   1 — optimization niceties (with food, synergy, time of day)
+  ///
+  /// Cumulative-dose safety (e.g. zinc→copper) and folklore (Ca↔Mg, evening
+  /// magnesium) are deliberately NOT timing tiers — they were removed from
+  /// the ruleset; dose-safety belongs in the UL/nutrient checks.
+  int get tier {
+    if (involvesMedication) return 3;
+    if (isSeparation) return 2;
+    return 1;
+  }
+
+  /// Display ordering: tier dominates; evidence strength breaks ties so a
+  /// well-evidenced tip outranks a theoretical one within the same tier.
   int get displayPriority {
-    int priority = 0;
-    if (isSeparation) priority += 10;
-    if (involvesMedication) priority += 20;
-    if (evidenceLevel == EvidenceLevel.established) priority += 5;
-    return priority;
+    final evidenceBump = switch (evidenceLevel) {
+      EvidenceLevel.established => 2,
+      EvidenceLevel.probable => 1,
+      EvidenceLevel.theoretical => 0,
+    };
+    return tier * 10 + evidenceBump;
   }
 }

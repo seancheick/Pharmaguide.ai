@@ -57,6 +57,33 @@ void main() {
       expect(timing['timing_rules'], isA<List<dynamic>>());
     });
 
+    test('timing_rules excludes the folklore rules removed 2026-06-27', () async {
+      // Regression guard for the evidence-based corrections: Ca↔Mg
+      // "competition" and the time-of-day sleep claims are folklore and were
+      // removed; zinc↔copper is a chronic-dose concern, not a timing one.
+      // See knowledge/timing-rules-research.md.
+      final timing = await repo.loadTimingRules();
+      final rules = (timing['timing_rules']! as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final ids = rules.map((r) => r['id'] as String).toSet();
+
+      for (final removed in const [
+        'timing_calcium_magnesium_separate',
+        'timing_zinc_copper_separate',
+        'timing_vitamin_d_morning',
+        'timing_b_vitamins_morning',
+        'timing_magnesium_evening',
+      ]) {
+        expect(ids, isNot(contains(removed)), reason: '$removed is folklore');
+      }
+
+      // The magnesium rule was reframed to evidence-based GI-tolerance guidance.
+      final mag = rules.firstWhere(
+        (r) => r['id'] == 'timing_magnesium_with_food',
+      );
+      expect(mag['rule_type'], 'take_with_food');
+    });
+
     test('loads medication_profile_gate_rules asset', () async {
       final rulesData = await repo.loadMedicationProfileGateRules();
       final rules = rulesData['medication_profile_gate_rules'] as List;
