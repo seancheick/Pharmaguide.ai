@@ -73,9 +73,10 @@ class StackIntelligence {
   ///   - empty stack                                                 → incomplete
   ///   - banned / recalled / contraindicated                         → unsafe
   ///   - avoid-level interaction OR ≥2 nutrient warnings             → concerning
-  ///   - caution-level OR exactly 1 nutrient warning OR monitor      → decent
+  ///   - caution-level OR exactly 1 nutrient warning                 → decent
   ///   - `missingData` flag on an otherwise-clean stack              → decent
   ///   - clean stack, no quality score                               → decent
+  ///   - monitor-only clean stack caps `optimized` at `solid`
   ///   - clean stack, qualityScore ≥ 85                              → optimized
   ///   - clean stack, qualityScore ≥ 70                              → solid
   ///   - clean stack, qualityScore < 70                              → decent
@@ -103,14 +104,16 @@ class StackIntelligence {
       return StackTier.concerning;
     }
 
-    if (cautionInteractionCount > 0 ||
-        nutrientWarningCount == 1 ||
-        monitorInteractionCount > 0) {
+    if (cautionInteractionCount > 0 || nutrientWarningCount == 1) {
       return StackTier.decent;
     }
 
     if (missingData || qualityScore == null) return StackTier.decent;
-    if (qualityScore >= 85) return StackTier.optimized;
+    if (qualityScore >= 85) {
+      return monitorInteractionCount > 0
+          ? StackTier.solid
+          : StackTier.optimized;
+    }
     if (qualityScore >= 70) return StackTier.solid;
     return StackTier.decent;
   }

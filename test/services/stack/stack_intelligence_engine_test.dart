@@ -298,6 +298,23 @@ void main() {
       expect(intelligence.interactionCount, 0);
     });
 
+    test('monitor-only interaction caps optimized stack at solid', () {
+      final report = StackSafetyReport(
+        stackInteractions: [_interaction(id: 'm1', severity: Severity.monitor)],
+      );
+
+      final intelligence = engine.diagnoseFromReports(
+        stackSize: 2,
+        safetyReport: report,
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+      );
+
+      expect(intelligence.qualityScore, 97);
+      expect(intelligence.interactionCount, 1);
+      expect(intelligence.tier, StackTier.solid);
+    });
+
     test('cumulative dose threshold alert caps clean stack at decent', () {
       final intelligence = engine.diagnose(
         stackSize: 3,

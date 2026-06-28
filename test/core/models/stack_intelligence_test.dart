@@ -137,7 +137,7 @@ void main() {
       expect(tier, StackTier.decent);
     });
 
-    test('monitor-level interaction → decent', () {
+    test('monitor-level interaction without quality score → decent', () {
       final tier = StackIntelligence.deriveTier(
         stackSize: 3,
         hasBannedIngredient: false,
@@ -149,6 +149,21 @@ void main() {
         nutrientWarningCount: 0,
       );
       expect(tier, StackTier.decent);
+    });
+
+    test('monitor-only high-quality stack caps optimized at solid', () {
+      final tier = StackIntelligence.deriveTier(
+        stackSize: 3,
+        hasBannedIngredient: false,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        avoidInteractionCount: 0,
+        cautionInteractionCount: 0,
+        monitorInteractionCount: 1,
+        nutrientWarningCount: 0,
+        qualityScore: 97,
+      );
+      expect(tier, StackTier.solid);
     });
 
     test('missingData on otherwise-clean stack with high score → decent', () {
