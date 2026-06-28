@@ -17,6 +17,7 @@ import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dar
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 
 /// Thrown when [StackActions.addProduct] is called with a product whose
 /// verdict is BLOCKED or UNSAFE (FLTR-16). Safety-first defense in
@@ -151,8 +152,20 @@ class StackActions {
     );
 
     final userDb = _ref.read(userDatabaseProvider);
+    final classResolution =
+        await MedicationClassBridge(
+          db: _ref.read(interactionDatabaseProvider),
+        ).resolve(
+          selectedRxcui: rxcui,
+          genericRxcui: genericRxcui,
+          ingredientRxcuis: ingredientRxcuis,
+          runtimeClassIds: drugClasses,
+        );
     final id = _newId(rxcui != null ? 'rx_$rxcui' : 'med');
-    final classesJson = drugClasses.isEmpty ? null : jsonEncode(drugClasses);
+    final mergedDrugClasses = classResolution.mergedInteractionClassIds;
+    final classesJson = mergedDrugClasses.isEmpty
+        ? null
+        : jsonEncode(mergedDrugClasses);
     final ingredientsJson = ingredientRxcuis.isEmpty
         ? null
         : jsonEncode(ingredientRxcuis);

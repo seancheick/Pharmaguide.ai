@@ -71,11 +71,11 @@ abstract final class SchemaIds {
   };
 
   /// v6.0 profile flags — additive to [conditions]. The pipeline's
-  /// `clinical_risk_taxonomy.json::profile_flags[]` contract has 7 flag
+  /// `clinical_risk_taxonomy.json::profile_flags[]` contract has 8 flag
   /// IDs total. Four of them (`pregnant`, `breastfeeding`,
   /// `trying_to_conceive`, `surgery_scheduled`) are derived from the
   /// existing condition IDs at evaluator time
-  /// (see ProfileState.evaluatorProfileFlags); the remaining 3 are
+  /// (see ProfileState.evaluatorProfileFlags); the remaining 4 are
   /// distinct history/transient states and live as their own selectable
   /// flags here:
   ///   post_op_recovery     — currently in post-operative recovery (vs.

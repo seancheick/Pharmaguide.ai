@@ -3,19 +3,26 @@
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
-import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart'
+    as reference_data;
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
+import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
@@ -114,6 +121,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
 ) async {
   final coreDb = ref.watch(coreDatabaseProvider);
   final interactionDb = ref.watch(interactionDatabaseProvider);
+  final refDataRepo = ref.watch(reference_data.referenceDataRepositoryProvider);
 
   // Take a dependency on the active stack so any mutation invalidates us.
   final stack = await ref.watch(activeStackProvider.future);
@@ -143,6 +151,31 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   final medications = stack
       .where((e) => e.type == 'medication')
       .toList(growable: false);
+  final classBridge = MedicationClassBridge(db: interactionDb);
+  var safetyMedications = medications;
+  if (medications.isNotEmpty) {
+    try {
+      final normalized = await _normalizeMedicationRowsForSafety(
+        medications,
+        classBridge,
+      );
+      safetyMedications = normalized.rows;
+      if (normalized.identityIncomplete) {
+        // At least one medication could not be classified, so its class-level
+        // interaction / profile-gate checks did not run — hedge the report.
+        checksIncomplete = true;
+      }
+    } on Object catch (e, st) {
+      checksIncomplete = true;
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'stack_safety:medication_class_bridge_failed',
+      );
+    }
+  }
+
+  final profile = await ref.watch(loadedProfileProvider.future);
 
   // Hydrate each supplement once — we need the core row for fingerprints
   // (category heuristics) and the ingredient_keys JSON for canonical ids.
@@ -222,7 +255,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // ---------------------------------------------------------------------------
   final medicationInteractions = <InteractionResult>[];
   final seenMedIds = <String>{};
-  if (hydrated.isNotEmpty && medications.isNotEmpty) {
+  if (hydrated.isNotEmpty && safetyMedications.isNotEmpty) {
     for (final self in hydrated) {
       final canonicalIds = canonicalIdsForProduct(self.product);
       if (canonicalIds.isEmpty) continue;
@@ -230,7 +263,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       try {
         hits = await checker.checkMedicationInteractions(
           newProductCanonicalIds: canonicalIds,
-          stackMedications: medications,
+          stackMedications: safetyMedications,
           db: interactionDb,
           newProductName: self.entry.name,
         );
@@ -248,10 +281,10 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       }
     }
   }
-  if (medications.isNotEmpty) {
+  if (safetyMedications.isNotEmpty) {
     try {
       final hits = await checker.checkMedicationFoodAdvisories(
-        stackMedications: medications,
+        stackMedications: safetyMedications,
         db: interactionDb,
       );
       for (final r in hits) {
@@ -339,12 +372,12 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // ---------------------------------------------------------------------------
   final medicationPairInteractions = <InteractionResult>[];
   final seenMedPairIds = <String>{};
-  if (medications.length >= 2) {
-    for (var i = 0; i < medications.length; i++) {
-      final self = [medications[i]];
+  if (safetyMedications.length >= 2) {
+    for (var i = 0; i < safetyMedications.length; i++) {
+      final self = [safetyMedications[i]];
       final others = [
-        for (var j = 0; j < medications.length; j++)
-          if (j != i) medications[j],
+        for (var j = 0; j < safetyMedications.length; j++)
+          if (j != i) safetyMedications[j],
       ];
       List<InteractionResult> hits;
       try {
@@ -369,13 +402,56 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   }
 
   // ---------------------------------------------------------------------------
-  // 5. Timing optimization evaluation.
+  // 5. Medication × profile-gate rules.
+  //    These are standalone medication-condition/profile warnings evaluated
+  //    through the same profile_gate engine used by product warnings.
+  // ---------------------------------------------------------------------------
+  var medicationProfileWarnings = const <MedicationProfileWarning>[];
+  if (safetyMedications.isNotEmpty) {
+    try {
+      final rulesData = await refDataRepo.loadMedicationProfileGateRules();
+      final rules = MedicationProfileGateRule.listFromJson(rulesData);
+      if (rules.isNotEmpty) {
+        const evaluator = MedicationProfileGateEvaluator();
+        final warnings = <MedicationProfileWarning>[];
+        for (final med in safetyMedications) {
+          final snapshot = MedicationIdentitySnapshot.fromStackRow(med);
+          final resolution = await classBridge.resolve(
+            selectedRxcui: snapshot.rxcui,
+            genericRxcui: snapshot.genericRxcui,
+            ingredientRxcuis: snapshot.ingredientRxcuis,
+            runtimeClassIds: snapshot.drugClassIds,
+          );
+          warnings.addAll(
+            evaluator.evaluate(
+              rules: rules,
+              medicationName: med.name,
+              medicationProfileGateClassIds: resolution.profileGateClassIds
+                  .toSet(),
+              userConditions: profile.conditionsForEvaluator.toSet(),
+              userProfileFlags: profile.evaluatorProfileFlags,
+            ),
+          );
+        }
+        medicationProfileWarnings = warnings;
+      }
+    } on Object catch (e, st) {
+      checksIncomplete = true;
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'stack_safety:medication_profile_gate_failed',
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 6. Timing optimization evaluation.
   //    Cross-reference the stack's ingredient tags and medication names
   //    against timing_rules.json to produce actionable timing advice.
   // ---------------------------------------------------------------------------
   List<TimingOptimization> timingOptimizations = const <TimingOptimization>[];
   try {
-    final refDataRepo = ReferenceDataRepository();
     final timingJson = await refDataRepo.loadTimingRules();
     final timingService = TimingEvaluationService.fromJson(timingJson);
 
@@ -389,7 +465,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     }
 
     // Collect medication display names.
-    final medicationNames = medications
+    final medicationNames = safetyMedications
         .map((m) => m.name)
         .toList(growable: false);
 
@@ -413,12 +489,51 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     stackInteractions: stackInteractions,
     medicationInteractions: medicationInteractions,
     medicationPairInteractions: medicationPairInteractions,
+    medicationProfileWarnings: medicationProfileWarnings,
     categoryWarnings: categoryWarnings,
     timingOptimizations: timingOptimizations,
     coverageIncomplete: coverageIncomplete,
     checksIncomplete: checksIncomplete,
   );
 });
+
+Future<({List<UserStacksLocalData> rows, bool identityIncomplete})>
+_normalizeMedicationRowsForSafety(
+  List<UserStacksLocalData> medications,
+  MedicationClassBridge bridge,
+) async {
+  final out = <UserStacksLocalData>[];
+  var identityIncomplete = false;
+  for (final med in medications) {
+    final snapshot = MedicationIdentitySnapshot.fromStackRow(med);
+    final resolution = await bridge.resolve(
+      selectedRxcui: snapshot.rxcui,
+      genericRxcui: snapshot.genericRxcui,
+      ingredientRxcuis: snapshot.ingredientRxcuis,
+      runtimeClassIds: snapshot.drugClassIds,
+    );
+    final mergedClasses = resolution.mergedInteractionClassIds;
+    if (mergedClasses.isEmpty) {
+      // No drug class could be resolved for this medication from any source
+      // (e.g. a brand RxCUI like Advil saved before its ingredient + classes
+      // hydrated, then evaluated offline). Class-level interaction and
+      // profile-gate checks (NSAID-in-pregnancy, etc.) cannot run for it, so
+      // flag the result as incomplete rather than letting the stack render a
+      // false "all clear". This is the generic safety net for every
+      // unresolvable medication, not just the Motrin alias special-case.
+      identityIncomplete = true;
+    }
+    final nextClassesJson = mergedClasses.isEmpty
+        ? null
+        : jsonEncode(mergedClasses);
+    if (nextClassesJson == med.drugClassesCol) {
+      out.add(med);
+    } else {
+      out.add(med.copyWith(drugClassesCol: Value(nextClassesJson)));
+    }
+  }
+  return (rows: out, identityIncomplete: identityIncomplete);
+}
 
 /// Recall detection: finds products in the user's stack that contain banned
 /// or recalled ingredients, returning a [RecalledIngredientsReport] with
@@ -430,7 +545,7 @@ final recalledIngredientsReportProvider = FutureProvider<RecalledIngredientsRepo
   // Read the repo via the provider so tests can override the asset source.
   // Sprint 27.6 added this indirection to enable integration tests of
   // the scan→flag path without needing to bundle fixture assets.
-  final refDataRepo = ref.watch(referenceDataRepositoryProvider);
+  final refDataRepo = ref.watch(reference_data.referenceDataRepositoryProvider);
 
   // Take a dependency on the active stack so any mutation invalidates us.
   final stack = await ref.watch(activeStackProvider.future);
@@ -555,7 +670,7 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
 
   if (medications.isEmpty) return const [];
 
-  final repo = ref.watch(referenceDataRepositoryProvider);
+  final repo = ref.watch(reference_data.referenceDataRepositoryProvider);
   final depletionsData = await repo.loadMedicationDepletions();
 
   // Build canonical IDs and real dose rows from the supplement stack.

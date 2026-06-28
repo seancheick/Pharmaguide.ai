@@ -11,6 +11,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
@@ -70,6 +71,24 @@ void main() {
         contributions: const <NutrientContribution>[],
       ),
       tier: tier,
+    );
+  }
+
+  MedicationProfileWarning makeProfileWarning({
+    Severity severity = Severity.caution,
+  }) {
+    return MedicationProfileWarning(
+      id: 'MCR_PREGNANCY_NSAIDS:Motrin',
+      ruleId: 'MCR_PREGNANCY_NSAIDS',
+      medicationName: 'Motrin',
+      severity: severity,
+      evidenceLevel: EvidenceLevel.established,
+      headline: 'Review NSAID use in pregnancy',
+      body:
+          'NSAIDs such as ibuprofen are generally avoided from 20 weeks '
+          'of pregnancy.',
+      management: 'Check with your OB/clinician before using NSAIDs.',
+      sourceUrls: const <String>[],
     );
   }
 
@@ -164,6 +183,23 @@ void main() {
     expect(banner.tone, PGBannerTone.caution);
     // 2026-04-30 — softer-tone vocab (severity.dart).
     expect(banner.title, contains('Monitor'));
+  });
+
+  testWidgets('medication-profile warning renders type-aware copy', (
+    tester,
+  ) async {
+    final report = StackSafetyReport(
+      medicationProfileWarnings: [makeProfileWarning()],
+    );
+    await pumpBanner(tester, report: report);
+
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
+    expect(banner.tone, PGBannerTone.caution);
+    expect(banner.title, 'Use caution — Motrin');
+    expect(banner.body, contains('generally avoided from 20 weeks'));
+    expect(banner.body, contains('Strong Evidence'));
   });
 
   testWidgets('food advisory note uses info tone and food-note title', (

@@ -6,8 +6,8 @@
 //   * Cream `V2Colors.surface` card with a 4px accent-tint left
 //     stripe — keeps the section visually "positive guidance"
 //     (efficacy advice) rather than a warning.
-//   * Mono-caps "TIMING · {N}" eyebrow + Newsreader-adjacent title
-//     "Timing optimization" in v2 typography.
+//   * Mono-caps "TIMING · {N}" eyebrow + clear "Timing guidance"
+//     title in v2 typography.
 //   * Per-rule rows use accent / monitor / caution tints from
 //     `V2Colors` instead of the retired v1 severity colors.
 //   * "+N more timing tips" footer in mono-caps for parity with the
@@ -37,7 +37,7 @@ class PGTimingAdviceCard extends StatelessWidget {
   /// empty-stomach, then time-of-day.
   final List<TimingOptimization> optimizations;
 
-  /// Tap → full timing detail screen (caller wires the navigation).
+  /// Optional tap target if a future screen adds a full timing view.
   final VoidCallback? onTap;
 
   /// Outer margin — match the section above (typically the v2 safety
@@ -99,13 +99,13 @@ class PGTimingAdviceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
-                  // Sean 2026-05-16: pluralize when there are
-                  // multiple tips. Singular reads slightly off
-                  // when there are 3+ rules below it.
-                  optimizations.length > 1
-                      ? 'Timing optimizations'
-                      : 'Timing optimization',
+                  'Timing guidance',
                   style: V2Typography.titleSm(color: V2Colors.fg),
+                ),
+                const SizedBox(height: V2Spacing.space4),
+                Text(
+                  'When to take items in your stack for better spacing or absorption.',
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space12),
                 for (var i = 0; i < visible.length; i++) ...[
@@ -152,6 +152,7 @@ class _TimingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = _iconFor(opt.ruleType);
     final color = _colorFor(opt.ruleType);
+    final contextText = _contextFor(opt);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,16 +164,18 @@ class _TimingRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _summaryFor(opt),
+                _instructionFor(opt),
                 style: V2Typography.bodySm(color: V2Colors.fg),
-                maxLines: 2,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
-              if (opt.separationHours != null) ...[
+              if (contextText != null && contextText.isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(
-                  '${opt.separationHours}h apart',
+                  contextText,
                   style: V2Typography.caption(color: V2Colors.fgMuted),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ],
@@ -214,7 +217,10 @@ class _TimingRow extends StatelessWidget {
     }
   }
 
-  static String _summaryFor(TimingOptimization opt) {
+  static String _instructionFor(TimingOptimization opt) {
+    final advice = opt.advice.trim();
+    if (advice.isNotEmpty) return advice;
+
     final p1 = opt.product1Name ?? opt.ingredient1;
     final p2 = opt.product2Name ?? opt.ingredient2;
     switch (opt.ruleType) {
@@ -227,9 +233,27 @@ class _TimingRow extends StatelessWidget {
       case TimingRuleType.takeOnEmptyStomach:
         return 'Take $p1 on an empty stomach';
       case TimingRuleType.timeOfDay:
-        return opt.advice.length <= 60
-            ? opt.advice
-            : 'Best time for $p1: check details';
+        return 'Consider timing $p1 earlier or later in the day.';
     }
+  }
+
+  static String? _contextFor(TimingOptimization opt) {
+    final parts = <String>[];
+    final hours = opt.separationHours;
+    if (hours != null) {
+      parts.add('Keep at least ${hours}h apart.');
+    }
+
+    final mechanism = opt.mechanism?.trim();
+    if (mechanism != null && mechanism.isNotEmpty) {
+      parts.add(_shorten(mechanism));
+    }
+
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
+  static String _shorten(String value) {
+    final firstSentence = value.split(RegExp(r'(?<=[.!?])\s+')).first.trim();
+    return firstSentence.isEmpty ? value : firstSentence;
   }
 }

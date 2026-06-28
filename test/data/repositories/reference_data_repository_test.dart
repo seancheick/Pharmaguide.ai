@@ -19,16 +19,21 @@ void main() {
       expect((conditions.first as Map)['id'], 'pregnancy');
     });
 
-    test('loads clinical_risk_taxonomy with 14 drug classes', () async {
-      // Count bumped 9→14 when round 2b-full added authored copy to
-      // previously-missing drug classes (sedatives, immunosuppressants,
-      // statins, antidepressants_ssri_snri, maois, cardiac_glycosides,
-      // anticholinergics, anticonvulsants). See pipeline repo commit
-      // 46971b8.
+    test('loads clinical_risk_taxonomy with 28 drug classes', () async {
       final taxonomy = await repo.loadClinicalRiskTaxonomy();
       final drugClasses = taxonomy['drug_classes'] as List;
-      expect(drugClasses.length, 14);
+      expect(drugClasses.length, 28);
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
+    });
+
+    test('loads clinical_risk_taxonomy with 8 profile flags', () async {
+      final taxonomy = await repo.loadClinicalRiskTaxonomy();
+      final profileFlags = taxonomy['profile_flags'] as List;
+      expect(profileFlags.length, 8);
+      expect(
+        profileFlags.map((entry) => (entry as Map)['id']),
+        containsAll(['pregnant', 'trying_to_conceive', 'bleeding_history']),
+      );
     });
 
     test('loads user_goals_to_clusters with 18 goals', () async {
@@ -52,9 +57,22 @@ void main() {
       expect(timing['timing_rules'], isA<List<dynamic>>());
     });
 
+    test('loads medication_profile_gate_rules asset', () async {
+      final rulesData = await repo.loadMedicationProfileGateRules();
+      final rules = rulesData['medication_profile_gate_rules'] as List;
+      expect(rules, isNotEmpty);
+      expect((rules.first as Map)['id'], 'MCR_PREGNANCY_NSAIDS');
+    });
+
     test('caches after first load', () async {
       final first = await repo.loadClinicalRiskTaxonomy();
       final second = await repo.loadClinicalRiskTaxonomy();
+      expect(identical(first, second), true);
+    });
+
+    test('caches medication_profile_gate_rules after first load', () async {
+      final first = await repo.loadMedicationProfileGateRules();
+      final second = await repo.loadMedicationProfileGateRules();
       expect(identical(first, second), true);
     });
   });

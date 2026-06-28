@@ -1,0 +1,49 @@
+{
+  "_metadata": {
+    "description": "Standalone medication profile-gate rules for stack medications. Rules use the same v6.0 profile_gate schema as ingredient interaction warnings, but the product context is a stack medication class.",
+    "purpose": "standalone_medication_profile_gate_rules",
+    "schema_version": "1.0.0",
+    "contract_test": "scripts/tests/test_medication_profile_gate_rules_contract.py",
+    "last_updated": "2026-06-27",
+    "total_entries": 1,
+    "change_log": [
+      {
+        "date": "2026-06-27",
+        "change": "Add pregnancy NSAID medication-profile rule for stack medication review."
+      }
+    ]
+  },
+  "schema_version": "1.0.0",
+  "updated_at": "2026-06-27",
+  "medication_profile_gate_rules": [
+    {
+      "id": "MCR_PREGNANCY_NSAIDS",
+      "severity": "caution",
+      "evidence_level": "established",
+      "headline": "Review NSAID use in pregnancy",
+      "body": "NSAIDs such as ibuprofen and naproxen are generally avoided from 20 weeks of pregnancy; after about 30 weeks, they should not be used unless your clinician specifically directs.",
+      "management": "Check with your OB/clinician before using NSAIDs during pregnancy. Acetaminophen may be discussed as an option, but use should still follow clinician guidance.",
+      "sources": [
+        "https://www.fda.gov/drugs/drug-safety-and-availability/fda-recommends-avoiding-use-nsaids-pregnancy-20-weeks-or-later-because-they-can-result-low-amniotic",
+        "https://www.acog.org/clinical/clinical-guidance/practice-advisory/articles/2021/12/low-dose-aspirin-use-for-the-prevention-of-preeclampsia-and-related-morbidity-and-mortality",
+        "https://publications.smfm.org/publications/433-acog-smfm-practice-advisory-low-dose-aspirin-use/",
+        "https://www.acog.org/clinical/clinical-guidance/practice-advisory/articles/2025/09/acetaminophen-use-in-pregnancy-and-neurodevelopmental-outcomes"
+      ],
+      "profile_gate": {
+        "gate_type": "combination",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": ["nsaids"],
+          "profile_flags_any": ["pregnant"]
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        }
+      }
+    }
+  ]
+}
