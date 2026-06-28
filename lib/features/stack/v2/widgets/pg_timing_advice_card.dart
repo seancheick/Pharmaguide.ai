@@ -105,14 +105,7 @@ class PGTimingAdviceCard extends StatelessWidget {
                   style: V2Typography.bodySm(color: V2Colors.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space12),
-                for (var i = 0; i < visible.length; i++) ...[
-                  _TimingRow(
-                    opt: visible[i],
-                    onTap: () => showTimingTipSheet(context, visible[i]),
-                  ),
-                  if (i < visible.length - 1)
-                    const SizedBox(height: V2Spacing.space12),
-                ],
+                ..._buildGroupedRows(context, visible),
                 if (optimizations.length > maxVisible) ...[
                   const SizedBox(height: V2Spacing.space8),
                   _MoreTipsButton(
@@ -140,6 +133,58 @@ class PGTimingAdviceCard extends StatelessWidget {
               ),
             ),
     );
+  }
+
+  /// Render the visible rows, grouping separation rules under a
+  /// "Space these apart" subsection. Separations sort first (see
+  /// [optimizations]), so they're already contiguous at the front; the
+  /// remaining with-food / time-of-day tips follow below.
+  List<Widget> _buildGroupedRows(
+    BuildContext context,
+    List<TimingOptimization> visible,
+  ) {
+    final separations = visible
+        .where((o) => o.ruleType == TimingRuleType.separate)
+        .toList(growable: false);
+    final others = visible
+        .where((o) => o.ruleType != TimingRuleType.separate)
+        .toList(growable: false);
+
+    Widget rowFor(TimingOptimization opt) => _TimingRow(
+          opt: opt,
+          onTap: () => showTimingTipSheet(context, opt),
+        );
+
+    List<Widget> spacedRows(List<TimingOptimization> opts) {
+      final out = <Widget>[];
+      for (var i = 0; i < opts.length; i++) {
+        out.add(rowFor(opts[i]));
+        if (i < opts.length - 1) {
+          out.add(const SizedBox(height: V2Spacing.space12));
+        }
+      }
+      return out;
+    }
+
+    final widgets = <Widget>[];
+    if (separations.isNotEmpty) {
+      widgets.add(
+        const Padding(
+          key: Key('timing-separations-header'),
+          padding: EdgeInsets.only(bottom: V2Spacing.space8),
+          child: PGEyebrow('Space these apart', color: V2Colors.caution),
+        ),
+      );
+      widgets.addAll(spacedRows(separations));
+    }
+    if (others.isNotEmpty) {
+      // Visual break between the separation subsection and the rest.
+      if (separations.isNotEmpty) {
+        widgets.add(const SizedBox(height: V2Spacing.space12));
+      }
+      widgets.addAll(spacedRows(others));
+    }
+    return widgets;
   }
 }
 
@@ -281,24 +326,14 @@ class _TimingRow extends StatelessWidget {
     }
   }
 
+  /// Inline context under the instruction. We keep ONLY the actionable
+  /// separation window ("Keep at least Nh apart.") here; the explanatory
+  /// mechanism is folded into the detail sheet (tap the row) to keep the
+  /// stack list compact. The full "why" still renders under "Why this
+  /// matters" in [_TimingDetailSheet].
   static String? _contextFor(TimingOptimization opt) {
-    final parts = <String>[];
     final hours = opt.separationHours;
-    if (hours != null) {
-      parts.add('Keep at least ${hours}h apart.');
-    }
-
-    final mechanism = opt.mechanism?.trim();
-    if (mechanism != null && mechanism.isNotEmpty) {
-      parts.add(_shorten(mechanism));
-    }
-
-    return parts.isEmpty ? null : parts.join(' ');
-  }
-
-  static String _shorten(String value) {
-    final firstSentence = value.split(RegExp(r'(?<=[.!?])\s+')).first.trim();
-    return firstSentence.isEmpty ? value : firstSentence;
+    return hours != null ? 'Keep at least ${hours}h apart.' : null;
   }
 }
 

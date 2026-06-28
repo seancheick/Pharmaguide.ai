@@ -81,13 +81,15 @@ void main() {
       find.textContaining('Take magnesium in the evening'),
       findsOneWidget,
     );
+    // Mechanism excerpt is folded into the detail sheet — not shown inline,
+    // to keep the stack list compact (title only).
     expect(
       find.textContaining('Evening dosing is a practical recommendation'),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
-  testWidgets('separation advice keeps hours visible with inline reason', (
+  testWidgets('separation advice keeps hours visible; mechanism folds to detail', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -119,11 +121,83 @@ void main() {
     );
 
     expect(find.textContaining('Take iron and magnesium'), findsOneWidget);
+    // The actionable separation window stays inline...
     expect(find.textContaining('Keep at least 2h apart'), findsOneWidget);
+    // ...but the explanatory mechanism is folded into the detail sheet.
     expect(
       find.textContaining('Magnesium at high supplemental doses'),
-      findsOneWidget,
+      findsNothing,
     );
+  });
+
+  testWidgets('separation rules render under a "Space these apart" subsection', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: PGTimingAdviceCard(
+              optimizations: [
+                TimingOptimization(
+                  ruleId: 'timing_iron_calcium_separate',
+                  ingredient1: 'iron',
+                  ingredient2: 'calcium',
+                  advice: 'Take iron and calcium at least 2 hours apart.',
+                  ruleType: TimingRuleType.separate,
+                  separationHours: 2,
+                  scoreImpact: -2,
+                  evidenceLevel: EvidenceLevel.established,
+                ),
+                TimingOptimization(
+                  ruleId: 'timing_magnesium_food',
+                  ingredient1: 'magnesium',
+                  ingredient2: '',
+                  advice: 'Take magnesium with a meal',
+                  ruleType: TimingRuleType.takeWithFood,
+                  scoreImpact: 0,
+                  evidenceLevel: EvidenceLevel.theoretical,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Separations get their own labeled subsection header (eyebrow is caps)...
+    expect(find.byKey(const Key('timing-separations-header')), findsOneWidget);
+    expect(find.text('SPACE THESE APART'), findsOneWidget);
+    // ...and both the separation row and the non-separation row still render.
+    expect(find.textContaining('iron and calcium'), findsOneWidget);
+    expect(find.textContaining('Take magnesium with a meal'), findsOneWidget);
+  });
+
+  testWidgets('no separations → no "Space these apart" header', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: PGTimingAdviceCard(
+              optimizations: [
+                TimingOptimization(
+                  ruleId: 'timing_magnesium_food',
+                  ingredient1: 'magnesium',
+                  ingredient2: '',
+                  advice: 'Take magnesium with a meal',
+                  ruleType: TimingRuleType.takeWithFood,
+                  scoreImpact: 0,
+                  evidenceLevel: EvidenceLevel.theoretical,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('timing-separations-header')), findsNothing);
+    expect(find.text('Take magnesium with a meal'), findsOneWidget);
   });
 
   testWidgets('visible rows preserve engine priority order', (tester) async {
@@ -210,10 +284,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Why this matters'), findsOneWidget);
-    // Mechanism shows both in the card row's inline context and the sheet.
+    // Mechanism lives only in the detail sheet now (folded out of the row).
     expect(
       find.textContaining('Calcium transiently blocks iron transfer'),
-      findsWidgets,
+      findsOneWidget,
     );
     expect(find.text('Sources'), findsOneWidget);
     expect(find.textContaining('PubMed'), findsOneWidget);
