@@ -21,24 +21,35 @@ void main() {
       }
     });
 
-    test('exceedsUl is red, approachingUl is orange', () {
+    test('only exceedsUl is red and only approachingUl is amber', () {
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.exceedsUl),
         V2Colors.contraindicated,
       );
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.approachingUl),
-        V2Colors.avoid,
+        V2Colors.caution,
       );
     });
 
-    test('aboveTypical is yellow, adequate is green', () {
+    test('high intake below the UL ceiling stays calm/green', () {
+      // abundant / aboveTypical no longer carry a warning tone — multiples of
+      // the RDA are not a hazard while there is headroom to the limit. Only the
+      // UL story (approaching/exceeds) escalates color.
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.aboveTypical),
-        V2Colors.caution,
+        V2Colors.safe,
+      );
+      expect(
+        NutrientProgressBar.tierColorFor(NutrientTier.abundant),
+        V2Colors.safe,
       );
       expect(
         NutrientProgressBar.tierColorFor(NutrientTier.adequate),
+        V2Colors.safe,
+      );
+      expect(
+        NutrientProgressBar.tierColorFor(NutrientTier.aboveAdequateNoUl),
         V2Colors.safe,
       );
     });
@@ -77,6 +88,50 @@ void main() {
       // shows as the fallback when there is no UL.
       expect(find.textContaining('130% UL'), findsOneWidget);
       expect(find.textContaining('copper depletion'), findsOneWidget);
+    });
+
+    testWidgets('expanded contributions include ingredient form context', (
+      tester,
+    ) async {
+      const status = NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'vitamin_k',
+          displayName: 'Vitamin K',
+          totalAmount: 130,
+          unit: 'mcg',
+          contributions: [
+            NutrientContribution(
+              stackEntryId: 'cal-kd',
+              productName: 'Calcium K/D',
+              ingredientName: 'Vitamin K1',
+              amount: 100,
+              unit: 'mcg',
+            ),
+            NutrientContribution(
+              stackEntryId: 'cal-kd',
+              productName: 'Calcium K/D',
+              ingredientName: 'Vitamin K2 (MK-7)',
+              amount: 30,
+              unit: 'mcg',
+            ),
+          ],
+        ),
+        tier: NutrientTier.aboveAdequateNoUl,
+        rda: 120,
+        pctOfRda: 108.3,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: NutrientProgressBar(status: status)),
+        ),
+      );
+
+      await tester.tap(find.text('Vitamin K'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Calcium K/D - Vitamin K1'), findsOneWidget);
+      expect(find.text('Calcium K/D - Vitamin K2 (MK-7)'), findsOneWidget);
     });
 
     testWidgets('omits warning chip when status has no warning', (

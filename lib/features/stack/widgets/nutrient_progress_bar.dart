@@ -17,16 +17,20 @@ class NutrientProgressBar extends StatefulWidget {
 
   static Color tierColorFor(NutrientTier tier) {
     switch (tier) {
+      // Only crossing the UL is red, and only 80-99% of the UL is amber — one
+      // warning tone, reached only as a real ceiling approaches.
       case NutrientTier.exceedsUl:
         return V2Colors.contraindicated;
       case NutrientTier.approachingUl:
-        return V2Colors.avoid;
-      case NutrientTier.aboveTypical:
         return V2Colors.caution;
+      // High intake that is NOT nearing a ceiling is calm/green, never a
+      // warning tone. This covers both no-UL nutrients above target
+      // (aboveAdequateNoUl) and UL-bounded nutrients still comfortably below
+      // 80% of their UL (abundant/aboveTypical/adequate). Multiples of the RDA
+      // are not a hazard when there is headroom to the limit.
+      case NutrientTier.aboveTypical:
       case NutrientTier.abundant:
-        return V2Colors.monitor;
       case NutrientTier.adequate:
-      // Above the target but no UL exists — calm/green, never a warning tone.
       case NutrientTier.aboveAdequateNoUl:
         return V2Colors.safe;
       case NutrientTier.underFifty:
@@ -212,7 +216,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                     const SizedBox(width: V2Spacing.space8),
                     Expanded(
                       child: Text(
-                        c.productName,
+                        _contributionLabel(c),
                         style: _captionStyle(V2Colors.fg),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -254,6 +258,14 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
         ? amount.round().toString()
         : amount.toStringAsFixed(amount == amount.roundToDouble() ? 0 : 1);
     return unit.isEmpty ? rounded : '$rounded ${unit.toUpperCase()}';
+  }
+
+  static String _contributionLabel(NutrientContribution contribution) {
+    final product = contribution.productName.trim();
+    final ingredient = contribution.ingredientName.trim();
+    if (ingredient.isEmpty || ingredient == product) return product;
+    if (product.isEmpty) return ingredient;
+    return '$product - $ingredient';
   }
 }
 

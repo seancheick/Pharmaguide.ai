@@ -276,6 +276,16 @@ class StackUlChecker {
     required String? ageBracket,
     required String? sex,
   }) {
+    // Floor nutrients have no official UL (vitamin K, B12, biotin, and
+    // nutrients like vanadium whose only `highest_ul` is a soft toxicity-study
+    // estimate). The data's `nutrient_class` is authoritative — gate here so a
+    // soft `highest_ul` can never leak a false ceiling into the tiering and
+    // push a benign nutrient into amber/red. Dual-read: when the field is
+    // absent (older bundled data) we fall through to the legacy UL inference.
+    if ((entry['nutrient_class'] ?? '').toString() == 'floor') {
+      return const _UlLookup(null, false);
+    }
+
     final data = (entry['data'] as List?) ?? const [];
 
     if (ageBracket != null && sex != null) {

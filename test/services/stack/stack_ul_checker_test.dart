@@ -122,6 +122,19 @@ void main() {
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 1.6},
         ],
       },
+      {
+        // Floor nutrient whose only `highest_ul` is a soft toxicity-study
+        // estimate (vanadium has no official UL). nutrient_class='floor' must
+        // suppress it so the tier never escalates to a UL warning.
+        'id': 'vanadium',
+        'standard_name': 'Vanadium',
+        'unit': 'mcg',
+        'nutrient_class': 'floor',
+        'highest_ul': 1800,
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 50},
+        ],
+      },
     ],
   };
 
@@ -280,6 +293,18 @@ void main() {
       );
       expect(results.first.ul, 40);
       expect(results.first.ulIsFallback, isTrue);
+    });
+
+    test('floor nutrient_class suppresses a soft highest_ul ceiling', () {
+      // Vanadium's only `highest_ul` (1800) is a toxicity-study estimate, not
+      // an official UL. nutrient_class='floor' must keep it off the UL ladder
+      // even when the amount is far above that number — no UL, no warning.
+      final totals = _totals([_total('vanadium', 'Vanadium', 2000, 'mcg')]);
+      final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
+      expect(results.first.ul, isNull);
+      expect(results.first.pctOfUl, isNull);
+      expect(results.first.tier, NutrientTier.aboveAdequateNoUl);
+      expect(results.first.shouldWarn, isFalse);
     });
   });
 

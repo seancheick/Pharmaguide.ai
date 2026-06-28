@@ -129,7 +129,7 @@ void main() {
     });
 
     test('nutrient_group_id rolls form_of children up (K1 + K2 → one '
-        'Vitamin K), but canonical_id still differs per contribution', () {
+        'Vitamin K) and preserves contribution form labels', () {
       final stack = [
         _productOf('s1', 'Calcium K/D', [
           {
@@ -153,6 +153,10 @@ void main() {
       expect(result.keys, isNot(contains('vitamin_k1')));
       expect(result['vitamin_k']!.totalAmount, 130);
       expect(result['vitamin_k']!.contributions, hasLength(2));
+      expect(
+        result['vitamin_k']!.contributions.map((c) => c.ingredientName),
+        containsAll(['Vitamin K1', 'Vitamin K2 (MK-7)']),
+      );
     });
 
     test('nutrient_group_id absent → groups by canonical_id (old catalog)', () {

@@ -3,7 +3,7 @@
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
     "schema_version": "5.0.0",
-    "last_updated": "2026-04-16",
+    "last_updated": "2026-06-28",
     "total_entries": 47,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
     "country": "USA",
@@ -187,8 +187,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Vitamin C",
@@ -356,8 +358,10 @@
       "notes": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Vitamin D",
@@ -524,8 +528,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Vitamin E",
@@ -692,8 +698,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "synthetic_only"
     },
     {
       "standard_name": "Vitamin K",
@@ -850,7 +858,7 @@
         }
       ],
       "id": "vitamin_k",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -859,7 +867,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Thiamin",
@@ -1012,7 +1022,7 @@
         }
       ],
       "id": "thiamin",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -1022,7 +1032,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Riboflavin",
@@ -1174,7 +1186,7 @@
         }
       ],
       "id": "riboflavin",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -1184,7 +1196,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Niacin",
@@ -1352,8 +1366,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "supplemental_only"
     },
     {
       "standard_name": "Vitamin B6",
@@ -1521,8 +1537,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Folate",
@@ -1690,8 +1708,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "synthetic_only"
     },
     {
       "standard_name": "Vitamin B12",
@@ -1849,7 +1869,7 @@
         }
       ],
       "id": "vitamin_b12",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -1858,7 +1878,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Biotin",
@@ -2016,7 +2038,7 @@
         }
       ],
       "id": "biotin",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -2025,7 +2047,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Pantothenic Acid",
@@ -2178,7 +2202,7 @@
         }
       ],
       "id": "pantothenic_acid",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -2188,7 +2212,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Choline",
@@ -2360,8 +2386,10 @@
       "notes": null,
       "smoker_adjustment": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Inositol",
@@ -2521,7 +2549,7 @@
         }
       ],
       "id": "inositol",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
@@ -2529,7 +2557,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Calcium",
@@ -2696,8 +2726,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Magnesium",
@@ -2864,8 +2896,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "supplemental_only"
     },
     {
       "standard_name": "Iron",
@@ -3034,8 +3068,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Zinc",
@@ -3202,8 +3238,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Copper",
@@ -3370,8 +3408,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Selenium",
@@ -3538,8 +3578,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Iodine",
@@ -3707,8 +3749,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Chromium",
@@ -3867,7 +3911,7 @@
         }
       ],
       "id": "chromium",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -3876,7 +3920,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Manganese",
@@ -4043,8 +4089,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Molybdenum",
@@ -4208,8 +4256,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Phosphorus",
@@ -4376,8 +4426,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Potassium",
@@ -4536,7 +4588,7 @@
         }
       ],
       "id": "potassium",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -4544,7 +4596,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Sodium",
@@ -4707,13 +4761,15 @@
         }
       ],
       "id": "sodium",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "conditionally_essential_for": null,
       "is_conditionally_essential": null,
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Chloride",
@@ -4879,8 +4935,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Fluoride",
@@ -5041,8 +5099,10 @@
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
-      "ul_status": null,
-      "unofficial_ul": null
+      "ul_status": "established",
+      "unofficial_ul": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Boron",
@@ -5196,7 +5256,7 @@
         }
       ],
       "id": "boron",
-      "ul_status": null,
+      "ul_status": "established",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -5205,7 +5265,9 @@
       "is_conditionally_essential": null,
       "notes": null,
       "smoker_adjustment": null,
-      "synthesis_precursors": null
+      "synthesis_precursors": null,
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Vanadium",
@@ -5359,7 +5421,7 @@
         }
       ],
       "id": "vanadium",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -5368,7 +5430,9 @@
       "is_conditionally_essential": null,
       "notes": null,
       "smoker_adjustment": null,
-      "synthesis_precursors": null
+      "synthesis_precursors": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Omega-3 Fatty Acids",
@@ -5528,7 +5592,7 @@
         }
       ],
       "id": "omega_3_fatty_acids",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -5537,7 +5601,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Coenzyme Q10",
@@ -5706,13 +5772,15 @@
         }
       ],
       "id": "coenzyme_q10",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Alpha-Lipoic Acid",
@@ -5879,13 +5947,15 @@
         }
       ],
       "id": "alpha_lipoic_acid",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Taurine",
@@ -6048,14 +6118,16 @@
         }
       ],
       "id": "taurine",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "interaction_warnings": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Lutein",
@@ -6211,7 +6283,7 @@
         }
       ],
       "id": "lutein",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -6220,7 +6292,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Zeaxanthin",
@@ -6377,7 +6451,7 @@
         }
       ],
       "id": "zeaxanthin",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -6386,7 +6460,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Lycopene",
@@ -6543,7 +6619,7 @@
         }
       ],
       "id": "lycopene",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -6552,7 +6628,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Creatine",
@@ -6723,13 +6801,15 @@
         }
       ],
       "id": "creatine",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "L-Carnitine",
@@ -6902,13 +6982,15 @@
         }
       ],
       "id": "l_carnitine",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Acetyl-L-Carnitine",
@@ -7072,14 +7154,16 @@
         }
       ],
       "id": "acetyl_l_carnitine",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "interaction_warnings": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Alpha-GPC",
@@ -7242,14 +7326,16 @@
         }
       ],
       "id": "alpha_gpc",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "interaction_warnings": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Glutathione",
@@ -7413,14 +7499,16 @@
         }
       ],
       "id": "glutathione",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
       "interaction_warnings": null,
       "notes": null,
       "smoker_adjustment": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Nickel",
@@ -7572,7 +7660,7 @@
         }
       ],
       "id": "nickel",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -7582,7 +7670,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Silicon",
@@ -7735,7 +7825,7 @@
         }
       ],
       "id": "silicon",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_low_toxicity",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -7745,7 +7835,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     },
     {
       "standard_name": "Sulfate",
@@ -7895,7 +7987,7 @@
         }
       ],
       "id": "sulfate",
-      "ul_status": "not_determined",
+      "ul_status": "not_established_insufficient_data",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
@@ -7905,7 +7997,9 @@
       "notes": null,
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "unofficial_ul": null
+      "unofficial_ul": null,
+      "nutrient_class": "floor",
+      "ul_basis": "not_applicable"
     }
   ]
 }

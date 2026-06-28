@@ -1294,9 +1294,11 @@ class _NutrientRow extends StatelessWidget {
 
   const _NutrientRow({required this.status, this.isLast = false});
 
+  // Mirror the production NutrientProgressBar color story: exceeding a UL is
+  // red, approaching one (80-99%) is amber, everything else is calm.
   Color get _tone => switch (status.tier) {
-    _NutrientTier.warning => V2Colors.caution,
-    _NutrientTier.monitor => V2Colors.monitor,
+    _NutrientTier.warning => V2Colors.contraindicated,
+    _NutrientTier.monitor => V2Colors.caution,
     _NutrientTier.normal => V2Colors.accent,
   };
 

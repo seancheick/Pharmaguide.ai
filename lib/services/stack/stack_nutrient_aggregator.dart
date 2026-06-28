@@ -121,6 +121,7 @@ class StackNutrientAggregator {
         final rawContribution = NutrientContribution(
           stackEntryId: item.stackEntryId,
           productName: item.productName,
+          ingredientName: displayName,
           amount: amount,
           unit: unit,
         );
@@ -156,6 +157,7 @@ class StackNutrientAggregator {
             NutrientContribution(
               stackEntryId: item.stackEntryId,
               productName: item.productName,
+              ingredientName: displayName,
               amount: convertedAmount,
               unit: total.unit,
             ),

@@ -34,12 +34,14 @@ class NutrientContribution {
   const NutrientContribution({
     required this.stackEntryId,
     required this.productName,
+    this.ingredientName = '',
     required this.amount,
     required this.unit,
   });
 
   final String stackEntryId;
   final String productName;
+  final String ingredientName;
   final double amount;
   final String unit;
 
@@ -50,11 +52,13 @@ class NutrientContribution {
           runtimeType == other.runtimeType &&
           stackEntryId == other.stackEntryId &&
           productName == other.productName &&
+          ingredientName == other.ingredientName &&
           amount == other.amount &&
           unit == other.unit;
 
   @override
-  int get hashCode => Object.hash(stackEntryId, productName, amount, unit);
+  int get hashCode =>
+      Object.hash(stackEntryId, productName, ingredientName, amount, unit);
 }
 
 /// Why a disclosed stack contribution was excluded from RDA/UL math.
