@@ -4,6 +4,9 @@
 // These tests guard against future color tier regressions (e.g. someone
 // accidentally changing the exceedsUl color from red to orange).
 
+@Tags(['golden'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_progress_bar.dart';

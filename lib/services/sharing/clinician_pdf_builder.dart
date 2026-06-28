@@ -228,7 +228,7 @@ class ClinicianPdfBuilder {
           '${total.displayName}: ${_formatNumber(total.totalAmount)} ${total.unit}',
           if (status.pctOfUl != null) '${_formatNumber(status.pctOfUl!)}% UL',
           if (status.pctOfRda != null)
-            '${_formatNumber(status.pctOfRda!)}% RDA',
+            '${_formatNumber(status.pctOfRda!)}% target',
           _nutrientTierLabel(status.tier),
         ];
         return _line(theme, parts.join(' - '));
@@ -411,10 +411,10 @@ class ClinicianPdfBuilder {
 
   String _nutrientTierLabel(NutrientTier tier) => switch (tier) {
     NutrientTier.noRda => 'No RDA data',
-    NutrientTier.underFifty => 'Below 50% RDA',
+    NutrientTier.underFifty => 'Below 50% target',
     NutrientTier.adequate => 'Adequate',
     NutrientTier.aboveAdequateNoUl => 'Above target (no upper limit)',
-    NutrientTier.abundant => 'Above RDA',
+    NutrientTier.abundant => 'Above target',
     NutrientTier.aboveTypical => 'Above typical',
     NutrientTier.approachingUl => 'Approaching upper limit',
     NutrientTier.exceedsUl => 'Exceeds upper limit',

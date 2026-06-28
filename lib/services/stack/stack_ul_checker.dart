@@ -1,5 +1,5 @@
 // StackUlChecker — classifies aggregated stack nutrient totals
-// against RDA and UL benchmarks from `rda_optimal_uls.json`. Used
+// against intake-target and UL benchmarks from `rda_optimal_uls.json`. Used
 // by the M1 stack nutrient accumulation panel.
 //
 // INPUT
@@ -32,7 +32,7 @@
 // OUTPUT
 //
 // A [NutrientStatus] for every aggregated nutrient. Status carries
-// the tier classification, the numeric %RDA and %UL, and a
+// the tier classification, the numeric % target and %UL, and a
 // human-readable warning string when the tier is approaching or
 // exceeding the UL.
 //
@@ -253,7 +253,7 @@ class StackUlChecker {
     // Tier 3: anonymous baseline — adult 19-30 Female. Matches the
     // FDA supplement-facts Daily Value convention (non-pregnant,
     // non-lactating adult) and is the conservative direction — Female
-    // RDA is ≤ Male for most nutrients, so %RDA won't be
+    // RDA is <= Male for most nutrients, so target coverage won't be
     // under-reported for anonymous users. Flagged as baseline so the
     // UI can show a "set your profile for personalized values" hint.
     for (final g in data) {

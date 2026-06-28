@@ -1,0 +1,3 @@
+tags:
+  golden:
+    description: "Golden-image tests — skipped on CI (font rendering differs across platforms)"

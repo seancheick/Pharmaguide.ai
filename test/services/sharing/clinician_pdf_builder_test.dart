@@ -237,6 +237,37 @@ void main() {
     },
   );
 
+  test('renders nutrient percentages as target, not RDA', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(
+        nutrientStatuses: [
+          NutrientStatus(
+            total: NutrientTotal(
+              canonicalId: 'vitamin_k',
+              displayName: 'Vitamin K',
+              totalAmount: 390,
+              unit: 'mcg',
+              contributions: [],
+            ),
+            tier: NutrientTier.aboveAdequateNoUl,
+            rda: 120,
+            pctOfRda: 325,
+          ),
+        ],
+      ),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 5, 28),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('325%'));
+    expect(body, contains('target'));
+    expect(body, isNot(contains('325% RDA')));
+  });
+
   test(
     'medication-pair warnings appear in PDF before medication-supplement warnings',
     () async {

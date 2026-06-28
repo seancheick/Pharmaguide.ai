@@ -123,7 +123,7 @@ class NutrientTotal {
   bool get hasExcludedContributions => excludedContributions.isNotEmpty;
 }
 
-/// Classification of a nutrient's stack-level exposure against RDA
+/// Classification of a nutrient's stack-level exposure against intake-target
 /// and UL benchmarks.
 ///
 /// Order matters — the UI sorts by this enum descending so the most
@@ -132,7 +132,7 @@ enum NutrientTier {
   /// No RDA data exists for this nutrient — show raw amount only.
   noRda,
 
-  /// Total is below 50% of RDA — informational, not flagged.
+  /// Total is below 50% of the intake target — informational, not flagged.
   underFifty,
 
   /// 50–100% of the intake target — adequate.
@@ -146,10 +146,10 @@ enum NutrientTier {
   /// above [adequate] so it sorts low (it is not a concern).
   aboveAdequateNoUl,
 
-  /// 100–200% of RDA (UL-bounded nutrient) — abundant but safe.
+  /// 100–200% of the intake target for a UL-bounded nutrient.
   abundant,
 
-  /// >200% of RDA but <80% of UL — above typical, monitor.
+  /// >200% of the intake target but still <80% of UL.
   aboveTypical,
 
   /// 80–100% of UL — approaching the upper limit.

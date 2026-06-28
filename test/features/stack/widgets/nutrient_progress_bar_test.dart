@@ -3,7 +3,7 @@
 // We exercise three things:
 //   1. The pure [tierColorFor] mapping covers every NutrientTier.
 //   2. The widget renders the nutrient name, the formatted amount,
-//      and the %RDA / %UL subtitle.
+//      and the % target / %UL subtitle.
 //   3. Warning chips render when (and only when) the status carries
 //      a warning string.
 
@@ -56,7 +56,7 @@ void main() {
   });
 
   group('NutrientProgressBar widget rendering', () {
-    testWidgets('renders display name, amount, and RDA/UL subtitle', (
+    testWidgets('renders display name, amount, and target/UL subtitle', (
       tester,
     ) async {
       const status = NutrientStatus(
@@ -84,7 +84,7 @@ void main() {
       expect(find.text('Zinc'), findsOneWidget);
       expect(find.text('52 MG'), findsOneWidget);
       // Compact layout prefers UL over RDA when both are present — a
-      // single tight row keeps the nutrient list scannable. %RDA only
+      // single tight row keeps the nutrient list scannable. % target only
       // shows as the fallback when there is no UL.
       expect(find.textContaining('130% UL'), findsOneWidget);
       expect(find.textContaining('copper depletion'), findsOneWidget);

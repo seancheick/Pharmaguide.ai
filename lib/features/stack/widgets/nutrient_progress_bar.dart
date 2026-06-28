@@ -1,5 +1,5 @@
 // NutrientProgressBar — single-row visualization for one nutrient's
-// stack-wide total against RDA and UL benchmarks.
+// stack-wide total against intake-target and UL benchmarks.
 //
 // Now expandable: tap to see which supplements contribute and how much.
 
@@ -102,7 +102,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
                   style: _monoDataStyle(tierColor),
                 ),
                 const SizedBox(width: V2Spacing.space8),
-                // Inline compact subtitle (% RDA / UL) — moved from
+                // Inline compact subtitle (% target / UL) — moved from
                 // its own row so each nutrient is a tight single line.
                 _buildSubtitleText(),
               ],
@@ -152,7 +152,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
     final rda = widget.status.pctOfRda;
     final ul = widget.status.pctOfUl;
     // Prefer UL when the nutrient has a hard ceiling to flag; otherwise
-    // show %RDA. Showing both would wrap and defeat the compact layout.
+    // show % target. Showing both would wrap and defeat the compact layout.
     final String text;
     if (ul != null) {
       text = '${ul.round()}% UL';
