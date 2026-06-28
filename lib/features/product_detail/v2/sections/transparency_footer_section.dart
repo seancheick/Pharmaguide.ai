@@ -13,8 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
-/// TransparencyFooter section — site-wide trust language with the real
-/// catalog freshness label. Always renders.
+/// TransparencyFooter section — site-wide trust language with real source,
+/// freshness, and informational-use copy. Always renders.
 class TransparencyFooterSection extends ConsumerWidget {
   const TransparencyFooterSection({super.key});
 
@@ -43,6 +43,6 @@ class TransparencyFooterSection extends ConsumerWidget {
     final freshness = info?.buildDate != null
         ? _formatDate(info!.buildDate!)
         : null;
-    return PGTransparencyFooter(freshnessLabel: freshness);
+    return PGTransparencyFooter(freshnessLabel: freshness, center: true);
   }
 }
