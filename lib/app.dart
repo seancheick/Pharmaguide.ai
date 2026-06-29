@@ -1039,10 +1039,72 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
   void initState() {
     super.initState();
     try {
-      _sub = supabase.auth.onAuthStateChange.listen(_onAuth);
+      // onError is required: supabase_flutter forwards magic-link deep-link
+      // failures (e.g. an expired/used link) as ERROR events on this stream.
+      // Without a handler they escape to the zone and land in Sentry as an
+      // unhandled async error (PHARMAGUIDE-1B). _onAuthError treats an
+      // expired link as expected user behavior, not a crash.
+      _sub = supabase.auth.onAuthStateChange.listen(
+        _onAuth,
+        onError: _onAuthError,
+      );
     } on Object catch (_) {
       // Supabase wasn't initialized (placeholder mode) — silent.
     }
+  }
+
+  /// Stream-error sink for [onAuthStateChange]. The common case is a magic
+  /// link that's expired or already been used: GoTrue raises
+  /// `AuthException(statusCode: otp_expired, code: access_denied)` from
+  /// `getSessionFromUrl`. That's a routine, user-recoverable condition —
+  /// surface a calm "request a new link" snackbar, route off the
+  /// /auth/callback spinner so it doesn't hang, and do NOT report it to
+  /// Sentry. Anything else is genuinely unexpected, so record it.
+  void _onAuthError(Object error, StackTrace stackTrace) {
+    final isExpiredLink =
+        error is AuthException && _isExpiredOrUsedLink(error);
+    if (!isExpiredLink) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'auth_state_stream',
+      );
+    }
+    if (!mounted) return;
+    final messenger = scaffoldMessengerKey.currentState;
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            isExpiredLink
+                ? 'That sign-in link has expired. Request a new one.'
+                : 'Sign-in could not be completed. Try again in a moment.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    // A failed magic-link return lands on the /auth/callback spinner with no
+    // session, so it would spin forever. Send the user back to the auth
+    // entry point where they can request a fresh link.
+    final router = _appRouter;
+    if (router != null) {
+      final loc = router.routerDelegate.currentConfiguration.uri.path;
+      if (loc == '/auth/callback') router.go(Routes.authInvitation);
+    }
+  }
+
+  /// True for the expired/already-consumed magic-link shape. GoTrue reports
+  /// it via `otp_expired` / `access_denied`; match the message too as a
+  /// backstop in case the status/code fields ever shift.
+  static bool _isExpiredOrUsedLink(AuthException e) {
+    final status = (e.statusCode ?? '').toLowerCase();
+    final code = (e.code ?? '').toLowerCase();
+    final msg = e.message.toLowerCase();
+    return status == 'otp_expired' ||
+        code == 'access_denied' ||
+        msg.contains('invalid or has expired');
   }
 
   void _onAuth(dynamic data) {
