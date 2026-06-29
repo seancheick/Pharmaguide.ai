@@ -383,6 +383,13 @@ class CrashReportingService {
   ///   * `SocketException` with "Failed host lookup" /
   ///     "Network is unreachable"
   ///   * `ClientException` wrapping either of the above
+  ///   * `AuthRetryableFetchException` — Supabase GoTrue's auto-refresh
+  ///     timer wraps the offline socket failure in this type while the
+  ///     app is backgrounded/offline (Sentry PHARMAGUIDE-18). The wrapped
+  ///     message normally still carries the inner socket text, but listing
+  ///     the type keeps the match robust if that wrapper text ever changes.
+  ///     The offline-fragment/errno gate below still applies, so genuine
+  ///     non-network auth-retry failures (e.g. 5xx) are NOT dropped.
   static final RegExp _offlineErrnoPattern = RegExp(
     r'errno\s*=\s*(8|50|51|65)\b',
   );
@@ -398,6 +405,7 @@ class CrashReportingService {
     'OSError',
     'SocketException',
     'ClientException',
+    'AuthRetryableFetchException',
   ];
 
   /// True when [error] is a transient network-availability failure

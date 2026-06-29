@@ -204,6 +204,34 @@ void main() {
       expect(result, isNull);
     });
 
+    test('drops non-fatal Supabase auto-refresh offline error '
+        '(PHARMAGUIDE-18)', () {
+      final result = scrub(
+        event(
+          type: 'AuthRetryableFetchException',
+          value:
+              'AuthRetryableFetchException(message: ClientException with '
+              "SocketException: Failed host lookup: 'project.supabase.co' "
+              '(OS Error: nodename nor servname provided, or not known, '
+              'errno = 8), uri=https://project.supabase.co/auth/v1/token'
+              '?grant_type=refresh_token, statusCode: null)',
+        ),
+      );
+      expect(result, isNull);
+    });
+
+    test('keeps non-network AuthRetryableFetchException (server 5xx)', () {
+      final result = scrub(
+        event(
+          type: 'AuthRetryableFetchException',
+          value:
+              'AuthRetryableFetchException(message: Internal Server Error, '
+              'statusCode: 500)',
+        ),
+      );
+      expect(result, isNotNull);
+    });
+
     test('keeps unrelated OSError (errno = 13, permission denied)', () {
       final result = scrub(
         event(type: 'OSError', value: 'OSError: Permission denied, errno = 13'),
