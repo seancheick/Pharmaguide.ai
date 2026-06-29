@@ -122,8 +122,9 @@ build-ipa-v2all: ## Build TestFlight IPA with ALL v2 toggles on
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios
-build-ios: ## Build iOS release IPA
+build-ios: ## Build iOS release IPA (auto-increments build number for next upload)
 	$(FLUTTER) build ipa $(DART_DEFINES) --release
+	@bash scripts/bump_build_number.sh
 
 .PHONY: build-android
 build-android: ## Build Android release AAB
