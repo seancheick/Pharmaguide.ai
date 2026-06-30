@@ -1024,15 +1024,15 @@ class PharmaGuideApp extends StatelessWidget {
 /// magic-link email — the supabase_flutter SDK auto-handles the
 /// `pharmaguide://auth/callback` URL when the platform configs are
 /// registered.
-class _AuthEventListener extends StatefulWidget {
+class _AuthEventListener extends ConsumerStatefulWidget {
   final Widget child;
   const _AuthEventListener({required this.child});
 
   @override
-  State<_AuthEventListener> createState() => _AuthEventListenerState();
+  ConsumerState<_AuthEventListener> createState() => _AuthEventListenerState();
 }
 
-class _AuthEventListenerState extends State<_AuthEventListener> {
+class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
   StreamSubscription<dynamic>? _sub;
 
   @override
@@ -1061,8 +1061,7 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
   /// /auth/callback spinner so it doesn't hang, and do NOT report it to
   /// Sentry. Anything else is genuinely unexpected, so record it.
   void _onAuthError(Object error, StackTrace stackTrace) {
-    final isExpiredLink =
-        error is AuthException && _isExpiredOrUsedLink(error);
+    final isExpiredLink = error is AuthException && _isExpiredOrUsedLink(error);
     if (!isExpiredLink) {
       CrashReportingService().recordError(
         error,
@@ -1110,6 +1109,13 @@ class _AuthEventListenerState extends State<_AuthEventListener> {
   void _onAuth(dynamic data) {
     if (data is! AuthState) return;
     if (!mounted) return;
+    final authState = ref.read(authStateProvider.notifier);
+    if (data.event == AuthChangeEvent.signedIn ||
+        data.event == AuthChangeEvent.tokenRefreshed) {
+      authState.onSignedIn();
+    } else if (data.event == AuthChangeEvent.signedOut) {
+      authState.onSignedOut();
+    }
     final messenger = scaffoldMessengerKey.currentState;
     if (messenger == null) return;
     switch (data.event) {

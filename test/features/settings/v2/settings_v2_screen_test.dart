@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/services/analytics_service.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -74,6 +79,37 @@ void main() {
 
     expect(signedOut, isTrue);
     expect(find.text('Signed out'), findsOneWidget);
+  });
+
+  testWidgets('connected settings reacts when auth state becomes guest', (
+    tester,
+  ) async {
+    final userDb = UserDatabase.memory();
+    final authState = AuthStateService()..onSignedIn();
+    final container = ProviderContainer(
+      overrides: [
+        userDatabaseProvider.overrideWithValue(userDb),
+        authStateProvider.overrideWith((ref) => authState),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(userDb.close);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: SettingsV2Connected()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Sign out'), findsOneWidget);
+
+    authState.onSignedOut();
+    await tester.pump();
+
+    expect(find.text('Sign out'), findsNothing);
+    expect(find.text('Sign in'), findsOneWidget);
   });
 
   test(

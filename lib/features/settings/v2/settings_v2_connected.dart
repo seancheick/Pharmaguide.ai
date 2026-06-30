@@ -4,6 +4,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Production-wired settings screen. Reads:
@@ -29,13 +30,9 @@ class SettingsV2Connected extends ConsumerWidget {
     final stackAsync = ref.watch(activeStackProvider);
     final scanCountAsync = ref.watch(_scanCountProvider);
 
-    // Auth state — Supabase exposes the currentUser sync, so we don't
-    // need a stream subscription here. Settings rebuilds on profile/
-    // stack changes anyway, which is enough cadence for the auth pill
-    // (a fresh sign-in re-renders Settings via the global auth
-    // listener routing to home → user navigates back to settings).
+    final authMode = ref.watch(authStateProvider);
     final user = _safeCurrentUser();
-    final signedIn = user != null;
+    final signedIn = authMode == AuthMode.signedIn;
 
     final stack = stackAsync.asData?.value ?? const [];
     final supplementCount = stack.where((e) => e.type == 'supplement').length;
