@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/catalog_version.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Thrown when a downloaded catalog passes integrity + version checks but
 /// is refused activation because this app build cannot safely read it
@@ -58,17 +60,34 @@ class SyncService {
       return injected();
     }
 
-    final manifest = await retryWithBackoff(
-      () => supabase
-          .from(SupabaseContract.manifestTable)
-          .select('db_version')
-          .eq('is_current', true)
-          .limit(1)
-          .maybeSingle(),
-      timeout: _manifestTimeout,
+    final span = _startCatalogSpan(
+      operation: 'http.client',
+      description: 'Fetch current catalog manifest',
+      surface: 'catalog_manifest',
     );
-
-    return manifest?['db_version'] as String?;
+    SpanStatus status = const SpanStatus.ok();
+    try {
+      final manifest = await retryWithBackoff(
+        () => supabase
+            .from(SupabaseContract.manifestTable)
+            .select('db_version')
+            .eq('is_current', true)
+            .limit(1)
+            .maybeSingle(),
+        timeout: _manifestTimeout,
+      );
+      final version = manifest?['db_version'] as String?;
+      span
+        ?..setData('catalog.has_current', version != null)
+        ..setData('catalog.version', version);
+      return version;
+    } on Object catch (error) {
+      status = _catalogSpanStatusForError(error);
+      span?.throwable = error;
+      rethrow;
+    } finally {
+      await _finishCatalogSpan(span, status);
+    }
   }
 
   /// Check if a new database version is available.
@@ -125,40 +144,59 @@ class SyncService {
       throw Exception('No current export_manifest entry found');
     }
 
+    final span = _startCatalogSpan(
+      operation: 'app.catalog',
+      description: 'Stage catalog DB download',
+      surface: 'catalog_stage',
+    );
+    span?.setData('catalog.expected_version', dbVersion);
+    SpanStatus status = const SpanStatus.ok();
+
     final storagePath = SupabaseContract.coreDbPath(dbVersion);
 
-    // A partial .staging left over from a DIFFERENT version must not be
-    // resumed into — drop it and start fresh for this version.
-    await _prepareStagingForVersion(stagingFile, dbVersion);
-
-    // Download failures propagate WITHOUT deleting the staging file so a
-    // later attempt can resume the partial download.
-    await _downloadToStaging(storagePath, stagingFile);
-
     try {
-      final validatedVersion = await _validateStagedDatabase(
-        stagingPath,
-        expectedVersion: dbVersion,
-      );
-      await _deleteStagingVersionMarker(stagingFile);
-      return validatedVersion;
-    } on Object {
-      // The fully-downloaded file failed validation — it is permanently
-      // unusable, so clean it up (best-effort: a cleanup failure must not
-      // mask the validation error).
+      // A partial .staging left over from a DIFFERENT version must not be
+      // resumed into — drop it and start fresh for this version.
+      await _prepareStagingForVersion(stagingFile, dbVersion);
+
+      // Download failures propagate WITHOUT deleting the staging file so a
+      // later attempt can resume the partial download.
+      await _downloadToStaging(storagePath, stagingFile);
+
       try {
-        if (await stagingFile.exists()) {
-          await stagingFile.delete();
-        }
-      } on Object catch (cleanupError, st) {
-        CrashReportingService().recordError(
-          cleanupError,
-          st,
-          hint: 'catalog_sync:staging_cleanup_failed',
+        final validatedVersion = await _validateStagedDatabase(
+          stagingPath,
+          expectedVersion: dbVersion,
         );
+        span?.setData('catalog.validated_version', validatedVersion);
+        await _deleteStagingVersionMarker(stagingFile);
+        return validatedVersion;
+      } on Object catch (validationError) {
+        // The fully-downloaded file failed validation — it is permanently
+        // unusable, so clean it up (best-effort: a cleanup failure must not
+        // mask the validation error).
+        try {
+          if (await stagingFile.exists()) {
+            await stagingFile.delete();
+          }
+        } on Object catch (cleanupError, st) {
+          CrashReportingService().recordError(
+            cleanupError,
+            st,
+            hint: 'catalog_sync:staging_cleanup_failed',
+          );
+        }
+        await _deleteStagingVersionMarker(stagingFile);
+        status = _catalogSpanStatusForError(validationError);
+        span?.throwable = validationError;
+        rethrow;
       }
-      await _deleteStagingVersionMarker(stagingFile);
+    } on Object catch (error) {
+      status = _catalogSpanStatusForError(error, fallback: status);
+      span?.throwable = error;
       rethrow;
+    } finally {
+      await _finishCatalogSpan(span, status);
     }
   }
 
@@ -228,11 +266,27 @@ class SyncService {
       );
     }
 
-    final bytes = await retryWithBackoff(
-      () => supabase.storage
-          .from(SupabaseContract.storageBucket)
-          .download(storagePath),
-    );
+    final bytes = await retryWithBackoff(() async {
+      final span = _startCatalogSpan(
+        operation: 'http.client',
+        description: 'GET Supabase catalog fallback',
+        surface: 'catalog_download_authed',
+      );
+      SpanStatus status = const SpanStatus.ok();
+      try {
+        final downloaded = await supabase.storage
+            .from(SupabaseContract.storageBucket)
+            .download(storagePath);
+        span?.setData('http.response.body.size', downloaded.length);
+        return downloaded;
+      } on Object catch (error) {
+        status = _catalogSpanStatusForError(error);
+        span?.throwable = error;
+        rethrow;
+      } finally {
+        await _finishCatalogSpan(span, status);
+      }
+    });
     await stagingFile.writeAsBytes(bytes, flush: true);
   }
 
@@ -252,11 +306,20 @@ class SyncService {
         .from(SupabaseContract.storageBucket)
         .getPublicUrl(storagePath);
     final client = _httpClientFactory();
+    final span = _startCatalogSpan(
+      operation: 'http.client',
+      description: 'GET Supabase catalog public',
+      surface: 'catalog_download_public',
+    );
+    SpanStatus status = const SpanStatus.ok();
     try {
       var existing = 0;
       if (await stagingFile.exists()) {
         existing = await stagingFile.length();
       }
+      span
+        ?..setData('download.resume_from_bytes', existing)
+        ..setData('http.request.method', 'GET');
 
       final request = http.Request('GET', Uri.parse(url));
       if (existing > 0) {
@@ -266,6 +329,10 @@ class SyncService {
       final response = await client
           .send(request)
           .timeout(_downloadConnectTimeout);
+      status = SpanStatus.fromHttpStatusCode(response.statusCode);
+      span
+        ?..setData('http.response.status_code', response.statusCode)
+        ..setData('http.response.body.size', response.contentLength);
 
       if (PublicFetchDeniedException.deniedStatuses.contains(
         response.statusCode,
@@ -304,6 +371,9 @@ class SyncService {
 
       if (expectedTotal != null) {
         final actual = await stagingFile.length();
+        span
+          ?..setData('download.expected_total_bytes', expectedTotal)
+          ..setData('download.actual_total_bytes', actual);
         if (actual != expectedTotal) {
           // Truncated mid-stream — keep the partial; the retry attempt
           // (or next refresh tick) resumes from where we stopped.
@@ -313,7 +383,12 @@ class SyncService {
           );
         }
       }
+    } on Object catch (error) {
+      status = _catalogSpanStatusForError(error, fallback: status);
+      span?.throwable = error;
+      rethrow;
     } finally {
+      await _finishCatalogSpan(span, status);
       client.close();
     }
   }
@@ -559,4 +634,42 @@ class SyncService {
       return null;
     }
   }
+}
+
+ISentrySpan? _startCatalogSpan({
+  required String operation,
+  required String description,
+  required String surface,
+}) {
+  try {
+    final parent = Sentry.getSpan();
+    final span =
+        parent?.startChild(operation, description: description) ??
+        Sentry.startTransaction(description, operation, bindToScope: false);
+    span
+      ..setTag('pg.surface', surface)
+      ..setData('server.address', Uri.parse(SupabaseConfig.url).host)
+      ..setData('storage.bucket', SupabaseContract.storageBucket);
+    return span;
+  } on Object {
+    return null;
+  }
+}
+
+Future<void> _finishCatalogSpan(ISentrySpan? span, SpanStatus status) async {
+  if (span == null || span.finished) return;
+  await span.finish(status: status);
+}
+
+SpanStatus _catalogSpanStatusForError(Object error, {SpanStatus? fallback}) {
+  if (error is TimeoutException) return const SpanStatus.deadlineExceeded();
+  if (error is PublicFetchDeniedException) {
+    return SpanStatus.fromHttpStatusCode(error.statusCode);
+  }
+  if (error is CatalogVersionGateException) {
+    return const SpanStatus.failedPrecondition();
+  }
+  return fallback == const SpanStatus.ok()
+      ? const SpanStatus.unknownError()
+      : fallback ?? const SpanStatus.unknownError();
 }

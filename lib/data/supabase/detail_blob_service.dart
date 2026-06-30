@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -5,6 +6,7 @@ import 'package:pharmaguide/core/utils/retry.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Thrown when a public-CDN fetch is denied with a status that indicates
 /// the bucket prefix is not (yet) publicly readable — the caller should
@@ -79,13 +81,32 @@ class DetailBlobService {
         'detail blob public CDN fetch denied (HTTP ${e.statusCode}) — '
         'falling back to authed download',
       );
-      final bytes = await retryWithBackoff(
-        () => supabase.storage
-            .from(SupabaseContract.storageBucket)
-            .download(path),
-        timeout: _fetchTimeout,
+      final span = _startDependencySpan(
+        operation: 'http.client',
+        description: 'GET Supabase detail blob fallback',
+        surface: 'detail_blob_authed',
       );
-      return utf8.decode(bytes);
+      SpanStatus status = const SpanStatus.ok();
+      try {
+        final bytes = await retryWithBackoff(() async {
+          try {
+            final downloaded = await supabase.storage
+                .from(SupabaseContract.storageBucket)
+                .download(path);
+            status = const SpanStatus.ok();
+            span?.setData('http.response.body.size', downloaded.length);
+            span?.throwable = null;
+            return downloaded;
+          } on Object catch (error) {
+            status = _spanStatusForError(error);
+            span?.throwable = error;
+            rethrow;
+          }
+        }, timeout: _fetchTimeout);
+        return utf8.decode(bytes);
+      } finally {
+        _finishDependencySpan(span, status);
+      }
     }
   }
 
@@ -94,8 +115,18 @@ class DetailBlobService {
         .from(SupabaseContract.storageBucket)
         .getPublicUrl(path);
     final client = _httpClientFactory();
+    final span = _startDependencySpan(
+      operation: 'http.client',
+      description: 'GET Supabase detail blob public',
+      surface: 'detail_blob_public',
+    );
+    SpanStatus status = const SpanStatus.ok();
     try {
       final response = await client.get(Uri.parse(url)).timeout(_fetchTimeout);
+      status = SpanStatus.fromHttpStatusCode(response.statusCode);
+      span
+        ?..setData('http.response.status_code', response.statusCode)
+        ..setData('http.response.body.size', response.bodyBytes.length);
       if (PublicFetchDeniedException.deniedStatuses.contains(
         response.statusCode,
       )) {
@@ -108,8 +139,49 @@ class DetailBlobService {
         );
       }
       return utf8.decode(response.bodyBytes);
+    } on Object catch (error) {
+      status = _spanStatusForError(error, fallback: status);
+      span?.throwable = error;
+      rethrow;
     } finally {
+      _finishDependencySpan(span, status);
       client.close();
     }
   }
+}
+
+ISentrySpan? _startDependencySpan({
+  required String operation,
+  required String description,
+  required String surface,
+}) {
+  try {
+    final parent = Sentry.getSpan();
+    final span =
+        parent?.startChild(operation, description: description) ??
+        Sentry.startTransaction(description, operation, bindToScope: false);
+    span
+      ..setTag('pg.surface', surface)
+      ..setData('server.address', Uri.parse(SupabaseConfig.url).host)
+      ..setData('storage.bucket', SupabaseContract.storageBucket)
+      ..setData('http.request.method', 'GET');
+    return span;
+  } on Object {
+    return null;
+  }
+}
+
+void _finishDependencySpan(ISentrySpan? span, SpanStatus status) {
+  if (span == null || span.finished) return;
+  unawaited(span.finish(status: status));
+}
+
+SpanStatus _spanStatusForError(Object error, {SpanStatus? fallback}) {
+  if (error is TimeoutException) return const SpanStatus.deadlineExceeded();
+  if (error is PublicFetchDeniedException) {
+    return SpanStatus.fromHttpStatusCode(error.statusCode);
+  }
+  return fallback == const SpanStatus.ok()
+      ? const SpanStatus.unknownError()
+      : fallback ?? const SpanStatus.unknownError();
 }

@@ -31,6 +31,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
@@ -92,28 +93,40 @@ typedef RxNormHttpGet = Future<String> Function(Uri url);
 Future<String> defaultRxNormHttpGet(Uri url) async {
   final client = HttpClient();
   int? statusCode;
+  final endpoint = _rxNormEndpointLabel(url);
+  final span = _startRxNormSpan(endpoint);
+  SpanStatus spanStatus = const SpanStatus.ok();
   try {
     client.connectionTimeout = const Duration(seconds: 5);
     final req = await client.getUrl(url);
     req.headers.set(HttpHeaders.acceptHeader, 'application/json');
     final res = await req.close().timeout(const Duration(seconds: 5));
     statusCode = res.statusCode;
+    spanStatus = SpanStatus.fromHttpStatusCode(res.statusCode);
+    span?.setData('http.response.status_code', res.statusCode);
     if (res.statusCode != 200) {
-      throw HttpException(
-        'RxNorm GET ${url.path} returned ${res.statusCode}',
-        uri: url,
-      );
+      throw HttpException('RxNorm GET $endpoint returned ${res.statusCode}');
     }
-    return res.transform(utf8.decoder).join();
+    final bodyBytes = await _readResponseBytes(res);
+    span?.setData('http.response.body.size', bodyBytes.length);
+    return utf8.decode(bodyBytes);
+  } on Object catch (error) {
+    spanStatus = _rxNormSpanStatusForError(error, fallback: spanStatus);
+    span?.throwable = error;
+    rethrow;
   } finally {
+    await _finishRxNormSpan(span, spanStatus);
     client.close(force: false);
     // Manual Sentry breadcrumb — rxnorm uses dart:io HttpClient, not
     // package:http, so SentryHttpClient can't wrap it. Recording here
     // gives the same per-request signal we get from the wrapped clients.
+    //
+    // The raw RxNorm URL can include typed medication names or RXCUIs.
+    // Send only the coarse endpoint class; no query/path identifiers.
     unawaited(
       Sentry.addBreadcrumb(
         Breadcrumb.http(
-          url: url,
+          url: Uri.https(url.host, '/REST/$endpoint'),
           method: 'GET',
           statusCode: statusCode,
           level: (statusCode == null || statusCode >= 400)
@@ -123,6 +136,66 @@ Future<String> defaultRxNormHttpGet(Uri url) async {
       ),
     );
   }
+}
+
+ISentrySpan? _startRxNormSpan(String endpoint) {
+  try {
+    final parent = Sentry.getSpan();
+    final span =
+        parent?.startChild(
+          'http.client',
+          description: 'GET RxNorm $endpoint',
+        ) ??
+        Sentry.startTransaction(
+          'GET RxNorm $endpoint',
+          'http.client',
+          bindToScope: false,
+        );
+    span
+      ..setTag('pg.surface', 'rxnorm')
+      ..setData('server.address', 'rxnav.nlm.nih.gov')
+      ..setData('http.request.method', 'GET')
+      ..setData('rxnorm.endpoint', endpoint);
+    return span;
+  } on Object {
+    return null;
+  }
+}
+
+Future<void> _finishRxNormSpan(ISentrySpan? span, SpanStatus status) async {
+  if (span == null || span.finished) return;
+  await span.finish(status: status);
+}
+
+SpanStatus _rxNormSpanStatusForError(Object error, {SpanStatus? fallback}) {
+  if (error is TimeoutException) return const SpanStatus.deadlineExceeded();
+  if (error is SocketException) return const SpanStatus.unavailable();
+  if (error is HttpException) {
+    return fallback == const SpanStatus.ok()
+        ? const SpanStatus.unknownError()
+        : fallback ?? const SpanStatus.unknownError();
+  }
+  return fallback == const SpanStatus.ok()
+      ? const SpanStatus.unknownError()
+      : fallback ?? const SpanStatus.unknownError();
+}
+
+String _rxNormEndpointLabel(Uri url) {
+  final path = url.path;
+  if (path.endsWith('/approximateTerm.json')) return 'approximate_term';
+  if (path.endsWith('/rxcui.json')) return 'rxcui_by_name';
+  if (path.endsWith('/properties.json')) return 'properties';
+  if (path.endsWith('/related.json')) return 'related';
+  if (path.endsWith('/rxclass/class/byRxcui.json')) return 'class_by_rxcui';
+  return 'unknown';
+}
+
+Future<Uint8List> _readResponseBytes(HttpClientResponse response) async {
+  final builder = BytesBuilder(copy: false);
+  await for (final chunk in response) {
+    builder.add(chunk);
+  }
+  return builder.takeBytes();
 }
 
 class RxNormApiService {

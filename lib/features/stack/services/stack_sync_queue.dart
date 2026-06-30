@@ -39,6 +39,8 @@
 // Full drift import (no `show` clause) so the extension operators `.not`,
 // `|`, and `.isBiggerThan` on Expression/GeneratedColumn resolve. A
 // `show` clause would hide the static extensions.
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,6 +51,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ---------------------------------------------------------------------------
@@ -305,11 +308,14 @@ class StackSyncService {
       }
 
       try {
-        await retryWithBackoff(
-          () => supabase
-              .from(SupabaseContract.userStacksTable)
-              .upsert(payload, onConflict: 'id'),
-          timeout: const Duration(seconds: 10),
+        await _traceUserSyncUpsert(
+          rowCount: payload.length,
+          upsert: () => retryWithBackoff(
+            () => supabase
+                .from(SupabaseContract.userStacksTable)
+                .upsert(payload, onConflict: 'id'),
+            timeout: const Duration(seconds: 10),
+          ),
         );
         // Rows are marked synced ONLY after the batch succeeds — on any
         // failure every row keeps its dirty state for the next cycle.
@@ -432,3 +438,54 @@ final pendingSyncCountProvider = FutureProvider<int>((ref) {
   final queue = ref.watch(stackSyncQueueProvider);
   return queue.pendingCount();
 });
+
+Future<void> _traceUserSyncUpsert({
+  required int rowCount,
+  required Future<void> Function() upsert,
+}) async {
+  final span = _startUserSyncSpan(rowCount);
+  SpanStatus status = const SpanStatus.ok();
+  try {
+    await upsert();
+  } on Object catch (error) {
+    status = _userSyncStatusForError(error);
+    span?.throwable = error;
+    rethrow;
+  } finally {
+    await _finishUserSyncSpan(span, status);
+  }
+}
+
+ISentrySpan? _startUserSyncSpan(int rowCount) {
+  try {
+    final parent = Sentry.getSpan();
+    final span =
+        parent?.startChild(
+          'http.client',
+          description: 'Upsert synced supplement rows',
+        ) ??
+        Sentry.startTransaction(
+          'Upsert synced supplement rows',
+          'http.client',
+          bindToScope: false,
+        );
+    span
+      ..setTag('pg.surface', 'user_sync')
+      ..setData('sync.row_count', rowCount)
+      ..setData('http.request.method', 'POST');
+    return span;
+  } on Object {
+    return null;
+  }
+}
+
+Future<void> _finishUserSyncSpan(ISentrySpan? span, SpanStatus status) async {
+  if (span == null || span.finished) return;
+  await span.finish(status: status);
+}
+
+SpanStatus _userSyncStatusForError(Object error) {
+  if (error is TimeoutException) return const SpanStatus.deadlineExceeded();
+  if (error is PostgrestException) return const SpanStatus.unknownError();
+  return const SpanStatus.unknownError();
+}
