@@ -161,6 +161,17 @@ class PGAuthService {
         // `aud` claim, which Supabase then matches.
         serverClientId: _googleWebClientId,
       );
+      // Clear any cached Google credential first. A stale session can hand
+      // back an id_token that still carries a nonce we never set (google_sign_in
+      // 6.x exposes no nonce API), which Supabase rejects with "Passed nonce
+      // and nonce in id_token should either both exist or not." Forcing a fresh
+      // interactive sign-in guarantees a nonce-free token.
+      // ponytail: best-effort cache clear; swallow if nothing was signed in.
+      try {
+        await googleSignIn.signOut();
+      } on Object {
+        // Nothing cached — proceed to interactive sign-in.
+      }
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) return const PGAuthCancelled();
       final googleAuth = await googleUser.authentication;
