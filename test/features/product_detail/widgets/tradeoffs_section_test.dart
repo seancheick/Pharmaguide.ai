@@ -12,8 +12,8 @@ Map<String, dynamic> _penalty(String label, [String detail = '']) => {
   'detail': detail,
 };
 
-Map<String, dynamic> _ing(String severity) => {
-  'name': 'Ing',
+Map<String, dynamic> _ing(String severity, [String name = 'Ing']) => {
+  'name': name,
   'harmful_severity': severity,
 };
 
@@ -69,6 +69,36 @@ void main() {
       );
       expect(find.text('Harmful additive Sugar syrup'), findsNothing);
       expect(find.text('Harmful additive Palm oil'), findsNothing);
+    });
+
+    testWidgets('collapses per-allergen rows into one line', (tester) async {
+      await _pump(
+        tester,
+        penalties: [
+          _penalty('Declared allergen source: Eggs'),
+          _penalty('Declared allergen source: Fish'),
+          _penalty('Declared allergen source: Tree Nuts'),
+        ],
+      );
+
+      expect(
+        find.text('Declared allergen sources: Eggs, Fish, Tree Nuts'),
+        findsOneWidget,
+      );
+      expect(find.text('Declared allergen source: Eggs'), findsNothing);
+      expect(find.text('Declared allergen source: Fish'), findsNothing);
+    });
+
+    testWidgets('single allergen keeps singular label', (tester) async {
+      await _pump(
+        tester,
+        penalties: [_penalty('Declared allergen source: Soy')],
+      );
+
+      expect(
+        find.text('Declared allergen source: Soy'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('dedupes additive names case-insensitively', (tester) async {
@@ -250,24 +280,46 @@ void main() {
       expect(find.textContaining('flagged for safety'), findsNothing);
     });
 
-    testWidgets('1 high triggers summary', (tester) async {
+    testWidgets('1 high triggers summary, named', (tester) async {
       await _pump(
         tester,
         penalties: [_penalty('Some concern')],
-        inactives: [_ing('high')],
+        inactives: [_ing('high', 'Polysorbate 80')],
       );
 
       expect(
-        find.text('1 ingredients flagged for safety — review the list'),
+        find.text('Polysorbate 80 flagged for safety — review the list'),
         findsOneWidget,
       );
     });
 
-    testWidgets('2 moderate triggers combined threshold', (tester) async {
+    testWidgets('2 moderate triggers combined threshold, named', (
+      tester,
+    ) async {
       await _pump(
         tester,
         penalties: [_penalty('Some concern')],
-        inactives: [_ing('moderate'), _ing('moderate')],
+        inactives: [
+          _ing('moderate', 'Polysorbate 80'),
+          _ing('moderate', 'Maltodextrin'),
+        ],
+      );
+
+      expect(
+        find.text(
+          'Polysorbate 80, Maltodextrin flagged for safety — review the list',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('falls back to count when names missing', (tester) async {
+      await _pump(
+        tester,
+        inactives: [
+          {'harmful_severity': 'moderate'},
+          {'harmful_severity': 'moderate'},
+        ],
       );
 
       expect(

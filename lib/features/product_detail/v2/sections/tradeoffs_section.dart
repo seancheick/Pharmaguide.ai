@@ -57,14 +57,16 @@ Widget buildTradeoffsSection({required Map<String, dynamic>? detailBlob}) {
       .map(_toTradeoff)
       .where((t) => t.headline.trim().isNotEmpty)
       .toList(growable: false);
-  final considerations = _collapseAdditiveConcerns([
-    ...penaltyConsiderations,
-    ..._buildUlConsiderations(
-      safetyFlags: healthFacts.ulSafetyFlags,
-      ulAnalysis: healthFacts.ulAnalysis,
-      existing: penaltyConsiderations,
-    ),
-  ]);
+  final considerations = _collapseAllergenSources(
+    _collapseAdditiveConcerns([
+      ...penaltyConsiderations,
+      ..._buildUlConsiderations(
+        safetyFlags: healthFacts.ulSafetyFlags,
+        ulAnalysis: healthFacts.ulAnalysis,
+        existing: penaltyConsiderations,
+      ),
+    ]),
+  );
   if (pros.isEmpty && considerations.isEmpty && safetySummary == null) {
     return const SizedBox.shrink();
   }
@@ -260,11 +262,51 @@ List<PGTradeoff> _collapseAdditiveConcerns(List<PGTradeoff> items) {
   ];
 }
 
+final RegExp _allergenSourcePrefix = RegExp(
+  r'^\s*declared allergen sources?[:\s]\s*',
+  caseSensitive: false,
+);
+
+/// Collapse the per-allergen "Declared allergen source: X" penalty rows the
+/// pipeline emits one-per-allergen into a single line:
+///   "Declared allergen sources: Eggs, Fish, Tree Nuts".
+/// Parallels [_collapseAdditiveConcerns]. Keeps the combined line at the
+/// position of the first allergen row; preserves all non-allergen rows.
+List<PGTradeoff> _collapseAllergenSources(List<PGTradeoff> items) {
+  final names = <String>[];
+  final seen = <String>{};
+  final remaining = <PGTradeoff>[];
+  var insertAt = -1;
+
+  for (final item in items) {
+    final label = item.headline.trim();
+    final match = _allergenSourcePrefix.firstMatch(label);
+    if (match == null) {
+      remaining.add(item);
+      continue;
+    }
+    if (insertAt < 0) insertAt = remaining.length;
+    final name = label.substring(match.end).trim();
+    if (name.isEmpty) continue;
+    if (seen.add(name.toLowerCase())) names.add(name);
+  }
+
+  if (names.isEmpty) return items;
+  final combined = PGTradeoff(
+    headline: names.length == 1
+        ? 'Declared allergen source: ${names.first}'
+        : 'Declared allergen sources: ${names.join(", ")}',
+  );
+  remaining.insert(insertAt.clamp(0, remaining.length), combined);
+  return remaining;
+}
+
 Widget? _buildSafetySummary(List<dynamic>? inactiveIngredients) {
   final severity = _countInactiveSeverity(inactiveIngredients);
   if (!severity.shouldShowSummary) return null;
   return _SafetySummaryBullet(
     count: severity.total,
+    names: severity.names,
     isHighSeverity: severity.high >= 1,
   );
 }
@@ -272,7 +314,16 @@ Widget? _buildSafetySummary(List<dynamic>? inactiveIngredients) {
 class _InactiveSeverityCount {
   final int high;
   final int moderate;
-  const _InactiveSeverityCount({required this.high, required this.moderate});
+
+  /// Names of the flagged ingredients, in list order, so the summary can
+  /// say *which* ingredient was flagged instead of a bare count.
+  final List<String> names;
+
+  const _InactiveSeverityCount({
+    required this.high,
+    required this.moderate,
+    required this.names,
+  });
 
   int get total => high + moderate;
 
@@ -284,6 +335,13 @@ _InactiveSeverityCount _countInactiveSeverity(
 ) {
   var high = 0;
   var moderate = 0;
+  final names = <String>[];
+
+  void recordName(Map<String, dynamic> ing) {
+    final name = _stringValue(ing['name'] ?? ing['raw_source_text']);
+    if (name != null) names.add(name);
+  }
+
   for (final raw in inactiveIngredients ?? const []) {
     if (raw is! Map) continue;
     final ing = Map<String, dynamic>.from(raw);
@@ -292,8 +350,10 @@ _InactiveSeverityCount _countInactiveSeverity(
       final status = statusRaw.trim().toLowerCase();
       if (status == 'critical') {
         high++;
+        recordName(ing);
       } else if (status == 'informational') {
         moderate++;
+        recordName(ing);
       }
       continue;
     }
@@ -303,21 +363,35 @@ _InactiveSeverityCount _countInactiveSeverity(
         : '';
     if (severity == 'high') {
       high++;
+      recordName(ing);
     } else if (severity == 'moderate') {
       moderate++;
+      recordName(ing);
     }
   }
-  return _InactiveSeverityCount(high: high, moderate: moderate);
+  return _InactiveSeverityCount(high: high, moderate: moderate, names: names);
 }
 
 class _SafetySummaryBullet extends StatelessWidget {
   final int count;
+  final List<String> names;
   final bool isHighSeverity;
 
   const _SafetySummaryBullet({
     required this.count,
+    required this.names,
     required this.isHighSeverity,
   });
+
+  /// Name the flagged ingredient(s) when we have names; fall back to a bare
+  /// count otherwise. Pluralize on the real count, not a hardcoded "s".
+  String _label() {
+    final noun = count == 1 ? 'ingredient' : 'ingredients';
+    if (names.isEmpty) {
+      return '$count $noun flagged for safety — review the list';
+    }
+    return '${names.join(', ')} flagged for safety — review the list';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +409,7 @@ class _SafetySummaryBullet extends StatelessWidget {
         ),
         Expanded(
           child: Text(
-            '$count ingredients flagged for safety — review the list',
+            _label(),
             style: V2Typography.bodySm(
               color: V2Colors.fg,
             ).copyWith(fontWeight: FontWeight.w600),

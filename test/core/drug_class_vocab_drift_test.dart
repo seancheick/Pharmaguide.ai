@@ -110,9 +110,9 @@ void main() {
           'antihypertensives': 'Blood pressure medication',
           // v6.1.0 split (2026-05-13)
           'hypoglycemics_high_risk':
-              'Higher low-blood-sugar risk diabetes meds',
+              'Insulin or sulfonylureas (can cause low blood sugar)',
           'hypoglycemics_lower_risk':
-              'Lower low-blood-sugar risk diabetes meds',
+              'Metformin, Ozempic, etc. (rarely cause low blood sugar)',
           'hypoglycemics_unknown': 'Not sure / other diabetes medication',
           'thyroid_medications': 'Thyroid medication',
           'sedatives': 'Sedatives / Sleep medication',

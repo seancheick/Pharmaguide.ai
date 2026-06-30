@@ -54,7 +54,7 @@
     },
     {
       "id": "hypoglycemics_high_risk",
-      "name": "Higher low-blood-sugar risk diabetes meds",
+      "name": "Insulin or sulfonylureas (can cause low blood sugar)",
       "notes": "Insulin, sulfonylureas, and meglitinides drive blood sugar down directly. Supplements that lower glucose (cinnamon, berberine, alpha-lipoic acid, chromium) meaningfully raise hypoglycemia risk.",
       "examples": ["insulin", "glipizide", "glyburide", "glimepiride", "repaglinide", "nateglinide"],
       "rx_status": "rx_only",
@@ -62,7 +62,7 @@
     },
     {
       "id": "hypoglycemics_lower_risk",
-      "name": "Lower low-blood-sugar risk diabetes meds",
+      "name": "Metformin, Ozempic, etc. (rarely cause low blood sugar)",
       "notes": "Metformin, GLP-1 agonists, SGLT2 inhibitors, and DPP-4 inhibitors rarely cause hypoglycemia alone. Supplements that lower glucose still warrant attention, especially when paired with insulin.",
       "examples": ["metformin", "semaglutide (Ozempic)", "empagliflozin (Jardiance)", "sitagliptin (Januvia)", "dulaglutide (Trulicity)", "canagliflozin (Invokana)"],
       "rx_status": "rx_only",

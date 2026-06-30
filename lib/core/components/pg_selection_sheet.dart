@@ -35,7 +35,7 @@ class PGSelectionOption {
   final String label;
 
   /// Optional one-line subtitle below the label. Use for clinical
-  /// disambiguation (e.g. "Lower low-blood-sugar risk diabetes meds")
+  /// disambiguation (e.g. "rarely causes low blood sugar")
   /// — keep short, this is not body copy.
   final String? subtitle;
 

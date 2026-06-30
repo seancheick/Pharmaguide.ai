@@ -147,6 +147,45 @@ bool _isLegacyProductStatusWarning(
   return tokens.contains('status') || tokens.contains('product_status');
 }
 
+/// Split guarded warnings into the ones that belong in the
+/// "Review for your profile" card vs. global/educational notes.
+///
+/// A warning stays in the profile bucket when it actually fires for the
+/// current profile ([InteractionWarning.matchesProfile]), OR it is a hard
+/// safety warning (contraindicated / avoid) or critical-mode alert that
+/// must surface regardless of profile (e.g. synthesized UL exceedances).
+///
+/// Everything else — soft, global, "if you have X…" educational notes the
+/// gate let through purely as informational — moves to [general], so the
+/// profile card and its "N things to review" count reflect only what is
+/// actually relevant to the user.
+({List<InteractionWarning> profile, List<InteractionWarning> general})
+partitionProfileWarnings({
+  required List<InteractionWarning> warnings,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  required Set<String> userProfileFlags,
+}) {
+  final profile = <InteractionWarning>[];
+  final general = <InteractionWarning>[];
+  for (final w in warnings) {
+    final matched = w.matchesProfile(
+      userConditions: userConditions,
+      userDrugClasses: userDrugClasses,
+      userProfileFlags: userProfileFlags,
+    );
+    final isHard =
+        w.severity == Severity.contraindicated || w.severity == Severity.avoid;
+    final isCritical = w.displayModeDefault == 'critical';
+    if (matched || isHard || isCritical) {
+      profile.add(w);
+    } else {
+      general.add(w);
+    }
+  }
+  return (profile: profile, general: general);
+}
+
 /// Worst-case severity across a warning list. Empty list returns
 /// `Severity.safe` (the no-issues baseline). Used by For-You section
 /// to gate the risk surface + by BetterAlternatives to compute fit

@@ -263,6 +263,31 @@ class ProfileRelevanceSection extends StatelessWidget {
   }
 }
 
+/// Collapsed "Good to know" card for global/educational warnings that are
+/// NOT matched to the user's profile (see [partitionProfileWarnings]).
+/// Returns null when there is nothing to show. Starts collapsed — these are
+/// general considerations, not personal review items.
+Widget? buildGeneralNotesSection({
+  required List<InteractionWarning> warnings,
+  void Function(List<String> sourceUrls)? onTapCitations,
+}) {
+  if (warnings.isEmpty) return null;
+  final rows = [
+    for (final w in sortWarningsBySeverity(warnings))
+      rowForWarning(w, onTapCitations: onTapCitations),
+  ];
+  final count = rows.length;
+  return PGReviewBeforeUseCard(
+    eyebrow: 'Good to know',
+    tone: PGReviewTone.info,
+    title: 'General considerations',
+    body: count == 1
+        ? '1 general note about this product'
+        : '$count general notes about this product',
+    rows: rows,
+  );
+}
+
 ProfileRelevanceSummary _fitSummary({
   required ProfileRelevanceStatus status,
   required PGReviewTone tone,

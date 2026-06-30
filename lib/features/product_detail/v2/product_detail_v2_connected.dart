@@ -303,12 +303,24 @@ class _ProductDetailV2ConnectedState
     // the page imply "no interactions found".
     final personalizedWarningsFailed = personalizedWarningsAsync.hasError;
     final profile = ref.watch(profileProvider);
+    final userConditionsSet = profile.conditions.toSet();
+    final userDrugClassesSet = profile.drugClasses.toSet();
+    final userProfileFlagsSet = profile.evaluatorProfileFlags;
     final guardedWarnings = composeGuardedWarnings(
       detailBlob: detailBlob,
       personalizedWarnings: personalizedWarnings,
-      userConditions: profile.conditions.toSet(),
-      userDrugClasses: profile.drugClasses.toSet(),
-      userProfileFlags: profile.evaluatorProfileFlags,
+      userConditions: userConditionsSet,
+      userDrugClasses: userDrugClassesSet,
+      userProfileFlags: userProfileFlagsSet,
+    );
+    // Split profile-matched/safety warnings (the card) from global
+    // educational notes (a separate collapsed "Good to know" section) so the
+    // profile card's count reflects only what's relevant to this user.
+    final partitionedWarnings = partitionProfileWarnings(
+      warnings: guardedWarnings,
+      userConditions: userConditionsSet,
+      userDrugClasses: userDrugClassesSet,
+      userProfileFlags: userProfileFlagsSet,
     );
     final fitAsync = ref.watch(fitScoreForProductProvider(widget.dsldId));
     final fitResult = fitAsync.asData?.value;
@@ -430,7 +442,7 @@ class _ProductDetailV2ConnectedState
       topGoalLabel: topGoalLabelFromFit(fitResult),
       ingredientNames: ingredientNamesFromBlob(detailBlob),
       userConditions: profile.conditionsForEvaluator,
-      warnings: guardedWarnings,
+      warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,
       freeFromClaims: freeFromClaims,
@@ -522,6 +534,15 @@ class _ProductDetailV2ConnectedState
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
+                    if (buildGeneralNotesSection(
+                          warnings: partitionedWarnings.general,
+                          onTapCitations: (urls) =>
+                              showProfileRelevanceCitationsSheet(context, urls),
+                        )
+                        case final generalNotes?) ...[
+                      generalNotes,
+                      const SizedBox(height: V2Spacing.space12),
+                    ],
                   ],
 
                   // ---- 4. LabelConfidence (WIRED, 11.7c.4) ---------
