@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 
@@ -72,6 +73,36 @@ void main() {
         find.textContaining('Search by name or scan again'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('PGScanNotFound', () {
+    testWidgets('offers search-by-name fallback for missing catalog barcodes', (
+      tester,
+    ) async {
+      var searched = false;
+
+      await tester.pumpWidget(
+        wrap(
+          PGScanNotFound(
+            scannedCode: '050428341902',
+            onRetry: () {},
+            onSearchByName: () => searched = true,
+            onManualEntry: () {},
+            onClose: () {},
+          ),
+        ),
+      );
+
+      expect(find.text("We couldn't find this product"), findsOneWidget);
+      expect(find.text('050428341902'), findsOneWidget);
+      expect(find.text('Search by name'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+      expect(find.text('Enter code manually'), findsOneWidget);
+
+      await tester.tap(find.text('Search by name'));
+
+      expect(searched, isTrue);
     });
   });
 

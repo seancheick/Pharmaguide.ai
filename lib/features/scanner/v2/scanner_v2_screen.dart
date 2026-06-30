@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -24,8 +25,8 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 ///   - PGVerdictReveal: 2 states only — success (green) for safe/
 ///     monitor, attention (amber) for everything else. Decision
 ///     tier lives on the product page.
-///   - PGScanNotFound: light amber screen with retry + manual-entry
-///     CTAs when the scan doesn't match the catalog.
+///   - PGScanNotFound: light amber screen with search, retry, and
+///     manual-entry CTAs when the scan doesn't match the catalog.
 class ScannerV2Screen extends StatefulWidget {
   /// When non-null, the verdict flash renders immediately.
   final PGVerdictKind? demoVerdict;
@@ -36,6 +37,7 @@ class ScannerV2Screen extends StatefulWidget {
   final VoidCallback? onVerdictDismiss;
   final VoidCallback? onNotFoundDismiss;
   final VoidCallback? onRetryScan;
+  final VoidCallback? onSearchByName;
   final VoidCallback? onManualEntry;
   final VoidCallback? onAddMedication;
 
@@ -54,6 +56,7 @@ class ScannerV2Screen extends StatefulWidget {
     this.onVerdictDismiss,
     this.onNotFoundDismiss,
     this.onRetryScan,
+    this.onSearchByName,
     this.onManualEntry,
     this.onAddMedication,
     this.onFrameTap,
@@ -162,12 +165,14 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
                 kind: widget.demoVerdict!,
                 onDismiss: widget.onVerdictDismiss,
               ),
-            // Not-found overlay — light amber screen with retry +
-            // manual entry CTAs.
+            // Not-found overlay — light amber screen with search,
+            // retry, and manual entry CTAs.
             if (widget.showNotFound)
               PGScanNotFound(
                 scannedCode: '0123456789',
                 onRetry: widget.onRetryScan ?? () {},
+                onSearchByName:
+                    widget.onSearchByName ?? () => context.push(Routes.search),
                 onManualEntry: widget.onManualEntry ?? () {},
                 onClose: widget.onNotFoundDismiss ?? () {},
               ),

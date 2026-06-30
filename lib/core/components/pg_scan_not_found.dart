@@ -8,16 +8,17 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// Full-screen "we couldn't find this product" overlay.
 ///
 /// Light amber wash (cautionTint over surface) — calm, not alarming.
-/// Three actions: retry scan, enter code manually, or close. Mirrors
-/// the production `ScannerNotFoundSheet` intent (lib/features/scanner
-/// /scanner_screen.dart) but as a full overlay layered above the
-/// camera surface instead of a bottom sheet.
+/// Three actions: search by name, retry scan, enter code manually, or close.
+/// Mirrors the production `ScannerNotFoundSheet` intent
+/// (lib/features/scanner/scanner_screen.dart) but as a full overlay layered
+/// above the camera surface instead of a bottom sheet.
 class PGScanNotFound extends StatelessWidget {
   /// Optional barcode text the user just scanned — shown in mono caps
   /// for technical context. Null hides the line.
   final String? scannedCode;
 
   final VoidCallback onRetry;
+  final VoidCallback onSearchByName;
   final VoidCallback onManualEntry;
   final VoidCallback onClose;
 
@@ -25,6 +26,7 @@ class PGScanNotFound extends StatelessWidget {
     super.key,
     this.scannedCode,
     required this.onRetry,
+    required this.onSearchByName,
     required this.onManualEntry,
     required this.onClose,
   });
@@ -77,8 +79,9 @@ class PGScanNotFound extends StatelessWidget {
               ),
               const SizedBox(height: V2Spacing.space8),
               Text(
-                "The barcode didn't match anything in your on-device "
-                "catalog. Try again, or enter the code by hand.",
+                "The barcode didn't match your on-device catalog. Search "
+                'by name for nearby matches, try again, or enter the code '
+                'by hand.',
                 textAlign: TextAlign.center,
                 style: V2Typography.body(color: V2Colors.fgMuted),
               ),
@@ -102,16 +105,24 @@ class PGScanNotFound extends StatelessWidget {
               ],
               const Spacer(flex: 2),
               PGPillButton(
-                label: 'Try again',
-                icon: Icons.qr_code_scanner_rounded,
+                label: 'Search by name',
+                icon: Icons.search_rounded,
                 expand: true,
-                onPressed: onRetry,
+                onPressed: onSearchByName,
               ),
               const SizedBox(height: V2Spacing.space12),
               PGPillButton(
+                label: 'Try again',
+                icon: Icons.qr_code_scanner_rounded,
+                variant: PGPillVariant.secondary,
+                expand: true,
+                onPressed: onRetry,
+              ),
+              const SizedBox(height: V2Spacing.space8),
+              PGPillButton(
                 label: 'Enter code manually',
                 icon: Icons.keyboard_rounded,
-                variant: PGPillVariant.secondary,
+                variant: PGPillVariant.ghost,
                 expand: true,
                 onPressed: onManualEntry,
               ),
