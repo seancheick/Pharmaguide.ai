@@ -38,7 +38,7 @@ dependencies:
   # Supabase
   supabase_flutter: ^2.5.0
   # Apple Sign In (iOS native — Android falls back to web OAuth via Supabase)
-  sign_in_with_apple: ^6.1.0
+  sign_in_with_apple: ^8.1.0
   # Google Sign In (native flow on both platforms; ID token handed to Supabase)
   google_sign_in: ^6.2.1
   crypto: ^3.0.3
