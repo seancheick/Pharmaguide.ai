@@ -1,26 +1,20 @@
 PODS:
   - Flutter (1.0.0)
-  - printing (1.0.0):
-    - Flutter
   - sign_in_with_apple (0.0.1):
     - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
-  - printing (from `.symlinks/plugins/printing/ios`)
   - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
-  printing:
-    :path: ".symlinks/plugins/printing/ios"
   sign_in_with_apple:
     :path: ".symlinks/plugins/sign_in_with_apple/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  printing: 233e1b73bd1f4a05615548e9b5a324c98588640b
   sign_in_with_apple: f3bf75217ea4c2c8b91823f225d70230119b8440
 
 PODFILE CHECKSUM: 26da0306aa1b45b827c0165edd3b18629ea060ab
