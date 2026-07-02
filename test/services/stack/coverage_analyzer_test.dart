@@ -13,12 +13,14 @@ CoverageProductInput product(
   Set<String> underdosed = const {},
   String? productRole,
   List<PriorityCoverageAnchor> prenatalCoverage = const [],
+  List<PriorityCoverageAnchor> adultMultiCoverage = const [],
 }) => CoverageProductInput(
   name: name,
   goalMatches: goals,
   goalMatchesUnderdosed: underdosed,
   productRole: productRole,
   prenatalCoverage: prenatalCoverage,
+  adultMultiCoverage: adultMultiCoverage,
 );
 
 PriorityCoverageAnchor anchor(
@@ -390,6 +392,98 @@ void main() {
             productRole: 'prenatal_base',
             prenatalCoverage: [
               anchor('dha', 'DHA', 'missing', target: 200, unit: 'mg'),
+            ],
+          ),
+        ],
+      );
+
+      expect(report.priorityGaps, isEmpty);
+    });
+
+    test('adult iron-free multi surfaces missing adult core but not iron', () {
+      final report = analyzer.analyze(
+        goals: const [],
+        products: [
+          product(
+            'Adult Multi Iron-Free',
+            const {},
+            productRole: 'adult_multi_iron_free',
+            adultMultiCoverage: [
+              anchor(
+                'vitamin_d',
+                'Vitamin D',
+                'missing',
+                target: 20,
+                unit: 'mcg',
+              ),
+              anchor('folate', 'Folate', 'covered', amount: 400, target: 400),
+            ],
+          ),
+        ],
+      );
+
+      expect(report.priorityGaps.map((g) => g.nutrientId), ['vitamin_d']);
+      expect(
+        report.priorityGaps.map((g) => g.nutrientId),
+        isNot(contains('iron')),
+      );
+    });
+
+    test('separate adult anchor product satisfies adult multi gap', () {
+      final report = analyzer.analyze(
+        goals: const [],
+        products: [
+          product(
+            'Adult Multi Iron-Free',
+            const {},
+            productRole: 'adult_multi_iron_free',
+            adultMultiCoverage: [
+              anchor(
+                'vitamin_d',
+                'Vitamin D',
+                'missing',
+                target: 20,
+                unit: 'mcg',
+              ),
+            ],
+          ),
+          product(
+            'Vitamin D3',
+            const {},
+            productRole: 'targeted_gap_filler',
+            adultMultiCoverage: [
+              anchor(
+                'vitamin_d',
+                'Vitamin D',
+                'covered',
+                amount: 25,
+                target: 20,
+                unit: 'mcg',
+              ),
+            ],
+          ),
+        ],
+      );
+
+      expect(report.priorityGaps, isEmpty);
+    });
+
+    test('adult anchors do not surface without an adult multi role', () {
+      final report = analyzer.analyze(
+        goals: const [],
+        products: [
+          product(
+            'Vitamin D3',
+            const {},
+            productRole: 'targeted_gap_filler',
+            adultMultiCoverage: [
+              anchor(
+                'vitamin_d',
+                'Vitamin D',
+                'missing',
+                target: 20,
+                unit: 'mcg',
+              ),
             ],
           ),
         ],

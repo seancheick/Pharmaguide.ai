@@ -71,10 +71,20 @@ final coverageReportProvider = FutureProvider.autoDispose<CoverageReport>((
     if (isLowCoverage(product.mappedCoverage)) coverageIncomplete = true;
     String? productRole;
     var prenatalCoverage = const <PriorityCoverageAnchor>[];
+    var adultMultiCoverage = const <PriorityCoverageAnchor>[];
     try {
       final blob = await ref.watch(detailBlobProvider(dsldId).future);
       productRole = _readProductRole(blob);
-      prenatalCoverage = _readPrenatalCoverage(blob, entry.name);
+      prenatalCoverage = _readCoverageAnchors(
+        blob,
+        entry.name,
+        'prenatal_coverage',
+      );
+      adultMultiCoverage = _readCoverageAnchors(
+        blob,
+        entry.name,
+        'adult_multi_coverage',
+      );
     } on Object {
       // Detail blobs are best-effort here. Goal coverage still works from
       // products_core; priority gaps simply stay absent when the blob is not
@@ -87,6 +97,7 @@ final coverageReportProvider = FutureProvider.autoDispose<CoverageReport>((
         goalMatchesUnderdosed: decodeGoalMatches(product.goalMatchesUnderdosed),
         productRole: productRole,
         prenatalCoverage: prenatalCoverage,
+        adultMultiCoverage: adultMultiCoverage,
       ),
     );
   }
@@ -152,11 +163,12 @@ String? _readProductRole(Map<String, dynamic>? blob) {
   return value.isEmpty ? null : value;
 }
 
-List<PriorityCoverageAnchor> _readPrenatalCoverage(
+List<PriorityCoverageAnchor> _readCoverageAnchors(
   Map<String, dynamic>? blob,
   String productName,
+  String field,
 ) {
-  final coverage = blob?['prenatal_coverage'];
+  final coverage = blob?[field];
   if (coverage is! Map) return const [];
   final anchors = coverage['anchors'];
   if (anchors is! List) return const [];
