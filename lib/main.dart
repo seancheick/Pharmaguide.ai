@@ -465,7 +465,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         });
         unawaited(_persistActiveCatalogVersion(version));
         unawaited(oldDb?.close());
-        _showCatalogUpdatedSnackbar(version);
+        _showCatalogUpdatedToast(version);
       case SwapRolledBack(:final reason):
         debugPrint('Catalog swap rolled back: $reason');
       case SwapNoStaging():
@@ -498,7 +498,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     }
   }
 
-  void _showCatalogUpdatedSnackbar(String version) {
+  void _showCatalogUpdatedToast(String version) {
     PGToast.showWith(
       scaffoldMessengerKey.currentState,
       'Catalog updated to v$version',
