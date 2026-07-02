@@ -205,16 +205,45 @@ void main() {
       expect(alerts.single.contributions, hasLength(4));
     });
 
-    test('does not double-alert omega-3 when fish oil aliases also match', () {
+    test(
+      'prefers EPA plus DHA over fish oil parent mass for omega thresholds',
+      () {
+        const summer = StackDoseSummer();
+        final totals = summer.sum([
+          const StackItemNutrients(
+            stackEntryId: 'fish-oil',
+            productName: 'Fish Oil',
+            ingredients: [
+              {'standard_name': 'Fish Oil', 'quantity': 2500, 'unit': 'mg'},
+              {'standard_name': 'EPA', 'quantity': 690, 'unit': 'mg'},
+              {'standard_name': 'DHA', 'quantity': 310, 'unit': 'mg'},
+            ],
+          ),
+        ]);
+
+        final alerts = summer.thresholdAlerts(
+          totals: totals,
+          userConditions: const ['surgery_scheduled'],
+        );
+
+        expect(
+          alerts,
+          isEmpty,
+          reason:
+              'EPA + DHA is 1000 mg; fish-oil parent mass must not be added.',
+        );
+      },
+    );
+
+    test('uses total omega-3 fallback when EPA and DHA are absent', () {
       const summer = StackDoseSummer();
       final totals = summer.sum([
         const StackItemNutrients(
           stackEntryId: 'fish-oil',
           productName: 'Fish Oil',
           ingredients: [
-            {'standard_name': 'Omega-3', 'quantity': 1500, 'unit': 'mg'},
-            {'standard_name': 'EPA', 'quantity': 900, 'unit': 'mg'},
-            {'standard_name': 'DHA', 'quantity': 700, 'unit': 'mg'},
+            {'standard_name': 'Fish Oil', 'quantity': 4000, 'unit': 'mg'},
+            {'standard_name': 'Omega-3', 'quantity': 3200, 'unit': 'mg'},
           ],
         ),
       ]);
@@ -226,7 +255,8 @@ void main() {
 
       expect(alerts, hasLength(1));
       expect(alerts.single.canonicalId, 'omega_3');
-      expect(alerts.single.totalValue, 3100);
+      expect(alerts.single.totalValue, 3200);
+      expect(alerts.single.contributions, hasLength(1));
     });
   });
 }

@@ -166,6 +166,10 @@ class StackDoseSummer {
     final canonicalKey = canonicalizeIngredientName(thresholdKey);
     if (canonicalKey.isEmpty) return null;
 
+    if (_omega3ThresholdKeys.contains(canonicalKey)) {
+      return _omega3ThresholdTotal(totals);
+    }
+
     final aliases = _thresholdDoseAliases[canonicalKey];
     if (aliases == null) return totals[canonicalKey];
 
@@ -217,6 +221,105 @@ class StackDoseSummer {
       totalValue: totalValue,
       unit: anchor.unit,
       contributions: List.unmodifiable(contributions),
+    );
+  }
+
+  StackDoseTotal? _omega3ThresholdTotal(Map<String, StackDoseTotal> totals) {
+    final epaDha = _contributionsByProduct(totals, _omega3EpaDhaAliases);
+    final totalOmega3 = _contributionsByProduct(totals, _omega3TotalAliases);
+    final fishOil = _contributionsByProduct(totals, _omega3FishOilAliases);
+
+    final productKeys = <String>{
+      ...epaDha.keys,
+      ...totalOmega3.keys,
+      ...fishOil.keys,
+    };
+    final selected = <StackDoseContribution>[];
+
+    for (final productKey in productKeys) {
+      final epaDhaRows = epaDha[productKey];
+      if (epaDhaRows != null && epaDhaRows.isNotEmpty) {
+        selected.addAll(epaDhaRows);
+        continue;
+      }
+
+      final totalRows = totalOmega3[productKey];
+      if (totalRows != null && totalRows.isNotEmpty) {
+        selected.addAll(totalRows);
+        continue;
+      }
+
+      final fishOilRows = fishOil[productKey];
+      if (fishOilRows != null && fishOilRows.isNotEmpty) {
+        selected.addAll(fishOilRows);
+      }
+    }
+
+    return _combinedThresholdTotal(
+      canonicalId: 'omega_3',
+      displayName: _thresholdDoseDisplayNames['omega_3'] ?? 'Omega-3',
+      contributions: selected,
+    );
+  }
+
+  Map<String, List<StackDoseContribution>> _contributionsByProduct(
+    Map<String, StackDoseTotal> totals,
+    Set<String> aliases,
+  ) {
+    final byProduct = <String, List<StackDoseContribution>>{};
+    for (final alias in aliases) {
+      final total = totals[alias];
+      if (total == null || total.totalValue <= 0 || total.unit.isEmpty) {
+        continue;
+      }
+      for (final contribution in total.contributions) {
+        final key = contribution.stackEntryId.isNotEmpty
+            ? contribution.stackEntryId
+            : contribution.productName;
+        if (key.isEmpty) continue;
+        byProduct.putIfAbsent(key, () => []).add(contribution);
+      }
+    }
+    return byProduct;
+  }
+
+  StackDoseTotal? _combinedThresholdTotal({
+    required String canonicalId,
+    required String displayName,
+    required List<StackDoseContribution> contributions,
+  }) {
+    if (contributions.isEmpty) return null;
+
+    final unit = contributions.first.unit;
+    if (unit.isEmpty) return null;
+
+    var totalValue = 0.0;
+    final convertedContributions = <StackDoseContribution>[];
+    for (final contribution in contributions) {
+      final converted = _amountInUnit(
+        contribution.amount,
+        from: contribution.unit,
+        to: unit,
+      );
+      if (converted == null) continue;
+      totalValue += converted;
+      convertedContributions.add(
+        StackDoseContribution(
+          stackEntryId: contribution.stackEntryId,
+          productName: contribution.productName,
+          amount: converted,
+          unit: unit,
+        ),
+      );
+    }
+
+    if (totalValue <= 0) return null;
+    return StackDoseTotal(
+      canonicalId: canonicalId,
+      displayName: displayName,
+      totalValue: totalValue,
+      unit: unit,
+      contributions: List.unmodifiable(convertedContributions),
     );
   }
 
@@ -365,13 +468,15 @@ class StackDoseSummer {
         .replaceAll(RegExp(r'\s+'), ' ');
   }
 
-  static const Map<String, Set<String>> _thresholdDoseAliases = {
-    // Condition thresholds for omega-3/fish oil are written against
-    // combined EPA + DHA intake. Labels often split those fatty acids into
-    // separate rows, so the threshold evaluator must sum them together.
-    'omega_3': {'omega_3', 'omega_3_fatty_acids', 'fish_oil', 'epa', 'dha'},
-    'fish_oil': {'omega_3', 'omega_3_fatty_acids', 'fish_oil', 'epa', 'dha'},
+  static const Set<String> _omega3ThresholdKeys = {'omega_3', 'fish_oil'};
+  static const Set<String> _omega3EpaDhaAliases = {'epa', 'dha'};
+  static const Set<String> _omega3TotalAliases = {
+    'omega_3',
+    'omega_3_fatty_acids',
   };
+  static const Set<String> _omega3FishOilAliases = {'fish_oil'};
+
+  static const Map<String, Set<String>> _thresholdDoseAliases = {};
 
   static const Map<String, String> _thresholdDoseDisplayNames = {
     'omega_3': 'Omega-3 (EPA/DHA)',
