@@ -263,8 +263,10 @@ class ProfileRelevanceSection extends StatelessWidget {
   }
 }
 
-/// Collapsed "Good to know" card for global/educational warnings that are
-/// NOT matched to the user's profile (see [partitionProfileWarnings]).
+/// Collapsed "Good to know" card for the [partitionProfileWarnings] general
+/// bucket: global/educational warnings not matched to the profile, plus
+/// matched-but-informational/safe notes (benefits and neutral context that
+/// should not sit in the orange review surface).
 /// Returns null when there is nothing to show. Starts collapsed — these are
 /// general considerations, not personal review items.
 Widget? buildGeneralNotesSection({

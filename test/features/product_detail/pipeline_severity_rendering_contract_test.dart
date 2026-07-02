@@ -74,6 +74,15 @@ void main() {
       );
     });
 
+    test('informational renders as calm info, safe as safe — not caution', () {
+      // Benefits / neutral context (e.g. "B12 recommended preconception")
+      // must not wear the orange caution icon. Monitor stays cautionary
+      // because it carries a real (mild) penalty.
+      expect(toneForWarning(Severity.informational), PGReviewTone.info);
+      expect(toneForWarning(Severity.safe), PGReviewTone.safe);
+      expect(toneForWarning(Severity.monitor), PGReviewTone.caution);
+    });
+
     testWidgets('pipeline severities render expected pill labels and icons', (
       tester,
     ) async {
