@@ -219,12 +219,16 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
 
   // ─── diabetes ────────────────────────────────────────────────────
   // Pre-fix, vitamin D triggered a diabetes monitor flag — but vitamin
-  // D is BENEFICIAL (mild improvement to insulin sensitivity per
-  // multiple meta-analyses, no contraindication).
+  // D is not a diabetes risk (NIH ODS: trials show no significant
+  // glycemic benefit or harm), so suppress rather than warn.
   'diabetes': {
     'vitamin_d': ConditionThreshold.positive(
       rationale:
-          'PMID 28202713: improves insulin sensitivity at standard doses',
+          'NIH ODS Vitamin D (HP fact sheet): clinical trials show no '
+          'significant effect on glucose homeostasis, insulin resistance, '
+          'or HbA1c — vitamin D is not a diabetes risk, so suppress. '
+          '(Corrected 2026-07-02: the prior PMID was a wrong-topic '
+          'mis-cite, removed after live-API content verification.)',
     ),
     'vitamin_d3': ConditionThreshold.positive(rationale: 'same as vitamin_d'),
     'magnesium': ConditionThreshold.positive(
@@ -264,8 +268,8 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
           'PMID 22374556 (T2D RCT, DL-ALA 300-1200 mg/day incl. 600 mg): lowers '
           'fasting glucose/HbA1c dose-dependently; additive hypoglycemia when '
           'combined with glucose-lowering meds is mechanistic inference. '
-          'Replaces mis-cited PMID 21134318 (a medaka-fish genetics paper) — '
-          'corrected 2026-07-02.',
+          '(Corrected 2026-07-02: the prior citation here was a wrong-topic '
+          'mis-cite and was removed after live-API content verification.)',
     ),
     // Vanadium: clinical hypoglycemic data lives at pharmacologic
     // doses (50-200 MG vanadyl sulfate). Supplements ship at
@@ -314,7 +318,11 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     // (2-4 g/day). Not a hypoglycemic at any typical supplemental dose.
     'inositol': ConditionThreshold.positive(
       rationale:
-          'PMID 26424907: improves insulin sensitivity (myo-inositol PCOS)',
+          'PMID 29042448 (Unfer 2017, meta-analysis of 9 RCTs): myo-inositol '
+          'significantly lowers fasting insulin and HOMA-IR in PCOS; benefit '
+          'is real but evidence is mixed across meta-analyses. (Corrected '
+          '2026-07-02: prior PMID was a wrong-topic mis-cite, removed after '
+          'live-API content verification.)',
     ),
     'myo_inositol': ConditionThreshold.positive(rationale: 'same as inositol'),
     'd_chiro_inositol': ConditionThreshold.positive(
@@ -379,7 +387,12 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'omega_3': ConditionThreshold.aboveDose(
       minDose: 3000,
       doseUnit: 'mg',
-      rationale: 'PMID 17353583: bleeding risk above 3 g/day combined EPA+DHA',
+      rationale:
+          'NIH ODS Omega-3 (HP fact sheet): high doses (~2-15 g/day) may '
+          'increase bleeding time via reduced platelet aggregation, most '
+          'relevant with anticoagulants; 3 g/day is a conservative flag '
+          'point (FDA deems up to 5 g/day EPA+DHA safe). (Corrected '
+          '2026-07-02: prior PMID was a wrong-topic mis-cite.)',
     ),
     'fish_oil': ConditionThreshold.aboveDose(
       minDose: 3000,
@@ -389,13 +402,22 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'vitamin_e': ConditionThreshold.aboveDose(
       minDose: 400,
       doseUnit: 'IU',
-      rationale: 'PMID 15537682: above 400 IU/day extends bleeding time',
+      rationale:
+          'NIH ODS Vitamin E (HP fact sheet): clinically significant bleeding '
+          'effects (platelet inhibition, antagonism of vitamin K-dependent '
+          'clotting) probably exceed 400 IU/day, especially with '
+          'anticoagulants. (Corrected 2026-07-02: prior PMID was about '
+          'all-cause mortality, not the bleeding mechanism cited — replaced '
+          'after live-API content verification.)',
     ),
     'ginkgo': ConditionThreshold.aboveDose(
       minDose: 120,
       doseUnit: 'mg',
       rationale:
-          'PMID 17435408: standard 120 mg dose impairs platelet function',
+          'NCCIH Ginkgo: may increase bleeding risk, especially with '
+          'anticoagulant/antiplatelet drugs (human studies + case reports); '
+          '120 mg is a conservative flag point. (Corrected 2026-07-02: prior '
+          'PMID was a wrong-topic mis-cite.)',
     ),
     'garlic': ConditionThreshold.aboveDose(
       minDose: 600,
@@ -405,7 +427,12 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'curcumin': ConditionThreshold.aboveDose(
       minDose: 1000,
       doseUnit: 'mg',
-      rationale: 'PMID 22781239: antiplatelet effects above ~1 g/day',
+      rationale:
+          'MSK About Herbs (Turmeric): may increase bleeding risk, especially '
+          'with anticoagulant/antiplatelet drugs (preclinical data + case '
+          'report); sources give no validated mg/day cutoff, so 1 g is a '
+          'conservative flag point. (Corrected 2026-07-02: prior PMID was a '
+          'wrong-topic mis-cite.)',
     ),
   },
 
@@ -450,7 +477,11 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     ),
     'selenium': ConditionThreshold.positive(
       rationale:
-          'PMID 25038305: moderate doses benefit Hashimoto\'s; flag only above UL',
+          'NIH ODS Selenium (HP fact sheet): some trials show selenium lowers '
+          'thyroid antibodies (TPOAb) in autoimmune thyroiditis, but evidence '
+          'on clinical benefit is mixed and does not support routine use; flag '
+          'only above UL. (Corrected 2026-07-02: prior PMID was a wrong-topic '
+          'mis-cite.)',
     ),
   },
 
@@ -462,7 +493,10 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
       minDose: 100,
       doseUnit: 'mg',
       rationale:
-          'PMID 21882118: above 100 mg may interact with anticonvulsants',
+          'NIH ODS Vitamin B6 (HP fact sheet): pyridoxine 200 mg/day can '
+          'reduce phenytoin and phenobarbital serum levels (whether lower '
+          'doses do is unknown); 100 mg is a conservative flag point. '
+          '(Corrected 2026-07-02: prior PMID was a wrong-topic mis-cite.)',
     ),
   },
 
