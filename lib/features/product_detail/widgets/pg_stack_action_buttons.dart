@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -122,9 +123,11 @@ class PGStackActionButtons extends ConsumerWidget {
     }
     if (!context.mounted) return;
     if (product == null) {
-      ScaffoldMessenger.of(
+      PGToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Could not load product.')));
+        'Could not load product.',
+        variant: PGToastVariant.error,
+      );
       return;
     }
 
@@ -134,12 +137,11 @@ class PGStackActionButtons extends ConsumerWidget {
     // on a banned product. The domain layer ([StackActions.addProduct])
     // will also throw for defense in depth.
     if (isUnsafeVerdict(product.verdict)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This product cannot be added due to safety concerns.'),
-          duration: Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ),
+      PGToast.show(
+        context,
+        'This product cannot be added due to safety concerns.',
+        variant: PGToastVariant.error,
+        duration: const Duration(seconds: 4),
       );
       return;
     }
@@ -162,24 +164,23 @@ class PGStackActionButtons extends ConsumerWidget {
     } on Exception catch (e, st) {
       CrashReportingService().recordError(e, st, hint: 'stack_action:add_save');
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
+      PGToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Could not add to stack.')));
+        'Could not add to stack.',
+        variant: PGToastVariant.error,
+      );
       return;
     }
 
     unawaited(PGHaptics.success());
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Added ${product.productName} to your stack'),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Go to Stack',
-          onPressed: () => context.go(Routes.stack),
-        ),
-      ),
+    PGToast.show(
+      context,
+      'Added ${product.productName} to your stack',
+      variant: PGToastVariant.success,
+      duration: const Duration(seconds: 3),
+      actionLabel: 'Go to Stack',
+      onAction: () => context.go(Routes.stack),
     );
   }
 
@@ -198,41 +199,37 @@ class PGStackActionButtons extends ConsumerWidget {
     } on Exception catch (e, st) {
       CrashReportingService().recordError(e, st, hint: 'stack_action:remove');
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not remove from stack.')),
+      PGToast.show(
+        context,
+        'Could not remove from stack.',
+        variant: PGToastVariant.error,
       );
       return;
     }
     if (!context.mounted) return;
 
-    // Sean 2026-05-05 — `clearSnackBars()` immediately followed by
-    // `showSnackBar()` was preventing auto-dismiss in practice. The
-    // synchronous tear-down + queue add desyncs the new SnackBar's
-    // duration timer from its display state. Calling
-    // `hideCurrentSnackBar()` instead lets the existing snackbar close
-    // through its normal animation path so the new timer starts cleanly.
-    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: const Text('Removed from stack'),
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () async {
-            try {
-              await actions.restore(entryId);
-            } on Exception catch (e, st) {
-              // UI state stays optimistic; record for triage only.
-              CrashReportingService().recordError(
-                e,
-                st,
-                hint: 'stack_action:restore',
-              );
-            }
-          },
-        ),
-      ),
+    // PGToast always hides the current toast before showing the next
+    // one (rather than `clearSnackBars()`), which lets the previous
+    // toast close through its normal animation path so this one's
+    // duration timer starts cleanly. See Sean 2026-05-05.
+    PGToast.show(
+      context,
+      'Removed from stack',
+      variant: PGToastVariant.info,
+      duration: const Duration(seconds: 4),
+      actionLabel: 'Undo',
+      onAction: () async {
+        try {
+          await actions.restore(entryId);
+        } on Exception catch (e, st) {
+          // UI state stays optimistic; record for triage only.
+          CrashReportingService().recordError(
+            e,
+            st,
+            hint: 'stack_action:restore',
+          );
+        }
+      },
     );
   }
 }

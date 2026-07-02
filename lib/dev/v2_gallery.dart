@@ -22,6 +22,7 @@ import 'package:pharmaguide/core/components/pg_probiotic_section.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/components/pg_tradeoffs_section.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
@@ -1003,11 +1004,10 @@ class _SignOutButtonState extends State<_SignOutButton> {
       // _AuthEventListener doesn't fire on local-only sign-out
       // failures; surface inline so the tester knows.
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not sign out — try again.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      PGToast.show(
+        context,
+        'Could not sign out — try again.',
+        variant: PGToastVariant.error,
       );
     }
   }

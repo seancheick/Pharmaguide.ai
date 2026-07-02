@@ -125,8 +125,10 @@ abstract final class SchemaIds {
     'antiplatelets': 'Antiplatelet medication',
     'nsaids': 'NSAIDs (Ibuprofen, Aspirin regularly)',
     'antihypertensives': 'Blood pressure medication',
-    'hypoglycemics_high_risk': 'Insulin or sulfonylureas (can cause low blood sugar)',
-    'hypoglycemics_lower_risk': 'Metformin, Ozempic, etc. (rarely cause low blood sugar)',
+    'hypoglycemics_high_risk':
+        'Insulin or sulfonylureas (can cause low blood sugar)',
+    'hypoglycemics_lower_risk':
+        'Metformin, Ozempic, etc. (rarely cause low blood sugar)',
     'hypoglycemics_unknown': 'Not sure / other diabetes medication',
     'thyroid_medications': 'Thyroid medication',
     'sedatives': 'Sedatives / Sleep medication',

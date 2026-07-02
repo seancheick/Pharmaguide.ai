@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -732,25 +733,42 @@ GoRouter _buildRouter({
 
 // ─── Phase 11.7i — production sign-in handlers ────────────────────────────────
 // Wire the v2 AuthInvitation CTAs to the real Supabase plumbing in
-// PGAuthService. Successful sign-in fires a `signedIn` event handled
-// by `_AuthEventListener` below, which navigates the user to home
-// when they were on an auth path (splash / onboarding / /auth).
+// PGAuthService. Apple/Google resolve with a direct, awaited result, so
+// they navigate the instant that result comes back — see
+// `_navigatePostAuthIfOnAuthPath` below. The magic-link deep-link
+// return has no BuildContext to call back into, so it stays on the
+// `_AuthEventListener`'s `onAuthStateChange` subscription. Both paths
+// funnel into the same guarded navigation helper, so whichever fires
+// first wins and the other becomes a no-op.
 //
 // Cancellation is silent. Errors surface a calm snackbar without
 // blocking the screen.
 
 Future<void> _handleSignInApple(BuildContext context) async {
   // BuildContext kept on the signature to satisfy the route-handler
-  // call site but intentionally unused inside — snackbar uses the
-  // root scaffoldMessengerKey, so there's no context-across-async-gap
+  // call site but intentionally unused inside — navigation goes
+  // through `_appRouter` and the snackbar uses the root
+  // scaffoldMessengerKey, so there's no context-across-async-gap
   // concern.
   final result = await PGAuthService().signInWithApple();
-  _surfaceAuthError(result);
+  _handlePostSignIn(result);
 }
 
 Future<void> _handleSignInGoogle(BuildContext context) async {
   final result = await PGAuthService().signInWithGoogle();
+  _handlePostSignIn(result);
+}
+
+void _handlePostSignIn(PGAuthResult result) {
   _surfaceAuthError(result);
+  if (result is! PGAuthSuccess) return;
+  // Don't wait on the `onAuthStateChange` stream to redirect — we
+  // already have the session in hand, so navigate immediately. This
+  // was the bug: navigation used to depend entirely on the listener
+  // noticing the same event, and any delay/miss there left the user
+  // stranded on the sign-in screen despite a successful sign-in.
+  final router = _appRouter;
+  if (router != null) _navigatePostAuthIfOnAuthPath(router);
 }
 
 /// Phase 11.7L.B.9 — pick the right landing screen after sign-in.
@@ -767,21 +785,50 @@ Future<String> _postAuthDestination({bool isPreview = false}) async {
   return isPreview ? '/dev/v2/home' : Routes.home;
 }
 
+/// Shared post-sign-in navigation, called from both the direct
+/// Apple/Google handlers above and `_AuthEventListener._onAuth` below.
+/// Only navigates while the user is still sitting on an auth-adjacent
+/// screen, so calling it twice for the same sign-in (once direct, once
+/// from the stream event) is harmless — the second call finds the
+/// router already moved on and no-ops.
+void _navigatePostAuthIfOnAuthPath(GoRouter router) {
+  final loc = router.routerDelegate.currentConfiguration.uri.path;
+  final onAuthPath =
+      loc.startsWith('/dev/v2/auth') ||
+      loc == Routes.splashIntro ||
+      loc == Routes.onboarding ||
+      loc == Routes.authInvitation ||
+      // Magic-link deep links land on the /auth/callback spinner;
+      // without this the signedIn event had no navigator and the
+      // handoff spun forever.
+      loc == '/auth/callback';
+  if (!onAuthPath) return;
+  // Honor the dev-route override: if the gallery is the active root
+  // (DEV_ROUTE=/dev/v2) land at the v2 home preview; otherwise the
+  // production root. Phase 11.7L.B.9 — first-time users land on the
+  // wizard instead.
+  final isPreview = _devRoute.isNotEmpty;
+  unawaited(
+    _postAuthDestination(isPreview: isPreview)
+        .then((dest) => router.go(dest))
+        // A SharedPreferences hiccup shouldn't strand the user on the
+        // sign-in screen after a successful sign-in — fall back home.
+        .catchError((_) => router.go(Routes.home)),
+  );
+}
+
 void _surfaceAuthError(PGAuthResult result) {
   if (result is PGAuthError) {
     // Use the root scaffold messenger (set in main.dart) so the
-    // snackbar isn't tied to a transient screen scope.
-    scaffoldMessengerKey.currentState
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+    // toast isn't tied to a transient screen scope.
+    PGToast.showWith(
+      scaffoldMessengerKey.currentState,
+      result.message,
+      variant: PGToastVariant.error,
+      duration: const Duration(seconds: 4),
+    );
   }
-  // Success / Handoff / Cancel — no snackbar. Auth listener handles
+  // Success / Handoff / Cancel — no toast. Auth listener handles
   // navigation on success/handoff; cancel is intentional user backout.
 }
 
@@ -887,15 +934,12 @@ class _AuthCallbackScreenState extends State<_AuthCallbackScreen> {
     // spin forever — hand the user back to the auth screen.
     _stuckTimer = Timer(const Duration(seconds: 20), () {
       if (!mounted) return;
-      scaffoldMessengerKey.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            "That sign-in link didn't complete — it may have expired. "
-            'Try sending a new one.',
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 4),
-        ),
+      PGToast.showWith(
+        scaffoldMessengerKey.currentState,
+        "That sign-in link didn't complete — it may have expired. "
+        'Try sending a new one.',
+        variant: PGToastVariant.error,
+        duration: const Duration(seconds: 4),
       );
       context.go(Routes.authInvitation);
     });
@@ -1070,20 +1114,14 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       );
     }
     if (!mounted) return;
-    final messenger = scaffoldMessengerKey.currentState;
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            isExpiredLink
-                ? 'That sign-in link has expired. Request a new one.'
-                : 'Sign-in could not be completed. Try again in a moment.',
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+    PGToast.showWith(
+      scaffoldMessengerKey.currentState,
+      isExpiredLink
+          ? 'That sign-in link has expired. Request a new one.'
+          : 'Sign-in could not be completed. Try again in a moment.',
+      variant: PGToastVariant.error,
+      duration: const Duration(seconds: 4),
+    );
     // A failed magic-link return lands on the /auth/callback spinner with no
     // session, so it would spin forever. Send the user back to the auth
     // entry point where they can request a fresh link.
@@ -1116,61 +1154,35 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     } else if (data.event == AuthChangeEvent.signedOut) {
       authState.onSignedOut();
     }
+    // Navigation must not depend on the scaffold messenger existing —
+    // route first, then treat the snackbar as best-effort UI polish.
+    // This is also the only navigation trigger for the magic-link
+    // deep-link return (no BuildContext to call back into there); the
+    // direct Apple/Google handlers navigate as soon as their awaited
+    // sign-in result comes back, so this is a no-op for them once
+    // they've already moved off the auth path.
+    switch (data.event) {
+      case AuthChangeEvent.signedIn:
+      case AuthChangeEvent.tokenRefreshed
+          when data.session?.user.lastSignInAt != null:
+        final router = _appRouter;
+        if (router != null) _navigatePostAuthIfOnAuthPath(router);
+      default:
+        break;
+    }
     final messenger = scaffoldMessengerKey.currentState;
-    if (messenger == null) return;
     switch (data.event) {
       case AuthChangeEvent.signedIn:
       case AuthChangeEvent.tokenRefreshed
           when data.session?.user.lastSignInAt != null:
         final email = data.session?.user.email ?? 'your account';
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Signed in as $email'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
+        PGToast.showWith(
+          messenger,
+          'Signed in as $email',
+          variant: PGToastVariant.success,
         );
-        // Route to home so the post-auth landing feels complete.
-        // Preview routes (the v2 gallery) land at /dev/v2/home; the
-        // production app lands at Routes.home. Only route when the
-        // listener fires from an auth path — bail if we're already on
-        // a home-adjacent route to avoid a flicker from token-refresh
-        // events that happen on a live home.
-        final router = _appRouter;
-        if (router != null) {
-          final loc = router.routerDelegate.currentConfiguration.uri.path;
-          final onAuthPath =
-              loc.startsWith('/dev/v2/auth') ||
-              loc == Routes.splashIntro ||
-              loc == Routes.onboarding ||
-              loc == Routes.authInvitation ||
-              // Magic-link deep links land on the /auth/callback spinner;
-              // without this the signedIn event had no navigator and the
-              // handoff spun forever.
-              loc == '/auth/callback';
-          if (onAuthPath) {
-            // Honor the dev-route override: if the gallery is the
-            // active root (DEV_ROUTE=/dev/v2) land at the v2 home
-            // preview; otherwise the production root. Phase 11.7L.B.9
-            // — first-time users land on the wizard instead.
-            final isPreview = _devRoute.isNotEmpty;
-            unawaited(
-              _postAuthDestination(isPreview: isPreview).then((dest) {
-                router.go(dest);
-              }),
-            );
-          }
-        }
       case AuthChangeEvent.signedOut:
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Signed out'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        PGToast.showWith(messenger, 'Signed out', variant: PGToastVariant.info);
       default:
         break;
     }

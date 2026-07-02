@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -464,7 +465,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         });
         unawaited(_persistActiveCatalogVersion(version));
         unawaited(oldDb?.close());
-        _showCatalogUpdatedSnackbar(version);
+        _showCatalogUpdatedToast(version);
       case SwapRolledBack(:final reason):
         debugPrint('Catalog swap rolled back: $reason');
       case SwapNoStaging():
@@ -497,16 +498,12 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     }
   }
 
-  void _showCatalogUpdatedSnackbar(String version) {
-    final messenger = scaffoldMessengerKey.currentState;
-    if (messenger == null) return;
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text('Catalog updated to v$version'),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ),
+  void _showCatalogUpdatedToast(String version) {
+    PGToast.showWith(
+      scaffoldMessengerKey.currentState,
+      'Catalog updated to v$version',
+      variant: PGToastVariant.success,
+      duration: const Duration(seconds: 3),
     );
   }
 

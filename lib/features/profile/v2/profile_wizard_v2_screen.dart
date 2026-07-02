@@ -8,6 +8,7 @@ import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_progress_dots.dart';
 import 'package:pharmaguide/core/components/pg_selection_sheet.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -132,22 +133,11 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
       await OnboardingPrefs.markProfileWizardSeen();
     }
     if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context)..clearSnackBars();
-    unawaited(
-      messenger
-          .showSnackBar(
-            SnackBar(
-              content: Text(
-                "You're set. Profile saved on this device.",
-                style: V2Typography.bodySm(color: V2Colors.bg),
-              ),
-              backgroundColor: V2Colors.accent,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(V2Spacing.space16),
-              duration: const Duration(milliseconds: 1600),
-            ),
-          )
-          .closed,
+    PGToast.show(
+      context,
+      "You're set. Profile saved on this device.",
+      variant: PGToastVariant.success,
+      duration: const Duration(milliseconds: 1600),
     );
     await Future<void>.delayed(const Duration(milliseconds: 240));
     if (!mounted) return;
