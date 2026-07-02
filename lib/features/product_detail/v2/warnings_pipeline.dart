@@ -150,15 +150,17 @@ bool _isLegacyProductStatusWarning(
 /// Split guarded warnings into the ones that belong in the
 /// "Review for your profile" card vs. global/educational notes.
 ///
-/// A warning stays in the profile bucket when it actually fires for the
-/// current profile ([InteractionWarning.matchesProfile]), OR it is a hard
-/// safety warning (contraindicated / avoid) or critical-mode alert that
-/// must surface regardless of profile (e.g. synthesized UL exceedances).
+/// A warning stays in the profile bucket when it is a hard safety warning
+/// (contraindicated / avoid) or critical-mode alert that must surface
+/// regardless of profile (e.g. synthesized UL exceedances), OR it actually
+/// fires for the current profile ([InteractionWarning.matchesProfile]) AND is
+/// actionable (caution / monitor — severities that carry a real penalty).
 ///
-/// Everything else — soft, global, "if you have X…" educational notes the
-/// gate let through purely as informational — moves to [general], so the
-/// profile card and its "N things to review" count reflect only what is
-/// actually relevant to the user.
+/// Everything else moves to [general]: unmatched "if you have X…" notes, and —
+/// even when the profile matches — informational / safe rows, which are neutral
+/// context or positive notes (e.g. "B12 recommended preconception"). This keeps
+/// the profile card and its "N things to review" count focused on what actually
+/// needs attention, not benefits or FYIs.
 ({List<InteractionWarning> profile, List<InteractionWarning> general})
 partitionProfileWarnings({
   required List<InteractionWarning> warnings,
@@ -177,7 +179,16 @@ partitionProfileWarnings({
     final isHard =
         w.severity == Severity.contraindicated || w.severity == Severity.avoid;
     final isCritical = w.displayModeDefault == 'critical';
-    if (matched || isHard || isCritical) {
+    // Only actionable severities (caution / monitor — a real, if mild,
+    // negative signal) count as "review before use". Informational / safe
+    // rows carry no penalty: they are neutral context or positive notes
+    // (e.g. "B12 recommended preconception", "may support PCOS-related
+    // fertility") and move to the calm general surface even when the profile
+    // matches, so the "N things to review" count reflects only what needs
+    // attention. Hard / critical always surface regardless of profile.
+    final isActionable =
+        w.severity == Severity.caution || w.severity == Severity.monitor;
+    if (isHard || isCritical || (matched && isActionable)) {
       profile.add(w);
     } else {
       general.add(w);

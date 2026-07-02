@@ -76,5 +76,59 @@ void main() {
       expect(result.profile, [ul]);
       expect(result.general, isEmpty);
     });
+
+    test('matched informational benefit → general bucket, not review', () {
+      final benefit = _w(
+        headline: 'B12 recommended preconception',
+        severity: Severity.informational,
+        conditionIds: const ['ttc'],
+      );
+
+      final result = partitionProfileWarnings(
+        warnings: [benefit],
+        userConditions: const {'ttc'},
+        userDrugClasses: const {},
+        userProfileFlags: const {},
+      );
+
+      expect(result.general, [benefit]);
+      expect(result.profile, isEmpty);
+    });
+
+    test('matched safe note → general bucket, not review', () {
+      final note = _w(
+        headline: 'Fine for your profile',
+        severity: Severity.safe,
+        conditionIds: const ['ttc'],
+      );
+
+      final result = partitionProfileWarnings(
+        warnings: [note],
+        userConditions: const {'ttc'},
+        userDrugClasses: const {},
+        userProfileFlags: const {},
+      );
+
+      expect(result.general, [note]);
+      expect(result.profile, isEmpty);
+    });
+
+    test('matched actionable caution → profile bucket', () {
+      final caution = _w(
+        headline: 'May affect glucose control',
+        severity: Severity.caution,
+        conditionIds: const ['diabetes'],
+      );
+
+      final result = partitionProfileWarnings(
+        warnings: [caution],
+        userConditions: const {'diabetes'},
+        userDrugClasses: const {},
+        userProfileFlags: const {},
+      );
+
+      expect(result.profile, [caution]);
+      expect(result.general, isEmpty);
+    });
   });
 }

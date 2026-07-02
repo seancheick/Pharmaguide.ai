@@ -138,12 +138,16 @@ PGReviewTone toneForWarning(Severity severity) {
     case Severity.caution:
       return PGReviewTone.caution;
     case Severity.monitor:
-    case Severity.informational:
-    case Severity.safe:
-      // Production maps monitor/info/safe to caution as a fallback —
-      // these severities never reach this widget after the profile
-      // gate, but the mapping is preserved verbatim for safety.
+      // Monitor carries a real (mild) penalty — keep it cautionary rather
+      // than neutral. Under-warning is the bigger risk in a medical product.
       return PGReviewTone.caution;
+    case Severity.informational:
+      // Neutral context or positive notes (e.g. "B12 recommended
+      // preconception", "may support PCOS-related fertility"). Calm info
+      // tone — never the orange caution icon that made benefits look risky.
+      return PGReviewTone.info;
+    case Severity.safe:
+      return PGReviewTone.safe;
   }
 }
 
