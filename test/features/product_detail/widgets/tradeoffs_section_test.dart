@@ -95,10 +95,7 @@ void main() {
         penalties: [_penalty('Declared allergen source: Soy')],
       );
 
-      expect(
-        find.text('Declared allergen source: Soy'),
-        findsOneWidget,
-      );
+      expect(find.text('Declared allergen source: Soy'), findsOneWidget);
     });
 
     testWidgets('dedupes additive names case-insensitively', (tester) async {
