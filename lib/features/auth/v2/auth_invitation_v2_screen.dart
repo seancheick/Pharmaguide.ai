@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -553,30 +554,26 @@ class _AuthInvitationV2PreviewState extends State<AuthInvitationV2Preview> {
     final result = await callable();
     if (!mounted) return;
     setState(() => _busy = false);
-    final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case PGAuthSuccess _:
         // Global _AuthEventListener will fire the "Signed in as ..."
-        // snackbar — nothing to show here.
+        // toast — nothing to show here.
         break;
       case PGAuthHandoffToBrowser _:
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Continuing with $label in your browser…'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
+        PGToast.show(
+          context,
+          'Continuing with $label in your browser…',
+          variant: PGToastVariant.info,
         );
       case PGAuthCancelled _:
         // Silent — user backed out, no noise.
         break;
       case PGAuthError(:final message):
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
+        PGToast.show(
+          context,
+          message,
+          variant: PGToastVariant.error,
+          duration: const Duration(seconds: 3),
         );
     }
   }

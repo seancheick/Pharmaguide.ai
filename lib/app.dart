@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -819,18 +820,15 @@ void _navigatePostAuthIfOnAuthPath(GoRouter router) {
 void _surfaceAuthError(PGAuthResult result) {
   if (result is PGAuthError) {
     // Use the root scaffold messenger (set in main.dart) so the
-    // snackbar isn't tied to a transient screen scope.
-    scaffoldMessengerKey.currentState
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+    // toast isn't tied to a transient screen scope.
+    PGToast.showWith(
+      scaffoldMessengerKey.currentState,
+      result.message,
+      variant: PGToastVariant.error,
+      duration: const Duration(seconds: 4),
+    );
   }
-  // Success / Handoff / Cancel — no snackbar. Auth listener handles
+  // Success / Handoff / Cancel — no toast. Auth listener handles
   // navigation on success/handoff; cancel is intentional user backout.
 }
 
@@ -936,15 +934,12 @@ class _AuthCallbackScreenState extends State<_AuthCallbackScreen> {
     // spin forever — hand the user back to the auth screen.
     _stuckTimer = Timer(const Duration(seconds: 20), () {
       if (!mounted) return;
-      scaffoldMessengerKey.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            "That sign-in link didn't complete — it may have expired. "
-            'Try sending a new one.',
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 4),
-        ),
+      PGToast.showWith(
+        scaffoldMessengerKey.currentState,
+        "That sign-in link didn't complete — it may have expired. "
+        'Try sending a new one.',
+        variant: PGToastVariant.error,
+        duration: const Duration(seconds: 4),
       );
       context.go(Routes.authInvitation);
     });
@@ -1119,20 +1114,14 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       );
     }
     if (!mounted) return;
-    final messenger = scaffoldMessengerKey.currentState;
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            isExpiredLink
-                ? 'That sign-in link has expired. Request a new one.'
-                : 'Sign-in could not be completed. Try again in a moment.',
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+    PGToast.showWith(
+      scaffoldMessengerKey.currentState,
+      isExpiredLink
+          ? 'That sign-in link has expired. Request a new one.'
+          : 'Sign-in could not be completed. Try again in a moment.',
+      variant: PGToastVariant.error,
+      duration: const Duration(seconds: 4),
+    );
     // A failed magic-link return lands on the /auth/callback spinner with no
     // session, so it would spin forever. Send the user back to the auth
     // entry point where they can request a fresh link.
@@ -1182,29 +1171,18 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
         break;
     }
     final messenger = scaffoldMessengerKey.currentState;
-    if (messenger == null) return;
     switch (data.event) {
       case AuthChangeEvent.signedIn:
       case AuthChangeEvent.tokenRefreshed
           when data.session?.user.lastSignInAt != null:
         final email = data.session?.user.email ?? 'your account';
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Signed in as $email'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
+        PGToast.showWith(
+          messenger,
+          'Signed in as $email',
+          variant: PGToastVariant.success,
         );
       case AuthChangeEvent.signedOut:
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Signed out'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        PGToast.showWith(messenger, 'Signed out', variant: PGToastVariant.info);
       default:
         break;
     }
