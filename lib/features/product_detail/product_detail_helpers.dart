@@ -69,7 +69,12 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
     ingredientDoses: ingredientDoses,
   );
 
-  return gatedWarnings
+  // Emitted-floor gate: drop rows the pipeline marked immaterial at this
+  // product's dose (harmful + dose_dependent + below its form-scoped floor),
+  // before the profile filter can promote them back (G2).
+  final flooredWarnings = applyEmittedFloorGate(gatedWarnings);
+
+  return flooredWarnings
       .where((w) {
         if (w.matchesProfile(
           userConditions: userConditions,

@@ -156,6 +156,16 @@ class InteractionWarning {
   /// in render code.
   String get displayBody => alertBody ?? informationalNote ?? mechanism;
 
+  /// Smart-flagging axes (pipeline batch diabetes-01+). Null on older blobs.
+  /// `direction`: harmful | beneficial | neutral | unknown.
+  /// `materiality`: presence | dose_dependent | unknown.
+  /// `doseFloorStatus`: below | at_or_above | null — pipeline-computed against
+  /// the rule's form-scoped `min_effective_dose`. Null = floor absent, or dose
+  /// / form unknown → fail open (the warning fires).
+  final String? direction;
+  final String? materiality;
+  final String? doseFloorStatus;
+
   const InteractionWarning({
     required this.severity,
     required this.evidenceLevel,
@@ -183,6 +193,9 @@ class InteractionWarning {
     this.identifiers,
     this.ingredientName,
     this.profileGate,
+    this.direction,
+    this.materiality,
+    this.doseFloorStatus,
   });
 
   /// Parse from raw JSON map (from detail blob `warnings` list).
@@ -289,6 +302,9 @@ class InteractionWarning {
       identifiers: identifiers,
       ingredientName: json['ingredient_name']?.toString(),
       profileGate: profileGate,
+      direction: json['direction']?.toString(),
+      materiality: json['materiality']?.toString(),
+      doseFloorStatus: json['dose_floor_status']?.toString(),
     );
   }
 

@@ -33,6 +33,38 @@ import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 /// Single ingredient's dose entry as extracted from the detail blob.
 typedef IngredientDose = ({double value, String unit});
 
+/// Emitted-floor dose gate (smart-flagging, pipeline batch diabetes-01+).
+///
+/// Drops warnings the pipeline has already marked immaterial at THIS product's
+/// dose: a harmful, dose-dependent rule whose form-scoped `min_effective_dose`
+/// evaluated to `dose_floor_status == "below"`. Emitted-first — it reads the
+/// pipeline's precomputed status (no dose math here); [applyConditionThresholdGate]
+/// stays the fallback for rules carrying a const-table entry instead.
+///
+/// Runs BEFORE the profile-visibility filter so a below-floor row can never be
+/// promoted back by a profile match (guardrail G2).
+///
+/// Narrow by design (guardrail G3): suppress ONLY when
+///   direction == harmful ∧ materiality == dose_dependent ∧
+///   dose_floor_status == below ∧ severity is not a hard override.
+/// Everything else FIRES — missing/unknown floor status (fail open), unknown
+/// form (pipeline emits null there), and contraindicated/avoid (a hard warning
+/// is never dose-suppressed).
+List<InteractionWarning> applyEmittedFloorGate(
+  List<InteractionWarning> warnings,
+) {
+  return warnings.where((w) {
+    if (w.doseFloorStatus != 'below') return true;
+    if (w.direction != 'harmful') return true;
+    if (w.materiality != 'dose_dependent') return true;
+    if (w.severity == Severity.contraindicated ||
+        w.severity == Severity.avoid) {
+      return true;
+    }
+    return false;
+  }).toList(growable: false);
+}
+
 /// Build a `canonical-ingredient-name → (dose, unit)` map from the
 /// pipeline's product-detail dose rows. Prefer the pipeline's
 /// `rda_ul_data.analyzed_ingredients` rows when present because they
