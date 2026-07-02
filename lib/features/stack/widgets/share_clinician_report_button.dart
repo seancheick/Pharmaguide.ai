@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -109,13 +110,11 @@ class ShareClinicianReportButton extends ConsumerWidget {
       // Anything failing in the input collection (DB, providers) drops
       // a non-blocking error to the user and bails. The share sheet
       // never opens with partial data.
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Could not build the report — try again in a moment.'),
-          duration: Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-        ),
+      PGToast.showWith(
+        messenger,
+        'Could not build the report — try again in a moment.',
+        variant: PGToastVariant.error,
+        duration: const Duration(seconds: 3),
       );
     }
   }

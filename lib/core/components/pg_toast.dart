@@ -18,16 +18,23 @@ enum PGToastVariant { success, info, error }
 /// only the visual chrome is custom.
 abstract final class PGToast {
   /// Shows a toast anchored to [context]'s nearest [ScaffoldMessenger].
+  ///
+  /// [actionLabel] + [onAction] add a trailing text action (e.g. "Undo",
+  /// "Go to Stack") — omit both for a plain toast.
   static void show(
     BuildContext context,
     String message, {
     PGToastVariant variant = PGToastVariant.info,
     Duration duration = const Duration(seconds: 2),
+    String? actionLabel,
+    VoidCallback? onAction,
   }) => showWith(
     ScaffoldMessenger.of(context),
     message,
     variant: variant,
     duration: duration,
+    actionLabel: actionLabel,
+    onAction: onAction,
   );
 
   /// Same as [show], for call sites reached via a stored
@@ -38,6 +45,8 @@ abstract final class PGToast {
     String message, {
     PGToastVariant variant = PGToastVariant.info,
     Duration duration = const Duration(seconds: 2),
+    String? actionLabel,
+    VoidCallback? onAction,
   }) {
     if (messenger == null) return;
     final isDark = Theme.of(messenger.context).brightness == Brightness.dark;
@@ -51,7 +60,13 @@ abstract final class PGToast {
           backgroundColor: Colors.transparent,
           elevation: 0,
           padding: EdgeInsets.zero,
-          content: _PGToastCard(message: message, style: style),
+          content: _PGToastCard(
+            message: message,
+            style: style,
+            actionLabel: actionLabel,
+            onAction: onAction,
+            messenger: messenger,
+          ),
         ),
       );
   }
@@ -91,8 +106,17 @@ class _PGToastCard extends StatelessWidget {
   final String message;
   final ({Color bg, Color fg, Color outline, Color iconTint, IconData icon})
   style;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final ScaffoldMessengerState messenger;
 
-  const _PGToastCard({required this.message, required this.style});
+  const _PGToastCard({
+    required this.message,
+    required this.style,
+    required this.actionLabel,
+    required this.onAction,
+    required this.messenger,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +139,26 @@ class _PGToastCard extends StatelessWidget {
           Flexible(
             child: Text(message, style: V2Typography.bodySm(color: style.fg)),
           ),
+          if (actionLabel != null) ...[
+            const SizedBox(width: V2Spacing.space12),
+            InkWell(
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+              onTap: () {
+                onAction?.call();
+                messenger.hideCurrentSnackBar();
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: V2Spacing.space8,
+                  vertical: V2Spacing.space4,
+                ),
+                child: Text(
+                  actionLabel!,
+                  style: V2Typography.label(color: style.iconTint),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

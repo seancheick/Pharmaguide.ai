@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_selection_sheet.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -195,27 +196,13 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
     // `ProfileSetupScreen._save` for the race-condition rationale.
     await ref.read(profileProvider.notifier).saveToDb();
     if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context)..clearSnackBars();
-    // We deliberately don't await `closed` here — the brief delayed
-    // navigation below gives the user enough time to read the
-    // confirmation without coupling save flow to snackbar dismissal.
-    unawaited(
-      messenger
-          .showSnackBar(
-            SnackBar(
-              content: Text(
-                'Profile saved on this device.',
-                style: V2Typography.bodySm(color: V2Colors.bg),
-              ),
-              backgroundColor: V2Colors.accent,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(V2Spacing.space16),
-              duration: const Duration(milliseconds: 1600),
-            ),
-          )
-          .closed,
+    PGToast.show(
+      context,
+      'Profile saved on this device.',
+      variant: PGToastVariant.success,
+      duration: const Duration(milliseconds: 1600),
     );
-    // Brief hold so the snackbar registers before the route swap.
+    // Brief hold so the toast registers before the route swap.
     await Future<void>.delayed(const Duration(milliseconds: 240));
     if (!mounted) return;
     GoRouter.of(context).go(Routes.home);

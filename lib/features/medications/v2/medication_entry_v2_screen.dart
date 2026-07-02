@@ -86,6 +86,7 @@ import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/app.dart' show scaffoldMessengerKey;
+import 'package:pharmaguide/core/components/pg_toast.dart';
 
 class MedicationEntryV2Screen extends ConsumerStatefulWidget {
   const MedicationEntryV2Screen({super.key});
@@ -413,25 +414,17 @@ class _MedicationEntryV2ScreenState
     if (!mounted) return;
 
     // **Sean 2026-05-16 snackbar bug fix.**
-    // Showing this snackbar on the local Scaffold immediately before
+    // Showing this toast on the local Scaffold immediately before
     // popping can attach it to an about-to-be-disposed overlay. Route
     // through the ROOT scaffold messenger
     // (set on MaterialApp.router via `scaffoldMessengerKey`) so it
     // lives on the parent surface and survives the pop.
-    scaffoldMessengerKey.currentState
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            '${_selectedName!} added — checking interactions…',
-            style: V2Typography.bodySm(color: V2Colors.bg),
-          ),
-          backgroundColor: V2Colors.accent,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(V2Spacing.space16),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+    PGToast.showWith(
+      scaffoldMessengerKey.currentState,
+      '${_selectedName!} added — checking interactions…',
+      variant: PGToastVariant.success,
+      duration: const Duration(seconds: 3),
+    );
 
     // Pop back to caller. Stack auto-refreshes via _invalidate
     // inside StackActions.addMedication.

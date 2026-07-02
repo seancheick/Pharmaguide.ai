@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_goal_chip.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -70,14 +71,11 @@ class _BetaFeedbackSheetState extends State<BetaFeedbackSheet> {
     if (!mounted) return;
     if (result == PgFeedbackSubmissionResult.sent) {
       navigator.pop();
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('Thanks — your feedback was sent.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      PGToast.showWith(
+        messenger,
+        'Thanks — your feedback was sent.',
+        variant: PGToastVariant.success,
+      );
       return;
     }
 
@@ -89,25 +87,18 @@ class _BetaFeedbackSheetState extends State<BetaFeedbackSheet> {
         'Could not send feedback. Add detail by email instead.',
       PgFeedbackSubmissionResult.sent => 'Thanks — your feedback was sent.',
     };
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-      );
+    PGToast.showWith(messenger, message, variant: PGToastVariant.error);
   }
 
   Future<void> _emailDetail() async {
     final messenger = ScaffoldMessenger.of(context);
     final opened = await widget.openExternal(_mailto(_category, _impact));
     if (opened || !mounted) return;
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Could not open email. Try again.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    PGToast.showWith(
+      messenger,
+      'Could not open email. Try again.',
+      variant: PGToastVariant.error,
+    );
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -319,24 +320,14 @@ Future<void> _signOut(
   try {
     await (onSignOut ?? PGAuthService().signOut)();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Signed out'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    PGToast.show(context, 'Signed out', variant: PGToastVariant.info);
   } on Object {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Could not sign out. Try again.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    PGToast.show(
+      context,
+      'Could not sign out. Try again.',
+      variant: PGToastVariant.error,
+    );
   }
 }
 
@@ -345,7 +336,6 @@ Future<void> _openExternal(
   Future<bool> Function(Uri uri) opener,
   Uri uri,
 ) async {
-  final messenger = ScaffoldMessenger.of(context);
   try {
     final opened = await opener(uri);
     if (opened || !context.mounted) return;
@@ -353,14 +343,11 @@ Future<void> _openExternal(
     if (!context.mounted) return;
   }
 
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      const SnackBar(
-        content: Text('Could not open link. Try again.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  PGToast.show(
+    context,
+    'Could not open link. Try again.',
+    variant: PGToastVariant.error,
+  );
 }
 
 void _showPrivacyDashboard(BuildContext context) {

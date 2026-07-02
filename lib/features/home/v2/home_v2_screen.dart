@@ -16,6 +16,7 @@ import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -1159,12 +1160,11 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
     setState(() => _index = i);
     // Order matches HomeV2Screen.destinations — Scan sits at index 2.
     final destination = const ['Home', 'Stack', 'Scan', 'Chat', 'Profile'][i];
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text('$destination tapped — preview only'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1200),
-      ),
+    PGToast.showWith(
+      messenger,
+      '$destination tapped — preview only',
+      variant: PGToastVariant.info,
+      duration: const Duration(milliseconds: 1200),
     );
   }
 

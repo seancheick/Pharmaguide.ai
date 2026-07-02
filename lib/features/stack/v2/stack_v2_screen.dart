@@ -12,6 +12,7 @@ import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_type_badge.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -564,33 +565,27 @@ class _StackTabState extends ConsumerState<_StackTab> {
                         } on Exception {
                           if (!context.mounted) return;
                           setState(() => _dismissedIds.remove(e.id));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not remove.'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          PGToast.show(
+                            context,
+                            'Could not remove.',
+                            variant: PGToastVariant.error,
                           );
                           return;
                         }
                         if (!context.mounted) return;
-                        final messenger = ScaffoldMessenger.of(context)
-                          ..hideCurrentSnackBar();
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Removed ${e.name}'),
-                            duration: const Duration(seconds: 4),
-                            behavior: SnackBarBehavior.floating,
-                            action: SnackBarAction(
-                              label: 'Undo',
-                              onPressed: () async {
-                                try {
-                                  await actions.restore(e.id);
-                                } on Exception {
-                                  // silent
-                                }
-                              },
-                            ),
-                          ),
+                        PGToast.show(
+                          context,
+                          'Removed ${e.name}',
+                          variant: PGToastVariant.info,
+                          duration: const Duration(seconds: 4),
+                          actionLabel: 'Undo',
+                          onAction: () async {
+                            try {
+                              await actions.restore(e.id);
+                            } on Exception {
+                              // silent
+                            }
+                          },
                         );
                       },
               ),
@@ -915,19 +910,14 @@ class _StackItemRow extends ConsumerWidget {
               context.push(Routes.productDetail(id));
               return;
             }
-            final messenger = ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar();
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  entry.isMedication
-                      ? "Medications don't have a detail page yet."
-                      : 'No product details available for this entry. '
-                            'Re-add via scan to enable the detail page.',
-                ),
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 3),
-              ),
+            PGToast.show(
+              context,
+              entry.isMedication
+                  ? "Medications don't have a detail page yet."
+                  : 'No product details available for this entry. '
+                        'Re-add via scan to enable the detail page.',
+              variant: PGToastVariant.info,
+              duration: const Duration(seconds: 3),
             );
           },
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
