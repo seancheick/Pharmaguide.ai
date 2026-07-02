@@ -260,7 +260,12 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
     'alpha_lipoic_acid': ConditionThreshold.aboveDose(
       minDose: 600,
       doseUnit: 'mg',
-      rationale: 'PMID 21134318: hypoglycemic at ~600 mg/day + diabetes meds',
+      rationale:
+          'PMID 22374556 (T2D RCT, DL-ALA 300-1200 mg/day incl. 600 mg): lowers '
+          'fasting glucose/HbA1c dose-dependently; additive hypoglycemia when '
+          'combined with glucose-lowering meds is mechanistic inference. '
+          'Replaces mis-cited PMID 21134318 (a medaka-fish genetics paper) — '
+          'corrected 2026-07-02.',
     ),
     // Vanadium: clinical hypoglycemic data lives at pharmacologic
     // doses (50-200 MG vanadyl sulfate). Supplements ship at

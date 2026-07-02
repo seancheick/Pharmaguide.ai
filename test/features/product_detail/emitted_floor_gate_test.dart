@@ -111,4 +111,25 @@ void main() {
       expect(_hasNiacin(out), isTrue);
     });
   });
+
+  group('dedupe vs floor gate (D1 guard — adversarial audit)', () {
+    test('twins differing only in doseFloorStatus are not collapsed', () {
+      // Same headline/body/conditions => identical legacy dedupe key. The
+      // suppressible "below" twin must not swallow the firing "null" twin
+      // before the floor gate runs (dedupe precedes the gate).
+      final deduped = InteractionWarning.dedupe([
+        _niacin(doseFloorStatus: 'below'),
+        _niacin(doseFloorStatus: null),
+      ]);
+      expect(deduped.length, 2, reason: 'floor fields must be in the dedupe key');
+    });
+
+    test('true identical duplicates still collapse', () {
+      final deduped = InteractionWarning.dedupe([
+        _niacin(doseFloorStatus: 'below'),
+        _niacin(doseFloorStatus: 'below'),
+      ]);
+      expect(deduped.length, 1);
+    });
+  });
 }

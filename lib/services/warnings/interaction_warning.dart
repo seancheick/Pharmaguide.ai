@@ -424,7 +424,13 @@ class InteractionWarning {
       parts.sort();
       gateKey = '$gateType:${parts.join(',')}';
     }
-    return '${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body|$gateKey';
+    // Smart-flag fields are load-bearing for the emitted-floor gate, which runs
+    // AFTER dedupe — so two rows the gate would treat differently (one below-floor
+    // suppressible, one firing) must not collapse into one. Identical real
+    // duplicates (same warning in both blob lists) still share these values and
+    // collapse as before.
+    return '${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body|$gateKey'
+        '|$direction|$materiality|$doseFloorStatus';
   }
 
   /// Collapse duplicate warnings into a single entry per [_dedupeKey],
