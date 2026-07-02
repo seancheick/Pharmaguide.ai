@@ -28,6 +28,13 @@ const fullReport = CoverageReport(
       source: UnderdosedSource.rda,
     ),
   ],
+  priorityGaps: [
+    PriorityNutrientGap(
+      nutrientId: 'dha',
+      nutrientName: 'DHA',
+      detail: 'Not confirmed in your stack for prenatal coverage.',
+    ),
+  ],
   unaddressedGoals: [
     UnaddressedGoal(
       goalId: 'GOAL_CARDIOVASCULAR_HEART_HEALTH',
@@ -50,13 +57,48 @@ void main() {
 
     expect(find.text('Is your stack working?'), findsOneWidget);
     expect(find.byKey(const Key('coverage-supported')), findsOneWidget);
+    expect(find.byKey(const Key('coverage-priority-gaps')), findsOneWidget);
     expect(find.byKey(const Key('coverage-underdosed')), findsOneWidget);
     expect(find.byKey(const Key('coverage-unaddressed')), findsOneWidget);
     expect(find.text('Supported'), findsOneWidget);
+    expect(find.text('Priority gaps'), findsOneWidget);
     expect(find.text('Underdosed'), findsOneWidget);
     expect(find.text('Unaddressed'), findsOneWidget);
     // Counts: 1 supported, 1 underdosed, 2 unaddressed (goal + depletion).
     expect(find.text('2'), findsOneWidget);
+  });
+
+  testWidgets('priority gaps render as calm advisory rows', (tester) async {
+    const report = CoverageReport(
+      priorityGaps: [
+        PriorityNutrientGap(
+          nutrientId: 'dha',
+          nutrientName: 'DHA',
+          detail: 'Not confirmed in your stack for prenatal coverage.',
+        ),
+        PriorityNutrientGap(
+          nutrientId: 'choline',
+          nutrientName: 'Choline',
+          detail: 'Present in your stack, but below the usual prenatal target.',
+        ),
+      ],
+      hasGoals: true,
+      hasStack: true,
+    );
+    await tester.pumpWidget(host(const StackCoverageCard(report: report)));
+
+    expect(find.byKey(const Key('coverage-priority-gaps')), findsOneWidget);
+    expect(find.text('Priority gaps'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('coverage-priority-gaps')));
+    await tester.pumpAndSettle();
+    expect(find.text('DHA'), findsOneWidget);
+    expect(find.text('Choline'), findsOneWidget);
+    expect(find.textContaining('Not confirmed'), findsOneWidget);
+    expect(
+      find.textContaining('below the usual prenatal target'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('partially supported bucket renders and expands', (tester) async {
@@ -159,6 +201,7 @@ void main() {
     );
     // Goal bucket hidden, goal-independent buckets still rendered.
     expect(find.byKey(const Key('coverage-supported')), findsNothing);
+    expect(find.byKey(const Key('coverage-priority-gaps')), findsOneWidget);
     expect(find.byKey(const Key('coverage-underdosed')), findsOneWidget);
     expect(find.byKey(const Key('coverage-unaddressed')), findsOneWidget);
 
@@ -177,6 +220,7 @@ void main() {
     await tester.pumpWidget(host(const StackCoverageCard(report: report)));
     expect(find.byKey(const Key('coverage-no-goals')), findsNothing);
     expect(find.text('Add goals'), findsNothing);
+    expect(find.byKey(const Key('coverage-priority-gaps')), findsOneWidget);
     expect(find.byKey(const Key('coverage-underdosed')), findsOneWidget);
     expect(find.byKey(const Key('coverage-unaddressed')), findsOneWidget);
   });

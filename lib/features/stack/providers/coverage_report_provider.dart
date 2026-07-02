@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
@@ -68,11 +69,24 @@ final coverageReportProvider = FutureProvider.autoDispose<CoverageReport>((
       continue;
     }
     if (isLowCoverage(product.mappedCoverage)) coverageIncomplete = true;
+    String? productRole;
+    var prenatalCoverage = const <PriorityCoverageAnchor>[];
+    try {
+      final blob = await ref.watch(detailBlobProvider(dsldId).future);
+      productRole = _readProductRole(blob);
+      prenatalCoverage = _readPrenatalCoverage(blob, entry.name);
+    } on Object {
+      // Detail blobs are best-effort here. Goal coverage still works from
+      // products_core; priority gaps simply stay absent when the blob is not
+      // cached/fetchable.
+    }
     products.add(
       CoverageProductInput(
         name: entry.name,
         goalMatches: decodeGoalMatches(product.goalMatches),
         goalMatchesUnderdosed: decodeGoalMatches(product.goalMatchesUnderdosed),
+        productRole: productRole,
+        prenatalCoverage: prenatalCoverage,
       ),
     );
   }
@@ -129,4 +143,48 @@ Set<String> decodeGoalMatches(String? raw) {
     // Defensive — malformed column never crashes the card.
   }
   return out;
+}
+
+String? _readProductRole(Map<String, dynamic>? blob) {
+  final raw = blob?['product_role'];
+  if (raw == null) return null;
+  final value = raw.toString().trim();
+  return value.isEmpty ? null : value;
+}
+
+List<PriorityCoverageAnchor> _readPrenatalCoverage(
+  Map<String, dynamic>? blob,
+  String productName,
+) {
+  final coverage = blob?['prenatal_coverage'];
+  if (coverage is! Map) return const [];
+  final anchors = coverage['anchors'];
+  if (anchors is! List) return const [];
+  final out = <PriorityCoverageAnchor>[];
+  for (final row in anchors) {
+    if (row is! Map) continue;
+    final id = row['nutrient_id']?.toString().trim() ?? '';
+    final label = row['label']?.toString().trim() ?? id;
+    final status = row['status']?.toString().trim() ?? '';
+    if (id.isEmpty || label.isEmpty || status.isEmpty) continue;
+    out.add(
+      PriorityCoverageAnchor(
+        nutrientId: id,
+        nutrientName: label,
+        status: status,
+        productName: productName,
+        amount: _readDouble(row['amount']),
+        unit: row['unit']?.toString(),
+        target: _readDouble(row['target']),
+        targetUnit: row['target_unit']?.toString(),
+      ),
+    );
+  }
+  return out;
+}
+
+double? _readDouble(Object? value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
 }

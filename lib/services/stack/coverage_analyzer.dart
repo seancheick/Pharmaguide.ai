@@ -37,6 +37,8 @@ class CoverageProductInput {
     required this.name,
     required this.goalMatches,
     this.goalMatchesUnderdosed = const {},
+    this.productRole,
+    this.prenatalCoverage = const [],
   });
 
   /// Display name of the product (stack entry name).
@@ -53,6 +55,38 @@ class CoverageProductInput {
   /// goal is never both supported and underdosed for the same product).
   /// Empty when the column is null/unpopulated.
   final Set<String> goalMatchesUnderdosed;
+
+  /// Pipeline-emitted product role from the detail blob. Null for old
+  /// cached blobs; the analyzer treats that as "unknown", not as evidence.
+  final String? productRole;
+
+  /// Pipeline-emitted prenatal coverage anchors. Score-neutral, used only
+  /// to say what a prenatal stack still appears to be missing.
+  final List<PriorityCoverageAnchor> prenatalCoverage;
+}
+
+/// One score-neutral nutrient anchor emitted by the pipeline coverage ledger.
+@immutable
+class PriorityCoverageAnchor {
+  const PriorityCoverageAnchor({
+    required this.nutrientId,
+    required this.nutrientName,
+    required this.status,
+    required this.productName,
+    this.amount,
+    this.unit,
+    this.target,
+    this.targetUnit,
+  });
+
+  final String nutrientId;
+  final String nutrientName;
+  final String status;
+  final String productName;
+  final double? amount;
+  final String? unit;
+  final double? target;
+  final String? targetUnit;
 }
 
 /// One SUPPORTED row: a user goal plus the stack products serving it.
@@ -95,6 +129,22 @@ class UnderdosedNutrient {
   final String detail;
 
   final UnderdosedSource source;
+}
+
+/// One PRIORITY GAP row: a goal-specific nutrient not confirmed at target.
+@immutable
+class PriorityNutrientGap {
+  const PriorityNutrientGap({
+    required this.nutrientId,
+    required this.nutrientName,
+    required this.detail,
+    this.hedged = false,
+  });
+
+  final String nutrientId;
+  final String nutrientName;
+  final String detail;
+  final bool hedged;
 }
 
 /// One UNADDRESSED goal row.
@@ -150,6 +200,7 @@ class CoverageReport {
   const CoverageReport({
     this.supported = const [],
     this.partiallySupported = const [],
+    this.priorityGaps = const [],
     this.underdosed = const [],
     this.unaddressedGoals = const [],
     this.unreplenishedDepletions = const [],
@@ -167,6 +218,7 @@ class CoverageReport {
   /// effective dose for this goal. Reuses [SupportedGoal] (goal + the
   /// products carrying the underdosed ingredient).
   final List<SupportedGoal> partiallySupported;
+  final List<PriorityNutrientGap> priorityGaps;
   final List<UnderdosedNutrient> underdosed;
   final List<UnaddressedGoal> unaddressedGoals;
   final List<UnreplenishedDepletion> unreplenishedDepletions;
@@ -291,6 +343,18 @@ class CoverageAnalyzer {
     }
 
     // -------------------------------------------------------------------
+    // PRIORITY GAPS — score-neutral, goal-specific stack coverage.
+    // Prenatal base products are not "bad products" for omitting DHA or
+    // choline; those gaps belong here, where separate companion products
+    // can satisfy them.
+    // -------------------------------------------------------------------
+    final priorityGaps = _priorityGapsForGoals(
+      goals: goals,
+      products: products,
+      coverageIncomplete: effectiveIncomplete,
+    );
+
+    // -------------------------------------------------------------------
     // UNDERDOSED — RDA-tracked nutrients below 50% of RDA, plus
     // depletion-relevant nutrients at partial coverage. Dedupe by
     // (lowercased) nutrient name; the depletion framing wins because it
@@ -359,6 +423,7 @@ class CoverageAnalyzer {
     return CoverageReport(
       supported: supported,
       partiallySupported: partiallySupported,
+      priorityGaps: priorityGaps,
       underdosed: underdosedByName.values.toList(growable: false),
       unaddressedGoals: unaddressedGoals,
       unreplenishedDepletions: unreplenished,
@@ -377,4 +442,75 @@ class CoverageAnalyzer {
   static bool _isCoverageRelevant(DepletionMatch dep) =>
       dep.depletionType == 'depletion' ||
       dep.depletionType == 'condition_related';
+
+  static const _prenatalGoalId = 'GOAL_PRENATAL_PREGNANCY';
+
+  static const _prenatalPriorityOrder = [
+    'dha',
+    'choline',
+    'folate',
+    'iron',
+    'iodine',
+    'vitamin_d',
+    'vitamin_b12',
+    'vitamin_a',
+  ];
+
+  static List<PriorityNutrientGap> _priorityGapsForGoals({
+    required List<String> goals,
+    required List<CoverageProductInput> products,
+    required bool coverageIncomplete,
+  }) {
+    if (!goals.contains(_prenatalGoalId)) return const [];
+    final hasPrenatalRole = products.any(
+      (p) => (p.productRole ?? '').startsWith('prenatal_'),
+    );
+    if (!hasPrenatalRole) return const [];
+
+    final anchorsById = <String, List<PriorityCoverageAnchor>>{};
+    for (final product in products) {
+      for (final anchor in product.prenatalCoverage) {
+        if (anchor.nutrientId.isEmpty) continue;
+        anchorsById.putIfAbsent(anchor.nutrientId, () => []).add(anchor);
+      }
+    }
+    if (anchorsById.isEmpty) return const [];
+
+    final gaps = <PriorityNutrientGap>[];
+    for (final id in _prenatalPriorityOrder) {
+      final anchors = anchorsById[id];
+      if (anchors == null || anchors.isEmpty) continue;
+      final label = anchors.first.nutrientName;
+      final target = anchors
+          .map((a) => a.target)
+          .whereType<double>()
+          .where((v) => v > 0)
+          .fold<double?>(null, (max, v) => max == null || v > max ? v : max);
+      final units = anchors
+          .map((a) => (a.targetUnit ?? a.unit ?? '').trim())
+          .where((u) => u.isNotEmpty)
+          .toSet();
+      final comparable = target != null && units.length <= 1;
+      final amount = anchors
+          .where((a) => a.amount != null && a.amount! > 0)
+          .fold<double>(0, (sum, a) => sum + a.amount!);
+      final anyCovered = anchors.any(
+        (a) => const {'covered', 'near_ul', 'above_ul'}.contains(a.status),
+      );
+      if (anyCovered || (comparable && amount >= target)) continue;
+
+      final detail = amount > 0
+          ? 'Present in your stack, but below the usual prenatal target.'
+          : 'Not confirmed in your stack for prenatal coverage.';
+      gaps.add(
+        PriorityNutrientGap(
+          nutrientId: id,
+          nutrientName: label,
+          detail: detail,
+          hedged: coverageIncomplete,
+        ),
+      );
+    }
+    return gaps;
+  }
 }

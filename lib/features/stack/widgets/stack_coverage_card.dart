@@ -3,6 +3,7 @@
 // coverageReportProvider) as three expandable buckets:
 //
 //   Supported   — goals the stack serves, with the products serving them.
+//   Priority    — goal-specific nutrients missing from the stack.
 //   Underdosed  — nutrients present but below an adequate dose.
 //   Unaddressed — goals nothing supports + depletions nothing replenishes.
 //
@@ -114,6 +115,18 @@ class StackCoverageCard extends StatelessWidget {
               ),
               const SizedBox(height: V2Spacing.space8),
             ],
+            _CoverageSection(
+              key: const Key('coverage-priority-gaps'),
+              title: 'Priority gaps',
+              count: report.priorityGaps.length,
+              tone: V2Colors.accent,
+              emptyLine: 'No priority nutrient gaps detected in your stack.',
+              rows: [
+                for (final gap in report.priorityGaps)
+                  _CoverageRow(title: gap.nutrientName, detail: gap.detail),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space8),
             _CoverageSection(
               key: const Key('coverage-underdosed'),
               title: 'Underdosed',

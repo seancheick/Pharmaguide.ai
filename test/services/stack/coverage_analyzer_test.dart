@@ -11,10 +11,32 @@ CoverageProductInput product(
   String name,
   Set<String> goals, {
   Set<String> underdosed = const {},
+  String? productRole,
+  List<PriorityCoverageAnchor> prenatalCoverage = const [],
 }) => CoverageProductInput(
   name: name,
   goalMatches: goals,
   goalMatchesUnderdosed: underdosed,
+  productRole: productRole,
+  prenatalCoverage: prenatalCoverage,
+);
+
+PriorityCoverageAnchor anchor(
+  String id,
+  String label,
+  String status, {
+  double? amount,
+  String? unit,
+  double? target,
+}) => PriorityCoverageAnchor(
+  nutrientId: id,
+  nutrientName: label,
+  status: status,
+  productName: 'Basic Prenatal',
+  amount: amount,
+  unit: unit,
+  target: target,
+  targetUnit: unit,
 );
 
 DepletionMatch depletion({
@@ -247,6 +269,133 @@ void main() {
         coverageIncomplete: true,
       );
       expect(report.unaddressedGoals.single.hedged, isTrue);
+    });
+  });
+
+  group('PRIORITY GAPS bucket', () {
+    test(
+      'prenatal goal plus prenatal base surfaces missing DHA and choline',
+      () {
+        final report = analyzer.analyze(
+          goals: const ['GOAL_PRENATAL_PREGNANCY'],
+          products: [
+            product(
+              'Basic Prenatal',
+              const {'GOAL_PRENATAL_PREGNANCY'},
+              productRole: 'prenatal_base',
+              prenatalCoverage: [
+                anchor('dha', 'DHA', 'missing', target: 200, unit: 'mg'),
+                anchor(
+                  'choline',
+                  'Choline',
+                  'missing',
+                  target: 450,
+                  unit: 'mg',
+                ),
+                anchor('folate', 'Folate', 'covered', amount: 600, target: 600),
+              ],
+            ),
+          ],
+        );
+
+        expect(report.priorityGaps.map((g) => g.nutrientId), [
+          'dha',
+          'choline',
+        ]);
+        expect(report.priorityGaps.first.detail, contains('Not confirmed'));
+      },
+    );
+
+    test('separate DHA companion satisfies base-product DHA gap', () {
+      final report = analyzer.analyze(
+        goals: const ['GOAL_PRENATAL_PREGNANCY'],
+        products: [
+          product(
+            'Basic Prenatal',
+            const {'GOAL_PRENATAL_PREGNANCY'},
+            productRole: 'prenatal_base',
+            prenatalCoverage: [
+              anchor('dha', 'DHA', 'missing', target: 200, unit: 'mg'),
+              anchor('choline', 'Choline', 'missing', target: 450, unit: 'mg'),
+            ],
+          ),
+          product(
+            'Prenatal DHA',
+            const {},
+            productRole: 'prenatal_dha_companion',
+            prenatalCoverage: [
+              anchor(
+                'dha',
+                'DHA',
+                'covered',
+                amount: 250,
+                target: 200,
+                unit: 'mg',
+              ),
+            ],
+          ),
+        ],
+      );
+
+      expect(report.priorityGaps.map((g) => g.nutrientId), ['choline']);
+    });
+
+    test('below-target companion amounts can add up across stack', () {
+      final report = analyzer.analyze(
+        goals: const ['GOAL_PRENATAL_PREGNANCY'],
+        products: [
+          product(
+            'Basic Prenatal',
+            const {'GOAL_PRENATAL_PREGNANCY'},
+            productRole: 'prenatal_base',
+            prenatalCoverage: [
+              anchor(
+                'choline',
+                'Choline',
+                'below_target',
+                amount: 250,
+                target: 450,
+                unit: 'mg',
+              ),
+            ],
+          ),
+          product(
+            'Choline',
+            const {},
+            productRole: 'targeted_gap_filler',
+            prenatalCoverage: [
+              anchor(
+                'choline',
+                'Choline',
+                'below_target',
+                amount: 250,
+                target: 450,
+                unit: 'mg',
+              ),
+            ],
+          ),
+        ],
+      );
+
+      expect(report.priorityGaps, isEmpty);
+    });
+
+    test('prenatal anchors do not surface without prenatal goal', () {
+      final report = analyzer.analyze(
+        goals: const ['GOAL_SLEEP_QUALITY'],
+        products: [
+          product(
+            'Basic Prenatal',
+            const {},
+            productRole: 'prenatal_base',
+            prenatalCoverage: [
+              anchor('dha', 'DHA', 'missing', target: 200, unit: 'mg'),
+            ],
+          ),
+        ],
+      );
+
+      expect(report.priorityGaps, isEmpty);
     });
   });
 
