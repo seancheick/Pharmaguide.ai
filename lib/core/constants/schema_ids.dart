@@ -116,6 +116,7 @@ abstract final class SchemaIds {
     'statins',
     'antidepressants_ssri_snri',
     'maois',
+    'serotonergic_medications',
     'cardiac_glycosides',
     'anticholinergics',
   ];
@@ -136,6 +137,7 @@ abstract final class SchemaIds {
     'statins': 'Statins / Cholesterol medication',
     'antidepressants_ssri_snri': 'Antidepressants (SSRIs/SNRIs)',
     'maois': 'MAOIs',
+    'serotonergic_medications': 'Other serotonergic medication',
     'cardiac_glycosides': 'Digoxin / Heart rhythm medication',
     'anticholinergics': 'Anticholinergic medication',
   };

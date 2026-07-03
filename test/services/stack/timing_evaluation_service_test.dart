@@ -84,6 +84,20 @@ final _testTimingRulesJson = {
       'evidence_level': 'possible',
       'sources': <Map<String, String>>[],
     },
+    {
+      'id': 'timing_psyllium_water_med_spacing',
+      'ingredient1': 'psyllium',
+      'ingredient2': 'medications',
+      'rule_type': 'separate',
+      'advice':
+          'Mix psyllium with at least 8 oz of liquid, and take other medications at least 3 hours away.',
+      'mechanism':
+          'Bulk-forming psyllium can swell and delay absorption of some medications.',
+      'separation_hours': 3,
+      'score_impact': -1,
+      'evidence_level': 'established',
+      'sources': <Map<String, String>>[],
+    },
   ],
 };
 
@@ -96,7 +110,7 @@ void main() {
     });
 
     test('parses rules from JSON', () {
-      expect(service.ruleCount, 6);
+      expect(service.ruleCount, 7);
     });
 
     group('supplement × supplement matching', () {
@@ -177,6 +191,24 @@ void main() {
             .toList();
         expect(mag, hasLength(1));
         expect(mag.first.ruleType, TimingRuleType.timeOfDay);
+      });
+
+      test('fires psyllium water and medication-spacing context rule', () {
+        final results = service.evaluateStack(
+          supplementTags: {
+            'Psyllium Husk': {'psyllium'},
+          },
+          medicationNames: [],
+        );
+
+        final psyllium = results
+            .where((r) => r.ruleId == 'timing_psyllium_water_med_spacing')
+            .toList();
+        expect(psyllium, hasLength(1));
+        expect(psyllium.first.ruleType, TimingRuleType.separate);
+        expect(psyllium.first.separationHours, 3);
+        expect(psyllium.first.product1Name, 'Psyllium Husk');
+        expect(psyllium.first.product2Name, isNull);
       });
     });
 

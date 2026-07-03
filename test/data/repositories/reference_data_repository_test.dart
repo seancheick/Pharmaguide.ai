@@ -19,11 +19,15 @@ void main() {
       expect((conditions.first as Map)['id'], 'pregnancy');
     });
 
-    test('loads clinical_risk_taxonomy with 28 drug classes', () async {
+    test('loads clinical_risk_taxonomy with 29 drug classes', () async {
       final taxonomy = await repo.loadClinicalRiskTaxonomy();
       final drugClasses = taxonomy['drug_classes'] as List;
-      expect(drugClasses.length, 28);
+      expect(drugClasses.length, 29);
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
+      expect(
+        drugClasses.map((entry) => (entry as Map)['id']),
+        contains('serotonergic_medications'),
+      );
     });
 
     test('loads clinical_risk_taxonomy with 8 profile flags', () async {

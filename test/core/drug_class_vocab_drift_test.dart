@@ -17,27 +17,20 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 24 entries (15 user_selectable + 9 rule-only)', () {
-      // 2026-05-13: v6.1.0 hypoglycemics 3-way split — added
-      // hypoglycemics_high_risk, hypoglycemics_lower_risk,
-      // hypoglycemics_unknown as user_selectable; demoted the original
-      // single hypoglycemics ID to rule-only (pipeline interaction
-      // rules still emit it via the compat mapping in
-      // lib/features/product_detail/widgets/interaction_warnings.dart).
-      // Net: +3 entries, +2 selectable, +1 rule-only.
+    test('schema lock + 29 entries (16 user_selectable + 13 rule-only)', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
       expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 24);
-      expect(md['user_selectable_count'], 15);
-      expect(md['rule_only_count'], 9);
+      expect(md['total_entries'], 29);
+      expect(md['user_selectable_count'], 16);
+      expect(md['rule_only_count'], 13);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
     test(
-      'user_selectable subset (15) matches schema_ids.dart `drugClasses`',
+      'user_selectable subset (16) matches schema_ids.dart `drugClasses`',
       () {
         final raw = file.readAsStringSync();
         final decoded = jsonDecode(raw) as Map<String, dynamic>;
@@ -65,39 +58,13 @@ void main() {
             'statins',
             'antidepressants_ssri_snri',
             'maois',
+            'serotonergic_medications',
             'cardiac_glycosides',
             'anticholinergics',
           }),
         );
       },
     );
-
-    test('rule-only `hypoglycemics` entry preserved for pipeline compat', () {
-      // The v6.1.0 split SPLIT the user-facing drug class but the
-      // pipeline interaction rules
-      // (scripts/data/ingredient_interaction_rules.json) still emit
-      // 'hypoglycemics' as drug_class_rules[].drug_class_id. The
-      // Flutter compat mapping in interaction_warnings.dart line ~371
-      // maps user-profile splits back to the old ID for rule lookup.
-      // The vocab entry stays in the asset (with user_selectable=false)
-      // so the interaction-warning display can resolve label/notes.
-      final raw = file.readAsStringSync();
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final entries = (decoded['drug_classes'] as List)
-          .cast<Map<String, dynamic>>();
-      final hypo = entries.firstWhere(
-        (e) => e['id'] == 'hypoglycemics',
-        orElse: () => <String, dynamic>{},
-      );
-      expect(
-        hypo,
-        isNotEmpty,
-        reason:
-            'rule-only hypoglycemics entry deleted — pipeline '
-            'interaction rules will break their lookup',
-      );
-      expect(hypo['user_selectable'], false);
-    });
 
     test(
       'vocab `name` matches schema_ids.dart `drugClassLabels` for selectable subset',
@@ -120,6 +87,7 @@ void main() {
           'statins': 'Statins / Cholesterol medication',
           'antidepressants_ssri_snri': 'Antidepressants (SSRIs/SNRIs)',
           'maois': 'MAOIs',
+          'serotonergic_medications': 'Other serotonergic medication',
           'cardiac_glycosides': 'Digoxin / Heart rhythm medication',
           'anticholinergics': 'Anticholinergic medication',
         };

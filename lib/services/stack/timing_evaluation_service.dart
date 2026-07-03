@@ -148,7 +148,7 @@ class TimingEvaluationService {
       }
 
       // Index ingredient2 side (skip non-matchable context like "food",
-      // "sleep", "dietary fat", "melatonin production").
+      // "sleep", "dietary fat", "medications", "melatonin production").
       if (!_isContextOnly(i2Norm)) {
         if (i2IsMed) {
           _addToMedIndex(medicationIndex, i2Norm, rule, isIngredient1: false);
@@ -424,6 +424,7 @@ class TimingEvaluationService {
       'sleep',
       'melatonin',
       'melatonin production',
+      'medications',
       'minerals',
     };
     return contextTerms.contains(normalized);

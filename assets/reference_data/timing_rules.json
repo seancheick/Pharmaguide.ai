@@ -3,8 +3,8 @@
     "description": "Supplement timing and absorption interaction rules for optimal nutrient uptake",
     "purpose": "timing_optimization",
     "schema_version": "5.0.0",
-    "last_updated": "2026-06-28",
-    "total_entries": 36
+    "last_updated": "2026-07-03",
+    "total_entries": 37
   },
   "timing_rules": [
     {
@@ -321,6 +321,24 @@
           "source_type": "reference",
           "label": "NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals",
           "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+        }
+      ]
+    },
+    {
+      "id": "timing_psyllium_water_med_spacing",
+      "ingredient1": "psyllium",
+      "ingredient2": "medications",
+      "rule_type": "separate",
+      "advice": "Mix psyllium with at least 8 oz of liquid, and take other medications at least 3 hours away.",
+      "mechanism": "Bulk-forming psyllium absorbs water and swells in the gut. Taking it dry or with too little fluid can cause choking, and the gel can delay absorption of some oral medications.",
+      "separation_hours": 3,
+      "score_impact": -1,
+      "evidence_level": "established",
+      "sources": [
+        {
+          "source_type": "reference",
+          "label": "MedlinePlus — Psyllium",
+          "url": "https://medlineplus.gov/druginfo/meds/a601104.html"
         }
       ]
     },

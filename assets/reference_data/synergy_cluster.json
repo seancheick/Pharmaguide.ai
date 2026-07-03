@@ -3,7 +3,7 @@
     "description": "Ingredient synergy clusters for bonus scoring when complementary ingredients are combined",
     "purpose": "synergy_bonuses",
     "schema_version": "5.2.0",
-    "last_updated": "2026-04-24",
+    "last_updated": "2026-07-03",
     "total_entries": 58,
     "citation_fields": "note + sources (phase_3 curated_no_query_placeholders)",
     "citation_coverage": {
@@ -281,7 +281,7 @@
       "evidence_tier": 3,
       "standard_name": "Joint & Inflammation",
       "synergy_mechanism": "Glucosamine provides building blocks for glycosaminoglycan synthesis; chondroitin retains water in cartilage matrix; MSM donates sulfur for connective tissue repair; omega-3 fatty acids suppress pro-inflammatory prostaglandins via COX-2 modulation.",
-      "note": "+1 synergy bonus applies when at least 2 ingredients from 'Joint & Inflammation' are matched and at least half of dose-checkable ingredients meet minimum effective doses. Evidence strength: Tier 1 (strong). Anchor dose checks: glucosamine >= 1500, chondroitin >= 1200, msm >= 1000, omega-3 >= 1000. See sources for supporting references.",
+      "note": "+0.5 synergy bonus applies when at least 2 ingredients from 'Joint & Inflammation' are matched and at least half of dose-checkable ingredients meet minimum effective doses. Evidence strength: Tier 3 (moderate/mixed). Anchor dose checks: glucosamine >= 1500, chondroitin >= 1200, msm >= 1000, omega-3 >= 1000. See sources for supporting references.",
       "sources": [
         {
           "source_type": "nccih",

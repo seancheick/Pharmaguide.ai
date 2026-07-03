@@ -4,10 +4,10 @@
     "purpose": "interaction_alert_taxonomy",
     "schema_version": "5.2.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-05-26",
-    "total_entries": 76,
+    "last_updated": "2026-07-03",
+    "total_entries": 77,
     "flutter_top_level_key": "clinical_risk_taxonomy",
-    "drug_classes_count": 28,
+    "drug_classes_count": 29,
     "migration": {
       "completed_migrations": [
         {
@@ -186,16 +186,22 @@
       "display_priority": 11
     },
     {
+      "id": "serotonergic_medications",
+      "label": "Other Serotonergic Medications",
+      "category": "psychiatry",
+      "display_priority": 12
+    },
+    {
       "id": "cardiac_glycosides",
       "label": "Cardiac Glycosides (Digoxin)",
       "category": "cardiology",
-      "display_priority": 12
+      "display_priority": 13
     },
     {
       "id": "anticholinergics",
       "label": "Anticholinergic Medications",
       "category": "neurology",
-      "display_priority": 13
+      "display_priority": 14
     },
     {
       "id": "anticonvulsants",
@@ -214,7 +220,7 @@
       "id": "thiazide_diuretics",
       "label": "Thiazide Diuretics",
       "category": "cardiology",
-      "display_priority": 14,
+      "display_priority": 15,
       "description": "Thiazide and thiazide-like diuretics. Distinct from other diuretics because they retain calcium (relevant for vitamin D + calcium supplements)."
     },
     {
