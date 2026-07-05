@@ -150,18 +150,33 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   }
 
   Future<void> _loadCategoryResults(String category) async {
+    // Share the monotonic search token with _executeSearch: tapping a category
+    // then quickly typing (or vice-versa) must let the LATEST request win.
+    // Without this, a slow category load lands after a newer query search and
+    // clobbers _results with stale category rows.
+    final version = ++_searchVersion;
     setState(() => _loading = true);
     final db = ref.read(coreDatabaseProvider);
-    final results = await db.filterProducts(
-      category: category,
-      limit: 50,
-      sortBy: 'score',
-    );
-    if (!mounted) return;
-    setState(() {
-      _results = results;
-      _loading = false;
-    });
+    try {
+      final results = await db.filterProducts(
+        category: category,
+        limit: 50,
+        sortBy: 'score',
+      );
+      if (version != _searchVersion) return;
+      if (!mounted) return;
+      setState(() {
+        _results = results;
+        _loading = false;
+      });
+    } on Exception {
+      if (version != _searchVersion) return;
+      if (!mounted) return;
+      setState(() {
+        _results = <ProductsCoreData>[];
+        _loading = false;
+      });
+    }
   }
 
   @override
