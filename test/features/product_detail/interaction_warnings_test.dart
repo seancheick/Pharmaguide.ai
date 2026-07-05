@@ -23,7 +23,9 @@ void main() {
     test('handles missing fields gracefully', () {
       final json = <String, dynamic>{'title': 'Test warning'};
       final warning = InteractionWarning.fromJson(json);
-      expect(warning.severity, Severity.safe);
+      // Missing severity fails safe to caution (not safe): a malformed
+      // warning must never silently drop out of the actionable bucket.
+      expect(warning.severity, Severity.caution);
       expect(warning.evidenceLevel, EvidenceLevel.ungraded);
       expect(warning.sourceUrls, isEmpty);
     });

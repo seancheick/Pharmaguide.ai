@@ -7,8 +7,10 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
 
 // ---------------------------------------------------------------------------
 // `topGoalLabelFromFit`
@@ -74,12 +76,30 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
   // before the profile filter can promote them back (G2).
   final flooredWarnings = applyEmittedFloorGate(gatedWarnings);
 
+  // Resolve product form + per-nutrient dose/form once so dose-dependent
+  // profile-gate rules evaluate at the product's real dose instead of
+  // silently falling through to their `severity_if_not_met` branch (a
+  // 750 mg niacin product must reach the "avoid" arm, not "caution").
+  // The detail blob is parsed to ProductHealthFacts a single time and
+  // reused for every warning.
+  final healthFacts = detailBlob == null
+      ? null
+      : ProductHealthFacts.fromDetailBlob(detailBlob);
+
   return flooredWarnings
       .where((w) {
+        final productContext = resolveProfileGateProductContext(
+          detailBlob: detailBlob,
+          warning: w,
+          healthFacts: healthFacts,
+        );
         if (w.matchesProfile(
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
           userProfileFlags: userProfileFlags,
+          productForm: productContext.productForm,
+          nutrientForm: productContext.nutrientForm,
+          dosePerDay: productContext.dosePerDay,
         )) {
           return true;
         }

@@ -267,7 +267,13 @@ class InteractionWarning {
         : null;
 
     return InteractionWarning(
-      severity: Severity.fromString(json['severity']?.toString() ?? 'safe'),
+      // Fail safe: a warning that arrives with no severity is malformed,
+      // not benign. Default to caution (matching the DB-hydration path in
+      // interaction_result.dart) so a missing field can never silently
+      // drop a real warning to `safe` and out of the actionable bucket.
+      severity: Severity.fromString(
+        json['severity']?.toString() ?? 'caution',
+      ),
       severityContextual: sevContextual,
       displayModeDefault: json['display_mode_default']?.toString(),
       evidenceLevel: EvidenceLevel.fromString(

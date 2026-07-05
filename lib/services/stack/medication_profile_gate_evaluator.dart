@@ -106,6 +106,13 @@ class MedicationProfileGateEvaluator {
       drugClasses: medicationProfileGateClassIds,
       profileFlags: userProfileFlags,
     );
+    // Empty context is intentional: medication_profile_gate_rules are
+    // gated only on conditions / drug classes / profile flags — none carry
+    // a dose threshold or a product/nutrient-form exclude (verified: 0 of
+    // the shipped rules use a dose block or *_forms_any). If a
+    // dose-modified medication rule is ever added, a real ProductContext
+    // (dose/form) must be threaded here or it will resolve to the weaker
+    // `severity_if_not_met` branch.
     const context = gate.ProductContext();
 
     final out = <MedicationProfileWarning>[];
