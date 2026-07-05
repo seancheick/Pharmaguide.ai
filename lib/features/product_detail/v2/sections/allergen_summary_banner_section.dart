@@ -18,9 +18,11 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// Build the allergen summary fallback section (free-text allergen info).
 ///
-/// Returns `SizedBox.shrink()` when the summary is null/empty. The gate is
-/// enforced upstream by `shouldShowAllergenSummaryBanner` — this helper
-/// only renders the visual presentation.
+/// This is UNMATCHED free text — there is no structured profile match — so
+/// it is framed conservatively ("Check the label for your allergens") rather
+/// than presented as an authoritative match. Returns `SizedBox.shrink()`
+/// when the summary is null/empty. The gate is enforced upstream by
+/// `shouldShowAllergenSummaryBanner`.
 Widget buildAllergenSummaryBannerSection({required String? allergenSummary}) {
   if (allergenSummary == null || allergenSummary.trim().isEmpty) {
     return const SizedBox.shrink();
@@ -28,6 +30,7 @@ Widget buildAllergenSummaryBannerSection({required String? allergenSummary}) {
   return _allergenBanner(
     accent: V2Colors.caution,
     icon: Icons.warning_amber_rounded,
+    title: 'Check the label for your allergens',
     text: allergenSummary.trim(),
   );
 }
@@ -52,6 +55,7 @@ Widget _allergenBanner({
   required Color accent,
   required IconData icon,
   required String text,
+  String? title,
 }) {
   return Container(
     decoration: BoxDecoration(
@@ -76,9 +80,24 @@ Widget _allergenBanner({
                   Icon(icon, size: 18, color: accent),
                   const SizedBox(width: V2Spacing.space8),
                   Expanded(
-                    child: Text(
-                      text,
-                      style: V2Typography.bodySm(color: V2Colors.fg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (title != null) ...[
+                          Text(
+                            title,
+                            style: V2Typography.bodySm(
+                              color: V2Colors.fg,
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        Text(
+                          text,
+                          style: V2Typography.bodySm(color: V2Colors.fg),
+                        ),
+                      ],
                     ),
                   ),
                 ],
