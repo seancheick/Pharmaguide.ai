@@ -52,6 +52,32 @@ class MedicationClassBridge {
     '315431', // aspirin 81 MG
   };
   static const Set<String> _antiplateletClasses = {'class:antiplatelet_agents'};
+
+  // CONTRACT — interaction-bridge `class:*` vocab -> profile/rule vocab.
+  //
+  // The bridge produces `class:*` ids (RxClass / curated drug_class_map
+  // vocab, e.g. `class:diabetes_meds`). The profile-gate / condition-gate
+  // rules are keyed on the clinician-signed profile vocab in
+  // `drug_class_vocab.json` (e.g. `hypoglycemics_high_risk`). This map is the
+  // ONLY place the two vocabularies are crosswalked.
+  //
+  // POLICY (do not violate):
+  //   • FAIL OPEN — an id NOT in this map falls through to `class:`-stripped
+  //     pass-through in [profileGateIdsForClasses]; it is never dropped. So
+  //     an unmapped id still matches a rule keyed on the same bare id and
+  //     simply won't match a differently-named profile id until a mapping is
+  //     added here.
+  //   • SEED ONLY FROM VERIFIED SOURCES — add an entry ONLY when the mapping
+  //     is already represented by an existing curated rule or the
+  //     clinician-signed drug_class_vocab. Do NOT infer clinical equivalence
+  //     (e.g. `diabetes_meds`->`hypoglycemics_*`, `ssris`->
+  //     `antidepressants_ssri_snri`, `vitamin_k_antagonists`->`anticoagulants`)
+  //     without clinical sign-off — a wrong crosswalk silently mis-fires or
+  //     suppresses a medication safety warning.
+  //
+  // Currently seeded: only `antiplatelet_agents -> antiplatelets`, backed by
+  // the curated antiplatelet handling above. The clinical crosswalks named
+  // above are intentionally ABSENT pending review (they fail open today).
   static const Map<String, String> _profileGateClassOverrides = {
     'class:antiplatelet_agents': 'antiplatelets',
   };
@@ -111,7 +137,7 @@ class MedicationClassBridge {
       runtimeClassIds: runtime,
       curatedInteractionClassIds: curated,
       mergedInteractionClassIds: merged,
-      profileGateClassIds: _profileGateIds(curated),
+      profileGateClassIds: profileGateIdsForClasses(curated),
     );
   }
 
@@ -153,7 +179,14 @@ class MedicationClassBridge {
     return out;
   }
 
-  static List<String> _profileGateIds(Iterable<String> classIds) {
+  /// Crosswalk interaction-bridge `class:*` ids to the profile/rule vocab
+  /// used by the profile-gate and condition-gate matchers, applying
+  /// [_profileGateClassOverrides]. FAIL-OPEN: an unmapped id passes through
+  /// as its `class:`-stripped bare form (never dropped). Non-`class:` ids are
+  /// ignored. Deduped, order-preserving. The single crosswalk — reused
+  /// wherever bridge classes feed profile matching (e.g.
+  /// `currentStackMedicationClassIdsProvider`).
+  static List<String> profileGateIdsForClasses(Iterable<String> classIds) {
     final out = <String>[];
     final seen = <String>{};
     for (final classId in classIds) {

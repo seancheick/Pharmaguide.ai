@@ -30,25 +30,26 @@ UserStacksLocalData _row({
 }
 
 void main() {
-  test('unions medication drug classes and ignores supplement rows', () async {
+  test('crosswalks medication drug classes and ignores supplement rows', () async {
     final container = ProviderContainer(
       overrides: [
         activeStackProvider.overrideWith(
           (ref) async => [
+            // Stack rows store the `class:*` interaction-bridge vocab.
             _row(
-              id: 'warfarin',
+              id: 'aspirin',
               type: 'medication',
-              drugClassesCol: '["vitamin_k_antagonists","anticoagulants"]',
+              drugClassesCol: '["class:antiplatelet_agents"]',
             ),
             _row(
-              id: 'metformin',
+              id: 'ibuprofen',
               type: 'medication',
-              drugClassesCol: '["diabetes_meds"]',
+              drugClassesCol: '["class:nsaids"]',
             ),
             _row(
               id: 'vitamin-d',
               type: 'supplement',
-              drugClassesCol: '["should_be_ignored"]',
+              drugClassesCol: '["class:should_be_ignored"]',
             ),
           ],
         ),
@@ -59,15 +60,11 @@ void main() {
     final classes = await container.read(
       currentStackMedicationClassIdsProvider.future,
     );
-    expect(
-      classes,
-      containsAll(<String>[
-        'vitamin_k_antagonists',
-        'anticoagulants',
-        'diabetes_meds',
-      ]),
-    );
+    // antiplatelet_agents is crosswalked to the profile vocab; nsaids fails
+    // open as `class:`-stripped pass-through; the supplement row is excluded.
+    expect(classes, containsAll(<String>['antiplatelets', 'nsaids']));
     expect(classes, isNot(contains('should_be_ignored')));
+    expect(classes, isNot(contains('class:antiplatelet_agents')));
   });
 
   test('empty when the stack has no medications', () async {

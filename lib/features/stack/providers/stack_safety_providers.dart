@@ -960,12 +960,15 @@ final currentStackMedicationClassIdsProvider = FutureProvider<Set<String>>((
   ref,
 ) async {
   final stack = await ref.watch(activeStackProvider.future);
-  final out = <String>{};
+  final classIds = <String>[];
   for (final e in stack) {
     if (e.type != 'medication') continue;
-    out.addAll(_decodeStackStringList(e.drugClassesCol));
+    classIds.addAll(_decodeStackStringList(e.drugClassesCol));
   }
-  return out;
+  // Stack rows store the `class:*` interaction-bridge vocab
+  // (mergedInteractionClassIds); the profile gate matches the profile vocab.
+  // Crosswalk via the single bridge contract (fail-open, verified-seed-only).
+  return MedicationClassBridge.profileGateIdsForClasses(classIds).toSet();
 });
 
 List<String> _decodeStackStringList(String? raw) {
