@@ -318,6 +318,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       state = state.copyWith(drugClasses: value);
   void setAllergens(List<String> value) =>
       state = state.copyWith(allergens: value);
+  void setProfileFlags(List<String> value) =>
+      state = state.copyWith(profileFlags: value);
 
   void toggleGoal(String goalId) {
     // Strip the None sentinel as a side-effect of picking a real ID —

@@ -46,6 +46,24 @@ void main() {
       expect(notifier.state.drugClasses, isEmpty);
     });
 
+    test('setProfileFlags stores flags and evaluatorProfileFlags exposes them', () {
+      final notifier = ProfileNotifier();
+      notifier.setProfileFlags([
+        'bleeding_history',
+        'severely_immunocompromised',
+      ]);
+      expect(notifier.state.profileFlags, [
+        'bleeding_history',
+        'severely_immunocompromised',
+      ]);
+      // These now reach the profile-gate evaluator — previously unreachable
+      // because no capture UI wrote SchemaIds.profileFlags.
+      expect(
+        notifier.state.evaluatorProfileFlags,
+        containsAll(['bleeding_history', 'severely_immunocompromised']),
+      );
+    });
+
     test('toggleAllergen adds and removes', () {
       final notifier = ProfileNotifier();
       notifier.toggleAllergen('ALLERGEN_SOY');

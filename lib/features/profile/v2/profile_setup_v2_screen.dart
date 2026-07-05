@@ -90,7 +90,15 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 /// Sections that participate in the guided save-and-continue flow,
 /// in on-screen order. Nickname is excluded — it edits inline, not
 /// through a sheet.
-enum _Section { goals, conditions, allergens, medications, age, sex }
+enum _Section {
+  goals,
+  conditions,
+  allergens,
+  healthHistory,
+  medications,
+  age,
+  sex,
+}
 
 class ProfileSetupV2Screen extends ConsumerStatefulWidget {
   const ProfileSetupV2Screen({super.key});
@@ -177,6 +185,8 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
         return _openConditionsSheet(saveLabel: saveLabel);
       case _Section.allergens:
         return _openAllergensSheet(saveLabel: saveLabel);
+      case _Section.healthHistory:
+        return _openHealthHistorySheet(saveLabel: saveLabel);
       case _Section.medications:
         return _openMedicationsSheet(saveLabel: saveLabel);
       case _Section.age:
@@ -333,6 +343,60 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
         );
     return true;
   }
+
+  /// Plain-language labels for the health-history profile flags. IDs are the
+  /// canonical [SchemaIds.profileFlags]; the labels are UI copy sourced from
+  /// clinical_risk_taxonomy.json. These flags escalate specific interaction
+  /// severities (bleeding / immunocompromised / etc.), so the rules that
+  /// depend on them are only reachable once the user can set them here.
+  static const Map<String, String> _healthHistoryLabels = {
+    'severely_immunocompromised':
+        'Immunocompromised (chemo, transplant, or immunosuppressants)',
+    'bleeding_history': 'Bleeding disorder (personal or family history)',
+    'hypoglycemia_history': 'History of low blood sugar (hypoglycemia)',
+    'post_op_recovery': 'Recovering from surgery',
+  };
+
+  Future<bool> _openHealthHistorySheet({required String saveLabel}) async {
+    final profile = ref.read(profileProvider);
+    final result = await showPGSelectionSheet(
+      context: context,
+      eyebrow: 'Health history',
+      title: 'Anything from your health history?',
+      helperText:
+          'Optional. Used only on this device to raise the caution level on '
+          'specific interactions — for example, bleeding history flags '
+          'blood-thinning combinations. PharmaGuide does not diagnose.',
+      options: SchemaIds.profileFlags
+          .map(
+            (id) => PGSelectionOption(
+              id: id,
+              label: _healthHistoryLabels[id] ?? id,
+            ),
+          )
+          .toList(),
+      initialSelection: profile.profileFlags.toSet(),
+      // No sentinel needed — "None" just clears the selection, and an empty
+      // set is the safe default (no escalation).
+      noneLabel: 'None of these apply',
+      noneSubtitle: 'You can add these any time — your profile is editable.',
+      searchable: false,
+      saveLabel: saveLabel,
+    );
+    if (result == null || !mounted) return false;
+    ref
+        .read(profileProvider.notifier)
+        .setProfileFlags(result.selected.toList());
+    return true;
+  }
+
+  String _healthHistorySummaryTitle(ProfileState p) =>
+      p.profileFlags.isEmpty ? 'Optional' : '${p.profileFlags.length} selected';
+
+  String _healthHistorySummaryBody(ProfileState p) => p.profileFlags.isEmpty
+      ? 'Add bleeding, immune, surgery or low-blood-sugar history to sharpen '
+            'safety checks.'
+      : p.profileFlags.map((id) => _healthHistoryLabels[id] ?? id).join(', ');
 
   Future<bool> _openMedicationsSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
@@ -506,6 +570,14 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                     body: _allergensSummaryBody(profile),
                     icon: Icons.warning_amber_outlined,
                     onTap: () => _onSectionTap(_Section.allergens),
+                  ),
+                  const SizedBox(height: V2Spacing.space12),
+                  _GroupTile(
+                    eyebrow: 'Health history',
+                    title: _healthHistorySummaryTitle(profile),
+                    body: _healthHistorySummaryBody(profile),
+                    icon: Icons.health_and_safety_outlined,
+                    onTap: () => _onSectionTap(_Section.healthHistory),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(

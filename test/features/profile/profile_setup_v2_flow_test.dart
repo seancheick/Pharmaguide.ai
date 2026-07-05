@@ -102,13 +102,17 @@ void main() {
       await tester.pumpWidget(_buildApp(notifier));
       await tester.pumpAndSettle();
 
-      // Start on section 3 of 6 — Allergies.
+      // Start on section 3 of 7 — Allergies.
       await tester.tap(find.byIcon(Icons.warning_amber_outlined));
       await tester.pumpAndSettle();
       expect(find.text('Any allergies we should flag?'), findsOneWidget);
       await _pickAndSave(tester, 'No known allergies');
 
-      // 4 — Medications auto-opened.
+      // 4 — Health history auto-opened.
+      expect(find.text('Anything from your health history?'), findsOneWidget);
+      await _pickAndSave(tester, 'None of these apply');
+
+      // 5 — Medications auto-opened.
       expect(find.text('Anything you take regularly?'), findsOneWidget);
       await _pickAndSave(tester, 'No medications right now');
 
@@ -131,9 +135,9 @@ void main() {
       await _pickAndSave(tester, 'None of these', saveLabel: 'Save & finish');
       await _settleFinalSave(tester);
 
-      // Auto-exit to home; 5 intermediate auto-saves + 1 final save.
+      // Auto-exit to home; 6 intermediate auto-saves + 1 final save.
       expect(find.text('HOME'), findsOneWidget);
-      expect(notifier.saveCount, 6);
+      expect(notifier.saveCount, 7);
     },
   );
 
