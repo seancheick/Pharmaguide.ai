@@ -18,6 +18,7 @@
 // extracts shared helpers (these + warnings pipeline) into a single
 // module both screens consume.
 
+import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
@@ -46,6 +47,15 @@ bool productIsNotScored(ProductsCoreData? product) {
   return verdict.trim().toUpperCase() == 'NOT_SCORED' ||
       (score == null && !isBlocked);
 }
+
+/// Whether the product's label coverage is below the 0.3 trust floor
+/// (`isLowCoverage` in core/scoring/coverage.dart — the shared
+/// SAFETY-RULE contract). Distinct from [productIsNotScored]: a
+/// low-coverage product may still carry a pipeline score, but no
+/// surface may render that score as a confident tier-colored result.
+/// Null product / null coverage counts as low (unknown ≠ trustworthy).
+bool productHasLowCoverage(ProductsCoreData? product) =>
+    isLowCoverage(product?.mappedCoverage);
 
 /// Profile Relevance renders when product is not blocked. Blocked products
 /// carry their safety message in the hero banner instead.

@@ -6,6 +6,53 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
+/// What the hero renders in its score-line slot. Pure decision — the
+/// clinical gating is unit-tested in
+/// test/core/components/pg_hero_section_decision_test.dart without
+/// pumping widgets.
+enum HeroScoreDisplay {
+  /// Real scored product with trustworthy coverage → tier-colored
+  /// [PGScoreLine].
+  tierScore,
+
+  /// Insufficient verified data (isNotScored, or a null score that a
+  /// caller failed to flag) → "Not enough verified data to score."
+  notScored,
+
+  /// Scored, but mapped_coverage is below the trust floor (see
+  /// core/scoring/coverage.dart) → neutral "Limited data" hedge. A
+  /// tier-colored line must never render here.
+  limitedData,
+
+  /// BLOCKED — the score slot stays empty; the bottom banner owns the
+  /// verdict.
+  none,
+}
+
+/// Decide what the hero's score slot renders. Precedence mirrors the
+/// verdict enum (BLOCKED > NOT_SCORED > low coverage > scored): the
+/// blocked banner beats everything, the not-scored hedge is more
+/// specific than the coverage hedge, and a null score can NEVER
+/// produce a tier line regardless of flags.
+HeroScoreDisplay heroScoreDisplayFor({
+  required int? score,
+  required bool isBlocked,
+  required bool isNotScored,
+  required bool lowCoverage,
+}) {
+  if (isBlocked) return HeroScoreDisplay.none;
+  if (isNotScored || score == null) return HeroScoreDisplay.notScored;
+  if (lowCoverage) return HeroScoreDisplay.limitedData;
+  return HeroScoreDisplay.tierScore;
+}
+
+/// FIX 4 gate: positive trust/cert chips ("Third-Party Tested",
+/// "Organic") must never render on a BLOCKED product — a green
+/// verified badge above the does-not-recommend banner reads as an
+/// endorsement.
+bool heroShowsTrustChips({required bool isBlocked, required int tagCount}) =>
+    !isBlocked && tagCount > 0;
+
 /// v2 mirror of `_HeaderSection` in
 ///
 ///
@@ -16,8 +63,9 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 ///   cleanly when missing)
 /// - Trust chips: outline pills (primary tone for certifications, green
 ///   for dietary tags), max 4 visible + `+N more` overflow chip
-/// - ScoreLine (suppressed when `isBlocked` — banner replaces it; or
-///   "Not enough verified data to score" when `isNotScored`)
+/// - ScoreLine (suppressed when `isBlocked` — banner replaces it;
+///   "Not enough verified data to score" when `isNotScored`; neutral
+///   "Limited data" hedge when `lowCoverage` — see [heroScoreDisplayFor])
 /// - 240ms entrance fade + 8pt translate (skipped under reduce-motion)
 ///
 /// Wraps the whole hero in a v2 elevated card (cream surface + outline +
@@ -54,8 +102,17 @@ class PGHeroSection extends StatelessWidget {
 
   /// True when the product is BLOCKED — suppresses the score line
   /// entirely. Production renders a separate banner; pass that as
-  /// [bottomBanner] to keep the layout intact.
+  /// [bottomBanner] to keep the layout intact. Also suppresses the
+  /// positive trust-chip row (FIX 4) — certifications must not read
+  /// as an endorsement above the does-not-recommend banner.
   final bool isBlocked;
+
+  /// True when the product's mapped_coverage is below the 0.3 trust
+  /// floor (core/scoring/coverage.dart). Replaces the tier-colored
+  /// score line with a neutral "Limited data — not enough to score
+  /// confidently." hedge — a low-coverage product must never render
+  /// a confident tier color.
+  final bool lowCoverage;
 
   /// Banner widget rendered beneath the score line (used for the
   /// production Blocked / Avoid banners). Null skips the slot.
@@ -72,6 +129,7 @@ class PGHeroSection extends StatelessWidget {
     this.score,
     this.isNotScored = false,
     this.isBlocked = false,
+    this.lowCoverage = false,
     this.bottomBanner,
   });
 
@@ -79,6 +137,16 @@ class PGHeroSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final disableAnimations =
         MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final scoreDisplay = heroScoreDisplayFor(
+      score: score,
+      isBlocked: isBlocked,
+      isNotScored: isNotScored,
+      lowCoverage: lowCoverage,
+    );
+    final showTrustChips = heroShowsTrustChips(
+      isBlocked: isBlocked,
+      tagCount: trustTags.length,
+    );
 
     // **Phase 11.7h.6 — Sean 2026-05-16 hero tightening.**
     // Reduce vertical real estate so verdict/fit/warning surface
@@ -125,7 +193,7 @@ class PGHeroSection extends StatelessWidget {
                         dose: dosingSummary,
                       ),
                     ],
-                    if (trustTags.isNotEmpty) ...[
+                    if (showTrustChips) ...[
                       const SizedBox(height: V2Spacing.space8),
                       _TrustChipRow(tags: trustTags),
                     ],
@@ -134,7 +202,7 @@ class PGHeroSection extends StatelessWidget {
               ),
             ],
           ),
-          if (score != null && !isBlocked && !isNotScored) ...[
+          if (scoreDisplay == HeroScoreDisplay.tierScore) ...[
             const SizedBox(height: V2Spacing.space12),
             // `compact: true` drops the verbose locked-tier description
             // line ("Well-formulated with good ingredient quality...") —
@@ -142,10 +210,16 @@ class PGHeroSection extends StatelessWidget {
             // tier color + dot + "89/100 Excellent" headline carries
             // the verdict alone.
             PGScoreLine(score: score!, compact: true),
-          ] else if (isNotScored) ...[
+          ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Not enough verified data to score.',
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
+          ] else if (scoreDisplay == HeroScoreDisplay.limitedData) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'Limited data — not enough to score confidently.',
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
           ],

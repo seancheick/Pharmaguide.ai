@@ -23,6 +23,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
+import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
@@ -146,6 +147,12 @@ Widget buildHeroSection({
     score: score100?.round(),
     isNotScored: isNotScored,
     isBlocked: isBlocked,
+    // FIX 2 — low-coverage guard. Derived from the same product row the
+    // connected screen reads (`_product?.mappedCoverage ?? 0.0`), so the
+    // hero hedges exactly when the LabelConfidence card does. When
+    // coverage is below the 0.3 trust floor, PGHeroSection replaces the
+    // tier-colored score line with the neutral "Limited data" hedge.
+    lowCoverage: productHasLowCoverage(product),
     bottomBanner: bottomBanner,
   );
 }

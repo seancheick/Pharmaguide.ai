@@ -10,7 +10,10 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/utils/relative_time.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
@@ -967,9 +970,46 @@ class _RecentScansEmptyState extends StatelessWidget {
 }
 
 class _RecentScanCard extends StatelessWidget {
-  final _RecentScan scan;
+  final RecentScan scan;
 
   const _RecentScanCard({required this.scan});
+
+  /// Score slot — decision delegated to [recentScanScoreDisplayFor] so a
+  /// BLOCKED / UNSAFE / NOT_SCORED / low-coverage product can never
+  /// render a fabricated tier-colored "0/100 Poor" line (P0, 2026-07-05).
+  Widget _scoreSlot() {
+    switch (recentScanScoreDisplayFor(
+      score: scan.score,
+      verdict: scan.verdict,
+      mappedCoverage: scan.mappedCoverage,
+    )) {
+      case RecentScanScoreDisplay.tierScore:
+        return PGScoreLine(score: scan.score!.round(), compact: true);
+      case RecentScanScoreDisplay.verdictLabel:
+        final unsafe = isUnsafeVerdict(scan.verdict);
+        return Text(
+          recentScanStatusLabel(scan.verdict),
+          // Unsafe verdicts keep their contraindicated color — that is
+          // verdict tone, not a score tier. Everything else stays muted.
+          style: V2Typography.bodyMedium(
+            color: unsafe
+                ? VerdictBadge.colorFor(scan.verdict!)
+                : V2Colors.fgMuted,
+          ).copyWith(fontSize: 14),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case RecentScanScoreDisplay.limitedData:
+        return Text(
+          'Limited data',
+          style: V2Typography.bodyMedium(
+            color: V2Colors.fgMuted,
+          ).copyWith(fontSize: 14),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+    }
+  }
 
   static const double width = 156;
   static const double height = 224;
@@ -1018,7 +1058,9 @@ class _RecentScanCard extends StatelessWidget {
                       productName: scan.name,
                       brandName: scan.brand,
                       formFactor: scan.formFactor,
-                      score: scan.score.toDouble(),
+                      // Nullable by design — a blocked/not-scored product
+                      // passes null so the placeholder stays neutral.
+                      score: scan.score,
                       size: _imageSize,
                       compact: true,
                     ),
@@ -1026,8 +1068,9 @@ class _RecentScanCard extends StatelessWidget {
                 ),
                 const SizedBox(height: V2Spacing.space8),
                 // Compact score line keeps tone alignment with the rest
-                // of v2 product surfaces.
-                Center(child: PGScoreLine(score: scan.score, compact: true)),
+                // of v2 product surfaces. Verdict/coverage-gated — see
+                // _scoreSlot.
+                Center(child: _scoreSlot()),
                 const SizedBox(height: V2Spacing.space8),
                 Expanded(
                   child: Column(
@@ -1248,37 +1291,112 @@ class _CitationStrip extends ConsumerWidget {
 // refreshes when the user returns from a scanner round.
 // =============================================================================
 
-typedef _RecentScan = ({
+/// One recent-scan carousel record.
+///
+/// **P0 safety contract (2026-07-05):** `score` is NULLABLE and stays null
+/// when the pipeline didn't score the product (`quality_score_status !=
+/// 'scored'` — BLOCKED / UNSAFE / NOT_SCORED / suppressed). The old
+/// `(qualityScoreV4100 ?? 0).round()` coercion fabricated a "0/100 Poor"
+/// tier line for blocked products. NEVER `?? 0` this field. `verdict` +
+/// `mappedCoverage` ride along so the card's render decision
+/// ([recentScanScoreDisplayFor]) sees the real state.
+///
+/// Public (not `_RecentScan`) so the pure builders below stay
+/// unit-testable — locked in
+/// test/features/home/v2/recent_scan_decision_test.dart.
+typedef RecentScan = ({
   String dsldId,
   String? upc,
   String? imageUrl,
   String? formFactor,
   String brand,
   String name,
-  int score,
+  double? score,
+  String? verdict,
+  double? mappedCoverage,
   String time,
 });
 
-final _v2RecentScansProvider = FutureProvider.autoDispose<List<_RecentScan>>((
+/// Map a catalog row to a carousel record. Pure — carries the nullable
+/// score, verdict, and coverage through untouched.
+@visibleForTesting
+RecentScan recentScanFromProduct(
+  ProductsCoreData product, {
+  required String time,
+}) {
+  return (
+    dsldId: product.dsldId,
+    upc: product.upcSku,
+    imageUrl: product.imageThumbnailUrl,
+    formFactor: product.formFactor,
+    brand: product.brandName ?? '',
+    name: product.productName,
+    score: product.qualityScoreV4100,
+    verdict: product.verdict,
+    mappedCoverage: product.mappedCoverage,
+    time: time,
+  );
+}
+
+/// What the Recent-scans card renders in its score slot.
+enum RecentScanScoreDisplay {
+  /// Scored product with trustworthy coverage → tier-colored PGScoreLine.
+  tierScore,
+
+  /// BLOCKED / UNSAFE / NOT_SCORED / missing score → verdict label
+  /// ([recentScanStatusLabel]), never a fabricated number or tier color.
+  verdictLabel,
+
+  /// Scored, but mapped_coverage is below the 0.3 trust floor → neutral
+  /// "Limited data" hedge (SAFETY RULE: low coverage never renders as a
+  /// confident tier-colored result).
+  limitedData,
+}
+
+/// Pure render decision for the carousel card's score slot. Precedence:
+/// unsafe verdict > not-scored/no-score > low coverage > tier score.
+@visibleForTesting
+RecentScanScoreDisplay recentScanScoreDisplayFor({
+  required double? score,
+  required String? verdict,
+  required double? mappedCoverage,
+}) {
+  final v = (verdict ?? '').trim().toUpperCase();
+  if (isUnsafeVerdict(v)) return RecentScanScoreDisplay.verdictLabel;
+  if (v == 'NOT_SCORED' || score == null) {
+    return RecentScanScoreDisplay.verdictLabel;
+  }
+  if (isLowCoverage(mappedCoverage)) return RecentScanScoreDisplay.limitedData;
+  return RecentScanScoreDisplay.tierScore;
+}
+
+/// Label for the [RecentScanScoreDisplay.verdictLabel] state. Only
+/// verdicts that justify their own label render it (Blocked / Unsafe /
+/// Not scored); anything else — null, empty, or an inconsistent positive
+/// verdict paired with a missing score — falls back to "Not scored" so a
+/// score-less card can never imply safety.
+@visibleForTesting
+String recentScanStatusLabel(String? verdict) {
+  final v = (verdict ?? '').trim().toUpperCase();
+  if (isUnsafeVerdict(v) || v == 'NOT_SCORED') {
+    return VerdictBadge.labelFor(v);
+  }
+  return VerdictBadge.labelFor('NOT_SCORED');
+}
+
+final _v2RecentScansProvider = FutureProvider.autoDispose<List<RecentScan>>((
   ref,
 ) async {
   final userDb = ref.watch(userDatabaseProvider);
   final coreDb = ref.watch(coreDatabaseProvider);
   final history = await userDb.getRecentScans(limit: 10);
-  final results = <_RecentScan>[];
+  final results = <RecentScan>[];
   for (final scan in history) {
     final product = await coreDb.findById(scan.dsldId);
     if (product == null) continue;
-    results.add((
-      dsldId: product.dsldId,
-      upc: product.upcSku,
-      imageUrl: product.imageThumbnailUrl,
-      formFactor: product.formFactor,
-      brand: product.brandName ?? '',
-      name: product.productName,
-      score: (product.qualityScoreV4100 ?? 0).round(),
-      time: relativeTime(scan.scannedAt),
-    ));
+    results.add(
+      recentScanFromProduct(product, time: relativeTime(scan.scannedAt)),
+    );
   }
   return results;
 });

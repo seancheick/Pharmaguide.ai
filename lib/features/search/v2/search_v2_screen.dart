@@ -56,7 +56,9 @@ import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_goal_chip.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -1470,8 +1472,22 @@ class _SearchProductListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final score = product.qualityScoreV4100;
-    final scoreLabel = score != null
-        ? ', score ${score.round()} out of 100'
+    // Verdict/coverage-gated chip decisions (FIX 3) — a low-coverage or
+    // blocked product must never surface a confident tier-colored score.
+    final scoreChip = searchScoreChipDisplayFor(
+      score: score,
+      verdict: product.verdict,
+      mappedCoverage: product.mappedCoverage,
+    );
+    final showVerdictChip = searchShowsVerdictChip(
+      verdict: product.verdict,
+      mappedCoverage: product.mappedCoverage,
+    );
+    // Announce the numeric score only when the visual chip shows it —
+    // screen-reader users must not hear a score the coverage/verdict
+    // gates suppressed.
+    final scoreLabel = scoreChip == SearchScoreChipDisplay.tierScore
+        ? ', score ${score!.round()} out of 100'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
@@ -1522,8 +1538,11 @@ class _SearchProductListTile extends StatelessWidget {
                         runSpacing: V2Spacing.space4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (score != null) _ScoreChip(score: score),
-                          if (product.verdict?.trim().isNotEmpty == true)
+                          if (scoreChip == SearchScoreChipDisplay.tierScore)
+                            _ScoreChip(score: score!),
+                          if (scoreChip == SearchScoreChipDisplay.limitedData)
+                            const _LimitedDataChip(),
+                          if (showVerdictChip)
                             _VerdictChip(label: product.verdict!),
                           if (product.primaryCategory?.trim().isNotEmpty ==
                               true)
@@ -1557,8 +1576,18 @@ class _SearchProductGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final score = product.qualityScoreV4100;
-    final scoreLabel = score != null
-        ? ', score ${score.round()} out of 100'
+    // Same verdict/coverage chip gating as the list tile (FIX 3).
+    final scoreChip = searchScoreChipDisplayFor(
+      score: score,
+      verdict: product.verdict,
+      mappedCoverage: product.mappedCoverage,
+    );
+    final showVerdictChip = searchShowsVerdictChip(
+      verdict: product.verdict,
+      mappedCoverage: product.mappedCoverage,
+    );
+    final scoreLabel = scoreChip == SearchScoreChipDisplay.tierScore
+        ? ', score ${score!.round()} out of 100'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
@@ -1591,7 +1620,10 @@ class _SearchProductGridTile extends StatelessWidget {
                   children: [
                     _SearchProductImage(product: product, size: 48),
                     const Spacer(),
-                    if (score != null) _ScoreChip(score: score),
+                    if (scoreChip == SearchScoreChipDisplay.tierScore)
+                      _ScoreChip(score: score!),
+                    if (scoreChip == SearchScoreChipDisplay.limitedData)
+                      const _LimitedDataChip(),
                   ],
                 ),
                 const Spacer(),
@@ -1610,7 +1642,7 @@ class _SearchProductGridTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                if (product.verdict?.trim().isNotEmpty == true) ...[
+                if (showVerdictChip) ...[
                   const SizedBox(height: V2Spacing.space8),
                   _VerdictChip(label: product.verdict!),
                 ],
@@ -1679,6 +1711,33 @@ class _ScoreChip extends StatelessWidget {
   }
 }
 
+/// Neutral chip for scored-but-low-coverage products — same pill shape as
+/// [_ScoreChip] but muted tone and no number, so "we can't confidently
+/// score this" never reads as a quality tier.
+class _LimitedDataChip extends StatelessWidget {
+  const _LimitedDataChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: V2Spacing.space8,
+        vertical: V2Spacing.space4,
+      ),
+      decoration: BoxDecoration(
+        color: V2Colors.fgMuted.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      ),
+      child: Text(
+        'Limited data',
+        style: V2Typography.caption(color: V2Colors.fgMuted),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
 class _VerdictChip extends StatelessWidget {
   final String label;
 
@@ -1686,7 +1745,7 @@ class _VerdictChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = _verdictTone(label);
+    final tone = searchVerdictTone(label);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
@@ -1952,8 +2011,13 @@ String _formatCategoryLabel(String category) {
 // tierForScore — this must never reintroduce its own bands.
 Color _scoreTone(double score) => tierForScore(score.round()).color;
 
-Color _verdictTone(String verdict) {
+/// Verdict → chip tone. Public + @visibleForTesting so the SAFE-case
+/// regression (SAFE used to fall through to the gray NOT_SCORED fallback)
+/// stays locked in test/features/search/v2/search_chip_decision_test.dart.
+@visibleForTesting
+Color searchVerdictTone(String verdict) {
   switch (verdict.trim().toUpperCase()) {
+    case 'SAFE':
     case 'RECOMMENDED':
     case 'GOOD':
       return V2Colors.safe;
@@ -1969,5 +2033,58 @@ Color _verdictTone(String verdict) {
       return V2Colors.contraindicated;
     default:
       return V2Colors.fgMuted;
+  }
+}
+
+/// What a search result renders in its score-chip slot.
+enum SearchScoreChipDisplay {
+  /// Scored + trustworthy coverage → tier-colored numeric chip.
+  tierScore,
+
+  /// Scored, but mapped_coverage is below the 0.3 trust floor → neutral
+  /// "Limited data" chip (SAFETY RULE: low coverage never renders as a
+  /// confident tier-colored result).
+  limitedData,
+
+  /// No chip: score is null, or the verdict is BLOCKED/UNSAFE — the red
+  /// verdict chip is the block indicator and must not compete with a
+  /// positive-looking number.
+  hidden,
+}
+
+/// Pure render decision for the search score chip. Precedence: unsafe
+/// verdict > missing score > low coverage > tier score.
+@visibleForTesting
+SearchScoreChipDisplay searchScoreChipDisplayFor({
+  required double? score,
+  required String? verdict,
+  required double? mappedCoverage,
+}) {
+  if (isUnsafeVerdict(verdict)) return SearchScoreChipDisplay.hidden;
+  if (score == null) return SearchScoreChipDisplay.hidden;
+  if (isLowCoverage(mappedCoverage)) return SearchScoreChipDisplay.limitedData;
+  return SearchScoreChipDisplay.tierScore;
+}
+
+/// Whether the verdict chip renders. Under low coverage the positive
+/// (green SAFE-family) verdicts are suppressed — a green "SAFE" chip on a
+/// product whose label mostly failed to map implies confidence the data
+/// can't support. Warning verdicts (CAUTION/POOR/BLOCKED/UNSAFE/...)
+/// always render: under-warning is the bigger clinical risk.
+@visibleForTesting
+bool searchShowsVerdictChip({
+  required String? verdict,
+  required double? mappedCoverage,
+}) {
+  final v = (verdict ?? '').trim();
+  if (v.isEmpty) return false;
+  if (!isLowCoverage(mappedCoverage)) return true;
+  switch (v.toUpperCase()) {
+    case 'SAFE':
+    case 'GOOD':
+    case 'RECOMMENDED':
+      return false;
+    default:
+      return true;
   }
 }
