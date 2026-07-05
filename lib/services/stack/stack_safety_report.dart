@@ -109,7 +109,10 @@ class StackSafetyReport {
   Severity get overallSeverity {
     Severity worst = Severity.safe;
     for (final r in _allInteractions) {
-      if (r.severity.weight > worst.weight) worst = r.severity;
+      // effectiveSeverity: a food advisory keeps an informational DISPLAY tone
+      // but must be WEIGHTED by its real curated severity (grapefruit x statin
+      // = avoid), so it isn't silently ignored in the banner color.
+      if (r.effectiveSeverity.weight > worst.weight) worst = r.effectiveSeverity;
     }
     for (final w in medicationProfileWarnings) {
       if (w.severity.weight > worst.weight) worst = w.severity;
@@ -128,7 +131,9 @@ class StackSafetyReport {
   Map<Severity, int> get severityCounts {
     final counts = <Severity, int>{for (final s in Severity.values) s: 0};
     for (final r in _allInteractions) {
-      counts[r.severity] = (counts[r.severity] ?? 0) + 1;
+      // Weight by effectiveSeverity (see overallSeverity) so a serious food
+      // advisory buckets under its real severity, not informational.
+      counts[r.effectiveSeverity] = (counts[r.effectiveSeverity] ?? 0) + 1;
     }
     for (final w in medicationProfileWarnings) {
       counts[w.severity] = (counts[w.severity] ?? 0) + 1;

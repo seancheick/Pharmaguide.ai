@@ -110,6 +110,12 @@ Widget buildHeroSection({
   required bool isNotScored,
   required List<HeroTrustTag> trustTags,
   Widget? bottomBanner,
+  // Pipeline verdict string (`_product?.verdict`). When `CAUTION` — incl.
+  // the dose-driven `DOSE_OVER_UL_*` CAUTION — the hero surfaces a caution
+  // cue beside the tier score. Optional/null-default so callers that have
+  // not wired it yet keep compiling; BLOCKED / NOT_SCORED still route
+  // through [isBlocked] / [isNotScored].
+  String? verdict,
 }) {
   return PGHeroSection(
     imageWidget: ProductImage(
@@ -154,5 +160,6 @@ Widget buildHeroSection({
     // tier-colored score line with the neutral "Limited data" hedge.
     lowCoverage: productHasLowCoverage(product),
     bottomBanner: bottomBanner,
+    verdict: verdict,
   );
 }

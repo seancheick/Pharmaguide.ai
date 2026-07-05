@@ -50,7 +50,25 @@ enum EffectType {
 class InteractionResult {
   final String id;
   final InteractionType type;
+
+  /// Severity as DISPLAYED. Food-advisory notes
+  /// (`alert_style='food_advisory_note'`) are intentionally rendered
+  /// [Severity.informational] here — the app does not track foods in the
+  /// user's stack, so the note is surfaced as profile-less context. Keep
+  /// using this for the informational display affordance; use
+  /// [effectiveSeverity] when weighting the interaction (overall severity,
+  /// detail-sheet emphasis) so a genuinely serious advisory
+  /// (grapefruit × statin) is not under-weighted.
   final Severity severity;
+
+  /// The REAL curated severity from the interaction row, independent of
+  /// the food-advisory informational display downgrade. Preserved so a
+  /// serious food advisory keeps its true weight for any consumer that
+  /// ranks or scores by severity. `null` only for legacy direct
+  /// constructions that predate this field — [effectiveSeverity] falls
+  /// back to [severity] in that case.
+  final Severity? curatedSeverity;
+
   final EvidenceLevel evidenceLevel;
   final EffectType? effectType;
   final String agent1Name;
@@ -82,7 +100,15 @@ class InteractionResult {
     required this.sourceUrls,
     required this.source,
     this.effectType,
+    this.curatedSeverity,
   });
+
+  /// The severity consumers should WEIGHT by (overall severity, detail
+  /// sheet emphasis, ranking). Equals the real curated severity when
+  /// present, otherwise the displayed [severity]. For a food advisory
+  /// this returns the true severity even though [severity] displays as
+  /// informational.
+  Severity get effectiveSeverity => curatedSeverity ?? severity;
 
   /// Hydrate a model from a curated [InteractionRow] read out of the
   /// bundled interaction DB.
@@ -139,6 +165,10 @@ class InteractionResult {
       severity: isFoodAdvisory
           ? Severity.informational
           : Severity.fromString(row.severity),
+      // Preserve the REAL curated severity regardless of the food-advisory
+      // informational display downgrade above, so serious advisories keep
+      // their true weight for severity-ranking consumers.
+      curatedSeverity: Severity.fromString(row.severity),
       evidenceLevel: row.evidenceLevel == null
           ? EvidenceLevel.ungraded
           : EvidenceLevel.fromString(row.evidenceLevel!),

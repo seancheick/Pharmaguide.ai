@@ -53,6 +53,28 @@ HeroScoreDisplay heroScoreDisplayFor({
 bool heroShowsTrustChips({required bool isBlocked, required int tagCount}) =>
     !isBlocked && tagCount > 0;
 
+/// Whether the hero paints a caution cue beside the tier score line.
+///
+/// The pipeline emits a dose-driven CAUTION verdict (safety signal
+/// `DOSE_OVER_UL_CAUTION` / `DOSE_OVER_UL_CRITICAL`) when a product
+/// exceeds an Upper Limit — and that can coincide with a high formulation
+/// score. Deriving the tier from the number alone would then paint a
+/// green "85/100 Excellent" hero with no caution cue, hiding the CAUTION
+/// entirely.
+///
+/// The cue only rides ALONGSIDE a real tier line
+/// ([HeroScoreDisplay.tierScore]). BLOCKED (no score slot), NOT_SCORED,
+/// and low-coverage each render their own non-"Excellent" affordance and
+/// are deliberately left untouched. Verdict match is case/whitespace
+/// tolerant; the pipeline ships uppercase `CAUTION`.
+bool heroShowsCautionCue({
+  required String? verdict,
+  required HeroScoreDisplay scoreDisplay,
+}) {
+  if (scoreDisplay != HeroScoreDisplay.tierScore) return false;
+  return verdict?.trim().toUpperCase() == 'CAUTION';
+}
+
 /// v2 mirror of `_HeaderSection` in
 ///
 ///
@@ -118,6 +140,14 @@ class PGHeroSection extends StatelessWidget {
   /// production Blocked / Avoid banners). Null skips the slot.
   final Widget? bottomBanner;
 
+  /// Pipeline verdict string (e.g. `CAUTION`, `SAFE`, `POOR`). When it is
+  /// `CAUTION` — including the dose-driven `DOSE_OVER_UL_*` CAUTION — the
+  /// hero paints a caution cue beside the tier score line so an over-UL
+  /// product with a high formulation score does not read as "Excellent".
+  /// Null (the default) means no cue; BLOCKED / NOT_SCORED still route
+  /// through [isBlocked] / [isNotScored] as before.
+  final String? verdict;
+
   const PGHeroSection({
     super.key,
     required this.imageWidget,
@@ -131,6 +161,7 @@ class PGHeroSection extends StatelessWidget {
     this.isBlocked = false,
     this.lowCoverage = false,
     this.bottomBanner,
+    this.verdict,
   });
 
   @override
@@ -146,6 +177,10 @@ class PGHeroSection extends StatelessWidget {
     final showTrustChips = heroShowsTrustChips(
       isBlocked: isBlocked,
       tagCount: trustTags.length,
+    );
+    final showCautionCue = heroShowsCautionCue(
+      verdict: verdict,
+      scoreDisplay: scoreDisplay,
     );
 
     // **Phase 11.7h.6 — Sean 2026-05-16 hero tightening.**
@@ -209,7 +244,22 @@ class PGHeroSection extends StatelessWidget {
             // that copy was eating 2-3 lines of hero real estate. The
             // tier color + dot + "89/100 Excellent" headline carries
             // the verdict alone.
-            PGScoreLine(score: score!, compact: true),
+            //
+            // A dose-driven CAUTION verdict can coincide with a high
+            // formulation score, so a caution pill rides alongside the
+            // tier line (see [heroShowsCautionCue]) — otherwise an over-UL
+            // product reads as a plain "Excellent".
+            if (showCautionCue)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Flexible(child: PGScoreLine(score: score!, compact: true)),
+                  const SizedBox(width: V2Spacing.space8),
+                  const _HeroCautionPill(),
+                ],
+              )
+            else
+              PGScoreLine(score: score!, compact: true),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
@@ -434,6 +484,49 @@ class _TrustChip extends StatelessWidget {
           Text(
             label,
             style: V2Typography.caption(color: tone).copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.05,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small caution pill painted beside the tier score line when the
+/// pipeline verdict is CAUTION (see [heroShowsCautionCue]). Caution-toned
+/// (amber) with a warning glyph so a dose-driven CAUTION reads as caution
+/// next to an otherwise-green "85/100 Excellent" headline. Copy matches
+/// the app's `Severity.caution` label ("Use caution").
+class _HeroCautionPill extends StatelessWidget {
+  const _HeroCautionPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: V2Colors.cautionTint,
+        border: Border.all(
+          color: V2Colors.caution.withValues(alpha: 0.55),
+          width: 0.7,
+        ),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            size: 11,
+            color: V2Colors.caution,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Use caution',
+            style: V2Typography.caption(color: V2Colors.caution).copyWith(
               fontSize: 10,
               fontWeight: FontWeight.w500,
               letterSpacing: -0.05,

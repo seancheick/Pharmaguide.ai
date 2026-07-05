@@ -507,6 +507,7 @@ class _ProductDetailV2ConnectedState
                     score100: score100,
                     isBlocked: isBlocked,
                     isNotScored: isNotScored,
+                    verdict: _product?.verdict,
                     trustTags: trustTags,
                     bottomBanner: heroBottomBanner,
                   ),
