@@ -588,6 +588,20 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
+                  // ---- 4.6 Allergen data unavailable hedge --------
+                  // unknown != safe: a user with declared allergens must
+                  // not read "no allergen data" as a silent clean bill.
+                  if (shouldShowAllergenDataUnavailableHedge(
+                    isBlocked: isBlocked,
+                    userHasAllergens: profile.allergensForEvaluator.isNotEmpty,
+                    noStructuredAllergens:
+                        blobAllergens == null || blobAllergens.isEmpty,
+                    allergenSummary: _product?.allergenSummary,
+                  )) ...[
+                    buildAllergenDataUnavailableHedge(),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // ---- 5. ScoreBreakdown (WIRED, 11.7d.1) ----------
                   if (showScoreBreakdown) ...[
                     buildScoreBreakdownSection(

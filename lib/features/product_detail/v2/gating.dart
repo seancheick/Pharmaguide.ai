@@ -123,3 +123,25 @@ bool shouldShowAllergenSummaryBanner({
   if (allergenSummary == null) return false;
   return noStructuredAllergens;
 }
+
+/// "Allergen data unavailable" hedge — enforces the "unknown != safe" rule.
+/// Shown ONLY when a user WITH declared allergens opens a non-blocked
+/// product that carries NO allergen data at all (no structured allergens
+/// AND no free-text summary). The absence of data must read as "we can't
+/// confirm — check the label", never as a silent clean bill. Complements
+/// [shouldShowAllergenSummaryBanner], which handles the has-free-text case.
+///
+/// Deliberately hedges toward caution: a user who opted into allergen
+/// tracking is better served by a "check the label" reminder than by
+/// silence on a product we have no allergen data for.
+bool shouldShowAllergenDataUnavailableHedge({
+  required bool isBlocked,
+  required bool userHasAllergens,
+  required bool noStructuredAllergens,
+  required String? allergenSummary,
+}) {
+  if (isBlocked) return false;
+  if (!userHasAllergens) return false;
+  if (!noStructuredAllergens) return false;
+  return allergenSummary == null || allergenSummary.trim().isEmpty;
+}

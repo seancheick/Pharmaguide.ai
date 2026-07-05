@@ -16,16 +16,43 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// Build the allergen summary fallback section.
+/// Build the allergen summary fallback section (free-text allergen info).
 ///
-/// Returns `SizedBox.shrink()` when the summary is null/empty. The gate
-/// is enforced upstream by `shouldShowAllergenSummaryBanner` — this
-/// helper only renders the visual presentation.
+/// Returns `SizedBox.shrink()` when the summary is null/empty. The gate is
+/// enforced upstream by `shouldShowAllergenSummaryBanner` — this helper
+/// only renders the visual presentation.
 Widget buildAllergenSummaryBannerSection({required String? allergenSummary}) {
   if (allergenSummary == null || allergenSummary.trim().isEmpty) {
     return const SizedBox.shrink();
   }
+  return _allergenBanner(
+    accent: V2Colors.caution,
+    icon: Icons.warning_amber_rounded,
+    text: allergenSummary.trim(),
+  );
+}
 
+/// Build the "allergen data unavailable" hedge — shown to users with
+/// declared allergens when the product carries no allergen data at all.
+/// Info-toned (not an alarm): "unknown != safe" means the absence of data
+/// must read as "check the label", never as a silent clean bill. The gate
+/// is enforced upstream by `shouldShowAllergenDataUnavailableHedge`.
+Widget buildAllergenDataUnavailableHedge() {
+  return _allergenBanner(
+    accent: V2Colors.monitor,
+    icon: Icons.info_outline_rounded,
+    text: "Allergen data isn't available for this product — check the "
+        'label for your allergens.',
+  );
+}
+
+/// Shared left-accent info/caution banner used by the allergen fallback
+/// surfaces. Keeps the two builders visually identical apart from tone.
+Widget _allergenBanner({
+  required Color accent,
+  required IconData icon,
+  required String text,
+}) {
   return Container(
     decoration: BoxDecoration(
       color: V2Colors.surface,
@@ -38,23 +65,19 @@ Widget buildAllergenSummaryBannerSection({required String? allergenSummary}) {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(width: 3, color: V2Colors.caution),
+          Container(width: 3, color: accent),
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(V2Spacing.space12),
-              color: V2Colors.caution.withValues(alpha: 0.06),
+              color: accent.withValues(alpha: 0.06),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 18,
-                    color: V2Colors.caution,
-                  ),
+                  Icon(icon, size: 18, color: accent),
                   const SizedBox(width: V2Spacing.space8),
                   Expanded(
                     child: Text(
-                      allergenSummary.trim(),
+                      text,
                       style: V2Typography.bodySm(color: V2Colors.fg),
                     ),
                   ),
