@@ -30,9 +30,20 @@ void main() {
       expect(VerdictBadge.colorFor('UNSAFE'), V2Colors.contraindicated);
     });
 
-    test('unknown verdicts stay visually neutral', () {
-      expect(VerdictBadge.colorFor('FUTURE_LABEL'), V2Colors.fgSubtle);
+    test('unrecognized non-empty verdict fails toward caution, not neutral', () {
+      // Contract drift — the pipeline emitted a verdict the app doesn't
+      // know. Rendering it as a calm neutral/gray chip would let a
+      // future/corrupted BLOCKED-class verdict slip past every blocked
+      // gate, so colorFor fails toward CAUTION tone (not neutral, not safe).
+      expect(VerdictBadge.colorFor('FUTURE_LABEL'), V2Colors.caution);
+      // labelFor still echoes the raw value so the corrupt verdict is
+      // visible for debugging rather than masked behind a generic word.
       expect(VerdictBadge.labelFor('FUTURE_LABEL'), 'FUTURE_LABEL');
+    });
+
+    test('empty / whitespace verdict stays neutral (no verdict yet)', () {
+      expect(VerdictBadge.colorFor(''), V2Colors.fgSubtle);
+      expect(VerdictBadge.colorFor('   '), V2Colors.fgSubtle);
     });
 
     test('normalizes whitespace and case', () {

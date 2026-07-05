@@ -86,8 +86,29 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
       final InteractionDatabase interactionDb;
       try {
         interactionDb = ref.watch(interactionDatabaseProvider);
-      } on UnimplementedError {
-        return const [];
+      } on Object catch (e, st) {
+        // DB-UNAVAILABLE, not no-hits. When the bundled interaction DB
+        // fails to materialize at bootstrap, main.dart leaves
+        // interactionDatabaseProvider at its default throwing definition,
+        // so this watch fails (a raw UnimplementedError, or a Riverpod
+        // ProviderException wrapping it). The ONLY failure mode of this
+        // watch is "provider not overridden / in error", so catching
+        // broadly is safe here. The previous `on UnimplementedError {
+        // return const []; }` was a latent trap: a wrapped or raw error
+        // could be swallowed into an empty list that reads byte-for-byte
+        // like "no interactions found", silently disabling every
+        // med×supplement check while the product page's hedge banner never
+        // fires. Record + rethrow so the provider exposes an AsyncError →
+        // `personalizedWarningsFailed` flips true and the "couldn't check"
+        // banner shows, mirroring Quick Check's "Database unavailable"
+        // state. Never suppress this into an empty list.
+        CrashReportingService().recordError(
+          e,
+          st,
+          fatal: false,
+          hint: 'personalized_warnings:interaction_db_unavailable',
+        );
+        rethrow;
       }
 
       return _computePersonalizedWarnings(

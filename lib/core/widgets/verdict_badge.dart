@@ -1,6 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
+
+/// Unknown verdicts already breadcrumbed this session. colorFor/labelFor run
+/// on the render path (potentially every frame), so dedup keeps a corrupted
+/// verdict from flooding the breadcrumb trail — one signal per unique value.
+final Set<String> _breadcrumbedUnknownVerdicts = <String>{};
+
+/// An unrecognized, non-empty verdict reaching the UI is contract drift (the
+/// pipeline emitted a verdict the app doesn't map). Breadcrumb it once so the
+/// drift is visible in crash reports without spamming.
+void _reportUnknownVerdict(String normalizedId) {
+  if (normalizedId.isEmpty) return;
+  if (!_breadcrumbedUnknownVerdicts.add(normalizedId)) return;
+  CrashReportingService().log(
+    'verdict_badge: unrecognized verdict "$normalizedId" — rendering '
+    'caution-tone (contract drift)',
+  );
+}
 
 /// Returns true when a verdict string represents a hard-stop
 /// ban — BLOCKED only. Drives the FLTR-10 full-screen override:
@@ -48,7 +66,15 @@ abstract final class VerdictBadge {
       case 'NUTRITION_ONLY':
         return V2Colors.fgSubtle;
       default:
-        return V2Colors.fgSubtle;
+        // Fail-open guard: an unrecognized, non-empty verdict must NOT
+        // render as a calm neutral chip — a future/corrupted BLOCKED-class
+        // verdict would bypass every blocked gate. Fail toward CAUTION tone
+        // (not neutral, not safe) and breadcrumb the drift. An empty string
+        // is "no verdict yet / not-scored placeholder", which stays neutral.
+        final normalized = verdict.trim().toUpperCase();
+        if (normalized.isEmpty) return V2Colors.fgSubtle;
+        _reportUnknownVerdict(normalized);
+        return V2Colors.caution;
     }
   }
 
@@ -91,6 +117,12 @@ abstract final class VerdictBadge {
       case 'NUTRITION_ONLY':
         return 'Nutrition only';
       default:
+        // Contract drift: breadcrumb the unknown verdict (deduped, shared
+        // with colorFor) so it's visible in crash reports. Still echo the
+        // raw value — the actual corrupt string is more useful for triage
+        // than a generic placeholder, and colorFor already forces the chip
+        // to caution tone so it can't read as a calm all-clear.
+        _reportUnknownVerdict(id);
         return verdict;
     }
   }

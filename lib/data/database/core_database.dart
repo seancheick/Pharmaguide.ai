@@ -293,9 +293,16 @@ class CoreDatabase extends _$CoreDatabase {
   ///   3. Uses `REPLACE(upc_sku, ' ', '')` in SQL so the stored spaces
   ///      don't prevent the match.
   ///
-  /// Ordering when multiple products share a UPC (private-label duplicates):
-  ///   1. Active products first
-  ///   2. Highest v4 score wins ties
+  /// Ordering when multiple products share a UPC (private-label duplicates)
+  /// is SAFETY-FIRST — under-warning is the costlier error and a scan can't
+  /// tell which physical bottle was in the user's hand:
+  ///   1. Suppressed/blocked twins first — `quality_score_status != 'scored'`
+  ///      (NULL counts as suppressed) OR verdict BLOCKED/UNSAFE. A blocked
+  ///      twin has a NULL score, so the previous "highest score" ordering
+  ///      always masked it behind a scored duplicate; here it WINS the tie so
+  ///      the detail screen can surface the block.
+  ///   2. Active products next.
+  ///   3. Highest v4 score last.
   ///
   /// A barcode scan must still RESOLVE a safety-suppressed product (so the
   /// detail screen can show why it's blocked) — this lookup does not filter
@@ -320,7 +327,14 @@ class CoreDatabase extends _$CoreDatabase {
       final row = await customSelect(
         'SELECT * FROM products_core '
         'WHERE $upcNormalizeSql = ? '
-        "ORDER BY (product_status = 'active') DESC, "
+        // Safety-first tie-break: a suppressed/blocked twin must WIN so the
+        // detail screen can show the block, not lose to a scored duplicate.
+        "ORDER BY ("
+        "           (quality_score_status IS NULL "
+        "              OR quality_score_status != 'scored') "
+        "           OR UPPER(COALESCE(verdict, '')) IN ('BLOCKED', 'UNSAFE') "
+        "         ) DESC, "
+        "         (product_status = 'active') DESC, "
         "         COALESCE(quality_score_v4_100, 0) DESC "
         "LIMIT 1",
         variables: [Variable.withString(candidate)],

@@ -74,9 +74,38 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_logic.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
+
+/// One selected Quick Check slot reduced to what the self-verdict guard
+/// needs: the display name and the product's own verdict. Medications and
+/// supplements with no verdict carry a null [verdict].
+@visibleForTesting
+class QuickCheckSelection {
+  final String name;
+  final String? verdict;
+  const QuickCheckSelection(this.name, this.verdict);
+}
+
+/// The selected items that are themselves unsafe to use — verdict BLOCKED or
+/// UNSAFE — independent of any pairwise interaction.
+///
+/// A banned/unsafe product must never read as "all clear" just because the
+/// curated DB has no row for the pair, so the screen raises a self-verdict
+/// banner above the pair result whenever this is non-empty. Null slots and
+/// null/unknown/other verdicts are ignored; matching mirrors
+/// [isUnsafeVerdict] (case/whitespace-insensitive, BLOCKED/UNSAFE only).
+@visibleForTesting
+List<QuickCheckSelection> unsafeSelfVerdicts(
+  List<QuickCheckSelection?> selections,
+) {
+  return [
+    for (final s in selections)
+      if (s != null && isUnsafeVerdict(s.verdict)) s,
+  ];
+}
 
 class QuickCheckV2Screen extends ConsumerStatefulWidget {
   const QuickCheckV2Screen({super.key});
@@ -345,6 +374,18 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
         !_resolving1 &&
         !_resolving2;
 
+    // Verdict awareness: if a SELECTED supplement is itself BLOCKED/UNSAFE,
+    // a neutral "No interaction catalogued" pair result must not read as an
+    // all-clear on a banned product. Surface a self-verdict banner above the
+    // result whenever a selection is unsafe on its own. Medications carry no
+    // product verdict, so only supplements can trip this.
+    final unsafeSelected = unsafeSelfVerdicts([
+      if (_item1 != null)
+        QuickCheckSelection(_item1!.name, _item1!.product?.verdict),
+      if (_item2 != null)
+        QuickCheckSelection(_item2!.name, _item2!.product?.verdict),
+    ]);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -418,6 +459,16 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
                       onPressed: canCheck ? _checkInteractions : null,
                     ),
                     const SizedBox(height: V2Spacing.space24),
+                    // Self-verdict banner(s) render ABOVE the pair result so a
+                    // BLOCKED/UNSAFE product can't hide behind a neutral
+                    // "no interaction catalogued" all-clear.
+                    for (final unsafe in unsafeSelected) ...[
+                      _SelfVerdictBanner(
+                        name: unsafe.name,
+                        verdict: (unsafe.verdict ?? '').trim().toUpperCase(),
+                      ),
+                      const SizedBox(height: V2Spacing.space12),
+                    ],
                     if (_checkError)
                       const _StateCard(
                         icon: Icons.cloud_off_rounded,
@@ -881,6 +932,61 @@ class _StateCard extends StatelessWidget {
           Text(headline, style: V2Typography.titleSm(color: V2Colors.fg)),
           const SizedBox(height: V2Spacing.space8),
           Text(body, style: V2Typography.body(color: V2Colors.fgMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Self-verdict banner — a SELECTED product is itself BLOCKED/UNSAFE. Renders
+// above the pair result so a banned product can't read as an all-clear.
+// =============================================================================
+
+class _SelfVerdictBanner extends StatelessWidget {
+  final String name;
+
+  /// Normalized verdict — 'BLOCKED' or 'UNSAFE'.
+  final String verdict;
+
+  const _SelfVerdictBanner({required this.name, required this.verdict});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(V2Spacing.space24),
+      decoration: BoxDecoration(
+        color: V2Colors.contraindicatedTint,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.contraindicated, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.block_rounded,
+                color: V2Colors.contraindicated,
+                size: 22,
+              ),
+              const SizedBox(width: V2Spacing.space12),
+              Expanded(
+                child: PGEyebrow(
+                  VerdictBadge.labelFor(verdict).toUpperCase(),
+                  color: V2Colors.contraindicated,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: V2Spacing.space12),
+          Text(
+            '$name is flagged unsafe to use on its own. A "safe together" '
+            'check can\'t clear a product that\'s already unsafe by itself — '
+            'do not use it, and talk to your clinician.',
+            style: V2Typography.body(color: V2Colors.fg),
+          ),
         ],
       ),
     );
