@@ -619,6 +619,14 @@ class SyncService {
         rethrow;
       }
 
+      // Structural schema guard: schema_version only gates the MAJOR, and a
+      // partial/broken build (or intra-major drift that dropped/renamed a
+      // column) can still declare a compatible schema_version. Refuse a
+      // catalog missing any column the reader cannot function without —
+      // fail closed and keep the current catalog rather than silently
+      // misread a structurally-incompatible one.
+      await _assertStagedSchemaColumns(db);
+
       return validatedVersion;
     } finally {
       await db.close();
@@ -633,6 +641,51 @@ class SyncService {
     } on Object {
       return null;
     }
+  }
+
+  /// Load-bearing columns that must exist in every staged catalog and are
+  /// NOT covered by `CoreDatabase._ensureCompatColumns` backfill — so their
+  /// absence signals a broken or wrong-schema build, not merely an old
+  /// snapshot. `mapped_coverage` gates the "never show safe below 0.3
+  /// coverage" safety rule. The v4 score columns are deliberately excluded:
+  /// they ARE in the compat backfill (a snapshot missing them degrades to
+  /// unscored, which the app handles), and — because that backfill runs on
+  /// open before this check — verifying them here would be masked anyway.
+  static const Set<String> _requiredCoreColumns = {
+    'dsld_id',
+    'product_name',
+    'export_version',
+    'mapped_coverage',
+  };
+
+  /// Fail closed if the staged catalog's `products_core` is missing any
+  /// [_requiredCoreColumns]. `schema_version` only gates the major; this
+  /// catches a partial/broken/intra-major-drifted build that still declares
+  /// a compatible `schema_version` and would otherwise activate and silently
+  /// misread. Reported to Sentry so the drift is visible.
+  Future<void> _assertStagedSchemaColumns(CoreDatabase db) async {
+    final rows = await db
+        .customSelect("PRAGMA table_info('products_core')")
+        .get();
+    final present = rows
+        .map((r) => r.data['name']?.toString())
+        .whereType<String>()
+        .toSet();
+    final missing = _requiredCoreColumns.difference(present);
+    if (missing.isEmpty) return;
+
+    final error = CatalogVersionGateException(
+      'Catalog products_core is missing required column(s): '
+      '${(missing.toList()..sort()).join(", ")} — refusing activation '
+      '(fail closed).',
+    );
+    CrashReportingService().recordError(
+      error,
+      StackTrace.current,
+      fatal: false,
+      hint: 'catalog_sync:schema_columns_missing',
+    );
+    throw error;
   }
 }
 

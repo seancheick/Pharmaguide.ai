@@ -13,18 +13,24 @@ void _buildStagedCatalog(
   required String dbVersion,
   String? minAppVersion,
   String? schemaVersion,
+  Set<String> omitColumns = const <String>{},
 }) {
   final db = raw.sqlite3.open(path);
   try {
-    db.execute('''
-      CREATE TABLE products_core (
-        export_version TEXT,
-        upc_sku TEXT,
-        primary_category TEXT,
-        quality_score_v4_100 REAL,
-        quality_score_status TEXT
-      );
-    ''');
+    // Realistic column set: identity + the v4 score/status/coverage the
+    // reader (and SyncService's required-column guard) depends on.
+    final columns = <String, String>{
+      'dsld_id': 'TEXT',
+      'product_name': 'TEXT',
+      'export_version': 'TEXT',
+      'upc_sku': 'TEXT',
+      'primary_category': 'TEXT',
+      'quality_score_v4_100': 'REAL',
+      'quality_score_status': 'TEXT',
+      'mapped_coverage': 'REAL',
+    }..removeWhere((name, _) => omitColumns.contains(name));
+    final ddl = columns.entries.map((e) => '${e.key} ${e.value}').join(', ');
+    db.execute('CREATE TABLE products_core ($ddl);');
     db.execute("INSERT INTO products_core (export_version) VALUES ('2.0.0')");
     db.execute(
       'CREATE TABLE export_manifest (key TEXT PRIMARY KEY, value TEXT)',
@@ -180,6 +186,29 @@ void main() {
         dbVersion: dbVersion,
         minAppVersion: '99.0.0',
         schemaVersion: '2.0.0',
+      );
+
+      final svc = SyncService(appVersion: '1.0.0');
+      await expectLater(
+        svc.validateStagedDatabaseForTest(
+          stagingPath,
+          expectedVersion: dbVersion,
+        ),
+        throwsA(isA<CatalogVersionGateException>()),
+      );
+    });
+
+    test('staged DB missing a required core column is refused', () async {
+      const dbVersion = '2026.06.10.020350';
+      final stagingPath = '${tempDir.path}/pharmaguide_core.db.staging';
+      // Compatible version + manifest, but the build dropped a load-bearing
+      // column. Must fail closed rather than activate and silently misread.
+      _buildStagedCatalog(
+        stagingPath,
+        dbVersion: dbVersion,
+        minAppVersion: '1.0.0',
+        schemaVersion: '2.0.0',
+        omitColumns: const {'mapped_coverage'},
       );
 
       final svc = SyncService(appVersion: '1.0.0');
