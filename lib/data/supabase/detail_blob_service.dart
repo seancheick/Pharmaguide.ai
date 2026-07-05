@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:pharmaguide/core/utils/retry.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
@@ -48,14 +51,32 @@ class DetailBlobService {
   /// Path: `shared/details/sha256/{sha256[0:2]}/{sha256}.json`
   /// Bucket: `pharmaguide`
   ///
-  /// Returns parsed JSON map or null if not found / network error.
+  /// Returns parsed JSON map or null if not found / network error /
+  /// checksum mismatch.
   Future<Map<String, dynamic>?> fetchDetailBlobByHash(String sha256) async {
     if (sha256.length < 3) return null;
     try {
       final prefix = sha256.substring(0, 2);
       final path = '${SupabaseContract.blobPrefix}/$prefix/$sha256.json';
-      final json = await _fetchBlobJson(path);
-      final decoded = jsonDecode(json);
+      final bytes = await _fetchBlobBytes(path);
+      // Integrity gate: the path is content-addressed, but the path only
+      // names what we ASKED for — the response is unauthenticated CDN
+      // bytes. Verify sha256(bytes) against the products_core hash BEFORE
+      // parsing; a mismatch (mis-served / stale / tampered object) is a
+      // fetch failure: nothing is parsed, nothing reaches FitScore or the
+      // warnings engine, nothing is cached.
+      if (!detailBlobBytesMatchSha256(bytes, sha256)) {
+        CrashReportingService().recordError(
+          StateError(
+            'detail blob sha256 mismatch — discarding unverified CDN bytes',
+          ),
+          StackTrace.current,
+          fatal: false,
+          hint: 'detail_blob:sha256_mismatch',
+        );
+        return null;
+      }
+      final decoded = jsonDecode(utf8.decode(bytes));
       if (decoded is Map<String, dynamic>) return decoded;
       if (decoded is Map) return Map<String, dynamic>.from(decoded);
       return null;
@@ -67,7 +88,10 @@ class DetailBlobService {
   /// Public CDN fetch (retried, 10s per-attempt timeout) with authed
   /// `.download()` fallback when the CDN denies the request (bucket
   /// prefix not yet flipped to public in the Supabase dashboard).
-  Future<String> _fetchBlobJson(String path) async {
+  ///
+  /// Returns the RAW bytes — the caller verifies the SHA-256 against the
+  /// content-addressed hash before decoding, on BOTH paths.
+  Future<Uint8List> _fetchBlobBytes(String path) async {
     try {
       return await retryWithBackoff(
         () => _publicGet(path),
@@ -103,14 +127,14 @@ class DetailBlobService {
             rethrow;
           }
         }, timeout: _fetchTimeout);
-        return utf8.decode(bytes);
+        return bytes;
       } finally {
         _finishDependencySpan(span, status);
       }
     }
   }
 
-  Future<String> _publicGet(String path) async {
+  Future<Uint8List> _publicGet(String path) async {
     final url = supabase.storage
         .from(SupabaseContract.storageBucket)
         .getPublicUrl(path);
@@ -138,7 +162,7 @@ class DetailBlobService {
           'detail blob fetch failed: HTTP ${response.statusCode}',
         );
       }
-      return utf8.decode(response.bodyBytes);
+      return response.bodyBytes;
     } on Object catch (error) {
       status = _spanStatusForError(error, fallback: status);
       span?.throwable = error;
@@ -148,6 +172,20 @@ class DetailBlobService {
       client.close();
     }
   }
+}
+
+/// PURE integrity gate for fetched detail blobs: true only when the
+/// SHA-256 of [bytes] equals [expectedSha256] (hex, case-insensitive,
+/// surrounding whitespace tolerated).
+///
+/// Applied by [DetailBlobService.fetchDetailBlobByHash] to the raw bytes
+/// of BOTH the public-CDN and authed-fallback paths before any parsing —
+/// the content-addressed path names what was requested, not what was
+/// served.
+@visibleForTesting
+bool detailBlobBytesMatchSha256(List<int> bytes, String expectedSha256) {
+  return crypto.sha256.convert(bytes).toString() ==
+      expectedSha256.trim().toLowerCase();
 }
 
 ISentrySpan? _startDependencySpan({

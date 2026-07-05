@@ -53,6 +53,13 @@ class SyncService {
   static const _manifestTimeout = Duration(seconds: 8);
   static const _downloadConnectTimeout = Duration(seconds: 10);
 
+  /// Rolling per-chunk watchdog for the download BODY stream: if no bytes
+  /// arrive for this long the stream fails with [TimeoutException] instead
+  /// of hanging forever. Generous enough for a slow cellular link (any
+  /// forward progress resets it), short enough that a dead connection
+  /// frees the OTA subsystem within the session.
+  static const _downloadInactivityTimeout = Duration(seconds: 30);
+
   /// Returns the current remote DB version published in export_manifest.
   Future<String?> fetchCurrentDbVersion() async {
     final injected = _currentDbVersionFetcher;
@@ -363,7 +370,19 @@ class SyncService {
       }
 
       try {
-        await sink.addStream(response.stream);
+        // The connect timeout above only covers the response HEADERS; the
+        // body can stall indefinitely on a dead connection, which would
+        // hang this await — and with it the whole OTA subsystem for the
+        // session (the caller's `_syncInFlight` guard is only cleared when
+        // this returns, freezing even the manual retry button). The
+        // watchdog turns a stalled body into a retryable TimeoutException;
+        // the partial `.staging` file is kept for Range-resume.
+        await sink.addStream(
+          inactivityWatchdogStream(
+            response.stream,
+            inactivity: _downloadInactivityTimeout,
+          ),
+        );
         await sink.flush();
       } finally {
         await sink.close();
@@ -783,6 +802,36 @@ class SyncService {
     );
     throw error;
   }
+}
+
+/// Wraps a download byte [source] with a rolling inactivity watchdog: any
+/// gap between chunks longer than [inactivity] errors the stream with a
+/// [TimeoutException] and then CLOSES it, so a consumer like
+/// `IOSink.addStream` (which only completes on done/error) can never hang
+/// on a stalled connection. Chunks that keep flowing reset the window, so
+/// slow-but-progressing downloads are never aborted.
+///
+/// The [TimeoutException] is deliberately the failure type: the retry
+/// layer treats it as retryable and the Sentry span mapper reports it as
+/// deadline-exceeded, matching the header-timeout behavior.
+@visibleForTesting
+Stream<List<int>> inactivityWatchdogStream(
+  Stream<List<int>> source, {
+  required Duration inactivity,
+}) {
+  return source.timeout(
+    inactivity,
+    onTimeout: (sink) {
+      sink.addError(
+        TimeoutException(
+          'catalog download stalled: no bytes received for '
+          '${inactivity.inSeconds}s',
+          inactivity,
+        ),
+      );
+      sink.close();
+    },
+  );
 }
 
 ISentrySpan? _startCatalogSpan({

@@ -53,6 +53,7 @@ import 'package:pharmaguide/services/auth/pg_auth_service.dart'
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -202,7 +203,10 @@ enum SyncResult {
   /// completed yet. Rows stay local until ownership is resolved.
   skippedOwnerMismatch,
 
-  /// Sync crashed with an unexpected error. Rows are left dirty for retry.
+  /// Sync failed — the push crashed, or the batched upsert failed and at
+  /// least one row of the per-row fallback also failed. Failing rows are
+  /// left dirty for retry and the failure is reported non-fatally to
+  /// crash reporting (never silently swallowed).
   failed,
 }
 
@@ -218,6 +222,57 @@ bool ownerAllowsPush({
   return storedOwner != null &&
       storedOwner.isNotEmpty &&
       storedOwner == currentUid;
+}
+
+/// Outcome of the per-row fallback push (see [pushRowsIndividually]).
+class PerRowPushOutcome {
+  /// Rows whose individual upsert succeeded — safe to mark synced.
+  final List<UserStacksLocalData> succeeded;
+
+  /// Number of rows whose individual upsert failed — they stay dirty.
+  final int failedCount;
+
+  const PerRowPushOutcome({
+    required this.succeeded,
+    required this.failedCount,
+  });
+}
+
+/// Per-row salvage pass for a FAILED batched upsert: one poisoned row
+/// (constraint / RLS rejection) must not wedge the whole sync queue
+/// forever, so each row is retried individually and only the failing
+/// row(s) stay dirty.
+///
+/// [payload] and [rows] are the index-aligned lists built by
+/// `StackSyncService._pushNow` — already PHI-filtered (supplements only);
+/// this function never widens that set. Pure orchestration over the
+/// injected [upsertRow] (no Supabase types) so the isolation logic is
+/// unit-testable; a row failure is reported via [onRowError] and never
+/// aborts the remaining rows.
+@visibleForTesting
+Future<PerRowPushOutcome> pushRowsIndividually({
+  required List<Map<String, dynamic>> payload,
+  required List<UserStacksLocalData> rows,
+  required Future<void> Function(Map<String, dynamic> rowPayload) upsertRow,
+  void Function(Object error, StackTrace stackTrace, String rowId)?
+  onRowError,
+}) async {
+  assert(
+    payload.length == rows.length,
+    'payload/rows must be index-aligned (${payload.length} vs ${rows.length})',
+  );
+  final succeeded = <UserStacksLocalData>[];
+  var failedCount = 0;
+  for (var i = 0; i < payload.length && i < rows.length; i++) {
+    try {
+      await upsertRow(payload[i]);
+      succeeded.add(rows[i]);
+    } on Object catch (error, stackTrace) {
+      failedCount++;
+      onRowError?.call(error, stackTrace, rows[i].id);
+    }
+  }
+  return PerRowPushOutcome(succeeded: succeeded, failedCount: failedCount);
 }
 
 class StackSyncService {
@@ -261,8 +316,8 @@ class StackSyncService {
   /// Push all locally-dirty stack rows to Supabase.
   ///
   /// Returns a [SyncResult] describing the outcome. Never throws — errors
-  /// are caught and logged via [debugPrint] so the caller can fire-and-
-  /// forget.
+  /// are caught, logged via [debugPrint], and reported non-fatally to
+  /// crash reporting, so the caller can fire-and-forget.
   ///
   /// Debounced: calls within the debounce window coalesce into a single
   /// batched push (all coalesced callers share the same result Future).
@@ -365,14 +420,47 @@ class StackSyncService {
         // Rows are marked synced ONLY after the batch succeeds — on any
         // failure every row keeps its dirty state for the next cycle.
         await _queue.markSyncedAll(pushedRows);
-      } on PostgrestException catch (e) {
-        // Leave synced_at alone — rows stay dirty, next cycle will retry.
+      } on Object catch (batchError, batchStack) {
+        // The batch is all-or-nothing, so ONE poisoned row (constraint /
+        // RLS rejection) would otherwise wedge every other row forever —
+        // and before this fallback the failure was debugPrint-only while
+        // the method still reported ok. Salvage per-row: healthy rows
+        // sync, only the poison row(s) stay dirty, and the cycle reports
+        // failed so callers/badges never claim a clean sync.
         debugPrint(
           'StackSync batched upsert failed (${payload.length} rows): '
-          '${e.code} ${e.message}',
+          '$batchError — falling back to per-row upserts',
         );
-      } on Object catch (e) {
-        debugPrint('StackSync batched upsert unexpected error: $e');
+        final outcome = await pushRowsIndividually(
+          payload: payload,
+          rows: pushedRows,
+          upsertRow: (rowPayload) => supabase
+              .from(SupabaseContract.userStacksTable)
+              .upsert(rowPayload, onConflict: 'id')
+              .timeout(const Duration(seconds: 10)),
+          // Row id only — never the row name/dosage (keep Sentry free of
+          // stack contents; the id is an opaque uuid).
+          onRowError: (error, stackTrace, rowId) {
+            debugPrint('StackSync row upsert failed ($rowId): $error');
+            CrashReportingService().recordError(
+              error,
+              stackTrace,
+              fatal: false,
+              hint: 'stack_sync:row_upsert_failed',
+            );
+          },
+        );
+        await _queue.markSyncedAll(outcome.succeeded);
+        if (outcome.failedCount > 0) {
+          CrashReportingService().recordError(
+            batchError,
+            batchStack,
+            fatal: false,
+            hint: 'stack_sync:batched_upsert_failed',
+          );
+          // Failing rows keep their dirty state for the next cycle.
+          return SyncResult.failed;
+        }
       }
 
       return SyncResult.ok;

@@ -186,7 +186,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // near any crash that follows. Fire-and-forget — a transient DB
     // error must not block the user-facing not-found sheet.
     unawaited(ref.read(userDatabaseProvider).recordFailedScan(upc));
-    CrashReportingService().log('scan_failed_missing_upc: $upc');
+    // Event name ONLY — never the barcode. Breadcrumb MESSAGES are not
+    // scrubbed (_scrubBreadcrumb only scrubs the data map), and the
+    // service's contract is that the UPC never leaves the device; the
+    // failed-scan sensor above already persists it locally.
+    CrashReportingService().log('scan_failed_missing_upc');
 
     PGModal.bottomSheet<void>(
       context: context,
