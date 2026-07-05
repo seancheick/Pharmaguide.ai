@@ -40,7 +40,7 @@ class _EmptyRulesRepository extends ReferenceDataRepository {
 /// StackActions whose addMedication fails with a generic (non-sign-in) error,
 /// standing in for a network / DB failure at save time.
 class _ThrowingStackActions extends StackActions {
-  _ThrowingStackActions(Ref ref) : super(ref);
+  _ThrowingStackActions(super.ref);
 
   @override
   Future<String> addMedication({
