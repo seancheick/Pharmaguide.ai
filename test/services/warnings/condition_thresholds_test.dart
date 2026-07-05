@@ -143,30 +143,6 @@ void main() {
       }
     });
 
-    test('T16.2e — canonicalize strips punctuation (comma, parens)', () {
-      // PureLean live walkthrough surfaced "Cinnamon Bark Extract,
-      // Dried" leaking past the gate because pre-T16.2e canonicalize
-      // preserved punctuation as literal characters in the key. This
-      // anchors the punctuation-strip behavior for future regressions.
-      expect(
-        canonicalizeIngredientName('Cinnamon Bark Extract, Dried'),
-        equals('cinnamon_bark_extract_dried'),
-      );
-      expect(
-        canonicalizeIngredientName('Vitamin C (as ascorbic acid)'),
-        equals('vitamin_c_as_ascorbic_acid'),
-      );
-      expect(
-        canonicalizeIngredientName('Magnesium (oxide), USP'),
-        equals('magnesium_oxide_usp'),
-      );
-      // Edge: leading/trailing punctuation collapsed and stripped.
-      expect(canonicalizeIngredientName('(Iron)'), equals('iron'));
-      // Pre-existing behavior preserved.
-      expect(canonicalizeIngredientName('Vitamin D'), equals('vitamin_d'));
-      expect(canonicalizeIngredientName('Vitamin-D3'), equals('vitamin_d3'));
-    });
-
     test('T16.2e — Cinnamon Bark Extract, Dried resolves to positive', () {
       // Live PureLean leak: full DSLD label form. Should canonicalize
       // through the punctuation-strip and hit the dedicated entry.

@@ -33,7 +33,7 @@
 
 library;
 
-import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 
 /// One proprietary blend extracted from the pipeline.
 class BlendGroup {

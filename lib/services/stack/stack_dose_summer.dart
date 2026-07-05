@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
 
