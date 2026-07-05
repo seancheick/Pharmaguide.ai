@@ -24,8 +24,17 @@ void main() {
       final json = <String, dynamic>{'title': 'Test warning'};
       final warning = InteractionWarning.fromJson(json);
       expect(warning.severity, Severity.safe);
-      expect(warning.evidenceLevel, EvidenceLevel.theoretical);
+      expect(warning.evidenceLevel, EvidenceLevel.ungraded);
       expect(warning.sourceUrls, isEmpty);
+    });
+
+    test('keeps explicitly theoretical evidence distinct from missing', () {
+      final warning = InteractionWarning.fromJson({
+        'title': 'Mechanism-only warning',
+        'evidence_level': 'theoretical',
+      });
+
+      expect(warning.evidenceLevel, EvidenceLevel.theoretical);
     });
   });
 

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 
 void main() {
@@ -71,6 +72,19 @@ void main() {
 
   final rules = MedicationProfileGateRule.listFromJson(rawRules);
   const evaluator = MedicationProfileGateEvaluator();
+
+  test('missing medication profile-gate evidence hydrates as ungraded', () {
+    final rule = MedicationProfileGateRule.fromJson({
+      'id': 'MCR_TEST',
+      'severity': 'caution',
+      'headline': 'Review medication use',
+      'body': 'Review before use.',
+      'management': 'Ask your clinician.',
+      'profile_gate': <String, dynamic>{},
+    });
+
+    expect(rule.evidenceLevel, EvidenceLevel.ungraded);
+  });
 
   test('pregnant plus ibuprofen NSAID class fires warning', () {
     final warnings = evaluator.evaluate(

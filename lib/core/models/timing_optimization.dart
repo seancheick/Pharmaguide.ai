@@ -133,6 +133,7 @@ class TimingOptimization {
       EvidenceLevel.established => 2,
       EvidenceLevel.probable => 1,
       EvidenceLevel.theoretical => 0,
+      EvidenceLevel.ungraded => -1,
     };
     return tier * 10 + evidenceBump;
   }

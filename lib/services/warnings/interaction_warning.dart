@@ -271,7 +271,7 @@ class InteractionWarning {
       severityContextual: sevContextual,
       displayModeDefault: json['display_mode_default']?.toString(),
       evidenceLevel: EvidenceLevel.fromString(
-        json['evidence_level']?.toString() ?? 'theoretical',
+        json['evidence_level']?.toString() ?? 'ungraded',
       ),
       title: json['title']?.toString() ?? '',
       mechanism: (json['detail'] ?? json['mechanism'])?.toString() ?? '',

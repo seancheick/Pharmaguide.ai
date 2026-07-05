@@ -31,7 +31,7 @@ class MedicationProfileGateRule {
       id: json['id']?.toString() ?? '',
       severity: Severity.fromString(json['severity']?.toString() ?? 'caution'),
       evidenceLevel: EvidenceLevel.fromString(
-        json['evidence_level']?.toString() ?? 'theoretical',
+        json['evidence_level']?.toString() ?? 'ungraded',
       ),
       headline: json['headline']?.toString() ?? '',
       body: json['body']?.toString() ?? '',

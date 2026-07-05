@@ -140,7 +140,7 @@ class InteractionResult {
           ? Severity.informational
           : Severity.fromString(row.severity),
       evidenceLevel: row.evidenceLevel == null
-          ? EvidenceLevel.theoretical
+          ? EvidenceLevel.ungraded
           : EvidenceLevel.fromString(row.evidenceLevel!),
       effectType: EffectType.fromString(row.effectType),
       agent1Name: agent1NameOverride ?? row.agent1Name,

@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 /// - 3 bars = Strong evidence (RCT / meta-analysis)
 /// - 2 bars = Good evidence (observational)
 /// - 1 bar  = Theoretical (mechanism-only)
+/// - 0 bars = Evidence not graded
 class PGEvidenceBadge extends StatelessWidget {
   final EvidenceLevel level;
 
@@ -23,6 +24,8 @@ class PGEvidenceBadge extends StatelessWidget {
         return (color: V2Colors.monitor, label: 'Good evidence', bars: 2);
       case EvidenceLevel.theoretical:
         return (color: V2Colors.fgSubtle, label: 'Theoretical', bars: 1);
+      case EvidenceLevel.ungraded:
+        return (color: V2Colors.fgMuted, label: 'Evidence not graded', bars: 0);
     }
   }
 

@@ -79,8 +79,9 @@ void main() {
       );
     });
 
-    test('fromString returns theoretical for unknown', () {
-      expect(EvidenceLevel.fromString('unknown'), EvidenceLevel.theoretical);
+    test('fromString returns ungraded for unknown', () {
+      expect(EvidenceLevel.fromString('unknown'), EvidenceLevel.ungraded);
+      expect(EvidenceLevel.fromString(''), EvidenceLevel.ungraded);
     });
   });
 }

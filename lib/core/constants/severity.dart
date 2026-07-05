@@ -132,7 +132,8 @@ enum Severity {
 enum EvidenceLevel {
   established(label: 'Strong Evidence'),
   probable(label: 'Good Evidence'),
-  theoretical(label: 'Theoretical');
+  theoretical(label: 'Theoretical'),
+  ungraded(label: 'Evidence not graded');
 
   final String label;
   const EvidenceLevel({required this.label});
@@ -140,7 +141,7 @@ enum EvidenceLevel {
   static EvidenceLevel fromString(String value) {
     return EvidenceLevel.values.firstWhere(
       (e) => e.name == value.toLowerCase().trim(),
-      orElse: () => EvidenceLevel.theoretical,
+      orElse: () => EvidenceLevel.ungraded,
     );
   }
 }

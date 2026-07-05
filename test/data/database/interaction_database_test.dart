@@ -50,8 +50,8 @@ const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
 /// Updated from 20 (golden fixture) → 128 (full curated v1.0.0) → 136
 /// (27 rule fixes in c23d044) → 138 (vinpocetine + horse chestnut
 /// anticoagulant release gates) → 148 (food-advisory schema bundle)
-/// → 149 (MAOI × CNS stimulants).
-const _expectedLiveInteractionCount = 149;
+/// → 149 (MAOI × CNS stimulants) → 150 (interaction DB v1.0.2).
+const _expectedLiveInteractionCount = 150;
 
 /// Pipeline-built drug classes that the current bundle ships.
 /// v1.0.1 has 22 classes with curated interaction rows.
@@ -124,7 +124,7 @@ void main() {
     test('countCuratedInteractions equals the live count for the current '
         'bundle (every shipped row is source=curated today)', () async {
       // Verified against the bundle: SELECT source, count(*) FROM
-      // interactions GROUP BY source → curated|148. If a future
+      // interactions GROUP BY source → curated|150. If a future
       // bundle ships machine-extracted (suppai) rows, the curated
       // count must drop below the live count — see the in-memory
       // source-filter test below.
