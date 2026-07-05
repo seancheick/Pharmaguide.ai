@@ -102,10 +102,14 @@ List<InteractionWarning> parseBlobWarnings(Map<String, dynamic>? blob) {
 
 bool _hasStructuredAllergens(Object? raw) {
   if (raw is! List) return false;
+  // "Structured present" MUST mean the matcher can actually use it:
+  // matchAllergens keys strictly on a non-empty `allergen_id`. Treating a
+  // display_name-only entry as structured would drop the legacy allergen
+  // warning (see _isStructuredAllergenDuplicate) with nothing to replace it
+  // — a silent allergen miss for a sensitized user. Require a usable id.
   return raw.whereType<Map<Object?, Object?>>().any((entry) {
     final id = entry['allergen_id']?.toString().trim();
-    final name = entry['display_name']?.toString().trim();
-    return (id != null && id.isNotEmpty) || (name != null && name.isNotEmpty);
+    return id != null && id.isNotEmpty;
   });
 }
 

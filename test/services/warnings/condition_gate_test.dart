@@ -1249,6 +1249,33 @@ void main() {
     );
 
     test(
+      'keeps legacy allergen warning when the structured entry has no '
+      'allergen_id (display_name only is not matchable)',
+      () {
+        final result = parseBlobWarnings({
+          'allergens': [
+            {'display_name': 'Milk', 'presence_type': 'contains'},
+          ],
+          'warnings': [
+            {
+              'type': 'allergen',
+              'source': 'allergen_db',
+              'severity': 'caution',
+              'title': 'Allergen: Milk',
+              'detail': 'Presence: contains',
+            },
+          ],
+        });
+
+        // matchAllergens keys on allergen_id; a display_name-only entry can
+        // never surface a personalized match, so the legacy warning must
+        // remain as a backstop rather than be dropped as a "duplicate".
+        expect(result, hasLength(1));
+        expect(result.single.title, 'Allergen: Milk');
+      },
+    );
+
+    test(
       'keeps legacy allergen warnings when structured allergens are absent',
       () {
         final result = parseBlobWarnings({
