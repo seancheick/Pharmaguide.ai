@@ -106,11 +106,10 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
 }
 
 List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
-  final ulAnalysis =
-      ((blob?['rda_ul_data'] as Map<String, dynamic>?)?['analyzed_ingredients']
-              as List?)
-          ?.whereType<Map<String, dynamic>>()
-          .toList();
+  final rdaUlData = blob?['rda_ul_data'];
+  if (rdaUlData is! Map) return const [];
+  final ulAnalysis = rdaUlData['analyzed_ingredients'];
+  if (ulAnalysis is! List) return const [];
   final ulExceedances = extractUlExceedances(ulAnalysis);
   return ulExceedances
       .map(
