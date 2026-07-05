@@ -76,6 +76,13 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
   // before the profile filter can promote them back (G2).
   final flooredWarnings = applyEmittedFloorGate(gatedWarnings);
 
+  // Emitted-beneficial gate: drop condition warnings the pipeline tagged
+  // direction=beneficial (the nutrient HELPS the condition — a monitor flag is
+  // the boy-who-cried-wolf false positive). Pipeline-owned replacement for the
+  // const table's `positive` entries; runs before the profile filter so a
+  // beneficial row can't be promoted back by a matching profile (G2).
+  final beneficialGated = applyEmittedBeneficialGate(flooredWarnings);
+
   // Resolve product form + per-nutrient dose/form once so dose-dependent
   // profile-gate rules evaluate at the product's real dose instead of
   // silently falling through to their `severity_if_not_met` branch (a
@@ -86,7 +93,7 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
       ? null
       : ProductHealthFacts.fromDetailBlob(detailBlob);
 
-  return flooredWarnings
+  return beneficialGated
       .where((w) {
         final productContext = resolveProfileGateProductContext(
           detailBlob: detailBlob,

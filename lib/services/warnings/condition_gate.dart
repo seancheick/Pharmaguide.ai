@@ -66,6 +66,34 @@ List<InteractionWarning> applyEmittedFloorGate(
   }).toList(growable: false);
 }
 
+/// Emitted-beneficial suppression — Phase 2 of retiring condition_thresholds.dart.
+///
+/// The pipeline tags condition warnings for beneficial nutrients with
+/// `direction == 'beneficial'` (e.g. "Vitamin D3 / ttc"). A monitor/caution flag
+/// for a nutrient that HELPS the condition is the boy-who-cried-wolf false
+/// positive the const `positive` table suppresses; this reads the pipeline's own
+/// `direction` instead, so the suppression survives the table's removal.
+///
+/// Same narrow guardrail as [applyEmittedFloorGate] (G3): never suppress a hard
+/// warning (contraindicated / avoid) even if tagged beneficial — a directional
+/// contradiction fails safe toward warning. Everything non-beneficial FIRES,
+/// including null / unknown direction (fail open).
+///
+/// Runs ADDITIVELY with [applyConditionThresholdGate] for now (belt-and-
+/// suspenders); it becomes the sole beneficial gate once the const table goes.
+List<InteractionWarning> applyEmittedBeneficialGate(
+  List<InteractionWarning> warnings,
+) {
+  return warnings.where((w) {
+    if (w.direction != 'beneficial') return true;
+    if (w.severity == Severity.contraindicated ||
+        w.severity == Severity.avoid) {
+      return true;
+    }
+    return false;
+  }).toList(growable: false);
+}
+
 /// Build a `canonical-ingredient-name → (dose, unit)` map from the
 /// pipeline's product-detail dose rows. Prefer the pipeline's
 /// `rda_ul_data.analyzed_ingredients` rows when present because they
