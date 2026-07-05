@@ -475,7 +475,15 @@ const Map<String, Map<String, ConditionThreshold>> conditionThresholds = {
       rationale:
           'NIH ODS: excess intake destabilizes both hyper- and hypo-thyroidism',
     ),
-    'selenium': ConditionThreshold.positive(
+    // UL-dose-gated, NOT positive. A `positive` entry here suppressed the
+    // thyroid warning at ANY dose AND made selenium eligible for a
+    // "supports your thyroid health" benefit bullet — so an 800 mcg
+    // product (2x the 400 mcg adult UL, selenosis range) surfaced as
+    // beneficial. The rationale itself says "flag only above UL". Gate at
+    // the 400 mcg adult UL, mirroring the sibling `iodine` aboveDose entry.
+    'selenium': ConditionThreshold.aboveDose(
+      minDose: 400,
+      doseUnit: 'mcg',
       rationale:
           'NIH ODS Selenium (HP fact sheet): some trials show selenium lowers '
           'thyroid antibodies (TPOAb) in autoimmune thyroiditis, but evidence '

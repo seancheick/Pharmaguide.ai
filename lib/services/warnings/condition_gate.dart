@@ -584,6 +584,8 @@ String computeMatchedHighestSeverity({
 /// Returns `true` when EVERY condition tagged on the warning is gated
 /// (positive OR below dose threshold) for the warning's ingredient.
 /// Returns `false` (= keep the warning) on any of:
+///   - severity is contraindicated / avoid (hard warning, never
+///     dose-suppressed — mirrors [applyEmittedFloorGate])
 ///   - empty conditionIds
 ///   - missing ingredientName
 ///   - condition with no table entry (unknown rule → fire)
@@ -594,6 +596,19 @@ bool _isFullyGated({
   required InteractionWarning warning,
   required Map<String, IngredientDose> ingredientDoses,
 }) {
+  // Hard-severity floor — mirrors [applyEmittedFloorGate]'s exemption. A
+  // contraindicated / avoid warning is NEVER dose-suppressed: when the
+  // pipeline says "stop 2 weeks pre-op" we keep it even if the app's
+  // const-table minDose sits above this product's dose. This gate runs
+  // FIRST (product_detail_helpers.dart), before applyEmittedFloorGate, so
+  // without this check a hard warning below minDose is dropped before the
+  // floor gate's exemption can save it. Under-warning is the
+  // unrecoverable direction on a medical surface.
+  if (warning.severity == Severity.contraindicated ||
+      warning.severity == Severity.avoid) {
+    return false;
+  }
+
   // No condition tag → not subject to condition gating.
   if (warning.conditionIds.isEmpty) return false;
 
