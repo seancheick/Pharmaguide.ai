@@ -103,7 +103,70 @@ bool _quantityExceedsResolvedUl(
       _asDouble(entry['highest_ul']);
   if (ul == null || ul <= 0) return false;
 
-  return quantity > ul;
+  // Unit reconciliation (P2 hardening). `quantity` is in the disclosed
+  // `unit`; the UL is expressed in the nutrient's reference unit
+  // (`nutrient_unit`, falling back to `converted_unit`). Comparing them raw
+  // is a medical-grade defect: Boron 150 mcg vs a 20 mg UL would read
+  // 150 > 20 → a false exceedance. Convert the quantity into the UL's unit
+  // when both are simple metric mass; when the UL unit is absent (older
+  // blobs) assume it already matches the disclosed unit (legacy behavior);
+  // when the units differ and cannot be reconciled (e.g. IU ↔ mg, which is
+  // form-dependent) NEVER guess — decline to flag.
+  final quantityUnit = (entry['unit'] ?? ingredient?['unit'] ?? '').toString();
+  final ulUnit =
+      (entry['nutrient_unit'] ?? entry['converted_unit'] ?? '').toString();
+  final comparableQuantity = _quantityInUlUnit(
+    quantity,
+    quantityUnit: quantityUnit,
+    ulUnit: ulUnit,
+  );
+  if (comparableQuantity == null) return false;
+
+  return comparableQuantity > ul;
+}
+
+/// Convert [quantity] (in [quantityUnit]) into [ulUnit] for comparison
+/// against the resolved UL. Returns null when the units differ and cannot
+/// be safely reconciled, so the caller declines to flag rather than compare
+/// across incompatible units.
+double? _quantityInUlUnit(
+  double quantity, {
+  required String quantityUnit,
+  required String ulUnit,
+}) {
+  final from = _normalizeUnit(quantityUnit);
+  final to = _normalizeUnit(ulUnit);
+  // No UL unit disclosed (or no quantity unit) → assume same reference unit,
+  // matching the historical same-unit comparison.
+  if (from.isEmpty || to.isEmpty || from == to) return quantity;
+
+  final fromGrams = _simpleMassGramsFactor(from);
+  final toGrams = _simpleMassGramsFactor(to);
+  if (fromGrams == null || toGrams == null) return null;
+  return quantity * fromGrams / toGrams;
+}
+
+String _normalizeUnit(String raw) {
+  return raw
+      .trim()
+      .toLowerCase()
+      .replaceAll('µg', 'mcg')
+      .replaceAll('_', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ');
+}
+
+double? _simpleMassGramsFactor(String unit) {
+  return switch (unit) {
+    'g' => 1.0,
+    'gram' => 1.0,
+    'grams' => 1.0,
+    'gram(s)' => 1.0,
+    'mg' => 0.001,
+    'mcg' => 0.000001,
+    'microgram' => 0.000001,
+    'micrograms' => 0.000001,
+    _ => null,
+  };
 }
 
 /// Find the UL-analysis entry for an ingredient. Pulled out so the

@@ -24,16 +24,25 @@ class E1DosageCalculator {
   }) {
     if (nutrients.isEmpty) return 0.0;
 
-    final aggregated = const StackNutrientAggregator().aggregate([
+    final items = [
       StackItemNutrients(
         stackEntryId: 'fit_score_product',
         productName: 'Product',
         ingredients: nutrients,
       ),
-    ]);
-    final statuses = StackUlChecker(
-      rdaData: rdaData,
-    ).check(aggregated, ageBracket: ageBracket, sex: sex);
+    ];
+    const aggregator = StackNutrientAggregator();
+    final aggregated = aggregator.aggregate(items);
+    // Prefer the pipeline's own UL verdicts (over_ul / pct_ul) over a raw
+    // quantity-vs-reference recompute, so a compound-mass row the pipeline
+    // declined to gate cannot fabricate a UL exceedance.
+    final verdicts = aggregator.extractPipelineUlVerdicts(items);
+    final statuses = StackUlChecker(rdaData: rdaData).check(
+      aggregated,
+      ageBracket: ageBracket,
+      sex: sex,
+      pipelineVerdicts: verdicts,
+    );
 
     double totalScore = 0.0;
     var scoredCount = 0;

@@ -60,6 +60,7 @@
 // score and stack nutrient panel use the same nutrient identity, unit, and
 // demographic rules.
 
+import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 class StackUlChecker {
@@ -76,10 +77,18 @@ class StackUlChecker {
   /// Both are optional — when null, the checker still runs with the
   /// `highest_ul` fallback, which gives anonymous users a usable
   /// safety check even without a profile.
+  /// [pipelineVerdicts] carries the pipeline's own per-nutrient UL decisions
+  /// (keyed by canonical id, from
+  /// [StackNutrientAggregator.extractPipelineUlVerdicts]). When a definitive
+  /// verdict exists for a nutrient it is PREFERRED over the client's recompute
+  /// — the pipeline resolves elemental-vs-compound mass and form-aware unit
+  /// conversions the client cannot reconstruct from raw quantities. Absent by
+  /// default, so callers that don't supply verdicts keep the pure recompute.
   List<NutrientStatus> check(
     Map<String, NutrientTotal> aggregated, {
     String? ageBracket,
     String? sex,
+    Map<String, PipelineUlVerdict> pipelineVerdicts = const {},
   }) {
     final recommendations =
         (rdaData['nutrient_recommendations'] as List?) ?? const [];
@@ -87,7 +96,13 @@ class StackUlChecker {
     final results = <NutrientStatus>[];
     for (final total in aggregated.values) {
       results.add(
-        _classifyOne(total, recommendations, ageBracket: ageBracket, sex: sex),
+        _classifyOne(
+          total,
+          recommendations,
+          ageBracket: ageBracket,
+          sex: sex,
+          verdict: pipelineVerdicts[total.canonicalId],
+        ),
       );
     }
     return results;
@@ -98,6 +113,7 @@ class StackUlChecker {
     List<dynamic> recommendations, {
     required String? ageBracket,
     required String? sex,
+    PipelineUlVerdict? verdict,
   }) {
     final resolved = _findEntry(recommendations, total);
     if (resolved == null) {
@@ -130,11 +146,20 @@ class StackUlChecker {
     final pctOfRda = (rda != null && rda > 0)
         ? (amountInReferenceUnit / rda) * 100.0
         : null;
-    final pctOfUl = (ul != null && ul > 0)
+    final recomputedPctOfUl = (ul != null && ul > 0)
         ? (amountInReferenceUnit / ul) * 100.0
         : null;
+    // Surface the pipeline's percent-of-UL when it supplied one so the shown
+    // number agrees with the verdict-driven tier; else the client recompute.
+    final pctOfUl = (verdict != null && verdict.isDefinitive)
+        ? (verdict.pctUl ?? recomputedPctOfUl)
+        : recomputedPctOfUl;
 
-    final tier = _classify(pctOfRda: pctOfRda, pctOfUl: pctOfUl);
+    final tier = _classify(
+      pctOfRda: pctOfRda,
+      pctOfUl: recomputedPctOfUl,
+      verdict: verdict,
+    );
     final warning =
         (tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl)
         ? _warningFor(resolved.id, tier)
@@ -327,7 +352,24 @@ class StackUlChecker {
   NutrientTier _classify({
     required double? pctOfRda,
     required double? pctOfUl,
+    PipelineUlVerdict? verdict,
   }) {
+    // The pipeline's UL verdict takes precedence over the client recompute:
+    // it accounts for elemental-vs-compound mass and form-aware conversions
+    // that raw quantity ÷ reference cannot. Only recompute when no definitive
+    // verdict exists.
+    if (verdict != null && verdict.isDefinitive) {
+      if (verdict.exceedsUl) return NutrientTier.exceedsUl;
+      // Pipeline says within its UL — never escalate to a UL-warning tier
+      // (exceedsUl / approachingUl) from a possibly compound-inflated
+      // recompute. Fall back to intake-target tiers as a UL-bounded-but-safe
+      // nutrient.
+      if (pctOfRda == null) return NutrientTier.noRda;
+      if (pctOfRda >= 200.0) return NutrientTier.aboveTypical;
+      if (pctOfRda >= 100.0) return NutrientTier.abundant;
+      if (pctOfRda >= 50.0) return NutrientTier.adequate;
+      return NutrientTier.underFifty;
+    }
     if (pctOfUl != null) {
       if (pctOfUl >= 100.0) return NutrientTier.exceedsUl;
       if (pctOfUl >= 80.0) return NutrientTier.approachingUl;

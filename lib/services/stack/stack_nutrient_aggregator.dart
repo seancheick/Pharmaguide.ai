@@ -198,6 +198,79 @@ class StackNutrientAggregator {
     );
   }
 
+  /// Extract the pipeline's own per-nutrient UL verdicts from the raw rows,
+  /// keyed by canonical id (matching [aggregate]'s keys).
+  ///
+  /// When the pipeline has already decided a row's UL status (emitting
+  /// `over_ul` / `pct_ul`) the client should PREFER that verdict over its
+  /// own recompute: the pipeline resolves elemental-vs-compound mass and
+  /// form-aware unit conversions that cannot be reconstructed from raw blob
+  /// quantities. [StackUlChecker.check] consumes this map.
+  ///
+  /// Rows the pipeline declined to gate (`ul_gate_eligible == false`) or
+  /// skipped (`skip_ul_check == true`) contribute NO verdict — an incidental
+  /// `over_ul`/`pct_ul` on such a row would be misleading. When several rows
+  /// map to one canonical id, the most severe verdict wins.
+  Map<String, PipelineUlVerdict> extractPipelineUlVerdicts(
+    List<StackItemNutrients> stack,
+  ) {
+    final byCanonical = <String, PipelineUlVerdict>{};
+    for (final item in stack) {
+      for (final row in item.ingredients) {
+        if (!_isUsableNutrientRow(row)) continue;
+        if (row['skip_ul_check'] == true) continue;
+        if (row['ul_gate_eligible'] == false) continue;
+
+        final overUl = _readOverUl(row);
+        final pctUl = _asDouble(row['pct_ul']);
+        if (overUl == null && pctUl == null) continue;
+
+        final canonical = _readCanonicalId(row);
+        if (canonical == null || canonical.isEmpty) continue;
+
+        final verdict = PipelineUlVerdict(overUl: overUl, pctUl: pctUl);
+        final existing = byCanonical[canonical];
+        byCanonical[canonical] = existing == null
+            ? verdict
+            : _mostSevereVerdict(existing, verdict);
+      }
+    }
+    return byCanonical;
+  }
+
+  static bool? _readOverUl(Map<String, dynamic> row) {
+    final v = row['over_ul'];
+    return v is bool ? v : null;
+  }
+
+  /// Merge two verdicts for the same canonical nutrient, keeping the most
+  /// severe signal: any `over_ul == true` wins; otherwise the larger
+  /// `pct_ul`; a definite `over_ul == false` is preserved over an absent one.
+  static PipelineUlVerdict _mostSevereVerdict(
+    PipelineUlVerdict a,
+    PipelineUlVerdict b,
+  ) {
+    final bool? overUl;
+    if (a.overUl == true || b.overUl == true) {
+      overUl = true;
+    } else if (a.overUl == false || b.overUl == false) {
+      overUl = false;
+    } else {
+      overUl = null;
+    }
+    final pctA = a.pctUl;
+    final pctB = b.pctUl;
+    final double? pctUl;
+    if (pctA == null) {
+      pctUl = pctB;
+    } else if (pctB == null) {
+      pctUl = pctA;
+    } else {
+      pctUl = pctA >= pctB ? pctA : pctB;
+    }
+    return PipelineUlVerdict(overUl: overUl, pctUl: pctUl);
+  }
+
   /// Return false for rows that should never count toward any total:
   /// inactive ingredients, proprietary blend containers (children
   /// carry the real dose), and parent-total rows in nested nutrient
@@ -305,6 +378,19 @@ class StackNutrientAggregator {
   ) {
     if (row['skip_ul_check'] == true) {
       return NutrientExclusionReason.skippedByPipeline;
+    }
+    // The pipeline declined to UL-gate this row because its disclosed
+    // quantity is a COMPOUND mass, not elemental-comparable to the
+    // reference UL (`ul_gate_ineligible_reason == "compound_mass_not_elemental"`).
+    // Honor that decision and keep the compound mass out of the recompute:
+    // a single-form compound product (e.g. Magnesium L-Threonate 2000 mg
+    // with no bare-elemental sibling) must not be measured against the
+    // elemental UL. Reuse `compoundFormDuplicate` — same "compound weight is
+    // not elemental, don't sum it" semantics — so this does NOT raise the
+    // unit-conflict flag. Opt-out only (`== false`): absent/true are summed,
+    // so catalogs built before the field existed are unaffected.
+    if (row['ul_gate_eligible'] == false) {
+      return NutrientExclusionReason.compoundFormDuplicate;
     }
     if (unit.isEmpty) return NutrientExclusionReason.missingUnit;
     final normalized = unit.toLowerCase().trim();
@@ -425,6 +511,39 @@ class StackNutrientAggregator {
   /// spaces so 'vitamin_d3' and 'Vitamin D3' compare equal.
   static String _normalizeNameKey(String raw) {
     return raw.trim().toLowerCase().replaceAll(RegExp(r'[\s_]+'), ' ');
+  }
+}
+
+/// The pipeline's authored UL verdict for one canonical nutrient, extracted
+/// from raw `rda_ul_data`-style rows by
+/// [StackNutrientAggregator.extractPipelineUlVerdicts].
+///
+/// The client prefers this over recomputing percent-of-UL from raw blob
+/// quantities: the pipeline sees elemental-vs-compound mass and form-aware
+/// unit conversions the client cannot re-derive. When the verdict is absent
+/// or non-definitive, the client falls back to its own recompute.
+class PipelineUlVerdict {
+  const PipelineUlVerdict({this.overUl, this.pctUl});
+
+  /// Pipeline's boolean UL gate. `true` = over the limit, `false` = within,
+  /// `null` = the pipeline did not emit a boolean decision for this row.
+  final bool? overUl;
+
+  /// Pipeline's percent-of-UL for the row, when emitted.
+  final double? pctUl;
+
+  /// Whether the pipeline emitted any actionable UL signal at all. A verdict
+  /// that is not definitive is ignored and the client recomputes.
+  bool get isDefinitive => overUl != null || pctUl != null;
+
+  /// Whether the pipeline judged this nutrient OVER its UL. `over_ul` is the
+  /// authoritative gate; `pct_ul >= 150` mirrors the pipeline's B7
+  /// (150%-of-UL) exceedance threshold as a fallback when only the percentage
+  /// was emitted. An explicit `over_ul == false` always wins.
+  bool get exceedsUl {
+    if (overUl == true) return true;
+    if (overUl == false) return false;
+    return (pctUl ?? 0) >= 150.0;
   }
 }
 
