@@ -138,7 +138,7 @@ List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
           evidenceLevel: EvidenceLevel.established,
           title: 'Exceeds upper limit: ${e.standardName}',
           mechanism: e.warning,
-          management: 'Reduce dose or consult a healthcare provider.',
+          management: 'Worth reviewing this dose with your healthcare provider.',
           displayModeDefault: 'critical',
         ),
       )
