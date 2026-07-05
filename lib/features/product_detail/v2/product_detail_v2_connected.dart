@@ -303,8 +303,8 @@ class _ProductDetailV2ConnectedState
     // the page imply "no interactions found".
     final personalizedWarningsFailed = personalizedWarningsAsync.hasError;
     final profile = ref.watch(profileProvider);
-    final userConditionsSet = profile.conditions.toSet();
-    final userDrugClassesSet = profile.drugClasses.toSet();
+    final userConditionsSet = profile.conditionsForEvaluator.toSet();
+    final userDrugClassesSet = profile.drugClassesForEvaluator.toSet();
     final userProfileFlagsSet = profile.evaluatorProfileFlags;
     final guardedWarnings = composeGuardedWarnings(
       detailBlob: detailBlob,
@@ -671,8 +671,8 @@ class _ProductDetailV2ConnectedState
                   if (showDeepDive) ...[
                     buildPopulationsSection(
                       warnings: guardedWarnings,
-                      userConditions: profile.conditions.toSet(),
-                      userDrugClasses: profile.drugClasses.toSet(),
+                      userConditions: profile.conditionsForEvaluator.toSet(),
+                      userDrugClasses: profile.drugClassesForEvaluator.toSet(),
                       ageBracket: profile.ageBracket,
                     ),
                     const SizedBox(height: V2Spacing.space12),
