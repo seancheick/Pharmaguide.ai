@@ -606,6 +606,29 @@ class _StackTabState extends ConsumerState<_StackTab> {
 // Stack Summary card.
 // =============================================================================
 
+/// Tone + label for the Stack Health chip when the intelligence engine has
+/// NOT produced a verdict (providers loading, errored, or the stack is
+/// empty). Pure so the hedge-on-error rule is unit-testable without pumping
+/// the provider-heavy card.
+///
+/// The safety-critical rule: an errored safety subsystem must NEVER fall
+/// through to the reassuring green "No data yet" — an unknown result is not
+/// a clear one. On error we hedge with a neutral (muted, non-green) tone.
+/// A still-loading state stays green/"Analyzing" (transient), and a settled
+/// empty stack keeps the original green "No data yet".
+({Color tone, String label}) stackHealthFallbackDisplay({
+  required bool isAnalyzing,
+  required bool hasError,
+}) {
+  if (isAnalyzing) {
+    return (tone: V2Colors.safe, label: 'Analyzing');
+  }
+  if (hasError) {
+    return (tone: V2Colors.fgMuted, label: "Couldn't check");
+  }
+  return (tone: V2Colors.safe, label: 'No data yet');
+}
+
 class _StackSummaryCard extends ConsumerWidget {
   final bool showPreviewFixtures;
 
@@ -657,12 +680,24 @@ class _StackSummaryCard extends ConsumerWidget {
         synergyAsync.isLoading ||
         recallAsync.isLoading ||
         doseAlertsAsync.isLoading;
-    // Tone: real status color when intelligence is loaded; v2 safe
-    // green during analyzing or no-data states.
-    final Color tone = status?.color ?? V2Colors.safe;
-    final statusLabel = isAnalyzing
-        ? 'Analyzing'
-        : status?.label ?? 'No data yet';
+    // A safety subsystem that ERRORED must never fall through to the
+    // reassuring green "No data yet" — an unknown result is not a clear
+    // one. When any provider errors and none is still loading, the
+    // fallback hedges with a neutral (non-green) tone + label.
+    final hasError =
+        reportAsync.hasError ||
+        synergyAsync.hasError ||
+        recallAsync.hasError ||
+        doseAlertsAsync.hasError;
+    // Tone/label: real status color when the intelligence engine produced a
+    // verdict; otherwise a pure fallback (green while analyzing / empty,
+    // neutral hedge on error).
+    final fallback = stackHealthFallbackDisplay(
+      isAnalyzing: isAnalyzing,
+      hasError: hasError,
+    );
+    final Color tone = status?.color ?? fallback.tone;
+    final statusLabel = status?.label ?? fallback.label;
     final insightLine = describeStackSummary(intelligence);
 
     return Container(
@@ -1454,18 +1489,61 @@ class _StackV2PreviewState extends State<StackV2Preview> {
 // surfaces/tokens.
 // =============================================================================
 
+/// Neutral, non-green hedge shown when a safety surface could not be
+/// evaluated — a provider error or an incomplete check. Under-warning is
+/// the dangerous failure here: an unknown safety result must never render
+/// as green/all-clear, so these slots surface this hedge instead of
+/// silently collapsing to `SizedBox.shrink`.
+class _SafetyUnavailableBanner extends StatelessWidget {
+  const _SafetyUnavailableBanner({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return PGSeverityBanner(
+      tone: PGBannerTone.neutral,
+      title: title,
+      body: body,
+      margin: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space12,
+        V2Spacing.space24,
+        0,
+      ),
+    );
+  }
+}
+
 class _RecallAlertSlot extends ConsumerWidget {
-  // Slot watches `recalledIngredientsReportProvider` directly, which
-  // already filters against the active stack — no need to pass the
-  // stack rows in. Dropped the dead `stack` field 2026-05-17.
+  // Watches `recalledIngredientsCheckProvider` so it can read the
+  // `incomplete` hedge alongside the report. The provider already filters
+  // against the active stack — no need to pass the stack rows in.
   const _RecallAlertSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(recalledIngredientsReportProvider);
-    return reportAsync.when(
-      data: (report) {
-        if (report.isEmpty) return const SizedBox.shrink();
+    final checkAsync = ref.watch(recalledIngredientsCheckProvider);
+    return checkAsync.when(
+      data: (check) {
+        final report = check.report;
+        if (report.isEmpty) {
+          // Empty report + incomplete check means the recall data could not
+          // be loaded — hedge rather than imply the stack is recall-free, or
+          // an FDA-recalled product goes silently un-flagged. A genuinely
+          // clean stack (loaded, no hits) still shows nothing.
+          if (check.incomplete) {
+            return const _SafetyUnavailableBanner(
+              title: "Couldn't check for recalls",
+              body:
+                  'Recall data is unavailable right now, so we could not '
+                  'check your stack against FDA recalls. Check back in a '
+                  'moment.',
+            );
+          }
+          return const SizedBox.shrink();
+        }
         final ordered = report.orderedViolations;
         final primary = ordered.first;
         final names = ordered.map((v) => v.productName).toList(growable: false);
@@ -1489,7 +1567,14 @@ class _RecallAlertSlot extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      // Never vanish silently on error — hedge so a failed recall check does
+      // not read as "no recalls".
+      error: (_, __) => const _SafetyUnavailableBanner(
+        title: "Couldn't check for recalls",
+        body:
+            'Recall data is unavailable right now, so we could not check '
+            'your stack against FDA recalls. Check back in a moment.',
+      ),
     );
   }
 }
@@ -1514,7 +1599,14 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      // Never vanish silently on error — hedge (neutral) so a failed safety
+      // pass does not read as "no interactions".
+      error: (_, __) => const _SafetyUnavailableBanner(
+        title: "Couldn't check your stack",
+        body:
+            'Safety data is unavailable right now, so we could not check '
+            'your stack for interactions. Check back in a moment.',
+      ),
     );
   }
 }

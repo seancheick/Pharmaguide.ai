@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -106,7 +105,7 @@ class _SafetyCheckSheet extends ConsumerWidget {
               safetyAsync.when(
                 loading: () => const _VerifyingSafety(),
                 error: (_, __) => const _SafetyCheckError(),
-                data: (warnings) => _SafetyResults(warnings: warnings),
+                data: (check) => _SafetyResults(check: check),
               ),
 
             const SizedBox(height: V2Spacing.space24),
@@ -131,13 +130,15 @@ class _SafetyCheckSheet extends ConsumerWidget {
                           child: Text('Cannot add'),
                         )
                       : safetyAsync.maybeWhen(
-                          data: (warnings) => FilledButton(
+                          data: (check) => FilledButton(
                             onPressed: () {
-                              _fireHaptic(warnings);
+                              _fireHaptic(check);
                               Navigator.of(context).pop(true);
                             },
                             child: Text(
-                              warnings.isEmpty ? 'Add to stack' : 'Add anyway',
+                              check.isConfidentClear
+                                  ? 'Add to stack'
+                                  : 'Add anyway',
                             ),
                           ),
                           orElse: () => const FilledButton(
@@ -154,9 +155,16 @@ class _SafetyCheckSheet extends ConsumerWidget {
     );
   }
 
-  void _fireHaptic(List<InteractionResult> warnings) {
-    if (warnings.isEmpty) {
+  void _fireHaptic(PreAddSafetyResult check) {
+    if (check.isConfidentClear) {
       PGHaptics.success();
+      return;
+    }
+    final warnings = check.results;
+    if (warnings.isEmpty) {
+      // checksIncomplete: hedge with a light caution buzz, not a success
+      // buzz — we could not confirm the stack is clear.
+      PGHaptics.forSeverity(Severity.caution);
       return;
     }
     // Fire haptic matching the most severe warning.
@@ -237,19 +245,37 @@ class _UnsafeProductBanner extends StatelessWidget {
 }
 
 class _SafetyResults extends StatelessWidget {
-  final List<InteractionResult> warnings;
+  final PreAddSafetyResult check;
 
-  const _SafetyResults({required this.warnings});
+  const _SafetyResults({required this.check});
 
   @override
   Widget build(BuildContext context) {
-    if (warnings.isEmpty) {
+    // Affirmative "Safe to add" is allowed ONLY when every check ran and
+    // nothing fired. An empty result under incomplete checks is NOT a clean
+    // bill of health — it must hedge (never render green).
+    if (check.isConfidentClear) {
       return const PGSeverityBanner(
         tone: PGBannerTone.success,
         title: 'No stack interactions found',
         body:
             'This product does not overlap with anything currently in '
             'your stack. Safe to add.',
+      );
+    }
+
+    final warnings = check.results;
+    if (warnings.isEmpty) {
+      // checksIncomplete == true: a curated check could not finish
+      // (interaction data unavailable, a stack item could not be read, or a
+      // medication could not be classified). Hedge with a neutral tone.
+      return const PGSeverityBanner(
+        tone: PGBannerTone.neutral,
+        title: "Couldn't fully check your stack",
+        body:
+            'Some interaction checks could not run, so we could not confirm '
+            'this is free of stack conflicts. Add is still available — '
+            'review your stack before adding.',
       );
     }
 

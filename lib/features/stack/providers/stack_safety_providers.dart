@@ -31,65 +31,218 @@ import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
-/// Runs [StackInteractionChecker] for the candidate product against the
-/// current stack. Returns an empty list when the stack is empty or when
-/// the product has no flags that could trigger a warning.
+/// Result of the pre-add safety check ([safetyCheckForAddProvider]).
 ///
-/// This runs off the bundled core DB only — no network. It's fast enough
-/// to await inside a "Verifying safety…" confirmation step.
+/// Carries the combined interaction/heuristic [results] AND a
+/// [checksIncomplete] flag so the "Add to stack" sheet can distinguish
+/// "every check ran and found nothing" (safe to affirm) from "one or more
+/// checks could not run" (must hedge — an empty list is NOT a clean bill of
+/// health). Under-warning is the dangerous failure on a medical surface, so
+/// the sheet only renders the affirmative "Safe to add" state when
+/// [isConfidentClear] is true.
+class PreAddSafetyResult {
+  const PreAddSafetyResult({
+    required this.results,
+    required this.checksIncomplete,
+  });
+
+  /// Fully-checked, nothing fired — the only state that may show the
+  /// affirmative "Safe to add" banner. Also used for the trivially-safe
+  /// short-circuits (empty stack / candidate not found).
+  static const PreAddSafetyResult clear = PreAddSafetyResult(
+    results: <InteractionResult>[],
+    checksIncomplete: false,
+  );
+
+  /// Combined curated (supplement×supplement, medication×supplement) and
+  /// heuristic (stim/sed, blood-thinner, duplicate-active) hits, deduped by
+  /// result id.
+  final List<InteractionResult> results;
+
+  /// True when at least one check could not run to completion — interaction
+  /// DB failure, medication normalization failure, or a stack product that
+  /// could not hydrate. An empty [results] with this set means "not fully
+  /// checked", never "all clear".
+  final bool checksIncomplete;
+
+  /// The single state that is safe to render as an affirmative "Safe to
+  /// add": every check ran AND nothing fired.
+  bool get isConfidentClear => results.isEmpty && !checksIncomplete;
+}
+
+/// Runs the full pre-add safety check for [dsldId] against the current
+/// stack — the same curated checks [stackSafetyReportProvider] runs for the
+/// aggregated banner, pivoted for the single candidate product:
+///
+///   1. Curated supplement × supplement pair lookups
+///      ([StackInteractionChecker.checkSupplementPairInteractions]).
+///   2. Curated medication × supplement lookups
+///      ([StackInteractionChecker.checkMedicationInteractions]) against the
+///      stack's medications, normalized through the same
+///      [MedicationClassBridge] path the report uses. This is the half that
+///      was missing before — medications were dropped entirely (null
+///      dsldId), so a warfarin × ginkgo bleeding-risk pair read as "Safe to
+///      add".
+///   3. The legacy fingerprint heuristic
+///      ([StackInteractionChecker.checkSafety]) for stim/sed, blood-thinner,
+///      and duplicate-active category warnings.
+///
+/// Results are combined and deduped by result id. If any check could not run
+/// (DB unavailable, med normalization threw, a stack product failed to
+/// hydrate) [PreAddSafetyResult.checksIncomplete] is set so the sheet hedges
+/// instead of claiming "Safe to add".
+///
+/// Runs off the bundled core + interaction DBs only — no network. Fast
+/// enough to await inside a "Verifying safety…" confirmation step.
 final safetyCheckForAddProvider = FutureProvider.family
-    .autoDispose<List<InteractionResult>, String>((ref, dsldId) async {
+    .autoDispose<PreAddSafetyResult, String>((ref, dsldId) async {
       final coreDb = ref.watch(coreDatabaseProvider);
-      final userDb = ref.watch(userDatabaseProvider);
 
       final candidate = await coreDb.findById(dsldId);
-      if (candidate == null) return const [];
+      if (candidate == null) return PreAddSafetyResult.clear;
 
-      final stack = await userDb.getActiveStack();
-      if (stack.isEmpty) return const [];
+      // Mirror the report: depend on the active stack so any mutation
+      // invalidates us, and split by type.
+      final stack = await ref.watch(activeStackProvider.future);
+      if (stack.isEmpty) return PreAddSafetyResult.clear;
 
-      // Pair each stack entry with its core product row (skip items missing a
-      // dsldId — those are hand-entered medications that don't have a fingerprint).
+      // Only needed to check a NON-empty stack — watch it after the
+      // trivially-clear short-circuits so an empty-stack add never depends on
+      // the interaction DB being present.
+      final interactionDb = ref.watch(interactionDatabaseProvider);
+
+      final supplementRows = stack
+          .where((e) => e.type == 'supplement')
+          .toList(growable: false);
+      final medicationRows = stack
+          .where((e) => e.type == 'medication')
+          .toList(growable: false);
+
+      var checksIncomplete = false;
+
+      // Hydrate supplement stack rows to core products for the fingerprint
+      // heuristic. A row that cannot hydrate is excluded from the heuristic,
+      // so flag the result incomplete rather than silently under-checking.
       final stackProducts = <ProductsCoreData>[];
-      for (final entry in stack) {
+      for (final entry in supplementRows) {
         final id = entry.dsldId;
         if (id == null || id.isEmpty) continue;
         try {
           final product = await coreDb.findById(id);
-          if (product != null) stackProducts.add(product);
-        } on Exception {
-          // Skip broken entries — we're best-effort here.
+          if (product != null) {
+            stackProducts.add(product);
+          } else {
+            checksIncomplete = true;
+          }
+        } on Object {
+          checksIncomplete = true;
         }
       }
 
-      if (stackProducts.isEmpty) return const [];
+      final candidateIds = canonicalIdsForProduct(candidate);
+      final checker = StackInteractionChecker();
+      final combined = <InteractionResult>[];
+      final seenIds = <String>{};
+      void addAll(Iterable<InteractionResult> hits) {
+        for (final r in hits) {
+          if (seenIds.add(r.id)) combined.add(r);
+        }
+      }
 
-      final newFp = parseFingerprint(candidate.ingredientFingerprint);
-      final stackFps = stackProducts
-          .map((p) => parseFingerprint(p.ingredientFingerprint))
-          .toList(growable: false);
+      // 1. Curated supplement × supplement pair lookups.
+      if (candidateIds.isNotEmpty && supplementRows.isNotEmpty) {
+        try {
+          addAll(
+            await checker.checkSupplementPairInteractions(
+              newProductCanonicalIds: candidateIds,
+              stackSupplements: supplementRows,
+              db: interactionDb,
+              newProductName: candidate.productName,
+            ),
+          );
+        } on Object catch (e, st) {
+          checksIncomplete = true;
+          CrashReportingService().recordError(
+            e,
+            st,
+            hint: 'safety_check_add:supplement_pairs_failed',
+          );
+        }
+      }
 
-      bool flag(int? v) => v == 1;
+      // 2. Curated medication × supplement lookups. Normalize the medication
+      //    rows through the same bridge the report uses so brand/class
+      //    resolution matches; an unresolvable medication marks the result
+      //    incomplete (its class-level checks could not run).
+      if (candidateIds.isNotEmpty && medicationRows.isNotEmpty) {
+        try {
+          final normalized = await _normalizeMedicationRowsForSafety(
+            medicationRows,
+            MedicationClassBridge(db: interactionDb),
+          );
+          if (normalized.identityIncomplete) checksIncomplete = true;
+          addAll(
+            await checker.checkMedicationInteractions(
+              newProductCanonicalIds: candidateIds,
+              stackMedications: normalized.rows,
+              db: interactionDb,
+              newProductName: candidate.productName,
+            ),
+          );
+        } on Object catch (e, st) {
+          checksIncomplete = true;
+          CrashReportingService().recordError(
+            e,
+            st,
+            hint: 'safety_check_add:medication_interactions_failed',
+          );
+        }
+      }
 
-      return StackInteractionChecker().checkSafety(
-        newProductFingerprint: newFp,
-        stackFingerprints: stackFps,
-        newContainsStimulants: flag(candidate.containsStimulants),
-        newContainsSedatives: flag(candidate.containsSedatives),
-        newContainsBloodThinners: flag(candidate.containsBloodThinners),
-        stackContainsStimulants: stackProducts
-            .map((p) => flag(p.containsStimulants))
-            .toList(),
-        stackContainsSedatives: stackProducts
-            .map((p) => flag(p.containsSedatives))
-            .toList(),
-        stackContainsBloodThinners: stackProducts
-            .map((p) => flag(p.containsBloodThinners))
-            .toList(),
-        stackProductNames: stackProducts
-            .map((p) => p.productName)
-            .toList(growable: false),
-        newProductName: candidate.productName,
+      // 3. Legacy fingerprint heuristic (stim/sed, blood thinner, dup actives)
+      //    for the candidate against every hydrated supplement in the stack.
+      if (stackProducts.isNotEmpty) {
+        bool flag(int? v) => v == 1;
+        try {
+          addAll(
+            checker.checkSafety(
+              newProductFingerprint: parseFingerprint(
+                candidate.ingredientFingerprint,
+              ),
+              stackFingerprints: stackProducts
+                  .map((p) => parseFingerprint(p.ingredientFingerprint))
+                  .toList(growable: false),
+              newContainsStimulants: flag(candidate.containsStimulants),
+              newContainsSedatives: flag(candidate.containsSedatives),
+              newContainsBloodThinners: flag(candidate.containsBloodThinners),
+              stackContainsStimulants: stackProducts
+                  .map((p) => flag(p.containsStimulants))
+                  .toList(growable: false),
+              stackContainsSedatives: stackProducts
+                  .map((p) => flag(p.containsSedatives))
+                  .toList(growable: false),
+              stackContainsBloodThinners: stackProducts
+                  .map((p) => flag(p.containsBloodThinners))
+                  .toList(growable: false),
+              stackProductNames: stackProducts
+                  .map((p) => p.productName)
+                  .toList(growable: false),
+              newProductName: candidate.productName,
+            ),
+          );
+        } on Object catch (e, st) {
+          checksIncomplete = true;
+          CrashReportingService().recordError(
+            e,
+            st,
+            hint: 'safety_check_add:heuristic_failed',
+          );
+        }
+      }
+
+      return PreAddSafetyResult(
+        results: combined,
+        checksIncomplete: checksIncomplete,
       );
     });
 
@@ -547,118 +700,153 @@ _normalizeMedicationRowsForSafety(
   return (rows: out, identityIncomplete: identityIncomplete);
 }
 
-/// Recall detection: finds products in the user's stack that contain banned
-/// or recalled ingredients, returning a [RecalledIngredientsReport] with
-/// violations sorted by severity.
-final recalledIngredientsReportProvider = FutureProvider<RecalledIngredientsReport>((
-  ref,
-) async {
-  final coreDb = ref.watch(coreDatabaseProvider);
-  // Read the repo via the provider so tests can override the asset source.
-  // Sprint 27.6 added this indirection to enable integration tests of
-  // the scan→flag path without needing to bundle fixture assets.
-  final refDataRepo = ref.watch(reference_data.referenceDataRepositoryProvider);
-
-  // Take a dependency on the active stack so any mutation invalidates us.
-  final stack = await ref.watch(activeStackProvider.future);
-  if (stack.isEmpty) return RecalledIngredientsReport.empty();
-
-  final supplements = stack
-      .where((e) => e.type == 'supplement')
-      .toList(growable: false);
-  if (supplements.isEmpty) return RecalledIngredientsReport.empty();
-
-  // Load banned/recalled ingredients data.
-  final Map<String, dynamic> recallData;
-  try {
-    recallData = await refDataRepo.loadBannedRecalledIngredients();
-  } on Object {
-    return RecalledIngredientsReport.empty();
-  }
-
-  final recalledRaw = recallData['recalled_ingredients'];
-  final recalledList = recalledRaw is List ? recalledRaw : null;
-  if (recalledList == null || recalledList.isEmpty) {
-    return RecalledIngredientsReport.empty();
-  }
-
-  // Build a map of canonical_id → RecalledIngredientAlert for fast lookup.
-  final recalledMap = <String, RecalledIngredientAlert>{};
-  for (final recallJson in recalledList) {
-    if (recallJson is! Map) continue;
-    final recall = Map<String, dynamic>.from(recallJson);
-    final canonicalId = recall['canonical_id'] as String?;
-    if (canonicalId == null) continue;
-
-    final commonNames =
-        (recall['common_names'] as List<dynamic>?)
-            ?.map((c) => c.toString())
-            .toList() ??
-        const <String>[];
-    final recallStatus = recall['recall_status'] as String? ?? 'warning';
-    final regulatoryBasis = recall['regulatory_basis'] as String? ?? '';
-    final reason = recall['reason'] as String? ?? '';
-    final effectiveDate = recall['effective_date'] as String? ?? '';
-    final severity = recall['severity'] as String? ?? 'major';
-    final safetyWarning = recall['safety_warning'] as String? ?? '';
-    final safetyWarningOneLiner =
-        recall['safety_warning_one_liner'] as String? ?? '';
-    final banContext = recall['ban_context'] as String? ?? '';
-
-    recalledMap[canonicalId] = RecalledIngredientAlert(
-      canonicalId: canonicalId,
-      commonNames: commonNames,
-      recallStatus: recallStatus,
-      regulatoryBasis: regulatoryBasis,
-      reason: reason,
-      effectiveDate: effectiveDate,
-      severity: severity,
-      safetyWarning: safetyWarning,
-      safetyWarningOneLiner: safetyWarningOneLiner,
-      banContext: banContext,
-    );
-  }
-
-  // Check each supplement for recalled ingredients.
-  final violations = <RecalledIngredientViolation>[];
-  for (final entry in supplements) {
-    final productId = entry.dsldId;
-    if (productId == null || productId.isEmpty) continue;
-
-    ProductsCoreData? product;
-    try {
-      product = await coreDb.findById(productId);
-    } on Exception {
-      continue;
-    }
-    if (product == null) continue;
-
-    // Check if product has the recalled flag or contains recalled ingredients.
-    final hasRecallFlag = (product.hasRecalledIngredient ?? 0) == 1;
-    final canonicalIds = canonicalIdsForProduct(product);
-    final recalledIngredients = <RecalledIngredientAlert>[];
-
-    for (final cid in canonicalIds) {
-      if (recalledMap.containsKey(cid)) {
-        recalledIngredients.add(recalledMap[cid]!);
-      }
-    }
-
-    // If the product is flagged or contains recalled ingredients, add violation.
-    if (hasRecallFlag || recalledIngredients.isNotEmpty) {
-      violations.add(
-        RecalledIngredientViolation(
-          productDsldId: productId,
-          productName: entry.name,
-          brandName: product.brandName ?? '',
-          recalledIngredients: recalledIngredients,
-        ),
+/// Recall detection result: the [report] plus an [incomplete] flag set when
+/// the banned/recalled asset could not be loaded.
+///
+/// A load failure used to be swallowed silently — recall detection would
+/// disable itself and the stack read "all clear", so an FDA-recalled product
+/// went un-flagged. Now the failure is recorded (CrashReportingService) and
+/// [incomplete] lets the banner hedge instead of implying "no recalls".
+///
+/// This is the real worker; [recalledIngredientsReportProvider] is a thin
+/// view kept unchanged for consumers that only need the report.
+final recalledIngredientsCheckProvider =
+    FutureProvider<({RecalledIngredientsReport report, bool incomplete})>((
+      ref,
+    ) async {
+      final coreDb = ref.watch(coreDatabaseProvider);
+      // Read the repo via the provider so tests can override the asset source.
+      // Sprint 27.6 added this indirection to enable integration tests of
+      // the scan→flag path without needing to bundle fixture assets.
+      final refDataRepo = ref.watch(
+        reference_data.referenceDataRepositoryProvider,
       );
-    }
-  }
 
-  return RecalledIngredientsReport(violations: violations);
-});
+      // Take a dependency on the active stack so any mutation invalidates us.
+      final stack = await ref.watch(activeStackProvider.future);
+      if (stack.isEmpty) {
+        return (report: RecalledIngredientsReport.empty(), incomplete: false);
+      }
+
+      final supplements = stack
+          .where((e) => e.type == 'supplement')
+          .toList(growable: false);
+      if (supplements.isEmpty) {
+        return (report: RecalledIngredientsReport.empty(), incomplete: false);
+      }
+
+      // Load banned/recalled ingredients data. A failure here disables recall
+      // detection for the whole stack — record it and flag the result incomplete
+      // so the banner hedges rather than implying "no recalls".
+      final Map<String, dynamic> recallData;
+      try {
+        recallData = await refDataRepo.loadBannedRecalledIngredients();
+      } on Object catch (e, st) {
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'stack_safety:recalled_ingredients_load_failed',
+        );
+        return (report: RecalledIngredientsReport.empty(), incomplete: true);
+      }
+
+      final recalledRaw = recallData['recalled_ingredients'];
+      final recalledList = recalledRaw is List ? recalledRaw : null;
+      if (recalledList == null || recalledList.isEmpty) {
+        return (report: RecalledIngredientsReport.empty(), incomplete: false);
+      }
+
+      // Build a map of canonical_id → RecalledIngredientAlert for fast lookup.
+      final recalledMap = <String, RecalledIngredientAlert>{};
+      for (final recallJson in recalledList) {
+        if (recallJson is! Map) continue;
+        final recall = Map<String, dynamic>.from(recallJson);
+        final canonicalId = recall['canonical_id'] as String?;
+        if (canonicalId == null) continue;
+
+        final commonNames =
+            (recall['common_names'] as List<dynamic>?)
+                ?.map((c) => c.toString())
+                .toList() ??
+            const <String>[];
+        final recallStatus = recall['recall_status'] as String? ?? 'warning';
+        final regulatoryBasis = recall['regulatory_basis'] as String? ?? '';
+        final reason = recall['reason'] as String? ?? '';
+        final effectiveDate = recall['effective_date'] as String? ?? '';
+        final severity = recall['severity'] as String? ?? 'major';
+        final safetyWarning = recall['safety_warning'] as String? ?? '';
+        final safetyWarningOneLiner =
+            recall['safety_warning_one_liner'] as String? ?? '';
+        final banContext = recall['ban_context'] as String? ?? '';
+
+        recalledMap[canonicalId] = RecalledIngredientAlert(
+          canonicalId: canonicalId,
+          commonNames: commonNames,
+          recallStatus: recallStatus,
+          regulatoryBasis: regulatoryBasis,
+          reason: reason,
+          effectiveDate: effectiveDate,
+          severity: severity,
+          safetyWarning: safetyWarning,
+          safetyWarningOneLiner: safetyWarningOneLiner,
+          banContext: banContext,
+        );
+      }
+
+      // Check each supplement for recalled ingredients.
+      final violations = <RecalledIngredientViolation>[];
+      for (final entry in supplements) {
+        final productId = entry.dsldId;
+        if (productId == null || productId.isEmpty) continue;
+
+        ProductsCoreData? product;
+        try {
+          product = await coreDb.findById(productId);
+        } on Exception {
+          continue;
+        }
+        if (product == null) continue;
+
+        // Check if product has the recalled flag or contains recalled ingredients.
+        final hasRecallFlag = (product.hasRecalledIngredient ?? 0) == 1;
+        final canonicalIds = canonicalIdsForProduct(product);
+        final recalledIngredients = <RecalledIngredientAlert>[];
+
+        for (final cid in canonicalIds) {
+          if (recalledMap.containsKey(cid)) {
+            recalledIngredients.add(recalledMap[cid]!);
+          }
+        }
+
+        // If the product is flagged or contains recalled ingredients, add violation.
+        if (hasRecallFlag || recalledIngredients.isNotEmpty) {
+          violations.add(
+            RecalledIngredientViolation(
+              productDsldId: productId,
+              productName: entry.name,
+              brandName: product.brandName ?? '',
+              recalledIngredients: recalledIngredients,
+            ),
+          );
+        }
+      }
+
+      return (
+        report: RecalledIngredientsReport(violations: violations),
+        incomplete: false,
+      );
+    });
+
+/// Recall detection report for the active stack. Thin view over
+/// [recalledIngredientsCheckProvider] — kept as its own provider (same name
+/// + type) so existing consumers (home, share-report, stack intelligence)
+/// are unchanged. The stack's recall banner watches the check provider
+/// directly to read the `incomplete` hedge.
+final recalledIngredientsReportProvider =
+    FutureProvider<RecalledIngredientsReport>((ref) async {
+      final check = await ref.watch(recalledIngredientsCheckProvider.future);
+      return check.report;
+    });
 
 /// Depletion checker — matches medications against known nutrient
 /// depletions and highlights which ones the user's supplement stack
