@@ -60,6 +60,17 @@ class SyncService {
   /// frees the OTA subsystem within the session.
   static const _downloadInactivityTimeout = Duration(seconds: 30);
 
+  /// Overall deadline for the authed `.download()` fallback. That path
+  /// buffers the whole file via a single `Future<Uint8List>` — there is no
+  /// per-chunk signal to run an inactivity watchdog against, so a stalled
+  /// connection would hang this await forever and wedge the OTA subsystem
+  /// (including the manual retry button) for the session, exactly like the
+  /// body-stream hang the watchdog fixed. A total deadline is the only tool
+  /// the buffered API offers; it errs generous (large catalog on a slow link)
+  /// and a timeout surfaces as a retryable [TimeoutException] under
+  /// retryWithBackoff.
+  static const _authedDownloadTimeout = Duration(minutes: 2);
+
   /// Returns the current remote DB version published in export_manifest.
   Future<String?> fetchCurrentDbVersion() async {
     final injected = _currentDbVersionFetcher;
@@ -283,7 +294,8 @@ class SyncService {
       try {
         final downloaded = await supabase.storage
             .from(SupabaseContract.storageBucket)
-            .download(storagePath);
+            .download(storagePath)
+            .timeout(_authedDownloadTimeout);
         span?.setData('http.response.body.size', downloaded.length);
         return downloaded;
       } on Object catch (error) {
