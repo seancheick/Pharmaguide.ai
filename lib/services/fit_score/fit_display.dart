@@ -30,30 +30,33 @@ sealed class FitDisplay {
   const FitDisplay();
 }
 
-/// Fit fraction is in the strong band (≥0.85 of scoreFit20/20) and the
-/// product is safe-or-mild for this user. Render with the most prominent
-/// positive treatment. Tier label only — no number shown to the user.
+/// Rendered when FitScoreService returns [FitAssessmentState.strongMatch]
+/// (all selected goals matched, with E2a goal-confidence above its floor)
+/// and the product is safe-or-mild for this user. Most prominent positive
+/// treatment. Tier label only — the internal score is never shown.
 final class FitStrongMatch extends FitDisplay {
   const FitStrongMatch();
 }
 
-/// Fit fraction is in the good band (0.60..0.84). Renders with
-/// neutral-positive treatment. Tier label only — no number shown.
+/// Rendered for [FitAssessmentState.goodFit] — or when a caution/monitor
+/// severity caps a strongMatch down (see [computeFitDisplay]).
+/// Neutral-positive treatment. Tier label only — no number shown.
 final class FitGoodMatch extends FitDisplay {
   const FitGoodMatch();
 }
 
-/// Fit fraction is in the middle band (0.35..0.59). Render with
-/// cautious-neutral treatment — the product is safe to take but the fit
-/// math doesn't support a strong recommendation. Tier label only.
+/// Rendered for [FitAssessmentState.limitedFit] (e.g. low mapped coverage,
+/// or no selected-goal match). Cautious-neutral treatment — the product is
+/// safe to take but the fit math doesn't support a strong recommendation.
+/// Tier label only.
 final class FitLimitedFit extends FitDisplay {
   const FitLimitedFit();
 }
 
-/// Fit fraction is below threshold (<0.35) even though the product itself
-/// is safe-or-mild. Render with concerned-neutral treatment. Distinct from
-/// [FitHidden]: here the product is fine, the fit is the issue.
-/// Tier label only — no number shown to the user.
+/// Rendered for [FitAssessmentState.notRecommended] — the product itself
+/// is safe-or-mild, but the fit math came back low. Concerned-neutral
+/// treatment. Distinct from [FitHidden]: here the product is fine, the fit
+/// is the issue. Tier label only — no number shown to the user.
 final class FitNotRecommended extends FitDisplay {
   const FitNotRecommended();
 }
@@ -77,18 +80,6 @@ final class FitHidden extends FitDisplay {
 /// the math may have succeeded but is suppressed by safety override).
 final class FitIncomplete extends FitDisplay {
   const FitIncomplete();
-}
-
-/// Tier thresholds expressed as fractions of scoreFit20 / 20.
-/// The number is intentionally NOT shown to the user — these only band
-/// the internal score into the four user-facing tier labels.
-abstract final class FitDisplayThresholds {
-  /// Fit-percentage thresholds (scoreFit20 / 20).
-  /// Number is intentionally NOT shown to the user — these only band
-  /// the internal score into the four user-facing tiers.
-  static const double strongMatch = 0.85;
-  static const double goodMatch = 0.60;
-  static const double limitedFit = 0.35;
 }
 
 /// Decide the [FitDisplay] state for the For You section.

@@ -197,24 +197,4 @@ void main() {
       expect(out, isA<FitHidden>());
     });
   });
-
-  group('FitDisplayThresholds', () {
-    test('threshold constants are stable + ordered', () {
-      // Tier ordering must be: strong > good > limited.
-      expect(
-        FitDisplayThresholds.strongMatch,
-        greaterThan(FitDisplayThresholds.goodMatch),
-      );
-      expect(
-        FitDisplayThresholds.goodMatch,
-        greaterThan(FitDisplayThresholds.limitedFit),
-      );
-      // Pin exact values so a refactor that nudges them surfaces in
-      // CI. Banding logic references these — moving them silently
-      // changes tier assignments.
-      expect(FitDisplayThresholds.strongMatch, 0.85);
-      expect(FitDisplayThresholds.goodMatch, 0.60);
-      expect(FitDisplayThresholds.limitedFit, 0.35);
-    });
-  });
 }

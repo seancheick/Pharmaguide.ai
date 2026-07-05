@@ -16,6 +16,13 @@ class FitScoreService {
   final E2bAgeCalculator e2b;
   final E2cMedicalCalculator e2c;
 
+  /// E2a goal-match confidence floor for the "Strong match" tier. E2a is on
+  /// a 0.0..2.0 scale (`2.0 * matchedRatio * avgConfidence`, see
+  /// [E2aGoalCalculator]); "Strong match" additionally requires ALL selected
+  /// goals matched (matchedRatio == 1.0), so this floor of 1.5 means an
+  /// average goal-match confidence of >= 0.75. Below it → "Good fit".
+  static const double strongMatchE2aFloor = 1.5;
+
   FitScoreService({
     required this.e1,
     required this.e2a,
@@ -315,7 +322,7 @@ class FitScoreService {
       final matchedAllGoals =
           userGoals.isNotEmpty &&
           selectedGoalMatches.length == userGoals.length;
-      state = matchedAllGoals && e2aScore >= 1.5
+      state = matchedAllGoals && e2aScore >= strongMatchE2aFloor
           ? FitAssessmentState.strongMatch
           : FitAssessmentState.goodFit;
     }
