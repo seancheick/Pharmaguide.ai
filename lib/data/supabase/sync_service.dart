@@ -411,12 +411,65 @@ class SyncService {
 
   /// Promotes a validated staging database into the live path.
   /// Safe to call repeatedly; it no-ops if no staged file exists.
-  Future<void> activateStagedCoreDbIfPresent() async {
+  ///
+  /// REFUSES to promote while the `.staging.version` marker is present:
+  /// [stageCoreDbDownload] writes the marker before the first downloaded
+  /// byte and clears it only after [_validateStagedDatabase] passes, so a
+  /// staging file still carrying its marker is a partial or unvalidated
+  /// download (e.g. the OS killed the app mid-stream). Promoting it would
+  /// replace the live catalog with torn bytes and silently downgrade the
+  /// user to the bundled build-time catalog when the torn file fails to
+  /// open. The partial and its marker are left untouched so the next
+  /// [stageCoreDbDownload] can Range-resume and re-validate.
+  ///
+  /// [revalidate] additionally re-runs the full staged-DB validation
+  /// (PRAGMA integrity_check, snapshot probe, version gate, schema
+  /// columns) before promoting. Boot passes true: a marker-less file left
+  /// by a previous process is of unknown provenance because the marker
+  /// bookkeeping is best-effort (see [_prepareStagingForVersion]).
+  /// In-session callers ([downloadCoreDb], CatalogSwapper) validated the
+  /// file moments earlier and skip the second pass.
+  Future<void> activateStagedCoreDbIfPresent({bool revalidate = false}) async {
     final dbPath = await getCoreDbPath();
+    await _activateStagedCoreDb(dbPath, revalidate: revalidate);
+  }
+
+  /// Test seam for [_activateStagedCoreDb] with an explicit db path, so
+  /// tests can exercise the real marker-refusal/backup/rename logic against
+  /// a temp directory without `path_provider` (mirrors
+  /// [validateStagedDatabaseForTest]).
+  @visibleForTesting
+  Future<void> activateStagedCoreDbAtPathForTest(
+    String dbPath, {
+    bool revalidate = false,
+  }) {
+    return _activateStagedCoreDb(dbPath, revalidate: revalidate);
+  }
+
+  Future<void> _activateStagedCoreDb(
+    String dbPath, {
+    required bool revalidate,
+  }) async {
     final stagingPath = '$dbPath.staging';
     final backupPath = '$dbPath.backup';
     final stagingFile = File(stagingPath);
     if (!await stagingFile.exists()) {
+      return;
+    }
+
+    // Marker present = downloaded but NOT yet validated (see the resume
+    // contract on stageCoreDbDownload). Never promote it — keep the
+    // current catalog and leave the partial + marker for Range-resume.
+    if (await _versionMarkerFor(stagingFile).exists()) {
+      CrashReportingService().log(
+        'catalog staged activation refused: .staging.version marker present '
+        '(download not yet validated) — keeping current catalog, leaving '
+        'partial for resume',
+      );
+      return;
+    }
+
+    if (revalidate && !await _revalidateStagedBeforePromote(stagingFile)) {
       return;
     }
 
@@ -482,6 +535,47 @@ class SyncService {
           );
         }
       }
+    }
+  }
+
+  /// Defense-in-depth for boot-time promotes: re-runs [_validateStagedDatabase]
+  /// on a marker-less staging file. The marker bookkeeping in
+  /// [_prepareStagingForVersion] is best-effort, so a mid-download kill can
+  /// (rarely) leave a torn `.staging` with no marker; this backstop keeps it
+  /// from clobbering the live catalog.
+  ///
+  /// Returns true when the staged file is safe to promote. On failure the
+  /// staged file is deleted — mirroring [stageCoreDbDownload]'s contract
+  /// that a fully-downloaded file which failed validation can never become
+  /// valid — the live catalog is left untouched, and no error propagates
+  /// (boot proceeds on the current catalog).
+  Future<bool> _revalidateStagedBeforePromote(File stagingFile) async {
+    try {
+      // expectedVersion is unknowable here: boot may be offline and the
+      // remote manifest unreachable. Integrity check, snapshot probe,
+      // version gate, and schema-column checks still run.
+      await _validateStagedDatabase(stagingFile.path);
+      return true;
+    } on Object catch (error, st) {
+      CrashReportingService().recordError(
+        error,
+        st,
+        fatal: false,
+        hint: 'catalog_sync:staged_revalidation_failed',
+      );
+      try {
+        if (await stagingFile.exists()) {
+          await stagingFile.delete();
+        }
+      } on Object catch (cleanupError, cleanupSt) {
+        CrashReportingService().recordError(
+          cleanupError,
+          cleanupSt,
+          hint: 'catalog_sync:staging_cleanup_failed',
+        );
+      }
+      await _deleteStagingVersionMarker(stagingFile);
+      return false;
     }
   }
 
@@ -557,7 +651,9 @@ class SyncService {
   /// field from the DB's embedded `export_manifest` key-value table, so the
   /// two values must match byte-for-byte. A mismatch means Supabase Storage
   /// served us a file that disagrees with its own manifest row — we refuse
-  /// to activate it.
+  /// to activate it. Pass null when the remote manifest is unreachable
+  /// (boot-time revalidation in [_revalidateStagedBeforePromote]): the
+  /// equality check is skipped but every other gate still runs.
   ///
   /// VERSION GATE: after the version match, the embedded manifest's
   /// `min_app_version` and `schema_version` are checked against this app
@@ -566,7 +662,7 @@ class SyncService {
   /// deletes the staged file upstream.
   Future<String> _validateStagedDatabase(
     String dbPath, {
-    required String expectedVersion,
+    String? expectedVersion,
   }) async {
     final db = CoreDatabase.open(dbPath);
     try {
@@ -589,7 +685,7 @@ class SyncService {
       }
 
       final validatedVersion = await db.validateCatalogSnapshot();
-      if (validatedVersion != expectedVersion) {
+      if (expectedVersion != null && validatedVersion != expectedVersion) {
         throw StateError(
           'Downloaded catalog version mismatch: '
           'expected db_version $expectedVersion, got $validatedVersion. '

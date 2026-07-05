@@ -241,7 +241,12 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
     if (widget.supabaseReady) {
       try {
-        await _syncService.activateStagedCoreDbIfPresent();
+        // Boot-time promote hardening: a `.staging` left by a previous
+        // process is of unknown provenance (the OS may have killed the
+        // app mid-download), so revalidate before letting it replace the
+        // live catalog. SyncService also refuses outright while the
+        // `.staging.version` marker (= not yet validated) is present.
+        await _syncService.activateStagedCoreDbIfPresent(revalidate: true);
       } on Object catch (e) {
         debugPrint('Catalog staged activation failed: $e');
       }
