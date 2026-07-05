@@ -949,6 +949,25 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
   );
 });
 
+/// Drug-class ids resolved for the user's CURRENT-STACK medications — the
+/// SAME already-resolved source stack safety and depletion consume
+/// (`drugClassesCol` on `type == 'medication'` rows, populated by the class
+/// bridge at add-time). Exposed so product detail can gate its
+/// pipeline-authored drug-interaction warnings on the meds a user actually
+/// added, not just the profile picker chips. NO re-mapping here — this reads
+/// the classes the bridge already resolved, keeping one source of truth.
+final currentStackMedicationClassIdsProvider = FutureProvider<Set<String>>((
+  ref,
+) async {
+  final stack = await ref.watch(activeStackProvider.future);
+  final out = <String>{};
+  for (final e in stack) {
+    if (e.type != 'medication') continue;
+    out.addAll(_decodeStackStringList(e.drugClassesCol));
+  }
+  return out;
+});
+
 List<String> _decodeStackStringList(String? raw) {
   if (raw == null || raw.isEmpty) return const <String>[];
   try {

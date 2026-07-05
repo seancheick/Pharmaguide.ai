@@ -24,6 +24,7 @@ import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
@@ -71,6 +72,12 @@ final fitScoreForProductProvider = FutureProvider.family
       // generic FitScore until the DB load finishes. FitScore must never be
       // persisted — it's a fresh computation every time.
       final profile = await ref.watch(loadedProfileProvider.future);
+      // Include the classes of meds the user added to their stack (same
+      // resolved source stack safety uses) so the medical (E2c) penalty
+      // reflects added medications, not just the profile picker chips.
+      final stackMedicationClassIds = await ref.watch(
+        currentStackMedicationClassIdsProvider.future,
+      );
 
       // Product row (for quality_score_v4_100 + primary_category → cluster)
       ProductsCoreData? product;
@@ -110,7 +117,10 @@ final fitScoreForProductProvider = FutureProvider.family
         sex: _rdaGroupForProfile(profile.sex, profile.conditions),
         userGoals: profile.goals,
         userConditions: profile.conditionsForEvaluator,
-        userDrugClasses: profile.drugClassesForEvaluator,
+        userDrugClasses: <String>{
+          ...profile.drugClassesForEvaluator,
+          ...stackMedicationClassIds,
+        }.toList(),
         mappedCoverage: product.mappedCoverage ?? 0.0,
         warnings: warnings,
         userProfileFlags: profile.evaluatorProfileFlags,

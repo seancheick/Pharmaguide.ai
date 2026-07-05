@@ -78,6 +78,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/transparency_foo
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -304,7 +305,18 @@ class _ProductDetailV2ConnectedState
     final personalizedWarningsFailed = personalizedWarningsAsync.hasError;
     final profile = ref.watch(profileProvider);
     final userConditionsSet = profile.conditionsForEvaluator.toSet();
-    final userDrugClassesSet = profile.drugClassesForEvaluator.toSet();
+    // Union the profile picker drug-class chips with the classes of the
+    // meds the user actually ADDED to their stack — the same already-
+    // resolved source stack safety uses (no re-mapping) — so pipeline
+    // drug-gated warnings fire whether the user ticked the chip OR added
+    // the medication.
+    final stackMedicationClassIds =
+        ref.watch(currentStackMedicationClassIdsProvider).value ??
+        const <String>{};
+    final userDrugClassesSet = <String>{
+      ...profile.drugClassesForEvaluator,
+      ...stackMedicationClassIds,
+    };
     final userProfileFlagsSet = profile.evaluatorProfileFlags;
     final guardedWarnings = composeGuardedWarnings(
       detailBlob: detailBlob,
