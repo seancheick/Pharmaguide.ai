@@ -147,6 +147,45 @@ void main() {
       expect(find.text('Vitamin D exceeds the upper limit'), findsNothing);
     });
 
+    testWidgets(
+      'suppresses a safety_flag the pipeline marks ul_gate_eligible=false '
+      '(compound-mass false positive, e.g. Magtein)',
+      (tester) async {
+        await _pump(
+          tester,
+          rdaUlData: {
+            'safety_flags': [
+              {
+                'nutrient': 'Magnesium',
+                'amount': 2144,
+                'unit': 'mg',
+                'ul': 350,
+                'pct_ul': 612.57,
+                'ul_gate_eligible': false,
+                'ul_gate_ineligible_reason': 'compound_mass_not_elemental',
+                'warning': 'Exceeds UL by 1650 mg',
+              },
+            ],
+            'analyzed_ingredients': [
+              {
+                'standard_name': 'Magnesium',
+                'ingredient': 'Magtein',
+                'quantity': 2000,
+                'unit': 'mg',
+                'over_ul': null,
+                'pct_ul': null,
+                'skip_ul_check': false,
+                'warnings': ['Exceeds UL by 1650 mg'],
+              },
+            ],
+          },
+        );
+
+        // Pipeline-flagged false positive + stale prose only → no tradeoff.
+        expect(find.text('Magnesium exceeds the upper limit'), findsNothing);
+      },
+    );
+
     testWidgets('4 concerns render fully with no toggle', (tester) async {
       await _pump(
         tester,

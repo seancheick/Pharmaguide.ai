@@ -87,6 +87,10 @@ List<PGTradeoff> _buildUlConsiderations({
   final seen = <String>{};
 
   void addFromFlag(Map<Object?, Object?> flag) {
+    // Skip flags the pipeline itself marks as not a real UL breach (e.g.
+    // `compound_mass_not_elemental` false positives). Mirrors the stack
+    // aggregator + dose_safety structured-UL defense.
+    if (flag['ul_gate_eligible'] == false) return;
     final nutrient = _stringValue(
       flag['nutrient'] ?? flag['standard_name'] ?? flag['ingredient'],
     );
@@ -115,11 +119,10 @@ List<PGTradeoff> _buildUlConsiderations({
 
   for (final row in ulAnalysis) {
     if (row['skip_ul_check'] == true) continue;
-    final warnings = row['warnings'];
-    if (warnings is! List ||
-        !warnings.any((warning) => _stringValue(warning) != null)) {
-      continue;
-    }
+    // Require the pipeline's structured over-UL verdict — stale prose
+    // `warnings` alone must not surface a tradeoff (matches
+    // extractUlExceedances / dose_safety).
+    if (row['over_ul'] != true) continue;
     addFromFlag(row);
   }
 
