@@ -56,6 +56,7 @@ import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_goal_chip.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -1945,12 +1946,11 @@ String _formatCategoryLabel(String category) {
   return parts.join(' ');
 }
 
-Color _scoreTone(double score) {
-  if (score >= 80) return V2Colors.safe;
-  if (score >= 60) return V2Colors.monitor;
-  if (score >= 40) return V2Colors.caution;
-  return V2Colors.avoid;
-}
+// Score-chip color uses the canonical quality-tier palette from
+// score_tier.dart so search and product detail never render a different
+// color for the same score. The locked boundaries (90/80/70/60/50) live in
+// tierForScore — this must never reintroduce its own bands.
+Color _scoreTone(double score) => tierForScore(score.round()).color;
 
 Color _verdictTone(String verdict) {
   switch (verdict.trim().toUpperCase()) {
