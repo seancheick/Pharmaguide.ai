@@ -47,7 +47,10 @@ DoseSafety resolveDoseSafety({
   final entry = matchUlEntry(ingredient, ulAnalysis);
   if (entry == null) return DoseSafety.withinLimits;
   if (entry['skip_ul_check'] == true) return DoseSafety.skip;
-  if (_hasUlWarning(entry)) return DoseSafety.exceedsUl;
+  if (_hasConfirmedUlExceedance(entry, ingredient: ingredient)) {
+    return DoseSafety.exceedsUl;
+  }
+  if (_hasStructuredUlDecision(entry)) return DoseSafety.withinLimits;
 
   // Per the FLTR-11 clarification: compare the actual disclosed
   // `quantity` against the UL, NOT `per_day_max`. per_day_max is a
@@ -55,9 +58,40 @@ DoseSafety resolveDoseSafety({
   // used for stack aggregation. Using it would double-count the
   // serving math and fire false-positive UL alerts on any product
   // whose label allows multiple servings.
+  return _quantityExceedsResolvedUl(entry, ingredient: ingredient)
+      ? DoseSafety.exceedsUl
+      : DoseSafety.withinLimits;
+}
+
+bool _hasConfirmedUlExceedance(
+  Map<String, dynamic> entry, {
+  Map<String, dynamic>? ingredient,
+}) {
+  if (entry['skip_ul_check'] == true) return false;
+
+  final overUl = entry['over_ul'];
+  if (overUl == true) return true;
+  if (overUl == false) return false;
+
+  final pctUl = _asDouble(entry['pct_ul']);
+  if (pctUl != null) return pctUl > 100.0;
+
+  if (_hasStructuredUlDecision(entry)) return false;
+
+  return _quantityExceedsResolvedUl(entry, ingredient: ingredient);
+}
+
+bool _hasStructuredUlDecision(Map<String, dynamic> entry) {
+  return entry.containsKey('over_ul') || entry.containsKey('pct_ul');
+}
+
+bool _quantityExceedsResolvedUl(
+  Map<String, dynamic> entry, {
+  Map<String, dynamic>? ingredient,
+}) {
   final quantity =
-      _asDouble(entry['quantity']) ?? _asDouble(ingredient['quantity']);
-  if (quantity == null || quantity <= 0) return DoseSafety.withinLimits;
+      _asDouble(entry['quantity']) ?? _asDouble(ingredient?['quantity']);
+  if (quantity == null || quantity <= 0) return false;
 
   // UL resolution order honoring the pipeline contract:
   //   1. ul_for_default_profile — age/sex-aware UL when the pipeline
@@ -67,17 +101,9 @@ DoseSafety resolveDoseSafety({
   final ul =
       _asDouble(entry['ul_for_default_profile']) ??
       _asDouble(entry['highest_ul']);
-  if (ul == null || ul <= 0) return DoseSafety.withinLimits;
+  if (ul == null || ul <= 0) return false;
 
-  return quantity > ul ? DoseSafety.exceedsUl : DoseSafety.withinLimits;
-}
-
-bool _hasUlWarning(Map<String, dynamic> entry) {
-  final warnings = entry['warnings'];
-  if (warnings is! List) return false;
-  return warnings.any(
-    (warning) => warning?.toString().trim().isNotEmpty ?? false,
-  );
+  return quantity > ul;
 }
 
 /// Find the UL-analysis entry for an ingredient. Pulled out so the
@@ -113,9 +139,8 @@ String? _normalizedName(Object? raw) {
 }
 
 /// A single per-ingredient UL exceedance surfaced by the pipeline's
-/// `rda_ul_data.analyzed_ingredients[i].warnings[]` array. Each
-/// pipeline-emitted warning string becomes one [UlExceedance] so the
-/// UI can render one alert row per (ingredient, warning) pair.
+/// `rda_ul_data.analyzed_ingredients[]` array. The row must carry a
+/// structured UL exceedance decision; warning text alone is not trusted.
 class UlExceedance {
   final String standardName;
   final String warning;
@@ -126,17 +151,18 @@ class UlExceedance {
 ///
 /// Respects the same [skip_ul_check] contract as [resolveDoseSafety]:
 /// when the pipeline opts out of UL evaluation, no alert surfaces.
-/// Entries with no warning strings, no standard_name, or a malformed
-/// warnings field are skipped. Empty list when [ulAnalysis] is null
-/// or carries no exceedances.
-List<UlExceedance> extractUlExceedances(
-  List<Map<String, dynamic>>? ulAnalysis,
-) {
+/// Entries with no structured exceedance, no warning strings, no
+/// standard_name, or a malformed warnings field are skipped. Empty list
+/// when [ulAnalysis] is null or carries no exceedances.
+List<UlExceedance> extractUlExceedances(List<dynamic>? ulAnalysis) {
   if (ulAnalysis == null || ulAnalysis.isEmpty) return const [];
   final out = <UlExceedance>[];
   final seenNutrients = <String>{};
-  for (final entry in ulAnalysis) {
+  for (final rawEntry in ulAnalysis) {
+    final entry = _asStringKeyMap(rawEntry);
+    if (entry == null) continue;
     if (entry['skip_ul_check'] == true) continue;
+    if (!_hasConfirmedUlExceedance(entry)) continue;
     final rawName = entry['standard_name'] ?? entry['ingredient'];
     final name = rawName?.toString().trim();
     if (name == null || name.isEmpty) continue;
@@ -155,6 +181,16 @@ List<UlExceedance> extractUlExceedances(
     }
   }
   return out;
+}
+
+Map<String, dynamic>? _asStringKeyMap(Object? raw) {
+  if (raw is! Map) return null;
+  final out = <String, dynamic>{};
+  for (final entry in raw.entries) {
+    final key = entry.key;
+    if (key is String) out[key] = entry.value;
+  }
+  return out.isEmpty ? null : out;
 }
 
 String _ulNutrientKey(String name) {

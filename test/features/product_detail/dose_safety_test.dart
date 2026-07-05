@@ -276,6 +276,25 @@ void main() {
         DoseSafety.exceedsUl,
       );
     });
+
+    test('ignores stale warning text without structured UL confirmation', () {
+      final ingredient = <String, dynamic>{'standard_name': 'Magtein'};
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Magtein',
+          'quantity': 2000.0,
+          'skip_ul_check': false,
+          'pct_ul': null,
+          'over_ul': null,
+          'warnings': ['Exceeds UL by 1650.0 mg'],
+        },
+      ];
+
+      expect(
+        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+        DoseSafety.withinLimits,
+      );
+    });
   });
 
   group('extractUlExceedances (FLTR-5)', () {
@@ -285,6 +304,7 @@ void main() {
           'standard_name': 'Vitamin B3 (Niacin)',
           'quantity': 50.0,
           'skip_ul_check': false,
+          'over_ul': true,
           'warnings': ['Exceeds UL by 15.0 mg'],
         },
       ];
@@ -292,6 +312,37 @@ void main() {
       expect(out, hasLength(1));
       expect(out.first.standardName, 'Vitamin B3 (Niacin)');
       expect(out.first.warning, 'Exceeds UL by 15.0 mg');
+    });
+
+    test('skips stale warning text without structured UL confirmation', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Magtein',
+          'quantity': 2000.0,
+          'skip_ul_check': false,
+          'pct_ul': null,
+          'over_ul': null,
+          'warnings': ['Exceeds UL by 1650.0 mg'],
+        },
+      ];
+
+      expect(extractUlExceedances(ulAnalysis), isEmpty);
+    });
+
+    test('allows pct_ul above 100 to confirm an exceedance', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Niacin',
+          'skip_ul_check': false,
+          'pct_ul': 142.9,
+          'warnings': ['Exceeds UL by 15.0 mg'],
+        },
+      ];
+
+      final out = extractUlExceedances(ulAnalysis);
+
+      expect(out, hasLength(1));
+      expect(out.single.standardName, 'Niacin');
     });
 
     test('skips entries with skip_ul_check=true', () {
@@ -324,11 +375,13 @@ void main() {
         {
           'standard_name': 'Vitamin D3',
           'skip_ul_check': false,
+          'over_ul': true,
           'warnings': ['Exceeds UL by 25 mcg'],
         },
         {
           'standard_name': 'Vitamin D',
           'skip_ul_check': false,
+          'over_ul': true,
           'warnings': ['Exceeds UL by 25 mcg'],
         },
       ];
@@ -349,6 +402,7 @@ void main() {
         {
           'standard_name': 'Vitamin D',
           'skip_ul_check': false,
+          'over_ul': true,
           'warnings': ['Exceeds UL by 25 mcg'],
         },
       ];
@@ -364,6 +418,7 @@ void main() {
         {
           'standard_name': 'Iron',
           'skip_ul_check': false,
+          'over_ul': true,
           'warnings': [
             'Exceeds UL by 5.0 mg',
             'May mask zinc deficiency at this dose',
@@ -381,6 +436,7 @@ void main() {
         {
           'ingredient': 'Zinc',
           'skip_ul_check': false,
+          'over_ul': true,
           'warnings': ['Exceeds UL'],
         },
       ];
@@ -400,6 +456,7 @@ void main() {
           {'standard_name': 'A', 'warnings': 'not-a-list'},
           {
             'standard_name': 'B',
+            'over_ul': true,
             'warnings': ['', ' ', 'valid'],
           },
         ]),

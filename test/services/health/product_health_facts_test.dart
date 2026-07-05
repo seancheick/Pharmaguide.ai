@@ -380,6 +380,7 @@ void main() {
               {
                 'standard_name': 'Vitamin B3 (Niacin)',
                 'skip_ul_check': false,
+                'over_ul': true,
                 'warnings': ['Exceeds UL by 15 mg'],
               },
               {
@@ -401,6 +402,25 @@ void main() {
       },
     );
 
+    test('does not synthesize UL warnings from stale prose alone', () {
+      final facts = ProductHealthFacts.fromDetailBlob({
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Magtein',
+              'quantity': 2000.0,
+              'skip_ul_check': false,
+              'pct_ul': null,
+              'over_ul': null,
+              'warnings': ['Exceeds UL by 1650.0 mg'],
+            },
+          ],
+        },
+      });
+
+      expect(facts.warnings, isEmpty);
+    });
+
     test('dedupes vitamin form and nutrient UL warnings', () {
       final facts = ProductHealthFacts.fromDetailBlob({
         'rda_ul_data': {
@@ -408,11 +428,13 @@ void main() {
             {
               'standard_name': 'Vitamin D3',
               'skip_ul_check': false,
+              'over_ul': true,
               'warnings': ['Exceeds UL by 25 mcg'],
             },
             {
               'standard_name': 'Vitamin D',
               'skip_ul_check': false,
+              'over_ul': true,
               'warnings': ['Exceeds UL by 25 mcg'],
             },
           ],
@@ -435,6 +457,7 @@ void main() {
             {
               'standard_name': 'Vitamin D',
               'skip_ul_check': false,
+              'over_ul': true,
               'warnings': ['Exceeds UL by 25 mcg'],
             },
           ],
