@@ -1,11 +1,11 @@
 {
   "artifact_freshness_status": "checked_by_release_strict_gate",
-  "checksum": "sha256:2dd71325d7e4ff16f03edbb33c235db9dade8de7885213b3fc5c232a344ba0c2",
-  "checksum_sha256": "2dd71325d7e4ff16f03edbb33c235db9dade8de7885213b3fc5c232a344ba0c2",
-  "db_version": "2026.07.05.025054",
+  "checksum": "sha256:c6b68dcc29685611546507115d7d0d25e98ab1f0806d9f600cab5d9e8ce96193",
+  "checksum_sha256": "c6b68dcc29685611546507115d7d0d25e98ab1f0806d9f600cab5d9e8ce96193",
+  "db_version": "2026.07.05.221529",
   "detail_blob_count": 13272,
   "detail_blob_unique_count": 13272,
-  "detail_index_checksum": "sha256:a4b8ca207581ee1a805f6f52e8b4c9683d3f53f8427587e8ba84e9299547788d",
+  "detail_index_checksum": "sha256:fa7a944ae1b89a6fea2b38be72809fa5af9717169b9a5b234f3309676f8ccf1a",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -61,7 +61,7 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-07-05T02:50:54.506916+00:00",
+  "generated_at": "2026-07-05T22:15:29.778732+00:00",
   "integrity": {
     "contract_failures": 13,
     "coverage_pct": 93.51,
@@ -83,19 +83,20 @@
     "verdict_unsafe": 0,
     "warning_count": 0
   },
-  "interaction_db_checksum": "b8374cb22bbc46564d05de84b2862ca41dec12a1bcf9dabbe2a82b338039e4f3",
+  "interaction_db_checksum": "0d9fb5258f0d6df58c69fa573889d2cf52c99f548c554dea2f43237210f3a0fc",
   "interaction_db_version": "1.0.2",
   "min_app_version": "1.0.0",
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "pipeline_version": "3.4.0",
   "product_count": 13272,
-  "release_staged_at": "2026-07-05T02:52:33Z",
+  "release_staged_at": "2026-07-05T22:17:11Z",
   "schema_version": "2.0.0",
   "score_model": "v4",
   "scoring_config_checksum": "sha256:0a3e08b5f039eff45ed06120b38a42ee2d703a62dba17a2a8c23802f04dd8a09",
   "scoring_version": "3.4.0",
   "source_of_truth_matrix_version": "1.0.0",
   "strict_gate_summary": {
+    "strict_mode": true,
     "gates": [
       "source_of_truth_matrix",
       "cleaner_contract",
@@ -107,8 +108,7 @@
       "artifact_freshness",
       "flutter_bundle_parity"
     ],
-    "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest",
-    "strict_mode": true
+    "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest"
   },
   "warnings": []
 }
