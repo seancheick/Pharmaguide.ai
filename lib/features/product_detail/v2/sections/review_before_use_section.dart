@@ -218,6 +218,33 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   };
 }
 
+/// Independent allergen alert for BLOCKED products. A blocked verdict hides
+/// the full ProfileRelevance card (`shouldShowProfileRelevance == !isBlocked`),
+/// but an allergen match is an independent safety signal that must still
+/// surface — a "contains peanut" match matters regardless of WHY the product
+/// is blocked. Returns null when there are no matched allergens; otherwise a
+/// summary carrying ONLY the allergen rows (the rest of profile relevance
+/// stays with the hidden full card, no duplication since the two are
+/// mutually exclusive on the blocked/not-blocked axis).
+ProfileRelevanceSummary? buildBlockedAllergenAlertSummary(
+  List<MatchedAllergen> matchedAllergens,
+) {
+  final rows = rowsForAllergens(matchedAllergens);
+  if (rows.isEmpty) return null;
+  final hasContains = matchedAllergens.any((m) => m.presenceType == 'contains');
+  return ProfileRelevanceSummary(
+    status: hasContains
+        ? ProfileRelevanceStatus.notRecommended
+        : ProfileRelevanceStatus.review,
+    tone: hasContains ? PGReviewTone.danger : PGReviewTone.caution,
+    headline: hasContains
+        ? 'Contains an allergen in your profile'
+        : 'May contain an allergen in your profile',
+    rows: rows,
+    startExpanded: true,
+  );
+}
+
 class ProfileRelevanceSection extends StatelessWidget {
   final ProfileRelevanceSummary summary;
   final VoidCallback onCompleteProfile;

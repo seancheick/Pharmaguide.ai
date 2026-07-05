@@ -454,6 +454,14 @@ class _ProductDetailV2ConnectedState
           showProfileRelevanceCitationsSheet(context, urls),
     );
 
+    // Independent allergen alert for blocked products. A blocked verdict
+    // hides the ProfileRelevance card, but an allergen match must still
+    // surface as its own signal. Null when not blocked (ProfileRelevance
+    // renders the allergen rows) or when there is no allergen match.
+    final blockedAllergenAlert = isBlocked
+        ? buildBlockedAllergenAlertSummary(matchedAllergens)
+        : null;
+
     // -------------------------------------------------------------
     // Hero `bottomBanner` slot — blocked-product banner (11.7c.1).
     // Null when the product is not blocked; the Hero collapses the
@@ -525,6 +533,21 @@ class _ProductDetailV2ConnectedState
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
+
+                  // ---- 2b. Blocked allergen alert ------------------
+                  // A blocked verdict hides ProfileRelevance, but an
+                  // allergen match is an independent safety signal that
+                  // must still surface (a "contains" match matters
+                  // regardless of why the product is blocked).
+                  if (blockedAllergenAlert != null) ...[
+                    ProfileRelevanceSection(
+                      summary: blockedAllergenAlert,
+                      onCompleteProfile: () =>
+                          context.push(Routes.profileSetup),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   if (showProfileRelevance) ...[
                     KeyedSubtree(
                       key: _anchors.interactionsKey,
