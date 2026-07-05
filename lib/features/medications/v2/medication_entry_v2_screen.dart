@@ -409,6 +409,24 @@ class _MedicationEntryV2ScreenState
       setState(() => _saving = false);
       await context.push(Routes.authInvitation);
       return;
+    } on Object catch (e, st) {
+      // Any other failure (network, RxNorm resolve, DB write) must not leave
+      // the button wedged: _canSave is `!_saving && …`, so a stuck
+      // _saving=true permanently disables Save with no way to retry.
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'med_entry:add_medication_failed',
+      );
+      if (!mounted) return;
+      setState(() => _saving = false);
+      PGToast.showWith(
+        scaffoldMessengerKey.currentState,
+        "Couldn't add ${_selectedName!} — check your connection and try again.",
+        variant: PGToastVariant.error,
+        duration: const Duration(seconds: 4),
+      );
+      return;
     }
 
     if (!mounted) return;
