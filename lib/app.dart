@@ -44,10 +44,13 @@ import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
+import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
@@ -1148,11 +1151,44 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     if (data is! AuthState) return;
     if (!mounted) return;
     final authState = ref.read(authStateProvider.notifier);
-    if (data.event == AuthChangeEvent.signedIn ||
-        data.event == AuthChangeEvent.tokenRefreshed) {
-      authState.onSignedIn();
-    } else if (data.event == AuthChangeEvent.signedOut) {
-      authState.onSignedOut();
+    final event = data.event;
+    final uid = data.session?.user.id;
+    switch (event) {
+      // Shared-device account hygiene: every session-bearing event runs
+      // the account-switch guard FIRST. On a genuine different-uid
+      // sign-in the guard clears all local user data (and with it every
+      // sync-dirty row) before the auth mode flips — the guest→signedIn
+      // transition is what triggers the stack sync push, so flipping
+      // early could upload the previous user's rows under the new uid.
+      case AuthChangeEvent.signedIn ||
+              AuthChangeEvent.initialSession ||
+              AuthChangeEvent.tokenRefreshed ||
+              AuthChangeEvent.userUpdated
+          when uid != null && uid.isNotEmpty:
+        unawaited(
+          _applyAccountHygieneThenSignIn(
+            authState,
+            event: event,
+            uid: uid,
+            // Only the events that flipped the mode before this feature
+            // keep doing so — initialSession is already reflected by
+            // AuthStateService's constructor session check.
+            flipToSignedIn:
+                event == AuthChangeEvent.signedIn ||
+                event == AuthChangeEvent.tokenRefreshed,
+          ),
+        );
+      case AuthChangeEvent.signedIn || AuthChangeEvent.tokenRefreshed:
+        // Defensive: session-less variants of the flip events (GoTrue
+        // always attaches a session here) — preserve legacy behavior.
+        authState.onSignedIn();
+      case AuthChangeEvent.signedOut:
+        // Sign-out never touches local data or the owner record: the
+        // SAME user returning keeps their data, and a DIFFERENT uid
+        // signing in later is what triggers the clear.
+        authState.onSignedOut();
+      default:
+        break;
     }
     // Navigation must not depend on the scaffold messenger existing —
     // route first, then treat the snackbar as best-effort UI polish.
@@ -1186,6 +1222,47 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       default:
         break;
     }
+  }
+
+  /// Runs the [AccountSwitchGuard] for a session-bearing auth event, then
+  /// (for sign-in-shaped events) flips the app auth mode. The await
+  /// ordering is the point: the destructive clear on an account switch
+  /// completes BEFORE anything can trigger a sync push for the new uid.
+  Future<void> _applyAccountHygieneThenSignIn(
+    AuthStateService authState, {
+    required AuthChangeEvent event,
+    required String uid,
+    required bool flipToSignedIn,
+  }) async {
+    try {
+      final guard = AccountSwitchGuard(
+        ownerStore: AccountOwnerStore(),
+        db: ref.read(userDatabaseProvider),
+        // Per-user data living outside the user DB. Recent searches are
+        // the user's health-interest queries — they must not carry over.
+        clearPerUserPrefs: () => RecentSearchesService().clearAll(),
+      );
+      final action = await guard.onAuthEvent(event: event, uid: uid);
+      if (action == AccountSwitchAction.clearAndAdopt && mounted) {
+        // The cleared tables feed Future-based providers — invalidate
+        // the roots (their derived providers re-resolve automatically)
+        // so no mounted surface keeps showing the previous user's data.
+        ref.invalidate(activeStackProvider);
+        ref.invalidate(profileProvider);
+      }
+    } on Object catch (e, st) {
+      // Fail open for sign-in usability. Safe because ownership is only
+      // stamped AFTER a successful clear: on any guard failure the owner
+      // record still names the previous uid, and the sync-side owner
+      // gate (ownerAllowsPush) blocks every cross-account upload until a
+      // later sign-in completes the switch.
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'account_switch_guard',
+      );
+    }
+    if (flipToSignedIn && mounted) authState.onSignedIn();
   }
 
   @override

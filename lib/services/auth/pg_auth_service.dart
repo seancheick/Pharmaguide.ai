@@ -4,10 +4,148 @@ import 'dart:math' show Random;
 
 import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// ─── Shared-device account hygiene — "clear on account switch" ─────────────
+//
+// The next user on a device must not inherit or upload the previous
+// user's medical data. We persist the OWNER uid durably; on each auth
+// event a PURE function decides between keep / adopt / clearAndAdopt,
+// and only clearAndAdopt is destructive.
+//
+// CRITICAL SAFETY: the clear is destructive and there is NO cloud backup
+// for profile/meds/conditions/allergens. It fires ONLY on a genuine
+// different-uid sign-in — never on tokenRefreshed, userUpdated, the same
+// uid reappearing, initialSession with the same uid, or signedOut.
+
+/// What the account-switch gate decided for an auth event.
+enum AccountSwitchAction {
+  /// No ownership change — leave local data and the owner record alone.
+  keep,
+
+  /// First sign-in ever recorded on this install: stamp the incoming uid
+  /// as owner and KEEP all local (guest-era) data. Non-destructive.
+  adopt,
+
+  /// A DIFFERENT real uid signed in: clear ALL local user data (and with
+  /// it every sync-dirty row), then stamp the new owner. Destructive.
+  clearAndAdopt,
+}
+
+/// PURE decision for the account-switch gate. No I/O — every branch is
+/// unit-tested in test/services/auth/account_switch_gate_test.dart.
+///
+/// Destructive `clearAndAdopt` is possible ONLY for sign-in-shaped events
+/// ([AuthChangeEvent.signedIn], [AuthChangeEvent.initialSession]) carrying
+/// a real uid that differs from a real stored owner. Session-maintenance
+/// events ([AuthChangeEvent.tokenRefreshed], [AuthChangeEvent.userUpdated])
+/// may stamp ownership when none is recorded (an active session means the
+/// current human IS that uid) but can NEVER clear. Everything else —
+/// signedOut, passwordRecovery, MFA, unknown future events — is keep.
+AccountSwitchAction decideAccountAction({
+  required String? storedOwner,
+  required String? incomingUid,
+  required AuthChangeEvent event,
+}) {
+  // No uid → nothing to adopt and, above all, nothing to justify a clear.
+  if (incomingUid == null || incomingUid.isEmpty) {
+    return AccountSwitchAction.keep;
+  }
+  final hasOwner = storedOwner != null && storedOwner.isNotEmpty;
+  switch (event) {
+    case AuthChangeEvent.signedIn || AuthChangeEvent.initialSession:
+      if (!hasOwner) return AccountSwitchAction.adopt;
+      if (storedOwner == incomingUid) return AccountSwitchAction.keep;
+      return AccountSwitchAction.clearAndAdopt;
+    case AuthChangeEvent.tokenRefreshed || AuthChangeEvent.userUpdated:
+      // Never destructive: a refresh for a mismatched uid means a sign-in
+      // event was missed — the sync owner gate (ownerAllowsPush) blocks
+      // uploads until a genuine sign-in resolves it.
+      return hasOwner ? AccountSwitchAction.keep : AccountSwitchAction.adopt;
+    default:
+      // signedOut (owner intentionally stays — same user returning keeps
+      // their data; a different next sign-in triggers the clear),
+      // passwordRecovery, mfaChallengeVerified, and any future events.
+      return AccountSwitchAction.keep;
+  }
+}
+
+/// Durable record of which uid owns the local user data on this install.
+/// SharedPreferences-backed (the user DB has no kv/meta table): survives
+/// restarts and sign-outs, dies with an uninstall — exactly like the user
+/// DB itself, so the two can't outlive each other.
+class AccountOwnerStore {
+  static const String prefsKey = 'account_owner_uid';
+
+  /// The uid that owns local data, or null if no one ever signed in on
+  /// this install (genuine guest data).
+  Future<String?> read() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(prefsKey);
+  }
+
+  Future<void> write(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(prefsKey, uid);
+  }
+}
+
+/// Applies [decideAccountAction] to a live auth event: reads the durable
+/// owner, decides, and performs the (possibly destructive) side effects.
+///
+/// Ordering on clearAndAdopt is load-bearing: clear FIRST, stamp owner
+/// LAST. If anything fails mid-clear the owner still reads as the
+/// previous uid, so the next sign-in retries the clear and the sync
+/// owner gate keeps blocking cross-account uploads in the meantime.
+class AccountSwitchGuard {
+  final AccountOwnerStore _ownerStore;
+  final UserDatabase _db;
+
+  /// Clears per-user data living outside the user DB (e.g. recent
+  /// searches in SharedPreferences). Injected by the composition root so
+  /// this class doesn't grow feature imports.
+  final Future<void> Function()? _clearPerUserPrefs;
+
+  AccountSwitchGuard({
+    required AccountOwnerStore ownerStore,
+    required UserDatabase db,
+    Future<void> Function()? clearPerUserPrefs,
+  }) : _ownerStore = ownerStore,
+       _db = db,
+       _clearPerUserPrefs = clearPerUserPrefs;
+
+  /// Handle one auth event. Completes only after all side effects are
+  /// done — callers MUST await this before flipping the app's auth mode,
+  /// because the guest→signedIn transition is what triggers sync pushes.
+  Future<AccountSwitchAction> onAuthEvent({
+    required AuthChangeEvent event,
+    required String? uid,
+  }) async {
+    final storedOwner = await _ownerStore.read();
+    final action = decideAccountAction(
+      storedOwner: storedOwner,
+      incomingUid: uid,
+      event: event,
+    );
+    switch (action) {
+      case AccountSwitchAction.keep:
+        break;
+      case AccountSwitchAction.adopt:
+        await _ownerStore.write(uid!);
+      case AccountSwitchAction.clearAndAdopt:
+        // Destructive path — see class doc for the clear-first ordering.
+        await _db.clearAllLocalUserData();
+        await _clearPerUserPrefs?.call();
+        await _ownerStore.write(uid!);
+    }
+    return action;
+  }
+}
 
 /// Result of a sign-in attempt. Callers pattern-match to decide UX —
 /// successes hand the new Supabase session back; cancellations are
@@ -227,6 +365,11 @@ class PGAuthService {
 
   /// Sign out — wipes the local Supabase session; the auth listener
   /// fires `signedOut` and the UI reacts.
+  ///
+  /// Intentionally does NOT touch local user data or the
+  /// [AccountOwnerStore] record: the owner stays the last signed-in uid,
+  /// so the SAME user returning keeps their data and a DIFFERENT next
+  /// sign-in triggers the account-switch clear. Do not add a wipe here.
   Future<void> signOut() => supabase.auth.signOut();
 
   // ---------------------------------------------------------------------

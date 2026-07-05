@@ -48,6 +48,8 @@ import 'package:pharmaguide/core/utils/async_debouncer.dart';
 import 'package:pharmaguide/core/utils/retry.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart'
+    show AccountOwnerStore;
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
@@ -193,14 +195,40 @@ enum SyncResult {
   /// Skipped because device is offline. Will retry on connectivity regain.
   skippedOffline,
 
+  /// Skipped because the authenticated uid does not match the durable
+  /// local-data owner (see [AccountOwnerStore]). Belt-and-suspenders for
+  /// the account-switch clear: a previous user's rows must NEVER upload
+  /// under the new user's uid, even if a clear was missed or hasn't
+  /// completed yet. Rows stay local until ownership is resolved.
+  skippedOwnerMismatch,
+
   /// Sync crashed with an unexpected error. Rows are left dirty for retry.
   failed,
+}
+
+/// PURE owner gate for the push path: rows may only upload when the
+/// durable owner record matches the authenticated uid exactly. A null /
+/// empty owner (adoption not stamped yet) also blocks — the sign-in
+/// guard stamps it within moments, and blocking the interim push is the
+/// safe direction for a medical-data sync.
+bool ownerAllowsPush({
+  required String? storedOwner,
+  required String currentUid,
+}) {
+  return storedOwner != null &&
+      storedOwner.isNotEmpty &&
+      storedOwner == currentUid;
 }
 
 class StackSyncService {
   final StackSyncQueue _queue;
   final AuthStateService _authState;
   final ConnectivityService _connectivity;
+
+  /// Reads the durable local-data owner uid for the push-path owner gate
+  /// ([ownerAllowsPush]). Injectable for tests; defaults to the real
+  /// [AccountOwnerStore].
+  final Future<String?> Function() _readOwnerUid;
 
   /// Debounce window for [pushAll]: rapid stack mutations (add 3 products
   /// in a row) coalesce into a single batched upsert instead of three
@@ -224,7 +252,11 @@ class StackSyncService {
     this._authState,
     this._connectivity, {
     Duration debounce = const Duration(milliseconds: 1500),
-  }) : _debouncer = AsyncDebouncer<SyncResult>(debounce);
+    Future<String?> Function()? readOwnerUid,
+  }) : _readOwnerUid = readOwnerUid ?? _defaultReadOwnerUid,
+       _debouncer = AsyncDebouncer<SyncResult>(debounce);
+
+  static Future<String?> _defaultReadOwnerUid() => AccountOwnerStore().read();
 
   /// Push all locally-dirty stack rows to Supabase.
   ///
@@ -276,6 +308,19 @@ class StackSyncService {
       // Auth state service thinks we're signed in but Supabase disagrees.
       // Resolve to guest — the next auth event will correct this.
       return SyncResult.skippedGuest;
+    }
+
+    // Guard 4: account ownership. Never push rows under a uid that does
+    // not own the local data — the account-switch guard normally clears
+    // before this can matter, but a launch race or interrupted switch
+    // must not cross-upload the previous user's rows (read at execution
+    // time so a just-completed adopt/switch is honored).
+    final ownerUid = await _readOwnerUid();
+    if (!ownerAllowsPush(storedOwner: ownerUid, currentUid: user.id)) {
+      debugPrint(
+        'StackSync skipped: local-data owner does not match signed-in uid',
+      );
+      return SyncResult.skippedOwnerMismatch;
     }
 
     _connectivity.markSyncing();

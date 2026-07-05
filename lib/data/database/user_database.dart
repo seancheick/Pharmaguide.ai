@@ -412,4 +412,38 @@ class UserDatabase extends _$UserDatabase {
   Future<void> clearDetailCache() {
     return delete(detailCache).go();
   }
+
+  // ---------------------------------------------------------------------------
+  // Account-switch hygiene
+  // ---------------------------------------------------------------------------
+
+  /// Deletes ALL user-owned data. Called by the account-switch guard when
+  /// a DIFFERENT uid signs in on this device — the next user must not
+  /// inherit (or upload) the previous user's medical data.
+  ///
+  /// DESTRUCTIVE and unrecoverable: profile, medications, conditions, and
+  /// allergens have NO cloud backup. Never call this outside
+  /// `AccountSwitchGuard` (see pg_auth_service.dart), which gates it on a
+  /// genuine different-uid sign-in.
+  ///
+  /// Scope:
+  ///   WIPED — user_profile (conditions/allergens/goals/drug classes/
+  ///     flags), user_stacks_local (supplements, medications, tombstones —
+  ///     hard-deleting rows also destroys all sync dirty/queue state, so
+  ///     nothing of the previous user can ever push under the new uid),
+  ///     user_favorites, user_scan_history.
+  ///   PRESERVED — product_detail_cache and product_image_cache (product-
+  ///     keyed catalog mirrors, no user linkage) and user_failed_scans
+  ///     (no-PII device telemetry; see failed_scans_table.dart).
+  ///
+  /// Runs in a single transaction so a crash mid-clear can't leave a
+  /// half-wiped, half-attributable state.
+  Future<void> clearAllLocalUserData() {
+    return transaction(() async {
+      await delete(userStacksLocal).go();
+      await delete(userProfiles).go();
+      await delete(userFavorites).go();
+      await delete(scanHistory).go();
+    });
+  }
 }
