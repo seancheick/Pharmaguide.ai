@@ -4,6 +4,7 @@ import 'package:pharmaguide/core/components/pg_personal_fit_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_helpers.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 Future<void> _pumpCard(
   WidgetTester tester, {
@@ -26,6 +27,22 @@ Future<void> _pumpCard(
         ),
       ),
     ),
+  );
+}
+
+InteractionWarning _benefitWarning({
+  required String ingredientName,
+  required String conditionId,
+}) {
+  return InteractionWarning(
+    severity: Severity.monitor,
+    evidenceLevel: EvidenceLevel.established,
+    title: '$ingredientName / $conditionId',
+    mechanism: '$ingredientName supports $conditionId.',
+    management: 'Continue as directed.',
+    conditionIds: [conditionId],
+    ingredientName: ingredientName,
+    direction: 'beneficial',
   );
 }
 
@@ -76,12 +93,38 @@ void main() {
           fitReasons: const [],
           ingredientNames: const ['Magnesium'],
           userConditions: const ['hypertension'],
+          profileBenefitWarnings: [
+            _benefitWarning(
+              ingredientName: 'Magnesium',
+              conditionId: 'hypertension',
+            ),
+          ],
         );
 
         expect(
           bullets,
           contains('Magnesium supports your blood pressure goal'),
         );
+      },
+    );
+
+    test(
+      'emitted beneficial warning can create a bullet without table coverage',
+      () {
+        final bullets = personalFitBullets(
+          fit: const FitGoodMatch(),
+          fitReasons: const [],
+          ingredientNames: const ['Coenzyme Q10'],
+          userConditions: const ['hypertension'],
+          profileBenefitWarnings: [
+            _benefitWarning(
+              ingredientName: 'Coenzyme Q10',
+              conditionId: 'hypertension',
+            ),
+          ],
+        );
+
+        expect(bullets, ['Coenzyme Q10 supports your blood pressure goal']);
       },
     );
 
@@ -120,6 +163,12 @@ void main() {
           fit: const FitGoodMatch(),
           ingredientNames: const ['Magnesium'],
           userConditions: const ['hypertension'],
+          profileBenefitWarnings: [
+            _benefitWarning(
+              ingredientName: 'Magnesium',
+              conditionId: 'hypertension',
+            ),
+          ],
           fitReasons: const ['Backed by clinical evidence.'],
         );
 

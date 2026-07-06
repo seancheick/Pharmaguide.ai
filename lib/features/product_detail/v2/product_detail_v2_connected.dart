@@ -325,6 +325,10 @@ class _ProductDetailV2ConnectedState
       userDrugClasses: userDrugClassesSet,
       userProfileFlags: userProfileFlagsSet,
     );
+    final profileBenefitWarnings = InteractionWarning.dedupe([
+      ...personalizedWarnings,
+      ...parseBlobWarnings(detailBlob),
+    ]).where((w) => w.direction == 'beneficial').toList(growable: false);
     // Split profile-matched/safety warnings (the card) from global
     // educational notes (a separate collapsed "Good to know" section) so the
     // profile card's count reflects only what's relevant to this user.
@@ -454,6 +458,7 @@ class _ProductDetailV2ConnectedState
       topGoalLabel: topGoalLabelFromFit(fitResult),
       ingredientNames: ingredientNamesFromBlob(detailBlob),
       userConditions: profile.conditionsForEvaluator,
+      profileBenefitWarnings: profileBenefitWarnings,
       warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,

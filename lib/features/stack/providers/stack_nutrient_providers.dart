@@ -138,6 +138,7 @@ final stackDoseThresholdAlertsProvider =
       }
 
       final items = <StackItemNutrients>[];
+      final thresholdRules = <StackDoseThresholdRule>[];
       for (final entry in stackEntries) {
         final dsldId = entry.dsldId;
         if (dsldId == null || dsldId.isEmpty) continue;
@@ -157,6 +158,7 @@ final stackDoseThresholdAlertsProvider =
           continue;
         }
         if (blob == null) continue;
+        thresholdRules.addAll(stackDoseThresholdRulesFromDetailBlob(blob));
 
         final doses = ProductHealthFacts.fromDetailBlob(blob).ingredientDoses;
         if (doses.isEmpty) continue;
@@ -183,6 +185,7 @@ final stackDoseThresholdAlertsProvider =
       return summer.thresholdAlerts(
         totals: summer.sum(items),
         userConditions: profile.conditions,
+        thresholdRules: thresholdRules,
       );
     });
 

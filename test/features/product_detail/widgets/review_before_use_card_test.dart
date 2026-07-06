@@ -36,6 +36,8 @@ InteractionWarning _warning({
   String? alertBody,
   List<String> conditionIds = const [],
   List<String> drugClassIds = const [],
+  String? ingredientName,
+  String? direction,
 }) {
   return InteractionWarning(
     severity: severity,
@@ -47,6 +49,8 @@ InteractionWarning _warning({
     alertBody: alertBody,
     conditionIds: conditionIds,
     drugClassIds: drugClassIds,
+    ingredientName: ingredientName,
+    direction: direction,
   );
 }
 
@@ -73,13 +77,16 @@ ProfileRelevanceSummary _summary({
   List<MatchedAllergen> matchedAllergens = const [],
   List<FreeFromClaim> freeFromClaims = const [],
   List<String> freeFromConflicts = const [],
+  List<String> userConditions = const [],
+  List<InteractionWarning> profileBenefitWarnings = const [],
   bool hasInteractionProfile = true,
 }) {
   return buildProfileRelevanceSummary(
     fitResult: fitResult ?? _fit(),
     topGoalLabel: null,
     ingredientNames: const [],
-    userConditions: const [],
+    userConditions: userConditions,
+    profileBenefitWarnings: profileBenefitWarnings,
     warnings: warnings,
     interactionHint: interactionHint,
     matchedAllergens: matchedAllergens,
@@ -127,6 +134,28 @@ void main() {
       expect(summary.status, ProfileRelevanceStatus.goodMatch);
       expect(summary.headline, 'Good match for your profile');
       expect(summary.body, 'Backed by clinical evidence.');
+    });
+
+    test('good fit can explain emitted beneficial profile warnings', () {
+      final summary = _summary(
+        fitResult: _fit(state: FitAssessmentState.goodFit),
+        userConditions: const ['hypertension'],
+        profileBenefitWarnings: [
+          _warning(
+            severity: Severity.monitor,
+            title: 'Coenzyme Q10 / hypertension',
+            mechanism: 'CoQ10 modestly supports blood pressure.',
+            management: 'Continue as directed.',
+            conditionIds: const ['hypertension'],
+            ingredientName: 'Coenzyme Q10',
+            direction: 'beneficial',
+          ),
+        ],
+      );
+
+      expect(summary.status, ProfileRelevanceStatus.goodMatch);
+      expect(summary.body, 'Coenzyme Q10 supports your blood pressure goal.');
+      expect(summary.rows, isEmpty);
     });
 
     test('barley product plus non-barley profile does not show barley', () {

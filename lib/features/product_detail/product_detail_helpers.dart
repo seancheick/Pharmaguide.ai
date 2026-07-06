@@ -60,27 +60,15 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
 }) {
   final combinedWarnings = [..._synthesizeUlWarnings(detailBlob), ...warnings];
 
-  // Apply (condition, ingredient, dose) threshold gating BEFORE the
-  // profile-visibility filter. Drops false-positive condition monitor
-  // warnings the pipeline emits without dose awareness (Vit D + TTC,
-  // Mg + diabetes, etc.). UL warnings carry no conditionIds so they
-  // pass through untouched.
-  final ingredientDoses = extractIngredientDoses(detailBlob);
-  final gatedWarnings = applyConditionThresholdGate(
-    warnings: combinedWarnings,
-    ingredientDoses: ingredientDoses,
-  );
-
   // Emitted-floor gate: drop rows the pipeline marked immaterial at this
   // product's dose (harmful + dose_dependent + below its form-scoped floor),
   // before the profile filter can promote them back (G2).
-  final flooredWarnings = applyEmittedFloorGate(gatedWarnings);
+  final flooredWarnings = applyEmittedFloorGate(combinedWarnings);
 
   // Emitted-beneficial gate: drop condition warnings the pipeline tagged
   // direction=beneficial (the nutrient HELPS the condition — a monitor flag is
-  // the boy-who-cried-wolf false positive). Pipeline-owned replacement for the
-  // const table's `positive` entries; runs before the profile filter so a
-  // beneficial row can't be promoted back by a matching profile (G2).
+  // the boy-who-cried-wolf false positive). Runs before the profile filter so
+  // a beneficial row can't be promoted back by a matching profile (G2).
   final beneficialGated = applyEmittedBeneficialGate(flooredWarnings);
 
   // Resolve product form + per-nutrient dose/form once so dose-dependent
@@ -145,7 +133,8 @@ List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
           evidenceLevel: EvidenceLevel.established,
           title: 'Exceeds upper limit: ${e.standardName}',
           mechanism: e.warning,
-          management: 'Worth reviewing this dose with your healthcare provider.',
+          management:
+              'Worth reviewing this dose with your healthcare provider.',
           displayModeDefault: 'critical',
         ),
       )

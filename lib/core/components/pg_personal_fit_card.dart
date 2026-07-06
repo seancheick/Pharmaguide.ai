@@ -28,9 +28,8 @@ class PGPersonalFitCard extends StatelessWidget {
   /// Personal-fit headline composed by the section helper.
   final String headline;
 
-  /// 0–2 causal bullet sentences. Caller composes via production's
-  /// `generatePositiveProfileBullets()` + fitReasons fallback. Empty
-  /// = headline-only card.
+  /// 0–2 causal bullet sentences. Caller composes from emitted beneficial
+  /// profile warnings plus fitReasons fallback. Empty = headline-only card.
   final List<String> bullets;
 
   /// Fired when the user taps the edit pencil.

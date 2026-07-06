@@ -12,7 +12,9 @@
 //   • Calm + personal — bullets are causal sentences, not gamified.
 
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
-import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Generate the personal-fit headline from a [FitDisplay] state and an
 /// optional top-goal label.
@@ -36,8 +38,7 @@ String personalFitHeadline(FitDisplay fit, String? topGoalLabel) {
 }
 
 /// Build up to 2 causal bullets. Priority:
-///   1. Positive-profile bullets (T3 Path A via
-///      `generatePositiveProfileBullets`)
+///   1. Emitted beneficial profile warnings (`direction == beneficial`)
 ///   2. fitReasons fallback (`FitScoreResult.reasons`), cleaned
 ///
 /// FitHidden / FitNotRecommended / FitIncomplete / FitLimitedFit
@@ -50,6 +51,7 @@ List<String> personalFitBullets({
   required List<String> fitReasons,
   required List<String> ingredientNames,
   required List<String> userConditions,
+  List<InteractionWarning> profileBenefitWarnings = const [],
 }) {
   if (fit is FitHidden ||
       fit is FitNotRecommended ||
@@ -58,8 +60,8 @@ List<String> personalFitBullets({
     return const [];
   }
 
-  final positives = generatePositiveProfileBullets(
-    ingredientNames: ingredientNames,
+  final positives = generatePositiveProfileBulletsFromWarnings(
+    warnings: profileBenefitWarnings,
     userConditionIds: userConditions,
   );
 
@@ -77,6 +79,53 @@ List<String> personalFitBullets({
     }
   }
   return bullets.take(2).toList(growable: false);
+}
+
+/// Build "[Ingredient] [phrase]" bullets from pipeline-emitted beneficial
+/// condition warnings. This is the Personal Fit replacement for the retired
+/// app-owned condition-threshold table.
+///
+/// The warnings themselves are suppressed before the review surface renders;
+/// this helper uses the raw emitted rows as explanatory, positive context.
+/// It is deliberately narrow: only `direction == beneficial` rows with a
+/// matching user condition and non-hard severity can produce copy.
+List<String> generatePositiveProfileBulletsFromWarnings({
+  required List<InteractionWarning> warnings,
+  required List<String> userConditionIds,
+}) {
+  if (warnings.isEmpty || userConditionIds.isEmpty) return const [];
+
+  final bullets = <String>[];
+  final seenConditions = <String>{};
+
+  for (final rawCondition in userConditionIds) {
+    final condition = rawCondition.trim().toLowerCase();
+    if (seenConditions.contains(condition)) continue;
+    final phrase = _conditionSupportPhrase[condition];
+    if (phrase == null) continue;
+
+    for (final warning in warnings) {
+      if (warning.direction != 'beneficial') continue;
+      if (warning.severity == Severity.contraindicated ||
+          warning.severity == Severity.avoid) {
+        continue;
+      }
+      if (!warning.conditionIds
+          .map((id) => id.trim().toLowerCase())
+          .contains(condition)) {
+        continue;
+      }
+
+      final ingredient = warning.ingredientName?.trim();
+      if (ingredient == null || ingredient.isEmpty) continue;
+
+      bullets.add('${_displayName(ingredient)} $phrase');
+      seenConditions.add(condition);
+      break;
+    }
+  }
+
+  return bullets;
 }
 
 /// Strip trailing period + drop per-condition warning leaks. Verbatim
@@ -131,4 +180,41 @@ bool _isConditionWarningReason(String reason) {
   if (colonIdx <= 0 || colonIdx > 30) return false;
   final prefix = reason.substring(0, colonIdx).trim().toLowerCase();
   return _conditionLabelPrefixes.contains(prefix);
+}
+
+/// Per-condition phrase appended after the ingredient display name to form
+/// positive Personal Fit copy.
+const Map<String, String> _conditionSupportPhrase = {
+  'pregnancy': 'is recommended during pregnancy',
+  'lactation': 'is recommended during breastfeeding',
+  'ttc': 'is recommended during pre-conception',
+  'diabetes': 'supports your blood sugar goal',
+  'hypertension': 'supports your blood pressure goal',
+  'thyroid_disorder': 'supports your thyroid health',
+  'high_cholesterol': 'supports your cholesterol goal',
+};
+
+String _displayName(String raw) {
+  final canonical = canonicalizeIngredientName(raw);
+  if (canonical.isEmpty) return '';
+  const brandedForms = <String, String>{
+    'vitamin_d': 'Vitamin D',
+    'vitamin_d3': 'Vitamin D3',
+    'vitamin_a': 'Vitamin A',
+    'vitamin_b6': 'Vitamin B6',
+    'vitamin_b12': 'Vitamin B12',
+    'vitamin_c': 'Vitamin C',
+    'vitamin_e': 'Vitamin E',
+    'vitamin_k': 'Vitamin K',
+    'vitamin_k2': 'Vitamin K2',
+    'omega_3': 'Omega-3',
+  };
+  final branded = brandedForms[canonical];
+  if (branded != null) return branded;
+
+  return canonical
+      .split('_')
+      .where((part) => part.isNotEmpty)
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
 }

@@ -52,6 +52,7 @@ void main() {
                   'unit': 'mg',
                 },
               ],
+              'warnings': [_thresholdWarning('pregnancy', 'Caffeine', 200)],
             }),
             null,
           );
@@ -88,7 +89,7 @@ void main() {
 
         expect(intelligence.nutrientWarningCount, 1);
         expect(intelligence.tier, StackTier.decent);
-        expect(intelligence.issues.single.headline, contains('caffeine'));
+        expect(intelligence.issues.single.headline, contains('Caffeine'));
       },
     );
 
@@ -122,6 +123,9 @@ void main() {
               {'name': 'EPA', 'quantity': 1200, 'unit': 'mg'},
               {'name': 'DHA', 'quantity': 800, 'unit': 'mg'},
             ],
+            'warnings': [
+              _thresholdWarning('bleeding_disorders', 'Omega-3', 3000),
+            ],
           }),
           null,
         );
@@ -131,6 +135,9 @@ void main() {
             'ingredients': [
               {'name': 'EPA', 'quantity': 700, 'unit': 'mg'},
               {'name': 'DHA', 'quantity': 400, 'unit': 'mg'},
+            ],
+            'warnings': [
+              _thresholdWarning('bleeding_disorders', 'Omega-3', 3000),
             ],
           }),
           null,
@@ -157,6 +164,27 @@ void main() {
       },
     );
   });
+}
+
+Map<String, Object?> _thresholdWarning(
+  String conditionId,
+  String ingredientName,
+  double thresholdMg,
+) {
+  return {
+    'severity': 'monitor',
+    'evidence_level': 'established',
+    'title': '$ingredientName / $conditionId',
+    'detail': 'Stack threshold fixture.',
+    'action': 'Review cumulative dose.',
+    'condition_ids': [conditionId],
+    'ingredient_name': ingredientName,
+    'dose_threshold_evaluation': {
+      'thresholds_checked': [
+        {'threshold_value': thresholdMg, 'threshold_unit': 'mg'},
+      ],
+    },
+  };
 }
 
 Future<void> _seedProduct(

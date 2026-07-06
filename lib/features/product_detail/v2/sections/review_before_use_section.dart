@@ -68,6 +68,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   required String? topGoalLabel,
   required List<String> ingredientNames,
   required List<String> userConditions,
+  List<InteractionWarning> profileBenefitWarnings = const [],
   required List<InteractionWarning> warnings,
   required String interactionHint,
   required List<MatchedAllergen> matchedAllergens,
@@ -156,6 +157,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
       fitReasons: fitResult?.reasons ?? const [],
       ingredientNames: ingredientNames,
       userConditions: userConditions,
+      profileBenefitWarnings: profileBenefitWarnings,
       rows: rows,
     ),
     FitGoodMatch() => _fitSummary(
@@ -166,6 +168,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
       fitReasons: fitResult?.reasons ?? const [],
       ingredientNames: ingredientNames,
       userConditions: userConditions,
+      profileBenefitWarnings: profileBenefitWarnings,
       rows: rows,
     ),
     FitLimitedFit() => ProfileRelevanceSummary(
@@ -325,6 +328,7 @@ ProfileRelevanceSummary _fitSummary({
   required List<String> fitReasons,
   required List<String> ingredientNames,
   required List<String> userConditions,
+  required List<InteractionWarning> profileBenefitWarnings,
   required List<PGReviewRow> rows,
 }) {
   final bullets = personalFitBullets(
@@ -332,6 +336,7 @@ ProfileRelevanceSummary _fitSummary({
     fitReasons: fitReasons,
     ingredientNames: ingredientNames,
     userConditions: userConditions,
+    profileBenefitWarnings: profileBenefitWarnings,
   );
   return ProfileRelevanceSummary(
     status: status,

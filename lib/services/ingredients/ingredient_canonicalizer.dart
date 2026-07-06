@@ -1,13 +1,13 @@
 // Ingredient-name canonicalization — shared across the warning gate, blend
 // grouping, and stack dose math.
 //
-// Extracted from `services/warnings/condition_thresholds.dart` so the shared
-// helper survives that file's retirement (the const threshold table is being
-// replaced by pipeline-emitted rules; this pure string utility is not). No
-// behavior change — the function and its alias map moved verbatim.
+// Extracted from the retired app-owned condition-threshold table so this pure
+// string utility can be shared by emitted warning gates, stack dose math, and
+// ingredient grouping. No behavior change — the function and its alias map
+// moved verbatim.
 
 /// Canonicalize a free-text ingredient name to the lowercase +
-/// underscore-joined form used in the threshold table keys.
+/// underscore-joined form used by warning and stack-dose matching.
 ///
 /// `'Vitamin D'`                       → `'vitamin_d'`
 /// `'Magnesium Glycinate'`             → `'magnesium_glycinate'`

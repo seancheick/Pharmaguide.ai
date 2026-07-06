@@ -29,6 +29,7 @@ import 'package:pharmaguide/core/components/pg_personal_fit_card.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_helpers.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Build the PersonalFit section widget. Composes Section 2's
 /// personalization block:
@@ -49,6 +50,7 @@ Widget buildPersonalFitSection({
   required List<String> fitReasons,
   required List<String> ingredientNames,
   required List<String> userConditions,
+  List<InteractionWarning> profileBenefitWarnings = const [],
   required List<String> contextChips,
   required VoidCallback onEditProfile,
 }) {
@@ -60,6 +62,7 @@ Widget buildPersonalFitSection({
     fitReasons: fitReasons,
     ingredientNames: ingredientNames,
     userConditions: userConditions,
+    profileBenefitWarnings: profileBenefitWarnings,
   );
 
   final hasChips = contextChips.isNotEmpty;

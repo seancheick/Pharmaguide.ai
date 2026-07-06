@@ -1,7 +1,5 @@
-// canonicalizeIngredientName — extracted from condition_thresholds_test.dart
-// alongside the function it covers
-// (lib/services/ingredients/ingredient_canonicalizer.dart). Behavior is
-// unchanged; the punctuation-strip test moved here verbatim.
+// canonicalizeIngredientName — covers the shared ingredient-name utility used
+// by emitted warning gates, stack dose math, and ingredient grouping.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
@@ -37,7 +35,10 @@ void main() {
       // so the clinical dose lookup keys the rule once. Previously untested.
       expect(canonicalizeIngredientName('Vitamin B3'), equals('niacin'));
       expect(canonicalizeIngredientName('Vitamin B-3'), equals('niacin'));
-      expect(canonicalizeIngredientName('Vitamin B3 (Niacin)'), equals('niacin'));
+      expect(
+        canonicalizeIngredientName('Vitamin B3 (Niacin)'),
+        equals('niacin'),
+      );
     });
 
     test('empty / whitespace-only input returns empty', () {

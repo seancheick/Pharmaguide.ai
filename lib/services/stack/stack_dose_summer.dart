@@ -1,7 +1,81 @@
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
-import 'package:pharmaguide/services/warnings/condition_thresholds.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+
+List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
+  Iterable<InteractionWarning> warnings,
+) {
+  final rules = <StackDoseThresholdRule>[];
+  final seen = <String>{};
+
+  for (final warning in warnings) {
+    final ingredientName = warning.ingredientName?.trim();
+    if (ingredientName == null || ingredientName.isEmpty) continue;
+    final canonicalId = canonicalizeIngredientName(ingredientName);
+    if (canonicalId.isEmpty) continue;
+
+    final rawThresholds =
+        warning.doseThresholdEvaluation?['thresholds_checked'];
+    if (rawThresholds is! List) continue;
+
+    for (final rawCondition in warning.conditionIds) {
+      final conditionId = rawCondition.trim().toLowerCase();
+      if (conditionId.isEmpty) continue;
+
+      for (final rawThreshold in rawThresholds) {
+        if (rawThreshold is! Map) continue;
+        final thresholdValue = StackDoseSummer._asDouble(
+          rawThreshold['threshold_value'],
+        );
+        final thresholdUnit = rawThreshold['threshold_unit']?.toString().trim();
+        if (thresholdValue == null ||
+            thresholdValue <= 0 ||
+            thresholdUnit == null ||
+            thresholdUnit.isEmpty) {
+          continue;
+        }
+
+        final marker =
+            '$conditionId|$canonicalId|$thresholdValue|${thresholdUnit.toLowerCase()}';
+        if (!seen.add(marker)) continue;
+
+        rules.add(
+          StackDoseThresholdRule(
+            conditionId: conditionId,
+            canonicalId: canonicalId,
+            displayName: ingredientName,
+            thresholdValue: thresholdValue,
+            thresholdUnit: thresholdUnit,
+          ),
+        );
+      }
+    }
+  }
+
+  return rules;
+}
+
+List<StackDoseThresholdRule> stackDoseThresholdRulesFromDetailBlob(
+  Map<String, dynamic>? detailBlob,
+) {
+  if (detailBlob == null) return const [];
+
+  final warnings = <InteractionWarning>[];
+  for (final key in const ['warnings', 'warnings_profile_gated']) {
+    final raw = detailBlob[key];
+    if (raw is! List) continue;
+    for (final entry in raw.whereType<Map<String, dynamic>>()) {
+      try {
+        warnings.add(InteractionWarning.fromJson(entry));
+      } on Object {
+        continue;
+      }
+    }
+  }
+
+  return stackDoseThresholdRulesFromWarnings(warnings);
+}
 
 /// Conservative stack-level ingredient dose summer.
 ///
@@ -105,39 +179,38 @@ class StackDoseSummer {
   List<StackDoseThresholdAlert> thresholdAlerts({
     required Map<String, StackDoseTotal> totals,
     required Iterable<String> userConditions,
+    required Iterable<StackDoseThresholdRule> thresholdRules,
   }) {
     final alerts = <StackDoseThresholdAlert>[];
     final seen = <String>{};
+    final rulesByCondition = <String, List<StackDoseThresholdRule>>{};
+    for (final rule in thresholdRules) {
+      final conditionId = rule.conditionId.trim().toLowerCase();
+      if (conditionId.isEmpty) continue;
+      rulesByCondition.putIfAbsent(conditionId, () => []).add(rule);
+    }
 
     for (final rawCondition in userConditions) {
       final conditionId = rawCondition.trim().toLowerCase();
       if (conditionId.isEmpty) continue;
 
-      final thresholds = conditionThresholds[conditionId];
-      if (thresholds == null) continue;
+      final rules = rulesByCondition[conditionId];
+      if (rules == null) continue;
 
-      for (final entry in thresholds.entries) {
-        final threshold = entry.value;
-        if (threshold.directionality != NutrientDirectionality.neutral) {
-          continue;
-        }
-        final thresholdValue = threshold.minDose;
-        final thresholdUnit = threshold.doseUnit;
-        if (thresholdValue == null || thresholdUnit == null) continue;
-
-        final dose = _thresholdTotalFor(entry.key, totals);
+      for (final rule in rules) {
+        final dose = _thresholdTotalFor(rule.canonicalId, totals);
         if (dose == null || dose.totalValue <= 0 || dose.unit.isEmpty) {
           continue;
         }
 
-        final normalizedThresholdUnit = _normalizeUnit(thresholdUnit);
+        final normalizedThresholdUnit = _normalizeUnit(rule.thresholdUnit);
         final totalInThresholdUnit = _amountInUnit(
           dose.totalValue,
           from: dose.unit,
           to: normalizedThresholdUnit,
         );
         if (totalInThresholdUnit == null) continue;
-        if (totalInThresholdUnit < thresholdValue) continue;
+        if (totalInThresholdUnit < rule.thresholdValue) continue;
 
         final marker = '$conditionId:${dose.canonicalId}';
         if (!seen.add(marker)) continue;
@@ -146,10 +219,13 @@ class StackDoseSummer {
           StackDoseThresholdAlert(
             conditionId: conditionId,
             canonicalId: dose.canonicalId,
-            displayName: dose.displayName,
+            displayName:
+                _thresholdDoseDisplayNames[dose.canonicalId] ??
+                rule.displayName ??
+                dose.displayName,
             totalValue: totalInThresholdUnit,
             unit: normalizedThresholdUnit,
-            thresholdValue: thresholdValue,
+            thresholdValue: rule.thresholdValue,
             thresholdUnit: normalizedThresholdUnit,
             contributions: dose.contributions,
           ),
@@ -486,6 +562,23 @@ class StackDoseSummer {
   static const Map<String, String> _thresholdDoseCanonicalIds = {
     'fish_oil': 'omega_3',
   };
+}
+
+@immutable
+class StackDoseThresholdRule {
+  const StackDoseThresholdRule({
+    required this.conditionId,
+    required this.canonicalId,
+    this.displayName,
+    required this.thresholdValue,
+    required this.thresholdUnit,
+  });
+
+  final String conditionId;
+  final String canonicalId;
+  final String? displayName;
+  final double thresholdValue;
+  final String thresholdUnit;
 }
 
 @immutable

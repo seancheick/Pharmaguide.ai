@@ -1,9 +1,89 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+
+const _pregnancyCaffeineRule = StackDoseThresholdRule(
+  conditionId: 'pregnancy',
+  canonicalId: 'caffeine',
+  displayName: 'Caffeine',
+  thresholdValue: 200,
+  thresholdUnit: 'mg',
+);
+
+const _bleedingOmegaRule = StackDoseThresholdRule(
+  conditionId: 'bleeding_disorders',
+  canonicalId: 'omega_3',
+  displayName: 'Omega-3',
+  thresholdValue: 3000,
+  thresholdUnit: 'mg',
+);
+
+const _surgeryOmegaRule = StackDoseThresholdRule(
+  conditionId: 'surgery_scheduled',
+  canonicalId: 'omega_3',
+  displayName: 'Omega-3',
+  thresholdValue: 3000,
+  thresholdUnit: 'mg',
+);
 
 void main() {
   group('StackDoseSummer', () {
+    test('extracts stack threshold rules from emitted warning metadata', () {
+      final rules = stackDoseThresholdRulesFromWarnings([
+        const InteractionWarning(
+          severity: Severity.monitor,
+          evidenceLevel: EvidenceLevel.established,
+          title: 'Caffeine / pregnancy',
+          mechanism: 'High caffeine may matter during pregnancy.',
+          management: 'Keep under threshold.',
+          conditionIds: ['pregnancy'],
+          ingredientName: 'Caffeine',
+          doseThresholdEvaluation: {
+            'thresholds_checked': [
+              {
+                'threshold_value': 200,
+                'threshold_unit': 'mg',
+                'comparator': '>',
+              },
+            ],
+          },
+        ),
+      ]);
+
+      expect(rules, hasLength(1));
+      expect(rules.single.conditionId, 'pregnancy');
+      expect(rules.single.canonicalId, 'caffeine');
+      expect(rules.single.thresholdValue, 200);
+      expect(rules.single.thresholdUnit, 'mg');
+    });
+
+    test('extracts stack threshold rules from detail blob warning lists', () {
+      final rules = stackDoseThresholdRulesFromDetailBlob({
+        'warnings_profile_gated': [
+          {
+            'severity': 'monitor',
+            'evidence_level': 'established',
+            'title': 'Caffeine / pregnancy',
+            'detail': 'High caffeine may matter during pregnancy.',
+            'action': 'Keep under threshold.',
+            'condition_ids': ['pregnancy'],
+            'ingredient_name': 'Caffeine',
+            'dose_threshold_evaluation': {
+              'thresholds_checked': [
+                {'threshold_value': 200, 'threshold_unit': 'mg'},
+              ],
+            },
+          },
+        ],
+      });
+
+      expect(rules, hasLength(1));
+      expect(rules.single.conditionId, 'pregnancy');
+      expect(rules.single.canonicalId, 'caffeine');
+    });
+
     test('sums the same ingredient across products', () {
       final totals = const StackDoseSummer().sum([
         const StackItemNutrients(
@@ -142,6 +222,7 @@ void main() {
       final alerts = summer.thresholdAlerts(
         totals: totals,
         userConditions: const ['pregnancy'],
+        thresholdRules: const [_pregnancyCaffeineRule],
       );
 
       expect(alerts, hasLength(1));
@@ -166,6 +247,7 @@ void main() {
       final alerts = summer.thresholdAlerts(
         totals: totals,
         userConditions: const ['pregnancy'],
+        thresholdRules: const [],
       );
 
       expect(alerts, isEmpty);
@@ -195,6 +277,7 @@ void main() {
       final alerts = summer.thresholdAlerts(
         totals: totals,
         userConditions: const ['bleeding_disorders'],
+        thresholdRules: const [_bleedingOmegaRule],
       );
 
       expect(alerts, hasLength(1));
@@ -224,6 +307,7 @@ void main() {
         final alerts = summer.thresholdAlerts(
           totals: totals,
           userConditions: const ['surgery_scheduled'],
+          thresholdRules: const [_surgeryOmegaRule],
         );
 
         expect(
@@ -251,6 +335,7 @@ void main() {
       final alerts = summer.thresholdAlerts(
         totals: totals,
         userConditions: const ['surgery_scheduled'],
+        thresholdRules: const [_surgeryOmegaRule],
       );
 
       expect(alerts, hasLength(1));
