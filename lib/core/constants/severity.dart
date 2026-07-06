@@ -130,17 +130,29 @@ enum Severity {
 }
 
 enum EvidenceLevel {
-  established(label: 'Strong Evidence'),
-  probable(label: 'Good Evidence'),
-  theoretical(label: 'Theoretical'),
-  ungraded(label: 'Evidence not graded');
+  // SP-6 evidence_strength_vocab (strongest -> weakest), plus `ungraded` for a
+  // missing / unrecognized value. `wireId` is the exact string the pipeline
+  // emits on the interaction_db `evidence_level` column; the enum name stays
+  // camelCase (Dart lint) so `no_data` needs the explicit wireId.
+  established(label: 'Strong Evidence', wireId: 'established'),
+  probable(label: 'Good Evidence', wireId: 'probable'),
+  moderate(label: 'Moderate Evidence', wireId: 'moderate'),
+  limited(label: 'Limited Evidence', wireId: 'limited'),
+  theoretical(label: 'Theoretical', wireId: 'theoretical'),
+  noData(label: 'No Evidence Data', wireId: 'no_data'),
+  ungraded(label: 'Evidence not graded', wireId: 'ungraded');
 
   final String label;
-  const EvidenceLevel({required this.label});
+  final String wireId;
+  const EvidenceLevel({required this.label, required this.wireId});
 
+  /// Parse a pipeline evidence string. Matches the canonical `wireId` (e.g.
+  /// `no_data`) or the enum name. An unrecognized / missing value maps to
+  /// [ungraded] — NEVER to a higher tier and NEVER to `safe`.
   static EvidenceLevel fromString(String value) {
+    final v = value.toLowerCase().trim();
     return EvidenceLevel.values.firstWhere(
-      (e) => e.name == value.toLowerCase().trim(),
+      (e) => e.wireId == v || e.name.toLowerCase() == v,
       orElse: () => EvidenceLevel.ungraded,
     );
   }

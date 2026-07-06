@@ -22,8 +22,14 @@ class PGEvidenceBadge extends StatelessWidget {
         return (color: V2Colors.accent, label: 'Strong evidence', bars: 3);
       case EvidenceLevel.probable:
         return (color: V2Colors.monitor, label: 'Good evidence', bars: 2);
+      case EvidenceLevel.moderate:
+        return (color: V2Colors.monitor, label: 'Moderate evidence', bars: 2);
+      case EvidenceLevel.limited:
+        return (color: V2Colors.fgSubtle, label: 'Limited evidence', bars: 1);
       case EvidenceLevel.theoretical:
         return (color: V2Colors.fgSubtle, label: 'Theoretical', bars: 1);
+      case EvidenceLevel.noData:
+        return (color: V2Colors.fgMuted, label: 'No evidence data', bars: 0);
       case EvidenceLevel.ungraded:
         return (color: V2Colors.fgMuted, label: 'Evidence not graded', bars: 0);
     }

@@ -132,7 +132,10 @@ class TimingOptimization {
     final evidenceBump = switch (evidenceLevel) {
       EvidenceLevel.established => 2,
       EvidenceLevel.probable => 1,
+      EvidenceLevel.moderate => 1,
+      EvidenceLevel.limited => 0,
       EvidenceLevel.theoretical => 0,
+      EvidenceLevel.noData => -1,
       EvidenceLevel.ungraded => -1,
     };
     return tier * 10 + evidenceBump;
