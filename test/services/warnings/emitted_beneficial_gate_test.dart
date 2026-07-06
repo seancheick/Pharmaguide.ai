@@ -91,13 +91,13 @@ void main() {
       // so the Dart gate keeps it. The pipeline tags it direction=beneficial.
       // Only the emitted gate can drop it — proving the wiring adds coverage
       // beyond the Dart fallback (and will carry the load once the table goes).
-      final coq10 = InteractionWarning(
+      const coq10 = InteractionWarning(
         severity: Severity.monitor,
         evidenceLevel: EvidenceLevel.established,
         title: 'Coenzyme Q10 / hypertension',
         mechanism: 'CoQ10 modestly supports blood pressure.',
         management: 'Continue as directed.',
-        conditionIds: const ['hypertension'],
+        conditionIds: ['hypertension'],
         ingredientName: 'Coenzyme Q10',
         direction: 'beneficial',
         materiality: 'presence',
@@ -116,13 +116,13 @@ void main() {
     });
 
     test('a harmful warning for the same profile still surfaces', () {
-      final coq10Harmful = InteractionWarning(
+      const coq10Harmful = InteractionWarning(
         severity: Severity.caution,
         evidenceLevel: EvidenceLevel.established,
         title: 'Coenzyme Q10 / hypertension',
         mechanism: 'x',
         management: 'y',
-        conditionIds: const ['hypertension'],
+        conditionIds: ['hypertension'],
         ingredientName: 'Coenzyme Q10',
         direction: 'harmful',
         materiality: 'presence',
