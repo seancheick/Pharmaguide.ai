@@ -140,5 +140,17 @@ void main() {
       );
       expect(isElementalIngredientName('Vitamin D3', 'vitamin_d3'), isTrue);
     });
+
+    test('hyphenated label spellings match (B#3 regression)', () {
+      // The old normalizer folded whitespace/underscore but NOT hyphens, so a
+      // 'Vitamin-D3' / '5-HTP' label never matched its canonical id and the
+      // elemental/compound dedup silently double-counted. canonicalizeIngredientName
+      // folds hyphens (and applies aliases), so these now resolve.
+      expect(isElementalIngredientName('Vitamin-D3', 'vitamin_d3'), isTrue);
+      expect(isElementalIngredientName('5-HTP', '5_htp'), isTrue);
+      expect(isElementalIngredientName('Co-Q10', 'co_q10'), isTrue);
+      // Alias fold: 'Vitamin B3' is niacin.
+      expect(isElementalIngredientName('Vitamin B3', 'niacin'), isTrue);
+    });
   });
 }

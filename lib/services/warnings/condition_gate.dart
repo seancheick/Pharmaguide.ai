@@ -12,7 +12,9 @@
 
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Single ingredient's dose entry as extracted from the detail blob.
@@ -187,7 +189,15 @@ Map<String, IngredientDose> extractIngredientDoses(
   final parsed = <_ParsedDoseRow>[];
   final seenSignatures = <String>{};
   for (final entry in _doseRows(detailBlob)) {
-    final keys = _doseNameKeys(entry);
+    // Honor the SAME usability filter the stack summers enforce
+    // ([isUsableDoseRow]): drop proprietary-blend containers, parent-total
+    // roll-ups, inactive rows, and label-descriptor fragments. Previously
+    // this gate skipped that filter and summed a nested-tree parent total
+    // ON TOP of its children — a silent double-count that could push a
+    // dose-dependent rule over (or fail to suppress below) its threshold.
+    if (!isUsableDoseRow(entry)) continue;
+
+    final keys = readDoseNameKeys(entry);
     if (keys.isEmpty) continue;
 
     final primaryName = _primaryDoseName(entry);
@@ -205,36 +215,19 @@ Map<String, IngredientDose> extractIngredientDoses(
       continue;
     }
 
-    // Live pipeline uses `quantity` / `unit` or `daily_amount_unit`.
-    // Legacy spec / hand-built fixtures use `dose_amount` / `dose_unit`.
-    // Try evaluated live names first; fall through to legacy on null.
-    final rawAmount =
-        entry['quantity'] ??
-        entry['dose_amount'] ??
-        entry['converted_quantity'] ??
-        entry['amount'] ??
-        entry['per_day_max'];
-    final rawUnit =
-        (entry['daily_amount_unit'] ??
-                entry['unit'] ??
-                entry['dose_unit'] ??
-                entry['normalized_unit'])
-            ?.toString();
-    if (rawAmount == null || rawUnit == null || rawUnit.trim().isEmpty) {
-      continue;
-    }
-
-    final value = rawAmount is num
-        ? rawAmount.toDouble()
-        : double.tryParse(rawAmount.toString());
-    if (value == null || !value.isFinite) continue;
+    // Shared per-day-first readers ([readDoseAmount]/[readDoseUnit]): the
+    // per-day-normalized fields win over raw per-serving `quantity`, and the
+    // unit is folded to canonical spelling — identical to what the UL checker
+    // and pairwise-threshold gate see for the same row.
+    final value = readDoseAmount(entry);
+    final unit = readDoseUnit(entry);
+    if (value == null || unit.isEmpty) continue;
 
     // Mirrored-row dedup: the same label row shipped in both
     // `ingredients` and `rda_ul_data.analyzed_ingredients`.
     if (primaryName != null) {
       final signature =
-          '${canonicalizeIngredientName(primaryName)}'
-          '|$value|${normalizeDoseUnit(rawUnit)}';
+          '${canonicalizeIngredientName(primaryName)}|$value|$unit';
       if (!seenSignatures.add(signature)) continue;
     }
 
@@ -244,7 +237,7 @@ Map<String, IngredientDose> extractIngredientDoses(
         primaryName: primaryName,
         skip: false,
         value: value,
-        unit: rawUnit.trim(),
+        unit: unit,
       ),
     );
   }
@@ -255,7 +248,7 @@ Map<String, IngredientDose> extractIngredientDoses(
   for (final row in parsed) {
     if (row.skip || row.primaryName == null) continue;
     for (final key in row.keys) {
-      if (_isElementalDoseName(row.primaryName!, key)) {
+      if (isElementalIngredientName(row.primaryName!, key)) {
         elementalKeys.add(key);
       }
     }
@@ -280,7 +273,7 @@ Map<String, IngredientDose> extractIngredientDoses(
       // its own compound-name key).
       if (elementalKeys.contains(key) &&
           row.primaryName != null &&
-          !_isElementalDoseName(row.primaryName!, key)) {
+          !isElementalIngredientName(row.primaryName!, key)) {
         continue;
       }
 
@@ -336,18 +329,6 @@ String? _primaryDoseName(Map<String, dynamic> entry) {
   return null;
 }
 
-/// True when [rawName] is the bare elemental nutrient name for the
-/// canonical [key]: canonicalizes to the key directly ('Magnesium' →
-/// 'magnesium'), or after stripping a parenthetical ('Magnesium
-/// (elemental)', 'Magnesium (as oxide)'). Conservative: any other name
-/// is a distinct (compound) form.
-bool _isElementalDoseName(String rawName, String key) {
-  if (canonicalizeIngredientName(rawName) == key) return true;
-  final stripped = rawName.replaceAll(RegExp(r'\([^)]*\)'), ' ').trim();
-  if (stripped.isEmpty || stripped == rawName.trim()) return false;
-  return canonicalizeIngredientName(stripped) == key;
-}
-
 List<Map<String, dynamic>> _doseRows(Map<String, dynamic> detailBlob) {
   final rows = <Map<String, dynamic>>[];
 
@@ -375,20 +356,3 @@ List<Map<String, dynamic>> _doseRows(Map<String, dynamic> detailBlob) {
   return rows;
 }
 
-Set<String> _doseNameKeys(Map<String, dynamic> entry) {
-  final keys = <String>{};
-  for (final field in const [
-    'standard_name',
-    'name',
-    'ingredient',
-    'mapped_name',
-    'canonical_id',
-    'normalized_key',
-  ]) {
-    final raw = entry[field]?.toString();
-    if (raw == null || raw.trim().isEmpty) continue;
-    final canonical = canonicalizeIngredientName(raw);
-    if (canonical.isNotEmpty) keys.add(canonical);
-  }
-  return keys;
-}

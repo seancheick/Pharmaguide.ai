@@ -25,7 +25,12 @@ void main() {
       });
 
       expect(result, hasLength(2));
-      expect(result['vitamin_d3'], (value: 1000.0, unit: 'IU'));
+      // Units are now canonically normalized on read (shared readDoseUnit),
+      // so 'IU' → 'iu' — matching what stack_dose_summer already emitted and
+      // what the downstream dose math (amountInMass) expects. Consumers feed
+      // this unit back through the normalizing readers, so casing never
+      // reaches a case-sensitive comparison or the UI.
+      expect(result['vitamin_d3'], (value: 1000.0, unit: 'iu'));
       expect(result['magnesium_glycinate'], (value: 200.0, unit: 'mg'));
     });
 
@@ -42,6 +47,34 @@ void main() {
       expect(result['alpha_lipoic_acid'], (value: 350.0, unit: 'mg'));
       expect(result['vanadium'], (value: 50.0, unit: 'mcg'));
       expect(result['niacin'], (value: 37.5, unit: 'mg'));
+    });
+
+    test('drops proprietary-blend + parent-total rows (B#2 double-count)', () {
+      // The gate previously skipped the usability filter the stack summers
+      // enforce, so a nested-tree parent total (500 mg) was summed ON TOP of
+      // its real child dose (200 mg) → 700 mg, over-counting the nutrient. The
+      // shared isUsableDoseRow now drops the parent-total and blend-container
+      // rows, so only the genuine 200 mg contribution remains.
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {
+            'standard_name': 'Magnesium',
+            'quantity': 500,
+            'unit': 'mg',
+            'is_parent_total': true,
+          },
+          {'standard_name': 'Magnesium', 'quantity': 200, 'unit': 'mg'},
+          {
+            'standard_name': 'Proprietary Blend',
+            'quantity': 900,
+            'unit': 'mg',
+            'is_proprietary_blend': true,
+          },
+        ],
+      });
+
+      expect(result['magnesium'], (value: 200.0, unit: 'mg'));
+      expect(result.containsKey('proprietary_blend'), isFalse);
     });
 
     test('extracts dose rows from rda_ul_data when ingredients are absent', () {

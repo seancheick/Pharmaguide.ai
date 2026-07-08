@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
@@ -26,7 +27,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
 
       for (final rawThreshold in rawThresholds) {
         if (rawThreshold is! Map) continue;
-        final thresholdValue = StackDoseSummer._asDouble(
+        final thresholdValue = asRowDouble(
           rawThreshold['threshold_value'],
         );
         final thresholdUnit = rawThreshold['threshold_unit']?.toString().trim();
@@ -94,16 +95,16 @@ class StackDoseSummer {
 
     for (final item in stack) {
       for (final row in item.ingredients) {
-        if (!_isUsableDoseRow(row)) continue;
+        if (!isUsableDoseRow(row)) continue;
 
-        final keys = _doseKeys(row);
+        final keys = readDoseNameKeys(row);
         if (keys.isEmpty) continue;
 
-        final amount = _readAmount(row);
+        final amount = readDoseAmount(row);
         if (amount == null || amount <= 0) continue;
 
-        final unit = _readUnit(row);
-        final displayName = _readDisplayName(row) ?? keys.first;
+        final unit = readDoseUnit(row);
+        final displayName = readDisplayName(row) ?? keys.first;
         final exclusionReason = _exclusionReason(row, unit);
 
         for (final key in keys) {
@@ -439,92 +440,6 @@ class StackDoseSummer {
     );
   }
 
-  bool _isUsableDoseRow(Map<String, dynamic> row) {
-    final isActive = row['is_active'];
-    if (isActive is bool && !isActive) return false;
-
-    final isLabelDescriptor = row['is_label_descriptor'];
-    if (isLabelDescriptor is bool && isLabelDescriptor) return false;
-
-    final isBlend = row['is_proprietary_blend'];
-    if (isBlend is bool && isBlend) return false;
-
-    final isParentTotal = row['is_parent_total'];
-    if (isParentTotal is bool && isParentTotal) return false;
-
-    return true;
-  }
-
-  Set<String> _doseKeys(Map<String, dynamic> row) {
-    final keys = <String>{};
-    for (final field in const [
-      'standard_name',
-      'name',
-      'ingredient',
-      'mapped_name',
-      'canonical_id',
-      'normalized_key',
-    ]) {
-      final raw = row[field]?.toString();
-      if (raw == null || raw.trim().isEmpty) continue;
-      final key = canonicalizeIngredientName(raw);
-      if (key.isNotEmpty) keys.add(key);
-    }
-    return keys;
-  }
-
-  double? _readAmount(Map<String, dynamic> row) {
-    final candidates = <Object?>[
-      row['per_day_max'],
-      row['daily_amount'],
-      row['quantity'],
-      row['dose_amount'],
-      row['converted_quantity'],
-      row['amount'],
-      row['normalized_amount'],
-      row['normalizedAmount'],
-      row['dosage'],
-    ];
-    for (final candidate in candidates) {
-      final parsed = _asDouble(candidate);
-      if (parsed != null) return parsed;
-    }
-    return null;
-  }
-
-  String _readUnit(Map<String, dynamic> row) {
-    final candidates = <Object?>[
-      row['daily_amount_unit'],
-      row['unit'],
-      row['dose_unit'],
-      row['converted_unit'],
-      row['normalized_unit'],
-      row['normalizedUnit'],
-      row['dosage_unit'],
-    ];
-    for (final candidate in candidates) {
-      if (candidate is String && candidate.trim().isNotEmpty) {
-        return normalizeDoseUnit(candidate);
-      }
-    }
-    return '';
-  }
-
-  String? _readDisplayName(Map<String, dynamic> row) {
-    for (final field in const [
-      'display_name',
-      'display_label',
-      'name',
-      'standard_name',
-      'standardName',
-      'ingredient',
-    ]) {
-      final raw = row[field]?.toString().trim();
-      if (raw != null && raw.isNotEmpty) return raw;
-    }
-    return null;
-  }
-
   StackDoseExclusionReason? _exclusionReason(
     Map<String, dynamic> row,
     String unit,
@@ -538,16 +453,6 @@ class StackDoseSummer {
     }
     if (unit == 'unspecified' || unit == 'unknown') {
       return StackDoseExclusionReason.unsupportedUnit;
-    }
-    return null;
-  }
-
-  static double? _asDouble(Object? value) {
-    if (value is double && value.isFinite) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) {
-      final parsed = double.tryParse(value.trim());
-      return parsed != null && parsed.isFinite ? parsed : null;
     }
     return null;
   }

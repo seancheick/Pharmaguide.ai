@@ -43,6 +43,8 @@
 // Silent conversion is how medical-grade bugs ship.
 
 import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 class StackNutrientAggregator {
@@ -65,12 +67,12 @@ class StackNutrientAggregator {
       // per-product rules (elemental vs compound dedup) before summing.
       final parsedRows = <_ParsedRow>[];
       for (final row in item.ingredients) {
-        if (!_isUsableNutrientRow(row)) continue;
+        if (!isUsableDoseRow(row)) continue;
 
-        final canonical = _readCanonicalId(row);
+        final canonical = readCanonicalId(row);
         if (canonical == null || canonical.isEmpty) continue;
 
-        final amount = _readAmount(row);
+        final amount = readDoseAmount(row);
         if (amount == null || amount <= 0) continue;
 
         parsedRows.add(
@@ -78,8 +80,8 @@ class StackNutrientAggregator {
             row: row,
             canonicalId: canonical,
             amount: amount,
-            unit: _readUnit(row),
-            displayName: _readDisplayName(row) ?? canonical,
+            unit: readDoseUnit(row),
+            displayName: readDisplayName(row) ?? canonical,
           ),
         );
       }
@@ -218,7 +220,7 @@ class StackNutrientAggregator {
     final byCanonical = <String, PipelineUlVerdict>{};
     for (final item in stack) {
       for (final row in item.ingredients) {
-        if (!_isUsableNutrientRow(row)) continue;
+        if (!isUsableDoseRow(row)) continue;
         if (row['skip_ul_check'] == true) continue;
         if (row['ul_gate_eligible'] == false) continue;
 
@@ -226,7 +228,7 @@ class StackNutrientAggregator {
         final pctUl = _asDouble(row['pct_ul']);
         if (overUl == null && pctUl == null) continue;
 
-        final canonical = _readCanonicalId(row);
+        final canonical = readCanonicalId(row);
         if (canonical == null || canonical.isEmpty) continue;
 
         final verdict = PipelineUlVerdict(overUl: overUl, pctUl: pctUl);
@@ -276,103 +278,6 @@ class StackNutrientAggregator {
   /// inactive ingredients, proprietary blend containers (children
   /// carry the real dose), and parent-total rows in nested nutrient
   /// trees.
-  bool _isUsableNutrientRow(Map<String, dynamic> row) {
-    final isActive = row['is_active'];
-    if (isActive is bool && !isActive) return false;
-
-    final isLabelDescriptor = row['is_label_descriptor'];
-    if (isLabelDescriptor is bool && isLabelDescriptor) return false;
-
-    final isBlend = row['is_proprietary_blend'];
-    if (isBlend is bool && isBlend) return false;
-
-    final isParentTotal = row['is_parent_total'];
-    if (isParentTotal is bool && isParentTotal) return false;
-
-    return true;
-  }
-
-  /// Read the canonical id in priority order, normalising to a
-  /// lowercase trimmed string. `mapped_name` is the field the current
-  /// pipeline writes; `canonical_id` and `standard_name` are fallbacks
-  /// for older or differently-shaped blobs.
-  String? _readCanonicalId(Map<String, dynamic> row) {
-    final candidates = <dynamic>[
-      // Display roll-up of `form_of` children to their parent (e.g.
-      // vitamin_k1 → vitamin_k), pipeline-computed from the IQM
-      // match_rules.target_id. Lets Vitamin K1 + K2 aggregate as one
-      // "Vitamin K". Null on most rows and on catalogs built before this
-      // field existed, so it falls through to canonical_id (dual-read safe).
-      row['nutrient_group_id'],
-      row['canonical_id'],
-      row['mapped_name'],
-      row['standard_name'],
-      row['standardName'],
-      row['normalized_key'],
-    ];
-    for (final c in candidates) {
-      if (c is String && c.trim().isNotEmpty) {
-        return c.trim().toLowerCase();
-      }
-    }
-    return null;
-  }
-
-  /// Human-readable name for the UI. Falls back to the canonical id
-  /// if nothing better is present.
-  String? _readDisplayName(Map<String, dynamic> row) {
-    final candidates = <dynamic>[
-      row['display_name'],
-      row['name'],
-      row['standard_name'],
-      row['standardName'],
-    ];
-    for (final c in candidates) {
-      if (c is String && c.trim().isNotEmpty) return c.trim();
-    }
-    return null;
-  }
-
-  /// Read a numeric amount tolerating int, double, or numeric strings.
-  /// The pipeline has historically used any of: `per_day_max`,
-  /// `converted_quantity`, `normalized_amount`, `normalizedAmount`,
-  /// `quantity`, `amount`, `dosage`.
-  double? _readAmount(Map<String, dynamic> row) {
-    final candidates = <dynamic>[
-      row['per_day_max'],
-      row['daily_amount'],
-      row['converted_quantity'],
-      row['normalized_amount'],
-      row['normalizedAmount'],
-      row['quantity'],
-      row['amount'],
-      row['dosage'],
-    ];
-    for (final c in candidates) {
-      final parsed = _asDouble(c);
-      if (parsed != null) return parsed;
-    }
-    return null;
-  }
-
-  /// Read the unit string tolerating both snake_case and camelCase.
-  String _readUnit(Map<String, dynamic> row) {
-    final candidates = <dynamic>[
-      row['daily_amount_unit'],
-      row['converted_unit'],
-      row['normalized_unit'],
-      row['normalizedUnit'],
-      row['unit'],
-      row['dosage_unit'],
-    ];
-    for (final c in candidates) {
-      if (c is String && c.trim().isNotEmpty) {
-        return c.trim().toLowerCase();
-      }
-    }
-    return '';
-  }
-
   NutrientExclusionReason? _exclusionReason(
     Map<String, dynamic> row,
     String unit,
@@ -440,35 +345,16 @@ class StackNutrientAggregator {
     for (final group in byCanonical.values) {
       if (group.length < 2) continue;
       final hasElemental = group.any(
-        (r) => _isElementalName(r.displayName, r.canonicalId),
+        (r) => isElementalIngredientName(r.displayName, r.canonicalId),
       );
       if (!hasElemental) continue;
       for (final row in group) {
-        if (!_isElementalName(row.displayName, row.canonicalId)) {
+        if (!isElementalIngredientName(row.displayName, row.canonicalId)) {
           duplicates.add(row);
         }
       }
     }
     return duplicates;
-  }
-
-  /// True when [displayName] is the bare elemental nutrient name for
-  /// [canonicalId]: equal after normalization, or equal after stripping
-  /// a parenthetical (e.g. 'Magnesium (elemental)' → 'Magnesium').
-  /// Deliberately conservative — anything that doesn't match exactly is
-  /// treated as a distinct (compound) form.
-  static bool _isElementalName(String displayName, String canonicalId) {
-    final canonical = _normalizeNameKey(canonicalId);
-    if (canonical.isEmpty) return false;
-    if (_normalizeNameKey(displayName) == canonical) return true;
-    final stripped = displayName.replaceAll(RegExp(r'\([^)]*\)'), ' ');
-    return _normalizeNameKey(stripped) == canonical;
-  }
-
-  /// Lowercase, trim, and collapse whitespace/underscore runs to single
-  /// spaces so 'vitamin_d3' and 'Vitamin D3' compare equal.
-  static String _normalizeNameKey(String raw) {
-    return raw.trim().toLowerCase().replaceAll(RegExp(r'[\s_]+'), ' ');
   }
 }
 

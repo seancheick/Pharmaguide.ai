@@ -25,6 +25,8 @@
 // form context — 'Magnesium (as Magnesium Glycinate)' — so the user
 // still sees which form delivers the elemental dose.
 
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
+
 /// Resolve the label-facing display name of a raw ingredient row.
 /// Mirrors the name-resolution chain used by `activeFromMap` in
 /// `ingredients_helpers.dart` (display_label → standard_name → name →
@@ -49,11 +51,11 @@ String elementalDedupeDisplayName(Map<String, dynamic> row) {
 /// treated as a distinct (compound) form. Same rule as
 /// `stack_nutrient_aggregator.dart` / `condition_gate.dart`.
 bool isElementalIngredientName(String displayName, String canonicalId) {
-  final canonical = _normalizeNameKey(canonicalId);
+  final canonical = canonicalizeIngredientName(canonicalId);
   if (canonical.isEmpty) return false;
-  if (_normalizeNameKey(displayName) == canonical) return true;
+  if (canonicalizeIngredientName(displayName) == canonical) return true;
   final stripped = displayName.replaceAll(RegExp(r'\([^)]*\)'), ' ');
-  return _normalizeNameKey(stripped) == canonical;
+  return canonicalizeIngredientName(stripped) == canonical;
 }
 
 /// Collapse elemental/compound duplicate rows for display.
@@ -76,7 +78,7 @@ List<Map<String, dynamic>> dedupeElementalCompoundRows(
 
   final byCanonical = <String, List<int>>{};
   for (var i = 0; i < ingredients.length; i++) {
-    final canonical = _normalizeNameKey(
+    final canonical = canonicalizeIngredientName(
       ingredients[i]['canonical_id']?.toString() ?? '',
     );
     if (canonical.isEmpty) continue;
@@ -140,10 +142,4 @@ List<Map<String, dynamic>> dedupeElementalCompoundRows(
     });
   }
   return out;
-}
-
-/// Lowercase, trim, and collapse whitespace/underscore runs to single
-/// spaces so 'vitamin_d3' and 'Vitamin D3' compare equal.
-String _normalizeNameKey(String raw) {
-  return raw.trim().toLowerCase().replaceAll(RegExp(r'[\s_]+'), ' ');
 }
