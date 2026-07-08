@@ -77,6 +77,24 @@ void main() {
       expect(result.general, isEmpty);
     });
 
+    test('critical product-quality caution without profile gate → general bucket', () {
+      final additive = _w(
+        headline: 'Synthetic emulsifier with gut-disruption signals',
+        severity: Severity.caution,
+        displayModeDefault: 'critical',
+      );
+
+      final result = partitionProfileWarnings(
+        warnings: [additive],
+        userConditions: const {'diabetes'},
+        userDrugClasses: const {'hypoglycemics_high_risk'},
+        userProfileFlags: const {},
+      );
+
+      expect(result.general, [additive]);
+      expect(result.profile, isEmpty);
+    });
+
     test('matched informational benefit → general bucket, not review', () {
       final benefit = _w(
         headline: 'B12 recommended preconception',

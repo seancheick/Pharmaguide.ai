@@ -59,6 +59,24 @@ void main() {
       );
     });
 
+    test('neutral below floor → suppressed for dose-dependent high-dose guidance', () {
+      expect(
+        applyEmittedFloorGate(
+          [_niacin(doseFloorStatus: 'below', direction: 'neutral')],
+        ),
+        isEmpty,
+      );
+    });
+
+    test('form mismatch → suppressed for dose-dependent high-dose guidance', () {
+      expect(
+        applyEmittedFloorGate(
+          [_niacin(doseFloorStatus: 'form_mismatch')],
+        ),
+        isEmpty,
+      );
+    });
+
     test('presence materiality below floor → fires (never dose-suppressed)', () {
       expect(
         _hasNiacin(applyEmittedFloorGate(

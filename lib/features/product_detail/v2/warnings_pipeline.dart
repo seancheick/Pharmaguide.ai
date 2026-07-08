@@ -155,10 +155,9 @@ bool _isLegacyProductStatusWarning(
 /// "Review for your profile" card vs. global/educational notes.
 ///
 /// A warning stays in the profile bucket when it is a hard safety warning
-/// (contraindicated / avoid) or critical-mode alert that must surface
-/// regardless of profile (e.g. synthesized UL exceedances), OR it actually
-/// fires for the current profile ([InteractionWarning.matchesProfile]) AND is
-/// actionable (caution / monitor — severities that carry a real penalty).
+/// (contraindicated / avoid) OR it actually fires for the current profile
+/// ([InteractionWarning.matchesProfile]) AND is actionable (caution / monitor —
+/// severities that carry a real penalty).
 ///
 /// Everything else moves to [general]: unmatched "if you have X…" notes, and —
 /// even when the profile matches — informational / safe rows, which are neutral
@@ -182,17 +181,19 @@ partitionProfileWarnings({
     );
     final isHard =
         w.severity == Severity.contraindicated || w.severity == Severity.avoid;
-    final isCritical = w.displayModeDefault == 'critical';
     // Only actionable severities (caution / monitor — a real, if mild,
     // negative signal) count as "review before use". Informational / safe
     // rows carry no penalty: they are neutral context or positive notes
     // (e.g. "B12 recommended preconception", "may support PCOS-related
     // fertility") and move to the calm general surface even when the profile
     // matches, so the "N things to review" count reflects only what needs
-    // attention. Hard / critical always surface regardless of profile.
+    // attention. Hard warnings always surface regardless of profile.
+    // Critical-mode caution rows with no profile gate (for example product
+    // quality additives such as P80) remain visible, but in the general surface
+    // instead of inflating "Review for your profile".
     final isActionable =
         w.severity == Severity.caution || w.severity == Severity.monitor;
-    if (isHard || isCritical || (matched && isActionable)) {
+    if (isHard || (matched && isActionable)) {
       profile.add(w);
     } else {
       general.add(w);

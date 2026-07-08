@@ -2,7 +2,8 @@
 //
 // The app no longer owns a condition-threshold table. Condition warning
 // suppression is driven by pipeline-emitted metadata:
-//   - `dose_floor_status == below` for immaterial harmful dose warnings
+//   - `dose_floor_status == below|form_mismatch` for immaterial
+//     dose-dependent warnings
 //   - `direction == beneficial` for condition benefits that should not show as
 //     monitor/caution warnings
 //
@@ -19,26 +20,29 @@ typedef IngredientDose = ({double value, String unit});
 /// Emitted-floor dose gate (smart-flagging, pipeline batch diabetes-01+).
 ///
 /// Drops warnings the pipeline has already marked immaterial at THIS product's
-/// dose: a harmful, dose-dependent rule whose form-scoped `min_effective_dose`
-/// evaluated to `dose_floor_status == "below"`. Emitted-first — it reads the
-/// pipeline's precomputed status (no dose math here).
+/// dose/form: a non-beneficial, dose-dependent rule whose form-scoped
+/// `min_effective_dose` evaluated to `dose_floor_status == "below"` or
+/// `"form_mismatch"`. Emitted-first — it reads the pipeline's precomputed
+/// status (no dose math here).
 ///
 /// Runs BEFORE the profile-visibility filter so a below-floor row can never be
 /// promoted back by a profile match (guardrail G2).
 ///
 /// Narrow by design (guardrail G3): suppress ONLY when
-///   direction == harmful ∧ materiality == dose_dependent ∧
-///   dose_floor_status == below ∧ severity is not a hard override.
+///   direction != beneficial ∧ materiality == dose_dependent ∧
+///   dose_floor_status in {below, form_mismatch} ∧ severity is not a hard
+///   override.
 /// Everything else FIRES — missing/unknown floor status (fail open), unknown
 /// form (pipeline emits null there), and contraindicated/avoid (a hard warning
 /// is never dose-suppressed).
 List<InteractionWarning> applyEmittedFloorGate(
   List<InteractionWarning> warnings,
 ) {
+  const suppressibleStatuses = {'below', 'form_mismatch'};
   return warnings
       .where((w) {
-        if (w.doseFloorStatus != 'below') return true;
-        if (w.direction != 'harmful') return true;
+        if (!suppressibleStatuses.contains(w.doseFloorStatus)) return true;
+        if (w.direction == 'beneficial') return true;
         if (w.materiality != 'dose_dependent') return true;
         if (w.severity == Severity.contraindicated ||
             w.severity == Severity.avoid) {
