@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,21 @@ import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 void main() {
   group('stackDoseThresholdAlertsProvider', () {
+    test('feeds StackDoseSummer through ProductHealthFacts dose rows', () {
+      final source = File(
+        'lib/features/stack/providers/stack_nutrient_providers.dart',
+      ).readAsStringSync();
+
+      expect(source, contains('.doseRowsForThresholds'));
+      expect(
+        source,
+        isNot(contains('.ingredientDoses;')),
+        reason:
+            'Stack dose threshold alerts must use the same parsed row boundary '
+            'as pairwise checks instead of rebuilding rows ad hoc.',
+      );
+    });
+
     test(
       'aggregates cached product doses across the active stack and feeds diagnosis',
       () async {

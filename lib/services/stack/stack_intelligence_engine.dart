@@ -174,11 +174,17 @@ class StackIntelligenceEngine {
       out.add(
         StackIssue(
           severity: Severity.caution,
-          headline:
-              'Cumulative ${alert.displayName} is '
-              '${_formatDose(alert.totalValue)} ${alert.unit} across your stack '
-              '(threshold ${_formatDose(alert.thresholdValue)} '
-              '${alert.thresholdUnit}).',
+          headline: alert.isIncomplete
+              ? 'Cumulative ${alert.displayName} could not be fully evaluated; '
+                    'known subtotal is ${_formatDose(alert.totalValue)} '
+                    '${alert.unit} across your stack (threshold '
+                    '${_formatDose(alert.thresholdValue)} '
+                    '${alert.thresholdUnit}).'
+              : 'Cumulative ${alert.displayName} is '
+                    '${_formatDose(alert.totalValue)} ${alert.unit} across '
+                    'your stack (threshold '
+                    '${_formatDose(alert.thresholdValue)} '
+                    '${alert.thresholdUnit}).',
         ),
       );
     }

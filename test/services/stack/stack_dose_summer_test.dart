@@ -179,6 +179,41 @@ void main() {
       expect(comparison, StackDoseThresholdComparison.unavailable);
     });
 
+    test('thresholdAlerts surfaces an incomplete below-threshold subtotal', () {
+      // This is the alert-generating path, not the pairwise suppression path.
+      // A known subtotal below the threshold is NOT enough to clear the stack
+      // if another contribution was excluded; the true total could be above
+      // threshold. Surface an incomplete alert instead of silently dropping
+      // the issue.
+      final totals = const StackDoseSummer().sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Caffeine A',
+          ingredients: [
+            {'standard_name': 'Caffeine', 'quantity': 160, 'unit': 'mg'},
+          ],
+        ),
+        const StackItemNutrients(
+          stackEntryId: 'b',
+          productName: 'Caffeine B',
+          ingredients: [
+            {'standard_name': 'Caffeine', 'quantity': 80, 'unit': 'np'},
+          ],
+        ),
+      ]);
+
+      final alerts = const StackDoseSummer().thresholdAlerts(
+        totals: totals,
+        userConditions: const ['pregnancy'],
+        thresholdRules: const [_pregnancyCaffeineRule],
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.isIncomplete, isTrue);
+      expect(alerts.single.totalValue, 160);
+      expect(alerts.single.thresholdValue, 200);
+    });
+
     test('does not convert unsupported units like IU into mass units', () {
       final totals = const StackDoseSummer().sum([
         const StackItemNutrients(

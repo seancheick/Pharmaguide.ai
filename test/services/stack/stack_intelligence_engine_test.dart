@@ -103,6 +103,7 @@ StackDoseThresholdAlert _doseAlert({
   double totalValue = 240,
   String unit = 'mg',
   double thresholdValue = 200,
+  bool isIncomplete = false,
 }) {
   return StackDoseThresholdAlert(
     conditionId: conditionId,
@@ -113,6 +114,7 @@ StackDoseThresholdAlert _doseAlert({
     thresholdValue: thresholdValue,
     thresholdUnit: unit,
     contributions: const [],
+    isIncomplete: isIncomplete,
   );
 }
 
@@ -475,5 +477,27 @@ void main() {
         }
       },
     );
+
+    test('incomplete cumulative dose alert uses hedge copy', () {
+      final intelligence = engine.diagnose(
+        stackSize: 2,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+        doseThresholdAlerts: [
+          _doseAlert(totalValue: 160, thresholdValue: 200, isIncomplete: true),
+        ],
+      );
+
+      expect(intelligence.issues, hasLength(1));
+      expect(
+        intelligence.issues.single.headline,
+        contains('could not be fully evaluated'),
+      );
+      expect(intelligence.issues.single.headline, contains('known subtotal'));
+      expect(intelligence.issues.single.headline, contains('160 mg'));
+      expect(intelligence.issues.single.headline, contains('threshold 200 mg'));
+    });
   });
 }

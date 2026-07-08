@@ -28,9 +28,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
 
       for (final rawThreshold in rawThresholds) {
         if (rawThreshold is! Map) continue;
-        final thresholdValue = asFiniteDouble(
-          rawThreshold['threshold_value'],
-        );
+        final thresholdValue = asFiniteDouble(rawThreshold['threshold_value']);
         final thresholdUnit = rawThreshold['threshold_unit']?.toString().trim();
         if (thresholdValue == null ||
             thresholdValue <= 0 ||
@@ -214,7 +212,10 @@ class StackDoseSummer {
           to: normalizedThresholdUnit,
         );
         if (totalInThresholdUnit == null) continue;
-        if (totalInThresholdUnit < rule.thresholdValue) continue;
+        final isIncomplete = dose.hasExcludedContributions;
+        if (totalInThresholdUnit < rule.thresholdValue && !isIncomplete) {
+          continue;
+        }
 
         final marker = '$conditionId:${dose.canonicalId}';
         if (!seen.add(marker)) continue;
@@ -232,6 +233,7 @@ class StackDoseSummer {
             thresholdValue: rule.thresholdValue,
             thresholdUnit: normalizedThresholdUnit,
             contributions: dose.contributions,
+            isIncomplete: isIncomplete,
           ),
         );
       }
@@ -522,11 +524,7 @@ class StackDoseSummer {
   }) {
     final normalizedFrom = normalizeDoseUnit(from);
     final normalizedTo = normalizeDoseUnit(to);
-    final simple = amountInMass(
-      amount,
-      from: normalizedFrom,
-      to: normalizedTo,
-    );
+    final simple = amountInMass(amount, from: normalizedFrom, to: normalizedTo);
     if (simple != null) return simple;
 
     if (canonicalId == 'vitamin_e') {
@@ -660,6 +658,7 @@ class StackDoseThresholdAlert {
     required this.thresholdValue,
     required this.thresholdUnit,
     required this.contributions,
+    this.isIncomplete = false,
   });
 
   final String conditionId;
@@ -670,6 +669,12 @@ class StackDoseThresholdAlert {
   final double thresholdValue;
   final String thresholdUnit;
   final List<StackDoseContribution> contributions;
+
+  /// True when the known comparable subtotal omitted at least one source row
+  /// because its dose/unit could not be safely compared. The alert is still
+  /// surfaced so the stack does not look cleared by an undercount, but callers
+  /// should use hedge copy rather than claiming the threshold was proven.
+  final bool isIncomplete;
 }
 
 enum StackDoseThresholdComparison { below, atOrAbove, unavailable }

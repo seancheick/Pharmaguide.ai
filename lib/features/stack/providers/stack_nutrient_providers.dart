@@ -158,23 +158,19 @@ final stackDoseThresholdAlertsProvider =
           continue;
         }
         if (blob == null) continue;
-        thresholdRules.addAll(stackDoseThresholdRulesFromDetailBlob(blob));
 
-        final doses = ProductHealthFacts.fromDetailBlob(blob).ingredientDoses;
-        if (doses.isEmpty) continue;
+        final facts = ProductHealthFacts.fromDetailBlob(blob);
+        thresholdRules.addAll(
+          stackDoseThresholdRulesFromWarnings(facts.warnings),
+        );
 
+        final ingredients = facts.doseRowsForThresholds;
+        if (ingredients.isEmpty) continue;
         items.add(
           StackItemNutrients(
             stackEntryId: entry.id,
             productName: entry.name,
-            ingredients: [
-              for (final dose in doses.entries)
-                {
-                  'standard_name': dose.key,
-                  'quantity': dose.value.value,
-                  'unit': dose.value.unit,
-                },
-            ],
+            ingredients: ingredients,
           ),
         );
       }
