@@ -712,7 +712,7 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsFor(
     if (blob == null) continue;
 
     final facts = ProductHealthFacts.fromDetailBlob(blob);
-    final ingredients = _doseRowsForPairwiseThresholds(facts);
+    final ingredients = facts.doseRowsForThresholds;
     if (ingredients.isEmpty) continue;
 
     items.add(
@@ -726,23 +726,6 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsFor(
 
   if (items.isEmpty) return const <String, StackDoseTotal>{};
   return const StackDoseSummer().sum(items);
-}
-
-List<Map<String, dynamic>> _doseRowsForPairwiseThresholds(
-  ProductHealthFacts facts,
-) {
-  if (facts.ingredientDoses.isNotEmpty) {
-    return [
-      for (final entry in facts.ingredientDoses.entries)
-        {
-          'standard_name': entry.key,
-          'quantity': entry.value.value,
-          'unit': entry.value.unit,
-        },
-    ];
-  }
-  if (facts.activeIngredients.isNotEmpty) return facts.activeIngredients;
-  return facts.nutrients;
 }
 
 Future<({List<UserStacksLocalData> rows, bool identityIncomplete})>

@@ -84,6 +84,28 @@ class ProductHealthFacts {
     );
   }
 
+  /// Dose rows for pairwise stack-threshold checks (fed to
+  /// [StackDoseSummer]). Prefers the parsed [ingredientDoses] as
+  /// `{standard_name, quantity, unit}` rows; falls back to the raw active
+  /// ingredient rows, then nutrients, when no doses parsed. Shared by the
+  /// product-detail personalized-warnings provider and the stack-safety
+  /// provider so both feed the summer the SAME row shape (was a byte-identical
+  /// private copy in each).
+  List<Map<String, dynamic>> get doseRowsForThresholds {
+    if (ingredientDoses.isNotEmpty) {
+      return [
+        for (final entry in ingredientDoses.entries)
+          {
+            'standard_name': entry.key,
+            'quantity': entry.value.value,
+            'unit': entry.value.unit,
+          },
+      ];
+    }
+    if (activeIngredients.isNotEmpty) return activeIngredients;
+    return nutrients;
+  }
+
   static List<Map<String, dynamic>> _extractUlAnalysis(
     Map<String, dynamic> blob,
   ) {

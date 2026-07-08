@@ -212,9 +212,9 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
 
   final items = <StackItemNutrients>[];
   if (!stackAlreadyContainsProduct && productDetailBlob != null) {
-    final ingredients = _doseRowsForPairwiseThresholds(
-      ProductHealthFacts.fromDetailBlob(productDetailBlob),
-    );
+    final ingredients = ProductHealthFacts.fromDetailBlob(
+      productDetailBlob,
+    ).doseRowsForThresholds;
     if (ingredients.isNotEmpty) {
       items.add(
         StackItemNutrients(
@@ -237,9 +237,9 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
     }
     if (blob == null) continue;
 
-    final ingredients = _doseRowsForPairwiseThresholds(
-      ProductHealthFacts.fromDetailBlob(blob),
-    );
+    final ingredients = ProductHealthFacts.fromDetailBlob(
+      blob,
+    ).doseRowsForThresholds;
     if (ingredients.isEmpty) continue;
     items.add(
       StackItemNutrients(
@@ -252,23 +252,6 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
 
   if (items.isEmpty) return const <String, StackDoseTotal>{};
   return const StackDoseSummer().sum(items);
-}
-
-List<Map<String, dynamic>> _doseRowsForPairwiseThresholds(
-  ProductHealthFacts facts,
-) {
-  if (facts.ingredientDoses.isNotEmpty) {
-    return [
-      for (final entry in facts.ingredientDoses.entries)
-        {
-          'standard_name': entry.key,
-          'quantity': entry.value.value,
-          'unit': entry.value.unit,
-        },
-    ];
-  }
-  if (facts.activeIngredients.isNotEmpty) return facts.activeIngredients;
-  return facts.nutrients;
 }
 
 /// Maps an [InteractionResult] from the curated DB to an
