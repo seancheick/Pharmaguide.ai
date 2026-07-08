@@ -75,6 +75,16 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   required List<FreeFromClaim> freeFromClaims,
   required List<String> freeFromConflicts,
   required bool hasInteractionProfile,
+  // True when a substance-level `display_mode_default == 'critical'` note
+  // (moderate harmful additive, high-risk ingredient) exists for this product
+  // but lives in the calm general "Good to know" bucket rather than the
+  // profile card. Such notes carry `caution` severity — hard (avoid /
+  // contraindicated) criticals are already routed to the profile bucket and
+  // caught by [hasHardWarning]. We deliberately keep the ROW calm and out of
+  // "Review for your profile" (the pipeline flags ~33 ubiquitous additives —
+  // sucralose, Red 40, polysorbate 80 — this way), but the verdict headline
+  // must NOT render a green "safe" all-clear over a flagged substance hazard.
+  bool hasCriticalGlobalNote = false,
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final allergenRows = rowsForAllergens(matchedAllergens);
@@ -151,7 +161,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   return switch (fitDisplay) {
     FitStrongMatch() => _fitSummary(
       status: ProfileRelevanceStatus.strongMatch,
-      tone: PGReviewTone.safe,
+      tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
       headline: personalFitHeadline(fitDisplay, topGoalLabel),
       fit: fitDisplay,
       fitReasons: fitResult?.reasons ?? const [],
@@ -162,7 +172,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
     ),
     FitGoodMatch() => _fitSummary(
       status: ProfileRelevanceStatus.goodMatch,
-      tone: PGReviewTone.safe,
+      tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
       headline: personalFitHeadline(fitDisplay, topGoalLabel),
       fit: fitDisplay,
       fitReasons: fitResult?.reasons ?? const [],

@@ -467,6 +467,12 @@ class _ProductDetailV2ConnectedState
       hasInteractionProfile:
           profile.conditionsForEvaluator.isNotEmpty ||
           profile.drugClassesForEvaluator.isNotEmpty,
+      // A pipeline-flagged substance hazard (moderate additive / high-risk
+      // ingredient) sits in the calm general bucket; it must still stop the
+      // verdict from rendering a green "safe" all-clear.
+      hasCriticalGlobalNote: partitionedWarnings.general.any(
+        (w) => w.displayModeDefault == 'critical',
+      ),
       onTapCitations: (urls) =>
           showProfileRelevanceCitationsSheet(context, urls),
     );

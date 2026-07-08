@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
@@ -80,6 +81,7 @@ ProfileRelevanceSummary _summary({
   List<String> userConditions = const [],
   List<InteractionWarning> profileBenefitWarnings = const [],
   bool hasInteractionProfile = true,
+  bool hasCriticalGlobalNote = false,
 }) {
   return buildProfileRelevanceSummary(
     fitResult: fitResult ?? _fit(),
@@ -93,6 +95,7 @@ ProfileRelevanceSummary _summary({
     freeFromClaims: freeFromClaims,
     freeFromConflicts: freeFromConflicts,
     hasInteractionProfile: hasInteractionProfile,
+    hasCriticalGlobalNote: hasCriticalGlobalNote,
   );
 }
 
@@ -134,6 +137,34 @@ void main() {
       expect(summary.status, ProfileRelevanceStatus.goodMatch);
       expect(summary.headline, 'Good match for your profile');
       expect(summary.body, 'Backed by clinical evidence.');
+    });
+
+    test('critical global substance note removes the green safe all-clear', () {
+      // A moderate harmful additive / high-risk ingredient (caution severity,
+      // display_mode_default == 'critical') lives in the calm general bucket,
+      // so buildProfileRelevanceSummary never sees the row — but the pipeline
+      // flagged it a substance-level hazard. The positive verdict must not
+      // render a green "safe" all-clear over it. Both green branches downgrade
+      // to a neutral (info) tone; the goal-fit headline is unchanged.
+      for (final state in const [
+        FitAssessmentState.strongMatch,
+        FitAssessmentState.goodFit,
+      ]) {
+        final green = _summary(fitResult: _fit(state: state));
+        expect(green.tone, PGReviewTone.safe, reason: 'baseline is green');
+
+        final gated = _summary(
+          fitResult: _fit(state: state),
+          hasCriticalGlobalNote: true,
+        );
+        expect(
+          gated.tone,
+          PGReviewTone.info,
+          reason: 'no green all-clear over a substance-level critical note',
+        );
+        expect(gated.status, green.status, reason: 'goal-fit status unchanged');
+        expect(gated.headline, green.headline, reason: 'headline unchanged');
+      }
     });
 
     test('good fit can explain emitted beneficial profile warnings', () {
