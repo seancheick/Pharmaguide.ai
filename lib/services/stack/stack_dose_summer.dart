@@ -303,14 +303,33 @@ class StackDoseSummer {
     final anchor = matchingTotals.first;
     var totalValue = 0.0;
     final contributions = <StackDoseContribution>[];
+    // Inherit source exclusions + record any whole source total dropped on a
+    // unit mismatch, so this fresh alias total surfaces incompleteness the
+    // same way the direct path does (compareThreshold must not suppress on an
+    // undercount).
+    final excluded = <ExcludedStackDoseContribution>[];
 
     for (final total in matchingTotals) {
+      excluded.addAll(total.excludedContributions);
       final converted = amountInMass(
         total.totalValue,
         from: total.unit,
         to: anchor.unit,
       );
-      if (converted == null) continue;
+      if (converted == null) {
+        excluded.add(
+          ExcludedStackDoseContribution(
+            contribution: StackDoseContribution(
+              stackEntryId: '',
+              productName: total.displayName,
+              amount: total.totalValue,
+              unit: total.unit,
+            ),
+            reason: StackDoseExclusionReason.unitConflict,
+          ),
+        );
+        continue;
+      }
 
       totalValue += converted;
       contributions.addAll(
@@ -339,6 +358,7 @@ class StackDoseSummer {
       totalValue: totalValue,
       unit: anchor.unit,
       contributions: List.unmodifiable(contributions),
+      excludedContributions: List.unmodifiable(excluded),
     );
   }
 
@@ -377,6 +397,11 @@ class StackDoseSummer {
       canonicalId: 'omega_3',
       displayName: _thresholdDoseDisplayNames['omega_3'] ?? 'Omega-3',
       contributions: selected,
+      inheritedExclusions: _inheritedExclusions(totals, {
+        ..._omega3EpaDhaAliases,
+        ..._omega3TotalAliases,
+        ..._omega3FishOilAliases,
+      }),
     );
   }
 
@@ -405,6 +430,7 @@ class StackDoseSummer {
     required String canonicalId,
     required String displayName,
     required List<StackDoseContribution> contributions,
+    List<ExcludedStackDoseContribution> inheritedExclusions = const [],
   }) {
     if (contributions.isEmpty) return null;
 
@@ -413,13 +439,27 @@ class StackDoseSummer {
 
     var totalValue = 0.0;
     final convertedContributions = <StackDoseContribution>[];
+    // This path builds a FRESH total, so it must surface incompleteness the
+    // same way the direct `totals[key]` path does: compareThreshold refuses to
+    // SUPPRESS a warning when the total carries excluded contributions (an
+    // undercount must never justify suppression). Carry forward the source
+    // totals' exclusions AND record any unit-mismatch we drop here.
+    final excluded = <ExcludedStackDoseContribution>[...inheritedExclusions];
     for (final contribution in contributions) {
       final converted = amountInMass(
         contribution.amount,
         from: contribution.unit,
         to: unit,
       );
-      if (converted == null) continue;
+      if (converted == null) {
+        excluded.add(
+          ExcludedStackDoseContribution(
+            contribution: contribution,
+            reason: StackDoseExclusionReason.unitConflict,
+          ),
+        );
+        continue;
+      }
       totalValue += converted;
       convertedContributions.add(
         StackDoseContribution(
@@ -438,7 +478,23 @@ class StackDoseSummer {
       totalValue: totalValue,
       unit: unit,
       contributions: List.unmodifiable(convertedContributions),
+      excludedContributions: List.unmodifiable(excluded),
     );
+  }
+
+  /// Collect the excluded contributions from every source total present under
+  /// [aliases]. A threshold total combined from these sources inherits their
+  /// incompleteness so the downstream suppression gate fails open.
+  List<ExcludedStackDoseContribution> _inheritedExclusions(
+    Map<String, StackDoseTotal> totals,
+    Set<String> aliases,
+  ) {
+    final excluded = <ExcludedStackDoseContribution>[];
+    for (final alias in aliases) {
+      final total = totals[alias];
+      if (total != null) excluded.addAll(total.excludedContributions);
+    }
+    return excluded;
   }
 
   StackDoseExclusionReason? _exclusionReason(

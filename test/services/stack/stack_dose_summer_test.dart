@@ -144,6 +144,41 @@ void main() {
       expect(totals['alpha_lipoic_acid']?.unit, 'g');
     });
 
+    test('compareThreshold fails open when the fish-oil (omega) total dropped '
+        'an excluded contribution', () {
+      // The omega/fish_oil threshold builds a FRESH combined total, which
+      // previously dropped the source total's exclusions — so a
+      // not-provided-unit fish-oil row undercounted (600, not 1400) and the
+      // below-floor suppression fired anyway, hiding a real bleeding warning.
+      // The combined total must inherit the exclusion and fail open, never
+      // return `below`.
+      final totals = const StackDoseSummer().sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Fish Oil A',
+          ingredients: [
+            {'standard_name': 'Fish Oil', 'quantity': 600, 'unit': 'mg'},
+          ],
+        ),
+        const StackItemNutrients(
+          stackEntryId: 'b',
+          productName: 'Fish Oil B',
+          ingredients: [
+            // 'np' (not provided) unit → excluded from the sum
+            {'standard_name': 'Fish Oil', 'quantity': 800, 'unit': 'np'},
+          ],
+        ),
+      ]);
+
+      final comparison = const StackDoseSummer().compareThreshold(
+        totals: totals,
+        canonicalId: 'fish_oil',
+        thresholdValue: 1000,
+        thresholdUnit: 'mg',
+      );
+      expect(comparison, StackDoseThresholdComparison.unavailable);
+    });
+
     test('does not convert unsupported units like IU into mass units', () {
       final totals = const StackDoseSummer().sum([
         const StackItemNutrients(
