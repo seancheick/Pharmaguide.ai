@@ -555,6 +555,33 @@ void main() {
       expect(total.excludedContributions.single.contribution.amount, 400);
     });
 
+    test('niacin synonym is NOT treated as the elemental row (alias must not '
+        'collapse the sum)', () {
+      // Both rows carry canonical_id 'niacin'. 'Vitamin B3' is a THRESHOLD
+      // synonym for niacin, not the bare elemental name — it must not read as
+      // the elemental total and drop 'Niacinamide'. The two distinct forms
+      // sum to 80 mg (an under-count here could hide a niacin UL warning).
+      final stack = [
+        _productOf('s1', 'B-Complex', [
+          {
+            'canonical_id': 'niacin',
+            'name': 'Vitamin B3',
+            'quantity': 30,
+            'unit': 'mg',
+          },
+          {
+            'canonical_id': 'niacin',
+            'name': 'Niacinamide',
+            'quantity': 50,
+            'unit': 'mg',
+          },
+        ]),
+      ];
+      final total = aggregator.aggregate(stack)['niacin']!;
+      expect(total.totalAmount, 80);
+      expect(total.excludedContributions, isEmpty);
+    });
+
     test('"(elemental)" parenthetical counts as the elemental row', () {
       final stack = [
         _productOf('s1', 'Mag Complex', [

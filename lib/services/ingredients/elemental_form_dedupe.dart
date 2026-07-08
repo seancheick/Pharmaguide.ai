@@ -51,11 +51,18 @@ String elementalDedupeDisplayName(Map<String, dynamic> row) {
 /// treated as a distinct (compound) form. Same rule as
 /// `stack_nutrient_aggregator.dart` / `condition_gate.dart`.
 bool isElementalIngredientName(String displayName, String canonicalId) {
-  final canonical = canonicalizeIngredientName(canonicalId);
+  // applyAliases: false — this is a STRUCTURAL name match, not a synonym match.
+  // With aliases on, `canonicalizeIngredientName('Vitamin B3')` folds to
+  // 'niacin', so a generic "Vitamin B3" row would read as the bare elemental
+  // total and drop every other niacin form from the sum (an under-count). The
+  // hyphen/punctuation fold that fixes 'Vitamin-D3'/'5-HTP' is unaffected.
+  final canonical = canonicalizeIngredientName(canonicalId, applyAliases: false);
   if (canonical.isEmpty) return false;
-  if (canonicalizeIngredientName(displayName) == canonical) return true;
+  if (canonicalizeIngredientName(displayName, applyAliases: false) == canonical) {
+    return true;
+  }
   final stripped = displayName.replaceAll(RegExp(r'\([^)]*\)'), ' ');
-  return canonicalizeIngredientName(stripped) == canonical;
+  return canonicalizeIngredientName(stripped, applyAliases: false) == canonical;
 }
 
 /// Collapse elemental/compound duplicate rows for display.

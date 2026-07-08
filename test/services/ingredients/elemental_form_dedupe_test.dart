@@ -144,13 +144,20 @@ void main() {
     test('hyphenated label spellings match (B#3 regression)', () {
       // The old normalizer folded whitespace/underscore but NOT hyphens, so a
       // 'Vitamin-D3' / '5-HTP' label never matched its canonical id and the
-      // elemental/compound dedup silently double-counted. canonicalizeIngredientName
-      // folds hyphens (and applies aliases), so these now resolve.
+      // elemental/compound dedup silently double-counted. The structural
+      // hyphen/punctuation fold now resolves these.
       expect(isElementalIngredientName('Vitamin-D3', 'vitamin_d3'), isTrue);
       expect(isElementalIngredientName('5-HTP', '5_htp'), isTrue);
       expect(isElementalIngredientName('Co-Q10', 'co_q10'), isTrue);
-      // Alias fold: 'Vitamin B3' is niacin.
-      expect(isElementalIngredientName('Vitamin B3', 'niacin'), isTrue);
+    });
+
+    test('synonym alias does NOT count as the bare elemental row', () {
+      // A structural match only — NOT a synonym match. Folding 'Vitamin B3' to
+      // 'niacin' (its threshold-matching alias) here would make a generic B3
+      // row read as the bare elemental total and drop every other niacin form
+      // from the sum. 'Vitamin B3' is a distinct label form, not the elemental
+      // 'niacin' name, so it must NOT be treated as elemental.
+      expect(isElementalIngredientName('Vitamin B3', 'niacin'), isFalse);
     });
   });
 }

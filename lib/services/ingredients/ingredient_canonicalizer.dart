@@ -25,7 +25,14 @@
 /// trailing descriptor punctuation (`", Dried"`, `" (USP)"`,
 /// `", powder."`) that the table side never matches. Strip the lot at
 /// the boundary so the table keys can stay clean.
-String canonicalizeIngredientName(String raw) {
+/// When [applyAliases] is false, the synonym map is SKIPPED and only the
+/// structural fold (case / whitespace / hyphen / punctuation) is applied.
+/// Threshold/dose matching wants aliases on (a `Vitamin B3` row must match a
+/// `niacin` rule), but the elemental-vs-compound dedup must NOT alias: folding
+/// `'Vitamin B3'` → `'niacin'` there would make a generic synonym read as the
+/// bare elemental total and silently drop every other niacin form from the
+/// sum (an under-count). See [isElementalIngredientName].
+String canonicalizeIngredientName(String raw, {bool applyAliases = true}) {
   final trimmed = raw.trim().toLowerCase();
   if (trimmed.isEmpty) return '';
   // Whitespace, hyphens, AND punctuation runs all collapse to a single
@@ -35,6 +42,7 @@ String canonicalizeIngredientName(String raw) {
   // Strip any leading/trailing underscores left behind by punctuation
   // at the edges.
   final canonical = collapsed.replaceAll(RegExp(r'^_+|_+$'), '');
+  if (!applyAliases) return canonical;
   return _ingredientCanonicalAliases[canonical] ?? canonical;
 }
 
