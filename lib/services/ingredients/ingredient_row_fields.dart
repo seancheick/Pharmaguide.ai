@@ -26,6 +26,7 @@
 // per-day-normalized fields deliberately win over the raw per-serving ones.
 
 import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 
 /// Numeric dose amount for [row], in priority order, or null when no field
@@ -48,7 +49,7 @@ double? readDoseAmount(Map<String, dynamic> row) {
     'dosage',
   ];
   for (final field in fields) {
-    final parsed = asRowDouble(row[field]);
+    final parsed = asFiniteDouble(row[field]);
     if (parsed != null) return parsed;
   }
   return null;
@@ -162,15 +163,3 @@ bool isUsableDoseRow(Map<String, dynamic> row) {
   return true;
 }
 
-/// Parse an int / double / numeric-string into a finite double, or null.
-/// Rejects NaN and ±Infinity in every branch — a non-finite dose must never
-/// enter a sum or comparison.
-double? asRowDouble(Object? value) {
-  if (value is double) return value.isFinite ? value : null;
-  if (value is int) return value.toDouble();
-  if (value is String) {
-    final parsed = double.tryParse(value.trim());
-    return (parsed != null && parsed.isFinite) ? parsed : null;
-  }
-  return null;
-}

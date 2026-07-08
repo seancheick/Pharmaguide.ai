@@ -61,6 +61,7 @@
 // demographic rules.
 
 import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -245,7 +246,7 @@ class StackUlChecker {
       for (final g in data) {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket && g['group'] == sex) {
-          final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
+          final v = asFiniteDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
           if (v != null) return _RdaLookup(v, false);
         }
       }
@@ -263,14 +264,14 @@ class StackUlChecker {
       for (final g in data) {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket && g['group'] == 'Female') {
-          final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
+          final v = asFiniteDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
           if (v != null) return _RdaLookup(v, true);
         }
       }
       for (final g in data) {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket) {
-          final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
+          final v = asFiniteDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
           if (v != null) return _RdaLookup(v, true);
         }
       }
@@ -285,7 +286,7 @@ class StackUlChecker {
     for (final g in data) {
       if (g is! Map<String, dynamic>) continue;
       if (g['age_range'] == '19-30' && g['group'] == 'Female') {
-        final v = _asDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
+        final v = asFiniteDouble(g['rda_ai'] ?? g['rda'] ?? g['ai']);
         if (v != null) return _RdaLookup(v, true);
       }
     }
@@ -318,7 +319,7 @@ class StackUlChecker {
       for (final g in data) {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket && g['group'] == sex) {
-          final v = _asDouble(g['ul']);
+          final v = asFiniteDouble(g['ul']);
           if (v != null) return _UlLookup(v, false);
         }
       }
@@ -332,7 +333,7 @@ class StackUlChecker {
       for (final g in data) {
         if (g is! Map<String, dynamic>) continue;
         if (g['age_range'] == ageBracket) {
-          final v = _asDouble(g['ul']);
+          final v = asFiniteDouble(g['ul']);
           if (v != null && (lowest == null || v < lowest)) lowest = v;
         }
       }
@@ -341,7 +342,7 @@ class StackUlChecker {
 
     // Anonymous fallback: least restrictive UL lets us still catch large
     // overages without alarming users from an unknown demographic.
-    final highest = _asDouble(entry['highest_ul']);
+    final highest = asFiniteDouble(entry['highest_ul']);
     if (highest != null) return _UlLookup(highest, true);
 
     return const _UlLookup(null, false);
@@ -497,16 +498,6 @@ class StackUlChecker {
     return RegExp('(^|[^a-z0-9])$escaped([^a-z0-9]|\$)').hasMatch(haystack);
   }
 
-  static double? _asDouble(dynamic v) {
-    if (v == null) return null;
-    if (v is double) return v.isFinite ? v : null;
-    if (v is int) return v.toDouble();
-    if (v is String) {
-      final parsed = double.tryParse(v.trim());
-      return (parsed != null && parsed.isFinite) ? parsed : null;
-    }
-    return null;
-  }
 }
 
 /// RDA lookup result paired with whether the value came from the

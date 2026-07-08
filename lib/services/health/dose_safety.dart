@@ -14,6 +14,7 @@
 library;
 
 import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 
 /// Per-ingredient dose safety state derived from the pipeline's UL
 /// analysis block. Callers map each state to a visual badge.
@@ -75,7 +76,7 @@ bool _hasConfirmedUlExceedance(
   if (overUl == true) return true;
   if (overUl == false) return false;
 
-  final pctUl = _asDouble(entry['pct_ul']);
+  final pctUl = asFiniteDouble(entry['pct_ul']);
   if (pctUl != null) return pctUl > 100.0;
 
   if (_hasStructuredUlDecision(entry)) return false;
@@ -92,7 +93,7 @@ bool _quantityExceedsResolvedUl(
   Map<String, dynamic>? ingredient,
 }) {
   final quantity =
-      _asDouble(entry['quantity']) ?? _asDouble(ingredient?['quantity']);
+      asFiniteDouble(entry['quantity']) ?? asFiniteDouble(ingredient?['quantity']);
   if (quantity == null || quantity <= 0) return false;
 
   // UL resolution order honoring the pipeline contract:
@@ -101,8 +102,8 @@ bool _quantityExceedsResolvedUl(
   //   2. highest_ul — worst-case UL across demographics, used when
   //      the pipeline couldn't resolve a profile-specific UL.
   final ul =
-      _asDouble(entry['ul_for_default_profile']) ??
-      _asDouble(entry['highest_ul']);
+      asFiniteDouble(entry['ul_for_default_profile']) ??
+      asFiniteDouble(entry['highest_ul']);
   if (ul == null || ul <= 0) return false;
 
   // Unit reconciliation (P2 hardening). `quantity` is in the disclosed
@@ -244,15 +245,4 @@ String _ulNutrientKey(String name) {
     return 'vitamin d';
   }
   return compact.trim();
-}
-
-double? _asDouble(dynamic v) {
-  if (v == null) return null;
-  if (v is double) return v.isFinite ? v : null;
-  if (v is int) return v.toDouble();
-  if (v is String) {
-    final parsed = double.tryParse(v.trim());
-    return (parsed != null && parsed.isFinite) ? parsed : null;
-  }
-  return null;
 }

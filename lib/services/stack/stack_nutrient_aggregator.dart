@@ -43,6 +43,7 @@
 // Silent conversion is how medical-grade bugs ship.
 
 import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -225,7 +226,7 @@ class StackNutrientAggregator {
         if (row['ul_gate_eligible'] == false) continue;
 
         final overUl = _readOverUl(row);
-        final pctUl = _asDouble(row['pct_ul']);
+        final pctUl = asFiniteDouble(row['pct_ul']);
         if (overUl == null && pctUl == null) continue;
 
         final canonical = readCanonicalId(row);
@@ -307,17 +308,6 @@ class StackNutrientAggregator {
     }
     if (normalized == 'unspecified' || normalized == 'unknown') {
       return NutrientExclusionReason.unsupportedUnit;
-    }
-    return null;
-  }
-
-  static double? _asDouble(dynamic v) {
-    if (v == null) return null;
-    if (v is double) return v.isFinite ? v : null;
-    if (v is int) return v.toDouble();
-    if (v is String) {
-      final parsed = double.tryParse(v.trim());
-      return (parsed != null && parsed.isFinite) ? parsed : null;
     }
     return null;
   }

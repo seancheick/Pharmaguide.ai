@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -742,7 +743,7 @@ class _PairwiseDoseThreshold {
 
     final agentCanonicalId = decoded['agent_canonical_id']?.toString().trim();
     final unit = decoded['unit']?.toString().trim();
-    final value = _asDouble(decoded['value']);
+    final value = asFiniteDouble(decoded['value']);
     if (agentCanonicalId == null ||
         agentCanonicalId.isEmpty ||
         unit == null ||
@@ -759,13 +760,4 @@ class _PairwiseDoseThreshold {
     );
   }
 
-  static double? _asDouble(Object? value) {
-    if (value is double && value.isFinite) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) {
-      final parsed = double.tryParse(value.trim());
-      return parsed != null && parsed.isFinite ? parsed : null;
-    }
-    return null;
-  }
 }

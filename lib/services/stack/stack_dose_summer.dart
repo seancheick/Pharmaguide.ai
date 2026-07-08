@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -27,7 +28,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
 
       for (final rawThreshold in rawThresholds) {
         if (rawThreshold is! Map) continue;
-        final thresholdValue = asRowDouble(
+        final thresholdValue = asFiniteDouble(
           rawThreshold['threshold_value'],
         );
         final thresholdUnit = rawThreshold['threshold_unit']?.toString().trim();

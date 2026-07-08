@@ -51,6 +51,22 @@ void main() {
     expect(out[1].score, isNull);
   });
 
+  test('non-finite score is rejected (B#6 NaN guard)', () {
+    // The old local _asDouble did `if (v is num) return v.toDouble()` with no
+    // isFinite guard, so a NaN / Infinity score flowed straight into the
+    // pillar. Routed through asFiniteDouble, a non-finite value now reads null
+    // and never corrupts the score.
+    final blob = _fullBlob();
+    (blob['formulation'] as Map<String, dynamic>)['score'] = double.nan;
+    (blob['dose'] as Map<String, dynamic>)['score'] = double.infinity;
+    (blob['evidence'] as Map<String, dynamic>)['score'] = 'Infinity';
+    final out = parseV4Pillars(blob);
+    expect(out.length, 6, reason: 'no entry may throw or be dropped');
+    expect(out[0].score, isNull);
+    expect(out[1].score, isNull);
+    expect(out[2].score, isNull);
+  });
+
   test('max <= 0 or non-numeric max falls back to the spec max', () {
     final blob = _fullBlob();
     (blob['formulation'] as Map<String, dynamic>)['max'] = 0;

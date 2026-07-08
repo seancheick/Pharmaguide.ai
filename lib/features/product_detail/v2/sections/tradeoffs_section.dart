@@ -25,6 +25,7 @@ import 'package:pharmaguide/core/components/pg_tradeoffs_section.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show sanitizeWhyDetail;
 import 'package:pharmaguide/services/health/product_health_facts.dart';
@@ -99,10 +100,10 @@ List<PGTradeoff> _buildUlConsiderations({
     if (!seen.add(key) || _alreadyHasUlConsideration(existing, key)) return;
 
     final caption = _formatUlCaption(
-      amount: _asDouble(flag['amount'] ?? flag['quantity']),
+      amount: asFiniteDouble(flag['amount'] ?? flag['quantity']),
       unit: _stringValue(flag['unit']),
-      ul: _asDouble(flag['ul'] ?? flag['highest_ul']),
-      pctUl: _asDouble(flag['pct_ul']),
+      ul: asFiniteDouble(flag['ul'] ?? flag['highest_ul']),
+      pctUl: asFiniteDouble(flag['pct_ul']),
       fallback: _stringValue(flag['warning']),
     );
     out.add(
@@ -188,16 +189,6 @@ String _formatNumber(double value) {
 String? _stringValue(Object? raw) {
   final value = raw?.toString().trim();
   return value == null || value.isEmpty ? null : value;
-}
-
-double? _asDouble(Object? raw) {
-  if (raw is int) return raw.toDouble();
-  if (raw is double && raw.isFinite) return raw;
-  if (raw is String) {
-    final parsed = double.tryParse(raw.trim());
-    if (parsed != null && parsed.isFinite) return parsed;
-  }
-  return null;
 }
 
 /// Map a raw bonus/penalty entry to a PGTradeoff. Verbatim port of

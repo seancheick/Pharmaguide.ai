@@ -7,6 +7,8 @@
 // (`scripts/scoring_v4/config/quality_score.json`); the blob also carries
 // `max` per pillar, used in preference to the fallback.
 
+import 'package:pharmaguide/core/utils/num_parse.dart';
+
 /// v4 pillar key → (display label, fallback max) in display order.
 const List<(String, String, int)> kV4PillarSpec = [
   ('formulation', 'Formulation', 20),
@@ -51,13 +53,6 @@ class V4PillarValue {
 bool hasAllV4Pillars(List<V4PillarValue> pillars) =>
     pillars.length == kV4PillarSpec.length;
 
-/// Tolerant numeric read: num, or a numeric string. Never throws.
-double? _asDouble(Object? v) {
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
-
 /// Parse a blob's `quality_pillars_v4` map into the six pillars in
 /// display order. Pillars whose entry is missing/malformed are skipped —
 /// callers treat an incomplete result (see [hasAllV4Pillars]) as "no v4
@@ -76,8 +71,8 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
       final raw = pillarsBlob[key];
       if (raw is! Map) continue;
       final m = Map<String, dynamic>.from(raw);
-      final score = _asDouble(m['score']);
-      final rawMax = _asDouble(m['max'])?.toInt();
+      final score = asFiniteDouble(m['score']);
+      final rawMax = asFiniteDouble(m['max'])?.toInt();
       final max = (rawMax == null || rawMax <= 0) ? fallbackMax : rawMax;
       final reason = m['reason'] is String
           ? (m['reason'] as String).trim()
