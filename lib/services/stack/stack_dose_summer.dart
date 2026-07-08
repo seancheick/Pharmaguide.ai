@@ -250,6 +250,14 @@ class StackDoseSummer {
     if (dose == null || dose.totalValue <= 0 || dose.unit.isEmpty) {
       return StackDoseThresholdComparison.unavailable;
     }
+    // Fail OPEN when the total dropped a mismatched-unit contribution. This
+    // total is used to SUPPRESS a warning below a floor; an undercount (e.g. a
+    // stack holding vitamin E in both mg and IU, where the non-anchor unit is
+    // excluded) must never justify suppression — the true combined dose could
+    // be above the floor. Suppression requires a COMPLETE, comparable total.
+    if (dose.hasExcludedContributions) {
+      return StackDoseThresholdComparison.unavailable;
+    }
 
     final normalizedThresholdUnit = normalizeDoseUnit(thresholdUnit);
     final totalInThresholdUnit = _amountInThresholdUnit(

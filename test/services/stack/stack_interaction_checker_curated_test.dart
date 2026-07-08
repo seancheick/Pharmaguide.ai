@@ -777,6 +777,83 @@ void main() {
       },
     );
 
+    test(
+      'fails open when the vitamin E total dropped a mismatched-unit source',
+      () async {
+        // Stack holds vitamin E in BOTH mg and IU: sum() excludes the
+        // non-anchor unit as a conflict, so the total is an undercount. An
+        // undercount must NOT justify suppressing the bleeding warning below
+        // the floor — the true combined dose could be over it.
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_FISHOIL_VITE_MIXED_UNIT_TEST',
+                a1Type: 'supplement',
+                a1Id: 'C0016157',
+                a1Name: 'Fish Oil',
+                a1Canonical: 'fish_oil',
+                a2Type: 'supplement',
+                a2Id: 'C0042874',
+                a2Name: 'Vitamin E',
+                a2Canonical: 'vitamin_e',
+                severity: 'caution',
+                doseDependent: 1,
+                direction: 'harmful',
+                materiality: 'dose_dependent',
+                doseThresholdJson:
+                    '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+              ),
+            );
+
+        final doseTotals = const StackDoseSummer().sum([
+          const StackItemNutrients(
+            stackEntryId: 'fish_oil',
+            productName: 'Fish Oil',
+            ingredients: [
+              {'standard_name': 'Fish Oil', 'quantity': 1000, 'unit': 'mg'},
+            ],
+          ),
+          const StackItemNutrients(
+            stackEntryId: 'multi_mg',
+            productName: 'Multivitamin',
+            ingredients: [
+              {'standard_name': 'Vitamin E', 'quantity': 20, 'unit': 'mg'},
+            ],
+          ),
+          const StackItemNutrients(
+            stackEntryId: 'vite_iu',
+            productName: 'Vitamin E 300 IU',
+            ingredients: [
+              {'standard_name': 'Vitamin E', 'quantity': 300, 'unit': 'IU'},
+            ],
+          ),
+        ]);
+
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const ['fish_oil'],
+          stackSupplements: [
+            _supplement(
+              id: 'multi_mg',
+              name: 'Multivitamin',
+              ingredientKeys: '["vitamin_e"]',
+            ),
+            _supplement(
+              id: 'vite_iu',
+              name: 'Vitamin E 300 IU',
+              ingredientKeys: '["vitamin_e"]',
+            ),
+          ],
+          db: db,
+          newProductName: 'Fish Oil',
+          stackDoseTotals: doseTotals,
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DSI_FISHOIL_VITE_MIXED_UNIT_TEST');
+      },
+    );
+
     test('finds calcium ↔ iron in reverse direction', () async {
       // New product is iron, stack supplement is calcium — pipeline
       // stored row as (calcium, iron), the symmetric lookup must still
