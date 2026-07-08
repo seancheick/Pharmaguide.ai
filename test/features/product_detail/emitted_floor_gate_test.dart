@@ -150,6 +150,44 @@ void main() {
       );
       expect(_hasNiacin(out), isTrue);
     });
+
+    test('suppressed untagged warning with unknown severity fires fail safe', () {
+      const warning = InteractionWarning(
+        severity: Severity.caution,
+        severityRaw: 'severe',
+        evidenceLevel: EvidenceLevel.established,
+        title: 'Unknown severity token',
+        mechanism: 'x',
+        management: 'y',
+        displayModeDefault: 'suppress',
+      );
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: const <String, dynamic>{},
+        warnings: const [warning],
+        userConditions: const {},
+        userDrugClasses: const {},
+      );
+      expect(out, const [warning]);
+    });
+
+    test('known lower severity still respects suppress display mode', () {
+      const warning = InteractionWarning(
+        severity: Severity.caution,
+        severityRaw: 'caution',
+        evidenceLevel: EvidenceLevel.established,
+        title: 'Known suppressed warning',
+        mechanism: 'x',
+        management: 'y',
+        displayModeDefault: 'suppress',
+      );
+      final out = filterProductDetailWarningsForProfile(
+        detailBlob: const <String, dynamic>{},
+        warnings: const [warning],
+        userConditions: const {},
+        userDrugClasses: const {},
+      );
+      expect(out, isEmpty);
+    });
   });
 
   group('dedupe vs floor gate (D1 guard — adversarial audit)', () {

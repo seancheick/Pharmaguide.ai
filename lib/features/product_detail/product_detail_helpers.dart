@@ -115,6 +115,15 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
         // emit hard + suppress, but under-warning is the unrecoverable
         // direction — mirrors the guardrails in condition_gate.dart.
         if (w.severity.isHard) return true;
+        // Same fail-safe as the dose-suppression gates: if the OTA catalog
+        // ships an unknown or missing severity token, do not let a suppress
+        // display mode hide it. Known lower severities can still respect
+        // pipeline-authored suppression below.
+        final severityRaw = w.severityRaw?.trim() ?? '';
+        if (mode == 'suppress' &&
+            (severityRaw.isEmpty || !Severity.isKnownString(severityRaw))) {
+          return true;
+        }
         if (mode == 'suppress') return false;
 
         // Legacy blobs predating display_mode_default had no explicit
