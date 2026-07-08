@@ -11,6 +11,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
@@ -40,16 +41,73 @@ UserStacksLocalData _stubMedication() {
 Future<void> _seedProduct(
   CoreDatabase coreDb, {
   String? keyIngredientTags,
+  String dsldId = _dsldId,
+  String productName = 'Test Product',
 }) async {
   await coreDb
       .into(coreDb.productsCore)
       .insert(
         ProductsCoreCompanion.insert(
-          dsldId: _dsldId,
-          productName: 'Test Product',
+          dsldId: dsldId,
+          productName: productName,
           exportVersion: 'test',
           exportedAt: '2026-05-04T00:00:00Z',
           keyIngredientTags: Value(keyIngredientTags),
+        ),
+      );
+}
+
+UserStacksLocalData _stubSupplement({
+  required String id,
+  required String name,
+  required String dsldId,
+  required String ingredientKeys,
+}) {
+  final ts = DateTime.utc(2026, 5, 4, 12);
+  return UserStacksLocalData(
+    id: id,
+    type: 'supplement',
+    name: name,
+    dsldId: dsldId,
+    ingredientKeys: ingredientKeys,
+    addedAt: ts,
+    clientUpdatedAt: ts,
+  );
+}
+
+Future<void> _seedFishOilVitaminEPair(InteractionDatabase db) async {
+  await db
+      .into(db.interactions)
+      .insert(
+        InteractionsCompanion.insert(
+          id: 'DSI_FISHOIL_VITE',
+          agent1Type: 'supplement',
+          agent1Name: 'Fish Oil / Omega-3',
+          agent1Id: 'C0016157',
+          agent1CanonicalId: const Value('fish_oil'),
+          agent2Type: 'supplement',
+          agent2Name: 'Vitamin E',
+          agent2Id: 'C0042874',
+          agent2CanonicalId: const Value('vitamin_e'),
+          severity: 'caution',
+          effectType: const Value('additive'),
+          mechanism: 'Additive antiplatelet effect.',
+          management: 'Monitor for bruising or bleeding.',
+          evidenceLevel: const Value('established'),
+          sourceUrlsJson: '["https://pubmed.ncbi.nlm.nih.gov/22300597/"]',
+          sourcePmidsJson: '["22300597"]',
+          doseDependent: const Value(1),
+          direction: const Value('harmful'),
+          materiality: const Value('dose_dependent'),
+          doseThresholdJson: const Value(
+            '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+          ),
+          typeAuthored: 'Sup-Sup',
+          source: 'curated',
+          provenance: 'pubmed',
+          versionAdded: 'test',
+          versionLastModified: 'test',
+          lastUpdated: '2026-07-08',
         ),
       );
 }
@@ -114,6 +172,72 @@ void main() {
       await userDb.close();
       await interactionDb.close();
     });
+
+    test(
+      'suppresses pairwise fish-oil vitamin-E warning below threshold',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        await _seedProduct(
+          coreDb,
+          keyIngredientTags: '["fish_oil"]',
+          productName: 'Fish Oil',
+        );
+        await _seedFishOilVitaminEPair(interactionDb);
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            activeStackProvider.overrideWith((ref) async {
+              return [
+                _stubSupplement(
+                  id: 'one',
+                  name: 'O.N.E. Multivitamin',
+                  dsldId: 'one-multi',
+                  ingredientKeys: '["vitamin_e"]',
+                ),
+              ];
+            }),
+            detailBlobProvider.overrideWith((ref, dsldId) async {
+              if (dsldId == _dsldId) {
+                return {
+                  'ingredients': [
+                    {
+                      'standard_name': 'Fish Oil',
+                      'quantity': 1000,
+                      'unit': 'mg',
+                    },
+                  ],
+                };
+              }
+              if (dsldId == 'one-multi') {
+                return {
+                  'ingredients': [
+                    {
+                      'standard_name': 'Vitamin E',
+                      'quantity': 20,
+                      'unit': 'mg',
+                    },
+                  ],
+                };
+              }
+              return null;
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final result = await container.read(
+          personalizedInteractionWarningsProvider(_dsldId).future,
+        );
+
+        expect(result, isEmpty);
+
+        await coreDb.close();
+        await interactionDb.close();
+      },
+    );
 
     test(
       'UnimplementedError on stack provider → empty warnings (defensive)',

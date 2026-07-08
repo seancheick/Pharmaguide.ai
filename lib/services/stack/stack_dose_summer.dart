@@ -204,8 +204,9 @@ class StackDoseSummer {
         }
 
         final normalizedThresholdUnit = _normalizeUnit(rule.thresholdUnit);
-        final totalInThresholdUnit = _amountInUnit(
-          dose.totalValue,
+        final totalInThresholdUnit = _amountInThresholdUnit(
+          canonicalId: dose.canonicalId,
+          amount: dose.totalValue,
           from: dose.unit,
           to: normalizedThresholdUnit,
         );
@@ -234,6 +235,35 @@ class StackDoseSummer {
     }
 
     return alerts;
+  }
+
+  StackDoseThresholdComparison compareThreshold({
+    required Map<String, StackDoseTotal> totals,
+    required String canonicalId,
+    required double thresholdValue,
+    required String thresholdUnit,
+  }) {
+    if (thresholdValue <= 0) return StackDoseThresholdComparison.unavailable;
+
+    final dose = _thresholdTotalFor(canonicalId, totals);
+    if (dose == null || dose.totalValue <= 0 || dose.unit.isEmpty) {
+      return StackDoseThresholdComparison.unavailable;
+    }
+
+    final normalizedThresholdUnit = _normalizeUnit(thresholdUnit);
+    final totalInThresholdUnit = _amountInThresholdUnit(
+      canonicalId: dose.canonicalId,
+      amount: dose.totalValue,
+      from: dose.unit,
+      to: normalizedThresholdUnit,
+    );
+    if (totalInThresholdUnit == null) {
+      return StackDoseThresholdComparison.unavailable;
+    }
+
+    return totalInThresholdUnit < thresholdValue
+        ? StackDoseThresholdComparison.below
+        : StackDoseThresholdComparison.atOrAbove;
   }
 
   StackDoseTotal? _thresholdTotalFor(
@@ -527,6 +557,50 @@ class StackDoseSummer {
     return amount * fromGrams / toGrams;
   }
 
+  static double? _amountInThresholdUnit({
+    required String canonicalId,
+    required double amount,
+    required String from,
+    required String to,
+  }) {
+    final normalizedFrom = _normalizeUnit(from);
+    final normalizedTo = _normalizeUnit(to);
+    final simple = _amountInUnit(
+      amount,
+      from: normalizedFrom,
+      to: normalizedTo,
+    );
+    if (simple != null) return simple;
+
+    if (canonicalId == 'vitamin_e') {
+      return _vitaminEUpperBoundConversion(
+        amount,
+        from: normalizedFrom,
+        to: normalizedTo,
+      );
+    }
+
+    return null;
+  }
+
+  static double? _vitaminEUpperBoundConversion(
+    double amount, {
+    required String from,
+    required String to,
+  }) {
+    if (from == 'mg' && to == 'iu') {
+      // Conservative upper bound for unknown vitamin E form:
+      // synthetic alpha-tocopherol can be 2.22 IU per mg.
+      return amount * 2.22;
+    }
+    if (from == 'iu' && to == 'mg') {
+      // Conservative upper bound for unknown vitamin E form:
+      // natural alpha-tocopherol can be 0.67 mg per IU.
+      return amount * 0.67;
+    }
+    return null;
+  }
+
   static double? _simpleMassGramsFactor(String unit) {
     return switch (unit) {
       'g' || 'gram' || 'grams' || 'gram(s)' => 1.0,
@@ -541,6 +615,9 @@ class StackDoseSummer {
         .trim()
         .toLowerCase()
         .replaceAll('µg', 'mcg')
+        .replaceAll('i.u.', 'iu')
+        .replaceAll('international units', 'iu')
+        .replaceAll('international unit', 'iu')
         .replaceAll('_', ' ')
         .replaceAll(RegExp(r'\s+'), ' ');
   }
@@ -658,6 +735,8 @@ class StackDoseThresholdAlert {
   final String thresholdUnit;
   final List<StackDoseContribution> contributions;
 }
+
+enum StackDoseThresholdComparison { below, atOrAbove, unavailable }
 
 class _MutableStackDoseTotal {
   _MutableStackDoseTotal({

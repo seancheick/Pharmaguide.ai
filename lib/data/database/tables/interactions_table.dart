@@ -59,6 +59,10 @@ class Interactions extends Table {
       integer().named('dose_dependent').withDefault(const Constant(0))();
   TextColumn get doseThresholdText =>
       text().named('dose_threshold_text').nullable()();
+  TextColumn get direction => text().nullable()();
+  TextColumn get materiality => text().nullable()();
+  TextColumn get doseThresholdJson =>
+      text().named('dose_threshold_json').nullable()();
 
   // Audit / origin
   TextColumn get typeAuthored => text().named('type_authored')();

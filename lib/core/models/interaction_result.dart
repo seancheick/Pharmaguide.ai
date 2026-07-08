@@ -80,6 +80,9 @@ class InteractionResult {
   final String? practicalGuidance;
   final bool doseDependant;
   final String? doseThreshold;
+  final String? direction;
+  final String? materiality;
+  final String? doseThresholdJson;
   final List<String> sourceUrls;
   final InteractionSource source;
 
@@ -97,6 +100,9 @@ class InteractionResult {
     this.practicalGuidance,
     required this.doseDependant,
     required this.doseThreshold,
+    this.direction,
+    this.materiality,
+    this.doseThresholdJson,
     required this.sourceUrls,
     required this.source,
     this.effectType,
@@ -189,6 +195,9 @@ class InteractionResult {
       practicalGuidance: row.practicalGuidance,
       doseDependant: row.doseDependent != 0,
       doseThreshold: row.doseThresholdText,
+      direction: row.direction,
+      materiality: row.materiality,
+      doseThresholdJson: row.doseThresholdJson,
       sourceUrls: _decodeSourceUrls(row.sourceUrlsJson),
       source: source,
     );

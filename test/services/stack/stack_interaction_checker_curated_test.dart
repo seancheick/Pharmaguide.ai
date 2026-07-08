@@ -20,7 +20,9 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 // ---------------------------------------------------------------------------
 // Fixture row builders.
@@ -51,6 +53,9 @@ InteractionsCompanion _row({
   String evidenceLevel = 'established',
   String sourceUrlsJson = '["https://example.org/test"]',
   int doseDependent = 0,
+  String? direction,
+  String? materiality,
+  String? doseThresholdJson,
   String? retiredAt,
   String? alertStyle,
   String? noteBody,
@@ -86,6 +91,15 @@ InteractionsCompanion _row({
     sourceUrlsJson: sourceUrlsJson,
     sourcePmidsJson: '[]',
     doseDependent: drift.Value(doseDependent),
+    direction: direction == null
+        ? const drift.Value.absent()
+        : drift.Value(direction),
+    materiality: materiality == null
+        ? const drift.Value.absent()
+        : drift.Value(materiality),
+    doseThresholdJson: doseThresholdJson == null
+        ? const drift.Value.absent()
+        : drift.Value(doseThresholdJson),
     retiredAt: retiredAt == null
         ? const drift.Value.absent()
         : drift.Value(retiredAt),
@@ -415,6 +429,223 @@ void main() {
       expect(results.single.severity, Severity.caution);
       expect(results.single.type, InteractionType.supplementSupplement);
       expect(results.single.source, InteractionSource.pipeline);
+    });
+
+    test(
+      'suppresses a dose-dependent pair below its structured threshold',
+      () async {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_FISHOIL_VITE_TEST',
+                a1Type: 'supplement',
+                a1Id: 'C0016157',
+                a1Name: 'Fish Oil',
+                a1Canonical: 'fish_oil',
+                a2Type: 'supplement',
+                a2Id: 'C0042874',
+                a2Name: 'Vitamin E',
+                a2Canonical: 'vitamin_e',
+                doseDependent: 1,
+                direction: 'harmful',
+                materiality: 'dose_dependent',
+                doseThresholdJson:
+                    '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+              ),
+            );
+
+        final doseTotals = const StackDoseSummer().sum([
+          const StackItemNutrients(
+            stackEntryId: 'fish_oil',
+            productName: 'Fish Oil',
+            ingredients: [
+              {'standard_name': 'Fish Oil', 'quantity': 1000, 'unit': 'mg'},
+            ],
+          ),
+          const StackItemNutrients(
+            stackEntryId: 'one_multi',
+            productName: 'O.N.E. Multivitamin',
+            ingredients: [
+              {'standard_name': 'Vitamin E', 'quantity': 20, 'unit': 'mg'},
+            ],
+          ),
+        ]);
+
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const ['fish_oil'],
+          stackSupplements: [
+            _supplement(
+              id: 'one_multi',
+              name: 'O.N.E. Multivitamin',
+              ingredientKeys: '["vitamin_e"]',
+            ),
+          ],
+          db: db,
+          newProductName: 'Fish Oil',
+          stackDoseTotals: doseTotals,
+        );
+
+        expect(results, isEmpty);
+      },
+    );
+
+    test(
+      'keeps a dose-dependent pair at or above its structured threshold',
+      () async {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_FISHOIL_VITE_HIGH_TEST',
+                a1Type: 'supplement',
+                a1Id: 'C0016157',
+                a1Name: 'Fish Oil',
+                a1Canonical: 'fish_oil',
+                a2Type: 'supplement',
+                a2Id: 'C0042874',
+                a2Name: 'Vitamin E',
+                a2Canonical: 'vitamin_e',
+                doseDependent: 1,
+                direction: 'harmful',
+                materiality: 'dose_dependent',
+                doseThresholdJson:
+                    '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+              ),
+            );
+
+        final doseTotals = const StackDoseSummer().sum([
+          const StackItemNutrients(
+            stackEntryId: 'fish_oil',
+            productName: 'Fish Oil',
+            ingredients: [
+              {'standard_name': 'Fish Oil', 'quantity': 1000, 'unit': 'mg'},
+            ],
+          ),
+          const StackItemNutrients(
+            stackEntryId: 'vitamin_e_high',
+            productName: 'Vitamin E 300 mg',
+            ingredients: [
+              {'standard_name': 'Vitamin E', 'quantity': 300, 'unit': 'mg'},
+            ],
+          ),
+        ]);
+
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const ['fish_oil'],
+          stackSupplements: [
+            _supplement(
+              id: 'vitamin_e_high',
+              name: 'Vitamin E 300 mg',
+              ingredientKeys: '["vitamin_e"]',
+            ),
+          ],
+          db: db,
+          newProductName: 'Fish Oil',
+          stackDoseTotals: doseTotals,
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DSI_FISHOIL_VITE_HIGH_TEST');
+      },
+    );
+
+    test(
+      'suppresses a future pipeline-normalized pairwise mass threshold',
+      () async {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_FISHOIL_VITE_MG_TEST',
+                a1Type: 'supplement',
+                a1Id: 'C0016157',
+                a1Name: 'Fish Oil',
+                a1Canonical: 'fish_oil',
+                a2Type: 'supplement',
+                a2Id: 'C0042874',
+                a2Name: 'Vitamin E',
+                a2Canonical: 'vitamin_e',
+                doseDependent: 1,
+                direction: 'harmful',
+                materiality: 'dose_dependent',
+                doseThresholdJson:
+                    '{"agent_canonical_id":"vitamin_e","value":180,"unit":"mg","basis":"per_day"}',
+              ),
+            );
+
+        final doseTotals = const StackDoseSummer().sum([
+          const StackItemNutrients(
+            stackEntryId: 'fish_oil',
+            productName: 'Fish Oil',
+            ingredients: [
+              {'standard_name': 'Fish Oil', 'quantity': 1000, 'unit': 'mg'},
+            ],
+          ),
+          const StackItemNutrients(
+            stackEntryId: 'one_multi',
+            productName: 'O.N.E. Multivitamin',
+            ingredients: [
+              {'standard_name': 'Vitamin E', 'quantity': 20, 'unit': 'mg'},
+            ],
+          ),
+        ]);
+
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const ['fish_oil'],
+          stackSupplements: [
+            _supplement(
+              id: 'one_multi',
+              name: 'O.N.E. Multivitamin',
+              ingredientKeys: '["vitamin_e"]',
+            ),
+          ],
+          db: db,
+          newProductName: 'Fish Oil',
+          stackDoseTotals: doseTotals,
+        );
+
+        expect(results, isEmpty);
+      },
+    );
+
+    test('fails open when structured pairwise dose context is missing', () async {
+      await db
+          .into(db.interactions)
+          .insert(
+            _row(
+              id: 'DSI_FISHOIL_VITE_FAIL_OPEN_TEST',
+              a1Type: 'supplement',
+              a1Id: 'C0016157',
+              a1Name: 'Fish Oil',
+              a1Canonical: 'fish_oil',
+              a2Type: 'supplement',
+              a2Id: 'C0042874',
+              a2Name: 'Vitamin E',
+              a2Canonical: 'vitamin_e',
+              doseDependent: 1,
+              direction: 'harmful',
+              materiality: 'dose_dependent',
+              doseThresholdJson:
+                  '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+            ),
+          );
+
+      final results = await checker.checkSupplementPairInteractions(
+        newProductCanonicalIds: const ['fish_oil'],
+        stackSupplements: [
+          _supplement(
+            id: 'one_multi',
+            name: 'O.N.E. Multivitamin',
+            ingredientKeys: '["vitamin_e"]',
+          ),
+        ],
+        db: db,
+        newProductName: 'Fish Oil',
+      );
+
+      expect(results, hasLength(1));
+      expect(results.single.id, 'DSI_FISHOIL_VITE_FAIL_OPEN_TEST');
     });
 
     test('finds calcium ↔ iron in reverse direction', () async {

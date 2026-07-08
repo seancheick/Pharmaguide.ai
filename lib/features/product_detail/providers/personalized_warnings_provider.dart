@@ -24,7 +24,10 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 final personalizedInteractionWarningsProvider = FutureProvider.family
@@ -111,11 +114,20 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
         rethrow;
       }
 
+      final pairwiseDoseTotals = await _pairwiseDoseTotalsForProductAndStack(
+        ref: ref,
+        productDsldId: dsldId,
+        productName: product.productName,
+        productDetailBlob: detailBlob,
+        stack: stack,
+      );
+
       return _computePersonalizedWarnings(
         product: product,
         canonicalIds: canonicalIds,
         stack: stack,
         interactionDb: interactionDb,
+        pairwiseDoseTotals: pairwiseDoseTotals,
       );
     });
 
@@ -126,6 +138,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
   required List<String> canonicalIds,
   required List<UserStacksLocalData> stack,
   required InteractionDatabase interactionDb,
+  required Map<String, StackDoseTotal> pairwiseDoseTotals,
 }) async {
   try {
     final checker = StackInteractionChecker();
@@ -141,6 +154,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
         stackSupplements: supplements,
         db: interactionDb,
         newProductName: product.productName,
+        stackDoseTotals: pairwiseDoseTotals,
       );
       for (final hit in hits) {
         if (seenIds.add(hit.id)) {
@@ -180,6 +194,81 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
     );
     rethrow;
   }
+}
+
+Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
+  required Ref ref,
+  required String productDsldId,
+  required String productName,
+  required Map<String, dynamic>? productDetailBlob,
+  required List<UserStacksLocalData> stack,
+}) async {
+  final stackSupplements = stack
+      .where((e) => e.type == 'supplement')
+      .toList(growable: false);
+  final stackAlreadyContainsProduct = stackSupplements.any(
+    (entry) => entry.dsldId == productDsldId,
+  );
+
+  final items = <StackItemNutrients>[];
+  if (!stackAlreadyContainsProduct && productDetailBlob != null) {
+    final ingredients = _doseRowsForPairwiseThresholds(
+      ProductHealthFacts.fromDetailBlob(productDetailBlob),
+    );
+    if (ingredients.isNotEmpty) {
+      items.add(
+        StackItemNutrients(
+          stackEntryId: 'product:$productDsldId',
+          productName: productName,
+          ingredients: ingredients,
+        ),
+      );
+    }
+  }
+
+  for (final entry in stackSupplements) {
+    final dsldId = entry.dsldId;
+    if (dsldId == null || dsldId.isEmpty) continue;
+    Map<String, dynamic>? blob;
+    try {
+      blob = await ref.watch(detailBlobProvider(dsldId).future);
+    } on Object {
+      continue;
+    }
+    if (blob == null) continue;
+
+    final ingredients = _doseRowsForPairwiseThresholds(
+      ProductHealthFacts.fromDetailBlob(blob),
+    );
+    if (ingredients.isEmpty) continue;
+    items.add(
+      StackItemNutrients(
+        stackEntryId: entry.id,
+        productName: entry.name,
+        ingredients: ingredients,
+      ),
+    );
+  }
+
+  if (items.isEmpty) return const <String, StackDoseTotal>{};
+  return const StackDoseSummer().sum(items);
+}
+
+List<Map<String, dynamic>> _doseRowsForPairwiseThresholds(
+  ProductHealthFacts facts,
+) {
+  if (facts.ingredientDoses.isNotEmpty) {
+    return [
+      for (final entry in facts.ingredientDoses.entries)
+        {
+          'standard_name': entry.key,
+          'quantity': entry.value.value,
+          'unit': entry.value.unit,
+        },
+    ];
+  }
+  if (facts.activeIngredients.isNotEmpty) return facts.activeIngredients;
+  return facts.nutrients;
 }
 
 /// Maps an [InteractionResult] from the curated DB to an

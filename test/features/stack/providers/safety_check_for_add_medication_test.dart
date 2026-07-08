@@ -15,6 +15,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 
 Future<void> _seedSupplement(
@@ -63,6 +64,43 @@ Future<void> _seedWarfarinGinkgoDdi(InteractionDatabase db) async {
           versionAdded: 'test',
           versionLastModified: 'test',
           lastUpdated: '2026-07-05',
+        ),
+      );
+}
+
+Future<void> _seedFishOilVitaminEPair(InteractionDatabase db) async {
+  await db
+      .into(db.interactions)
+      .insert(
+        InteractionsCompanion.insert(
+          id: 'DSI_FISHOIL_VITE',
+          agent1Type: 'supplement',
+          agent1Name: 'Fish Oil / Omega-3',
+          agent1Id: 'C0016157',
+          agent1CanonicalId: const Value('fish_oil'),
+          agent2Type: 'supplement',
+          agent2Name: 'Vitamin E',
+          agent2Id: 'C0042874',
+          agent2CanonicalId: const Value('vitamin_e'),
+          severity: 'caution',
+          effectType: const Value('additive'),
+          mechanism: 'Additive antiplatelet effect.',
+          management: 'Monitor for bruising or bleeding.',
+          evidenceLevel: const Value('established'),
+          sourceUrlsJson: '["https://pubmed.ncbi.nlm.nih.gov/22300597/"]',
+          sourcePmidsJson: '["22300597"]',
+          doseDependent: const Value(1),
+          direction: const Value('harmful'),
+          materiality: const Value('dose_dependent'),
+          doseThresholdJson: const Value(
+            '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+          ),
+          typeAuthored: 'Sup-Sup',
+          source: 'curated',
+          provenance: 'fixture',
+          versionAdded: 'test',
+          versionLastModified: 'test',
+          lastUpdated: '2026-07-08',
         ),
       );
 }
@@ -225,6 +263,84 @@ void main() {
       expect(result.checksIncomplete, isFalse);
       expect(result.isConfidentClear, isTrue);
     });
+
+    test(
+      'fish oil candidate plus ordinary multivitamin vitamin E stays clear',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await interactionDb.close();
+          await userDb.close();
+        });
+
+        await _seedSupplement(
+          coreDb,
+          dsldId: 'SUPP_FISH_OIL',
+          name: 'Fish Oil',
+          canonicalTags: ['fish_oil'],
+        );
+        await _seedSupplement(
+          coreDb,
+          dsldId: 'SUPP_ONE_MULTI',
+          name: 'O.N.E. Multivitamin',
+          canonicalTags: ['vitamin_e'],
+        );
+        await _seedFishOilVitaminEPair(interactionDb);
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'one_multi',
+            type: const Value('supplement'),
+            name: 'O.N.E. Multivitamin',
+            dsldId: const Value('SUPP_ONE_MULTI'),
+            ingredientKeys: const Value('["vitamin_e"]'),
+          ),
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            detailBlobProvider.overrideWith((ref, dsldId) async {
+              if (dsldId == 'SUPP_FISH_OIL') {
+                return {
+                  'ingredients': [
+                    {
+                      'standard_name': 'Fish Oil',
+                      'quantity': 1000,
+                      'unit': 'mg',
+                    },
+                  ],
+                };
+              }
+              if (dsldId == 'SUPP_ONE_MULTI') {
+                return {
+                  'ingredients': [
+                    {
+                      'standard_name': 'Vitamin E',
+                      'quantity': 20,
+                      'unit': 'mg',
+                    },
+                  ],
+                };
+              }
+              return null;
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final result = await container.read(
+          safetyCheckForAddProvider('SUPP_FISH_OIL').future,
+        );
+
+        expect(result.results, isEmpty);
+        expect(result.isConfidentClear, isTrue);
+      },
+    );
   });
 
   group('PreAddSafetyResult.isConfidentClear — pure decision', () {

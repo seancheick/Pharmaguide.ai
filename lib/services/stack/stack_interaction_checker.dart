@@ -5,6 +5,7 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 
 /// Checks safety when adding a new product to the supplement stack.
 ///
@@ -200,6 +201,7 @@ class StackInteractionChecker {
     required List<UserStacksLocalData> stackSupplements,
     required InteractionDatabase db,
     String newProductName = 'New product',
+    Map<String, StackDoseTotal>? stackDoseTotals,
   }) async {
     if (newProductCanonicalIds.isEmpty || stackSupplements.isEmpty) {
       return const <InteractionResult>[];
@@ -241,6 +243,10 @@ class StackInteractionChecker {
         final stackName = stackIdToName[otherCid];
         if (stackName == null) continue;
 
+        if (_shouldSuppressBelowPairwiseThreshold(row, stackDoseTotals)) {
+          continue;
+        }
+
         seenRowIds.add(row.id);
         results.add(
           InteractionResult.fromRow(
@@ -254,6 +260,31 @@ class StackInteractionChecker {
     }
 
     return results;
+  }
+
+  bool _shouldSuppressBelowPairwiseThreshold(
+    InteractionRow row,
+    Map<String, StackDoseTotal>? stackDoseTotals,
+  ) {
+    if (stackDoseTotals == null || stackDoseTotals.isEmpty) return false;
+    if (row.doseDependent == 0) return false;
+    if (row.materiality?.trim().toLowerCase() != 'dose_dependent') {
+      return false;
+    }
+    if (row.direction?.trim().toLowerCase() != 'harmful') {
+      return false;
+    }
+
+    final threshold = _PairwiseDoseThreshold.tryParse(row.doseThresholdJson);
+    if (threshold == null) return false;
+
+    final comparison = const StackDoseSummer().compareThreshold(
+      totals: stackDoseTotals,
+      canonicalId: threshold.agentCanonicalId,
+      thresholdValue: threshold.value,
+      thresholdUnit: threshold.unit,
+    );
+    return comparison == StackDoseThresholdComparison.below;
   }
 
   /// Check a new product's canonical ingredient ids against every
@@ -678,5 +709,56 @@ class StackInteractionChecker {
     } on FormatException {
       return const <String>[];
     }
+  }
+}
+
+class _PairwiseDoseThreshold {
+  const _PairwiseDoseThreshold({
+    required this.agentCanonicalId,
+    required this.value,
+    required this.unit,
+  });
+
+  final String agentCanonicalId;
+  final double value;
+  final String unit;
+
+  static _PairwiseDoseThreshold? tryParse(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map) return null;
+
+    final agentCanonicalId = decoded['agent_canonical_id']?.toString().trim();
+    final unit = decoded['unit']?.toString().trim();
+    final value = _asDouble(decoded['value']);
+    if (agentCanonicalId == null ||
+        agentCanonicalId.isEmpty ||
+        unit == null ||
+        unit.isEmpty ||
+        value == null ||
+        value <= 0) {
+      return null;
+    }
+
+    return _PairwiseDoseThreshold(
+      agentCanonicalId: agentCanonicalId,
+      value: value,
+      unit: unit,
+    );
+  }
+
+  static double? _asDouble(Object? value) {
+    if (value is double && value.isFinite) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value.trim());
+      return parsed != null && parsed.isFinite ? parsed : null;
+    }
+    return null;
   }
 }

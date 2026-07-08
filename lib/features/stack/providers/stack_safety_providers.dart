@@ -24,6 +24,7 @@ import 'package:pharmaguide/services/medications/medication_identity_status.dart
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -141,6 +142,23 @@ final safetyCheckForAddProvider = FutureProvider.family
 
       final candidateIds = canonicalIdsForProduct(candidate);
       final checker = StackInteractionChecker();
+      final pairwiseDoseTotals = await _pairwiseDoseTotalsFor(
+        ref,
+        supplements: [
+          (
+            stackEntryId: 'candidate:$dsldId',
+            productName: candidate.productName,
+            dsldId: dsldId,
+          ),
+          for (final row in supplementRows)
+            if (row.dsldId != null && row.dsldId!.isNotEmpty)
+              (
+                stackEntryId: row.id,
+                productName: row.name,
+                dsldId: row.dsldId!,
+              ),
+        ],
+      );
       final combined = <InteractionResult>[];
       final seenIds = <String>{};
       void addAll(Iterable<InteractionResult> hits) {
@@ -158,6 +176,7 @@ final safetyCheckForAddProvider = FutureProvider.family
               stackSupplements: supplementRows,
               db: interactionDb,
               newProductName: candidate.productName,
+              stackDoseTotals: pairwiseDoseTotals,
             ),
           );
         } on Object catch (e, st) {
@@ -358,6 +377,18 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   }
 
   final checker = StackInteractionChecker();
+  final pairwiseDoseTotals = await _pairwiseDoseTotalsFor(
+    ref,
+    supplements: [
+      for (final h in hydrated)
+        if (h.entry.dsldId != null && h.entry.dsldId!.isNotEmpty)
+          (
+            stackEntryId: h.entry.id,
+            productName: h.entry.name,
+            dsldId: h.entry.dsldId!,
+          ),
+    ],
+  );
 
   // ---------------------------------------------------------------------------
   // 1. Supplement × supplement curated pair lookups.
@@ -384,6 +415,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           stackSupplements: others,
           db: interactionDb,
           newProductName: self.entry.name,
+          stackDoseTotals: pairwiseDoseTotals,
         );
       } on Object catch (e, st) {
         checksIncomplete = true;
@@ -661,6 +693,57 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     checksIncomplete: checksIncomplete,
   );
 });
+
+Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsFor(
+  Ref ref, {
+  required List<({String stackEntryId, String productName, String dsldId})>
+  supplements,
+}) async {
+  if (supplements.isEmpty) return const <String, StackDoseTotal>{};
+
+  final items = <StackItemNutrients>[];
+  for (final supplement in supplements) {
+    Map<String, dynamic>? blob;
+    try {
+      blob = await ref.watch(detailBlobProvider(supplement.dsldId).future);
+    } on Object {
+      continue;
+    }
+    if (blob == null) continue;
+
+    final facts = ProductHealthFacts.fromDetailBlob(blob);
+    final ingredients = _doseRowsForPairwiseThresholds(facts);
+    if (ingredients.isEmpty) continue;
+
+    items.add(
+      StackItemNutrients(
+        stackEntryId: supplement.stackEntryId,
+        productName: supplement.productName,
+        ingredients: ingredients,
+      ),
+    );
+  }
+
+  if (items.isEmpty) return const <String, StackDoseTotal>{};
+  return const StackDoseSummer().sum(items);
+}
+
+List<Map<String, dynamic>> _doseRowsForPairwiseThresholds(
+  ProductHealthFacts facts,
+) {
+  if (facts.ingredientDoses.isNotEmpty) {
+    return [
+      for (final entry in facts.ingredientDoses.entries)
+        {
+          'standard_name': entry.key,
+          'quantity': entry.value.value,
+          'unit': entry.value.unit,
+        },
+    ];
+  }
+  if (facts.activeIngredients.isNotEmpty) return facts.activeIngredients;
+  return facts.nutrients;
+}
 
 Future<({List<UserStacksLocalData> rows, bool identityIncomplete})>
 _normalizeMedicationRowsForSafety(
