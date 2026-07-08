@@ -110,6 +110,11 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
 
         final mode = w.displayModeDefault;
         if (mode == 'critical' || mode == 'informational') return true;
+        // Defense-in-depth: an untagged hard (contraindicated / avoid) warning
+        // is never hidden by a `suppress` display mode. The pipeline shouldn't
+        // emit hard + suppress, but under-warning is the unrecoverable
+        // direction — mirrors the guardrails in condition_gate.dart.
+        if (w.severity.isHard) return true;
         if (mode == 'suppress') return false;
 
         // Legacy blobs predating display_mode_default had no explicit

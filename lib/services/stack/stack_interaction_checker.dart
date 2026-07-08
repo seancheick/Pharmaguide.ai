@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/warnings/condition_gate.dart';
 
 /// Checks safety when adding a new product to the supplement stack.
 ///
@@ -268,10 +269,16 @@ class StackInteractionChecker {
   ) {
     if (stackDoseTotals == null || stackDoseTotals.isEmpty) return false;
     if (row.doseDependent == 0) return false;
-    if (row.materiality?.trim().toLowerCase() != 'dose_dependent') {
-      return false;
-    }
-    if (row.direction?.trim().toLowerCase() != 'harmful') {
+    // Shared G3 dose-suppression guardrail (condition_gate.dart): non-beneficial,
+    // dose-dependent, and NEVER a hard (contraindicated / avoid) warning. Same
+    // predicate as the emitted-floor condition gate so the two can't drift —
+    // this gate previously omitted the hard-severity check, letting a
+    // below-threshold contraindicated pair be silently dropped.
+    if (!doseSuppressionGuardsPass(
+      severityRaw: row.severity,
+      direction: row.direction,
+      materiality: row.materiality,
+    )) {
       return false;
     }
 

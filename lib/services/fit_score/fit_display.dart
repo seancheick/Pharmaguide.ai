@@ -115,7 +115,7 @@ FitDisplay computeFitDisplay({
   // product-blocking severities — fit is suppressed entirely so the
   // user can't mis-read a strong tier label as permission to take
   // something they shouldn't.
-  if (verdict == Severity.contraindicated || verdict == Severity.avoid) {
+  if (verdict.isHard) {
     return FitHidden(verdict: verdict);
   }
 

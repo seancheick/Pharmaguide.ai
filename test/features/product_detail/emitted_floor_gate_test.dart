@@ -9,9 +9,11 @@ InteractionWarning _niacin({
   String? direction = 'harmful',
   String? materiality = 'dose_dependent',
   Severity severity = Severity.caution,
+  String? severityRaw,
 }) {
   return InteractionWarning(
     severity: severity,
+    severityRaw: severityRaw ?? severity.name,
     evidenceLevel: EvidenceLevel.established,
     title: 'Niacin / diabetes',
     mechanism: 'High-dose niacin raises glucose.',
@@ -45,6 +47,26 @@ void main() {
       expect(
         _hasNiacin(applyEmittedFloorGate(
           [_niacin(doseFloorStatus: 'below', severity: Severity.avoid)],
+        )),
+        isTrue,
+      );
+    });
+
+    test('unknown / drifted severity string below floor → fires (fail safe)', () {
+      // Severity.fromString coerces unknown tokens to caution; the raw-string
+      // fail-safe must keep a possibly-serious drifted row visible.
+      expect(
+        _hasNiacin(applyEmittedFloorGate(
+          [_niacin(doseFloorStatus: 'below', severityRaw: 'severe')],
+        )),
+        isTrue,
+      );
+    });
+
+    test('missing severity (empty raw) below floor → fires (fail safe)', () {
+      expect(
+        _hasNiacin(applyEmittedFloorGate(
+          [_niacin(doseFloorStatus: 'below', severityRaw: '')],
         )),
         isTrue,
       );

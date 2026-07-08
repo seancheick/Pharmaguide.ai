@@ -60,6 +60,7 @@
 // score and stack nutrient panel use the same nutrient identity, unit, and
 // demographic rules.
 
+import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -453,43 +454,32 @@ class StackUlChecker {
   }) {
     if (_unitMatchesReference(actualUnit, expectedUnit)) return amount;
 
-    final expected = _normalizeUnit(expectedUnit);
-    final actual = _normalizeUnit(actualUnit);
-    final actualGrams = _simpleMassGramsFactor(actual);
-    final expectedGrams = _simpleMassGramsFactor(expected);
+    final expected = normalizeDoseUnit(expectedUnit);
+    final actual = normalizeDoseUnit(actualUnit);
+    final actualGrams = massGramsFactor(actual);
+    final expectedGrams = massGramsFactor(expected);
     if (actualGrams == null || expectedGrams == null) return null;
     return amount * actualGrams / expectedGrams;
   }
 
   static bool _unitMatchesReference(String actual, String expected) {
-    final expectedUnit = _normalizeUnit(expected);
+    final expectedUnit = normalizeDoseUnit(expected);
     if (expectedUnit.isEmpty) return true;
-    final actualUnit = _normalizeUnit(actual);
+    final actualUnit = normalizeDoseUnit(actual);
     if (actualUnit.isEmpty) return false;
     if (actualUnit == expectedUnit) return true;
 
+    // 'mcg'~'ug', 'mcg rae'~'ug rae', and 'mcg dfe'~'ug dfe' are no longer
+    // listed here: normalizeDoseUnit() now folds the ASCII "ug" spelling to
+    // "mcg" for both sides, so those pairs already compare equal above and
+    // never reach this table. The remaining entries are genuine semantic
+    // aliases (a plain mass unit standing in for a nutrient-specific form)
+    // that no normalizer can fold away.
     const aliases = <String, Set<String>>{
-      'mcg': {'ug'},
-      'mcg rae': {'ug rae'},
-      'mcg dfe': {'ug dfe'},
       'mg alpha tocopherol': {'mg alpha-tocopherol', 'mg'},
       'mg ne': {'mg'},
     };
     return aliases[expectedUnit]?.contains(actualUnit) ?? false;
-  }
-
-  static double? _simpleMassGramsFactor(String unit) {
-    return switch (unit) {
-      'g' => 1.0,
-      'gram' => 1.0,
-      'grams' => 1.0,
-      'gram(s)' => 1.0,
-      'mg' => 0.001,
-      'mcg' => 0.000001,
-      'microgram' => 0.000001,
-      'micrograms' => 0.000001,
-      _ => null,
-    };
   }
 
   static String _normalizeKey(Object? raw) {
@@ -499,16 +489,6 @@ class StackUlChecker {
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
         .replaceAll(RegExp(r'^_+|_+$'), '');
-  }
-
-  static String _normalizeUnit(String raw) {
-    return raw
-        .trim()
-        .toLowerCase()
-        .replaceAll('µg', 'mcg')
-        .replaceAll('_', ' ')
-        .replaceAll('-', ' ')
-        .replaceAll(RegExp(r'\s+'), ' ');
   }
 
   static bool _safeWordContains(String haystack, String needle) {

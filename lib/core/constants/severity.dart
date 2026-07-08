@@ -67,6 +67,14 @@ enum Severity {
     required this.color,
   });
 
+  /// A "hard" warning — `contraindicated` or `avoid`. The single source of
+  /// truth for the check that was previously hand-copied across ~10 sites
+  /// (gates, banners, score caps). A hard warning is NEVER dose-suppressed,
+  /// beneficial-suppressed, or otherwise hidden: under-warning is the
+  /// unrecoverable direction on a medical surface. Weight-based so a future
+  /// tier above `avoid` is hard by construction.
+  bool get isHard => weight >= Severity.avoid.weight;
+
   static Severity fromString(String value) {
     final normalized = value.toLowerCase().trim();
     switch (normalized) {

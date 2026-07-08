@@ -166,6 +166,13 @@ class InteractionWarning {
   final String? materiality;
   final String? doseFloorStatus;
 
+  /// The RAW pipeline severity string, retained so dose-suppression gates can
+  /// fail SAFE on an unknown / drifted / missing severity token: a severity the
+  /// app can't recognize is treated as non-suppressible (the warning fires),
+  /// never silently coerced to a suppressible `caution`. Null on synthesized
+  /// warnings (e.g. UL exceedances), which fire via [severity] + materiality.
+  final String? severityRaw;
+
   const InteractionWarning({
     required this.severity,
     required this.evidenceLevel,
@@ -196,6 +203,7 @@ class InteractionWarning {
     this.direction,
     this.materiality,
     this.doseFloorStatus,
+    this.severityRaw,
   });
 
   /// Parse from raw JSON map (from detail blob `warnings` list).
@@ -274,6 +282,7 @@ class InteractionWarning {
       severity: Severity.fromString(
         json['severity']?.toString() ?? 'caution',
       ),
+      severityRaw: json['severity']?.toString(),
       severityContextual: sevContextual,
       displayModeDefault: json['display_mode_default']?.toString(),
       evidenceLevel: EvidenceLevel.fromString(

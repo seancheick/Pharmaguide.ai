@@ -13,6 +13,8 @@
 ///   skip_ul_check →  render neutral; do not claim safe OR unsafe.
 library;
 
+import 'package:pharmaguide/core/units/dose_units.dart';
+
 /// Per-ingredient dose safety state derived from the pipeline's UL
 /// analysis block. Callers map each state to a visual badge.
 enum DoseSafety {
@@ -134,39 +136,16 @@ double? _quantityInUlUnit(
   required String quantityUnit,
   required String ulUnit,
 }) {
-  final from = _normalizeUnit(quantityUnit);
-  final to = _normalizeUnit(ulUnit);
+  final from = normalizeDoseUnit(quantityUnit);
+  final to = normalizeDoseUnit(ulUnit);
   // No UL unit disclosed (or no quantity unit) → assume same reference unit,
   // matching the historical same-unit comparison.
   if (from.isEmpty || to.isEmpty || from == to) return quantity;
 
-  final fromGrams = _simpleMassGramsFactor(from);
-  final toGrams = _simpleMassGramsFactor(to);
+  final fromGrams = massGramsFactor(from);
+  final toGrams = massGramsFactor(to);
   if (fromGrams == null || toGrams == null) return null;
   return quantity * fromGrams / toGrams;
-}
-
-String _normalizeUnit(String raw) {
-  return raw
-      .trim()
-      .toLowerCase()
-      .replaceAll('µg', 'mcg')
-      .replaceAll('_', ' ')
-      .replaceAll(RegExp(r'\s+'), ' ');
-}
-
-double? _simpleMassGramsFactor(String unit) {
-  return switch (unit) {
-    'g' => 1.0,
-    'gram' => 1.0,
-    'grams' => 1.0,
-    'gram(s)' => 1.0,
-    'mg' => 0.001,
-    'mcg' => 0.000001,
-    'microgram' => 0.000001,
-    'micrograms' => 0.000001,
-    _ => null,
-  };
 }
 
 /// Find the UL-analysis entry for an ingredient. Pulled out so the

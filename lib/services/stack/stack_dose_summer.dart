@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -133,7 +134,7 @@ class StackDoseSummer {
           }
 
           if (total.unit.isEmpty) total.unit = unit;
-          final converted = _amountInUnit(amount, from: unit, to: total.unit);
+          final converted = amountInMass(amount, from: unit, to: total.unit);
           if (converted == null) {
             total.excludedContributions.add(
               ExcludedStackDoseContribution(
@@ -203,7 +204,7 @@ class StackDoseSummer {
           continue;
         }
 
-        final normalizedThresholdUnit = _normalizeUnit(rule.thresholdUnit);
+        final normalizedThresholdUnit = normalizeDoseUnit(rule.thresholdUnit);
         final totalInThresholdUnit = _amountInThresholdUnit(
           canonicalId: dose.canonicalId,
           amount: dose.totalValue,
@@ -250,7 +251,7 @@ class StackDoseSummer {
       return StackDoseThresholdComparison.unavailable;
     }
 
-    final normalizedThresholdUnit = _normalizeUnit(thresholdUnit);
+    final normalizedThresholdUnit = normalizeDoseUnit(thresholdUnit);
     final totalInThresholdUnit = _amountInThresholdUnit(
       canonicalId: dose.canonicalId,
       amount: dose.totalValue,
@@ -294,7 +295,7 @@ class StackDoseSummer {
     final contributions = <StackDoseContribution>[];
 
     for (final total in matchingTotals) {
-      final converted = _amountInUnit(
+      final converted = amountInMass(
         total.totalValue,
         from: total.unit,
         to: anchor.unit,
@@ -308,7 +309,7 @@ class StackDoseSummer {
             stackEntryId: contribution.stackEntryId,
             productName: contribution.productName,
             amount:
-                _amountInUnit(
+                amountInMass(
                   contribution.amount,
                   from: contribution.unit,
                   to: anchor.unit,
@@ -403,7 +404,7 @@ class StackDoseSummer {
     var totalValue = 0.0;
     final convertedContributions = <StackDoseContribution>[];
     for (final contribution in contributions) {
-      final converted = _amountInUnit(
+      final converted = amountInMass(
         contribution.amount,
         from: contribution.unit,
         to: unit,
@@ -495,7 +496,7 @@ class StackDoseSummer {
     ];
     for (final candidate in candidates) {
       if (candidate is String && candidate.trim().isNotEmpty) {
-        return _normalizeUnit(candidate);
+        return normalizeDoseUnit(candidate);
       }
     }
     return '';
@@ -543,29 +544,15 @@ class StackDoseSummer {
     return null;
   }
 
-  static double? _amountInUnit(
-    double amount, {
-    required String from,
-    required String to,
-  }) {
-    if (from.isEmpty || to.isEmpty) return null;
-    if (from == to) return amount;
-
-    final fromGrams = _simpleMassGramsFactor(from);
-    final toGrams = _simpleMassGramsFactor(to);
-    if (fromGrams == null || toGrams == null) return null;
-    return amount * fromGrams / toGrams;
-  }
-
   static double? _amountInThresholdUnit({
     required String canonicalId,
     required double amount,
     required String from,
     required String to,
   }) {
-    final normalizedFrom = _normalizeUnit(from);
-    final normalizedTo = _normalizeUnit(to);
-    final simple = _amountInUnit(
+    final normalizedFrom = normalizeDoseUnit(from);
+    final normalizedTo = normalizeDoseUnit(to);
+    final simple = amountInMass(
       amount,
       from: normalizedFrom,
       to: normalizedTo,
@@ -599,27 +586,6 @@ class StackDoseSummer {
       return amount * 0.67;
     }
     return null;
-  }
-
-  static double? _simpleMassGramsFactor(String unit) {
-    return switch (unit) {
-      'g' || 'gram' || 'grams' || 'gram(s)' => 1.0,
-      'mg' => 0.001,
-      'mcg' || 'microgram' || 'micrograms' => 0.000001,
-      _ => null,
-    };
-  }
-
-  static String _normalizeUnit(String raw) {
-    return raw
-        .trim()
-        .toLowerCase()
-        .replaceAll('µg', 'mcg')
-        .replaceAll('i.u.', 'iu')
-        .replaceAll('international units', 'iu')
-        .replaceAll('international unit', 'iu')
-        .replaceAll('_', ' ')
-        .replaceAll(RegExp(r'\s+'), ' ');
   }
 
   static const Set<String> _omega3ThresholdKeys = {'omega_3', 'fish_oil'};

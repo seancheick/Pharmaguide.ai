@@ -63,6 +63,9 @@ final class HeroVerdictAvoid extends HeroVerdict {
 
   const HeroVerdictAvoid({required this.severity, this.offendingAgent})
     : assert(
+        // NB: a const-constructor assert can't call the `isHard` getter
+        // (not a compile-time constant), so this one site keeps the explicit
+        // enum comparison. Behaviourally identical to `severity.isHard`.
         severity == Severity.avoid || severity == Severity.contraindicated,
         'HeroVerdictAvoid is only valid for Avoid or Contraindicated '
         'severities — lower tiers belong in Section 2.',

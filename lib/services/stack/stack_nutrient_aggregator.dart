@@ -42,6 +42,7 @@
 // with `hasUnitConflict: true` so the UI can surface it.
 // Silent conversion is how medical-grade bugs ship.
 
+import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 class StackNutrientAggregator {
@@ -147,7 +148,7 @@ class StackNutrientAggregator {
         // Only sum into the running total if the unit matches the
         // canonical unit established by the first contribution.
         // Mismatched units flag the total but do not corrupt the sum.
-        final convertedAmount = _amountInUnit(
+        final convertedAmount = amountInMass(
           amount,
           from: unit,
           to: total.unit,
@@ -414,49 +415,6 @@ class StackNutrientAggregator {
       return (parsed != null && parsed.isFinite) ? parsed : null;
     }
     return null;
-  }
-
-  /// Convert [amount] into [to] when the units are exactly equal or are
-  /// simple metric mass units. We intentionally do not convert IU, RAE, DFE,
-  /// NE, or alpha-tocopherol units here because those depend on nutrient form
-  /// and must arrive pre-converted from the pipeline.
-  static double? _amountInUnit(
-    double amount, {
-    required String from,
-    required String to,
-  }) {
-    final fromUnit = _normalizeUnit(from);
-    final toUnit = _normalizeUnit(to);
-    if (fromUnit.isEmpty || toUnit.isEmpty) return null;
-    if (fromUnit == toUnit) return amount;
-
-    final fromGrams = _simpleMassGramsFactor(fromUnit);
-    final toGrams = _simpleMassGramsFactor(toUnit);
-    if (fromGrams == null || toGrams == null) return null;
-    return amount * fromGrams / toGrams;
-  }
-
-  static double? _simpleMassGramsFactor(String unit) {
-    return switch (unit) {
-      'g' => 1.0,
-      'gram' => 1.0,
-      'grams' => 1.0,
-      'gram(s)' => 1.0,
-      'mg' => 0.001,
-      'mcg' => 0.000001,
-      'microgram' => 0.000001,
-      'micrograms' => 0.000001,
-      _ => null,
-    };
-  }
-
-  static String _normalizeUnit(String raw) {
-    return raw
-        .trim()
-        .toLowerCase()
-        .replaceAll('µg', 'mcg')
-        .replaceAll('_', ' ')
-        .replaceAll(RegExp(r'\s+'), ' ');
   }
 
   /// Identify rows that are compound-form duplicates of a bare elemental

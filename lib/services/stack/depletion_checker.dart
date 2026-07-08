@@ -13,6 +13,8 @@
 // the authored-copy contract and scripts/safety_copy_exemplars/
 // depletion_drafts.json for exemplars.
 
+import 'package:pharmaguide/core/units/dose_units.dart';
+
 /// How well the user's supplement stack covers a detected depletion.
 ///
 /// - [none] — nutrient is not in the user's stack at all.
@@ -393,17 +395,17 @@ class DepletionChecker {
   /// comparison. Returns null for unrecognized units; the caller treats
   /// that as a partial-coverage signal.
   static double? _toMcg(num amount, String unit) {
-    final u = unit.trim().toLowerCase();
-    final a = amount.toDouble();
-    // mcg / μg / ug synonyms.
-    if (u == 'mcg' || u == 'μg' || u == 'ug') return a;
-    if (u == 'mg') return a * 1000.0;
-    if (u == 'g') return a * 1000000.0;
+    // amountInMass folds every mcg spelling (mcg / µg U+00B5 / μg U+03BC /
+    // ug) to the same canonical unit before comparing, so both micro-sign
+    // variants convert correctly here (the old hand-rolled check only
+    // matched U+03BC, silently missing U+00B5).
+    //
     // IU conversion is nutrient-specific (vitamin A/D/E each have
     // different factors). We intentionally don't convert here — the
     // pipeline normalizes to mass units before emission for most
-    // supplements. Return null so the caller treats IU doses as partial.
-    return null;
+    // supplements. amountInMass declines (returns null) for IU, so the
+    // caller treats IU doses as partial.
+    return amountInMass(amount.toDouble(), from: unit, to: 'mcg');
   }
 
   static int _coverageSortWeight(CoverageLevel c) {

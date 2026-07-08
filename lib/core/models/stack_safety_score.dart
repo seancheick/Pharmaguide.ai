@@ -69,8 +69,7 @@ class StackSafetyScore {
     return highest;
   }
 
-  bool get hasUnsafeIssue =>
-      maxSeverity == Severity.contraindicated || maxSeverity == Severity.avoid;
+  bool get hasUnsafeIssue => maxSeverity.isHard;
 
   StackHealthLabel get healthLabel {
     if (hasUnsafeIssue) return StackHealthLabel.unsafe;

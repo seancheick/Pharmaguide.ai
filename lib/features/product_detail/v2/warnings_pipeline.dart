@@ -179,8 +179,7 @@ partitionProfileWarnings({
       userDrugClasses: userDrugClasses,
       userProfileFlags: userProfileFlags,
     );
-    final isHard =
-        w.severity == Severity.contraindicated || w.severity == Severity.avoid;
+    final isHard = w.severity.isHard;
     // Only actionable severities (caution / monitor — a real, if mild,
     // negative signal) count as "review before use". Informational / safe
     // rows carry no penalty: they are neutral context or positive notes

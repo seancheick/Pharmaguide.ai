@@ -11,11 +11,53 @@
 // aggregation still need a conservative canonical dose map from detail blobs.
 
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 /// Single ingredient's dose entry as extracted from the detail blob.
 typedef IngredientDose = ({double value, String unit});
+
+/// Shared dose-suppression guardrail (G3) for BOTH dose gates — the
+/// emitted-floor condition gate below AND the pairwise structured-threshold
+/// gate in `stack_interaction_checker.dart`.
+///
+/// A warning is ELIGIBLE to be dose-suppressed only when it is a
+/// non-beneficial, dose-dependent rule that is NOT a hard
+/// (contraindicated / avoid) warning. The caller still supplies the dose
+/// SIGNAL (an emitted `dose_floor_status`, or a live threshold comparison);
+/// this only encodes the severity/direction/materiality invariant.
+///
+/// Centralised on purpose: the pairwise gate used to carry its own weaker
+/// copy that omitted the hard-severity check, so a below-threshold
+/// contraindicated interaction could be silently dropped. One predicate means
+/// the two gates can never drift apart again.
+///
+/// Takes the RAW pipeline severity string (not a parsed [Severity]) so it can
+/// fail safe at the parse boundary. Returns `false` (NOT suppressible → the
+/// warning FIRES) for:
+///   - materiality != dose_dependent (presence-matters / unknown),
+///   - direction == beneficial (a benefit, handled by the beneficial gate),
+///   - severity contraindicated / avoid,
+///   - an UNKNOWN / MISSING severity token — fail-safe: a severity the app
+///     can't recognize is never dose-hidden. `Severity.fromString` coerces
+///     unknown strings to `caution` (suppressible); a future OTA vocab drift
+///     (as just happened to EvidenceLevel) or an omitted field must not let a
+///     possibly-serious row be silently dropped.
+/// Unknown / null direction is treated as non-beneficial and stays suppressible
+/// once the dose signal says below-floor (the dose signal is the authority).
+bool doseSuppressionGuardsPass({
+  required String? severityRaw,
+  required String? direction,
+  required String? materiality,
+}) {
+  if (materiality?.trim().toLowerCase() != 'dose_dependent') return false;
+  if (direction?.trim().toLowerCase() == 'beneficial') return false;
+  final raw = severityRaw?.trim() ?? '';
+  if (raw.isEmpty || !Severity.isKnownString(raw)) return false;
+  if (Severity.fromString(raw).isHard) return false;
+  return true;
+}
 
 /// Emitted-floor dose gate (smart-flagging, pipeline batch diabetes-01+).
 ///
@@ -42,10 +84,11 @@ List<InteractionWarning> applyEmittedFloorGate(
   return warnings
       .where((w) {
         if (!suppressibleStatuses.contains(w.doseFloorStatus)) return true;
-        if (w.direction == 'beneficial') return true;
-        if (w.materiality != 'dose_dependent') return true;
-        if (w.severity == Severity.contraindicated ||
-            w.severity == Severity.avoid) {
+        if (!doseSuppressionGuardsPass(
+          severityRaw: w.severityRaw,
+          direction: w.direction,
+          materiality: w.materiality,
+        )) {
           return true;
         }
         return false;
@@ -74,10 +117,7 @@ List<InteractionWarning> applyEmittedBeneficialGate(
   return warnings
       .where((w) {
         if (w.direction != 'beneficial') return true;
-        if (w.severity == Severity.contraindicated ||
-            w.severity == Severity.avoid) {
-          return true;
-        }
+        if (w.severity.isHard) return true;
         return false;
       })
       .toList(growable: false);
@@ -194,7 +234,7 @@ Map<String, IngredientDose> extractIngredientDoses(
     if (primaryName != null) {
       final signature =
           '${canonicalizeIngredientName(primaryName)}'
-          '|$value|${_normalizeDoseUnit(rawUnit)}';
+          '|$value|${normalizeDoseUnit(rawUnit)}';
       if (!seenSignatures.add(signature)) continue;
     }
 
@@ -250,7 +290,7 @@ Map<String, IngredientDose> extractIngredientDoses(
         continue;
       }
 
-      final converted = _amountInUnit(
+      final converted = amountInMass(
         row.value,
         from: row.unit,
         to: existing.unit,
@@ -306,40 +346,6 @@ bool _isElementalDoseName(String rawName, String key) {
   final stripped = rawName.replaceAll(RegExp(r'\([^)]*\)'), ' ').trim();
   if (stripped.isEmpty || stripped == rawName.trim()) return false;
   return canonicalizeIngredientName(stripped) == key;
-}
-
-double? _amountInUnit(
-  double amount, {
-  required String from,
-  required String to,
-}) {
-  final normalizedFrom = _normalizeDoseUnit(from);
-  final normalizedTo = _normalizeDoseUnit(to);
-  if (normalizedFrom.isEmpty || normalizedTo.isEmpty) return null;
-  if (normalizedFrom == normalizedTo) return amount;
-
-  final fromGrams = _simpleMassGramsFactor(normalizedFrom);
-  final toGrams = _simpleMassGramsFactor(normalizedTo);
-  if (fromGrams == null || toGrams == null) return null;
-  return amount * fromGrams / toGrams;
-}
-
-double? _simpleMassGramsFactor(String unit) {
-  return switch (unit) {
-    'g' || 'gram' || 'grams' || 'gram(s)' => 1.0,
-    'mg' => 0.001,
-    'mcg' || 'microgram' || 'micrograms' => 0.000001,
-    _ => null,
-  };
-}
-
-String _normalizeDoseUnit(String raw) {
-  return raw
-      .trim()
-      .toLowerCase()
-      .replaceAll('µg', 'mcg')
-      .replaceAll('_', ' ')
-      .replaceAll(RegExp(r'\s+'), ' ');
 }
 
 List<Map<String, dynamic>> _doseRows(Map<String, dynamic> detailBlob) {

@@ -648,6 +648,135 @@ void main() {
       expect(results.single.id, 'DSI_FISHOIL_VITE_FAIL_OPEN_TEST');
     });
 
+    test(
+      'NEVER dose-suppresses a hard (contraindicated) pair below threshold',
+      () async {
+        // Defense-in-depth (mirrors the condition floor gate's G3): a hard
+        // warning is NEVER dropped for being below a dose floor. Even a
+        // dose-dependent contraindicated row with a 20 mg (< 400 IU) vitamin E
+        // must still surface.
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_HARD_DOSE_DEP_TEST',
+                a1Type: 'supplement',
+                a1Id: 'C0016157',
+                a1Name: 'Fish Oil',
+                a1Canonical: 'fish_oil',
+                a2Type: 'supplement',
+                a2Id: 'C0042874',
+                a2Name: 'Vitamin E',
+                a2Canonical: 'vitamin_e',
+                severity: 'contraindicated',
+                doseDependent: 1,
+                direction: 'harmful',
+                materiality: 'dose_dependent',
+                doseThresholdJson:
+                    '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+              ),
+            );
+
+        final doseTotals = const StackDoseSummer().sum([
+          const StackItemNutrients(
+            stackEntryId: 'fish_oil',
+            productName: 'Fish Oil',
+            ingredients: [
+              {'standard_name': 'Fish Oil', 'quantity': 1000, 'unit': 'mg'},
+            ],
+          ),
+          const StackItemNutrients(
+            stackEntryId: 'one_multi',
+            productName: 'O.N.E. Multivitamin',
+            ingredients: [
+              {'standard_name': 'Vitamin E', 'quantity': 20, 'unit': 'mg'},
+            ],
+          ),
+        ]);
+
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const ['fish_oil'],
+          stackSupplements: [
+            _supplement(
+              id: 'one_multi',
+              name: 'O.N.E. Multivitamin',
+              ingredientKeys: '["vitamin_e"]',
+            ),
+          ],
+          db: db,
+          newProductName: 'Fish Oil',
+          stackDoseTotals: doseTotals,
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DSI_HARD_DOSE_DEP_TEST');
+      },
+    );
+
+    test(
+      'NEVER dose-suppresses a pair with an unknown / drifted severity token',
+      () async {
+        // Severity.fromString coerces "severe" → caution (suppressible); the
+        // raw-string fail-safe must keep the row visible below threshold so a
+        // future OTA severity-vocab drift can't silently hide a serious pair.
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_UNKNOWN_SEV_TEST',
+                a1Type: 'supplement',
+                a1Id: 'C0016157',
+                a1Name: 'Fish Oil',
+                a1Canonical: 'fish_oil',
+                a2Type: 'supplement',
+                a2Id: 'C0042874',
+                a2Name: 'Vitamin E',
+                a2Canonical: 'vitamin_e',
+                severity: 'severe',
+                doseDependent: 1,
+                direction: 'harmful',
+                materiality: 'dose_dependent',
+                doseThresholdJson:
+                    '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+              ),
+            );
+
+        final doseTotals = const StackDoseSummer().sum([
+          const StackItemNutrients(
+            stackEntryId: 'fish_oil',
+            productName: 'Fish Oil',
+            ingredients: [
+              {'standard_name': 'Fish Oil', 'quantity': 1000, 'unit': 'mg'},
+            ],
+          ),
+          const StackItemNutrients(
+            stackEntryId: 'one_multi',
+            productName: 'O.N.E. Multivitamin',
+            ingredients: [
+              {'standard_name': 'Vitamin E', 'quantity': 20, 'unit': 'mg'},
+            ],
+          ),
+        ]);
+
+        final results = await checker.checkSupplementPairInteractions(
+          newProductCanonicalIds: const ['fish_oil'],
+          stackSupplements: [
+            _supplement(
+              id: 'one_multi',
+              name: 'O.N.E. Multivitamin',
+              ingredientKeys: '["vitamin_e"]',
+            ),
+          ],
+          db: db,
+          newProductName: 'Fish Oil',
+          stackDoseTotals: doseTotals,
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DSI_UNKNOWN_SEV_TEST');
+      },
+    );
+
     test('finds calcium ↔ iron in reverse direction', () async {
       // New product is iron, stack supplement is calcium — pipeline
       // stored row as (calcium, iron), the symmetric lookup must still
