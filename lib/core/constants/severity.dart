@@ -75,6 +75,15 @@ enum Severity {
   /// tier above `avoid` is hard by construction.
   bool get isHard => weight >= Severity.avoid.weight;
 
+  /// A mid-tier "review-worthy" severity — `caution` or `monitor`. Below
+  /// [isHard] (never blocks a verdict) but above `informational` / `safe`
+  /// (carries a real, if mild, penalty). Single source of truth for the
+  /// warning partition, the review-before-use headline, the fit-display
+  /// band, and the fit-score risk reasons — all of which had hand-copied
+  /// `== caution || == monitor`.
+  bool get isActionable =>
+      this == Severity.caution || this == Severity.monitor;
+
   static Severity fromString(String value) {
     final normalized = value.toLowerCase().trim();
     switch (normalized) {

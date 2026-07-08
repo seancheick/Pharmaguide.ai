@@ -12,7 +12,6 @@
 //   • Calm + personal — bullets are causal sentences, not gamified.
 
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
-import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
@@ -106,10 +105,7 @@ List<String> generatePositiveProfileBulletsFromWarnings({
 
     for (final warning in warnings) {
       if (warning.direction != 'beneficial') continue;
-      if (warning.severity == Severity.contraindicated ||
-          warning.severity == Severity.avoid) {
-        continue;
-      }
+      if (warning.severity.isHard) continue;
       if (!warning.conditionIds
           .map((id) => id.trim().toLowerCase())
           .contains(condition)) {

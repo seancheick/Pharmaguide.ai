@@ -134,8 +134,7 @@ FitDisplay computeFitDisplay({
     FitAssessmentState.incompleteProfile => const FitIncomplete(),
   };
 
-  if ((verdict == Severity.caution || verdict == Severity.monitor) &&
-      display is FitStrongMatch) {
+  if (verdict.isActionable && display is FitStrongMatch) {
     return const FitGoodMatch();
   }
 

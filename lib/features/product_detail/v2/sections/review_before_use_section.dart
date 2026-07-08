@@ -16,7 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_for_you_extras.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
-import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -359,15 +358,10 @@ ProfileRelevanceSummary _fitSummary({
   );
 }
 
-bool _isHardWarning(InteractionWarning warning) {
-  return warning.severity == Severity.contraindicated ||
-      warning.severity == Severity.avoid;
-}
+bool _isHardWarning(InteractionWarning warning) => warning.severity.isHard;
 
-bool _isReviewWarning(InteractionWarning warning) {
-  return warning.severity == Severity.caution ||
-      warning.severity == Severity.monitor;
-}
+bool _isReviewWarning(InteractionWarning warning) =>
+    warning.severity.isActionable;
 
 bool _shouldExpandInformationalRows(List<PGReviewRow> rows) {
   if (rows.isEmpty) return false;

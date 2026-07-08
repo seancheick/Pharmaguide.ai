@@ -190,8 +190,7 @@ partitionProfileWarnings({
     // Critical-mode caution rows with no profile gate (for example product
     // quality additives such as P80) remain visible, but in the general surface
     // instead of inflating "Review for your profile".
-    final isActionable =
-        w.severity == Severity.caution || w.severity == Severity.monitor;
+    final isActionable = w.severity.isActionable;
     if (isHard || (matched && isActionable)) {
       profile.add(w);
     } else {

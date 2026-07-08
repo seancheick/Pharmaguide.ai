@@ -272,8 +272,7 @@ class FitScoreService {
     final maxSeverity = _maxSeverity(matches);
     final reasons = <String>[];
 
-    if (maxSeverity == Severity.contraindicated ||
-        maxSeverity == Severity.avoid) {
+    if (maxSeverity.isHard) {
       reasons.addAll(_riskReasons(matches));
       return _Assessment(
         state: FitAssessmentState.notRecommended,
@@ -327,7 +326,7 @@ class FitScoreService {
           : FitAssessmentState.goodFit;
     }
 
-    if (maxSeverity == Severity.caution || maxSeverity == Severity.monitor) {
+    if (maxSeverity.isActionable) {
       if (state == FitAssessmentState.strongMatch) {
         state = FitAssessmentState.goodFit;
       }
