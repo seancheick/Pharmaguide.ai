@@ -28,6 +28,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show sanitizeWhyDetail;
+import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 
 /// Build the Tradeoffs section. Returns `SizedBox.shrink()` when there
@@ -296,7 +297,7 @@ List<PGTradeoff> _collapseAllergenSources(List<PGTradeoff> items) {
 }
 
 Widget? _buildSafetySummary(List<dynamic>? inactiveIngredients) {
-  final severity = _countInactiveSeverity(inactiveIngredients);
+  final severity = countInactiveSeverity(inactiveIngredients);
   if (!severity.shouldShowSummary) return null;
   return _SafetySummaryBullet(
     count: severity.total,
@@ -305,7 +306,7 @@ Widget? _buildSafetySummary(List<dynamic>? inactiveIngredients) {
   );
 }
 
-class _InactiveSeverityCount {
+class InactiveSeverityCount {
   final int high;
   final int moderate;
 
@@ -313,7 +314,7 @@ class _InactiveSeverityCount {
   /// say *which* ingredient was flagged instead of a bare count.
   final List<String> names;
 
-  const _InactiveSeverityCount({
+  const InactiveSeverityCount({
     required this.high,
     required this.moderate,
     required this.names,
@@ -324,7 +325,8 @@ class _InactiveSeverityCount {
   bool get shouldShowSummary => high >= 1 || moderate >= 3 || total >= 2;
 }
 
-_InactiveSeverityCount _countInactiveSeverity(
+@visibleForTesting
+InactiveSeverityCount countInactiveSeverity(
   List<dynamic>? inactiveIngredients,
 ) {
   var high = 0;
@@ -339,31 +341,32 @@ _InactiveSeverityCount _countInactiveSeverity(
   for (final raw in inactiveIngredients ?? const []) {
     if (raw is! Map) continue;
     final ing = Map<String, dynamic>.from(raw);
-    final statusRaw = ing['severity_status'];
-    if (statusRaw is String && statusRaw.trim().isNotEmpty) {
-      final status = statusRaw.trim().toLowerCase();
-      if (status == 'critical') {
+    // Classify via the SAME canonical tone the color dot uses
+    // ([inactiveColorRank]: display_tone-first, then severity_status, then
+    // harmful_severity). Reading severity_status directly over-elevated every
+    // moderate additive: the pipeline maps high/moderate additives to
+    // severity_status=critical (a coarse conservative value for the CI audit /
+    // stash-less fallback), so a moderate additive like polysorbate 80 —
+    // display_tone=dark_orange, i.e. an orange dot — was miscounted as HIGH in
+    // the summary bullet. Going through the shared tone keeps the bullet and
+    // the dot in agreement while preserving the conservative fallback for
+    // display_tone-less (stale-cache) blobs.
+    switch (inactiveColorRank(ing)) {
+      case InactiveTone.red:
         high++;
         recordName(ing);
-      } else if (status == 'informational') {
+        break;
+      case InactiveTone.orange:
         moderate++;
         recordName(ing);
-      }
-      continue;
-    }
-    final severityRaw = ing['harmful_severity'];
-    final severity = severityRaw is String
-        ? severityRaw.trim().toLowerCase()
-        : '';
-    if (severity == 'high') {
-      high++;
-      recordName(ing);
-    } else if (severity == 'moderate') {
-      moderate++;
-      recordName(ing);
+        break;
+      case InactiveTone.yellow:
+      case InactiveTone.green:
+        // low-penalty (amber) / benign (green) — not a summary-worthy flag.
+        break;
     }
   }
-  return _InactiveSeverityCount(high: high, moderate: moderate, names: names);
+  return InactiveSeverityCount(high: high, moderate: moderate, names: names);
 }
 
 class _SafetySummaryBullet extends StatelessWidget {

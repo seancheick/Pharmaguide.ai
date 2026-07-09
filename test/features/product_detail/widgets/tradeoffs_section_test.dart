@@ -372,4 +372,63 @@ void main() {
       expect(find.textContaining('flagged for safety'), findsOneWidget);
     });
   });
+
+  group('countInactiveSeverity — display_tone precedence (P80 fix)', () {
+    Map<String, dynamic> ing({
+      String? displayTone,
+      String? severityStatus,
+      String? harmfulSeverity,
+      String name = 'X',
+    }) => {
+      'name': name,
+      if (displayTone != null) 'display_tone': displayTone,
+      if (severityStatus != null) 'severity_status': severityStatus,
+      if (harmfulSeverity != null) 'harmful_severity': harmfulSeverity,
+    };
+
+    test('moderate additive (dark_orange dot) counts as moderate despite '
+        'severity_status=critical', () {
+      // Polysorbate 80: the pipeline coarsely maps moderate additives to
+      // severity_status=critical, but display_tone=dark_orange is the truth.
+      // The summary bullet must agree with the dot (orange = moderate), not
+      // over-elevate to high off the coarse severity_status.
+      final c = countInactiveSeverity([
+        ing(
+          displayTone: 'dark_orange',
+          severityStatus: 'critical',
+          harmfulSeverity: 'moderate',
+          name: 'Polysorbate 80',
+        ),
+      ]);
+      expect(c.high, 0);
+      expect(c.moderate, 1);
+      expect(c.names, contains('Polysorbate 80'));
+    });
+
+    test('high additive (red dot) counts as high', () {
+      final c = countInactiveSeverity([
+        ing(displayTone: 'red', severityStatus: 'critical'),
+      ]);
+      expect(c.high, 1);
+      expect(c.moderate, 0);
+    });
+
+    test('stale blob with no display_tone falls back to severity_status', () {
+      // Conservative fallback preserved: an old cache lacking display_tone
+      // still surfaces a critical severity_status as high.
+      final c = countInactiveSeverity([
+        ing(severityStatus: 'critical', harmfulSeverity: 'moderate'),
+      ]);
+      expect(c.high, 1);
+    });
+
+    test('amber / benign additives are not summary-worthy', () {
+      final c = countInactiveSeverity([
+        ing(displayTone: 'light_orange'),
+        ing(displayTone: 'green'),
+      ]);
+      expect(c.high, 0);
+      expect(c.moderate, 0);
+    });
+  });
 }
