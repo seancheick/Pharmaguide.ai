@@ -11,10 +11,7 @@ void main() {
         readDoseAmount({'quantity': 500, 'converted_quantity': 1000}),
         1000,
       );
-      expect(
-        readDoseAmount({'quantity': 500, 'per_day_max': 1000}),
-        1000,
-      );
+      expect(readDoseAmount({'quantity': 500, 'per_day_max': 1000}), 1000);
     });
 
     test('falls through to raw quantity when no per-day field present', () {
@@ -47,6 +44,7 @@ void main() {
     test('drops blend containers and parent-total roll-ups', () {
       expect(isUsableDoseRow({'is_proprietary_blend': true}), isFalse);
       expect(isUsableDoseRow({'is_parent_total': true}), isFalse);
+      expect(isUsableDoseRow({'dose_role': 'form_component'}), isFalse);
       expect(isUsableDoseRow({'is_active': false}), isFalse);
       expect(isUsableDoseRow({'is_label_descriptor': true}), isFalse);
     });

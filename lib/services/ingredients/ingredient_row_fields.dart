@@ -144,6 +144,7 @@ String? readDisplayName(Map<String, dynamic> row) {
 ///   * `is_label_descriptor == true`   — non-dose label fragment
 ///   * `is_proprietary_blend == true`  — blend CONTAINER (children carry doses)
 ///   * `is_parent_total == true`       — nested-tree roll-up (double-counts)
+///   * `dose_role == form_component`   — context for a declared parent total
 ///
 /// Opt-out semantics: a missing flag never excludes a row, so catalogs built
 /// before a flag existed are unaffected.
@@ -160,6 +161,7 @@ bool isUsableDoseRow(Map<String, dynamic> row) {
   final isParentTotal = row['is_parent_total'];
   if (isParentTotal is bool && isParentTotal) return false;
 
+  if (row['dose_role'] == 'form_component') return false;
+
   return true;
 }
-

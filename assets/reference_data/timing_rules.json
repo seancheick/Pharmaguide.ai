@@ -460,6 +460,10 @@
       "separation_hours": 2,
       "score_impact": -2,
       "evidence_level": "probable",
+      "min_dose": {
+        "ingredient": "vitamin e",
+        "mg": 180
+      },
       "sources": [
         {
           "source_type": "reference",

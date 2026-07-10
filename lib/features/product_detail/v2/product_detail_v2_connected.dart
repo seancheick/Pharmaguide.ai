@@ -43,6 +43,7 @@ import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/compare/compare_picker_sheet.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show topGoalLabelFromFit;
@@ -80,6 +81,7 @@ import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_butt
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/perf_trace_service.dart';
+import 'package:pharmaguide/services/health/rda_reference_contract.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
@@ -290,6 +292,15 @@ class _ProductDetailV2ConnectedState
     final detailBlob = blobAsync.asData?.value;
     final blobLoading = blobAsync.isLoading;
     final blobError = blobAsync.hasError;
+    final appRdaReferenceData = ref.watch(rdaOptimalUlsProvider).asData?.value;
+    final productRdaUlData = _blobMap(detailBlob, 'rda_ul_data');
+    final canUseProductUlData = hasCurrentRdaReference(
+      appReferenceData: appRdaReferenceData,
+      productRdaUlData: productRdaUlData,
+    );
+    final productUlAnalysis = canUseProductUlData
+        ? (productRdaUlData?['analyzed_ingredients'] as List?)
+        : null;
 
     // -------------------------------------------------------------
     // Warning compose pipeline (see warnings_pipeline.dart)
@@ -692,14 +703,9 @@ class _ProductDetailV2ConnectedState
                                     const [])
                                 .whereType<Map<String, dynamic>>()
                                 .toList(growable: false),
-                        ulAnalysis:
-                            (_blobMap(
-                                      detailBlob,
-                                      'rda_ul_data',
-                                    )?['analyzed_ingredients']
-                                    as List?)
-                                ?.whereType<Map<String, dynamic>>()
-                                .toList(growable: false),
+                        ulAnalysis: productUlAnalysis
+                            ?.whereType<Map<String, dynamic>>()
+                            .toList(growable: false),
                         blends: (blendDetail?['blends'] as List?)
                             ?.whereType<Map<String, dynamic>>()
                             .toList(growable: false),
@@ -710,7 +716,10 @@ class _ProductDetailV2ConnectedState
 
                   // ---- 7. Tradeoffs (WIRED, 11.7d.3) ---------------
                   if (showDeepDive) ...[
-                    buildTradeoffsSection(detailBlob: detailBlob),
+                    buildTradeoffsSection(
+                      detailBlob: detailBlob,
+                      appReferenceData: appRdaReferenceData,
+                    ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 

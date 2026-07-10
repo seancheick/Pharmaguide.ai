@@ -112,13 +112,15 @@ class StackSafetyReport {
       // effectiveSeverity: a food advisory keeps an informational DISPLAY tone
       // but must be WEIGHTED by its real curated severity (grapefruit x statin
       // = avoid), so it isn't silently ignored in the banner color.
-      if (r.effectiveSeverity.weight > worst.weight) worst = r.effectiveSeverity;
+      if (r.effectiveSeverity.weight > worst.weight) {
+        worst = r.effectiveSeverity;
+      }
     }
     for (final w in medicationProfileWarnings) {
       if (w.severity.weight > worst.weight) worst = w.severity;
     }
     for (final n in _flaggedNutrients) {
-      final ns = _severityForNutrient(n);
+      final ns = severityForNutrient(n);
       if (ns.weight > worst.weight) worst = ns;
     }
     return worst;
@@ -139,7 +141,7 @@ class StackSafetyReport {
       counts[w.severity] = (counts[w.severity] ?? 0) + 1;
     }
     for (final n in _flaggedNutrients) {
-      final s = _severityForNutrient(n);
+      final s = severityForNutrient(n);
       counts[s] = (counts[s] ?? 0) + 1;
     }
     return counts;
@@ -195,7 +197,7 @@ class StackSafetyReport {
     for (var i = 0; i < flagged.length; i++) {
       entries.add(
         _RankedEntry(
-          severity: _severityForNutrient(flagged[i]),
+          severity: severityForNutrient(flagged[i]),
           bucket: 5,
           ordinal: i,
           payload: flagged[i],
@@ -230,14 +232,17 @@ class StackSafetyReport {
 
   /// Map an M1 nutrient tier to a [Severity] for cross-signal ranking.
   ///
-  /// We deliberately stop at [Severity.avoid] for `exceedsUl` — a UL
-  /// violation is serious but not "do not use" until clinical review.
-  /// The product detail screen can still show the full numeric overage
-  /// for users who care about specifics.
-  static Severity _severityForNutrient(NutrientStatus n) {
+  /// A modest overage needs an explicit upper-limit alert, but is not an
+  /// interaction-style "Not recommended" event. At twice the UL, retain the
+  /// stronger tier so high-magnitude breaches stay prominent.
+  static Severity severityForNutrient(NutrientStatus n) {
     switch (n.tier) {
       case NutrientTier.exceedsUl:
-        return Severity.avoid;
+        // A legacy/partial status without a percentage cannot be safely
+        // down-ranked. Fresh statuses always carry pctOfUl.
+        return n.pctOfUl != null && n.pctOfUl! < 200
+            ? Severity.caution
+            : Severity.avoid;
       case NutrientTier.approachingUl:
         return Severity.caution;
       case NutrientTier.noRda:
@@ -248,6 +253,40 @@ class StackSafetyReport {
       case NutrientTier.aboveTypical:
         return Severity.safe;
     }
+  }
+
+  /// Factual copy for an upper-limit event. Stack totals represent the
+  /// labeled daily supplement amount, never the person's full dietary intake.
+  static String nutrientUpperLimitSummary(NutrientStatus status) {
+    final total = status.total;
+    final amount = _formatAmount(total.totalAmount);
+    final unit = total.unit;
+    final ul = status.ul == null ? null : _formatAmount(status.ul!);
+    final pct = status.pctOfUl?.round().toString();
+    final limit = switch ((pct, ul)) {
+      (final String pct, final String ul) =>
+        '$pct% of the $ul $unit upper limit',
+      (_, final String ul) => 'above the $ul $unit upper limit',
+      _ => 'above its upper limit',
+    };
+    final contributors = total.contributions
+        .map(
+          (contribution) =>
+              '${contribution.productName} (${_formatAmount(contribution.amount)} '
+              '${contribution.unit}/day)',
+        )
+        .join(', ');
+    final source = contributors.isEmpty ? '' : ' From $contributors.';
+    final basis = status.ulIsFallback
+        ? ' This uses a standard adult upper limit because a matched profile limit is unavailable.'
+        : ' This uses the upper limit for your profile.';
+    return 'Your supplements provide $amount $unit/day of ${total.displayName} '
+        '- $limit.$source Dietary intake is not included here.$basis';
+  }
+
+  static String _formatAmount(double amount) {
+    if (amount == amount.roundToDouble()) return amount.toStringAsFixed(0);
+    return amount.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
   }
 }
 

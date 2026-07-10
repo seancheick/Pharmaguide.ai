@@ -438,7 +438,7 @@ void main() {
             .into(db.interactions)
             .insert(
               _row(
-                id: 'DSI_FISHOIL_VITE_TEST',
+                id: 'SSI_VITE_VITK_LOW_TEST',
                 a1Type: 'supplement',
                 a1Id: 'C0016157',
                 a1Name: 'Fish Oil',
@@ -451,7 +451,7 @@ void main() {
                 direction: 'harmful',
                 materiality: 'dose_dependent',
                 doseThresholdJson:
-                    '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+                    '{"agent_canonical_id":"vitamin_e","value":180,"unit":"mg","basis":"per_day"}',
               ),
             );
 
@@ -497,7 +497,7 @@ void main() {
             .into(db.interactions)
             .insert(
               _row(
-                id: 'DSI_FISHOIL_VITE_HIGH_TEST',
+                id: 'SSI_VITE_VITK_THRESHOLD_TEST',
                 a1Type: 'supplement',
                 a1Id: 'C0016157',
                 a1Name: 'Fish Oil',
@@ -510,7 +510,7 @@ void main() {
                 direction: 'harmful',
                 materiality: 'dose_dependent',
                 doseThresholdJson:
-                    '{"agent_canonical_id":"vitamin_e","value":400,"unit":"IU","basis":"per_day"}',
+                    '{"agent_canonical_id":"vitamin_e","value":180,"unit":"mg","basis":"per_day"}',
               ),
             );
 
@@ -524,9 +524,9 @@ void main() {
           ),
           const StackItemNutrients(
             stackEntryId: 'vitamin_e_high',
-            productName: 'Vitamin E 300 mg',
+            productName: 'Vitamin E 180 mg',
             ingredients: [
-              {'standard_name': 'Vitamin E', 'quantity': 300, 'unit': 'mg'},
+              {'standard_name': 'Vitamin E', 'quantity': 180, 'unit': 'mg'},
             ],
           ),
         ]);
@@ -536,7 +536,7 @@ void main() {
           stackSupplements: [
             _supplement(
               id: 'vitamin_e_high',
-              name: 'Vitamin E 300 mg',
+              name: 'Vitamin E 180 mg',
               ingredientKeys: '["vitamin_e"]',
             ),
           ],
@@ -546,7 +546,7 @@ void main() {
         );
 
         expect(results, hasLength(1));
-        expect(results.single.id, 'DSI_FISHOIL_VITE_HIGH_TEST');
+        expect(results.single.id, 'SSI_VITE_VITK_THRESHOLD_TEST');
       },
     );
 

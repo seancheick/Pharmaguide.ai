@@ -50,16 +50,25 @@ InteractionResult _interaction({
 NutrientStatus _nutrient({
   required String canonicalId,
   required NutrientTier tier,
+  double totalAmount = 100,
+  String unit = 'mg',
+  double? ul,
+  double? pctOfUl,
+  List<NutrientContribution> contributions = const <NutrientContribution>[],
+  bool ulIsFallback = false,
 }) {
   return NutrientStatus(
     total: NutrientTotal(
       canonicalId: canonicalId,
       displayName: canonicalId,
-      totalAmount: 100,
-      unit: 'mg',
-      contributions: const <NutrientContribution>[],
+      totalAmount: totalAmount,
+      unit: unit,
+      contributions: contributions,
     ),
     tier: tier,
+    ul: ul,
+    pctOfUl: pctOfUl,
+    ulIsFallback: ulIsFallback,
   );
 }
 
@@ -104,14 +113,40 @@ void main() {
       expect(report.overallSeverity, Severity.safe);
     });
 
-    test('exceedsUl nutrient lifts overall severity to avoid', () {
+    test('125% UL nutrient is a caution, not an avoid-level event', () {
       final report = StackSafetyReport(
         nutrientStatuses: [
-          _nutrient(canonicalId: 'iron', tier: NutrientTier.exceedsUl),
+          _nutrient(
+            canonicalId: 'vitamin_d',
+            tier: NutrientTier.exceedsUl,
+            totalAmount: 125,
+            unit: 'mcg',
+            ul: 100,
+            pctOfUl: 125,
+          ),
+        ],
+      );
+      expect(report.overallSeverity, Severity.caution);
+      expect(report.severityCounts[Severity.caution], 1);
+      expect(
+        StackSafetyReport.nutrientUpperLimitSummary(
+          report.nutrientStatuses.single,
+        ),
+        contains('125 mcg/day'),
+      );
+    });
+
+    test('a very high UL breach retains avoid-level severity', () {
+      final report = StackSafetyReport(
+        nutrientStatuses: [
+          _nutrient(
+            canonicalId: 'iron',
+            tier: NutrientTier.exceedsUl,
+            pctOfUl: 200,
+          ),
         ],
       );
       expect(report.overallSeverity, Severity.avoid);
-      expect(report.severityCounts[Severity.avoid], 1);
     });
 
     test('approachingUl nutrient lifts overall severity to caution', () {

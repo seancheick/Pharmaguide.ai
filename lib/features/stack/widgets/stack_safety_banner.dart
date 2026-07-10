@@ -170,6 +170,9 @@ class StackSafetyBanner extends StatelessWidget {
       return '$prefix — ${topWarning.medicationName}';
     }
     if (topWarning is NutrientStatus) {
+      if (topWarning.tier == NutrientTier.exceedsUl) {
+        return 'Upper limit - ${topWarning.total.displayName}';
+      }
       return '$prefix — ${topWarning.total.displayName}';
     }
     // Unknown payload — fall back to the severity label alone so we
@@ -220,7 +223,7 @@ class StackSafetyBanner extends StatelessWidget {
     final name = n.total.displayName;
     switch (n.tier) {
       case NutrientTier.exceedsUl:
-        return '$name exceeds upper limit across your stack.';
+        return StackSafetyReport.nutrientUpperLimitSummary(n);
       case NutrientTier.approachingUl:
         return '$name is near its upper limit across your stack.';
       case NutrientTier.aboveTypical:

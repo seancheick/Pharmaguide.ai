@@ -30,12 +30,27 @@ import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show sanitizeWhyDetail;
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/health/rda_reference_contract.dart';
 
 /// Build the Tradeoffs section. Returns `SizedBox.shrink()` when there
 /// are no bonuses, penalties, or inactive-ingredient safety summary.
-Widget buildTradeoffsSection({required Map<String, dynamic>? detailBlob}) {
+Widget buildTradeoffsSection({
+  required Map<String, dynamic>? detailBlob,
+  Map<String, dynamic>? appReferenceData,
+}) {
   if (detailBlob == null) return const SizedBox.shrink();
   final healthFacts = ProductHealthFacts.fromDetailBlob(detailBlob);
+  final productRdaData = _mapValue(detailBlob['rda_ul_data']);
+  final hasProductUlData =
+      productRdaData != null &&
+      ((productRdaData['safety_flags'] is List &&
+              (productRdaData['safety_flags'] as List).isNotEmpty) ||
+          (productRdaData['analyzed_ingredients'] is List &&
+              (productRdaData['analyzed_ingredients'] as List).isNotEmpty));
+  final rdaReferenceIsCurrent = hasCurrentRdaReference(
+    appReferenceData: appReferenceData,
+    productRdaUlData: productRdaData,
+  );
 
   final bonuses =
       (detailBlob['score_bonuses'] as List?)
@@ -63,10 +78,19 @@ Widget buildTradeoffsSection({required Map<String, dynamic>? detailBlob}) {
     _collapseAdditiveConcerns([
       ...penaltyConsiderations,
       ..._buildUlConsiderations(
-        safetyFlags: healthFacts.ulSafetyFlags,
-        ulAnalysis: healthFacts.ulAnalysis,
+        safetyFlags: rdaReferenceIsCurrent
+            ? healthFacts.ulSafetyFlags
+            : const [],
+        ulAnalysis: rdaReferenceIsCurrent ? healthFacts.ulAnalysis : const [],
         existing: penaltyConsiderations,
       ),
+      if (hasProductUlData && !rdaReferenceIsCurrent)
+        const PGTradeoff(
+          headline: 'Upper-limit data needs an update',
+          caption:
+              'This product uses an older dose reference, so upper-limit '
+              'details are not shown.',
+        ),
     ]),
   );
   if (pros.isEmpty && considerations.isEmpty && safetySummary == null) {
@@ -78,6 +102,11 @@ Widget buildTradeoffsSection({required Map<String, dynamic>? detailBlob}) {
     considerations: considerations,
     considerationLeading: safetySummary,
   );
+}
+
+Map<String, dynamic>? _mapValue(Object? raw) {
+  if (raw is! Map) return null;
+  return Map<String, dynamic>.from(raw);
 }
 
 List<PGTradeoff> _buildUlConsiderations({

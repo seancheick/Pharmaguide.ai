@@ -12,3 +12,10 @@ final referenceDataRepositoryProvider = Provider<ReferenceDataRepository>((
 ) {
   return ReferenceDataRepository();
 });
+
+/// Active bundled RDA/UL artifact. Product-detail surfaces use its versioned
+/// semantic fingerprint to reject UL verdicts computed from stale catalog data.
+final rdaOptimalUlsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final repository = ref.watch(referenceDataRepositoryProvider);
+  return repository.loadRdaOptimalUls();
+});

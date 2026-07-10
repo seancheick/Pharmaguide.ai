@@ -78,6 +78,12 @@ enum NutrientExclusionReason {
   /// the label-declared total; summing the compound weight on top
   /// double-counts (compound weight includes the non-mineral moiety).
   compoundFormDuplicate,
+
+  /// A legacy label blob emitted both a declared nutrient total and a
+  /// form-specific re-derivation of that same total. The declared total is
+  /// retained because it is the quantity printed on the Supplement Facts
+  /// panel; the re-derived row stays traceable but must not be summed twice.
+  declaredTotalDuplicate,
 }
 
 @immutable

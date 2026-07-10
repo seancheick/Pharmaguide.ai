@@ -28,6 +28,7 @@ import 'package:pharmaguide/features/stack/providers/medication_identity_provide
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
+import 'package:pharmaguide/features/stack/v2/widgets/stack_safety_details_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_coverage_card.dart';
@@ -699,8 +700,11 @@ class _StackSummaryCard extends ConsumerWidget {
     final Color tone = status?.color ?? fallback.tone;
     final statusLabel = status?.label ?? fallback.label;
     final insightLine = describeStackSummary(intelligence);
+    final reviewReport = reportAsync.asData?.value;
+    final canReviewSignals =
+        reviewReport != null && reviewReport.orderedWarnings.isNotEmpty;
 
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -783,6 +787,19 @@ class _StackSummaryCard extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+    if (!canReviewSignals) return card;
+    return Semantics(
+      button: true,
+      label: 'Review stack safety signals',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => showStackSafetyDetailsSheet(context, reviewReport),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: card,
+        ),
       ),
     );
   }
@@ -1590,6 +1607,7 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
         if (report.isEmpty) return const SizedBox.shrink();
         return StackSafetyBanner(
           report: report,
+          onTap: () => showStackSafetyDetailsSheet(context, report),
           margin: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
             V2Spacing.space12,

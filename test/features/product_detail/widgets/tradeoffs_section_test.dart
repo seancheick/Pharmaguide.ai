@@ -23,7 +23,27 @@ Future<void> _pump(
   List<Map<String, dynamic>> penalties = const [],
   List<Map<String, dynamic>> inactives = const [],
   Map<String, dynamic>? rdaUlData,
+  Map<String, dynamic>? appReferenceData,
 }) {
+  final resolvedAppReferenceData =
+      appReferenceData ??
+      (rdaUlData == null
+          ? null
+          : const {
+              '_metadata': {
+                'reference_data_contract': {
+                  'reference_version': '5.0.0-2026-06-28',
+                  'semantic_fingerprint': 'sha256:active',
+                },
+              },
+            });
+  final resolvedRdaUlData = rdaUlData == null || appReferenceData != null
+      ? rdaUlData
+      : {
+          'reference_data_version': '5.0.0-2026-06-28',
+          'reference_data_fingerprint': 'sha256:active',
+          ...rdaUlData,
+        };
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -34,8 +54,9 @@ Future<void> _pump(
               'score_bonuses': bonuses,
               'score_penalties': penalties,
               'inactive_ingredients': inactives,
-              if (rdaUlData != null) 'rda_ul_data': rdaUlData,
+              if (resolvedRdaUlData != null) 'rda_ul_data': resolvedRdaUlData,
             },
+            appReferenceData: resolvedAppReferenceData,
           ),
         ),
       ),
@@ -144,6 +165,38 @@ void main() {
       );
 
       expect(find.text('Vitamin D3 exceeds the upper limit'), findsOneWidget);
+      expect(find.text('Vitamin D exceeds the upper limit'), findsNothing);
+    });
+
+    testWidgets('hedges instead of rendering a stale embedded UL verdict', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        appReferenceData: const {
+          '_metadata': {
+            'reference_data_contract': {
+              'reference_version': '5.0.0-2026-06-28',
+              'semantic_fingerprint': 'sha256:active',
+            },
+          },
+        },
+        rdaUlData: {
+          'reference_data_version': '5.0.0-2026-06-28',
+          'reference_data_fingerprint': 'sha256:stale',
+          'safety_flags': [
+            {
+              'nutrient': 'Vitamin D',
+              'amount': 125,
+              'unit': 'mcg',
+              'ul': 100,
+              'pct_ul': 125,
+            },
+          ],
+        },
+      );
+
+      expect(find.text('Upper-limit data needs an update'), findsOneWidget);
       expect(find.text('Vitamin D exceeds the upper limit'), findsNothing);
     });
 

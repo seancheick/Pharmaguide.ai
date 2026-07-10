@@ -61,16 +61,25 @@ void main() {
     required NutrientTier tier,
     String canonicalId = 'vit_d',
     String displayName = 'Vitamin D',
+    double totalAmount = 5000,
+    String unit = 'IU',
+    double? ul,
+    double? pctOfUl,
+    List<NutrientContribution> contributions = const <NutrientContribution>[],
+    bool ulIsFallback = false,
   }) {
     return NutrientStatus(
       total: NutrientTotal(
         canonicalId: canonicalId,
         displayName: displayName,
-        totalAmount: 5000,
-        unit: 'IU',
-        contributions: const <NutrientContribution>[],
+        totalAmount: totalAmount,
+        unit: unit,
+        contributions: contributions,
       ),
       tier: tier,
+      ul: ul,
+      pctOfUl: pctOfUl,
+      ulIsFallback: ulIsFallback,
     );
   }
 
@@ -227,13 +236,31 @@ void main() {
   });
 
   testWidgets(
-    'nutrient exceeds UL → title uses display name, body hints overage',
+    'nutrient exceeds UL → factual upper-limit alert with products and basis',
     (tester) async {
       final report = StackSafetyReport(
         nutrientStatuses: [
           makeNutrientStatus(
             tier: NutrientTier.exceedsUl,
             displayName: 'Vitamin D',
+            totalAmount: 125,
+            unit: 'mcg',
+            ul: 100,
+            pctOfUl: 125,
+            contributions: const [
+              NutrientContribution(
+                stackEntryId: 'one',
+                productName: 'O.N.E.',
+                amount: 50,
+                unit: 'mcg',
+              ),
+              NutrientContribution(
+                stackEntryId: 'calcium-k-d',
+                productName: 'Calcium K/D',
+                amount: 75,
+                unit: 'mcg',
+              ),
+            ],
           ),
         ],
       );
@@ -242,10 +269,13 @@ void main() {
       final banner = tester.widget<PGSeverityBanner>(
         find.byType(PGSeverityBanner),
       );
-      // exceedsUl maps to Severity.avoid → danger tone
-      expect(banner.tone, PGBannerTone.danger);
-      expect(banner.title, contains('Vitamin D'));
-      expect(banner.body, contains('exceeds upper limit'));
+      expect(banner.tone, PGBannerTone.caution);
+      expect(banner.title, 'Upper limit - Vitamin D');
+      expect(banner.body, contains('125 mcg/day'));
+      expect(banner.body, contains('125% of the 100 mcg upper limit'));
+      expect(banner.body, contains('O.N.E. (50 mcg/day)'));
+      expect(banner.body, contains('Calcium K/D (75 mcg/day)'));
+      expect(banner.body, contains('Dietary intake is not included'));
     },
   );
 

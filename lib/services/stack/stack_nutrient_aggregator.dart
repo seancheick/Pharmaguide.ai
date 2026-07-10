@@ -102,6 +102,9 @@ class StackNutrientAggregator {
       // row conflict and legitimately sum. Cross-product summing is
       // never affected.
       final compoundDuplicates = _compoundDuplicateRows(parsedRows);
+      final legacyDeclaredTotalDuplicates = _legacyDeclaredTotalDuplicateRows(
+        parsedRows,
+      );
 
       for (final parsed in parsedRows) {
         final row = parsed.row;
@@ -111,6 +114,8 @@ class StackNutrientAggregator {
         final displayName = parsed.displayName;
         final exclusionReason = compoundDuplicates.contains(parsed)
             ? NutrientExclusionReason.compoundFormDuplicate
+            : legacyDeclaredTotalDuplicates.contains(parsed)
+            ? NutrientExclusionReason.declaredTotalDuplicate
             : _exclusionReason(row, unit);
 
         final total = accum.putIfAbsent(
@@ -140,7 +145,9 @@ class StackNutrientAggregator {
           // Compound-form duplicates are a dedup decision, not a unit
           // problem — don't raise the unit-conflict flag for them.
           if (exclusionReason !=
-              NutrientExclusionReason.compoundFormDuplicate) {
+                  NutrientExclusionReason.compoundFormDuplicate &&
+              exclusionReason !=
+                  NutrientExclusionReason.declaredTotalDuplicate) {
             total.hasUnitConflict = true;
           }
           continue;
@@ -345,6 +352,87 @@ class StackNutrientAggregator {
       }
     }
     return duplicates;
+  }
+
+  /// Temporarily recognize pre-lineage blobs that duplicate a declared folate
+  /// DFE total as an L-5-MTHF re-derivation. This is intentionally narrow:
+  /// both rows must be in one product and canonical group, the retained row
+  /// must be a literal DFE label total, and the excluded row must be an
+  /// L-5-MTHF/methylfolate mass row converted to a near-identical DFE amount.
+  ///
+  /// Pipeline lineage fields supersede this compatibility guard once cached
+  /// detail blobs rotate.
+  static Set<_ParsedRow> _legacyDeclaredTotalDuplicateRows(
+    List<_ParsedRow> rows,
+  ) {
+    final byCanonical = <String, List<_ParsedRow>>{};
+    for (final row in rows) {
+      if (!row.canonicalId.contains('folate')) continue;
+      byCanonical.putIfAbsent(row.canonicalId, () => []).add(row);
+    }
+
+    final duplicates = <_ParsedRow>{};
+    for (final group in byCanonical.values) {
+      if (group.length < 2) continue;
+      final declaredTotals = group.where(_isLegacyDeclaredFolateTotal);
+      for (final declaredTotal in declaredTotals) {
+        for (final candidate in group) {
+          if (identical(candidate, declaredTotal)) continue;
+          if (_isMatchingLegacyFolateForm(
+            declaredTotal: declaredTotal,
+            candidate: candidate,
+          )) {
+            duplicates.add(candidate);
+          }
+        }
+      }
+    }
+    return duplicates;
+  }
+
+  static bool _isLegacyDeclaredFolateTotal(_ParsedRow row) {
+    final ingredient = (row.row['ingredient'] ?? row.displayName)
+        .toString()
+        .trim()
+        .toLowerCase();
+    final rawUnit = row.row['unit']?.toString().trim().toLowerCase() ?? '';
+    return ingredient == 'folate' && rawUnit.contains('dfe');
+  }
+
+  static bool _isMatchingLegacyFolateForm({
+    required _ParsedRow declaredTotal,
+    required _ParsedRow candidate,
+  }) {
+    final ingredient = (candidate.row['ingredient'] ?? candidate.displayName)
+        .toString()
+        .toLowerCase();
+    if (!ingredient.contains('mthf') && !ingredient.contains('methylfolate')) {
+      return false;
+    }
+
+    final rawUnit =
+        candidate.row['unit']?.toString().trim().toLowerCase() ?? '';
+    final convertedUnit =
+        candidate.row['converted_unit']?.toString().trim().toLowerCase() ?? '';
+    if (rawUnit.contains('dfe') || !convertedUnit.contains('dfe')) return false;
+
+    final original = asFiniteDouble(candidate.row['quantity']);
+    final converted = asFiniteDouble(candidate.row['converted_quantity']);
+    if (original == null ||
+        original <= 0 ||
+        converted == null ||
+        converted <= 0) {
+      return false;
+    }
+
+    final conversion = candidate.row['conversion_evidence'];
+    final factor = conversion is Map
+        ? asFiniteDouble(conversion['conversion_factor'])
+        : null;
+    if (factor == null || factor <= 1) return false;
+
+    final tolerance = declaredTotal.amount * 0.025;
+    return (converted - declaredTotal.amount).abs() <= tolerance;
   }
 }
 

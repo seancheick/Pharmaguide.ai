@@ -535,15 +535,15 @@ void main() {
       final rulesJson = {
         'timing_rules': [
           {
-            'id': 'iron_zinc',
-            'ingredient1': 'iron',
-            'ingredient2': 'zinc',
+            'id': 'timing_vitamin_e_vitamin_k_separate',
+            'ingredient1': 'vitamin e',
+            'ingredient2': 'vitamin k',
             'rule_type': 'separate',
-            'advice': 'Space higher-dose iron from zinc.',
+            'advice': 'Space high-dose vitamin E from vitamin K.',
             'separation_hours': 2,
             'score_impact': -2,
             'evidence_level': 'established',
-            'min_dose': {'ingredient': 'iron', 'mg': 25},
+            'min_dose': {'ingredient': 'vitamin e', 'mg': 180},
             'sources': <Map<String, String>>[],
           },
         ],
@@ -552,29 +552,36 @@ void main() {
       setUp(() => svc = TimingEvaluationService.fromJson(rulesJson));
 
       const both = {
-        'Iron': {'iron'},
-        'Zinc': {'zinc'},
+        'O.N.E. Multivitamin': {'vitamin_e'},
+        'Calcium K/D': {'vitamin_k'},
       };
 
       test('fires when the gated dose is at/above threshold', () {
         final results = svc.evaluateStack(
           supplementTags: both,
           medicationNames: [],
-          ingredientDosesMg: {'iron': 65},
+          ingredientDosesMg: {'vitamin_e': 180},
         );
-        expect(results.where((r) => r.ruleId == 'iron_zinc'), hasLength(1));
+        expect(
+          results.where(
+            (r) => r.ruleId == 'timing_vitamin_e_vitamin_k_separate',
+          ),
+          hasLength(1),
+        );
       });
 
       test('suppressed when the gated dose is below threshold', () {
         final results = svc.evaluateStack(
           supplementTags: both,
           medicationNames: [],
-          ingredientDosesMg: {'iron': 18},
+          ingredientDosesMg: {'vitamin_e': 20},
         );
         expect(
-          results.where((r) => r.ruleId == 'iron_zinc'),
+          results.where(
+            (r) => r.ruleId == 'timing_vitamin_e_vitamin_k_separate',
+          ),
           isEmpty,
-          reason: 'iron 18mg is below the 25mg competition threshold',
+          reason: 'vitamin E 20mg is below the 180mg threshold',
         );
       });
 
@@ -585,7 +592,9 @@ void main() {
           // no doses supplied
         );
         expect(
-          results.where((r) => r.ruleId == 'iron_zinc'),
+          results.where(
+            (r) => r.ruleId == 'timing_vitamin_e_vitamin_k_separate',
+          ),
           hasLength(1),
           reason: "can't prove it's below threshold → still surface it",
         );

@@ -684,6 +684,43 @@ void main() {
     });
   });
 
+  group('StackNutrientAggregator — legacy declared-total dedup', () {
+    test('O.N.E. folate regression keeps the declared 667 mcg DFE total', () {
+      // Live legacy blob shape for O.N.E. Multivitamin (DSLD 278011): the
+      // label-declared folate total and the nested L-5-MTHF component both
+      // normalize to DFE, but they describe one label source.
+      final stack = [
+        _productOf('one', 'O.N.E. Multivitamin', [
+          {
+            'ingredient': 'Folate',
+            'standard_name': 'Vitamin B9 (Folate)',
+            'quantity': 667,
+            'unit': 'mcg DFE',
+            'converted_quantity': 667,
+            'converted_unit': 'mcg DFE',
+            'per_day_max': 667,
+            'conversion_evidence': {'conversion_factor': 1},
+          },
+          {
+            'ingredient': 'L-5-MTHF',
+            'standard_name': 'Vitamin B9 (Folate)',
+            'quantity': 400,
+            'unit': 'mcg',
+            'converted_quantity': 680,
+            'converted_unit': 'mcg DFE',
+            'per_day_max': 680,
+            'conversion_evidence': {'conversion_factor': 1.7},
+          },
+        ]),
+      ];
+
+      final folate = aggregator.aggregate(stack).values.single;
+      expect(folate.totalAmount, 667);
+      expect(folate.unit, 'mcg dfe');
+      expect(folate.contributions, hasLength(1));
+    });
+  });
+
   group('StackNutrientAggregator — display name preference', () {
     test('keeps the longest display name across contributions', () {
       final stack = [

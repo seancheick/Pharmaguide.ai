@@ -158,13 +158,15 @@ class StackIntelligenceEngine {
         );
       } else if (entry is NutrientStatus) {
         final warning = entry.warning;
-        if (warning == null) continue;
+        if (warning == null && entry.tier != NutrientTier.exceedsUl) continue;
+        final hasUpperLimitDetail = entry.ul != null && entry.pctOfUl != null;
         out.add(
           StackIssue(
-            severity: entry.tier == NutrientTier.exceedsUl
-                ? Severity.avoid
-                : Severity.caution,
-            headline: warning,
+            severity: StackSafetyReport.severityForNutrient(entry),
+            headline:
+                entry.tier == NutrientTier.exceedsUl && hasUpperLimitDetail
+                ? StackSafetyReport.nutrientUpperLimitSummary(entry)
+                : warning!,
           ),
         );
       }
