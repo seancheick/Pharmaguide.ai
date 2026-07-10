@@ -33,7 +33,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -70,6 +70,12 @@ class UserDatabase extends _$UserDatabase {
         // only the UPC + aggregate counts; no user identifier. See the
         // privacy contract in failed_scans_table.dart.
         await m.createTable(failedScans);
+      }
+      if (from < 7) {
+        // v7: preserve terminal stack-sync failures locally so an unchanged
+        // row cannot retry and emit the same non-fatal crash on every sync
+        // trigger. A newer client_updated_at automatically re-enters it.
+        await m.addColumn(userStacksLocal, userStacksLocal.syncBlockedAt);
       }
     },
     beforeOpen: (details) async {

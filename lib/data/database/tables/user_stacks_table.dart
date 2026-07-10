@@ -33,6 +33,12 @@ class UserStacksLocal extends Table {
   DateTimeColumn get deletedAt => dateTime().named('deleted_at').nullable()();
   DateTimeColumn get syncedAt => dateTime().named('synced_at').nullable()();
 
+  /// A terminal remote integrity error blocks only this exact local version
+  /// from automatic retry. Any later edit updates [clientUpdatedAt] and
+  /// makes it eligible again.
+  DateTimeColumn get syncBlockedAt =>
+      dateTime().named('sync_blocked_at').nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 

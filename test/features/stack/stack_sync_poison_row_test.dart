@@ -16,6 +16,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   late UserDatabase db;
@@ -53,6 +54,42 @@ void main() {
   }
 
   group('pushRowsIndividually (poison-row isolation)', () {
+    test('classifies SQLSTATE integrity violations as terminal', () {
+      const uniqueViolation = PostgrestException(
+        message: 'duplicate key',
+        code: '23505',
+      );
+      const timeout = PostgrestException(
+        message: 'gateway timeout',
+        code: 'PGRST003',
+      );
+
+      expect(isTerminalStackSyncError(uniqueViolation), isTrue);
+      expect(isTerminalStackSyncError(timeout), isFalse);
+      expect(isTerminalStackSyncError(StateError('offline')), isFalse);
+    });
+
+    test(
+      'terminal row failure is returned as blocked, not retryable',
+      () async {
+        await insertRow('conflict');
+        final (rows, payload) = await dirtyWithPayload();
+
+        final outcome = await pushRowsIndividually(
+          payload: payload,
+          rows: rows,
+          upsertRow: (_) async => throw const PostgrestException(
+            message: 'duplicate key',
+            code: '23505',
+          ),
+        );
+
+        expect(outcome.succeeded, isEmpty);
+        expect(outcome.blocked.map((row) => row.id), ['conflict']);
+        expect(outcome.retryableFailedCount, 0);
+      },
+    );
+
     test('all rows succeeding → all marked pushed, zero failures', () async {
       await insertRow('a');
       await insertRow('b');

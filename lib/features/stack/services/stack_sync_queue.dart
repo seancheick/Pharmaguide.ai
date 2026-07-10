@@ -21,12 +21,12 @@
 // - **Push-only** for Sprint 5a. Pull / multi-device sync is a follow-up.
 // - **Offline-first**: every local write succeeds immediately; sync is
 //   best-effort and silently retries.
-// - **Idempotent**: uses `upsert(onConflict: 'id')` so re-running pushAll
-//   with the same dirty set produces no duplicates.
+// - **Idempotent**: uses the remote `(user_id, dsld_id)` state key, so a
+//   replacement local entry updates the same product rather than duplicating.
 // - **Auth-gated**: guest users skip sync entirely — their stack stays local.
-// - **LWW for writes**: whichever client pushes last wins. Pull-sync (when
-//   added) will use `server_updated_at` vs `client_updated_at` to detect
-//   stale local state.
+// - **LWW for writes**: the database accepts only the newest
+//   `client_updated_at` state. Pull-sync (when added) will use
+//   `server_updated_at` vs `client_updated_at` to detect stale local state.
 //
 // ## Trigger points
 // `StackSyncListener` auto-pushes on:
@@ -75,8 +75,103 @@ enum StackSyncStatus {
   /// Row is in sync with the remote.
   synced,
 
-  /// Last push failed — waiting for retry.
+  /// Last push failed — the row remains eligible for retry.
   failed,
+
+  /// A non-retryable integrity failure blocked this exact local version.
+  /// A subsequent local edit automatically makes the row eligible again.
+  blocked,
+}
+
+/// The remote state identity for a supplement. A client entry id is local
+/// history; a user can have only one current state for a DSLD product.
+const userStackUpsertConflictTarget = 'user_id,dsld_id';
+
+/// A coalesced remote sync batch. Local soft-delete history can contain more
+/// than one dirty row for the same product; only the newest state is sent.
+@visibleForTesting
+class StackSyncBatch {
+  final List<UserStacksLocalData> representativeRows;
+  final List<UserStacksLocalData> invalidRows;
+  final Map<String, List<UserStacksLocalData>> _rowsByRepresentativeId;
+
+  const StackSyncBatch({
+    required this.representativeRows,
+    required this.invalidRows,
+    required Map<String, List<UserStacksLocalData>> rowsByRepresentativeId,
+  }) : _rowsByRepresentativeId = rowsByRepresentativeId;
+
+  /// Every local history row superseded by [representativeId]. When the
+  /// representative succeeds, each of these rows has been represented by the
+  /// remote state and can stop retrying.
+  List<UserStacksLocalData> rowsRepresentedBy(String representativeId) {
+    return _rowsByRepresentativeId[representativeId] ??
+        const <UserStacksLocalData>[];
+  }
+
+  List<UserStacksLocalData> rowsRepresentedByAll(
+    Iterable<UserStacksLocalData> representatives,
+  ) {
+    return [
+      for (final representative in representatives)
+        ...rowsRepresentedBy(representative.id),
+    ];
+  }
+
+  List<UserStacksLocalData> get allRepresentedRows {
+    return rowsRepresentedByAll(representativeRows);
+  }
+}
+
+/// Collapses local product history to its newest state before a remote batch
+/// upsert. This prevents a delete-and-readd cycle from submitting two rows for
+/// the same remote `(user_id, dsld_id)` key.
+@visibleForTesting
+StackSyncBatch buildStackSyncBatch(List<UserStacksLocalData> rows) {
+  final rowsByProductId = <String, List<UserStacksLocalData>>{};
+  final invalidRows = <UserStacksLocalData>[];
+
+  for (final row in rows) {
+    final dsldId = row.dsldId;
+    if (dsldId == null || dsldId.trim().isEmpty) {
+      invalidRows.add(row);
+      continue;
+    }
+    (rowsByProductId[dsldId] ??= <UserStacksLocalData>[]).add(row);
+  }
+
+  final representatives = <UserStacksLocalData>[];
+  final rowsByRepresentativeId = <String, List<UserStacksLocalData>>{};
+  for (final productRows in rowsByProductId.values) {
+    final representative = productRows.reduce((latest, candidate) {
+      final isNewer = candidate.clientUpdatedAt.isAfter(latest.clientUpdatedAt);
+      final sameInstant = candidate.clientUpdatedAt.isAtSameMomentAs(
+        latest.clientUpdatedAt,
+      );
+      return isNewer || (sameInstant && candidate.id.compareTo(latest.id) > 0)
+          ? candidate
+          : latest;
+    });
+    representatives.add(representative);
+    rowsByRepresentativeId[representative.id] = productRows;
+  }
+  representatives.sort(
+    (a, b) => a.clientUpdatedAt.compareTo(b.clientUpdatedAt),
+  );
+
+  return StackSyncBatch(
+    representativeRows: List.unmodifiable(representatives),
+    invalidRows: List.unmodifiable(invalidRows),
+    rowsByRepresentativeId: Map.unmodifiable(rowsByRepresentativeId),
+  );
+}
+
+/// SQLSTATE class 23 is an integrity-constraint violation. Repeating the
+/// unchanged payload cannot repair it, so pause that local version until the
+/// user changes it or an app update changes its data contract.
+@visibleForTesting
+bool isTerminalStackSyncError(Object error) {
+  return error is PostgrestException && (error.code ?? '').startsWith('23');
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +195,11 @@ class StackSyncQueue {
             // Never sync medications (PHI)
             t.type.equals('medication').not() &
             // Either never synced, or edited since last sync
-            (t.syncedAt.isNull() | t.clientUpdatedAt.isBiggerThan(t.syncedAt)),
+            (t.syncedAt.isNull() | t.clientUpdatedAt.isBiggerThan(t.syncedAt)) &
+            // A terminal failure pauses only this exact local version. A
+            // later edit has a newer client timestamp and re-enters the queue.
+            (t.syncBlockedAt.isNull() |
+                t.clientUpdatedAt.isBiggerThan(t.syncBlockedAt)),
       )
       ..orderBy([
         (t) =>
@@ -118,7 +217,9 @@ class StackSyncQueue {
         (t) =>
             t.type.equals('medication').not() &
             t.deletedAt.isNotNull() &
-            (t.syncedAt.isNull() | t.clientUpdatedAt.isBiggerThan(t.syncedAt)),
+            (t.syncedAt.isNull() | t.clientUpdatedAt.isBiggerThan(t.syncedAt)) &
+            (t.syncBlockedAt.isNull() |
+                t.clientUpdatedAt.isBiggerThan(t.syncBlockedAt)),
       );
     return q.get();
   }
@@ -135,7 +236,8 @@ class StackSyncQueue {
   /// `synced_at` is set to each row's `client_updated_at` AS PUSHED (not
   /// `now`): an edit landing between the dirty-row read and this mark
   /// bumps `client_updated_at` past the recorded `synced_at`, so the row
-  /// stays dirty and the edit is pushed next cycle (no TOCTOU drop).
+  /// stays dirty and the edit is pushed next cycle (no TOCTOU drop). A
+  /// successful push also clears any older terminal-failure marker.
   Future<void> markSyncedAll(List<UserStacksLocalData> pushedRows) {
     if (pushedRows.isEmpty) return Future.value();
     return _db.transaction(() async {
@@ -143,7 +245,26 @@ class StackSyncQueue {
         await (_db.update(
           _db.userStacksLocal,
         )..where((t) => t.id.equals(row.id))).write(
-          UserStacksLocalCompanion(syncedAt: Value(row.clientUpdatedAt)),
+          UserStacksLocalCompanion(
+            syncedAt: Value(row.clientUpdatedAt),
+            syncBlockedAt: const Value(null),
+          ),
+        );
+      }
+    });
+  }
+
+  /// Pause rows whose unchanged payload cannot recover from a remote
+  /// integrity violation. This is deliberately separate from [markSyncedAll]:
+  /// the remote write did not succeed and must never be represented as synced.
+  Future<void> markBlockedAll(List<UserStacksLocalData> failedRows) {
+    if (failedRows.isEmpty) return Future.value();
+    return _db.transaction(() async {
+      for (final row in failedRows) {
+        await (_db.update(
+          _db.userStacksLocal,
+        )..where((t) => t.id.equals(row.id))).write(
+          UserStacksLocalCompanion(syncBlockedAt: Value(row.clientUpdatedAt)),
         );
       }
     });
@@ -164,6 +285,10 @@ class StackSyncQueue {
     if (row.type == 'medication') {
       // PHI — we never track sync status for these.
       return StackSyncStatus.synced;
+    }
+    if (row.syncBlockedAt != null &&
+        !row.clientUpdatedAt.isAfter(row.syncBlockedAt!)) {
+      return StackSyncStatus.blocked;
     }
     if (row.deletedAt != null) {
       if (row.syncedAt == null || row.clientUpdatedAt.isAfter(row.syncedAt!)) {
@@ -229,12 +354,20 @@ class PerRowPushOutcome {
   /// Rows whose individual upsert succeeded — safe to mark synced.
   final List<UserStacksLocalData> succeeded;
 
-  /// Number of rows whose individual upsert failed — they stay dirty.
-  final int failedCount;
+  /// Rows whose unchanged payload hit a terminal integrity failure and were
+  /// paused until their next local edit.
+  final List<UserStacksLocalData> blocked;
+
+  /// Number of rows that failed for a potentially transient reason and remain
+  /// eligible for the normal retry path.
+  final int retryableFailedCount;
+
+  int get failedCount => blocked.length + retryableFailedCount;
 
   const PerRowPushOutcome({
     required this.succeeded,
-    required this.failedCount,
+    required this.blocked,
+    required this.retryableFailedCount,
   });
 }
 
@@ -254,25 +387,34 @@ Future<PerRowPushOutcome> pushRowsIndividually({
   required List<Map<String, dynamic>> payload,
   required List<UserStacksLocalData> rows,
   required Future<void> Function(Map<String, dynamic> rowPayload) upsertRow,
-  void Function(Object error, StackTrace stackTrace, String rowId)?
-  onRowError,
+  bool Function(Object error) isTerminalFailure = isTerminalStackSyncError,
+  void Function(Object error, StackTrace stackTrace, String rowId)? onRowError,
 }) async {
   assert(
     payload.length == rows.length,
     'payload/rows must be index-aligned (${payload.length} vs ${rows.length})',
   );
   final succeeded = <UserStacksLocalData>[];
-  var failedCount = 0;
+  final blocked = <UserStacksLocalData>[];
+  var retryableFailedCount = 0;
   for (var i = 0; i < payload.length && i < rows.length; i++) {
     try {
       await upsertRow(payload[i]);
       succeeded.add(rows[i]);
     } on Object catch (error, stackTrace) {
-      failedCount++;
+      if (isTerminalFailure(error)) {
+        blocked.add(rows[i]);
+      } else {
+        retryableFailedCount++;
+      }
       onRowError?.call(error, stackTrace, rows[i].id);
     }
   }
-  return PerRowPushOutcome(succeeded: succeeded, failedCount: failedCount);
+  return PerRowPushOutcome(
+    succeeded: succeeded,
+    blocked: blocked,
+    retryableFailedCount: retryableFailedCount,
+  );
 }
 
 class StackSyncService {
@@ -387,10 +529,29 @@ class StackSyncService {
         return SyncResult.ok;
       }
 
+      final syncBatch = buildStackSyncBatch(dirty);
+      var hasTerminalFailure = false;
+      if (syncBatch.invalidRows.isNotEmpty) {
+        // Supplements are product-backed. An old/corrupt cache row without a
+        // DSLD identity cannot satisfy the remote state key, so do not retry
+        // the unchanged payload on every sync trigger.
+        await _queue.markBlockedAll(syncBatch.invalidRows);
+        hasTerminalFailure = true;
+        final error = StateError(
+          'StackSync supplement row lacks DSLD identity',
+        );
+        CrashReportingService().recordError(
+          error,
+          StackTrace.current,
+          fatal: false,
+          hint: 'stack_sync:missing_dsld_identity',
+        );
+      }
+
       // Build one batched payload instead of a per-row round-trip loop.
       final payload = <Map<String, dynamic>>[];
       final pushedRows = <UserStacksLocalData>[];
-      for (final row in dirty) {
+      for (final row in syncBatch.representativeRows) {
         // Belt-and-suspenders PHI check — never push medications even if
         // the upstream query helper changes someday.
         assert(
@@ -404,7 +565,7 @@ class StackSyncService {
       }
 
       if (payload.isEmpty) {
-        return SyncResult.ok;
+        return hasTerminalFailure ? SyncResult.failed : SyncResult.ok;
       }
 
       try {
@@ -413,13 +574,13 @@ class StackSyncService {
           upsert: () => retryWithBackoff(
             () => supabase
                 .from(SupabaseContract.userStacksTable)
-                .upsert(payload, onConflict: 'id'),
+                .upsert(payload, onConflict: userStackUpsertConflictTarget),
             timeout: const Duration(seconds: 10),
           ),
         );
-        // Rows are marked synced ONLY after the batch succeeds — on any
-        // failure every row keeps its dirty state for the next cycle.
-        await _queue.markSyncedAll(pushedRows);
+        // Rows are marked synced ONLY after the batch succeeds. Every local
+        // history row represented by this product state is then clean.
+        await _queue.markSyncedAll(syncBatch.allRepresentedRows);
       } on Object catch (batchError, batchStack) {
         // The batch is all-or-nothing, so ONE poisoned row (constraint /
         // RLS rejection) would otherwise wedge every other row forever —
@@ -436,7 +597,7 @@ class StackSyncService {
           rows: pushedRows,
           upsertRow: (rowPayload) => supabase
               .from(SupabaseContract.userStacksTable)
-              .upsert(rowPayload, onConflict: 'id')
+              .upsert(rowPayload, onConflict: userStackUpsertConflictTarget)
               .timeout(const Duration(seconds: 10)),
           // Row id only — never the row name/dosage (keep Sentry free of
           // stack contents; the id is an opaque uuid).
@@ -450,7 +611,12 @@ class StackSyncService {
             );
           },
         );
-        await _queue.markSyncedAll(outcome.succeeded);
+        await _queue.markSyncedAll(
+          syncBatch.rowsRepresentedByAll(outcome.succeeded),
+        );
+        await _queue.markBlockedAll(
+          syncBatch.rowsRepresentedByAll(outcome.blocked),
+        );
         if (outcome.failedCount > 0) {
           CrashReportingService().recordError(
             batchError,
@@ -458,12 +624,14 @@ class StackSyncService {
             fatal: false,
             hint: 'stack_sync:batched_upsert_failed',
           );
-          // Failing rows keep their dirty state for the next cycle.
+          // Retryable failures stay dirty. Integrity failures are paused
+          // until the local row changes, preventing a poison row from
+          // generating a non-fatal crash on every sync trigger.
           return SyncResult.failed;
         }
       }
 
-      return SyncResult.ok;
+      return hasTerminalFailure ? SyncResult.failed : SyncResult.ok;
     } on Object catch (e) {
       debugPrint('StackSync pushAll crashed: $e');
       return SyncResult.failed;

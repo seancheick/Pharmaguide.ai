@@ -72,12 +72,9 @@ class StackActions {
   final Ref _ref;
   StackActions(this._ref);
 
-  /// Generate the client-authoritative stack id. This id is the PRIMARY
-  /// KEY pushed to Supabase verbatim (`onConflict: 'id'`), so the remote
-  /// `user_stacks.id` column is `text`, NOT `uuid` — see
-  /// supabase/migrations/20260411_user_stacks.sql and the 20260614 drift
-  /// repair. The server never issues ids; `dsldId + microseconds` is
-  /// collision-proof for all realistic single-device uses.
+  /// Generate a client-local stack entry id. Sync preserves it remotely, but
+  /// resolves state by the authenticated user and DSLD product identity so a
+  /// replacement local entry cannot create a second active product row.
   String _newId(String? dsldId) {
     final base = dsldId ?? 'manual';
     return '${base}_${DateTime.now().microsecondsSinceEpoch}';
