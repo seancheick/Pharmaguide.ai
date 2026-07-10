@@ -7,6 +7,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 
 void main() {
@@ -179,7 +180,10 @@ void main() {
     );
 
     test('uses user and product identity as the remote upsert target', () {
-      expect(userStackUpsertConflictTarget, 'user_id,dsld_id');
+      expect(
+        SupabaseContract.userStacksProductConflictTarget,
+        'user_id,dsld_id',
+      );
     });
 
     test('a blocked tombstone is not counted as pending deletion', () async {

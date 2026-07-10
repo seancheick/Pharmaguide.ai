@@ -83,10 +83,6 @@ enum StackSyncStatus {
   blocked,
 }
 
-/// The remote state identity for a supplement. A client entry id is local
-/// history; a user can have only one current state for a DSLD product.
-const userStackUpsertConflictTarget = 'user_id,dsld_id';
-
 /// A coalesced remote sync batch. Local soft-delete history can contain more
 /// than one dirty row for the same product; only the newest state is sent.
 @visibleForTesting
@@ -574,7 +570,10 @@ class StackSyncService {
           upsert: () => retryWithBackoff(
             () => supabase
                 .from(SupabaseContract.userStacksTable)
-                .upsert(payload, onConflict: userStackUpsertConflictTarget),
+                .upsert(
+                  payload,
+                  onConflict: SupabaseContract.userStacksProductConflictTarget,
+                ),
             timeout: const Duration(seconds: 10),
           ),
         );
@@ -597,7 +596,10 @@ class StackSyncService {
           rows: pushedRows,
           upsertRow: (rowPayload) => supabase
               .from(SupabaseContract.userStacksTable)
-              .upsert(rowPayload, onConflict: userStackUpsertConflictTarget)
+              .upsert(
+                rowPayload,
+                onConflict: SupabaseContract.userStacksProductConflictTarget,
+              )
               .timeout(const Duration(seconds: 10)),
           // Row id only — never the row name/dosage (keep Sentry free of
           // stack contents; the id is an opaque uuid).

@@ -50,6 +50,10 @@ abstract final class SupabaseContract {
   /// User supplement/medication stack — synced between devices.
   static const userStacksTable = 'user_stacks';
 
+  /// Product-state identity used by every PostgREST user-stack upsert. The
+  /// database enforces this as a full UNIQUE constraint, not a partial index.
+  static const userStacksProductConflictTarget = 'user_id,dsld_id';
+
   // ---- RPC ----
 
   /// Atomically rotates the current manifest row.

@@ -21,6 +21,7 @@
 //
 // Run: flutter test test/data/database/interaction_database_test.dart
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -32,9 +33,9 @@ import 'package:pharmaguide/data/database/interaction_database.dart';
 // ---------------------------------------------------------------------------
 // Stable fixtures from the current bundled interaction_db.sqlite.
 //
-// These constants describe rows the M2 pipeline ships today. The bundle is
-// deterministic, so they don't drift between test runs — they only need
-// updating when the curated drafts list changes.
+// The count comes from the pipeline-emitted manifest bundled beside the
+// database. The app test verifies that the two artifacts agree rather than
+// carrying a second handwritten count that can drift after a valid release.
 // ---------------------------------------------------------------------------
 
 /// Curated row id for calcium ↔ iron — supplement-on-supplement, severity
@@ -45,13 +46,6 @@ const _calciumIronInteractionId = 'SSI_IRON_CALCIUM';
 /// the class-as-agent shape: agent1_type='drug_class', agent1_id matches
 /// the class id, agent1_drug_class is null.
 const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
-
-/// Number of live (non-tombstoned) interaction rows in the current bundle.
-/// Updated from 20 (golden fixture) → 128 (full curated v1.0.0) → 136
-/// (27 rule fixes in c23d044) → 138 (vinpocetine + horse chestnut
-/// anticoagulant release gates) → 148 (food-advisory schema bundle)
-/// → 149 (MAOI × CNS stimulants) → 150 (interaction DB v1.0.2).
-const _expectedLiveInteractionCount = 150;
 
 /// Pipeline-built drug classes that the current bundle ships.
 /// v1.0.1 has 22 classes with curated interaction rows.
@@ -85,8 +79,16 @@ void main() {
 
   late Directory tempDir;
   late InteractionDatabase db;
+  late int expectedLiveInteractionCount;
 
   setUpAll(() async {
+    final manifest = jsonDecode(
+      await rootBundle.loadString('assets/db/interaction_db_manifest.json'),
+    );
+    expect(manifest, isA<Map<String, dynamic>>());
+    expectedLiveInteractionCount =
+        (manifest as Map<String, dynamic>)['total_interactions'] as int;
+
     // Materialize the bundled asset to a temp file. NativeDatabase cannot
     // open from in-memory ByteData; we follow the same pattern as
     // bundled_catalog_test.dart.
@@ -113,10 +115,10 @@ void main() {
         final count = await db.countLiveInteractions();
         expect(
           count,
-          _expectedLiveInteractionCount,
+          expectedLiveInteractionCount,
           reason:
-              'If this fails, the curated drafts list changed — update '
-              '_expectedLiveInteractionCount and the fixture constants.',
+              'The bundled interaction database must match the manifest '
+              'emitted by the pipeline for this release.',
         );
       },
     );
@@ -124,14 +126,14 @@ void main() {
     test('countCuratedInteractions equals the live count for the current '
         'bundle (every shipped row is source=curated today)', () async {
       // Verified against the bundle: SELECT source, count(*) FROM
-      // interactions GROUP BY source → curated|150. If a future
+      // interactions GROUP BY source matches the release manifest today. If a future
       // bundle ships machine-extracted (suppai) rows, the curated
       // count must drop below the live count — see the in-memory
       // source-filter test below.
       final curated = await db.countCuratedInteractions();
       final live = await db.countLiveInteractions();
       expect(curated, live);
-      expect(curated, _expectedLiveInteractionCount);
+      expect(curated, expectedLiveInteractionCount);
     });
 
     test('every live row has a non-empty severity', () async {
@@ -387,7 +389,7 @@ void main() {
       final meta = await db.getMetadata();
       expect(meta.schemaVersion, '1.0.0');
       expect(meta.builtAt, isNotEmpty);
-      expect(meta.totalInteractions, _expectedLiveInteractionCount);
+      expect(meta.totalInteractions, expectedLiveInteractionCount);
       expect(meta.sourceDraftsCount, greaterThan(0));
       expect(meta.sourceSuppaiCount, greaterThan(0));
       expect(meta.overrideCount, greaterThanOrEqualTo(0));
