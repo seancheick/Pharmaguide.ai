@@ -21,25 +21,24 @@
 --   `server_updated_at` is set by a BEFORE trigger and is what clients
 --   compare against for pull sync (not implemented in Sprint 5a — push-only).
 -- =============================================================================
--- ⚠️ LIVE DIVERGENCE — audited 2026-06-14 (project omayamxacvacrnvdvzhr).
--- This file is the IDEALIZED contract. The deployed user_stacks was actually
--- built by an earlier untracked migration + remote migration
+-- ⚠️ LEGACY SNAPSHOT — do not apply this file as a fresh bootstrap.
+-- It records the original, untracked Sprint 5a shape. The deployed
+-- user_stacks was actually built by an earlier untracked migration + remote migration
 -- `20260415204654 add_missing_user_stacks_columns` (renamed timing→frequency,
--- added type/name/ingredient_keys, made dsld_id nullable) — a different lineage
--- than this file. Benign differences on live vs this file:
+-- added type/name/ingredient_keys, made dsld_id nullable), a different lineage
+-- than this snapshot. Its historical differences include:
 --   * live has extra nullable cols `supply_count`, `source_device_id` (the
 --     client never reads or writes them);
 --   * live uses `updated_at` + trigger `user_stacks_updated_at` (→ set_updated_at)
 --     instead of this file's `server_updated_at` + trg_user_stacks_server_updated_at.
--- The client upsert payload (id, user_id, type, name, dsld_id, ingredient_keys,
--- dosage, frequency, added_at, client_updated_at, deleted_at) is satisfied by
--- BOTH shapes, so there is no app-crash drift.
--- The medication-PHI backstops (CHECK type='supplement' + RLS WITH CHECK) were
--- MISSING on live and are restored by 20260614_user_stacks_phi_backstops.sql.
--- This Supabase project is SHARED with the data pipeline (dsld_clean), which
--- owns export_manifest, catalog_releases, user_usage, pending_products, and the
--- increment_usage / rotate_manifest / rls_auto_enable functions. Do NOT add
--- those objects to THIS repo's migrations — they belong to the pipeline repo.
+-- The current authority is explicit and disjoint:
+--   * Flutter migration 20260710210013 owns user_stacks, user_usage,
+--     pending_products, and increment_usage.
+--   * dsld_clean owns export_manifest, catalog_releases, rotate_manifest, and
+--     the database-wide default client-access baseline.
+-- The medication-PHI backstops are restored by
+-- 20260614_user_stacks_phi_backstops.sql, then hardened by the current
+-- app-data authority migration. Do not use this snapshot to infer live shape.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS public.user_stacks (

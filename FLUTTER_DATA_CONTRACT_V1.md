@@ -10,8 +10,10 @@ App persistence layout:
 - `user_data.db` — local read/write DB for `product_detail_cache`, `user_profile`,
   `user_scan_history`, `user_stacks_local`, and `user_favorites`.
 
-No health profile, medication, condition, allergy, stack, or FitScore data is sent
-to Supabase. FitScore is computed fresh on-device from the loaded profile.
+No health profile, medication, condition, allergy, or FitScore data is sent to
+Supabase. Signed-in users may sync supplement-only stack rows for account
+continuity; medication rows never sync. FitScore is computed fresh on-device
+from the loaded profile.
 
 ## Production Score Contract
 

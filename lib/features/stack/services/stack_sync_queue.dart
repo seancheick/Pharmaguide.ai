@@ -15,7 +15,8 @@
 //      before pushing (belt and suspenders)
 //   3. Supabase `user_stacks` table has a CHECK (type = 'supplement')
 //      constraint and an RLS policy `users_can_insert_own_supplements`
-//      that rejects anything else. See `supabase/migrations/20260411_user_stacks.sql`.
+//      that rejects anything else. See
+//      `supabase/migrations/20260710210013_app_data_schema_authority_and_access.sql`.
 //
 // ## Sync model
 // - **Push-only** for Sprint 5a. Pull / multi-device sync is a follow-up.
@@ -26,7 +27,8 @@
 // - **Auth-gated**: guest users skip sync entirely — their stack stays local.
 // - **LWW for writes**: the database accepts only the newest
 //   `client_updated_at` state. Pull-sync (when added) will use
-//   `server_updated_at` vs `client_updated_at` to detect stale local state.
+//   server-maintained `updated_at` with `client_updated_at` to detect stale
+//   local state.
 //
 // ## Trigger points
 // `StackSyncListener` auto-pushes on:
