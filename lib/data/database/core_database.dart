@@ -366,9 +366,11 @@ class CoreDatabase extends _$CoreDatabase {
   Future<List<ProductsCoreData>> searchProducts(
     String query, {
     int limit = 50,
+    int offset = 0,
   }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
+    final safeOffset = offset < 0 ? 0 : offset;
 
     // Try FTS5 first — dramatically faster and dedup-aware.
     try {
@@ -395,8 +397,12 @@ class CoreDatabase extends _$CoreDatabase {
         'WHERE products_fts MATCH ? '
         'ORDER BY rank, '
         '         COALESCE(p.quality_score_v4_100, 0) DESC '
-        'LIMIT ?',
-        variables: [Variable.withString(ftsQuery), Variable.withInt(limit)],
+        'LIMIT ? OFFSET ?',
+        variables: [
+          Variable.withString(ftsQuery),
+          Variable.withInt(limit),
+          Variable.withInt(safeOffset),
+        ],
         readsFrom: {productsCore},
       ).get();
 
@@ -424,12 +430,15 @@ class CoreDatabase extends _$CoreDatabase {
           'product_name LIKE ? OR brand_name LIKE ? OR ingredients_text LIKE ?',
           [pattern, pattern, pattern],
           limit,
+          safeOffset,
         );
       } on Exception {
-        return _likeFallback('product_name LIKE ? OR brand_name LIKE ?', [
-          pattern,
-          pattern,
-        ], limit);
+        return _likeFallback(
+          'product_name LIKE ? OR brand_name LIKE ?',
+          [pattern, pattern],
+          limit,
+          safeOffset,
+        );
       }
     }
   }
@@ -438,15 +447,17 @@ class CoreDatabase extends _$CoreDatabase {
     String whereClause,
     List<String> patterns,
     int limit,
+    int offset,
   ) async {
     final rows = await customSelect(
       'SELECT * FROM products_core '
       'WHERE $whereClause '
       'ORDER BY COALESCE(quality_score_v4_100, 0) DESC '
-      'LIMIT ?',
+      'LIMIT ? OFFSET ?',
       variables: [
         for (final p in patterns) Variable.withString(p),
         Variable.withInt(limit),
+        Variable.withInt(offset),
       ],
       readsFrom: {productsCore},
     ).get();

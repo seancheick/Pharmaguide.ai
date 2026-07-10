@@ -46,6 +46,9 @@ void main() {
     String brandName = 'V2 Brand',
     String primaryCategory = 'magnesium',
     double score = 86,
+    double mappedCoverage = 0.9,
+    double? netContentsQuantity,
+    String? netContentsUnit,
   }) async {
     await coreDb
         .into(coreDb.productsCore)
@@ -56,7 +59,13 @@ void main() {
             brandName: drift.Value(brandName),
             primaryCategory: drift.Value(primaryCategory),
             score100Equivalent: drift.Value(score),
-            verdict: const drift.Value('GOOD'),
+            qualityScoreV4100: drift.Value(score),
+            qualityScoreStatus: const drift.Value('scored'),
+            mappedCoverage: drift.Value(mappedCoverage),
+            verdict: const drift.Value('SAFE'),
+            productStatus: const drift.Value('active'),
+            netContentsQuantity: drift.Value(netContentsQuantity),
+            netContentsUnit: drift.Value(netContentsUnit),
             exportVersion: 'test',
             exportedAt: '2026-05-18T00:00:00Z',
           ),
@@ -396,6 +405,72 @@ void main() {
 
     expect(find.text('Suggested Searches'), findsOneWidget);
     expect(recents.addCount, 1);
+  });
+
+  testWidgets('query results page in more products when scrolled to bottom', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final coreDb = CoreDatabase.memory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+    });
+
+    for (var i = 1; i <= 25; i++) {
+      await seedSearchProduct(
+        coreDb,
+        dsldId: 'magnesium-page-${i.toString().padLeft(2, '0')}',
+        productName: 'Magnesium Search Result ${i.toString().padLeft(2, '0')}',
+        brandName: 'Paging Brand',
+        score: 90 - (i / 10),
+        netContentsQuantity: 120,
+        netContentsUnit: 'capsules',
+      );
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          recentSearchesServiceProvider.overrideWithValue(
+            _FakeRecentSearchesService(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: SearchV2Screen(initialQuery: 'magnesium'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump();
+
+    expect(find.text('Magnesium Search Result 01'), findsOneWidget);
+    expect(find.text('120 capsules'), findsWidgets);
+    expect(find.text('Magnesium Search Result 21'), findsNothing);
+
+    await tester.scrollUntilVisible(
+      find.text('Loading more'),
+      500,
+      scrollable: _verticalScrollable(),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.scrollUntilVisible(
+      find.text('Magnesium Search Result 21'),
+      500,
+      scrollable: _verticalScrollable(),
+    );
+
+    expect(find.text('Magnesium Search Result 21'), findsOneWidget);
   });
 }
 

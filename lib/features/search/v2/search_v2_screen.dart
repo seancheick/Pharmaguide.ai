@@ -70,6 +70,8 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 
+const _searchGridChildAspectRatio = 0.54;
+
 class SearchV2Screen extends ConsumerStatefulWidget {
   final String? initialCategory;
   final String? initialQuery;
@@ -81,15 +83,20 @@ class SearchV2Screen extends ConsumerStatefulWidget {
 }
 
 class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
+  static const _searchPageSize = 20;
+
   // ───────── controllers + ephemeral state ─────────
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _resultsScrollController = ScrollController();
 
   String _query = '';
   String? _activeCategory;
   List<ProductsCoreData>? _results;
   List<ProductsCoreData> _featuredProducts = const [];
   bool _loading = false;
+  bool _loadingMore = false;
+  bool _hasMoreResults = false;
   bool _isGridView = false;
 
   /// True once the current query has been committed — keyboard submit,
@@ -109,6 +116,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   void initState() {
     super.initState();
     _focusNode.addListener(() => setState(() {}));
+    _resultsScrollController.addListener(_maybeLoadMoreResults);
     _activeCategory = widget.initialCategory;
     _loadRecentSearches();
     _loadFeaturedProducts();
@@ -168,6 +176,8 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
       setState(() {
         _results = results;
         _loading = false;
+        _loadingMore = false;
+        _hasMoreResults = false;
       });
     } on Exception {
       if (version != _searchVersion) return;
@@ -175,6 +185,8 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
       setState(() {
         _results = <ProductsCoreData>[];
         _loading = false;
+        _loadingMore = false;
+        _hasMoreResults = false;
       });
     }
   }
@@ -184,6 +196,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     _debounce?.cancel();
     _controller.dispose();
     _focusNode.dispose();
+    _resultsScrollController.dispose();
     super.dispose();
   }
 
@@ -195,12 +208,16 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
       _committed = false;
       if (value.trim().isNotEmpty) _activeCategory = null;
       _activeCategoryChip = null;
+      _loadingMore = false;
+      _hasMoreResults = false;
     });
 
     if (value.trim().isEmpty) {
       setState(() {
         _results = _activeCategory == null ? null : _results;
         _loading = false;
+        _loadingMore = false;
+        _hasMoreResults = false;
       });
       if (_activeCategory != null && _activeCategory!.isNotEmpty) {
         _loadCategoryResults(_activeCategory!);
@@ -231,13 +248,20 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     final version = ++_searchVersion;
     final db = ref.read(coreDatabaseProvider);
     try {
-      final results = await db.searchProducts(query, limit: 50);
+      final results = await db.searchProducts(query, limit: _searchPageSize);
       if (version != _searchVersion) return;
       if (!mounted) return;
       setState(() {
         _results = results;
         _loading = false;
+        _loadingMore = false;
+        _hasMoreResults = results.length == _searchPageSize;
       });
+      if (_resultsScrollController.hasClients) {
+        _resultsScrollController.jumpTo(
+          _resultsScrollController.position.minScrollExtent,
+        );
+      }
       // Recents are recorded only on commit (submit / suggestion tap /
       // result open) — never on debounce ticks while typing.
       if (recordRecent && results.isNotEmpty) {
@@ -250,6 +274,46 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
       setState(() {
         _results = <ProductsCoreData>[];
         _loading = false;
+        _loadingMore = false;
+        _hasMoreResults = false;
+      });
+    }
+  }
+
+  void _maybeLoadMoreResults() {
+    if (!_resultsScrollController.hasClients) return;
+    if (_resultsScrollController.position.extentAfter > 520) return;
+    unawaited(_loadMoreSearchResults());
+  }
+
+  Future<void> _loadMoreSearchResults() async {
+    final q = _query.trim();
+    if (q.isEmpty || _loading || _loadingMore || !_hasMoreResults) return;
+    final currentResults = _results;
+    if (currentResults == null || currentResults.isEmpty) return;
+
+    final version = _searchVersion;
+    setState(() => _loadingMore = true);
+    final db = ref.read(coreDatabaseProvider);
+    try {
+      final next = await db.searchProducts(
+        q,
+        limit: _searchPageSize,
+        offset: currentResults.length,
+      );
+      if (version != _searchVersion || q != _query.trim()) return;
+      if (!mounted) return;
+      setState(() {
+        _results = [...currentResults, ...next];
+        _loadingMore = false;
+        _hasMoreResults = next.length == _searchPageSize;
+      });
+    } on Exception {
+      if (version != _searchVersion) return;
+      if (!mounted) return;
+      setState(() {
+        _loadingMore = false;
+        _hasMoreResults = false;
       });
     }
   }
@@ -292,6 +356,8 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
       _activeCategory = null;
       _activeFilter = _SearchFilter.all;
       _activeCategoryChip = null;
+      _loadingMore = false;
+      _hasMoreResults = false;
     });
     _focusNode.requestFocus();
   }
@@ -539,6 +605,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         ? partition.onMarket
         : partition.offMarket;
     return ListView(
+      controller: _resultsScrollController,
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         V2Spacing.space24,
@@ -566,7 +633,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         const _SearchSectionTitle('Suggested Products'),
         const SizedBox(height: V2Spacing.space16),
         _ProductPreviewGrid(
-          products: products.take(8),
+          products: products,
           onProductOpen: _recordResultOpen,
         ),
         if (partition.offMarket.isNotEmpty &&
@@ -582,6 +649,8 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
             onProductOpen: _recordResultOpen,
           ),
         ],
+        if (_hasMoreResults || _loadingMore)
+          _LoadingMoreFooter(loading: _loadingMore),
       ],
     );
   }
@@ -666,7 +735,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: V2Spacing.space12,
                 mainAxisSpacing: V2Spacing.space12,
-                childAspectRatio: 0.85,
+                childAspectRatio: _searchGridChildAspectRatio,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, i) =>
@@ -695,7 +764,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: V2Spacing.space12,
                 mainAxisSpacing: V2Spacing.space12,
-                childAspectRatio: 0.85,
+                childAspectRatio: _searchGridChildAspectRatio,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, i) => Opacity(
@@ -1295,7 +1364,7 @@ class _ProductPreviewGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: V2Spacing.space12,
         mainAxisSpacing: V2Spacing.space12,
-        childAspectRatio: 0.82,
+        childAspectRatio: _searchGridChildAspectRatio,
       ),
       itemBuilder: (context, index) => _SearchProductGridTile(
         product: products[index],
@@ -1475,6 +1544,47 @@ class _LoadingList extends StatelessWidget {
   }
 }
 
+class _LoadingMoreFooter extends StatelessWidget {
+  final bool loading;
+
+  const _LoadingMoreFooter({required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: V2Spacing.space24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (loading)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: V2Colors.fgSubtle,
+              ),
+            )
+          else
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                border: Border.all(color: V2Colors.fgSubtle, width: 1.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          const SizedBox(width: V2Spacing.space12),
+          Text(
+            'Loading more',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // =============================================================================
 // Search result cards — local v2 surfaces, same product-detail route contract.
 // =============================================================================
@@ -1607,60 +1717,127 @@ class _SearchProductGridTile extends StatelessWidget {
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
         : '';
+    final packSizeLabel = _packSizeLabel(product);
 
     return Semantics(
       button: true,
       label:
           '${product.productName}$brandLabel$scoreLabel. Tap to view details.',
-      child: Material(
-        color: V2Colors.surface,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        child: InkWell(
-          onTap: () {
-            onOpen?.call();
-            context.push('${Routes.product}/${product.dsldId}');
-          },
+      child: Container(
+        decoration: BoxDecoration(
+          color: V2Colors.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          child: Container(
-            padding: const EdgeInsets.all(V2Spacing.space12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
-              boxShadow: V2Shadows.sm,
-            ),
+          border: Border.all(color: V2Colors.outline),
+          boxShadow: V2Shadows.sm,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: InkWell(
+            onTap: () {
+              onOpen?.call();
+              context.push('${Routes.product}/${product.dsldId}');
+            },
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    _SearchProductImage(product: product, size: 48),
-                    const Spacer(),
-                    if (scoreChip == SearchScoreChipDisplay.tierScore)
-                      _ScoreChip(score: score!),
-                    if (scoreChip == SearchScoreChipDisplay.limitedData)
-                      const _LimitedDataChip(),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  product.productName,
-                  style: V2Typography.label(color: V2Colors.fg),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (product.brandName?.trim().isNotEmpty == true) ...[
-                  const SizedBox(height: V2Spacing.space4),
-                  Text(
-                    product.brandName!,
-                    style: V2Typography.caption(color: V2Colors.fgMuted),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                AspectRatio(
+                  aspectRatio: 1.18,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: V2Colors.surfaceContainerHighest.withValues(
+                              alpha: 0.42,
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(V2Spacing.radiusCard),
+                            ),
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final imageSize =
+                                  (constraints.biggest.shortestSide -
+                                          V2Spacing.space24)
+                                      .clamp(76.0, 132.0)
+                                      .toDouble();
+                              return Center(
+                                child: _SearchProductImage(
+                                  product: product,
+                                  size: imageSize,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: V2Spacing.space8,
+                        right: V2Spacing.space8,
+                        child: switch (scoreChip) {
+                          SearchScoreChipDisplay.tierScore => _ScoreChip(
+                            score: score!,
+                          ),
+                          SearchScoreChipDisplay.limitedData =>
+                            const _LimitedDataChip(),
+                          SearchScoreChipDisplay.hidden =>
+                            const SizedBox.shrink(),
+                        },
+                      ),
+                    ],
                   ),
-                ],
-                if (showVerdictChip) ...[
-                  const SizedBox(height: V2Spacing.space8),
-                  _VerdictChip(label: product.verdict!),
-                ],
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      V2Spacing.space12,
+                      V2Spacing.space12,
+                      V2Spacing.space12,
+                      V2Spacing.space12,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (product.brandName?.trim().isNotEmpty == true) ...[
+                          Text(
+                            product.brandName!,
+                            style: V2Typography.caption(
+                              color: V2Colors.fgMuted,
+                            ).copyWith(letterSpacing: 0),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: V2Spacing.space4),
+                        ],
+                        Text(
+                          product.productName,
+                          style: V2Typography.label(
+                            color: V2Colors.fg,
+                          ).copyWith(letterSpacing: 0),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (packSizeLabel != null) ...[
+                          const SizedBox(height: V2Spacing.space8),
+                          Text(
+                            packSizeLabel,
+                            style: V2Typography.bodySm(
+                              color: V2Colors.fgMuted,
+                            ).copyWith(letterSpacing: 0),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        if (showVerdictChip) ...[
+                          const Spacer(),
+                          _VerdictChip(label: product.verdict!),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -2018,6 +2195,23 @@ String _formatCategoryLabel(String category) {
     },
   ).toList();
   return parts.join(' ');
+}
+
+String? _packSizeLabel(ProductsCoreData product) {
+  final quantity = product.netContentsQuantity;
+  final rawUnit = product.netContentsUnit?.trim();
+  if (quantity == null || rawUnit == null || rawUnit.isEmpty) return null;
+
+  final quantityLabel = quantity == quantity.roundToDouble()
+      ? quantity.round().toString()
+      : quantity.toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
+  final unitLabel = rawUnit
+      .replaceAll('(s)', quantity == 1 ? '' : 's')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .toLowerCase();
+  if (unitLabel.isEmpty) return quantityLabel;
+  return '$quantityLabel $unitLabel';
 }
 
 // Score-chip color uses the canonical quality-tier palette from
