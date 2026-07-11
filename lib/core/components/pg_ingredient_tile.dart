@@ -51,13 +51,18 @@ class PGActiveIngredientTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final i = ingredient;
+    final needsReview = i.identityNeedsReview;
+    // Unresolved identity: the row shows only its literal label and a calm
+    // review note — every quality/dose/safety claim is hidden even if a stale
+    // typed model still carries one (defense-in-depth).
     final showChips =
-        i.formQuality != FormQuality.unknown ||
-        i.doseCallOut != DoseCallOut.withinLimits ||
-        i.isSafetyConcern ||
-        i.isInferredFromLabel;
-    final hasDose = i.dose != null && i.dose!.isNotEmpty;
-    final hasForm = i.formLabel != null && i.formLabel!.isNotEmpty;
+        !needsReview &&
+        (i.formQuality != FormQuality.unknown ||
+            i.doseCallOut != DoseCallOut.withinLimits ||
+            i.isSafetyConcern ||
+            i.isInferredFromLabel);
+    final hasDose = !needsReview && i.dose != null && i.dose!.isNotEmpty;
+    final hasForm = !needsReview && i.formLabel != null && i.formLabel!.isNotEmpty;
 
     return Column(
       children: [
@@ -100,10 +105,18 @@ class PGActiveIngredientTile extends StatelessWidget {
                         ),
                     ],
                   ),
-                  if (hasForm) ...[
+                  if (needsReview) ...[
                     const SizedBox(height: 2),
                     Text(
-                      i.formLabel!.toLowerCase(),
+                      'Identity needs review',
+                      style: V2Typography.caption(color: V2Colors.fgSubtle),
+                    ),
+                  ] else if (hasForm) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      // Casing preserved verbatim — the label-native form
+                      // ("as Ethyl Esters") must not collapse to lower case.
+                      i.formLabel!,
                       style: V2Typography.caption(color: V2Colors.fgMuted),
                     ),
                   ],
