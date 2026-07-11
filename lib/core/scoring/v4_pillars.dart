@@ -50,13 +50,13 @@ String v4PillarStatusLabel(V4PillarStatus status) => switch (status) {
 };
 
 /// One pipeline-authored explanation fact for a pillar. Pure display data —
-/// the pipeline owns the copy; the app renders [display] verbatim and never
+/// the pipeline owns the copy; the app renders [valueDisplay] verbatim and never
 /// synthesizes rationale of its own.
 class V4PillarFact {
   /// Stable fact id, e.g. `epa_dha_per_day`.
   final String id;
 
-  /// Short label, e.g. "EPA + DHA per day". Empty when the blob omits it.
+  /// Short label, e.g. "EPA + DHA per day". Never empty.
   final String label;
 
   /// Consumer-ready value string from the pipeline contract's `value_display`,
@@ -64,7 +64,15 @@ class V4PillarFact {
   /// as malformed).
   final String valueDisplay;
 
-  const V4PillarFact({required this.id, required this.label, required this.valueDisplay});
+  /// Optional pipeline-authored context for the fact.
+  final String? detail;
+
+  const V4PillarFact({
+    required this.id,
+    required this.label,
+    required this.valueDisplay,
+    this.detail,
+  });
 }
 
 /// One parsed v4 pillar value — pure data, no widget types.
@@ -152,7 +160,7 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
 /// Parse a pillar's `explanation` block into facts. Only `schema_version == 1`
 /// is honored; any other version (or a missing/malformed block) yields no
 /// facts, keeping old blobs valid. Each fact must carry a non-empty `id` and
-/// `display`; malformed facts are dropped individually, and pipeline strings
+/// `value_display`; malformed facts are dropped individually, and pipeline strings
 /// are preserved verbatim.
 List<V4PillarFact> _parseFacts(Object? explanation) {
   if (explanation is! Map) return const [];
@@ -163,11 +171,25 @@ List<V4PillarFact> _parseFacts(Object? explanation) {
   for (final rf in rawFacts) {
     if (rf is! Map) continue;
     final id = rf['id'] is String ? (rf['id'] as String).trim() : '';
-    final valueDisplay =
-        rf['value_display'] is String ? (rf['value_display'] as String).trim() : '';
-    if (id.isEmpty || valueDisplay.isEmpty) continue;
-    final label = rf['label'] is String ? (rf['label'] as String).trim() : '';
-    out.add(V4PillarFact(id: id, label: label, valueDisplay: valueDisplay));
+    final label = rf['label'] is String ? rf['label'] as String : '';
+    final valueDisplay = rf['value_display'] is String
+        ? rf['value_display'] as String
+        : '';
+    if (id.isEmpty || label.trim().isEmpty || valueDisplay.trim().isEmpty) {
+      continue;
+    }
+    final rawDetail = rf['detail'];
+    final detail = rawDetail is String && rawDetail.trim().isNotEmpty
+        ? rawDetail
+        : null;
+    out.add(
+      V4PillarFact(
+        id: id,
+        label: label,
+        valueDisplay: valueDisplay,
+        detail: detail,
+      ),
+    );
   }
   return out;
 }
