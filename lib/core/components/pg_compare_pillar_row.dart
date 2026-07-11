@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
+import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -76,6 +77,17 @@ class PGComparePillarRow extends StatelessWidget {
             color: score == null ? V2Colors.fgSubtle : tone,
           ),
         ),
+        // Shared presentation status (Strong / Mixed / Limited) beside the
+        // score — the SAME statusForPillar thresholds the score card uses, so
+        // Compare and the breakdown never disagree. Hidden for a null score,
+        // which reads as "no data" (em dash), not "Limited".
+        if (score != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            v4PillarStatusLabel(statusForPillar(score, max)),
+            style: V2Typography.caption(color: tone),
+          ),
+        ],
       ],
     );
   }

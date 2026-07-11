@@ -17,6 +17,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
+import 'package:pharmaguide/core/components/pg_compare_pillar_row.dart';
 import 'package:pharmaguide/features/compare/compare_providers.dart';
 import 'package:pharmaguide/features/compare/compare_screen.dart';
 
@@ -394,5 +395,48 @@ void main() {
     expect(find.textContaining('verified catalog'), findsNothing);
 
     await tearDownDbs(tester);
+  });
+
+  group('PGComparePillarRow status parity', () {
+    Widget wrap(Widget child) =>
+        MaterialApp(home: Scaffold(body: child));
+
+    testWidgets('shows Strong/Mixed from the shared statusForPillar thresholds '
+        '(13.9/20 is Mixed, matching the score card)', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          const PGComparePillarRow(
+            label: 'Formulation',
+            maxA: 20,
+            maxB: 20,
+            scoreA: 17.0, // 85% → Strong
+            scoreB: 13.9, // 69.5% → Mixed (same boundary as the card)
+          ),
+        ),
+      );
+
+      expect(find.text('Strong'), findsOneWidget);
+      expect(find.text('Mixed'), findsOneWidget);
+    });
+
+    testWidgets('below 60% is Limited; a null score shows an em dash and no '
+        'status label', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          const PGComparePillarRow(
+            label: 'Dose',
+            maxA: 20,
+            maxB: 20,
+            scoreA: 11.0, // 55% → Limited
+            scoreB: null, // no data
+          ),
+        ),
+      );
+
+      expect(find.text('Limited'), findsOneWidget);
+      expect(find.text('—'), findsOneWidget);
+      expect(find.text('Strong'), findsNothing);
+      expect(find.text('Mixed'), findsNothing);
+    });
   });
 }
