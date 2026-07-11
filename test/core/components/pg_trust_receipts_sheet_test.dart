@@ -132,8 +132,6 @@ void main() {
                   safetyPurity: 25,
                   evidenceResearch: 15,
                   brandTrust: 4,
-                  hasThirdPartyTesting: false,
-                  isTrustedManufacturer: false,
                   heroScore: 80,
                   mappedCoverage: 0.9,
                   qualityPillarsV4: const {

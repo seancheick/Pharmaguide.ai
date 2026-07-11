@@ -14,8 +14,6 @@ void main() {
     double? safetyHygiene,
     double? heroScore,
     double? mappedCoverage,
-    bool hasThirdPartyTesting = false,
-    bool isTrustedManufacturer = false,
   }) {
     return MaterialApp(
       home: Scaffold(
@@ -24,8 +22,6 @@ void main() {
           safetyPurity: 99,
           evidenceResearch: 99,
           brandTrust: 99,
-          hasThirdPartyTesting: hasThirdPartyTesting,
-          isTrustedManufacturer: isTrustedManufacturer,
           heroScore: heroScore,
           mappedCoverage: mappedCoverage,
           qualityPillarsV4: _v4Pillars(
@@ -103,9 +99,7 @@ void main() {
     testWidgets('reveals the pipeline reason but not synthesized badges when tapped', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        buildTestWidget(verification: 13, hasThirdPartyTesting: true),
-      );
+      await tester.pumpWidget(buildTestWidget(verification: 13));
 
       await tester.tap(find.text('Testing & Brand'));
       await tester.pumpAndSettle();
@@ -184,8 +178,6 @@ void main() {
               safetyPurity: null,
               evidenceResearch: null,
               brandTrust: null,
-              hasThirdPartyTesting: true,
-              isTrustedManufacturer: true,
               heroScore: 63.6,
               mappedCoverage: null,
               qualityPillarsV4: pillars,

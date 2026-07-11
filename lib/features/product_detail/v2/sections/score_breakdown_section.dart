@@ -40,8 +40,6 @@ Widget buildScoreBreakdownSection({
   required double? safetyPurity,
   required double? evidenceResearch,
   required double? brandTrust,
-  required bool hasThirdPartyTesting,
-  required bool isTrustedManufacturer,
   required double? heroScore,
   required double? mappedCoverage,
   Map<String, dynamic>? sectionBreakdown,
