@@ -278,17 +278,18 @@ String doseBlockHeading(DoseCallOut d) {
   }
 }
 
-/// Short label used by the row chip (no "form" suffix).
+/// Label used by the row chip — the explicit "{tier} form" vocabulary, shared
+/// with [formBlockHeading] so the chip and the sheet heading always agree.
 String formChipLabel(FormQuality q) {
   switch (q) {
     case FormQuality.excellent:
-      return 'Excellent';
+      return 'Excellent form';
     case FormQuality.good:
-      return 'Good';
+      return 'Good form';
     case FormQuality.fair:
-      return 'Fair';
+      return 'Fair form';
     case FormQuality.poor:
-      return 'Poor';
+      return 'Poor form';
     case FormQuality.unknown:
       return '';
   }

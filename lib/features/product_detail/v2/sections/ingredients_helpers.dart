@@ -1,9 +1,12 @@
 // Ingredients helpers (pure mapping).
 //
 //   raw active map → PGActiveIngredient
-//     name           = display_label || standard_name || name || raw_source_text
+//     name           = label_display_name || display_label || standard_name
+//                      || name || raw_source_text  (label-first; never infer
+//                      identity from a canonical field)
 //     dose           = display_dose_label OR (quantity + unit fallback)
-//     formLabel      = display_form_label (only when form_status == 'known')
+//     formLabel      = label_display_form || display_form_label (when
+//                      form_status == 'known'); casing preserved verbatim
 //     formQuality    = resolveFormQuality(bio_score)
 //     doseCallOut    = resolveDoseCallOut(ingredient, ulEntry)
 //     isSafetyConcern = ingredient['is_safety_concern'] == true
@@ -39,15 +42,24 @@ PGActiveIngredient activeFromMap(
   Map<String, dynamic> ingredient, {
   Map<String, dynamic>? ulEntry,
 }) {
-  // Name resolution — matches production lines 142–148 of
-  // ingredient_explain_model.dart's `buildIngredientExplain`.
+  // Label-first identity: the pipeline's approved label-native name wins over
+  // the computed display_label and, crucially, over the canonical standard_name
+  // — the displayed identity is never inferred from a canonical field. Legacy
+  // blobs (no label_display_name) keep the existing display_label behavior.
+  final labelDisplayName = ingredient['label_display_name']?.toString().trim();
   final displayLabel = ingredient['display_label']?.toString().trim();
-  final name = (displayLabel != null && displayLabel.isNotEmpty)
-      ? displayLabel
-      : (ingredient['standard_name']?.toString() ??
-            ingredient['name']?.toString() ??
-            ingredient['raw_source_text']?.toString() ??
-            '');
+  final String name;
+  if (labelDisplayName != null && labelDisplayName.isNotEmpty) {
+    name = labelDisplayName;
+  } else if (displayLabel != null && displayLabel.isNotEmpty) {
+    name = displayLabel;
+  } else {
+    name =
+        ingredient['standard_name']?.toString() ??
+        ingredient['name']?.toString() ??
+        ingredient['raw_source_text']?.toString() ??
+        '';
+  }
 
   // Dose label — production canonical contract (display_dose_label)
   // with quantity+unit fallback for stale blobs.
@@ -65,18 +77,23 @@ PGActiveIngredient activeFromMap(
     dose = fallbackDose.isNotEmpty ? fallbackDose : null;
   }
 
-  // Form label — only when pipeline says form_status == 'known'.
+  // Label-first form: the pipeline's label-native form (e.g. "as Ethyl Esters")
+  // wins and its casing is preserved verbatim — never lowercased. Legacy blobs
+  // fall back to display_form_label (gated on form_status == 'known'), also
+  // case-preserved.
+  final labelDisplayForm = ingredient['label_display_form']?.toString().trim();
   final formStatus = ingredient['form_status']?.toString();
-  final displayFormLabel = ingredient['display_form_label']
-      ?.toString()
-      .trim()
-      .toLowerCase();
-  final formLabel =
-      (formStatus == 'known' &&
-          displayFormLabel != null &&
-          displayFormLabel.isNotEmpty)
-      ? displayFormLabel
-      : null;
+  final displayFormLabel = ingredient['display_form_label']?.toString().trim();
+  final String? formLabel;
+  if (labelDisplayForm != null && labelDisplayForm.isNotEmpty) {
+    formLabel = labelDisplayForm;
+  } else if (formStatus == 'known' &&
+      displayFormLabel != null &&
+      displayFormLabel.isNotEmpty) {
+    formLabel = displayFormLabel;
+  } else {
+    formLabel = null;
+  }
 
   // Tier resolution — verbatim production helpers.
   final formQuality = resolveFormQuality(ingredient['bio_score']);
