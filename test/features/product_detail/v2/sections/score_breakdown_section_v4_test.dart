@@ -36,8 +36,7 @@ const _v4Labels = [
 
 void main() {
   nativeScaleTests();
-  gapLineTests();
-  deepLinkTests();
+  namedActionTests();
   testWidgets('v4: renders the six pillars from quality_pillars_v4', (
     tester,
   ) async {
@@ -48,8 +47,6 @@ void main() {
           safetyPurity: 99,
           evidenceResearch: 99,
           brandTrust: 99,
-          hasThirdPartyTesting: true,
-          isTrustedManufacturer: false,
           heroScore: 95,
           mappedCoverage: 0.9,
           qualityPillarsV4: _v4Pillars(),
@@ -80,8 +77,6 @@ void main() {
           safetyPurity: 28,
           evidenceResearch: 15,
           brandTrust: 4,
-          hasThirdPartyTesting: false,
-          isTrustedManufacturer: true,
           heroScore: 80,
           mappedCoverage: 0.5,
           qualityPillarsV4: null,
@@ -109,8 +104,6 @@ void main() {
           safetyPurity: 28,
           evidenceResearch: 15,
           brandTrust: 4,
-          hasThirdPartyTesting: false,
-          isTrustedManufacturer: false,
           heroScore: 70,
           mappedCoverage: null,
           qualityPillarsV4: const {'garbage': 'not a pillar map'},
@@ -136,8 +129,6 @@ void main() {
           safetyPurity: 28,
           evidenceResearch: 15,
           brandTrust: 4,
-          hasThirdPartyTesting: false,
-          isTrustedManufacturer: false,
           heroScore: 98.1,
           mappedCoverage: 0.9,
           qualityPillarsV4: partial,
@@ -202,8 +193,6 @@ Widget _v4Section({
   safetyPurity: 99,
   evidenceResearch: 99,
   brandTrust: 99,
-  hasThirdPartyTesting: false,
-  isTrustedManufacturer: false,
   heroScore: heroScore,
   mappedCoverage: 0.9,
   qualityPillarsV4: pillars ?? _v4Pillars(),
@@ -253,8 +242,6 @@ void nativeScaleTests() {
           safetyPurity: 30, // /30 → 10/10
           evidenceResearch: 10, // /20 → 5/10
           brandTrust: 4, // /5 → 8/10
-          hasThirdPartyTesting: false,
-          isTrustedManufacturer: false,
           heroScore: 73,
           mappedCoverage: 0.9,
           qualityPillarsV4: null,
@@ -272,110 +259,49 @@ void nativeScaleTests() {
 }
 
 // ---------------------------------------------------------------------------
-// "Biggest opportunity" gap line — shown only when total < 95 AND the
-// largest (max − score) gap is ≥ 3 points. Calm explanation, not a judgment.
+// Named pillar actions — the three navigable pillars (evidence, verification,
+// transparency) render a named action inside their expanded reveal when a
+// destination callback is wired. Formulation, Dose, and Safety Hygiene are
+// explained in place and NEVER render an action (no dead scroll links), even
+// when a callback is supplied for them. Replaces the retired "See details →"
+// deep link and the removed "Biggest opportunity" gap line.
 // ---------------------------------------------------------------------------
 
-void gapLineTests() {
-  testWidgets('gap line: shown with pillar label + reason when gap ≥ 3', (
-    tester,
-  ) async {
-    final pillars = _v4Pillars();
-    // formulation 15/20 → gap 5 is the largest; sum 91.4 (< 95).
-    (pillars['formulation'] as Map<String, dynamic>)['score'] = 15.0;
-    await tester.pumpWidget(_wrap(_v4Section(pillars: pillars)));
-
-    expect(
-      find.textContaining('Biggest opportunity: Formulation — '),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('gap line: hidden when largest gap < 3', (tester) async {
-    // Default fixture sums to 94 (< 95) but largest gap is 2.4 (formulation).
-    await tester.pumpWidget(_wrap(_v4Section()));
-
-    expect(find.textContaining('Biggest opportunity'), findsNothing);
-  });
-
-  testWidgets('gap line: hidden when total ≥ 95 (no nitpicking)', (
-    tester,
-  ) async {
-    final pillars = _v4Pillars();
-    // dose stays 20/20; raise the rest so sum = 95.4 with a 4-pt gap.
-    (pillars['formulation'] as Map<String, dynamic>)['score'] = 16.0;
-    (pillars['evidence'] as Map<String, dynamic>)['score'] = 20.0;
-    (pillars['transparency'] as Map<String, dynamic>)['score'] = 15.0;
-    (pillars['verification'] as Map<String, dynamic>)['score'] = 15.0;
-    (pillars['safety_hygiene'] as Map<String, dynamic>)['score'] = 9.4;
-    await tester.pumpWidget(_wrap(_v4Section(pillars: pillars)));
-
-    expect(find.textContaining('Biggest opportunity'), findsNothing);
-  });
-
-  testWidgets('gap line: hidden when v4 pillars are unavailable', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _wrap(
-        buildScoreBreakdownSection(
-          ingredientQuality: 10,
-          safetyPurity: 12,
-          evidenceResearch: 5,
-          brandTrust: 1,
-          hasThirdPartyTesting: false,
-          isTrustedManufacturer: false,
-          heroScore: 40,
-          mappedCoverage: 0.9,
-          qualityPillarsV4: null,
-        ),
-      ),
-    );
-
-    expect(find.textContaining('Biggest opportunity'), findsNothing);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Pillar deep-links — "See details →" appears inside the expanded reveal
-// only for pillars with a wired callback; row tap just expands.
-// ---------------------------------------------------------------------------
-
-void deepLinkTests() {
-  testWidgets('deep-link: See details invokes the wired callback', (
-    tester,
-  ) async {
+void namedActionTests() {
+  testWidgets('named action: a wired eligible pillar renders its action and '
+      'invokes the callback only when expanded', (tester) async {
     var tapped = 0;
     await tester.pumpWidget(
       _wrap(_v4Section(onPillarTap: {'evidence': () => tapped++})),
     );
 
-    // Collapsed: the reveal (and its link) is faded out — not tappable.
-    expect(find.text('See details →').hitTestable(), findsNothing);
+    // Collapsed: the action is not in the tree.
+    expect(find.text('View clinical evidence'), findsNothing);
 
-    // Expanding the row must NOT fire the deep-link callback.
+    // Expanding the row must NOT fire the action.
     await tester.tap(find.text('Evidence'));
     await tester.pumpAndSettle();
     expect(tapped, 0);
 
-    // Only the wired pillar renders a tappable link.
-    expect(find.text('See details →').hitTestable(), findsOneWidget);
-    await tester.tap(find.text('See details →').hitTestable());
-    await tester.pumpAndSettle();
+    // The wired eligible pillar renders its named action, which fires on tap.
+    expect(find.text('View clinical evidence'), findsOneWidget);
+    await tester.tap(find.text('View clinical evidence'));
     expect(tapped, 1);
   });
 
-  testWidgets('deep-link: unwired pillars render no link (no dead links)', (
-    tester,
-  ) async {
+  testWidgets('named action: Formulation and Dose never render an action, even '
+      'when a callback is supplied (no dead scroll links)', (tester) async {
     await tester.pumpWidget(
-      _wrap(_v4Section(onPillarTap: {'evidence': () {}})),
+      _wrap(_v4Section(onPillarTap: {'formulation': () {}, 'dose': () {}})),
     );
 
+    await tester.tap(find.text('Formulation'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('View '), findsNothing);
+
+    // Single-open accordion: tapping Dose collapses Formulation, opens Dose.
     await tester.tap(find.text('Dose'));
     await tester.pumpAndSettle();
-    // The expanded Dose reveal has no link; the only link in the tree is
-    // the (collapsed, opacity-0) Evidence one, which is not tappable.
-    expect(find.text('See details →').hitTestable(), findsNothing);
+    expect(find.textContaining('View '), findsNothing);
   });
 }

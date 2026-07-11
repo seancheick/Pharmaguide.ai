@@ -40,8 +40,6 @@ Widget buildScoreBreakdownSection({
   required double? safetyPurity,
   required double? evidenceResearch,
   required double? brandTrust,
-  required bool hasThirdPartyTesting,
-  required bool isTrustedManufacturer,
   required double? heroScore,
   required double? mappedCoverage,
   Map<String, dynamic>? sectionBreakdown,
@@ -61,29 +59,16 @@ Widget buildScoreBreakdownSection({
     return const _ScoreBreakdownUnavailable();
   }
 
-  final pillars = _buildV4Pillars(
-    parsedV4,
-    hasThirdPartyTesting: hasThirdPartyTesting,
-    isTrustedManufacturer: isTrustedManufacturer,
-    onPillarTap: onPillarTap,
-  );
+  final pillars = _buildV4Pillars(parsedV4, onPillarTap: onPillarTap);
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      PGScoreBreakdownCard(
-        pillars: pillars,
-        mappedCoverage: mappedCoverage,
-        // Unrounded hero so the title matches the "= N/100" pillar-sum
-        // line to the decimal.
-        heroScore: heroScore,
-      ),
-      // Muted "How scoring works" link → Trust Receipts sheet. Wired at
-      // the section level (NOT inside PGScoreBreakdownCard) so the card
-      // stays a pure display component.
-      const SizedBox(height: V2Spacing.space8),
-      const _HowScoringWorksLink(),
-    ],
+  return Builder(
+    builder: (context) => PGScoreBreakdownCard(
+      pillars: pillars,
+      mappedCoverage: mappedCoverage,
+      // Unrounded hero so the title matches the "= N/100" pillar-sum line.
+      heroScore: heroScore,
+      onHowScoringWorks: () => showTrustReceiptsSheet(context),
+    ),
   );
 }
 
@@ -148,39 +133,22 @@ class _ScoreBreakdownUnavailable extends StatelessWidget {
 /// Six v4 pillars from the pre-parsed (and 6/6-verified) pillar values.
 List<PGPillar> _buildV4Pillars(
   List<V4PillarValue> parsed, {
-  required bool hasThirdPartyTesting,
-  required bool isTrustedManufacturer,
   Map<String, VoidCallback>? onPillarTap,
 }) {
   final out = <PGPillar>[];
   for (final p in parsed) {
-    // The verification pillar absorbs the v3 trust badges (third-party
-    // testing / trusted manufacturer) — the closest v4 home for them.
-    final badges = p.key == 'verification'
-        ? <PGPillarBadge>[
-            if (hasThirdPartyTesting)
-              const PGPillarBadge(
-                icon: Icons.verified_outlined,
-                label: 'Third-party tested',
-                color: V2Colors.safe,
-              ),
-            if (isTrustedManufacturer)
-              const PGPillarBadge(
-                icon: Icons.factory_outlined,
-                label: 'Trusted manufacturer',
-                color: V2Colors.safe,
-              ),
-          ]
-        : const <PGPillarBadge>[];
+    final actionLabel = kV4PillarActionLabels[p.key];
+    final onAction = actionLabel == null ? null : onPillarTap?[p.key];
 
     out.add(
       PGPillar(
         label: p.label,
         max: p.max,
         score: p.score,
-        microExplanation: p.reason,
-        badges: badges,
-        onTap: onPillarTap?[p.key],
+        reason: p.reason,
+        facts: p.facts,
+        actionLabel: onAction == null ? null : actionLabel,
+        onAction: onAction,
       ),
     );
   }

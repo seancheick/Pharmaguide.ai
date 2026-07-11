@@ -253,10 +253,10 @@ void main() {
 
   group('label helpers', () {
     test('formChipLabel matches vocabulary contract', () {
-      expect(formChipLabel(FormQuality.excellent), 'Excellent');
-      expect(formChipLabel(FormQuality.good), 'Good');
-      expect(formChipLabel(FormQuality.fair), 'Fair');
-      expect(formChipLabel(FormQuality.poor), 'Poor');
+      expect(formChipLabel(FormQuality.excellent), 'Excellent form');
+      expect(formChipLabel(FormQuality.good), 'Good form');
+      expect(formChipLabel(FormQuality.fair), 'Fair form');
+      expect(formChipLabel(FormQuality.poor), 'Poor form');
       expect(formChipLabel(FormQuality.unknown), '');
     });
 

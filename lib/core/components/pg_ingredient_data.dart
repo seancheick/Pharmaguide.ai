@@ -39,6 +39,13 @@ class PGActiveIngredient {
   /// structured pipeline source. Surfaces an "Inferred from label" chip.
   final bool isInferredFromLabel;
 
+  /// True when the pipeline could not resolve this ingredient's identity
+  /// (`identity_conflict` / `missing_display_label`). The tile then shows the
+  /// literal label with an "Identity needs review" note and hides form/dose/
+  /// safety claims — defense-in-depth for a cached/stale blob that slipped past
+  /// the release audit.
+  final bool identityNeedsReview;
+
   const PGActiveIngredient({
     required this.name,
     this.dose,
@@ -47,6 +54,7 @@ class PGActiveIngredient {
     this.doseCallOut = DoseCallOut.withinLimits,
     this.isSafetyConcern = false,
     this.isInferredFromLabel = false,
+    this.identityNeedsReview = false,
   });
 }
 

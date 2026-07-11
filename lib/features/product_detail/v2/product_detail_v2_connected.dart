@@ -32,7 +32,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
-import 'package:pharmaguide/core/components/pg_trust_receipts_sheet.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
@@ -410,14 +409,14 @@ class _ProductDetailV2ConnectedState
     }
 
     // -------------------------------------------------------------
-    // Score-breakdown pillar deep-links (v4 only). ONLY pillars whose
-    // target section actually renders on this page get a callback —
-    // pillars without one render no "See details" link (no dead links).
+    // Score-breakdown pillar named actions (v4 only). ONLY the three
+    // navigable pillars whose target section actually renders on this page
+    // get a destination callback — others render no action (no dead links).
     //   evidence            → clinical Evidence section
     //   verification        → Certifications (third-party) section
     //   transparency        → Label Confidence section (when gated on)
-    //   formulation / dose  → Ingredients (supplement facts) section
-    // Safety Hygiene has no dedicated section — intentionally unwired.
+    // Formulation, Dose, and Safety Hygiene are explained in place — they
+    // have no destination section and are intentionally never wired.
     // -------------------------------------------------------------
     // Prime fractions approximate each target's position in the page so
     // the lazy SliverList builds it before the keyed ensureVisible lands
@@ -428,10 +427,6 @@ class _ProductDetailV2ConnectedState
             _scrollToSection(_evidenceSectionKey, primeFraction: 0.65),
         'verification': () =>
             _scrollToSection(_certificationsSectionKey, primeFraction: 0.60),
-        'formulation': () =>
-            _scrollToSection(_anchors.ingredientsKey, primeFraction: 0.55),
-        'dose': () =>
-            _scrollToSection(_anchors.ingredientsKey, primeFraction: 0.55),
       },
       if (showLabelConfidence)
         'transparency': () =>
@@ -667,9 +662,6 @@ class _ProductDetailV2ConnectedState
                       safetyPurity: _product?.scoreSafetyPurity,
                       evidenceResearch: _product?.scoreEvidenceResearch,
                       brandTrust: _product?.scoreBrandTrust,
-                      hasThirdPartyTesting: _product?.hasThirdPartyTesting == 1,
-                      isTrustedManufacturer:
-                          _product?.isTrustedManufacturer == 1,
                       heroScore: score100,
                       mappedCoverage: mappedCoverage,
                       sectionBreakdown: _blobMap(
@@ -881,11 +873,6 @@ class _ProductDetailV2ConnectedState
                   // label — "Updated <Mon DD, YYYY>" — same source the
                   // v2 home screen's citation strip uses.
                   const TransparencyFooterSection(),
-
-                  // ---- 18. Trust Receipts entry ("How we score") ----
-                  // Quiet footer row → shared Trust Receipts sheet with
-                  // scoring explanation + live data-source counts.
-                  const _WhyTrustThisRow(),
                 ],
               ),
             ),
@@ -954,49 +941,6 @@ class _ProductDetailV2ConnectedState
             },
           ),
       ],
-    );
-  }
-}
-
-/// Quiet footer row at the bottom of the page: shield icon + "How we
-/// score" caption. Opens the shared Trust Receipts sheet
-/// (`showTrustReceiptsSheet`) — same sheet the score breakdown's "How
-/// scoring works" link opens.
-class _WhyTrustThisRow extends StatelessWidget {
-  const _WhyTrustThisRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: V2Spacing.space12),
-      child: Align(
-        alignment: Alignment.center,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          onTap: () => showTrustReceiptsSheet(context),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: V2Spacing.space4,
-              vertical: V2Spacing.space4,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.shield_outlined,
-                  size: 13,
-                  color: V2Colors.fgMuted,
-                ),
-                const SizedBox(width: V2Spacing.space4),
-                Text(
-                  'How we score',
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
