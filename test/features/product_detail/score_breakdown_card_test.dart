@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
+import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 
 void main() {
@@ -98,7 +100,7 @@ void main() {
       expect(find.text('No data'), findsNWidgets(6));
     });
 
-    testWidgets('reveals micro-explanation and badges when tapped', (
+    testWidgets('reveals the pipeline reason but not synthesized badges when tapped', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -112,7 +114,7 @@ void main() {
         find.text('Independent testing and brand signals'),
         findsOneWidget,
       );
-      expect(find.text('Third-party tested'), findsOneWidget);
+      expect(find.text('Third-party tested'), findsNothing);
     });
 
     testWidgets('coverage 0.92 shows percentage and high-confidence copy', (
@@ -158,6 +160,115 @@ void main() {
       expect(find.textContaining('%'), findsNothing);
     });
   });
+
+  group('Score explanation card', () {
+    testWidgets('keeps all pillar details collapsed until the user opens one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_cardHarness());
+
+      expect(find.text('Form selection supports absorption.'), findsNothing);
+      expect(find.text('EPA + DHA per day'), findsNothing);
+
+      await tester.tap(find.text('Formulation'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Form selection supports absorption.'), findsOneWidget);
+      expect(find.text('EPA + DHA per day'), findsOneWidget);
+      expect(find.text('660 mg/day'), findsOneWidget);
+      expect(find.text('Mixed'), findsNWidgets(2));
+    });
+
+    testWidgets('opening a pillar closes the previously open pillar', (tester) async {
+      await tester.pumpWidget(_cardHarness());
+
+      await tester.tap(find.text('Formulation'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Dose'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Form selection supports absorption.'), findsNothing);
+      expect(find.text('Dose is below the studied range.'), findsOneWidget);
+    });
+
+    testWidgets('renders the named action after reason and pipeline facts', (
+      tester,
+    ) async {
+      var actionCount = 0;
+      await tester.pumpWidget(_cardHarness(onAction: () => actionCount++));
+
+      await tester.tap(find.text('Evidence'));
+      await tester.pumpAndSettle();
+
+      final reason = tester.getTopLeft(find.text('Clinical support is limited.'));
+      final fact = tester.getTopLeft(find.text('Human trials'));
+      final action = tester.getTopLeft(find.text('View clinical evidence'));
+      expect(reason.dy, lessThan(fact.dy));
+      expect(fact.dy, lessThan(action.dy));
+
+      await tester.tap(find.text('View clinical evidence'));
+      expect(actionCount, 1);
+    });
+
+    testWidgets('has a header action and no generic score rationale', (tester) async {
+      var helpCount = 0;
+      await tester.pumpWidget(_cardHarness(onHowScoringWorks: () => helpCount++));
+
+      expect(find.text('How scoring works'), findsOneWidget);
+      expect(find.textContaining('Biggest opportunity'), findsNothing);
+      expect(find.textContaining('See details'), findsNothing);
+
+      await tester.tap(find.text('How scoring works'));
+      expect(helpCount, 1);
+    });
+  });
+}
+
+Widget _cardHarness({VoidCallback? onAction, VoidCallback? onHowScoringWorks}) {
+  return MaterialApp(
+    home: Scaffold(
+      body: PGScoreBreakdownCard(
+        heroScore: 63.6,
+        onHowScoringWorks: onHowScoringWorks,
+        pillars: [
+          const PGPillar(
+            label: 'Formulation',
+            max: 20,
+            score: 13.9,
+            reason: 'Form selection supports absorption.',
+            facts: [
+              V4PillarFact(
+                id: 'epa_dha_per_day',
+                label: 'EPA + DHA per day',
+                valueDisplay: '660 mg/day',
+              ),
+            ],
+          ),
+          const PGPillar(
+            label: 'Dose',
+            max: 20,
+            score: 8.7,
+            reason: 'Dose is below the studied range.',
+          ),
+          PGPillar(
+            label: 'Evidence',
+            max: 20,
+            score: 12,
+            reason: 'Clinical support is limited.',
+            facts: const [
+              V4PillarFact(
+                id: 'human_trials',
+                label: 'Human trials',
+                valueDisplay: 'Limited',
+              ),
+            ],
+            actionLabel: 'View clinical evidence',
+            onAction: onAction,
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 Map<String, dynamic> _v4Pillars({
