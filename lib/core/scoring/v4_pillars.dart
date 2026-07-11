@@ -59,11 +59,12 @@ class V4PillarFact {
   /// Short label, e.g. "EPA + DHA per day". Empty when the blob omits it.
   final String label;
 
-  /// Consumer-ready value string, e.g. "660 mg/day". Never empty (a fact with
-  /// no display is dropped as malformed).
-  final String display;
+  /// Consumer-ready value string from the pipeline contract's `value_display`,
+  /// e.g. "660 mg/day". Never empty (a fact with no `value_display` is dropped
+  /// as malformed).
+  final String valueDisplay;
 
-  const V4PillarFact({required this.id, required this.label, required this.display});
+  const V4PillarFact({required this.id, required this.label, required this.valueDisplay});
 }
 
 /// One parsed v4 pillar value — pure data, no widget types.
@@ -162,10 +163,11 @@ List<V4PillarFact> _parseFacts(Object? explanation) {
   for (final rf in rawFacts) {
     if (rf is! Map) continue;
     final id = rf['id'] is String ? (rf['id'] as String).trim() : '';
-    final display = rf['display'] is String ? (rf['display'] as String).trim() : '';
-    if (id.isEmpty || display.isEmpty) continue;
+    final valueDisplay =
+        rf['value_display'] is String ? (rf['value_display'] as String).trim() : '';
+    if (id.isEmpty || valueDisplay.isEmpty) continue;
     final label = rf['label'] is String ? (rf['label'] as String).trim() : '';
-    out.add(V4PillarFact(id: id, label: label, display: display));
+    out.add(V4PillarFact(id: id, label: label, valueDisplay: valueDisplay));
   }
   return out;
 }

@@ -101,17 +101,23 @@ void main() {
     (blob['dose'] as Map<String, dynamic>)['explanation'] = {
       'schema_version': 1,
       'facts': [
-        {'id': 'epa_dha_per_day', 'label': 'EPA + DHA per day', 'display': '660 mg/day'},
-        {'id': 'omega_form', 'label': 'Molecular form', 'display': 'Ethyl ester'},
+        {
+          'id': 'epa_dha_per_day',
+          'label': 'EPA + DHA per day',
+          'value_display': '660 mg/day',
+          'detail': 'From the label-directed daily serving.',
+        },
+        {'id': 'omega_form', 'label': 'Molecular form', 'value_display': 'Ethyl ester'},
       ],
     };
     final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
     expect(dose.facts.length, 2);
     expect(dose.facts[0].id, 'epa_dha_per_day');
     expect(dose.facts[0].label, 'EPA + DHA per day');
-    expect(dose.facts[0].display, '660 mg/day');
+    expect(dose.facts[0].valueDisplay, '660 mg/day');
+    expect(dose.facts[0].detail, 'From the label-directed daily serving.');
     expect(dose.facts[1].id, 'omega_form');
-    expect(dose.facts[1].display, 'Ethyl ester');
+    expect(dose.facts[1].valueDisplay, 'Ethyl ester');
   });
 
   test('ignores explanation with unsupported schema_version', () {
@@ -119,7 +125,7 @@ void main() {
     (blob['dose'] as Map<String, dynamic>)['explanation'] = {
       'schema_version': 2,
       'facts': [
-        {'id': 'x', 'label': 'X', 'display': 'y'},
+        {'id': 'x', 'label': 'X', 'value_display': 'y'},
       ],
     };
     final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
@@ -131,9 +137,11 @@ void main() {
     (blob['dose'] as Map<String, dynamic>)['explanation'] = {
       'schema_version': 1,
       'facts': [
-        {'id': 'ok', 'label': 'L', 'display': 'good'},
-        {'id': '', 'display': 'no id'},
-        {'id': 'no_display', 'label': 'L'},
+        {'id': 'ok', 'label': 'L', 'value_display': 'good'},
+        {'id': '', 'label': 'L', 'value_display': 'no id'},
+        {'id': 'no_label', 'value_display': 'no label'},
+        {'id': 'no_value_display', 'label': 'L'},
+        {'id': 'legacy_display', 'label': 'L', 'display': 'not accepted'},
         'not a map',
       ],
     };
