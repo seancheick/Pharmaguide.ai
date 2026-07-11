@@ -59,6 +59,56 @@ void main() {
     });
   });
 
+  group('activeFromMap identity-review suppression', () {
+    test('identity_conflict row shows the literal source label, flags review, '
+        'and suppresses every quality/dose/safety claim', () {
+      final active = activeFromMap(const {
+        'identity_disposition': 'identity_conflict',
+        'source_label_name': 'Marine Lipid Concentrate',
+        'standard_name': 'Eicosapentaenoic Acid',
+        'display_form_label': 'as Ethyl Esters',
+        'form_status': 'known',
+        'bio_score': 18,
+        'is_safety_concern': true,
+        'display_dose_label': '660 mg',
+      });
+
+      expect(active.identityNeedsReview, isTrue);
+      expect(active.name, 'Marine Lipid Concentrate');
+      expect(active.name, isNot('Eicosapentaenoic Acid'));
+      expect(active.formQuality, FormQuality.unknown);
+      expect(active.formLabel, isNull);
+      expect(active.doseCallOut, DoseCallOut.withinLimits);
+      expect(active.dose, isNull);
+      expect(active.isSafetyConcern, isFalse);
+    });
+
+    test('missing_display_label row needs review and falls back to literal '
+        'source text, never the canonical standard_name', () {
+      final active = activeFromMap(const {
+        'identity_disposition': 'missing_display_label',
+        'raw_source_text': 'Proprietary Marine Oil',
+        'standard_name': 'Fish Oil',
+        'bio_score': 14,
+      });
+
+      expect(active.identityNeedsReview, isTrue);
+      expect(active.name, 'Proprietary Marine Oil');
+      expect(active.formQuality, FormQuality.unknown);
+      expect(active.isSafetyConcern, isFalse);
+    });
+
+    test('a resolved (clean) row is never flagged for review', () {
+      final active = activeFromMap(const {
+        'identity_disposition': 'clean',
+        'label_display_name': 'Magnesium',
+        'bio_score': 18,
+      });
+
+      expect(active.identityNeedsReview, isFalse);
+    });
+  });
+
   group('inactiveFromMap', () {
     test('prefers label_display over normalized resolver display label', () {
       final inactive = inactiveFromMap(const {

@@ -42,6 +42,25 @@ PGActiveIngredient activeFromMap(
   Map<String, dynamic> ingredient, {
   Map<String, dynamic>? ulEntry,
 }) {
+  // Unresolved identity (defense-in-depth): if a cached/stale blob whose
+  // identity the pipeline could not resolve reaches the app, show the literal
+  // label text with an integrity flag and suppress every quality/dose/safety
+  // claim — never the canonical standard_name. The release audit blocks these
+  // before ship; this is the last-line fallback.
+  final disposition = ingredient['identity_disposition']?.toString();
+  if (disposition == 'identity_conflict' ||
+      disposition == 'missing_display_label') {
+    return PGActiveIngredient(
+      name: _firstNonEmpty([
+        ingredient['source_label_name'],
+        ingredient['raw_source_text'],
+        ingredient['name'],
+        ingredient['label_display_name'],
+      ]),
+      identityNeedsReview: true,
+    );
+  }
+
   // Label-first identity: the pipeline's approved label-native name wins over
   // the computed display_label and, crucially, over the canonical standard_name
   // — the displayed identity is never inferred from a canonical field. Legacy
