@@ -93,4 +93,86 @@ void main() {
     final out = parseV4Pillars(blob);
     expect(out.first.reason, isNull);
   });
+
+  // --- Task 1: schema-v1 explanation facts + presentation status ---
+
+  test('parses schema_version 1 explanation facts in order, verbatim', () {
+    final blob = _fullBlob();
+    (blob['dose'] as Map<String, dynamic>)['explanation'] = {
+      'schema_version': 1,
+      'facts': [
+        {'id': 'epa_dha_per_day', 'label': 'EPA + DHA per day', 'display': '660 mg/day'},
+        {'id': 'omega_form', 'label': 'Molecular form', 'display': 'Ethyl ester'},
+      ],
+    };
+    final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
+    expect(dose.facts.length, 2);
+    expect(dose.facts[0].id, 'epa_dha_per_day');
+    expect(dose.facts[0].label, 'EPA + DHA per day');
+    expect(dose.facts[0].display, '660 mg/day');
+    expect(dose.facts[1].id, 'omega_form');
+    expect(dose.facts[1].display, 'Ethyl ester');
+  });
+
+  test('ignores explanation with unsupported schema_version', () {
+    final blob = _fullBlob();
+    (blob['dose'] as Map<String, dynamic>)['explanation'] = {
+      'schema_version': 2,
+      'facts': [
+        {'id': 'x', 'label': 'X', 'display': 'y'},
+      ],
+    };
+    final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
+    expect(dose.facts, isEmpty);
+  });
+
+  test('omits malformed facts but keeps valid ones', () {
+    final blob = _fullBlob();
+    (blob['dose'] as Map<String, dynamic>)['explanation'] = {
+      'schema_version': 1,
+      'facts': [
+        {'id': 'ok', 'label': 'L', 'display': 'good'},
+        {'id': '', 'display': 'no id'},
+        {'id': 'no_display', 'label': 'L'},
+        'not a map',
+      ],
+    };
+    final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
+    expect(dose.facts.length, 1);
+    expect(dose.facts.single.id, 'ok');
+  });
+
+  test('old reason-only blob yields empty facts (backward compatible)', () {
+    final out = parseV4Pillars(_fullBlob());
+    expect(out.every((p) => p.facts.isEmpty), isTrue);
+  });
+
+  test('statusForPillar: >=85% Strong, >=60% Mixed, below 60% Limited', () {
+    expect(statusForPillar(17.0, 20), V4PillarStatus.strong); // 85%
+    expect(statusForPillar(20.0, 20), V4PillarStatus.strong); // 100%
+    expect(statusForPillar(13.9, 20), V4PillarStatus.mixed); // 69.5% (Formulation)
+    expect(statusForPillar(12.0, 20), V4PillarStatus.mixed); // 60%
+    expect(statusForPillar(11.9, 20), V4PillarStatus.limited); // 59.5%
+    expect(statusForPillar(0.0, 20), V4PillarStatus.limited);
+  });
+
+  test('statusForPillar guards null score and non-positive max → Limited', () {
+    expect(statusForPillar(null, 20), V4PillarStatus.limited);
+    expect(statusForPillar(18.0, 0), V4PillarStatus.limited);
+  });
+
+  test('status labels are consumer copy', () {
+    expect(v4PillarStatusLabel(V4PillarStatus.strong), 'Strong');
+    expect(v4PillarStatusLabel(V4PillarStatus.mixed), 'Mixed');
+    expect(v4PillarStatusLabel(V4PillarStatus.limited), 'Limited');
+  });
+
+  test('action-label map keys only the three navigable pillars', () {
+    expect(kV4PillarActionLabels['evidence'], 'View clinical evidence');
+    expect(kV4PillarActionLabels['verification'], 'View certifications');
+    expect(kV4PillarActionLabels['transparency'], 'View label details');
+    expect(kV4PillarActionLabels.containsKey('formulation'), isFalse);
+    expect(kV4PillarActionLabels.containsKey('dose'), isFalse);
+    expect(kV4PillarActionLabels.containsKey('safety_hygiene'), isFalse);
+  });
 }

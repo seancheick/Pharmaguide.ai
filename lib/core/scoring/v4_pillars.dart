@@ -19,6 +19,53 @@ const List<(String, String, int)> kV4PillarSpec = [
   ('safety_hygiene', 'Safety Hygiene', 10),
 ];
 
+/// Named in-page destinations for the three navigable pillars only. Formulation,
+/// Dose, and Safety Hygiene are explained in place and never link out (no dead
+/// "See details" navigation). Keyed by pillar blob key.
+const Map<String, String> kV4PillarActionLabels = {
+  'evidence': 'View clinical evidence',
+  'verification': 'View certifications',
+  'transparency': 'View label details',
+};
+
+/// Consumer presentation status for one pillar, derived from its fraction of max.
+enum V4PillarStatus { strong, mixed, limited }
+
+/// Map a pillar's score/max to a presentation status. `>= 85%` Strong,
+/// `>= 60%` Mixed, else Limited. A null score or non-positive max degrades to
+/// Limited so we never overstate a pillar we could not read (fail-safe).
+V4PillarStatus statusForPillar(double? score, int max) {
+  if (score == null || max <= 0) return V4PillarStatus.limited;
+  final pct = score / max;
+  if (pct >= 0.85) return V4PillarStatus.strong;
+  if (pct >= 0.60) return V4PillarStatus.mixed;
+  return V4PillarStatus.limited;
+}
+
+/// Consumer copy for a [V4PillarStatus].
+String v4PillarStatusLabel(V4PillarStatus status) => switch (status) {
+  V4PillarStatus.strong => 'Strong',
+  V4PillarStatus.mixed => 'Mixed',
+  V4PillarStatus.limited => 'Limited',
+};
+
+/// One pipeline-authored explanation fact for a pillar. Pure display data —
+/// the pipeline owns the copy; the app renders [display] verbatim and never
+/// synthesizes rationale of its own.
+class V4PillarFact {
+  /// Stable fact id, e.g. `epa_dha_per_day`.
+  final String id;
+
+  /// Short label, e.g. "EPA + DHA per day". Empty when the blob omits it.
+  final String label;
+
+  /// Consumer-ready value string, e.g. "660 mg/day". Never empty (a fact with
+  /// no display is dropped as malformed).
+  final String display;
+
+  const V4PillarFact({required this.id, required this.label, required this.display});
+}
+
 /// One parsed v4 pillar value — pure data, no widget types.
 class V4PillarValue {
   /// Blob key, e.g. `formulation` / `safety_hygiene`.
@@ -36,12 +83,17 @@ class V4PillarValue {
   /// One-line `reason` from the blob, trimmed. Null when empty/missing.
   final String? reason;
 
+  /// Pipeline-authored explanation facts (schema v1). Empty for old blobs and
+  /// pillars without facts.
+  final List<V4PillarFact> facts;
+
   const V4PillarValue({
     required this.key,
     required this.label,
     required this.max,
     this.score,
     this.reason,
+    this.facts = const [],
   });
 }
 
@@ -84,6 +136,7 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
           max: max,
           score: score,
           reason: (reason != null && reason.isNotEmpty) ? reason : null,
+          facts: _parseFacts(m['explanation']),
         ),
       );
       // One malformed entry must never take the other five down.
@@ -91,6 +144,28 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
     } catch (_) {
       continue;
     }
+  }
+  return out;
+}
+
+/// Parse a pillar's `explanation` block into facts. Only `schema_version == 1`
+/// is honored; any other version (or a missing/malformed block) yields no
+/// facts, keeping old blobs valid. Each fact must carry a non-empty `id` and
+/// `display`; malformed facts are dropped individually, and pipeline strings
+/// are preserved verbatim.
+List<V4PillarFact> _parseFacts(Object? explanation) {
+  if (explanation is! Map) return const [];
+  if (asFiniteDouble(explanation['schema_version'])?.toInt() != 1) return const [];
+  final rawFacts = explanation['facts'];
+  if (rawFacts is! List) return const [];
+  final out = <V4PillarFact>[];
+  for (final rf in rawFacts) {
+    if (rf is! Map) continue;
+    final id = rf['id'] is String ? (rf['id'] as String).trim() : '';
+    final display = rf['display'] is String ? (rf['display'] as String).trim() : '';
+    if (id.isEmpty || display.isEmpty) continue;
+    final label = rf['label'] is String ? (rf['label'] as String).trim() : '';
+    out.add(V4PillarFact(id: id, label: label, display: display));
   }
   return out;
 }
