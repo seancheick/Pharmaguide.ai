@@ -159,6 +159,59 @@ void main() {
       expect(find.textContaining('database'), findsNothing);
       expect(find.textContaining('%'), findsNothing);
     });
+
+    testWidgets('passes pipeline facts and only named eligible actions to the card', (
+      tester,
+    ) async {
+      var evidenceActions = 0;
+      final pillars = _v4Pillars(evidence: 12, formulation: 13.9);
+      (pillars['evidence'] as Map<String, dynamic>)['explanation'] = {
+        'schema_version': 1,
+        'facts': [
+          {
+            'id': 'human_trials',
+            'label': 'Human trials',
+            'value_display': 'Limited',
+          },
+        ],
+      };
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: buildScoreBreakdownSection(
+              ingredientQuality: null,
+              safetyPurity: null,
+              evidenceResearch: null,
+              brandTrust: null,
+              hasThirdPartyTesting: true,
+              isTrustedManufacturer: true,
+              heroScore: 63.6,
+              mappedCoverage: null,
+              qualityPillarsV4: pillars,
+              onPillarTap: {
+                'formulation': () {},
+                'evidence': () => evidenceActions++,
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('How scoring works'), findsOneWidget);
+      await tester.tap(find.text('Evidence'));
+      await tester.pumpAndSettle();
+      expect(find.text('Human trials'), findsOneWidget);
+      expect(find.text('View clinical evidence'), findsOneWidget);
+
+      await tester.tap(find.text('View clinical evidence'));
+      expect(evidenceActions, 1);
+
+      await tester.tap(find.text('Formulation'));
+      await tester.pumpAndSettle();
+      expect(find.text('View clinical evidence'), findsNothing);
+      expect(find.textContaining('See details'), findsNothing);
+    });
   });
 
   group('Score explanation card', () {
