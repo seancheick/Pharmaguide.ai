@@ -671,7 +671,7 @@ void main() {
       // Both candidates are same tier (same supplement_type + family
       // overlap), same score → ranker would tie-break on the next
       // criterion. Without user goals, the tie is broken by score
-      // (same here) → mapped_coverage → brand_trust. With user
+      // (same here) → mapped_coverage → allergen compatibility. With user
       // goals, the goal-Jaccard tiebreaker must outrank those.
       final goalAligned = _product(
         dsldId: 'aligned',
@@ -690,8 +690,7 @@ void main() {
         qualityScoreV4100: 60,
         keyIngredientTags: '["magnesium","glycinate"]',
         goalMatches: '["GOAL_MUSCLE_GROWTH_RECOVERY"]',
-        // Slight tiebreaker edge if userGoals is ignored — higher
-        // brand_trust would normally win the tiebreaker after score.
+        // Vestigial v3 data must not affect v4 alternative ranking.
         scoreBrandTrust: 9.0,
       );
 
@@ -704,8 +703,8 @@ void main() {
         result.first.dsldId,
         equals('aligned'),
         reason:
-            "Goal-aligned candidate must outrank the higher-brand-trust "
-            'mismatch when userGoals are present — that is the whole '
+            "Goal-aligned candidate must outrank the mismatched candidate "
+            'when userGoals are present — that is the whole '
             'point of the personalization hook.',
       );
     });
@@ -729,8 +728,8 @@ void main() {
         qualityScoreV4100: 60,
         goalMatches: '["GOAL_SLEEP_QUALITY"]',
       );
-      // Candidate that doesn't share goal_matches but has a brand-trust
-      // edge that would otherwise be the tiebreaker.
+      // Candidate that doesn't share goal_matches and carries a vestigial v3
+      // brand-trust value; that value must not affect v4 ranking.
       final noShared = _product(
         dsldId: 'no-shared',
         name: 'Daily Multi',
@@ -752,7 +751,7 @@ void main() {
         reason:
             'With userGoals null, the product-to-product '
             'goal-match Jaccard takes over as the tiebreaker. Shares '
-            'a goal with current → outranks the higher-brand-trust '
+            'a goal with current → outranks the '
             'no-overlap candidate.',
       );
     });

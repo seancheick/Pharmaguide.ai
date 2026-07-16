@@ -135,8 +135,7 @@ List<ProductsCoreData> rankAlternatives({
   //   2. goals Jaccard DESC
   //   3. v4 quality score DESC
   //   4. mapped_coverage DESC
-  //   5. score_brand_trust DESC (vestigial v3 signal; deep tiebreaker only)
-  //   6. allergen compatibility DESC
+  //   5. allergen compatibility DESC
   ranked.sort((a, b) {
     final aEff = a.tier + a.audiencePenalty;
     final bEff = b.tier + b.audiencePenalty;
@@ -153,10 +152,6 @@ List<ProductsCoreData> rankAlternatives({
       a.product.mappedCoverage ?? 0,
     );
     if (coverage != 0) return coverage;
-    final trust = (b.product.scoreBrandTrust ?? 0).compareTo(
-      a.product.scoreBrandTrust ?? 0,
-    );
-    if (trust != 0) return trust;
     return b.allergenCompat.compareTo(a.allergenCompat);
   });
 
