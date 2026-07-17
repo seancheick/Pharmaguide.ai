@@ -75,3 +75,6 @@ coverage/
 /qa-*.jpeg
 /qa-*.png
 /final-cta-live.jpeg
+
+# firecrawl tooling scratch output
+.firecrawl/
