@@ -1,7 +1,7 @@
 // Product-type vocab loader.
 //
-// Pipeline contract (v1.0.0, schema in pipeline repo
-// `scripts/data/product_type_vocab.json`): 20 canonical supplement
+// Pipeline contract (v1.1.0, schema in pipeline repo
+// `scripts/data/product_type_vocab.json`): 22 canonical supplement
 // product-type buckets used for primary_category, search filter chips,
 // and product badges.
 //

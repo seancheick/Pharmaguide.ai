@@ -1,10 +1,10 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 20 canonical supplement product types. Single source of truth shared between pipeline (supplement_taxonomy.py) and Flutter app (product_type_vocab.dart). Drives primary_category column, search filter chips, and product badges.",
+    "description": "Controlled vocabulary for the 22 canonical supplement product types. Single source of truth shared between pipeline (supplement_taxonomy.py) and Flutter app (product_type_vocab.dart). Drives primary_category column, search filter chips, and product badges.",
     "purpose": "product_classification",
-    "schema_version": "1.0.0",
-    "last_updated": "2026-05-20",
-    "total_entries": 20,
+    "schema_version": "1.1.0",
+    "last_updated": "2026-07-16",
+    "total_entries": 22,
     "status": "ACTIVE",
     "alignment": "Pipeline source: scripts/supplement_taxonomy.py PRIMARY_TYPES list. Flutter consumer: assets/data/product_type_vocab.json loaded by VocabRegistry."
   },
@@ -20,6 +20,18 @@
       "name": "Single Mineral",
       "short_name": "Mineral",
       "notes": "Products with one quantified mineral as the primary active ingredient."
+    },
+    {
+      "id": "vitamin_complex",
+      "name": "Vitamin Complex",
+      "short_name": "Vitamin Complex",
+      "notes": "Products with two or more distinct quantified vitamin identities that do not qualify as B-complex or multivitamin."
+    },
+    {
+      "id": "mineral_complex",
+      "name": "Mineral Complex",
+      "short_name": "Mineral Complex",
+      "notes": "Products with two or more distinct quantified mineral identities that do not qualify as electrolyte products."
     },
     {
       "id": "vitamin_mineral_combo",

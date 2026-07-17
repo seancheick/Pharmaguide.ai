@@ -21,12 +21,12 @@ void main() {
       expect(raw.trim(), startsWith('{'));
     });
 
-    test('schema lock + 20 entries', () {
+    test('schema lock + 22 entries', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
-      expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 20);
+      expect(md['schema_version'], '1.1.0');
+      expect(md['total_entries'], 22);
     });
 
     test('all entries have required fields and snake_case ids', () {
@@ -35,7 +35,11 @@ void main() {
       final entries = (decoded['product_types'] as List)
           .cast<Map<String, dynamic>>();
 
-      expect(entries.length, 20);
+      expect(entries.length, 22);
+      expect(
+        entries.map((entry) => entry['id']),
+        containsAll({'vitamin_complex', 'mineral_complex'}),
+      );
 
       const required = {'id', 'name', 'short_name', 'notes'};
       final snakeRe = RegExp(r'^[a-z][a-z0-9_]*$');
