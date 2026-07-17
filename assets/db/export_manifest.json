@@ -1,10 +1,10 @@
 {
-  "checksum": "sha256:6b0c0571c0b4c42f0c068e12f4a955791700a2a83381ddec626bc03c992b38a8",
-  "checksum_sha256": "6b0c0571c0b4c42f0c068e12f4a955791700a2a83381ddec626bc03c992b38a8",
-  "db_version": "2026.07.15.200540",
+  "checksum": "sha256:293461db3faa0d9fe774470dcda255f74a09ca095ab1b0e3c17c5fd9ed86555f",
+  "checksum_sha256": "293461db3faa0d9fe774470dcda255f74a09ca095ab1b0e3c17c5fd9ed86555f",
+  "db_version": "2026.07.17.193123",
   "detail_blob_count": 13272,
   "detail_blob_unique_count": 13272,
-  "detail_index_checksum": "sha256:e417e6642d6233907a044d9c7b1e6940966fe0f7b00ef48e7c4cc8a7db2c8ec2",
+  "detail_index_checksum": "sha256:c1cc44598df270c932072500754c630f9dea7663733cf8b814cc085ffee3b89a",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -60,7 +60,7 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-07-15T20:05:40.250199+00:00",
+  "generated_at": "2026-07-17T19:31:23.665065+00:00",
   "integrity": {
     "contract_failures": 0,
     "contract_quarantine_count": 13,
@@ -72,9 +72,9 @@
     "exported_count": 13272,
     "has_banned_substance": 107,
     "has_recalled_ingredient": 0,
+    "quality_score_config_checksum": "sha256:5886f58cb74fb39be6d950ccb9d8fdd723d1df6ba402dd5c0a6495ec4830a4da",
     "scored_input_count": 14193,
     "scored_only_count": 0,
-    "scoring_config_checksum": "sha256:4c2986b77b25289d1d193feda62507345899e80fd5ad2b94ffde4e66a3d75778",
     "skipped_count": 13,
     "strict_mode": false,
     "total_skipped": 13,
@@ -86,11 +86,11 @@
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
   "product_count": 13272,
-  "release_staged_at": "2026-07-15T20:05:41Z",
+  "quality_score_config_checksum": "sha256:5886f58cb74fb39be6d950ccb9d8fdd723d1df6ba402dd5c0a6495ec4830a4da",
+  "release_staged_at": "2026-07-17T19:31:24Z",
   "schema_version": "2.0.0",
   "score_model": "v4",
-  "scoring_config_checksum": "sha256:4c2986b77b25289d1d193feda62507345899e80fd5ad2b94ffde4e66a3d75778",
-  "scoring_version": "3.4.0",
+  "scoring_version": "4.1.0",
   "warnings": [],
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "source_of_truth_matrix_version": "1.0.0",
@@ -109,7 +109,7 @@
     ],
     "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest"
   },
-  "interaction_db_checksum": "69cfa25fad0876b8bcd91dc3f609865518da48b5db81b66a195f9a02574a2bbd",
+  "interaction_db_checksum": "350e77f9673f11ad41de3c45c770e73dd4c6d7a1644507cba5925236f2e55a7d",
   "interaction_db_version": "1.0.2",
   "artifact_freshness_status": "checked_by_release_strict_gate"
 }
