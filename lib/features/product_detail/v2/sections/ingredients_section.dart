@@ -91,7 +91,8 @@ Widget buildIngredientsSection({
   // Genuine multi-form labels (no bare elemental sibling) pass through.
   final dedupedActives = dedupeElementalCompoundRows(ingredients);
 
-  final hasActive = dedupedActives.isNotEmpty;
+  final hasBlendDisclosure = blends?.isNotEmpty == true;
+  final hasActive = dedupedActives.isNotEmpty || hasBlendDisclosure;
   final hasInactive = inactiveIngredients.any(
     (m) =>
         (m['name']?.toString().isNotEmpty == true) ||
@@ -323,7 +324,7 @@ List<Widget> _buildActiveTiles({
     final sorted = sortActivesForDisplay(ingredients);
     return [
       for (var i = 0; i < sorted.length; i++)
-        _tileFor(
+        _ingredientEntry(
           context: context,
           ingredient: sorted[i],
           ulAnalysis: ulAnalysis,
@@ -337,7 +338,11 @@ List<Widget> _buildActiveTiles({
 
   for (final ing in grouped.looseDisclosed) {
     tiles.add(
-      _tileFor(context: context, ingredient: ing, ulAnalysis: ulAnalysis),
+      _ingredientEntry(
+        context: context,
+        ingredient: ing,
+        ulAnalysis: ulAnalysis,
+      ),
     );
   }
 
@@ -345,13 +350,14 @@ List<Widget> _buildActiveTiles({
     tiles.add(_BlendHeaderRow(blend: blend));
     for (final child in blend.children) {
       tiles.add(
-        Padding(
-          padding: const EdgeInsets.only(left: V2Spacing.space16),
-          child: _tileFor(
-            context: context,
-            ingredient: child,
-            ulAnalysis: ulAnalysis,
-          ),
+        _HierarchyChild(
+          child: child['is_label_context'] == true
+              ? _LabelChildRow(component: child)
+              : _tileFor(
+                  context: context,
+                  ingredient: child,
+                  ulAnalysis: ulAnalysis,
+                ),
         ),
       );
     }
@@ -359,11 +365,65 @@ List<Widget> _buildActiveTiles({
 
   for (final ing in grouped.looseUndisclosed) {
     tiles.add(
-      _tileFor(context: context, ingredient: ing, ulAnalysis: ulAnalysis),
+      _ingredientEntry(
+        context: context,
+        ingredient: ing,
+        ulAnalysis: ulAnalysis,
+      ),
     );
   }
 
   return tiles;
+}
+
+Widget _ingredientEntry({
+  required BuildContext context,
+  required Map<String, dynamic> ingredient,
+  required List<Map<String, dynamic>>? ulAnalysis,
+  bool showBottomDivider = true,
+}) {
+  final rawComponents = ingredient['label_components'];
+  final components = rawComponents is List
+      ? rawComponents
+            .whereType<Map>()
+            .map((value) {
+              return Map<String, dynamic>.from(value);
+            })
+            .toList(growable: false)
+      : const <Map<String, dynamic>>[];
+  if (components.isEmpty) {
+    return _tileFor(
+      context: context,
+      ingredient: ingredient,
+      ulAnalysis: ulAnalysis,
+      showBottomDivider: showBottomDivider,
+    );
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _tileFor(
+        context: context,
+        ingredient: ingredient,
+        ulAnalysis: ulAnalysis,
+        showBottomDivider: false,
+      ),
+      Padding(
+        padding: const EdgeInsets.only(bottom: V2Spacing.space4),
+        child: Text(
+          'Forms on label',
+          style: V2Typography.caption(
+            color: V2Colors.fgSubtle,
+          ).copyWith(fontWeight: FontWeight.w500, letterSpacing: 0.4),
+        ),
+      ),
+      for (final component in components)
+        _HierarchyChild(child: _LabelChildRow(component: component)),
+      if (showBottomDivider)
+        const Divider(height: 0.5, thickness: 0.5, color: V2Colors.outline),
+    ],
+  );
 }
 
 /// Build a single active tile. Wires tap → production's
@@ -404,32 +464,156 @@ class _BlendHeaderRow extends StatelessWidget {
         ? '$childCount ${childCount == 1 ? 'ingredient' : 'ingredients'}'
         : null;
     final amountLabel = hasTotal ? '${blend.totalAmount} ${blend.unit}' : null;
-    final totalLabel = amountLabel != null && countLabel != null
-        ? '$amountLabel · $countLabel'
-        : amountLabel ?? countLabel ?? 'Amount not disclosed';
+    final totalLabel = amountLabel ?? 'Amount not disclosed';
+    final hasUndisclosedChildren = blend.children.any((child) {
+      final quantity = child['quantity'];
+      return quantity is! num || quantity <= 0;
+    });
+    final helperLabel = [
+      if (countLabel != null) countLabel,
+      if (hasUndisclosedChildren) 'individual amounts not disclosed',
+    ].join(' · ');
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Icon(Icons.layers_outlined, size: 14, color: V2Colors.fgMuted),
-          const SizedBox(width: V2Spacing.space8),
-          Expanded(
-            child: Text(
-              blend.name,
-              style: V2Typography.bodyMedium(color: V2Colors.fg),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    return Semantics(
+      container: true,
+      header: true,
+      label: 'Proprietary blend, ${blend.name}, $totalLabel, $helperLabel',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.layers_outlined,
+                  size: 14,
+                  color: V2Colors.fgMuted,
+                ),
+                const SizedBox(width: V2Spacing.space8),
+                Text(
+                  'Proprietary blend',
+                  style: V2Typography.caption(
+                    color: V2Colors.fgSubtle,
+                  ).copyWith(fontWeight: FontWeight.w500),
+                ),
+              ],
             ),
-          ),
-          Text(
-            totalLabel,
-            style: V2Typography.monoData(color: V2Colors.fgMuted),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: V2Spacing.space4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    blend.name,
+                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: V2Spacing.space8),
+                Flexible(
+                  child: Text(
+                    totalLabel,
+                    textAlign: TextAlign.end,
+                    style: V2Typography.monoData(color: V2Colors.fgMuted),
+                  ),
+                ),
+              ],
+            ),
+            if (helperLabel.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                helperLabel,
+                style: V2Typography.caption(color: V2Colors.fgMuted),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HierarchyChild extends StatelessWidget {
+  final Widget child;
+
+  const _HierarchyChild({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: V2Spacing.space8),
+      padding: const EdgeInsets.only(left: V2Spacing.space12),
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: V2Colors.outline, width: 1)),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _LabelChildRow extends StatelessWidget {
+  final Map<String, dynamic> component;
+
+  const _LabelChildRow({required this.component});
+
+  @override
+  Widget build(BuildContext context) {
+    final label =
+        (component['label'] ?? component['display_label'] ?? component['name'])
+            ?.toString()
+            .trim() ??
+        '';
+    final form = component['form']?.toString().trim() ?? '';
+    final dose = component['display_dose_label']?.toString().trim() ?? '';
+    final showForm =
+        form.isNotEmpty && form.toLowerCase() != label.toLowerCase();
+    return Semantics(
+      container: true,
+      label: [
+        label,
+        if (showForm) form,
+        if (dose.isNotEmpty) dose,
+        'listed under parent ingredient',
+      ].join(', '),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  ),
+                  if (showForm) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      form,
+                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (dose.isNotEmpty) ...[
+              const SizedBox(width: V2Spacing.space8),
+              Flexible(
+                child: Text(
+                  dose,
+                  textAlign: TextAlign.end,
+                  style: V2Typography.monoData(
+                    color: V2Colors.fgMuted,
+                  ).copyWith(fontSize: 12),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

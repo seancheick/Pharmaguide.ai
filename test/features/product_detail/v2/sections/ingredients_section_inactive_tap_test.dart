@@ -114,4 +114,94 @@ void main() {
       );
     },
   );
+
+  testWidgets('nutrient total renders label forms as nested components', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => SingleChildScrollView(
+              child: buildIngredientsSection(
+                context: ctx,
+                ingredients: const [
+                  {
+                    'display_label': 'Vitamin A',
+                    'display_dose_label': '1.05 mg',
+                    'quantity': 1.05,
+                    'unit': 'mg',
+                    'label_components': [
+                      {
+                        'label': 'Beta-Carotene',
+                        'form': 'beta-carotene',
+                        'display_dose_label': '450 mcg',
+                      },
+                      {
+                        'label': 'Vitamin A Palmitate',
+                        'form': 'retinyl palmitate',
+                        'display_dose_label': '600 mcg',
+                      },
+                    ],
+                  },
+                ],
+                inactiveIngredients: const [],
+                ulAnalysis: const [],
+                blends: const [],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Vitamin A'), findsOneWidget);
+    expect(find.text('Forms on label'), findsOneWidget);
+    expect(find.text('Beta-Carotene'), findsOneWidget);
+    expect(find.text('Vitamin A Palmitate'), findsOneWidget);
+    expect(find.text('retinyl palmitate'), findsOneWidget);
+    expect(find.text('450 mcg'), findsOneWidget);
+    expect(find.text('600 mcg'), findsOneWidget);
+  });
+
+  testWidgets('blend metadata alone renders header and every label child', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => SingleChildScrollView(
+              child: buildIngredientsSection(
+                context: ctx,
+                ingredients: const [],
+                inactiveIngredients: const [],
+                ulAnalysis: const [],
+                blends: const [
+                  {
+                    'name': 'Botanical Blend',
+                    'total_weight': 100,
+                    'unit': 'mg',
+                    'child_ingredients': [
+                      {'name': 'Ashwagandha', 'amount': null, 'unit': ''},
+                      {'name': 'Rhodiola', 'amount': null, 'unit': ''},
+                    ],
+                  },
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Proprietary blend'), findsOneWidget);
+    expect(find.text('Botanical Blend'), findsOneWidget);
+    expect(find.text('100 mg'), findsOneWidget);
+    expect(find.text('Ashwagandha'), findsOneWidget);
+    expect(find.text('Rhodiola'), findsOneWidget);
+    expect(find.text('Amount not disclosed'), findsNWidgets(2));
+  });
 }

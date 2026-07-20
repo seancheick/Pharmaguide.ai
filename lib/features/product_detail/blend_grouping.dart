@@ -207,6 +207,7 @@ GroupedActives groupActivesByBlend({
             _blendHasAnyPresentChild(blend, activeIngredientKeys))) {
       continue;
     }
+    final displayChildren = _orderedBlendChildren(blend, children);
     blends.add(
       BlendGroup(
         name: blend['name']?.toString() ?? 'Proprietary Blend',
@@ -214,8 +215,8 @@ GroupedActives groupActivesByBlend({
             ? blend['total_weight'] as num
             : null,
         unit: blend['unit']?.toString() ?? '',
-        children: children,
-        childCount: rawChildCount > 0 ? rawChildCount : children.length,
+        children: displayChildren,
+        childCount: rawChildCount > 0 ? rawChildCount : displayChildren.length,
       ),
     );
   }
@@ -225,6 +226,61 @@ GroupedActives groupActivesByBlend({
     blends: blends,
     looseUndisclosed: _undisclosed(loose),
   );
+}
+
+List<Map<String, dynamic>> _orderedBlendChildren(
+  Map<String, dynamic> blend,
+  List<Map<String, dynamic>> matchedChildren,
+) {
+  final rawChildren = blend['child_ingredients'];
+  if (rawChildren is! List) return matchedChildren;
+
+  final ordered = List<Map<String, dynamic>>.from(matchedChildren);
+  final matchedCounts = <(String, bool), int>{};
+  for (final child in matchedChildren) {
+    final candidateName =
+        (child['name'] ?? child['standard_name'] ?? child['raw_source_text'])
+            ?.toString() ??
+        '';
+    final quantity = child['quantity'];
+    final key = (
+      canonicalizeIngredientName(candidateName),
+      quantity is num && quantity > 0,
+    );
+    matchedCounts[key] = (matchedCounts[key] ?? 0) + 1;
+  }
+  for (final raw in rawChildren) {
+    if (raw is! Map) continue;
+    final name = raw['name']?.toString().trim() ?? '';
+    if (name.isEmpty) continue;
+    final canonical = canonicalizeIngredientName(name);
+    final amount = raw['amount'];
+    final hasAmount = amount is num && amount > 0;
+    final key = (canonical, hasAmount);
+    final matchedCount = matchedCounts[key] ?? 0;
+    if (matchedCount > 0) {
+      matchedCounts[key] = matchedCount - 1;
+      continue;
+    }
+
+    final unit = raw['unit']?.toString().trim() ?? '';
+    final doseLabel = hasAmount && unit.isNotEmpty
+        ? '$amount $unit'
+        : 'Amount not disclosed';
+    ordered.add({
+      'name': name,
+      'raw_source_text': name,
+      'display_label': name,
+      'quantity': hasAmount ? amount : null,
+      'unit': unit,
+      'display_dose_label': doseLabel,
+      'dose_status': hasAmount ? 'disclosed' : 'not_disclosed_blend',
+      'score_included': false,
+      'is_label_context': true,
+      'is_blend_child': true,
+    });
+  }
+  return ordered;
 }
 
 int _blendChildCount(Map<String, dynamic> blend) {
