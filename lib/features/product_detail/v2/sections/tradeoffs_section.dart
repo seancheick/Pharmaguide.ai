@@ -29,6 +29,7 @@ import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show sanitizeWhyDetail;
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
+import 'package:pharmaguide/services/health/dose_safety.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/health/rda_reference_contract.dart';
 
@@ -121,7 +122,7 @@ List<PGTradeoff> _buildUlConsiderations({
     // Skip flags the pipeline itself marks as not a real UL breach (e.g.
     // `compound_mass_not_elemental` false positives). Mirrors the stack
     // aggregator + dose_safety structured-UL defense.
-    if (flag['ul_gate_eligible'] == false) return;
+    if (!isUlEvaluationEligible(flag)) return;
     final nutrient = _stringValue(
       flag['nutrient'] ?? flag['standard_name'] ?? flag['ingredient'],
     );
@@ -149,7 +150,7 @@ List<PGTradeoff> _buildUlConsiderations({
   }
 
   for (final row in ulAnalysis) {
-    if (row['skip_ul_check'] == true) continue;
+    if (!isUlEvaluationEligible(row)) continue;
     // Require the pipeline's structured over-UL verdict — stale prose
     // `warnings` alone must not surface a tradeoff (matches
     // extractUlExceedances / dose_safety).

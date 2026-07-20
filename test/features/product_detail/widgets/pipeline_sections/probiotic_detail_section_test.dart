@@ -89,6 +89,28 @@ void main() {
       expect(find.text('5 billion CFU total per serving'), findsOneWidget);
     });
 
+    testWidgets('small numeric total does not round down to zero', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'total_billion_count': 0.000025,
+              'probiotic_blends': [
+                {
+                  'strains': ['Lactobacillus test strain'],
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('25 thousand CFU total per serving'), findsOneWidget);
+      expect(find.textContaining('0.0 billion'), findsNothing);
+    });
+
     testWidgets('renders nothing for empty probiotic_detail', (tester) async {
       await tester.pumpWidget(
         _wrap(buildProbioticSection(probioticDetail: {})),
@@ -143,7 +165,31 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       // Per-strain row renders the CFU label.
-      expect(find.text('5 billion per serving'), findsOneWidget);
+      expect(find.text('5 billion CFU per serving'), findsOneWidget);
+    });
+
+    testWidgets('small per-strain counts keep a meaningful CFU unit', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'probiotic_blends': [
+                {
+                  'strains': ['Lactobacillus test strain'],
+                },
+              ],
+              'clinical_strains': [
+                {'strain': 'Lactobacillus test strain', 'cfu_per_day': 25000},
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('25 thousand CFU per serving'), findsOneWidget);
+      expect(find.textContaining('0.0 million'), findsNothing);
     });
 
     testWidgets(
@@ -193,6 +239,32 @@ void main() {
         expect(find.text('Lactobacillus acidophilus (La-14)'), findsOneWidget);
       },
     );
+
+    testWidgets('generic clinical container echo is not rendered as a strain', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'total_cfu_label': '2 billion CFU',
+              'probiotic_blends': [
+                {
+                  'name': 'Probiotic Blend',
+                  'strains': ['Lactobacillus acidophilus La-14'],
+                },
+              ],
+              'clinical_strains': [
+                {'strain': 'Probiotic Blend'},
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('1 named microorganism'), findsOneWidget);
+      expect(find.text('Probiotic Blend'), findsNothing);
+    });
 
     testWidgets('verified exact-strain evidence uses explicit research copy', (
       tester,

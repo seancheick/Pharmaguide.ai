@@ -72,6 +72,35 @@ void main() {
       },
     );
 
+    test(
+      'ul_gate_eligible=false returns skip even with a stale over-UL verdict',
+      () {
+        final ingredient = <String, dynamic>{
+          'standard_name': 'Magnesium',
+          'quantity': 2000.0,
+          'unit': 'mg',
+        };
+        final ulAnalysis = <Map<String, dynamic>>[
+          {
+            'standard_name': 'Magnesium',
+            'quantity': 2000.0,
+            'unit': 'mg',
+            'skip_ul_check': false,
+            'ul_gate_eligible': false,
+            'ul_gate_ineligible_reason': 'compound_mass_not_elemental',
+            'over_ul': true,
+            'pct_ul': 571.0,
+            'warnings': ['Magnesium at 571% of UL'],
+          },
+        ];
+
+        expect(
+          resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+          DoseSafety.skip,
+        );
+      },
+    );
+
     test('safe dose under UL returns withinLimits', () {
       final ingredient = <String, dynamic>{
         'standard_name': 'Vitamin D3',
@@ -356,6 +385,21 @@ void main() {
           'warnings': ['This warning should not surface'],
         },
       ];
+      expect(extractUlExceedances(ulAnalysis), isEmpty);
+    });
+
+    test('skips entries the pipeline marks UL-gate ineligible', () {
+      final ulAnalysis = <Map<String, dynamic>>[
+        {
+          'standard_name': 'Magnesium',
+          'skip_ul_check': false,
+          'ul_gate_eligible': false,
+          'over_ul': true,
+          'pct_ul': 571.0,
+          'warnings': ['Magnesium at 571% of UL'],
+        },
+      ];
+
       expect(extractUlExceedances(ulAnalysis), isEmpty);
     });
 

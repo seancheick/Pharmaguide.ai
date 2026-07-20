@@ -39,9 +39,7 @@ Widget buildProbioticSection({
     totalCfuLabel = '${_compactNumber(legacyCanonicalBillion)} billion CFU';
   }
   if (totalCfuLabel.isEmpty && billionCount is num && billionCount > 0) {
-    totalCfuLabel = billionCount == billionCount.truncate()
-        ? '${billionCount.toInt()} billion CFU'
-        : '${billionCount.toStringAsFixed(1)} billion CFU';
+    totalCfuLabel = _formatCfuCount(billionCount.toDouble() * 1e9);
   }
 
   // Strains — prefer clinical_strains[] for richer per-strain data,
@@ -49,9 +47,15 @@ Widget buildProbioticSection({
   final clinicalStrains = probioticDetail.safeMapList('clinical_strains');
   final strainNames = <String>[];
   final clinicalByName = <String, Map<String, dynamic>>{};
+  final genericContainerKeys = probioticBlends
+      .map((blend) => blend['name']?.toString().trim() ?? '')
+      .where(_isGenericContainerName)
+      .map(_normalizedIdentity)
+      .toSet();
   for (final cs in clinicalStrains) {
     final strain = cs['strain']?.toString().trim() ?? '';
     if (strain.isEmpty) continue;
+    if (genericContainerKeys.contains(_normalizedIdentity(strain))) continue;
     if (!clinicalByName.containsKey(strain)) {
       clinicalByName[strain] = Map<String, dynamic>.from(cs);
     }
@@ -148,8 +152,11 @@ bool _isGenericContainerEcho({
       normalizedBlend != _normalizedIdentity(strainName)) {
     return false;
   }
-  return RegExp(r'\b(blend|complex|formula)\b').hasMatch(normalizedBlend);
+  return _isGenericContainerName(normalizedBlend);
 }
+
+bool _isGenericContainerName(String value) =>
+    RegExp(r'\b(blend|complex|formula)\b').hasMatch(_normalizedIdentity(value));
 
 String _normalizedIdentity(String value) => value
     .toLowerCase()
@@ -209,19 +216,25 @@ String _compactNumber(double value) {
   return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
 }
 
-/// Verbatim port of production's `_formatStrainCfu` (line 49).
 String _formatStrainCfu(dynamic cfu) {
   if (cfu is! num || cfu <= 0) return '';
-  final billions = cfu / 1e9;
+  return _formatCfuCount(cfu.toDouble());
+}
+
+String _formatCfuCount(double count) {
+  final billions = count / 1e9;
   if (billions >= 1) {
-    return billions == billions.truncate()
-        ? '${billions.toInt()} billion'
-        : '${billions.toStringAsFixed(1)} billion';
+    return '${_compactNumber(billions)} billion CFU';
   }
-  final millions = cfu / 1e6;
-  return millions == millions.truncate()
-      ? '${millions.toInt()} million'
-      : '${millions.toStringAsFixed(1)} million';
+  final millions = count / 1e6;
+  if (millions >= 1) {
+    return '${_compactNumber(millions)} million CFU';
+  }
+  final thousands = count / 1e3;
+  if (thousands >= 1) {
+    return '${_compactNumber(thousands)} thousand CFU';
+  }
+  return '${_compactNumber(count)} CFU';
 }
 
 /// Verbatim port of production's `_humanizeSurvivability` (line 189).

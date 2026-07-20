@@ -36,6 +36,14 @@ enum DoseSafety {
   withinLimits,
 }
 
+/// Whether the pipeline authorizes UL interpretation for this row.
+///
+/// This is the single client-side contract boundary for pipeline UL opt-outs.
+/// An absent `ul_gate_eligible` remains eligible for legacy catalogs; only an
+/// explicit `false` opts out.
+bool isUlEvaluationEligible(Map<Object?, Object?> row) =>
+    row['skip_ul_check'] != true && row['ul_gate_eligible'] != false;
+
 /// Resolve the dose-safety state for a single ingredient against the
 /// pipeline's `rda_ul_data.analyzed_ingredients` list. Pure function —
 /// no widget/ref dependencies, so the logic is unit-testable in isolation.
@@ -49,7 +57,7 @@ DoseSafety resolveDoseSafety({
 }) {
   final entry = matchUlEntry(ingredient, ulAnalysis);
   if (entry == null) return DoseSafety.withinLimits;
-  if (entry['skip_ul_check'] == true) return DoseSafety.skip;
+  if (!isUlEvaluationEligible(entry)) return DoseSafety.skip;
   if (_hasConfirmedUlExceedance(entry, ingredient: ingredient)) {
     return DoseSafety.exceedsUl;
   }
@@ -70,7 +78,7 @@ bool _hasConfirmedUlExceedance(
   Map<String, dynamic> entry, {
   Map<String, dynamic>? ingredient,
 }) {
-  if (entry['skip_ul_check'] == true) return false;
+  if (!isUlEvaluationEligible(entry)) return false;
 
   final overUl = entry['over_ul'];
   if (overUl == true) return true;
@@ -205,7 +213,7 @@ List<UlExceedance> extractUlExceedances(List<dynamic>? ulAnalysis) {
   for (final rawEntry in ulAnalysis) {
     final entry = _asStringKeyMap(rawEntry);
     if (entry == null) continue;
-    if (entry['skip_ul_check'] == true) continue;
+    if (!isUlEvaluationEligible(entry)) continue;
     if (!_hasConfirmedUlExceedance(entry)) continue;
     final rawName = entry['standard_name'] ?? entry['ingredient'];
     final name = rawName?.toString().trim();

@@ -44,6 +44,7 @@
 
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
+import 'package:pharmaguide/services/health/dose_safety.dart';
 import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -229,8 +230,7 @@ class StackNutrientAggregator {
     for (final item in stack) {
       for (final row in item.ingredients) {
         if (!isUsableDoseRow(row)) continue;
-        if (row['skip_ul_check'] == true) continue;
-        if (row['ul_gate_eligible'] == false) continue;
+        if (!isUlEvaluationEligible(row)) continue;
 
         final overUl = _readOverUl(row);
         final pctUl = asFiniteDouble(row['pct_ul']);
@@ -290,8 +290,10 @@ class StackNutrientAggregator {
     Map<String, dynamic> row,
     String unit,
   ) {
-    if (row['skip_ul_check'] == true) {
-      return NutrientExclusionReason.skippedByPipeline;
+    if (!isUlEvaluationEligible(row)) {
+      return row['skip_ul_check'] == true
+          ? NutrientExclusionReason.skippedByPipeline
+          : NutrientExclusionReason.compoundFormDuplicate;
     }
     // The pipeline declined to UL-gate this row because its disclosed
     // quantity is a COMPOUND mass, not elemental-comparable to the
@@ -303,9 +305,6 @@ class StackNutrientAggregator {
     // not elemental, don't sum it" semantics — so this does NOT raise the
     // unit-conflict flag. Opt-out only (`== false`): absent/true are summed,
     // so catalogs built before the field existed are unaffected.
-    if (row['ul_gate_eligible'] == false) {
-      return NutrientExclusionReason.compoundFormDuplicate;
-    }
     if (unit.isEmpty) return NutrientExclusionReason.missingUnit;
     final normalized = unit.toLowerCase().trim();
     if (normalized == 'np' ||
