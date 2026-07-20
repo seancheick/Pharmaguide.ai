@@ -33,7 +33,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -76,6 +76,13 @@ class UserDatabase extends _$UserDatabase {
         // row cannot retry and emit the same non-fatal crash on every sync
         // trigger. A newer client_updated_at automatically re-enters it.
         await m.addColumn(userStacksLocal, userStacksLocal.syncBlockedAt);
+      }
+      if (from < 8) {
+        // v8: retain the non-health catalog version identifiers that were
+        // shown when a scan was recorded. Existing history remains valid
+        // with null lineage values.
+        await m.addColumn(scanHistory, scanHistory.formulaFingerprint);
+        await m.addColumn(scanHistory, scanHistory.catalogSourceVersion);
       }
     },
     beforeOpen: (details) async {
@@ -221,12 +228,16 @@ class UserDatabase extends _$UserDatabase {
     required String dsldId,
     String? upcSku,
     String? productName,
+    String? formulaFingerprint,
+    String? catalogSourceVersion,
   }) async {
     await into(scanHistory).insert(
       ScanHistoryCompanion(
         dsldId: Value(dsldId),
         upcSku: Value(upcSku),
         productName: Value(productName),
+        formulaFingerprint: Value(formulaFingerprint),
+        catalogSourceVersion: Value(catalogSourceVersion),
       ),
     );
 

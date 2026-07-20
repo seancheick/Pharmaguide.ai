@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_inactive_row.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
+import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -61,6 +62,8 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
     _expanded = widget.inactiveIngredients.length <= widget.autoExpandThreshold;
   }
 
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
+
   @override
   Widget build(BuildContext context) {
     final hasActive = widget.activeContent != null;
@@ -96,50 +99,69 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Tappable "Other ingredients [N] ⌄" header.
-        InkWell(
-          onTap: () => setState(() => _expanded = !_expanded),
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
-            child: Row(
-              children: [
-                Text(
-                  'Other ingredients',
-                  style: V2Typography.bodyMedium(
-                    color: V2Colors.fg,
-                  ).copyWith(fontSize: 16),
-                ),
-                const SizedBox(width: V2Spacing.space8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: V2Colors.accentTint,
-                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                  ),
-                  child: Text(
-                    '${ingredients.length}',
-                    style: V2Typography.overline(color: V2Colors.accent)
-                        .copyWith(
-                          fontSize: 11,
-                          letterSpacing: 0.2,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+        Semantics(
+          button: true,
+          expanded: _expanded,
+          label:
+              'Other ingredients, ${ingredients.length} '
+              '${ingredients.length == 1 ? 'ingredient' : 'ingredients'}',
+          onTap: _toggleExpanded,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: _toggleExpanded,
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Other ingredients',
+                        style: V2Typography.bodyMedium(
+                          color: V2Colors.fg,
+                        ).copyWith(fontSize: 16),
+                        softWrap: true,
+                      ),
+                    ),
+                    const SizedBox(width: V2Spacing.space8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: V2Colors.accentTint,
+                        borderRadius: BorderRadius.circular(
+                          V2Spacing.radiusPill,
                         ),
-                  ),
+                      ),
+                      child: Text(
+                        '${ingredients.length}',
+                        style: V2Typography.overline(color: V2Colors.accent)
+                            .copyWith(
+                              fontSize: 11,
+                              letterSpacing: 0.2,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: V2Spacing.space4),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        size: 22,
+                        color: V2Colors.fgMuted,
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                AnimatedRotation(
-                  turns: _expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 180),
-                  child: const Icon(
-                    Icons.expand_more_rounded,
-                    size: 22,
-                    color: V2Colors.fgMuted,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -172,8 +194,9 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
 
 /// Convenience widget that pairs with [PGIngredientsCard.activeContent].
 ///
-/// Header: "Active Ingredients [N] ⌄" — tappable to expand/collapse.
-/// Auto-expands when length ≤ 5.
+/// Header: "What the label lists [N] ⌄" — tappable to expand/collapse.
+/// The badge and auto-expand threshold count logical ingredient tiles, not
+/// blend/header widgets or parenthetical continuation lines.
 class PGActiveIngredientsSection extends StatefulWidget {
   /// Pre-built tile widgets. Caller wires each row to its tap handler
   /// (e.g. `() => showIngredientExplainSheet(...)`). Decoupled from the
@@ -190,12 +213,45 @@ class PGActiveIngredientsSection extends StatefulWidget {
 
 class _PGActiveIngredientsSectionState
     extends State<PGActiveIngredientsSection> {
+  static const _revealChunkSize = 20;
+
   late bool _expanded;
+  late int _visibleTileCount;
+
+  int get _logicalIngredientCount => widget.tiles.fold<int>(
+    0,
+    (count, tile) => count + _logicalIngredientRowsIn(tile),
+  );
 
   @override
   void initState() {
     super.initState();
-    _expanded = widget.tiles.length <= 5;
+    _expanded = _logicalIngredientCount <= 5;
+    _visibleTileCount = _initialVisibleCount(widget.tiles.length);
+  }
+
+  @override
+  void didUpdateWidget(covariant PGActiveIngredientsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tiles.length == widget.tiles.length) return;
+
+    final wasFullyRevealed = _visibleTileCount >= oldWidget.tiles.length;
+    if (wasFullyRevealed) {
+      _visibleTileCount = _initialVisibleCount(widget.tiles.length);
+    } else if (_visibleTileCount > widget.tiles.length) {
+      _visibleTileCount = widget.tiles.length;
+    }
+  }
+
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
+
+  void _showMore() {
+    setState(() {
+      final next = _visibleTileCount + _revealChunkSize;
+      _visibleTileCount = next < widget.tiles.length
+          ? next
+          : widget.tiles.length;
+    });
   }
 
   @override
@@ -203,50 +259,69 @@ class _PGActiveIngredientsSectionState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: () => setState(() => _expanded = !_expanded),
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
-            child: Row(
-              children: [
-                Text(
-                  'Active Ingredients',
-                  style: V2Typography.bodyMedium(
-                    color: V2Colors.fg,
-                  ).copyWith(fontSize: 16),
-                ),
-                const SizedBox(width: V2Spacing.space8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: V2Colors.accentTint,
-                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                  ),
-                  child: Text(
-                    '${widget.tiles.length}',
-                    style: V2Typography.overline(color: V2Colors.accent)
-                        .copyWith(
-                          fontSize: 11,
-                          letterSpacing: 0.2,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+        Semantics(
+          button: true,
+          expanded: _expanded,
+          label:
+              'What the label lists, $_logicalIngredientCount '
+              '${_logicalIngredientCount == 1 ? 'ingredient' : 'ingredients'}',
+          onTap: _toggleExpanded,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: _toggleExpanded,
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'What the label lists',
+                        style: V2Typography.bodyMedium(
+                          color: V2Colors.fg,
+                        ).copyWith(fontSize: 16),
+                        softWrap: true,
+                      ),
+                    ),
+                    const SizedBox(width: V2Spacing.space8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: V2Colors.accentTint,
+                        borderRadius: BorderRadius.circular(
+                          V2Spacing.radiusPill,
                         ),
-                  ),
+                      ),
+                      child: Text(
+                        '$_logicalIngredientCount',
+                        style: V2Typography.overline(color: V2Colors.accent)
+                            .copyWith(
+                              fontSize: 11,
+                              letterSpacing: 0.2,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: V2Spacing.space4),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        size: 22,
+                        color: V2Colors.fgMuted,
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                AnimatedRotation(
-                  turns: _expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 180),
-                  child: const Icon(
-                    Icons.expand_more_rounded,
-                    size: 22,
-                    color: V2Colors.fgMuted,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -256,14 +331,62 @@ class _PGActiveIngredientsSectionState
           child: _expanded
               ? Padding(
                   padding: const EdgeInsets.only(top: V2Spacing.space8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: widget.tiles,
-                  ),
+                  child: _buildExpandedTiles(),
                 )
               : const SizedBox(width: double.infinity),
         ),
       ],
     );
   }
+
+  Widget _buildExpandedTiles() {
+    final visibleCount = _visibleTileCount < widget.tiles.length
+        ? _visibleTileCount
+        : widget.tiles.length;
+    final visibleLogicalCount = widget.tiles
+        .take(visibleCount)
+        .fold<int>(0, (count, tile) => count + _logicalIngredientRowsIn(tile));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < visibleCount; index++) widget.tiles[index],
+        if (visibleCount < widget.tiles.length)
+          Semantics(
+            button: true,
+            label:
+                'Show more label ingredients, $visibleLogicalCount of '
+                '$_logicalIngredientCount shown',
+            onTap: _showMore,
+            excludeSemantics: true,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _showMore,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Center(
+                    child: Text(
+                      'Show more',
+                      style: V2Typography.bodyMedium(color: V2Colors.accent),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static int _initialVisibleCount(int total) =>
+      total < _revealChunkSize ? total : _revealChunkSize;
+}
+
+int _logicalIngredientRowsIn(Widget widget) {
+  if (widget is PGActiveIngredientTile) return 1;
+  if (widget is Padding && widget.child != null) {
+    return _logicalIngredientRowsIn(widget.child!);
+  }
+  return 0;
 }

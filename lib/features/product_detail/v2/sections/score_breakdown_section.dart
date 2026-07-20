@@ -59,15 +59,28 @@ Widget buildScoreBreakdownSection({
     return const _ScoreBreakdownUnavailable();
   }
 
-  final pillars = _buildV4Pillars(parsedV4, onPillarTap: onPillarTap);
+  final pillars = _buildV4Pillars(
+    parsedV4,
+    mappedCoverage: mappedCoverage,
+    sectionBreakdown: sectionBreakdown,
+    onPillarTap: onPillarTap,
+  );
 
   return Builder(
-    builder: (context) => PGScoreBreakdownCard(
-      pillars: pillars,
-      mappedCoverage: mappedCoverage,
-      // Unrounded hero so the title matches the "= N/100" pillar-sum line.
-      heroScore: heroScore,
-      onHowScoringWorks: () => showTrustReceiptsSheet(context),
+    builder: (context) => Semantics(
+      container: true,
+      label: _evidenceScopeSemanticsLabel(
+        pillars,
+        mappedCoverage: mappedCoverage,
+        sectionBreakdown: sectionBreakdown,
+      ),
+      child: PGScoreBreakdownCard(
+        pillars: pillars,
+        mappedCoverage: mappedCoverage,
+        // Unrounded hero so the title matches the "= N/100" pillar-sum line.
+        heroScore: heroScore,
+        onHowScoringWorks: () => showTrustReceiptsSheet(context),
+      ),
     ),
   );
 }
@@ -133,6 +146,8 @@ class _ScoreBreakdownUnavailable extends StatelessWidget {
 /// Six v4 pillars from the pre-parsed (and 6/6-verified) pillar values.
 List<PGPillar> _buildV4Pillars(
   List<V4PillarValue> parsed, {
+  double? mappedCoverage,
+  Map<String, dynamic>? sectionBreakdown,
   Map<String, VoidCallback>? onPillarTap,
 }) {
   final out = <PGPillar>[];
@@ -145,12 +160,131 @@ List<PGPillar> _buildV4Pillars(
         label: p.label,
         max: p.max,
         score: p.score,
-        reason: p.reason,
-        facts: p.facts,
+        reason: p.key == 'evidence'
+            ? _formulaEvidenceReason(p.reason)
+            : p.reason,
+        facts: p.key == 'evidence'
+            ? _evidenceScopeFacts(
+                p.facts,
+                mappedCoverage: mappedCoverage,
+                sectionBreakdown: sectionBreakdown,
+              )
+            : p.facts,
         actionLabel: onAction == null ? null : actionLabel,
         onAction: onAction,
       ),
     );
   }
   return out;
+}
+
+/// Evidence is an aggregate pillar, while the clinical-evidence section may
+/// describe one strongly supported ingredient. Keep those scopes visibly
+/// separate without changing the pipeline-authored score or reason.
+List<V4PillarFact> _evidenceScopeFacts(
+  List<V4PillarFact> pipelineFacts, {
+  required double? mappedCoverage,
+  required Map<String, dynamic>? sectionBreakdown,
+}) {
+  final facts = <V4PillarFact>[];
+
+  final metadataParts = <String>[];
+  if (mappedCoverage != null && mappedCoverage.isFinite) {
+    final percent = (mappedCoverage.clamp(0.0, 1.0) * 100).round();
+    metadataParts.add('$percent% analysis coverage');
+  }
+
+  final evidenceBreakdown = _asStringMap(
+    sectionBreakdown?['evidence_research'],
+  );
+  final sourceCount = _nonNegativeInt(evidenceBreakdown?['source_count']);
+  if (sourceCount != null) {
+    metadataParts.add(
+      '$sourceCount evidence ${sourceCount == 1 ? 'source' : 'sources'}',
+    );
+  }
+
+  final matchedEntries = _nonNegativeInt(evidenceBreakdown?['matched_entries']);
+  if (matchedEntries != null) {
+    metadataParts.add(
+      '$matchedEntries matched evidence '
+      '${matchedEntries == 1 ? 'record' : 'records'}',
+    );
+  }
+  if (metadataParts.isNotEmpty) {
+    facts.add(
+      V4PillarFact(
+        id: 'ui_evidence_analysis_metadata',
+        label: 'Analysis metadata',
+        valueDisplay: metadataParts.join(' · '),
+      ),
+    );
+  }
+
+  facts.addAll(pipelineFacts);
+  return facts;
+}
+
+String _formulaEvidenceReason(String? pipelineReason) {
+  const scope =
+      'Formula-wide evidence depends on coverage, not one strong ingredient.';
+  final reason = pipelineReason?.trim() ?? '';
+  return reason.isEmpty ? scope : '$scope $reason';
+}
+
+String _evidenceScopeSemanticsLabel(
+  List<PGPillar> pillars, {
+  required double? mappedCoverage,
+  required Map<String, dynamic>? sectionBreakdown,
+}) {
+  final evidence = pillars.where((pillar) => pillar.label == 'Evidence').first;
+  final score = evidence.score == null
+      ? 'score unavailable'
+      : '${PGScoreBreakdownCard.fmtScore(evidence.score!)} out of ${evidence.max}';
+  final parts = <String>[
+    'Evidence pillar, $score',
+    'Formula-wide, coverage-dependent',
+    'Strong evidence for one ingredient does not represent the whole formula',
+  ];
+
+  if (mappedCoverage != null && mappedCoverage.isFinite) {
+    final percent = (mappedCoverage.clamp(0.0, 1.0) * 100).round();
+    parts.add('Analysis coverage, $percent percent mapped');
+  }
+
+  final evidenceBreakdown = _asStringMap(
+    sectionBreakdown?['evidence_research'],
+  );
+  final sourceCount = _nonNegativeInt(evidenceBreakdown?['source_count']);
+  if (sourceCount != null) {
+    parts.add(
+      '$sourceCount evidence ${sourceCount == 1 ? 'source' : 'sources'}',
+    );
+  }
+  final matchedEntries = _nonNegativeInt(evidenceBreakdown?['matched_entries']);
+  if (matchedEntries != null) {
+    parts.add(
+      '$matchedEntries matched evidence '
+      '${matchedEntries == 1 ? 'record' : 'records'}',
+    );
+  }
+
+  return '${parts.join('. ')}.';
+}
+
+Map<String, dynamic>? _asStringMap(Object? value) {
+  if (value is! Map) return null;
+  return Map<String, dynamic>.from(value);
+}
+
+int? _nonNegativeInt(Object? value) {
+  final parsed = switch (value) {
+    final num number
+        when number.isFinite && number == number.truncateToDouble() =>
+      number.toInt(),
+    final String text => int.tryParse(text.trim()),
+    _ => null,
+  };
+  if (parsed == null || parsed < 0) return null;
+  return parsed;
 }

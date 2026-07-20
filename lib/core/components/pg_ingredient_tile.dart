@@ -8,19 +8,21 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_m
 /// v2 mirror of `_IngredientTile` in
 ///
 ///
-/// **Same structure, semantics preserved verbatim:**
+/// **Label-truth structure:**
 /// - Row 1: name (Geist Sans 500, ellipsis) + dose label right
 ///   (Geist Mono for tabular figures)
-/// - Optional form helper line (12pt onSurfaceVariant, lowercase)
+/// - Optional parenthetical component amount and exact form text
 /// - Chips Wrap (spacing 6, runSpacing 4):
-///   - `_FormChip` when `formQuality != unknown` — Excellent / Good /
-///     Fair / Poor, color from FormQuality (Poor stays amber, not red —
-///     bioavailability is form quality, not safety)
+///   - explicit non-quality form states (`Form not disclosed`,
+///     `Form listed · not yet assessed`, or `Data needs review`)
+///   - `_FormChip` only for an explicitly assessed form
 ///   - `_DoseChip` when `doseCallOut != withinLimits` — High dose /
 ///     Low dose / Dose not disclosed (High is the only red — real safety)
 ///   - `_MiniChip` 'Safety concern' when `isSafetyConcern` (red, error tone)
 ///   - `_MiniChip` 'Inferred from label' when `isInferredFromLabel`
 /// - Bottom hairline divider (0.5pt outlineVariant). Final row skips it.
+/// - Source hierarchy is visible as indentation and announced with scoring
+///   participation through one row-level Semantics node.
 /// - Tap anywhere → `onTap` (parent opens the explain sheet — production
 ///   delegates to `showIngredientExplainSheet`)
 ///
@@ -52,101 +54,163 @@ class PGActiveIngredientTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final i = ingredient;
     final needsReview = i.identityNeedsReview;
-    // Unresolved identity: the row shows only its literal label and a calm
-    // review note — every quality/dose/safety claim is hidden even if a stale
-    // typed model still carries one (defense-in-depth).
+    final formState = needsReview
+        ? PGIngredientFormDisplayState.needsReview
+        : i.formDisplayState;
+    final dataNeedsReview =
+        formState == PGIngredientFormDisplayState.needsReview;
+    final suppressClaims = needsReview || dataNeedsReview;
+    final isAssessed = formState == PGIngredientFormDisplayState.assessed;
+    final formStatusLabel = formState.statusLabel;
+    // Unresolved identity: the row shows only its literal label and the shared
+    // Data-needs-review state — every quality/dose/safety claim is hidden even
+    // if a stale typed model still carries one (defense-in-depth).
     final showChips =
-        !needsReview &&
-        (i.formQuality != FormQuality.unknown ||
-            i.doseCallOut != DoseCallOut.withinLimits ||
-            i.isSafetyConcern ||
-            i.isInferredFromLabel);
-    final hasDose = !needsReview && i.dose != null && i.dose!.isNotEmpty;
-    final hasForm = !needsReview && i.formLabel != null && i.formLabel!.isNotEmpty;
+        formStatusLabel != null ||
+        (!suppressClaims &&
+            ((isAssessed && i.formQuality != FormQuality.unknown) ||
+                i.doseCallOut != DoseCallOut.withinLimits ||
+                i.isSafetyConcern ||
+                i.isInferredFromLabel));
+    final hasDose = !suppressClaims && i.dose != null && i.dose!.isNotEmpty;
+    final hasParentheticalDose =
+        !suppressClaims &&
+        i.parentheticalDoseText != null &&
+        i.parentheticalDoseText!.trim().isNotEmpty;
+    final hasForm =
+        !suppressClaims &&
+        (isAssessed ||
+            formState == PGIngredientFormDisplayState.listedNotAssessed) &&
+        i.formLabel != null &&
+        i.formLabel!.isNotEmpty;
+    final semanticsLabel = _semanticsLabel(
+      ingredient: i,
+      hasDose: hasDose,
+      hasParentheticalDose: hasParentheticalDose,
+      hasForm: hasForm,
+      formState: formState,
+      suppressClaims: suppressClaims,
+    );
+    final nestedDepth = i.nestedDepth < 0 ? 0 : i.nestedDepth;
 
     return Column(
       children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
+        Padding(
+          padding: EdgeInsets.only(left: nestedDepth * V2Spacing.space16),
+          child: Semantics(
+            container: true,
+            label: semanticsLabel,
+            button: onTap != null,
             onTap: onTap,
-            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: V2Spacing.space8,
-                horizontal: V2Spacing.space4,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          i.name,
-                          style: V2Typography.bodyMedium(color: V2Colors.fg),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+            excludeSemantics: true,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: V2Spacing.space8,
+                      horizontal: V2Spacing.space4,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                i.name,
+                                style: V2Typography.bodyMedium(
+                                  color: V2Colors.fg,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (hasDose)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: V2Spacing.space8,
+                                ),
+                                child: Text(
+                                  i.dose!,
+                                  style: V2Typography.monoData(
+                                    color: V2Colors.fgMuted,
+                                  ).copyWith(fontSize: 12),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                      if (hasDose)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: V2Spacing.space8,
-                          ),
-                          child: Text(
-                            i.dose!,
+                        if (hasParentheticalDose) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _parenthesize(i.parentheticalDoseText!),
                             style: V2Typography.monoData(
                               color: V2Colors.fgMuted,
                             ).copyWith(fontSize: 12),
                           ),
-                        ),
-                    ],
-                  ),
-                  if (needsReview) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      'Identity needs review',
-                      style: V2Typography.caption(color: V2Colors.fgSubtle),
-                    ),
-                  ] else if (hasForm) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      // Casing preserved verbatim — the label-native form
-                      // ("as Ethyl Esters") must not collapse to lower case.
-                      i.formLabel!,
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
-                    ),
-                  ],
-                  if (showChips) ...[
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (i.formQuality != FormQuality.unknown)
-                          _FormChipV2(quality: i.formQuality, onTap: onTap),
-                        if (i.doseCallOut != DoseCallOut.withinLimits)
-                          _DoseChipV2(callOut: i.doseCallOut, onTap: onTap),
-                        if (i.isSafetyConcern)
-                          const _MiniChipV2(
-                            label: 'Safety concern',
-                            icon: Icons.warning_amber_rounded,
-                            color: V2Colors.contraindicated,
+                        ],
+                        if (hasForm) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            // Casing preserved verbatim — the label-native
+                            // form must never collapse to lower case.
+                            i.formLabel!,
+                            style: V2Typography.caption(
+                              color: V2Colors.fgMuted,
+                            ),
                           ),
-                        if (i.isInferredFromLabel)
-                          const _MiniChipV2(
-                            label: 'Inferred from label',
-                            icon: Icons.manage_search_rounded,
-                            color: V2Colors.fgSubtle,
+                        ],
+                        if (showChips) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              if (formStatusLabel != null)
+                                _FormStatusChipV2(
+                                  state: formState,
+                                  label: formStatusLabel,
+                                  onTap: onTap,
+                                ),
+                              if (!suppressClaims &&
+                                  isAssessed &&
+                                  i.formQuality != FormQuality.unknown)
+                                _FormChipV2(
+                                  quality: i.formQuality,
+                                  onTap: onTap,
+                                ),
+                              if (!suppressClaims &&
+                                  i.doseCallOut != DoseCallOut.withinLimits)
+                                _DoseChipV2(
+                                  callOut: i.doseCallOut,
+                                  onTap: onTap,
+                                ),
+                              if (!suppressClaims && i.isSafetyConcern)
+                                const _MiniChipV2(
+                                  label: 'Safety concern',
+                                  icon: Icons.warning_amber_rounded,
+                                  color: V2Colors.contraindicated,
+                                ),
+                              if (!suppressClaims && i.isInferredFromLabel)
+                                const _MiniChipV2(
+                                  label: 'Inferred from label',
+                                  icon: Icons.manage_search_rounded,
+                                  color: V2Colors.fgSubtle,
+                                ),
+                            ],
                           ),
+                        ],
                       ],
                     ),
-                  ],
-                ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -158,9 +222,86 @@ class PGActiveIngredientTile extends StatelessWidget {
   }
 }
 
+String _parenthesize(String text) {
+  final trimmed = text.trim();
+  if (trimmed.startsWith('(') && trimmed.endsWith(')')) return trimmed;
+  return '($trimmed)';
+}
+
+String _semanticsLabel({
+  required PGActiveIngredient ingredient,
+  required bool hasDose,
+  required bool hasParentheticalDose,
+  required bool hasForm,
+  required PGIngredientFormDisplayState formState,
+  required bool suppressClaims,
+}) {
+  final parts = <String>[ingredient.name];
+  final nestedDepth = ingredient.nestedDepth < 0 ? 0 : ingredient.nestedDepth;
+  if (nestedDepth == 0) {
+    parts.add('Top-level label ingredient');
+  } else {
+    final parent = ingredient.parentLabel?.trim();
+    parts.add(
+      parent == null || parent.isEmpty
+          ? 'Nested level $nestedDepth'
+          : 'Nested level $nestedDepth under $parent',
+    );
+  }
+  if (hasDose) parts.add(ingredient.dose!);
+  if (hasParentheticalDose) {
+    parts.add(_parenthesize(ingredient.parentheticalDoseText!));
+  }
+  if (hasForm) parts.add(ingredient.formLabel!);
+  final formStatusLabel = formState.statusLabel;
+  if (formStatusLabel != null) {
+    parts.add(formStatusLabel);
+  } else if (!suppressClaims &&
+      formState == PGIngredientFormDisplayState.assessed &&
+      ingredient.formQuality != FormQuality.unknown) {
+    parts.add(formChipLabel(ingredient.formQuality));
+  }
+  if (!suppressClaims && ingredient.doseCallOut != DoseCallOut.withinLimits) {
+    parts.add(doseChipLabel(ingredient.doseCallOut));
+  }
+  if (!suppressClaims && ingredient.isSafetyConcern) {
+    parts.add('Safety concern');
+  }
+  if (!suppressClaims && ingredient.isInferredFromLabel) {
+    parts.add('Inferred from label');
+  }
+  parts.add(ingredient.scoreParticipationLabel);
+  return '${parts.join('. ')}.';
+}
+
 // =============================================================================
 // Form chip — mirrors _FormChip color logic from
 // =============================================================================
+
+class _FormStatusChipV2 extends StatelessWidget {
+  final PGIngredientFormDisplayState state;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _FormStatusChipV2({
+    required this.state,
+    required this.label,
+    required this.onTap,
+  });
+
+  static Color _color(PGIngredientFormDisplayState state) => switch (state) {
+    PGIngredientFormDisplayState.notDisclosed => V2Colors.fgMuted,
+    PGIngredientFormDisplayState.listedNotAssessed => V2Colors.accentStrong,
+    PGIngredientFormDisplayState.needsReview => V2Colors.caution,
+    PGIngredientFormDisplayState.assessed => V2Colors.safe,
+    PGIngredientFormDisplayState.notApplicable => V2Colors.fgMuted,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return _PillChipV2(label: label, color: _color(state), onTap: onTap);
+  }
+}
 
 class _FormChipV2 extends StatelessWidget {
   final FormQuality quality;

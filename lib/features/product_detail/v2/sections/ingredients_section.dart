@@ -1,12 +1,13 @@
 // Ingredients section adapter for Product Detail v2 — the canonical
 // ingredients surface after the Phase 11.11 hygiene pass removed the
-// v1 IngredientsCard. Composes the active list + inactive list inside
-// a single PGIngredientsCard.
+// v1 IngredientsCard. The canonical path renders the label ledger; stale
+// blobs retain the earlier active + inactive compatibility layout.
 //
 // Composition:
 //   • PGIngredientsCard wraps both active + inactive sub-sections
 //   • Active sub-section: PGActiveIngredientsSection (auto-expand ≤5)
-//   • Active list ordering (FLTR-9 + T16.2f blend grouping):
+//   • Canonical ledger ordering: source order, without analysis regrouping
+//   • Legacy active list ordering (FLTR-9 + T16.2f blend grouping):
 //     1. Loose disclosed-dose actives (sorted)
 //     2. Per-blend bucket: header row + indented children
 //     3. Loose undisclosed-dose actives (sorted)
@@ -48,8 +49,11 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_s
 import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 
 /// Build the Ingredients section. Composes:
-///   - Active list: PGActiveIngredientsSection wrapping tiles built from
-///     `blob.ingredients` (sorted + blend-grouped)
+///   - Canonical label path: tiles built from `blob.display_ingredients` in
+///     ledger order, without sorting, deduping, or analysis regrouping
+///   - Legacy path: PGActiveIngredientsSection wrapping tiles built from
+///     `blob.ingredients` (sorted + blend-grouped) only when the ledger is
+///     absent
 ///   - Inactive list: PGIngredientsCard's built-in inactive section
 ///     using PGInactiveIngredient list from `blob.inactive_ingredients`
 ///
@@ -58,12 +62,26 @@ import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 /// without structured lists — DEFERRED to a future v2 enhancement
 /// (rare, pre-v1.5.0 pipeline blobs only).
 Widget buildIngredientsSection({
+  Key? key,
   required BuildContext context,
   required List<Map<String, dynamic>> ingredients,
+  List<Map<String, dynamic>>? displayIngredients,
   required List<Map<String, dynamic>> inactiveIngredients,
   required List<Map<String, dynamic>>? ulAnalysis,
   required List<Map<String, dynamic>>? blends,
 }) {
+  // Null means the canonical ledger contract is absent (a stale blob), so the
+  // legacy score-oriented lists remain the explicit compatibility fallback.
+  // A present but empty ledger must stay empty: falling back in that case
+  // would let scored rows masquerade as source-label rows.
+  if (displayIngredients != null) {
+    return _CanonicalLedgerIngredients(
+      key: key,
+      ingredients: displayIngredients,
+      ulAnalysis: ulAnalysis,
+    );
+  }
+
   // Elemental vs compound dedupe (verified pipeline bug, dsld_id
   // 315678): the blob can carry both an elemental row ('Magnesium',
   // 60 mg — the true dose) and a compound-weight row ('Magnesium
@@ -121,6 +139,167 @@ Widget buildIngredientsSection({
     onInactiveTap: (index) =>
         showFunctionalRolesSheet(context, filteredRawInactive[index]),
   );
+}
+
+/// The two truthful projections available only when the canonical label ledger
+/// contract is present.
+enum IngredientLedgerView { label, analysis }
+
+class _CanonicalLedgerIngredients extends StatefulWidget {
+  final List<Map<String, dynamic>> ingredients;
+  final List<Map<String, dynamic>>? ulAnalysis;
+
+  const _CanonicalLedgerIngredients({
+    super.key,
+    required this.ingredients,
+    required this.ulAnalysis,
+  });
+
+  @override
+  State<_CanonicalLedgerIngredients> createState() =>
+      _CanonicalLedgerIngredientsState();
+}
+
+class _CanonicalLedgerIngredientsState
+    extends State<_CanonicalLedgerIngredients> {
+  IngredientLedgerView _selectedView = IngredientLedgerView.label;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelRows = widget.ingredients;
+    if (labelRows.isEmpty) return const SizedBox.shrink();
+
+    final analysisRows = labelRows
+        .where((row) => row['score_included'] == true)
+        .toList(growable: false);
+    final visibleRows = _selectedView == IngredientLedgerView.label
+        ? labelRows
+        : analysisRows;
+
+    return PGIngredientsCard(
+      activeContent: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _IngredientLedgerViewControl(
+            selectedView: _selectedView,
+            labelCount: labelRows.length,
+            analysisCount: analysisRows.length,
+            onChanged: (view) => setState(() => _selectedView = view),
+          ),
+          const SizedBox(height: V2Spacing.space12),
+          if (visibleRows.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
+              child: Text(
+                'No label rows are included in the product analysis.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+            )
+          else
+            PGActiveIngredientsSection(
+              key: ValueKey(_selectedView),
+              tiles: _buildLabelLedgerTiles(
+                context: context,
+                ingredients: visibleRows,
+                ulAnalysis: widget.ulAnalysis,
+              ),
+            ),
+        ],
+      ),
+      // Other Ingredients are already represented in the canonical ledger.
+      // Reusing the legacy inactive list here would duplicate label content.
+      inactiveIngredients: const [],
+    );
+  }
+}
+
+class _IngredientLedgerViewControl extends StatelessWidget {
+  final IngredientLedgerView selectedView;
+  final int labelCount;
+  final int analysisCount;
+  final ValueChanged<IngredientLedgerView> onChanged;
+
+  const _IngredientLedgerViewControl({
+    required this.selectedView,
+    required this.labelCount,
+    required this.analysisCount,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: 'Ingredient view',
+      child: SegmentedButton<IngredientLedgerView>(
+        segments: [
+          ButtonSegment(
+            value: IngredientLedgerView.label,
+            label: Semantics(
+              key: const ValueKey('ingredient-view-label'),
+              label:
+                  'Label view, $labelCount '
+                  '${labelCount == 1 ? 'ingredient' : 'ingredients'}',
+              excludeSemantics: true,
+              child: Text('Label $labelCount'),
+            ),
+          ),
+          ButtonSegment(
+            value: IngredientLedgerView.analysis,
+            label: Semantics(
+              key: const ValueKey('ingredient-view-analysis'),
+              label:
+                  'Analysis view, $analysisCount '
+                  '${analysisCount == 1 ? 'ingredient' : 'ingredients'}',
+              excludeSemantics: true,
+              child: Text('Analysis $analysisCount'),
+            ),
+          ),
+        ],
+        selected: {selectedView},
+        onSelectionChanged: (selection) {
+          if (selection.isNotEmpty) onChanged(selection.single);
+        },
+        showSelectedIcon: false,
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+          textStyle: WidgetStatePropertyAll(
+            V2Typography.label(color: V2Colors.fg),
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? V2Colors.accent
+                : V2Colors.fg,
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? V2Colors.accentTint
+                : Colors.transparent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Build canonical label-ledger tiles exactly in the order emitted by the
+/// pipeline. This path intentionally does not call elemental dedupe, dose
+/// sorting, or blend grouping: hierarchy/context rows are part of the label
+/// identity even when they do not participate in analysis.
+List<Widget> _buildLabelLedgerTiles({
+  required BuildContext context,
+  required List<Map<String, dynamic>> ingredients,
+  required List<Map<String, dynamic>>? ulAnalysis,
+}) {
+  return [
+    for (var index = 0; index < ingredients.length; index++)
+      _tileFor(
+        context: context,
+        ingredient: ingredients[index],
+        ulAnalysis: ulAnalysis,
+        showBottomDivider: index != ingredients.length - 1,
+      ),
+  ];
 }
 
 /// Build the active tile widget list. T16.2f flow:

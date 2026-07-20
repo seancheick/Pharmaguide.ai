@@ -9,7 +9,9 @@
 		<key>CFBundleDisplayName</key>
 		<string>PharmaGuide</string>
 		<key>NSCameraUsageDescription</key>
-		<string>PharmaGuide uses the camera to scan supplement barcodes so you can check safety and interactions instantly.</string>
+		<string>PharmaGuide uses the camera to scan supplement barcodes and, only when you choose, photograph product labels for a mismatch report.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>PharmaGuide accesses only the product-label photo you select for a mismatch report.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>PharmaGuide saves shared safety reports and stack summaries to your photo library when you choose to share them.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>

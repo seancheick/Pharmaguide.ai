@@ -1,6 +1,7 @@
 // Sprint: docs/sprints/product_detail_page_sprint.md — T4C.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_helpers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
 
 void main() {
@@ -124,6 +125,115 @@ void main() {
   });
 
   group('buildIngredientExplain', () {
+    test('assessed row and sheet share label-native form truth', () {
+      const ingredient = <String, dynamic>{
+        'label_display_name': 'EPA',
+        'standard_name': 'Eicosapentaenoic Acid',
+        'label_display_form': 'as Ethyl Esters',
+        'form_display_state': 'assessed',
+        'exact_dose_text': '360 mg',
+        'parenthetical_dose_text': 'from 2,400 mg fish oil',
+        'bio_score': 14,
+        'score_included': true,
+      };
+
+      final row = activeFromMap(ingredient);
+      final sheet = buildIngredientExplain(ingredient: ingredient);
+
+      expect(sheet.title, row.name);
+      expect(sheet.formName, row.formLabel);
+      expect(sheet.formQuality, row.formQuality);
+      expect(sheet.formStatusLabel, row.formStatusLabel);
+      expect(sheet.doseLabel, row.dose);
+      expect(sheet.parentheticalDoseText, row.parentheticalDoseText);
+      expect(sheet.scoreIncluded, row.scoreIncluded);
+      expect(sheet.formHeading, 'Excellent form');
+    });
+
+    test('Fish Oil undisclosed form never inherits bio_score quality', () {
+      const ingredient = <String, dynamic>{
+        'label_display_name': 'Fish Oil',
+        'form_display_state': 'not_disclosed',
+        'exact_dose_text': '2400 mg',
+        'bio_score': 14,
+        'score_included': true,
+      };
+
+      final row = activeFromMap(ingredient);
+      final sheet = buildIngredientExplain(ingredient: ingredient);
+
+      expect(row.formQuality, FormQuality.unknown);
+      expect(sheet.formQuality, FormQuality.unknown);
+      expect(sheet.formStatusLabel, 'Form not disclosed');
+      expect(sheet.formHeading, 'Form not disclosed');
+      expect(sheet.formExplanation, contains('label does not disclose'));
+    });
+
+    test('listed but unmapped form remains visible without a quality tier', () {
+      const ingredient = <String, dynamic>{
+        'label_display_name': 'Magnesium',
+        'label_display_form': 'TRAACS® Albion Chelate',
+        'form_display_state': 'listed_not_assessed',
+        'bio_score': 14,
+      };
+
+      final row = activeFromMap(ingredient);
+      final sheet = buildIngredientExplain(ingredient: ingredient);
+
+      expect(sheet.formName, row.formLabel);
+      expect(sheet.formName, 'TRAACS® Albion Chelate');
+      expect(row.formQuality, FormQuality.unknown);
+      expect(sheet.formQuality, FormQuality.unknown);
+      expect(sheet.formStatusLabel, 'Form listed · not yet assessed');
+      expect(sheet.formHeading, 'Form listed · not yet assessed');
+    });
+
+    test('needs_review suppresses sheet claims exactly like the row', () {
+      const ingredient = <String, dynamic>{
+        'raw_source_text': 'Marine Lipid Concentrate',
+        'label_display_name': 'EPA',
+        'identity_integrity_state': 'identity_conflict',
+        'form_display_state': 'needs_review',
+        'label_display_form': 'Triglyceride',
+        'exact_dose_text': '660 mg',
+        'bio_score': 14,
+        'is_safety_concern': true,
+        'score_included': true,
+      };
+
+      final row = activeFromMap(ingredient);
+      final sheet = buildIngredientExplain(ingredient: ingredient);
+
+      expect(sheet.title, row.name);
+      expect(sheet.identityNeedsReview, isTrue);
+      expect(sheet.formStatusLabel, 'Data needs review');
+      expect(sheet.formHeading, 'Data needs review');
+      expect(sheet.formName, isNull);
+      expect(sheet.formQuality, FormQuality.unknown);
+      expect(sheet.doseLabel, isNull);
+      expect(sheet.doseCallOut, DoseCallOut.withinLimits);
+    });
+
+    test('exact dose and Folate parenthetical stay on one logical row', () {
+      const ingredient = <String, dynamic>{
+        'label_display_name': 'Folate',
+        'label_display_form': 'folic acid',
+        'form_display_state': 'listed_not_assessed',
+        'exact_dose_text': '665 mcg DFE',
+        'parenthetical_dose_text': '400 mcg folic acid',
+        'score_included': true,
+      };
+
+      final row = activeFromMap(ingredient);
+      final sheet = buildIngredientExplain(ingredient: ingredient);
+
+      expect(sheet.title, 'Folate');
+      expect(sheet.doseLabel, row.dose);
+      expect(sheet.doseLabel, '665 mcg DFE');
+      expect(sheet.parentheticalDoseText, row.parentheticalDoseText);
+      expect(sheet.parentheticalDoseText, '400 mcg folic acid');
+    });
+
     test('uses display_label, falls back to standard_name', () {
       final a = buildIngredientExplain(
         ingredient: const {

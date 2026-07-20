@@ -1,5 +1,29 @@
-import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
+import 'package:pharmaguide/features/product_detail/label_ingredient_types.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
+
+enum PGIngredientFormDisplayState {
+  assessed,
+  notDisclosed,
+  listedNotAssessed,
+  notApplicable,
+  needsReview,
+}
+
+extension PGIngredientFormDisplayStatePresentation
+    on PGIngredientFormDisplayState {
+  /// Exact consumer copy for non-quality form states.
+  ///
+  /// Assessed rows use their quality tier instead. `notApplicable` is
+  /// intentionally silent because no form badge applies to that label row.
+  String? get statusLabel => switch (this) {
+    PGIngredientFormDisplayState.assessed => null,
+    PGIngredientFormDisplayState.notDisclosed => 'Form not disclosed',
+    PGIngredientFormDisplayState.listedNotAssessed =>
+      'Form listed · not yet assessed',
+    PGIngredientFormDisplayState.notApplicable => null,
+    PGIngredientFormDisplayState.needsReview => 'Data needs review',
+  };
+}
 
 /// Typed input for [PGActiveIngredientTile].
 ///
@@ -17,6 +41,10 @@ class PGActiveIngredient {
   /// Pre-formatted dose label, e.g. "200 mg" or "Amount not disclosed".
   /// Empty string / null hides the dose column.
   final String? dose;
+
+  /// Exact parenthetical component amount printed with the logical label row.
+  /// For example, Folate may carry "400 mcg folic acid" beneath its DFE dose.
+  final String? parentheticalDoseText;
 
   /// Lowercased form helper line shown under the name when known.
   /// e.g. "bisglycinate". Production: only rendered when
@@ -46,15 +74,52 @@ class PGActiveIngredient {
   /// the release audit.
   final bool identityNeedsReview;
 
+  /// Closed presentation state for label/native form truth.
+  final PGIngredientFormDisplayState formDisplayState;
+
+  /// Label hierarchy depth. `0` is a top-level row.
+  final int nestedDepth;
+
+  /// Source-label order from the canonical display ledger.
+  final int labelOrder;
+
+  /// Stable source occurrence path used for label reconciliation.
+  final String? rawSourcePath;
+
+  /// Optional label parent title for nested rows.
+  final String? parentLabel;
+
+  /// Whether this row participates in scoring.
+  final bool scoreIncluded;
+
+  /// Source-aware display disposition from the pipeline label ledger.
+  final String? displayDisposition;
+
+  /// Consumer-facing non-quality form status. Assessed and not-applicable
+  /// rows intentionally return null.
+  String? get formStatusLabel => formDisplayState.statusLabel;
+
+  /// Accessible context explaining whether this label row affected analysis.
+  String get scoreParticipationLabel =>
+      scoreIncluded ? 'Included in analysis' : 'Not included in analysis';
+
   const PGActiveIngredient({
     required this.name,
     this.dose,
+    this.parentheticalDoseText,
     this.formLabel,
     this.formQuality = FormQuality.unknown,
     this.doseCallOut = DoseCallOut.withinLimits,
     this.isSafetyConcern = false,
     this.isInferredFromLabel = false,
     this.identityNeedsReview = false,
+    this.formDisplayState = PGIngredientFormDisplayState.notApplicable,
+    this.nestedDepth = 0,
+    this.labelOrder = 0,
+    this.rawSourcePath,
+    this.parentLabel,
+    this.scoreIncluded = false,
+    this.displayDisposition,
   });
 }
 

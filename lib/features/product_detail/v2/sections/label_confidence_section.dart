@@ -1,12 +1,14 @@
 // Phase 11.7c.4 — LabelConfidence section adapter.
 //
-// Composes the v2 PGLabelConfidenceCard using the 5 production signals:
+// Composes the v2 PGLabelConfidenceCard using analysis signals plus the
+// independent pipeline label-ledger audit:
 //
 //   mappedCoverage         (_product.mappedCoverage)
 //   hasProprietaryBlends   (detailBlob.proprietary_blend_detail.has_proprietary_blends)
 //   isNotScored            (productIsNotScored gate)
 //   productStatus          (detailBlob.product_status)
 //   unmappedActives        (detailBlob.unmapped_actives)
+//   labelLedgerAudit       (detailBlob.label_ledger_audit)
 //
 // All tier + row composition lives in `label_confidence_helpers.dart`
 // to keep this file pure widget composition.
@@ -50,6 +52,8 @@ Widget buildLabelConfidenceSection({
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
+  Map<String, dynamic>? labelLedgerAudit,
+  bool labelLedgerAuditPresent = false,
 }) {
   final tier = computeLabelConfidenceTier(
     mappedCoverage: mappedCoverage,
@@ -58,8 +62,12 @@ Widget buildLabelConfidenceSection({
     unmappedActives: unmappedActives,
   );
 
-  // Compact note-tier path — only product_status fires, nothing else.
-  if (tier == LabelConfidenceTier.note) {
+  // Compact note-tier path — only product_status fires, nothing else. A
+  // ledger audit always uses the full card so its result cannot be conflated
+  // with a product-status note.
+  final hasLabelLedgerAudit =
+      labelLedgerAuditPresent || labelLedgerAudit != null;
+  if (tier == LabelConfidenceTier.note && !hasLabelLedgerAudit) {
     final label = productStatusLabel(productStatus);
     if (label == null) return const SizedBox.shrink();
     return _CompactNoteRow(
@@ -76,16 +84,47 @@ Widget buildLabelConfidenceSection({
     isNotScored: isNotScored,
     productStatus: productStatus,
     unmappedActives: unmappedActives,
+    labelLedgerAudit: labelLedgerAudit,
+    labelLedgerAuditPresent: labelLedgerAuditPresent,
     onTapProductStatus: () =>
         _showProductStatusSheet(context, productStatusType(productStatus)),
   );
 
   if (items.isEmpty) return const SizedBox.shrink();
 
-  return PGLabelConfidenceCard(
-    header: composeHeader(tier),
-    items: items,
-    isCaution: isCautionTier(tier),
+  final hasAnalysisSignal =
+      isNotScored ||
+      mappedCoverage < 0.5 ||
+      hasProprietaryBlends ||
+      unmappedTotal(unmappedActives) > 0;
+  final header = !hasLabelLedgerAudit
+      ? composeHeader(tier)
+      : hasAnalysisSignal
+      ? 'Label & analysis data'
+      : 'Label data';
+
+  return Semantics(
+    container: true,
+    label: coverageSemanticsLabel(
+      tier: tier,
+      mappedCoverage: mappedCoverage,
+      hasProprietaryBlends: hasProprietaryBlends,
+      isNotScored: isNotScored,
+      unmappedActives: unmappedActives,
+      labelLedgerAudit: labelLedgerAudit,
+      labelLedgerAuditPresent: labelLedgerAuditPresent,
+    ),
+    child: PGLabelConfidenceCard(
+      header: header,
+      items: items,
+      isCaution:
+          isCautionTier(tier) ||
+          labelCompletenessPresentation(
+                labelLedgerAudit,
+                auditPresent: labelLedgerAuditPresent,
+              )?.title ==
+              'Label completeness unavailable',
+    ),
   );
 }
 
@@ -98,12 +137,15 @@ bool labelConfidenceHasAnySignal({
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
+  Map<String, dynamic>? labelLedgerAudit,
+  bool labelLedgerAuditPresent = false,
 }) {
   if (isNotScored) return true;
   if (mappedCoverage < 0.5) return true;
   if (hasProprietaryBlends) return true;
   if (unmappedTotal(unmappedActives) > 0) return true;
   if (productStatusLabel(productStatus) != null) return true;
+  if (labelLedgerAuditPresent || labelLedgerAudit != null) return true;
   return false;
 }
 
@@ -119,43 +161,47 @@ class _CompactNoteRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      button: true,
+      label: '$label. Opens product status details.',
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: V2Spacing.space16,
-            vertical: V2Spacing.space12,
-          ),
-          decoration: BoxDecoration(
-            color: V2Colors.surface,
-            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.event_busy_outlined,
-                size: 18,
-                color: V2Colors.fgMuted,
-              ),
-              const SizedBox(width: V2Spacing.space12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: V2Spacing.space16,
+              vertical: V2Spacing.space12,
+            ),
+            decoration: BoxDecoration(
+              color: V2Colors.surface,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.event_busy_outlined,
+                  size: 18,
+                  color: V2Colors.fgMuted,
                 ),
-              ),
-              const SizedBox(width: V2Spacing.space8),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: V2Colors.fgMuted,
-              ),
-            ],
+                const SizedBox(width: V2Spacing.space12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  ),
+                ),
+                const SizedBox(width: V2Spacing.space8),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: V2Colors.fgMuted,
+                ),
+              ],
+            ),
           ),
         ),
       ),

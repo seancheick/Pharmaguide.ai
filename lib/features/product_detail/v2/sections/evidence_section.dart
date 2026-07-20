@@ -435,12 +435,36 @@ Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
     return const SizedBox.shrink();
   }
 
-  final displayMatches = evidenceDisplayMatches(clinicalMatches);
+  final rankedMatches = evidenceDisplayMatches(clinicalMatches);
+  final scope = evidenceScope(rankedMatches);
+  final scopedMatches = rankedMatches
+      .where((match) => _matchEvidenceScope(match) == scope)
+      .toList(growable: false);
+  final displayMatches = scopedMatches.isEmpty ? rankedMatches : scopedMatches;
   final productionTier = evidenceTier(displayMatches);
-  final scope = evidenceScope(displayMatches);
   final totalStudies = evidenceTotalStudies(displayMatches);
   final hasMeta = evidenceHasMetaQuality(displayMatches);
   final citations = evidenceCitations(clinicalMatches);
+  final exactProductMatches = clinicalMatches
+      .where((match) => _matchEvidenceScope(match) == EvidenceScope.product)
+      .toList(growable: false);
+  final hiddenExactProductLine =
+      scope != EvidenceScope.product && exactProductMatches.isNotEmpty
+      ? _exactProductEvidenceLine(exactProductMatches)
+      : null;
+  final secondaryIngredientMatches = rankedMatches
+      .where((match) => _matchEvidenceScope(match) == EvidenceScope.ingredient)
+      .toList(growable: false);
+  final secondaryIngredientLine =
+      scope != EvidenceScope.ingredient && secondaryIngredientMatches.isNotEmpty
+      ? evidenceAttributionHeadline(secondaryIngredientMatches)
+      : null;
+  final scopeFootnote = evidenceFootnote(scope);
+  final footnoteLines = <String>[
+    if (hiddenExactProductLine != null) hiddenExactProductLine,
+    if (secondaryIngredientLine != null) secondaryIngredientLine,
+    scopeFootnote,
+  ];
 
   return PGEvidenceSection(
     tier: _toPGEvidenceTier(productionTier),
@@ -448,12 +472,28 @@ Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
     hasMetaAnalysis: hasMeta,
     summaryPrefix: evidenceSummaryPrefix(scope),
     helperLine: evidenceHelperLine(displayMatches),
-    subtitle: scope == EvidenceScope.ingredient
-        ? evidenceAttributionHeadline(displayMatches)
-        : null,
+    subtitle: switch (scope) {
+      EvidenceScope.product =>
+        'Exact-product evidence: identified in this evidence record.',
+      EvidenceScope.ingredient => evidenceAttributionHeadline(displayMatches),
+      EvidenceScope.brandedIngredient || EvidenceScope.indirect => null,
+    },
     citations: citations.take(_maxCitations).toList(growable: false),
-    footnote: evidenceFootnote(scope),
+    footnote: footnoteLines.join('\n'),
   );
+}
+
+String _exactProductEvidenceLine(List<Map<String, dynamic>> matches) {
+  final studies = evidenceTotalStudies(matches);
+  final count = studies > 0
+      ? '$studies human ${studies == 1 ? 'study' : 'studies'} identified'
+      : 'identified';
+  final qualifier = _hasNegativeHumanEvidence(matches)
+      ? '; results show no benefit or possible unfavorable results.'
+      : _hasMixedOrNullHumanEvidence(matches)
+      ? '; results may be mixed.'
+      : '.';
+  return 'Exact-product evidence: $count in this evidence record$qualifier';
 }
 
 PGEvidenceTier _toPGEvidenceTier(EvidenceTier tier) {

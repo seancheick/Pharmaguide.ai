@@ -64,6 +64,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/heavy_metal_sect
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/manufacturer_violations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
@@ -83,6 +84,7 @@ import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/health/rda_reference_contract.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Null-preserving safe map read for detail-blob fields. Uses the shared
 /// [SafeJson.safeMap] helper (no raw `as Map<String, dynamic>?` casts —
@@ -93,6 +95,55 @@ Map<String, dynamic>? _blobMap(Map<String, dynamic>? blob, String key) {
   if (blob == null || blob[key] == null) return null;
   final m = blob.safeMap(key);
   return m.isEmpty ? null : m;
+}
+
+/// Parsed ingredient collections for the Product Detail label surface.
+///
+/// [displayIngredients] is null only when the canonical ledger key is absent.
+/// Empty means the key was present but empty or malformed, so the UI must fail
+/// closed instead of substituting score-oriented rows.
+class ProductDetailIngredientSources {
+  final List<Map<String, dynamic>> ingredients;
+  final List<Map<String, dynamic>>? displayIngredients;
+  final List<Map<String, dynamic>> inactiveIngredients;
+  final List<Map<String, dynamic>> blends;
+
+  const ProductDetailIngredientSources({
+    required this.ingredients,
+    required this.displayIngredients,
+    required this.inactiveIngredients,
+    required this.blends,
+  });
+}
+
+/// Parse the four ingredient collections without repairing or partially
+/// accepting malformed input. Each list is all-or-nothing: one invalid entry
+/// invalidates that collection. This keeps source-label identity separate from
+/// the legacy scoring input and makes malformed cached blobs non-fatal.
+ProductDetailIngredientSources productDetailIngredientSourcesFromBlob(
+  Map<String, dynamic>? blob,
+) {
+  final hasDisplayLedger = blob?.containsKey('display_ingredients') == true;
+  final blendDetail = _blobMap(blob, 'proprietary_blend_detail');
+
+  return ProductDetailIngredientSources(
+    ingredients: _strictMapList(blob?['ingredients']),
+    displayIngredients: hasDisplayLedger
+        ? _strictMapList(blob?['display_ingredients'])
+        : null,
+    inactiveIngredients: _strictMapList(blob?['inactive_ingredients']),
+    blends: _strictMapList(blendDetail?['blends']),
+  );
+}
+
+List<Map<String, dynamic>> _strictMapList(Object? raw) {
+  if (raw is! List) return const [];
+  final rows = <Map<String, dynamic>>[];
+  for (final row in raw) {
+    if (row is! Map<String, dynamic>) return const [];
+    rows.add(row);
+  }
+  return List.unmodifiable(rows);
 }
 
 /// Production-wired v2 Product Detail screen.
@@ -289,6 +340,9 @@ class _ProductDetailV2ConnectedState
     // -------------------------------------------------------------
     final blobAsync = ref.watch(detailBlobProvider(widget.dsldId));
     final detailBlob = blobAsync.asData?.value;
+    final ingredientSources = productDetailIngredientSourcesFromBlob(
+      detailBlob,
+    );
     final blobLoading = blobAsync.isLoading;
     final blobError = blobAsync.hasError;
     final appRdaReferenceData = ref.watch(rdaOptimalUlsProvider).asData?.value;
@@ -361,6 +415,10 @@ class _ProductDetailV2ConnectedState
         : researchCanonicalIdsForProduct(_product!, detailBlob: detailBlob);
     final blendDetail = _blobMap(detailBlob, 'proprietary_blend_detail');
     final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
+    final labelLedgerAudit = _blobMap(detailBlob, 'label_ledger_audit');
+    final labelLedgerAuditPresent =
+        detailBlob?.containsKey('label_ledger_audit') == true;
+    final labelRecordPresent = detailBlob?.containsKey('label_record') == true;
 
     // -------------------------------------------------------------
     // LabelConfidence signal probe — checked here so we can gate the
@@ -372,6 +430,8 @@ class _ProductDetailV2ConnectedState
       isNotScored: isNotScored,
       productStatus: _blobMap(detailBlob, 'product_status'),
       unmappedActives: _blobMap(detailBlob, 'unmapped_actives'),
+      labelLedgerAudit: labelLedgerAudit,
+      labelLedgerAuditPresent: labelLedgerAuditPresent,
     );
 
     // -------------------------------------------------------------
@@ -615,6 +675,8 @@ class _ProductDetailV2ConnectedState
                           detailBlob,
                           'unmapped_actives',
                         ),
+                        labelLedgerAudit: labelLedgerAudit,
+                        labelLedgerAuditPresent: labelLedgerAuditPresent,
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -680,27 +742,42 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
+                  // ---- 5.5 Catalog label record (Label Truth P1) ---
+                  // Presence is authoritative: absent means a legacy blob and
+                  // stays hidden; present-but-malformed renders the section's
+                  // fail-closed unavailable state. This metadata is
+                  // informational and never participates in scoring.
+                  if (showDeepDive && labelRecordPresent) ...[
+                    buildLabelMatchSection(
+                      labelRecord: detailBlob?['label_record'],
+                      upc: _product?.upcSku,
+                      currentLabelRows: ingredientSources.displayIngredients,
+                      onOpenSourceLabel: (uri) async {
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // ---- 6. Ingredients (WIRED, 11.7d.2) -------------
                   if (showDeepDive) ...[
                     KeyedSubtree(
                       key: _anchors.ingredientsKey,
                       child: buildIngredientsSection(
+                        key: ValueKey('ingredient-ledger-${widget.dsldId}'),
                         context: context,
-                        ingredients:
-                            ((detailBlob?['ingredients'] as List?) ?? const [])
-                                .whereType<Map<String, dynamic>>()
-                                .toList(growable: false),
+                        ingredients: ingredientSources.ingredients,
+                        displayIngredients:
+                            ingredientSources.displayIngredients,
                         inactiveIngredients:
-                            ((detailBlob?['inactive_ingredients'] as List?) ??
-                                    const [])
-                                .whereType<Map<String, dynamic>>()
-                                .toList(growable: false),
+                            ingredientSources.inactiveIngredients,
                         ulAnalysis: productUlAnalysis
                             ?.whereType<Map<String, dynamic>>()
                             .toList(growable: false),
-                        blends: (blendDetail?['blends'] as List?)
-                            ?.whereType<Map<String, dynamic>>()
-                            .toList(growable: false),
+                        blends: ingredientSources.blends,
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),

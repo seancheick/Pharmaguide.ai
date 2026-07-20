@@ -5,13 +5,12 @@
 // Detail surface consumes. No Riverpod, no BuildContext — designed to
 // be unit-tested by passing canned inputs.
 //
-// Mirrors production's inline pipeline in
-// `_ProductDetailScreenState.build` lines 194–225 verbatim:
-//   1. Parse blob warnings (drop legacy product-status entries, dedupe)
-//   2. Merge personalized + blob, dedup by composite key (personalized
-//      wins on collision)
+// Pipeline order:
+//   1. Parse blob warnings (drop legacy product-status entries)
+//   2. Merge personalized + blob without lossy source-level dedupe
 //   3. Apply `filterProductDetailWarningsForProfile` — the shared
 //      profile / UL / threshold gate
+//   4. Partition, then dedupe once by stable consumer-visible identity
 //
 // Phase 11.11 will also extract `filterProductDetailWarningsForProfile`
 // from into this same module so the heavy
@@ -36,18 +35,7 @@ List<InteractionWarning> composeGuardedWarnings({
   required Set<String> userProfileFlags,
 }) {
   final blobWarnings = parseBlobWarnings(detailBlob);
-  // Dedup composite: (severity, mechanism). Personalized wins because
-  // it carries live DB context (active stack matches, dose-aware
-  // thresholds) the static blob can't know about.
-  final seenKeys = <String>{
-    for (final w in personalizedWarnings) '${w.severity.name}:${w.mechanism}',
-  };
-  final merged = <InteractionWarning>[
-    ...personalizedWarnings,
-    ...blobWarnings.where(
-      (w) => !seenKeys.contains('${w.severity.name}:${w.mechanism}'),
-    ),
-  ];
+  final merged = <InteractionWarning>[...personalizedWarnings, ...blobWarnings];
   return filterProductDetailWarningsForProfile(
     detailBlob: detailBlob,
     warnings: merged,
@@ -59,10 +47,7 @@ List<InteractionWarning> composeGuardedWarnings({
 
 /// Drain the blob's `warnings` + `warnings_profile_gated` lists, drop
 /// legacy product-status entries when structured product status is
-/// present, dedupe via the InteractionWarning composite-key rule.
-///
-/// Copied verbatim from production's `_parseWarnings` private method.
-/// Phase 11.11 dedupes both copies into this single source.
+/// present, and preserve every valid row until the final display boundary.
 List<InteractionWarning> parseBlobWarnings(Map<String, dynamic>? blob) {
   if (blob == null) return const [];
   final result = <InteractionWarning>[];
@@ -97,7 +82,7 @@ List<InteractionWarning> parseBlobWarnings(Map<String, dynamic>? blob) {
       }
     }
   }
-  return InteractionWarning.dedupe(result);
+  return result;
 }
 
 bool _hasStructuredAllergens(Object? raw) {
@@ -171,8 +156,9 @@ partitionProfileWarnings({
   required Set<String> userDrugClasses,
   required Set<String> userProfileFlags,
 }) {
-  final profile = <InteractionWarning>[];
-  final general = <InteractionWarning>[];
+  final representatives = <InteractionWarning>[];
+  final representativeIsProfile = <bool>[];
+  final identityIndexes = <String, int>{};
   for (final w in warnings) {
     final matched = w.matchesProfile(
       userConditions: userConditions,
@@ -191,13 +177,62 @@ partitionProfileWarnings({
     // quality additives such as P80) remain visible, but in the general surface
     // instead of inflating "Review for your profile".
     final isActionable = w.severity.isActionable;
-    if (isHard || (matched && isActionable)) {
-      profile.add(w);
+    final belongsInProfile = isHard || (matched && isActionable);
+    final identity = _consumerWarningIdentity(w);
+    final existingIndex = identityIndexes[identity];
+    if (existingIndex == null) {
+      identityIndexes[identity] = representatives.length;
+      representatives.add(w);
+      representativeIsProfile.add(belongsInProfile);
+    } else if (belongsInProfile && !representativeIsProfile[existingIndex]) {
+      // The same consumer-visible warning can arrive through both a global
+      // fallback and a profile-gated rule. Keep one card, but retain the
+      // matched instance so its profile context and actionable placement are
+      // not lost. Its position remains the first occurrence's position.
+      representatives[existingIndex] = w;
+      representativeIsProfile[existingIndex] = true;
+    }
+  }
+
+  final profile = <InteractionWarning>[];
+  final general = <InteractionWarning>[];
+  for (var i = 0; i < representatives.length; i++) {
+    if (representativeIsProfile[i]) {
+      profile.add(representatives[i]);
     } else {
-      general.add(w);
+      general.add(representatives[i]);
     }
   }
   return (profile: profile, general: general);
+}
+
+String _consumerWarningIdentity(InteractionWarning warning) {
+  final sourceTargets =
+      warning.sourceUrls
+          .map((url) => url.trim())
+          .where((url) => url.isNotEmpty)
+          .toList(growable: false)
+        ..sort();
+  return [
+    warning.severity.name,
+    _normalizedDisplayMode(warning.displayModeDefault),
+    warning.evidenceLevel.name,
+    _normalizeConsumerText(warning.displayHeadline),
+    _normalizeConsumerText(warning.displayBody),
+    _normalizeConsumerText(warning.mechanism),
+    _normalizeConsumerText(warning.management),
+    _normalizeConsumerText(warning.ingredientName),
+    sourceTargets.join('\u001e'),
+  ].join('\u001f');
+}
+
+String _normalizeConsumerText(String? value) =>
+    (value ?? '').trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
+String _normalizedDisplayMode(String? value) {
+  final normalized = _normalizeConsumerText(value);
+  // Legacy blobs treat an absent display mode as informational.
+  return normalized.isEmpty ? 'informational' : normalized;
 }
 
 /// Worst-case severity across a warning list. Empty list returns

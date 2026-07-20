@@ -30,7 +30,7 @@
 //     * Inactive color dots via `inactiveColorRank`
 
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
-import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
+import 'package:pharmaguide/features/product_detail/label_ingredient_presenter.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 
 /// Convert a raw active-ingredient map into a typed [PGActiveIngredient].
@@ -41,101 +41,7 @@ import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart'
 PGActiveIngredient activeFromMap(
   Map<String, dynamic> ingredient, {
   Map<String, dynamic>? ulEntry,
-}) {
-  // Unresolved identity (defense-in-depth): if a cached/stale blob whose
-  // identity the pipeline could not resolve reaches the app, show the literal
-  // label text with an integrity flag and suppress every quality/dose/safety
-  // claim — never the canonical standard_name. The release audit blocks these
-  // before ship; this is the last-line fallback.
-  final disposition = ingredient['identity_disposition']?.toString();
-  if (disposition == 'identity_conflict' ||
-      disposition == 'missing_display_label') {
-    return PGActiveIngredient(
-      name: _firstNonEmpty([
-        ingredient['source_label_name'],
-        ingredient['raw_source_text'],
-        ingredient['name'],
-        ingredient['label_display_name'],
-      ]),
-      identityNeedsReview: true,
-    );
-  }
-
-  // Label-first identity: the pipeline's approved label-native name wins over
-  // the computed display_label and, crucially, over the canonical standard_name
-  // — the displayed identity is never inferred from a canonical field. Legacy
-  // blobs (no label_display_name) keep the existing display_label behavior.
-  final labelDisplayName = ingredient['label_display_name']?.toString().trim();
-  final displayLabel = ingredient['display_label']?.toString().trim();
-  final String name;
-  if (labelDisplayName != null && labelDisplayName.isNotEmpty) {
-    name = labelDisplayName;
-  } else if (displayLabel != null && displayLabel.isNotEmpty) {
-    name = displayLabel;
-  } else {
-    name =
-        ingredient['standard_name']?.toString() ??
-        ingredient['name']?.toString() ??
-        ingredient['raw_source_text']?.toString() ??
-        '';
-  }
-
-  // Dose label — production canonical contract (display_dose_label)
-  // with quantity+unit fallback for stale blobs.
-  final displayDoseLabel = ingredient['display_dose_label']?.toString().trim();
-  final doseStatus = ingredient['dose_status']?.toString();
-  String? dose;
-  if (displayDoseLabel != null && displayDoseLabel.isNotEmpty) {
-    dose = displayDoseLabel;
-  } else if (doseStatus == 'missing' || doseStatus == 'not_disclosed_blend') {
-    dose = null;
-  } else {
-    final quantity = ingredient['quantity'];
-    final unit = ingredient['unit']?.toString() ?? '';
-    final fallbackDose = quantity != null ? '$quantity $unit'.trim() : '';
-    dose = fallbackDose.isNotEmpty ? fallbackDose : null;
-  }
-
-  // Label-first form: the pipeline's label-native form (e.g. "as Ethyl Esters")
-  // wins and its casing is preserved verbatim — never lowercased. Legacy blobs
-  // fall back to display_form_label (gated on form_status == 'known'), also
-  // case-preserved.
-  final labelDisplayForm = ingredient['label_display_form']?.toString().trim();
-  final formStatus = ingredient['form_status']?.toString();
-  final displayFormLabel = ingredient['display_form_label']?.toString().trim();
-  final String? formLabel;
-  if (labelDisplayForm != null && labelDisplayForm.isNotEmpty) {
-    formLabel = labelDisplayForm;
-  } else if (formStatus == 'known' &&
-      displayFormLabel != null &&
-      displayFormLabel.isNotEmpty) {
-    formLabel = displayFormLabel;
-  } else {
-    formLabel = null;
-  }
-
-  // Tier resolution — verbatim production helpers.
-  final formQuality = resolveFormQuality(ingredient['bio_score']);
-  final doseCallOut = resolveDoseCallOut(
-    ingredient: ingredient,
-    ulEntry: ulEntry,
-  );
-
-  // Safety / inferred flags.
-  final isSafetyConcern = ingredient['is_safety_concern'] == true;
-  final displayType = ingredient['display_type']?.toString();
-  final isInferredFromLabel = displayType == 'inferred_from_label';
-
-  return PGActiveIngredient(
-    name: name,
-    dose: dose,
-    formLabel: formLabel,
-    formQuality: formQuality,
-    doseCallOut: doseCallOut,
-    isSafetyConcern: isSafetyConcern,
-    isInferredFromLabel: isInferredFromLabel,
-  );
-}
+}) => presentActiveIngredient(ingredient, ulEntry: ulEntry);
 
 /// Convert a raw inactive-ingredient map into a typed [PGInactiveIngredient].
 ///

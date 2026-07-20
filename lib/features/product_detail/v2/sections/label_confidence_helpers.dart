@@ -1,6 +1,6 @@
 // Phase 11.7c.4 — LabelConfidence helpers (pure logic).
 //
-// Owns production's tier + row composition for the v2
+// Owns analysis-coverage tier + row composition for the v2
 // PGLabelConfidenceCard:
 //   • tier classification → [LabelConfidenceTier]
 //   • tier labels/header prefixes
@@ -34,7 +34,7 @@ enum LabelConfidenceTier {
   partial,
 
   /// NOT_SCORED or mappedCoverage < 0.3 — analysis cannot be trusted.
-  /// Header reads "Label confidence: Limited".
+  /// Header reads "Analysis coverage: Limited".
   limited,
 }
 
@@ -69,15 +69,15 @@ String tierLabel(LabelConfidenceTier tier) {
   }
 }
 
-/// Header prefix — "Product" for note tier, "Label confidence:" for
-/// data-quality tiers. Verbatim from production line 236.
+/// Header prefix — "Product" for note tier, "Analysis coverage:" for
+/// data-quality tiers.
 String headerPrefix(LabelConfidenceTier tier) {
-  return tier == LabelConfidenceTier.note ? 'Product' : 'Label confidence:';
+  return tier == LabelConfidenceTier.note ? 'Product' : 'Analysis coverage:';
 }
 
 /// Full header text — "Product note" for note tier (no separate label
-/// suffix), "Label confidence: Partial" / "Label confidence: Limited"
-/// for the data-quality tiers. Matches production line 93.
+/// suffix), "Analysis coverage: Partial" / "Analysis coverage: Limited"
+/// for data-quality tiers.
 String composeHeader(LabelConfidenceTier tier) {
   if (tier == LabelConfidenceTier.note) return 'Product note';
   return '${headerPrefix(tier)} ${tierLabel(tier)}';
@@ -171,9 +171,25 @@ List<PGLabelConfidenceItem> buildLabelConfidenceItems({
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
+  Map<String, dynamic>? labelLedgerAudit,
+  bool labelLedgerAuditPresent = false,
   VoidCallback? onTapProductStatus,
 }) {
   final items = <PGLabelConfidenceItem>[];
+
+  final completeness = labelCompletenessPresentation(
+    labelLedgerAudit,
+    auditPresent: labelLedgerAuditPresent,
+  );
+  if (completeness != null) {
+    items.add(
+      PGLabelConfidenceItem(
+        icon: completeness.icon,
+        title: completeness.title,
+        body: completeness.body,
+      ),
+    );
+  }
 
   if (isNotScored) {
     items.add(
@@ -181,7 +197,7 @@ List<PGLabelConfidenceItem> buildLabelConfidenceItems({
         icon: Icons.help_outline_rounded,
         title: 'Not enough verified data to score',
         body:
-            'The label data we have is too incomplete to produce a '
+            'The analysis data we have is too incomplete to produce a '
             'reliable score for this product.',
       ),
     );
@@ -193,13 +209,15 @@ List<PGLabelConfidenceItem> buildLabelConfidenceItems({
       PGLabelConfidenceItem(
         icon: Icons.warning_amber_rounded,
         title: lowCoverage
-            ? 'Limited label data available'
-            : 'Some ingredients could not be fully verified',
+            ? 'Limited analysis coverage'
+            : 'Analysis coverage is incomplete',
         body: lowCoverage
-            ? 'We could not match enough of this label to our reference '
-                  'data to assess it confidently.'
-            : 'A portion of this label did not match our reference data, '
-                  'so the analysis may miss some context.',
+            ? 'We could not match enough label entries to our reference '
+                  'data for a confident analysis. This does not mean rows '
+                  'are missing from What the label lists.'
+            : 'Some label entries did not match our reference data, so the '
+                  'analysis may miss context. This does not mean those rows '
+                  'are missing from What the label lists.',
       ),
     );
   }
@@ -246,6 +264,192 @@ List<PGLabelConfidenceItem> buildLabelConfidenceItems({
   }
 
   return items;
+}
+
+/// A label-ledger result derived only from pipeline reconciliation metadata.
+/// It never interprets [mappedCoverage] and never implies clinical analysis.
+class LabelCompletenessPresentation {
+  final IconData icon;
+  final String title;
+  final String body;
+  final String semanticsLabel;
+
+  const LabelCompletenessPresentation({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.semanticsLabel,
+  });
+}
+
+/// Parse the closed `label_ledger_audit` contract for display.
+///
+/// A non-null malformed or unsupported audit fails closed to unavailable and
+/// never exposes a percentage or a completeness claim. A null audit means the
+/// legacy product has no ledger result to present.
+LabelCompletenessPresentation? labelCompletenessPresentation(
+  Map<String, dynamic>? audit, {
+  bool auditPresent = false,
+}) {
+  if (audit == null && !auditPresent) return null;
+  if (audit == null) {
+    return const LabelCompletenessPresentation(
+      icon: Icons.error_outline_rounded,
+      title: 'Label completeness unavailable',
+      body:
+          'Label data unavailable because the completeness record needs '
+          'review. No completeness percentage is shown.',
+      semanticsLabel:
+          'Label completeness unavailable. Label data unavailable because '
+          'the completeness record needs review.',
+    );
+  }
+
+  final supportStatus = audit['support_status'];
+  final sourceStructure = audit['source_structure'];
+  final completenessStatus = audit['completeness_status'];
+  final meaningfulRows = audit['meaningful_source_rows'];
+  final displayedRows = audit['displayed_rows'];
+  final omittedRows = audit['omitted_rows'];
+  final percentage = audit['completeness_percentage'];
+
+  final countsAreValid =
+      _isNonNegativeInt(meaningfulRows) &&
+      _isNonNegativeInt(displayedRows) &&
+      _isNonNegativeInt(omittedRows);
+  final isUnsupported =
+      supportStatus == 'unsupported' &&
+      sourceStructure == 'unsupported_source_structure' &&
+      countsAreValid &&
+      percentage == null &&
+      completenessStatus == 'unavailable';
+  if (isUnsupported) {
+    return const LabelCompletenessPresentation(
+      icon: Icons.help_outline_rounded,
+      title: 'Label completeness unavailable',
+      body:
+          'Label data unavailable: this label structure has not been '
+          'verified for completeness yet. No completeness percentage is shown.',
+      semanticsLabel:
+          'Label completeness unavailable. Label data unavailable because '
+          'this label structure has not been verified.',
+    );
+  }
+
+  final supportedPercentage = _validSupportedPercentage(
+    supportStatus: supportStatus,
+    sourceStructure: sourceStructure,
+    completenessStatus: completenessStatus,
+    meaningfulRows: meaningfulRows,
+    displayedRows: displayedRows,
+    omittedRows: omittedRows,
+    percentage: percentage,
+  );
+  if (supportedPercentage == null) {
+    return const LabelCompletenessPresentation(
+      icon: Icons.error_outline_rounded,
+      title: 'Label completeness unavailable',
+      body:
+          'Label data unavailable because the completeness record needs '
+          'review. No completeness percentage is shown.',
+      semanticsLabel:
+          'Label completeness unavailable. Label data unavailable because '
+          'the completeness record needs review.',
+    );
+  }
+
+  final displayPercentage = _formatPercentage(supportedPercentage);
+  final isComplete = completenessStatus == 'complete';
+  final body = isComplete
+      ? 'Every meaningful source-label row is represented in What the label '
+            'lists. This does not mean every row is clinically analyzed.'
+      : 'Only $displayedRows of $meaningfulRows meaningful source-label rows '
+            'are represented in What the label lists. This does not indicate '
+            'how many rows were clinically analyzed.';
+  return LabelCompletenessPresentation(
+    icon: isComplete ? Icons.fact_check_outlined : Icons.warning_amber_rounded,
+    title: 'Label completeness: $displayPercentage%',
+    body: body,
+    semanticsLabel: 'Label completeness, $displayPercentage percent. $body',
+  );
+}
+
+bool _isNonNegativeInt(Object? value) => value is int && value >= 0;
+
+double? _validSupportedPercentage({
+  required Object? supportStatus,
+  required Object? sourceStructure,
+  required Object? completenessStatus,
+  required Object? meaningfulRows,
+  required Object? displayedRows,
+  required Object? omittedRows,
+  required Object? percentage,
+}) {
+  if (supportStatus != 'supported' ||
+      sourceStructure is! String ||
+      sourceStructure.trim().isEmpty ||
+      sourceStructure == 'unsupported_source_structure' ||
+      !_isNonNegativeInt(meaningfulRows) ||
+      !_isNonNegativeInt(displayedRows) ||
+      !_isNonNegativeInt(omittedRows) ||
+      displayedRows as int > (meaningfulRows as int) ||
+      percentage is! num ||
+      percentage is bool) {
+    return null;
+  }
+
+  final expected = meaningfulRows == 0
+      ? (sourceStructure == 'empty_panel' && displayedRows == 0 ? 100.0 : null)
+      : double.parse((displayedRows / meaningfulRows * 100).toStringAsFixed(2));
+  if (expected == null || (percentage.toDouble() - expected).abs() > 0.001) {
+    return null;
+  }
+  if ((expected == 100.0 && completenessStatus != 'complete') ||
+      (expected < 100.0 && completenessStatus != 'incomplete')) {
+    return null;
+  }
+  return expected;
+}
+
+String _formatPercentage(double value) {
+  final fixed = value.toStringAsFixed(2);
+  return fixed
+      .replaceFirst(RegExp(r'\.0+$'), '')
+      .replaceFirst(RegExp(r'(\.\d*?)0+$'), r'$1');
+}
+
+/// Screen-reader summary for the two independent coverage concepts.
+String coverageSemanticsLabel({
+  required LabelConfidenceTier tier,
+  required double mappedCoverage,
+  required bool hasProprietaryBlends,
+  required bool isNotScored,
+  Map<String, dynamic>? unmappedActives,
+  Map<String, dynamic>? labelLedgerAudit,
+  bool labelLedgerAuditPresent = false,
+}) {
+  final parts = <String>[];
+  final completeness = labelCompletenessPresentation(
+    labelLedgerAudit,
+    auditPresent: labelLedgerAuditPresent,
+  );
+  if (completeness != null) parts.add(completeness.semanticsLabel);
+
+  final hasAnalysisSignal =
+      isNotScored ||
+      mappedCoverage < 0.5 ||
+      hasProprietaryBlends ||
+      unmappedTotal(unmappedActives) > 0;
+  if (hasAnalysisSignal) {
+    final coverageBody = isLowCoverage(mappedCoverage)
+        ? 'We could not match enough label entries to our reference data for '
+              'a confident analysis.'
+        : 'Some label entries could not be fully evaluated by the analysis.';
+    parts.add(
+      'Analysis coverage, ${tierLabel(tier).toLowerCase()}. $coverageBody',
+    );
+  }
+  return parts.join(' ');
 }
 
 /// Body copy for the product-status explanation bottom sheet. Verbatim

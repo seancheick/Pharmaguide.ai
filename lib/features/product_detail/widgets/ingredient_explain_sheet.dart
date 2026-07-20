@@ -67,13 +67,13 @@ class _SheetBody extends StatelessWidget {
           _FactTile(
             icon: Icons.science_outlined,
             label: 'Form',
-            value: _capitalize(explain.formName!),
+            value: explain.formName!,
           ),
         if (explain.doseLabel != null)
           _FactTile(
             icon: Icons.straighten_rounded,
             label: 'Dose',
-            value: explain.doseLabel!,
+            value: _doseFactValue(explain),
           ),
         if (explain.evidenceLabel != null)
           _FactTile(
@@ -87,7 +87,7 @@ class _SheetBody extends StatelessWidget {
         _Block(
           accent: _formAccent(explain.formQuality),
           tint: _formTint(explain.formQuality),
-          heading: formBlockHeading(explain.formQuality),
+          heading: explain.formHeading,
           body: explain.formExplanation,
         ),
         if (explain.doseExplanation.isNotEmpty) ...[
@@ -108,9 +108,10 @@ class _SheetBody extends StatelessWidget {
     );
   }
 
-  static String _capitalize(String s) {
-    if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1);
+  static String _doseFactValue(IngredientExplain explain) {
+    final parenthetical = explain.parentheticalDoseText;
+    if (parenthetical == null) return explain.doseLabel!;
+    return '${explain.doseLabel!} ($parenthetical)';
   }
 }
 

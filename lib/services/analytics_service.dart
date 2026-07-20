@@ -1,6 +1,28 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+typedef AnalyticsPropertyValueValidator =
+    bool Function(String eventName, String propertyName, Object value);
+
+enum AnalyticsContractViolationReason {
+  unknownEvent,
+  invalidPropertyKeys,
+  invalidPropertyValue,
+}
+
+/// A strict analytics contract rejected an event before consent/buffering.
+///
+/// The exception deliberately omits the rejected name, key, and value so a
+/// caller cannot accidentally copy private input into logs or crash reports.
+class AnalyticsContractViolation implements Exception {
+  final AnalyticsContractViolationReason reason;
+
+  const AnalyticsContractViolation(this.reason);
+
+  @override
+  String toString() => 'AnalyticsContractViolation($reason)';
+}
+
 /// Analytics facade for PharmaGuide.
 ///
 /// ## Status
@@ -9,8 +31,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// app — health data NEVER leaves the device, and adding a third-party
 /// analytics backend is a product-level decision that requires privacy review,
 /// DPA review, and user consent UI. Until that's done, this service records
-/// events to a local in-memory ring buffer (debug builds) and no-ops in
-/// release builds.
+/// consented events only in a bounded local in-memory ring buffer. Nothing is
+/// transmitted; debug builds additionally print sanitized diagnostics.
 ///
 /// ## Integration
 ///
@@ -71,6 +93,40 @@ class AnalyticsService {
     final sanitized = properties == null ? null : _sanitize(properties);
     _record(AnalyticsEvent.event(name, sanitized));
     if (kDebugMode) debugPrint('Analytics: $name ${sanitized ?? ""}');
+  }
+
+  /// Validate an exact event contract, then use the normal consent-gated path.
+  ///
+  /// Validation intentionally runs before [trackEvent]. Invalid input is
+  /// therefore rejected even when collection is disabled instead of being
+  /// hidden by the consent no-op. Existing analytics call sites retain the
+  /// original sanitize-and-drop behavior of [trackEvent].
+  void trackAllowlistedEvent({
+    required String name,
+    required Map<String, Object> properties,
+    required Map<String, Set<String>> eventPropertyKeys,
+    required AnalyticsPropertyValueValidator isAllowedValue,
+  }) {
+    final allowedKeys = eventPropertyKeys[name];
+    if (allowedKeys == null) {
+      throw const AnalyticsContractViolation(
+        AnalyticsContractViolationReason.unknownEvent,
+      );
+    }
+    if (properties.length != allowedKeys.length ||
+        properties.keys.any((key) => !allowedKeys.contains(key))) {
+      throw const AnalyticsContractViolation(
+        AnalyticsContractViolationReason.invalidPropertyKeys,
+      );
+    }
+    for (final entry in properties.entries) {
+      if (!isAllowedValue(name, entry.key, entry.value)) {
+        throw const AnalyticsContractViolation(
+          AnalyticsContractViolationReason.invalidPropertyValue,
+        );
+      }
+    }
+    trackEvent(name, properties);
   }
 
   /// Track a screen view.
@@ -147,11 +203,28 @@ class AnalyticsEvent {
   AnalyticsEvent._(this.kind, this.name, this.value) : at = DateTime.now();
 
   factory AnalyticsEvent.event(String name, Map<String, Object>? props) =>
-      AnalyticsEvent._('event', name, props);
+      AnalyticsEvent._('event', name, _immutableValue(props));
   factory AnalyticsEvent.property(String propName, String value) =>
       AnalyticsEvent._('property', propName, value);
   factory AnalyticsEvent.userId(String? userId) =>
       AnalyticsEvent._('userId', 'user_id', userId);
+
+  static Object? _immutableValue(Object? value) {
+    if (value is Map) {
+      return Map<Object?, Object?>.unmodifiable(
+        value.map<Object?, Object?>(
+          (key, nestedValue) => MapEntry(key, _immutableValue(nestedValue)),
+        ),
+      );
+    }
+    if (value is List) {
+      return List<Object?>.unmodifiable(value.map<Object?>(_immutableValue));
+    }
+    if (value is Set) {
+      return Set<Object?>.unmodifiable(value.map<Object?>(_immutableValue));
+    }
+    return value;
+  }
 
   @override
   String toString() => '[$kind] $name=$value @ $at';

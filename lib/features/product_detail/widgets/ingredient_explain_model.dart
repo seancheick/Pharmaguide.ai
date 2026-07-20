@@ -13,85 +13,10 @@
 // In the explain sheet the chip label gets a "form" suffix because we
 // have room for clarity ("Excellent form" vs the chip's "Excellent").
 
-import 'package:pharmaguide/features/product_detail/dose_safety.dart';
+import 'package:pharmaguide/features/product_detail/label_ingredient_presenter.dart';
+import 'package:pharmaguide/features/product_detail/label_ingredient_types.dart';
 
-/// Form-quality tier driven by `bio_score` on the 0–15 scale (pure
-/// form quality; natural-source bonus lives in pipeline A5 starting
-/// Phase 7C).
-enum FormQuality {
-  excellent, // bio_score >= 12
-  good, //      bio_score 8..11
-  fair, //      bio_score 4..7
-  poor, //      bio_score 0..3
-  unknown, //   bio_score == null
-}
-
-/// Dose-related call-out for the chip / sheet block. Mirrors `DoseSafety`
-/// outcomes plus a Low-dose tier for the future `below_clinical_dose`
-/// pipeline signal (Phase 7A).
-enum DoseCallOut {
-  high, //         DoseSafety.exceedsUl
-  low, //          pipeline `below_clinical_dose == true`
-  notDisclosed, // DoseSafety.skip
-  withinLimits, // (no chip)
-}
-
-/// Resolves [DoseCallOut] from the same inputs `_SafetyTag._resolve`
-/// uses today, plus the future `below_clinical_dose` flag.
-DoseCallOut resolveDoseCallOut({
-  required Map<String, dynamic> ingredient,
-  Map<String, dynamic>? ulEntry,
-}) {
-  // Pipeline below_clinical_dose flag — preferred when present (Phase 7A).
-  final belowClinical = ingredient['below_clinical_dose'];
-  if (belowClinical == true) return DoseCallOut.low;
-  // Also check the matched UL entry — pipeline may emit the flag there
-  // when it's tied to the UL row rather than the raw ingredient.
-  if (ulEntry != null && ulEntry['below_clinical_dose'] == true) {
-    return DoseCallOut.low;
-  }
-
-  final doseSafety = resolveDoseSafety(
-    ingredient: ingredient,
-    ulAnalysis: ulEntry == null ? null : <Map<String, dynamic>>[ulEntry],
-  );
-  switch (doseSafety) {
-    case DoseSafety.exceedsUl:
-      return DoseCallOut.high;
-    case DoseSafety.skip:
-      // Sean 2026-05-05 — pipeline emits skip_ul_check for retinyl
-      // Vitamin A and similar "unknown form" cases even when the dose
-      // is plainly disclosed (e.g. 1.05 mg). Surfacing "Dose not
-      // disclosed" on a row that shows a real dose is contradictory.
-      // Only chip when the dose is genuinely missing — otherwise the
-      // skip is a backend evaluation choice the user doesn't need to
-      // see flagged at row level.
-      final qty = _readQuantity(ingredient);
-      if (qty != null && qty > 0) return DoseCallOut.withinLimits;
-      return DoseCallOut.notDisclosed;
-    case DoseSafety.withinLimits:
-      return DoseCallOut.withinLimits;
-  }
-}
-
-double? _readQuantity(Map<String, dynamic> ingredient) {
-  final raw = ingredient['quantity'];
-  if (raw is num) return raw.toDouble();
-  if (raw is String) return double.tryParse(raw);
-  return null;
-}
-
-/// Resolves [FormQuality] from `bio_score`. Same thresholds as
-/// `_bioColor` and `_SafetyTag._resolve`.
-FormQuality resolveFormQuality(dynamic bioScore) {
-  if (bioScore is! num) return FormQuality.unknown;
-  final s = bioScore.toDouble();
-  if (s < 0) return FormQuality.unknown;
-  if (s >= 12) return FormQuality.excellent;
-  if (s >= 8) return FormQuality.good;
-  if (s >= 4) return FormQuality.fair;
-  return FormQuality.poor;
-}
+export 'package:pharmaguide/features/product_detail/label_ingredient_types.dart';
 
 /// What the explain sheet renders. Pure data; no widgets.
 class IngredientExplain {
@@ -104,11 +29,20 @@ class IngredientExplain {
   /// Optional dose label verbatim ("200 mg" / "Amount not disclosed").
   final String? doseLabel;
 
+  /// Exact component amount printed parenthetically on the same label row.
+  final String? parentheticalDoseText;
+
   /// Optional evidence level label (e.g. "Strong" / "Moderate").
   final String? evidenceLabel;
 
   /// Form-quality tier — drives chip label and primary block heading.
   final FormQuality formQuality;
+
+  /// Consumer-facing state for forms that cannot carry a quality tier.
+  final String? formStatusLabel;
+
+  /// Heading that preserves assessed/not-disclosed/not-assessed/review state.
+  final String formHeading;
 
   /// Dose call-out — drives the dose block heading.
   final DoseCallOut doseCallOut;
@@ -120,15 +54,26 @@ class IngredientExplain {
   /// Sentence explaining the dose call-out. Empty for `withinLimits`.
   final String doseExplanation;
 
+  /// Defense-in-depth flag copied from the shared label presenter.
+  final bool identityNeedsReview;
+
+  /// Whether this label row participates in the product analysis.
+  final bool scoreIncluded;
+
   const IngredientExplain({
     required this.title,
     required this.formQuality,
+    required this.formHeading,
     required this.doseCallOut,
     required this.formExplanation,
     required this.doseExplanation,
     this.formName,
     this.doseLabel,
+    this.parentheticalDoseText,
     this.evidenceLabel,
+    this.formStatusLabel,
+    this.identityNeedsReview = false,
+    this.scoreIncluded = false,
   });
 }
 
@@ -139,61 +84,60 @@ IngredientExplain buildIngredientExplain({
   required Map<String, dynamic> ingredient,
   Map<String, dynamic>? ulEntry,
 }) {
-  final displayLabel = ingredient['display_label']?.toString().trim();
-  final name = (displayLabel != null && displayLabel.isNotEmpty)
-      ? displayLabel
-      : (ingredient['standard_name']?.toString() ??
-            ingredient['name']?.toString() ??
-            ingredient['raw_source_text']?.toString() ??
-            '');
-
-  // v1.5.x: pipeline emits the canonical contract on every fresh blob.
-  final formStatus = ingredient['form_status']?.toString();
-  final displayFormLabel = ingredient['display_form_label']?.toString().trim();
-  final formName =
-      (formStatus == 'known' &&
-          displayFormLabel != null &&
-          displayFormLabel.isNotEmpty)
-      ? displayFormLabel
-      : null;
-
-  // v1.5.0 contract — display_dose_label is the canonical pre-formatted
-  // string; dose_status disambiguates empty states. Legacy quantity+unit
-  // fallback retained for stale blobs only.
-  final displayDoseLabel = ingredient['display_dose_label']?.toString().trim();
-  final doseStatus = ingredient['dose_status']?.toString();
-  String? doseLabel;
-  if (displayDoseLabel != null && displayDoseLabel.isNotEmpty) {
-    doseLabel = displayDoseLabel;
-  } else if (doseStatus == 'missing' || doseStatus == 'not_disclosed_blend') {
-    doseLabel = null;
-  } else {
-    final quantity = ingredient['quantity'];
-    final unit = ingredient['unit']?.toString() ?? '';
-    final fallbackDose = quantity != null ? '$quantity $unit'.trim() : '';
-    doseLabel = fallbackDose.isNotEmpty ? fallbackDose : null;
-  }
+  final presented = presentActiveIngredient(ingredient, ulEntry: ulEntry);
 
   final evidenceLabel = ingredient['evidence_level']?.toString().trim();
-
-  final formQuality = resolveFormQuality(ingredient['bio_score']);
-  final doseCallOut = resolveDoseCallOut(
-    ingredient: ingredient,
-    ulEntry: ulEntry,
-  );
+  final formStatusLabel = presented.formStatusLabel;
+  final formHeading =
+      formStatusLabel ??
+      (presented.formQuality == FormQuality.unknown
+          ? 'Form assessment not applicable'
+          : formBlockHeading(presented.formQuality));
 
   return IngredientExplain(
-    title: name,
-    formName: formName,
-    doseLabel: doseLabel,
+    title: presented.name,
+    formName: presented.formLabel,
+    doseLabel: presented.dose,
+    parentheticalDoseText: presented.parentheticalDoseText,
     evidenceLabel: (evidenceLabel == null || evidenceLabel.isEmpty)
         ? null
         : evidenceLabel,
-    formQuality: formQuality,
-    doseCallOut: doseCallOut,
-    formExplanation: _formExplanationFor(formQuality, formName),
-    doseExplanation: _doseExplanationFor(doseCallOut),
+    formQuality: presented.formQuality,
+    formStatusLabel: formStatusLabel,
+    formHeading: formHeading,
+    doseCallOut: presented.doseCallOut,
+    formExplanation: _formExplanationForPresentation(
+      formStatusLabel: formStatusLabel,
+      quality: presented.formQuality,
+      form: presented.formLabel,
+    ),
+    doseExplanation: _doseExplanationFor(presented.doseCallOut),
+    identityNeedsReview: presented.identityNeedsReview,
+    scoreIncluded: presented.scoreIncluded,
   );
+}
+
+String _formExplanationForPresentation({
+  required String? formStatusLabel,
+  required FormQuality quality,
+  required String? form,
+}) {
+  switch (formStatusLabel) {
+    case 'Form not disclosed':
+      return 'The label does not disclose a molecular or delivery form, so '
+          'we do not assign a form-quality rating.';
+    case 'Form listed · not yet assessed':
+      return 'The label lists this form, but our form reference has not '
+          'assessed it yet. No form-quality rating is shown.';
+    case 'Data needs review':
+      return 'We could not verify this label row, so form and dose claims are '
+          'hidden pending review.';
+    default:
+      if (quality == FormQuality.unknown) {
+        return 'A form-quality rating does not apply to this label row.';
+      }
+      return _formExplanationFor(quality, form);
+  }
 }
 
 String _formExplanationFor(FormQuality q, String? form) {

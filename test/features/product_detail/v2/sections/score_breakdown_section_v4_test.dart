@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -37,6 +38,7 @@ const _v4Labels = [
 void main() {
   nativeScaleTests();
   namedActionTests();
+  evidenceScopeReconciliationTests();
   testWidgets('v4: renders the six pillars from quality_pillars_v4', (
     tester,
   ) async {
@@ -175,6 +177,372 @@ void main() {
     // visible rows — 93.5, not the raw 93.4.
     expect(find.text('= 93.5/100'), findsOneWidget);
     expect(find.text('= 93.4/100'), findsNothing);
+  });
+}
+
+void evidenceScopeReconciliationTests() {
+  testWidgets('limited formula evidence and strong Vitamin D ingredient evidence '
+      'render together without changing the formula score', (tester) async {
+    final pillars = _v4Pillars();
+    pillars['evidence'] = {
+      'score': 6.8,
+      'max': 20,
+      'reason': 'Limited human evidence for these ingredients.',
+    };
+
+    await tester.pumpWidget(
+      _wrap(
+        Column(
+          children: [
+            buildScoreBreakdownSection(
+              ingredientQuality: null,
+              safetyPurity: null,
+              evidenceResearch: null,
+              brandTrust: null,
+              heroScore: 84.4,
+              mappedCoverage: 0.4,
+              sectionBreakdown: const {
+                'evidence_research': {'matched_entries': 1, 'source_count': 2},
+              },
+              qualityPillarsV4: pillars,
+            ),
+            buildEvidenceSection(
+              evidenceData: const {
+                'match_count': 1,
+                'clinical_matches': [
+                  {
+                    'ingredient': 'Vitamin D3',
+                    'evidence_level': 'ingredient-human',
+                    'study_type': 'systematic_review_meta',
+                    'effect_direction': 'positive_strong',
+                    'references_structured': [
+                      {'pmid': '30293909', 'title': 'Vitamin D review'},
+                      {'pmid': '28202713', 'title': 'Vitamin D meta-analysis'},
+                    ],
+                  },
+                ],
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('6.8/20'), findsOneWidget);
+    expect(
+      find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Vitamin D3: strong ingredient evidence · 2 human studies'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Product evidence: STRONG'), findsNothing);
+
+    await tester.tap(find.text('Evidence'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Formula-wide evidence depends on coverage, not one strong ingredient. Limited human evidence for these ingredients.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Analysis metadata'), findsOneWidget);
+    expect(
+      find.text(
+        '40% analysis coverage · 2 evidence sources · 1 matched evidence record',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('exact-product evidence is claimed only for product-human data', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        buildEvidenceSection(
+          evidenceData: const {
+            'match_count': 1,
+            'clinical_matches': [
+              {
+                'ingredient': 'Studied Product',
+                'evidence_level': 'product-human',
+                'references_structured': [
+                  {'pmid': '12345', 'title': 'Finished product trial'},
+                ],
+              },
+            ],
+          },
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Exact-product evidence: identified in this evidence record.'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        'Exact-product evidence: identified in this evidence record.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        buildEvidenceSection(
+          evidenceData: const {
+            'match_count': 1,
+            'clinical_matches': [
+              {
+                'ingredient': 'Vitamin D3',
+                'evidence_level': 'ingredient-human',
+                'references_structured': [
+                  {'pmid': '67890', 'title': 'Ingredient trial'},
+                ],
+              },
+            ],
+          },
+        ),
+      ),
+    );
+
+    expect(find.textContaining('Exact-product evidence:'), findsNothing);
+    expect(find.textContaining('Product evidence:'), findsNothing);
+  });
+
+  testWidgets(
+    'ranked ingredient evidence does not hide a mixed product-human match',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildEvidenceSection(
+            evidenceData: const {
+              'match_count': 2,
+              'clinical_matches': [
+                {
+                  'ingredient': 'Finished Product',
+                  'evidence_level': 'product-human',
+                  'effect_direction': 'mixed',
+                  'references_structured': [
+                    {'pmid': '111', 'title': 'Finished product study'},
+                  ],
+                },
+                {
+                  'ingredient': 'Vitamin D3',
+                  'evidence_level': 'ingredient-human',
+                  'study_type': 'systematic_review_meta',
+                  'effect_direction': 'positive_strong',
+                  'references_structured': [
+                    {'pmid': '222', 'title': 'Vitamin D review'},
+                    {'pmid': '333', 'title': 'Vitamin D meta-analysis'},
+                  ],
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Vitamin D3: strong ingredient evidence · 2 human studies'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Exact-product evidence: 1 human study identified in this evidence record; results may be mixed.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(
+          RegExp(
+            r'Exact-product evidence: 1 human study identified in this evidence record; results may be mixed\.',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Product evidence: STRONG'), findsNothing);
+      expect(find.textContaining('· 3 studies'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a product-human record downgraded to ingredient scope never claims '
+    'exact-product evidence',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildEvidenceSection(
+            evidenceData: const {
+              'match_count': 1,
+              'clinical_matches': [
+                {
+                  'ingredient': 'Vitamin D3',
+                  'evidence_level': 'product-human',
+                  'ui_evidence_scope': 'ingredient',
+                  'effect_direction': 'positive_strong',
+                  'references_structured': [
+                    {'pmid': '444', 'title': 'Ingredient-scoped review'},
+                  ],
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Ingredient evidence: STRONG · 1 study'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Exact-product evidence:'), findsNothing);
+      expect(find.textContaining('Product evidence:'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'same-tier product and ingredient studies keep separate scoped counts',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildEvidenceSection(
+            evidenceData: const {
+              'match_count': 2,
+              'clinical_matches': [
+                {
+                  'ingredient': 'Finished Product',
+                  'evidence_level': 'product-human',
+                  'effect_direction': 'positive_strong',
+                  'references_structured': [
+                    {'pmid': '555', 'title': 'Finished product trial'},
+                  ],
+                },
+                {
+                  'ingredient': 'Vitamin D3',
+                  'evidence_level': 'ingredient-human',
+                  'study_type': 'systematic_review_meta',
+                  'effect_direction': 'positive_strong',
+                  'references_structured': [
+                    {'pmid': '666', 'title': 'Vitamin D review'},
+                    {'pmid': '777', 'title': 'Vitamin D meta-analysis'},
+                  ],
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Product evidence: STRONG · 1 study'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Vitamin D3: strong ingredient evidence · 2 human studies',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Product evidence: STRONG · 3'), findsNothing);
+      expect(
+        find.textContaining(
+          'Product evidence: STRONG · 1 study · meta-analysis',
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('scope facts have accessible text labels', (tester) async {
+    final pillars = _v4Pillars();
+    pillars['evidence'] = {
+      'score': 6.8,
+      'max': 20,
+      'reason': 'Limited formula coverage.',
+    };
+
+    await tester.pumpWidget(
+      _wrap(
+        buildScoreBreakdownSection(
+          ingredientQuality: null,
+          safetyPurity: null,
+          evidenceResearch: null,
+          brandTrust: null,
+          heroScore: 80,
+          mappedCoverage: 0.68,
+          qualityPillarsV4: pillars,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Evidence'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.bySemanticsLabel(
+        RegExp(
+          r'Evidence pillar, 6\.8 out of 20\. Formula-wide, coverage-dependent',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(RegExp(r'Analysis coverage, 68 percent mapped')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('evidence metadata semantics use singular count grammar', (
+    tester,
+  ) async {
+    final pillars = _v4Pillars();
+    pillars['evidence'] = {
+      'score': 6.8,
+      'max': 20,
+      'reason': 'Limited formula coverage.',
+    };
+
+    await tester.pumpWidget(
+      _wrap(
+        buildScoreBreakdownSection(
+          ingredientQuality: null,
+          safetyPurity: null,
+          evidenceResearch: null,
+          brandTrust: null,
+          heroScore: 80,
+          mappedCoverage: 0.68,
+          sectionBreakdown: const {
+            'evidence_research': {'source_count': 1, 'matched_entries': 1},
+          },
+          qualityPillarsV4: pillars,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Evidence'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '68% analysis coverage · 1 evidence source · 1 matched evidence record',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'1 evidence source\. 1 matched evidence record\.'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel(RegExp(r'1 evidence sources')), findsNothing);
+    expect(
+      find.bySemanticsLabel(RegExp(r'1 matched evidence records')),
+      findsNothing,
+    );
   });
 }
 
