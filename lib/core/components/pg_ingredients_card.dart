@@ -204,7 +204,15 @@ class PGActiveIngredientsSection extends StatefulWidget {
   /// the production T16.2f flow.
   final List<Widget> tiles;
 
-  const PGActiveIngredientsSection({super.key, required this.tiles});
+  /// Consumer-facing label for this projection of the canonical ledger.
+  /// Legacy callers keep the historical umbrella heading.
+  final String title;
+
+  const PGActiveIngredientsSection({
+    super.key,
+    required this.tiles,
+    this.title = 'What the label lists',
+  });
 
   @override
   State<PGActiveIngredientsSection> createState() =>
@@ -263,7 +271,7 @@ class _PGActiveIngredientsSectionState
           button: true,
           expanded: _expanded,
           label:
-              'What the label lists, $_logicalIngredientCount '
+              '${widget.title}, $_logicalIngredientCount '
               '${_logicalIngredientCount == 1 ? 'ingredient' : 'ingredients'}',
           onTap: _toggleExpanded,
           excludeSemantics: true,
@@ -278,7 +286,7 @@ class _PGActiveIngredientsSectionState
                   children: [
                     Expanded(
                       child: Text(
-                        'What the label lists',
+                        widget.title,
                         style: V2Typography.bodyMedium(
                           color: V2Colors.fg,
                         ).copyWith(fontSize: 16),

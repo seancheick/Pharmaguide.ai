@@ -184,13 +184,22 @@ partitionProfileWarnings({
       identityIndexes[identity] = representatives.length;
       representatives.add(w);
       representativeIsProfile.add(belongsInProfile);
-    } else if (belongsInProfile && !representativeIsProfile[existingIndex]) {
-      // The same consumer-visible warning can arrive through both a global
-      // fallback and a profile-gated rule. Keep one card, but retain the
-      // matched instance so its profile context and actionable placement are
-      // not lost. Its position remains the first occurrence's position.
-      representatives[existingIndex] = w;
-      representativeIsProfile[existingIndex] = true;
+    } else {
+      final existing = representatives[existingIndex];
+      final existingBelongsInProfile = representativeIsProfile[existingIndex];
+      final preferred = _preferredWarning(
+        existing,
+        w,
+        existingMatchesProfile: existingBelongsInProfile,
+        incomingMatchesProfile: belongsInProfile,
+      );
+      final mergedSources = <String>{
+        ...existing.sourceUrls.map((url) => url.trim()),
+        ...w.sourceUrls.map((url) => url.trim()),
+      }.where((url) => url.isNotEmpty).toList(growable: false)..sort();
+      representatives[existingIndex] = preferred.withSourceUrls(mergedSources);
+      representativeIsProfile[existingIndex] =
+          existingBelongsInProfile || belongsInProfile;
     }
   }
 
@@ -207,6 +216,24 @@ partitionProfileWarnings({
 }
 
 String _consumerWarningIdentity(InteractionWarning warning) {
+  final subject = _canonicalWarningSubject(warning);
+  final isCriticalIncident =
+      warning.severity.isHard ||
+      _normalizedDisplayMode(warning.displayModeDefault) == 'critical';
+  if (subject.isNotEmpty && isCriticalIncident) {
+    final conditions = [...warning.conditionIds.map(_normalizeConsumerText)]
+      ..sort();
+    final drugClasses = [...warning.drugClassIds.map(_normalizeConsumerText)]
+      ..sort();
+    return [
+      'hazard',
+      subject,
+      conditions.join(','),
+      drugClasses.join(','),
+      _normalizeConsumerText(warning.banContext),
+      _normalizeConsumerText(warning.additiveCategory),
+    ].join('\u001f');
+  }
   final sourceTargets =
       warning.sourceUrls
           .map((url) => url.trim())
@@ -224,6 +251,38 @@ String _consumerWarningIdentity(InteractionWarning warning) {
     _normalizeConsumerText(warning.ingredientName),
     sourceTargets.join('\u001e'),
   ].join('\u001f');
+}
+
+String _canonicalWarningSubject(InteractionWarning warning) {
+  final identifiers = warning.identifiers;
+  if (identifiers != null) {
+    for (final key in const ['canonical_id', 'cui', 'unii', 'cas']) {
+      final value = _normalizeConsumerText(identifiers[key]?.toString());
+      if (value.isNotEmpty) return '$key:$value';
+    }
+  }
+  return _normalizeConsumerText(warning.ingredientName);
+}
+
+InteractionWarning _preferredWarning(
+  InteractionWarning existing,
+  InteractionWarning incoming, {
+  required bool existingMatchesProfile,
+  required bool incomingMatchesProfile,
+}) {
+  if (incoming.severity.weight != existing.severity.weight) {
+    return incoming.severity.weight > existing.severity.weight
+        ? incoming
+        : existing;
+  }
+  if (incomingMatchesProfile != existingMatchesProfile) {
+    return incomingMatchesProfile ? incoming : existing;
+  }
+  int copyScore(InteractionWarning warning) =>
+      (warning.alertHeadline?.trim().isNotEmpty == true ? 2 : 0) +
+      (warning.alertBody?.trim().isNotEmpty == true ? 3 : 0) +
+      (warning.management.trim().isNotEmpty ? 1 : 0);
+  return copyScore(incoming) > copyScore(existing) ? incoming : existing;
 }
 
 String _normalizeConsumerText(String? value) =>

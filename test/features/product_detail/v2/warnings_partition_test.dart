@@ -206,7 +206,7 @@ void main() {
         );
 
         expect(result.profile, hasLength(1));
-        expect(identical(result.profile.single, profileMatched), isTrue);
+        expect(result.profile.single.conditionIds, const ['pregnancy']);
         expect(result.general, isEmpty);
       },
     );
@@ -283,6 +283,35 @@ void main() {
         Severity.caution,
       ]);
     });
+
+    test(
+      'duplicate critical hazard keeps strongest severity and merges citations',
+      () {
+        final activeSide = _w(
+          headline: 'Avoid DHEA',
+          severity: Severity.avoid,
+          ingredientName: 'DHEA',
+          sourceUrls: const ['https://example.test/active'],
+          displayModeDefault: 'critical',
+        );
+        final inactiveSide = _w(
+          headline: 'High-risk hormonal ingredient',
+          severity: Severity.caution,
+          ingredientName: ' dhea ',
+          sourceUrls: const ['https://example.test/inactive'],
+          displayModeDefault: 'critical',
+        );
+
+        final result = _partition([inactiveSide, activeSide]);
+
+        expect(_all(result), hasLength(1));
+        expect(_all(result).single.severity, Severity.avoid);
+        expect(_all(result).single.sourceUrls, {
+          'https://example.test/active',
+          'https://example.test/inactive',
+        });
+      },
+    );
 
     test('consumer-meaningful differences remain distinct', () {
       final baseline = _w(

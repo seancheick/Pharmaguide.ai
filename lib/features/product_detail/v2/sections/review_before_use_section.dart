@@ -302,29 +302,32 @@ class ProfileRelevanceSection extends StatelessWidget {
   }
 }
 
-/// Collapsed "Good to know" card for the [partitionProfileWarnings] general
-/// bucket: global/educational warnings not matched to the profile, plus
-/// matched-but-informational/safe notes (benefits and neutral context that
-/// should not sit in the orange review surface).
-/// Returns null when there is nothing to show. Starts collapsed — these are
-/// general considerations, not personal review items.
+/// Material global safety notes from the [partitionProfileWarnings] general
+/// bucket. Neutral education, benefits, and unmatched FYIs do not become
+/// warning cards; only actionable rows explicitly marked critical remain.
 Widget? buildGeneralNotesSection({
   required List<InteractionWarning> warnings,
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
-  if (warnings.isEmpty) return null;
+  final materialWarnings = warnings
+      .where((warning) {
+        return warning.severity.isActionable &&
+            warning.displayModeDefault?.trim().toLowerCase() == 'critical';
+      })
+      .toList(growable: false);
+  if (materialWarnings.isEmpty) return null;
   final rows = [
-    for (final w in sortWarningsBySeverity(warnings))
+    for (final w in sortWarningsBySeverity(materialWarnings))
       rowForWarning(w, onTapCitations: onTapCitations),
   ];
   final count = rows.length;
   return PGReviewBeforeUseCard(
-    eyebrow: 'Good to know',
-    tone: PGReviewTone.info,
-    title: 'General considerations',
+    eyebrow: 'Product safety',
+    tone: PGReviewTone.caution,
+    title: 'Review this product',
     body: count == 1
-        ? '1 general note about this product'
-        : '$count general notes about this product',
+        ? '1 material safety note'
+        : '$count material safety notes',
     rows: rows,
   );
 }

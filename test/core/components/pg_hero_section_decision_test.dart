@@ -29,6 +29,19 @@ void main() {
       );
     });
 
+    test('low scoring confidence keeps score but suppresses quality tier', () {
+      expect(
+        heroScoreDisplayFor(
+          score: 84,
+          isBlocked: false,
+          isNotScored: false,
+          lowCoverage: false,
+          limitedAssessment: true,
+        ),
+        HeroScoreDisplay.limitedAssessment,
+      );
+    });
+
     test('blocked renders nothing in the score slot (banner owns it)', () {
       expect(
         heroScoreDisplayFor(
@@ -159,6 +172,23 @@ void main() {
         ),
       );
       expect(find.text('85/100'), findsOneWidget);
+    });
+
+    testWidgets('limited assessment keeps number without Excellent label', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const PGHeroSection(
+          imageWidget: SizedBox(),
+          productName: 'Test Product',
+          brandName: 'Test Brand',
+          score: 85,
+          limitedAssessment: true,
+        ),
+      );
+      expect(find.text('85/100 · Limited assessment'), findsOneWidget);
+      expect(find.text('Excellent'), findsNothing);
     });
 
     testWidgets('blocked product hides positive trust chips', (tester) async {

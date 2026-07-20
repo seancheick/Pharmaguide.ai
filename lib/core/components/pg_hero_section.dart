@@ -24,6 +24,10 @@ enum HeroScoreDisplay {
   /// tier-colored line must never render here.
   limitedData,
 
+  /// A numeric score exists, but formula-wide input confidence is low.
+  /// Keep the number while suppressing the quality adjective/color.
+  limitedAssessment,
+
   /// BLOCKED — the score slot stays empty; the bottom banner owns the
   /// verdict.
   none,
@@ -39,10 +43,12 @@ HeroScoreDisplay heroScoreDisplayFor({
   required bool isBlocked,
   required bool isNotScored,
   required bool lowCoverage,
+  bool limitedAssessment = false,
 }) {
   if (isBlocked) return HeroScoreDisplay.none;
   if (isNotScored || score == null) return HeroScoreDisplay.notScored;
   if (lowCoverage) return HeroScoreDisplay.limitedData;
+  if (limitedAssessment) return HeroScoreDisplay.limitedAssessment;
   return HeroScoreDisplay.tierScore;
 }
 
@@ -106,6 +112,10 @@ class PGHeroSection extends StatelessWidget {
   /// segment cleanly.
   final String? servingsLabel;
 
+  /// Number of label servings in the package ("45 servings"). This stays
+  /// separate from the physical net-contents segment above.
+  final String? servingCountLabel;
+
   /// User-facing dosing string ("1 capsule daily"). Empty/null hides.
   final String? dosingSummary;
 
@@ -136,6 +146,9 @@ class PGHeroSection extends StatelessWidget {
   /// a confident tier color.
   final bool lowCoverage;
 
+  /// True when v4 confidence is low even though a score is available.
+  final bool limitedAssessment;
+
   /// Banner widget rendered beneath the score line (used for the
   /// production Blocked / Avoid banners). Null skips the slot.
   final Widget? bottomBanner;
@@ -154,12 +167,14 @@ class PGHeroSection extends StatelessWidget {
     required this.productName,
     required this.brandName,
     this.servingsLabel,
+    this.servingCountLabel,
     this.dosingSummary,
     this.trustTags = const [],
     this.score,
     this.isNotScored = false,
     this.isBlocked = false,
     this.lowCoverage = false,
+    this.limitedAssessment = false,
     this.bottomBanner,
     this.verdict,
   });
@@ -173,6 +188,7 @@ class PGHeroSection extends StatelessWidget {
       isBlocked: isBlocked,
       isNotScored: isNotScored,
       lowCoverage: lowCoverage,
+      limitedAssessment: limitedAssessment,
     );
     final showTrustChips = heroShowsTrustChips(
       isBlocked: isBlocked,
@@ -225,6 +241,7 @@ class PGHeroSection extends StatelessWidget {
                       _Subtitle(
                         brand: brandName,
                         servings: servingsLabel,
+                        servingCount: servingCountLabel,
                         dose: dosingSummary,
                       ),
                     ],
@@ -272,6 +289,12 @@ class PGHeroSection extends StatelessWidget {
               'Limited data — not enough to score confidently.',
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
+          ] else if (scoreDisplay == HeroScoreDisplay.limitedAssessment) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              '$score/100 · Limited assessment',
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
           ],
           if (bottomBanner != null) ...[
             const SizedBox(height: V2Spacing.space12),
@@ -303,8 +326,10 @@ class PGHeroSection extends StatelessWidget {
   bool _hasSubtitle() {
     final hasBrand = brandName.trim().isNotEmpty;
     final hasServings = servingsLabel != null && servingsLabel!.isNotEmpty;
+    final hasServingCount =
+        servingCountLabel != null && servingCountLabel!.isNotEmpty;
     final hasDose = dosingSummary != null && dosingSummary!.isNotEmpty;
-    return hasBrand || hasServings || hasDose;
+    return hasBrand || hasServings || hasServingCount || hasDose;
   }
 }
 
@@ -314,16 +339,23 @@ class PGHeroSection extends StatelessWidget {
 class _Subtitle extends StatelessWidget {
   final String brand;
   final String? servings;
+  final String? servingCount;
   final String? dose;
 
-  const _Subtitle({required this.brand, this.servings, this.dose});
+  const _Subtitle({
+    required this.brand,
+    this.servings,
+    this.servingCount,
+    this.dose,
+  });
 
   @override
   Widget build(BuildContext context) {
     final hasBrand = brand.trim().isNotEmpty;
     final hasServings = servings != null && servings!.isNotEmpty;
+    final hasServingCount = servingCount != null && servingCount!.isNotEmpty;
     final hasDose = dose != null && dose!.isNotEmpty;
-    if (!hasBrand && !hasServings && !hasDose) {
+    if (!hasBrand && !hasServings && !hasServingCount && !hasDose) {
       return const SizedBox.shrink();
     }
 
@@ -346,6 +378,17 @@ class _Subtitle extends StatelessWidget {
       spans.add(
         TextSpan(
           text: servings!,
+          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+        ),
+      );
+    }
+    if (hasServingCount) {
+      if (spans.isNotEmpty) {
+        spans.add(_dotSpan());
+      }
+      spans.add(
+        TextSpan(
+          text: servingCount!,
           style: V2Typography.bodySm(color: V2Colors.fgMuted),
         ),
       );

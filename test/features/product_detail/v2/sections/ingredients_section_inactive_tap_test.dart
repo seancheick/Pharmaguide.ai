@@ -9,6 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/features/product_detail/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 
@@ -308,4 +309,75 @@ void main() {
     expect(find.text('Selected serving'), findsOneWidget);
     expect(find.text('Bifidobacterium bifidum (Bb-06)'), findsOneWidget);
   });
+
+  testWidgets(
+    'canonical ledger has clear nutrition active and other sections',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => SingleChildScrollView(
+                child: buildIngredientsSection(
+                  context: ctx,
+                  ingredients: const [],
+                  displayIngredients: const [
+                    {
+                      'label_display_name': 'Calories',
+                      'display_type': 'nutrition_fact',
+                      'exact_dose_text': '20 Calories',
+                      'nested_depth': 0,
+                      'score_included': false,
+                    },
+                    {
+                      'label_display_name': 'Daily Blend',
+                      'display_type': 'structural_container',
+                      'nested_depth': 0,
+                      'children': ['Zinc', 'Copper'],
+                      'score_included': false,
+                    },
+                    {
+                      'label_display_name': 'Zinc',
+                      'display_type': 'mapped_ingredient',
+                      'nested_depth': 1,
+                      'parent_label': 'Daily Blend',
+                      'score_included': true,
+                    },
+                    {
+                      'label_display_name': 'Copper',
+                      'display_type': 'mapped_ingredient',
+                      'nested_depth': 1,
+                      'parent_label': 'Daily Blend',
+                      'score_included': true,
+                    },
+                    {
+                      'label_display_name': 'Rice Flour',
+                      'display_type': 'inactive_ingredient',
+                      'display_disposition': 'other_ingredient',
+                      'nested_depth': 0,
+                      'score_included': false,
+                    },
+                  ],
+                  inactiveIngredients: const [],
+                  ulAnalysis: const [],
+                  blends: const [],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nutrition facts'), findsOneWidget);
+      expect(find.text('Active ingredients'), findsOneWidget);
+      expect(find.text('Other ingredients'), findsOneWidget);
+      expect(find.text('What the label lists'), findsNothing);
+      // Four actual label rows render as tiles. The structural blend parent is
+      // a header, not a fifth ingredient tile.
+      expect(find.byType(PGActiveIngredientTile), findsNWidgets(4));
+      expect(find.text('Calories'), findsOneWidget);
+      expect(find.text('Rice Flour'), findsOneWidget);
+    },
+  );
 }

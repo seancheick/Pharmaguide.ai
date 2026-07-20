@@ -44,8 +44,21 @@ void main() {
           score: 85,
           verdict: 'SAFE',
           mappedCoverage: 0.9,
+          v4Confidence: 'high',
         ),
         SearchScoreChipDisplay.tierScore,
+      );
+    });
+
+    test('low v4 confidence renders a neutral limited-assessment chip', () {
+      expect(
+        searchScoreChipDisplayFor(
+          score: 85,
+          verdict: 'SAFE',
+          mappedCoverage: 0.9,
+          v4Confidence: 'low',
+        ),
+        SearchScoreChipDisplay.limitedAssessment,
       );
     });
 

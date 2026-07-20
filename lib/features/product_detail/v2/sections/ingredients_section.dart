@@ -173,9 +173,48 @@ class _CanonicalLedgerIngredientsState
     final analysisRows = labelRows
         .where((row) => row['score_included'] == true)
         .toList(growable: false);
-    final visibleRows = _selectedView == IngredientLedgerView.label
-        ? labelRows
-        : analysisRows;
+    final nutritionRows = labelRows
+        .where((row) => row['display_type']?.toString() == 'nutrition_fact')
+        .toList(growable: false);
+    final otherRows = labelRows
+        .where((row) {
+          return row['display_type']?.toString() == 'inactive_ingredient' ||
+              row['display_disposition']?.toString() == 'other_ingredient';
+        })
+        .toList(growable: false);
+    final activeRows = labelRows
+        .where((row) {
+          return row['display_type']?.toString() != 'nutrition_fact' &&
+              row['display_type']?.toString() != 'inactive_ingredient' &&
+              row['display_disposition']?.toString() != 'other_ingredient';
+        })
+        .toList(growable: false);
+
+    Widget ledgerSection(String title, List<Map<String, dynamic>> rows) {
+      return PGActiveIngredientsSection(
+        title: title,
+        tiles: _buildLabelLedgerTiles(
+          context: context,
+          ingredients: rows,
+          ulAnalysis: widget.ulAnalysis,
+          analysisView: _selectedView == IngredientLedgerView.analysis,
+        ),
+      );
+    }
+
+    final sections = _selectedView == IngredientLedgerView.analysis
+        ? [
+            if (analysisRows.isNotEmpty)
+              ledgerSection('Analyzed ingredients', analysisRows),
+          ]
+        : [
+            if (nutritionRows.isNotEmpty)
+              ledgerSection('Nutrition facts', nutritionRows),
+            if (activeRows.isNotEmpty)
+              ledgerSection('Active ingredients', activeRows),
+            if (otherRows.isNotEmpty)
+              ledgerSection('Other ingredients', otherRows),
+          ];
 
     return PGIngredientsCard(
       activeContent: Column(
@@ -188,7 +227,7 @@ class _CanonicalLedgerIngredientsState
             onChanged: (view) => setState(() => _selectedView = view),
           ),
           const SizedBox(height: V2Spacing.space12),
-          if (visibleRows.isEmpty)
+          if (sections.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
               child: Text(
@@ -197,13 +236,26 @@ class _CanonicalLedgerIngredientsState
               ),
             )
           else
-            PGActiveIngredientsSection(
+            KeyedSubtree(
               key: ValueKey(_selectedView),
-              tiles: _buildLabelLedgerTiles(
-                context: context,
-                ingredients: visibleRows,
-                ulAnalysis: widget.ulAnalysis,
-                analysisView: _selectedView == IngredientLedgerView.analysis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var index = 0; index < sections.length; index++) ...[
+                    sections[index],
+                    if (index != sections.length - 1)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: V2Spacing.space12,
+                        ),
+                        child: Divider(
+                          height: 0.5,
+                          thickness: 0.5,
+                          color: V2Colors.outline,
+                        ),
+                      ),
+                  ],
+                ],
               ),
             ),
         ],

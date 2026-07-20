@@ -22,6 +22,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
+import 'package:pharmaguide/core/presentation/package_identity.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer.dart';
@@ -71,23 +73,6 @@ List<HeroTrustTag> buildHeroTrustTags(ProductsCoreData? product) {
     tags.add(const HeroTrustTag(label: 'Non-GMO', isCertification: false));
   }
   return tags;
-}
-
-/// Compose the hero's "60 Softgels" subtitle. Production uses
-/// `servingsPerContainer + formFactor` (T11.1 — replaced netContents
-/// which produced awkward strings like "1 Fluid Ounce(s)" for liquids).
-///
-/// Returns null when the product carries no servingsPerContainer so
-/// callers can omit the line entirely rather than render an awkward
-/// "0 capsule" string.
-String? composeServingsLabel({
-  required String formFactor,
-  required int? servingsPerContainer,
-}) {
-  if (servingsPerContainer == null || servingsPerContainer <= 0) return null;
-  final form = formFactor.trim();
-  if (form.isEmpty) return '$servingsPerContainer servings';
-  return '$servingsPerContainer $form';
 }
 
 /// Build the Hero section widget. Pure render — takes pre-derived
@@ -140,10 +125,12 @@ Widget buildHeroSection({
     ),
     productName: productName,
     brandName: brandName,
-    servingsLabel: composeServingsLabel(
-      formFactor: formFactor,
-      servingsPerContainer: product?.servingsPerContainer,
+    servingsLabel: packageSizeLabel(
+      quantity: product?.netContentsQuantity,
+      unit: product?.netContentsUnit,
+      fallbackFormFactor: formFactor,
     ),
+    servingCountLabel: packageServingCountLabel(product?.servingsPerContainer),
     dosingSummary: product?.dosingSummary,
     trustTags: trustTags
         .map(
@@ -159,6 +146,7 @@ Widget buildHeroSection({
     // coverage is below the 0.3 trust floor, PGHeroSection replaces the
     // tier-colored score line with the neutral "Limited data" hedge.
     lowCoverage: productHasLowCoverage(product),
+    limitedAssessment: hasLimitedAssessmentConfidence(product?.v4Confidence),
     bottomBanner: bottomBanner,
     verdict: verdict,
   );

@@ -44,6 +44,26 @@ Future<void> _pump(WidgetTester tester, {Map<String, dynamic>? evidenceData}) {
 }
 
 void main() {
+  group('hasRenderableClinicalEvidence', () {
+    test('requires parsed clinical match rows, not match_count alone', () {
+      expect(
+        hasRenderableClinicalEvidence({
+          'match_count': 2,
+          'clinical_matches': const <Map<String, dynamic>>[],
+        }),
+        isFalse,
+      );
+      expect(
+        hasRenderableClinicalEvidence({
+          'match_count': 1,
+          'clinical_matches': [
+            {'study_id': 'PMID-1', 'evidence_level': 'ingredient-human'},
+          ],
+        }),
+        isTrue,
+      );
+    });
+  });
   group('evidenceTotalStudies', () {
     test('dedupes PMIDs across matches and ignores blanks', () {
       final total = evidenceTotalStudies([

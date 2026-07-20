@@ -73,6 +73,14 @@ const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 /// references; the section shows the first few, deduped by PMID.
 const int _maxCitations = 5;
 
+/// Whether the clinical-evidence destination can render real rows. A numeric
+/// `match_count` alone is not enough; stale blobs can report a count while the
+/// parsed match list is empty.
+bool hasRenderableClinicalEvidence(Map<String, dynamic>? evidenceData) {
+  if (evidenceData == null) return false;
+  return evidenceData.safeMapList('clinical_matches').isNotEmpty;
+}
+
 /// Dedupe clinical matches by study identity (`study_id`, falling back
 /// to `id`). The pipeline's dual elemental/compound row emission can
 /// match the same study via both ingredient rows; keep the first

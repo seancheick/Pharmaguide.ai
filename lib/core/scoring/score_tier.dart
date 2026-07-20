@@ -24,6 +24,15 @@
 
 import 'package:flutter/material.dart';
 
+/// A score may be available while formula-wide input confidence is low.
+/// Keep the number for transparency, but suppress confident tier adjectives.
+bool hasLimitedAssessmentConfidence(String? value) {
+  final normalized = (value ?? '').trim().toLowerCase();
+  return normalized == 'low' ||
+      normalized == 'limited' ||
+      normalized == 'very_low';
+}
+
 /// 6-tier classification of a 0–100 product score. Values flow through
 /// [tierForScore]; never construct a tier from outside this module.
 enum ScoreTier { exceptional, excellent, good, fair, lowQuality, poor }

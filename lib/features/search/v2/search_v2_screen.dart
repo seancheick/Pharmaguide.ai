@@ -56,6 +56,7 @@ import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_goal_chip.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/presentation/package_identity.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
@@ -1603,6 +1604,7 @@ class _SearchProductListTile extends StatelessWidget {
       score: score,
       verdict: product.verdict,
       mappedCoverage: product.mappedCoverage,
+      v4Confidence: product.v4Confidence,
     );
     final showVerdictChip = searchShowsVerdictChip(
       verdict: product.verdict,
@@ -1611,17 +1613,21 @@ class _SearchProductListTile extends StatelessWidget {
     // Announce the numeric score only when the visual chip shows it —
     // screen-reader users must not hear a score the coverage/verdict
     // gates suppressed.
-    final scoreLabel = scoreChip == SearchScoreChipDisplay.tierScore
+    final scoreLabel =
+        scoreChip == SearchScoreChipDisplay.tierScore ||
+            scoreChip == SearchScoreChipDisplay.limitedAssessment
         ? ', score ${score!.round()} out of 100'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
         : '';
+    final packSizeLabel = _packSizeLabel(product);
+    final packSemantics = packSizeLabel == null ? '' : ', $packSizeLabel';
 
     return Semantics(
       button: true,
       label:
-          '${product.productName}$brandLabel$scoreLabel. Tap to view details.',
+          '${product.productName}$brandLabel$packSemantics$scoreLabel. Tap to view details.',
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1657,6 +1663,15 @@ class _SearchProductListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
+                      if (packSizeLabel != null) ...[
+                        const SizedBox(height: V2Spacing.space4),
+                        Text(
+                          packSizeLabel,
+                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                       const SizedBox(height: V2Spacing.space8),
                       Wrap(
                         spacing: V2Spacing.space8,
@@ -1665,6 +1680,9 @@ class _SearchProductListTile extends StatelessWidget {
                         children: [
                           if (scoreChip == SearchScoreChipDisplay.tierScore)
                             _ScoreChip(score: score!),
+                          if (scoreChip ==
+                              SearchScoreChipDisplay.limitedAssessment)
+                            _LimitedAssessmentChip(score: score!),
                           if (scoreChip == SearchScoreChipDisplay.limitedData)
                             const _LimitedDataChip(),
                           if (showVerdictChip)
@@ -1706,23 +1724,27 @@ class _SearchProductGridTile extends StatelessWidget {
       score: score,
       verdict: product.verdict,
       mappedCoverage: product.mappedCoverage,
+      v4Confidence: product.v4Confidence,
     );
     final showVerdictChip = searchShowsVerdictChip(
       verdict: product.verdict,
       mappedCoverage: product.mappedCoverage,
     );
-    final scoreLabel = scoreChip == SearchScoreChipDisplay.tierScore
+    final scoreLabel =
+        scoreChip == SearchScoreChipDisplay.tierScore ||
+            scoreChip == SearchScoreChipDisplay.limitedAssessment
         ? ', score ${score!.round()} out of 100'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
         : '';
     final packSizeLabel = _packSizeLabel(product);
+    final packSemantics = packSizeLabel == null ? '' : ', $packSizeLabel';
 
     return Semantics(
       button: true,
       label:
-          '${product.productName}$brandLabel$scoreLabel. Tap to view details.',
+          '${product.productName}$brandLabel$packSemantics$scoreLabel. Tap to view details.',
       child: Container(
         decoration: BoxDecoration(
           color: V2Colors.surface,
@@ -1782,6 +1804,8 @@ class _SearchProductGridTile extends StatelessWidget {
                           ),
                           SearchScoreChipDisplay.limitedData =>
                             const _LimitedDataChip(),
+                          SearchScoreChipDisplay.limitedAssessment =>
+                            _LimitedAssessmentChip(score: score!),
                           SearchScoreChipDisplay.hidden =>
                             const SizedBox.shrink(),
                         },
@@ -1922,6 +1946,32 @@ class _LimitedDataChip extends StatelessWidget {
       ),
       child: Text(
         'Limited data',
+        style: V2Typography.caption(color: V2Colors.fgMuted),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+class _LimitedAssessmentChip extends StatelessWidget {
+  final double score;
+
+  const _LimitedAssessmentChip({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: V2Spacing.space8,
+        vertical: V2Spacing.space4,
+      ),
+      decoration: BoxDecoration(
+        color: V2Colors.fgMuted.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+      ),
+      child: Text(
+        '${score.round()} · Limited assessment',
         style: V2Typography.caption(color: V2Colors.fgMuted),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -2173,7 +2223,8 @@ enum _SearchFilter {
       case _SearchFilter.all:
         return true;
       case _SearchFilter.highQuality:
-        return (p.qualityScoreV4100 ?? 0) >= 80;
+        return (p.qualityScoreV4100 ?? 0) >= 80 &&
+            !hasLimitedAssessmentConfidence(p.v4Confidence);
       case _SearchFilter.needsReview:
         final v = (p.verdict ?? '').toUpperCase();
         return v == 'CAUTION' ||
@@ -2198,20 +2249,11 @@ String _formatCategoryLabel(String category) {
 }
 
 String? _packSizeLabel(ProductsCoreData product) {
-  final quantity = product.netContentsQuantity;
-  final rawUnit = product.netContentsUnit?.trim();
-  if (quantity == null || rawUnit == null || rawUnit.isEmpty) return null;
-
-  final quantityLabel = quantity == quantity.roundToDouble()
-      ? quantity.round().toString()
-      : quantity.toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
-  final unitLabel = rawUnit
-      .replaceAll('(s)', quantity == 1 ? '' : 's')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim()
-      .toLowerCase();
-  if (unitLabel.isEmpty) return quantityLabel;
-  return '$quantityLabel $unitLabel';
+  return packageSizeLabel(
+    quantity: product.netContentsQuantity,
+    unit: product.netContentsUnit,
+    fallbackFormFactor: product.formFactor ?? '',
+  );
 }
 
 // Score-chip color uses the canonical quality-tier palette from
@@ -2255,6 +2297,10 @@ enum SearchScoreChipDisplay {
   /// confident tier-colored result).
   limitedData,
 
+  /// Score is available, but v4 formula confidence is low. Keep the number in
+  /// a neutral chip and suppress the quality-tier color.
+  limitedAssessment,
+
   /// No chip: score is null, or the verdict is BLOCKED/UNSAFE — the red
   /// verdict chip is the block indicator and must not compete with a
   /// positive-looking number.
@@ -2268,10 +2314,14 @@ SearchScoreChipDisplay searchScoreChipDisplayFor({
   required double? score,
   required String? verdict,
   required double? mappedCoverage,
+  String? v4Confidence,
 }) {
   if (isUnsafeVerdict(verdict)) return SearchScoreChipDisplay.hidden;
   if (score == null) return SearchScoreChipDisplay.hidden;
   if (isLowCoverage(mappedCoverage)) return SearchScoreChipDisplay.limitedData;
+  if (hasLimitedAssessmentConfidence(v4Confidence)) {
+    return SearchScoreChipDisplay.limitedAssessment;
+  }
   return SearchScoreChipDisplay.tierScore;
 }
 

@@ -453,6 +453,9 @@ class _ProductDetailV2ConnectedState
       blobLoading: blobLoading,
       blobError: blobError,
     );
+    final evidenceData = _blobMap(detailBlob, 'evidence_data');
+    final showClinicalEvidence =
+        showDeepDive && hasRenderableClinicalEvidence(evidenceData);
 
     // -------------------------------------------------------------
     // Scan→verdict perf trace — finish once, after the first frame in
@@ -482,9 +485,10 @@ class _ProductDetailV2ConnectedState
     // the lazy SliverList builds it before the keyed ensureVisible lands
     // (same approach as scroll_anchors' `?section=` fractions).
     final onPillarTap = <String, VoidCallback>{
-      if (showDeepDive) ...{
+      if (showClinicalEvidence)
         'evidence': () =>
             _scrollToSection(_evidenceSectionKey, primeFraction: 0.65),
+      if (showDeepDive) ...{
         'verification': () =>
             _scrollToSection(_certificationsSectionKey, primeFraction: 0.60),
       },
@@ -829,12 +833,10 @@ class _ProductDetailV2ConnectedState
                   // ---- 11. Evidence (WIRED, 11.7e) -----------------
                   // Anchor attached by WRAPPING the call site — the
                   // section file itself is owned by a change in flight.
-                  if (showDeepDive) ...[
+                  if (showClinicalEvidence) ...[
                     KeyedSubtree(
                       key: _evidenceSectionKey,
-                      child: buildEvidenceSection(
-                        evidenceData: _blobMap(detailBlob, 'evidence_data'),
-                      ),
+                      child: buildEvidenceSection(evidenceData: evidenceData),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

@@ -39,6 +39,7 @@ InteractionWarning _warning({
   List<String> drugClassIds = const [],
   String? ingredientName,
   String? direction,
+  String? displayModeDefault,
 }) {
   return InteractionWarning(
     severity: severity,
@@ -52,6 +53,7 @@ InteractionWarning _warning({
     drugClassIds: drugClassIds,
     ingredientName: ingredientName,
     direction: direction,
+    displayModeDefault: displayModeDefault,
   );
 }
 
@@ -447,6 +449,37 @@ void main() {
 
       expect(find.text('Why this fits you'), findsOneWidget);
       expect(find.text('Edit profile'), findsOneWidget);
+    });
+
+    testWidgets('good-to-know informational rows do not create warning cards', (
+      tester,
+    ) async {
+      final section = buildGeneralNotesSection(
+        warnings: [
+          _warning(
+            title: 'General nutrient guidance',
+            displayModeDefault: 'informational',
+          ),
+        ],
+      );
+
+      expect(section, isNull);
+    });
+
+    testWidgets('material global safety note remains visible', (tester) async {
+      final section = buildGeneralNotesSection(
+        warnings: [
+          _warning(
+            title: 'Review this additive',
+            displayModeDefault: 'critical',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: section)));
+      await tester.pumpAndSettle();
+      expect(find.text('PRODUCT SAFETY'), findsOneWidget);
+      expect(find.text('Review this product'), findsOneWidget);
     });
   });
 }

@@ -206,6 +206,41 @@ class InteractionWarning {
     this.severityRaw,
   });
 
+  /// Preserve the selected canonical warning while unioning provenance from
+  /// duplicate producers. Safety semantics stay unchanged.
+  InteractionWarning withSourceUrls(List<String> value) => InteractionWarning(
+    severity: severity,
+    evidenceLevel: evidenceLevel,
+    title: title,
+    mechanism: mechanism,
+    management: management,
+    sourceUrls: value,
+    severityContextual: severityContextual,
+    displayModeDefault: displayModeDefault,
+    alertHeadline: alertHeadline,
+    alertBody: alertBody,
+    informationalNote: informationalNote,
+    conditionIds: conditionIds,
+    drugClassIds: drugClassIds,
+    banContext: banContext,
+    clinicalRisk: clinicalRisk,
+    mechanismOfHarm: mechanismOfHarm,
+    populationWarnings: populationWarnings,
+    doseThresholdEvaluation: doseThresholdEvaluation,
+    regulatoryDate: regulatoryDate,
+    regulatoryDateLabel: regulatoryDateLabel,
+    additiveCategory: additiveCategory,
+    allergenPrevalence: allergenPrevalence,
+    supplementContext: supplementContext,
+    identifiers: identifiers,
+    ingredientName: ingredientName,
+    profileGate: profileGate,
+    direction: direction,
+    materiality: materiality,
+    doseFloorStatus: doseFloorStatus,
+    severityRaw: severityRaw,
+  );
+
   /// Parse from raw JSON map (from detail blob `warnings` list).
   ///
   /// Pipeline emits fields: `detail`, `action`, `sources`, `condition_ids`,
