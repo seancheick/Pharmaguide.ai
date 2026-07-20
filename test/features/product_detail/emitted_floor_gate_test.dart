@@ -32,81 +32,115 @@ bool _hasNiacin(List<InteractionWarning> ws) =>
 void main() {
   group('applyEmittedFloorGate — narrow suppression predicate (G3)', () {
     test('below floor + harmful + dose_dependent → suppressed', () {
-      expect(applyEmittedFloorGate([_niacin(doseFloorStatus: 'below')]), isEmpty);
+      expect(
+        applyEmittedFloorGate([_niacin(doseFloorStatus: 'below')]),
+        isEmpty,
+      );
     });
 
     test('at_or_above floor → fires', () {
-      expect(_hasNiacin(applyEmittedFloorGate([_niacin(doseFloorStatus: 'at_or_above')])), isTrue);
+      expect(
+        _hasNiacin(
+          applyEmittedFloorGate([_niacin(doseFloorStatus: 'at_or_above')]),
+        ),
+        isTrue,
+      );
     });
 
-    test('null floor status (niacinamide / unknown dose) → fires (fail open)', () {
-      expect(_hasNiacin(applyEmittedFloorGate([_niacin(doseFloorStatus: null)])), isTrue);
-    });
+    test(
+      'null floor status (niacinamide / unknown dose) → fires (fail open)',
+      () {
+        expect(
+          _hasNiacin(applyEmittedFloorGate([_niacin(doseFloorStatus: null)])),
+          isTrue,
+        );
+      },
+    );
 
     test('hard override (avoid) below floor → still fires', () {
       expect(
-        _hasNiacin(applyEmittedFloorGate(
-          [_niacin(doseFloorStatus: 'below', severity: Severity.avoid)],
-        )),
+        _hasNiacin(
+          applyEmittedFloorGate([
+            _niacin(doseFloorStatus: 'below', severity: Severity.avoid),
+          ]),
+        ),
         isTrue,
       );
     });
 
-    test('unknown / drifted severity string below floor → fires (fail safe)', () {
-      // Severity.fromString coerces unknown tokens to caution; the raw-string
-      // fail-safe must keep a possibly-serious drifted row visible.
-      expect(
-        _hasNiacin(applyEmittedFloorGate(
-          [_niacin(doseFloorStatus: 'below', severityRaw: 'severe')],
-        )),
-        isTrue,
-      );
-    });
+    test(
+      'unknown / drifted severity string below floor → fires (fail safe)',
+      () {
+        // Severity.fromString coerces unknown tokens to caution; the raw-string
+        // fail-safe must keep a possibly-serious drifted row visible.
+        expect(
+          _hasNiacin(
+            applyEmittedFloorGate([
+              _niacin(doseFloorStatus: 'below', severityRaw: 'severe'),
+            ]),
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('missing severity (empty raw) below floor → fires (fail safe)', () {
       expect(
-        _hasNiacin(applyEmittedFloorGate(
-          [_niacin(doseFloorStatus: 'below', severityRaw: '')],
-        )),
+        _hasNiacin(
+          applyEmittedFloorGate([
+            _niacin(doseFloorStatus: 'below', severityRaw: ''),
+          ]),
+        ),
         isTrue,
       );
     });
 
     test('beneficial below floor → fires (only harmful is suppressible)', () {
       expect(
-        _hasNiacin(applyEmittedFloorGate(
-          [_niacin(doseFloorStatus: 'below', direction: 'beneficial')],
-        )),
+        _hasNiacin(
+          applyEmittedFloorGate([
+            _niacin(doseFloorStatus: 'below', direction: 'beneficial'),
+          ]),
+        ),
         isTrue,
       );
     });
 
-    test('neutral below floor → suppressed for dose-dependent high-dose guidance', () {
-      expect(
-        applyEmittedFloorGate(
-          [_niacin(doseFloorStatus: 'below', direction: 'neutral')],
-        ),
-        isEmpty,
-      );
-    });
+    test(
+      'neutral below floor → suppressed for dose-dependent high-dose guidance',
+      () {
+        expect(
+          applyEmittedFloorGate([
+            _niacin(doseFloorStatus: 'below', direction: 'neutral'),
+          ]),
+          isEmpty,
+        );
+      },
+    );
 
-    test('form mismatch → suppressed for dose-dependent high-dose guidance', () {
-      expect(
-        applyEmittedFloorGate(
-          [_niacin(doseFloorStatus: 'form_mismatch')],
-        ),
-        isEmpty,
-      );
-    });
+    test(
+      'form mismatch → suppressed for dose-dependent high-dose guidance',
+      () {
+        expect(
+          applyEmittedFloorGate([_niacin(doseFloorStatus: 'form_mismatch')]),
+          isEmpty,
+        );
+      },
+    );
 
-    test('presence materiality below floor → fires (never dose-suppressed)', () {
-      expect(
-        _hasNiacin(applyEmittedFloorGate(
-          [_niacin(doseFloorStatus: 'below', materiality: 'presence')],
-        )),
-        isTrue,
-      );
-    });
+    test(
+      'presence materiality below floor → fires (never dose-suppressed)',
+      () {
+        expect(
+          _hasNiacin(
+            applyEmittedFloorGate([
+              _niacin(doseFloorStatus: 'below', materiality: 'presence'),
+            ]),
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('legacy warning without the new fields → fires', () {
       const legacy = InteractionWarning(
@@ -128,7 +162,11 @@ void main() {
         userConditions: const {'diabetes'},
         userDrugClasses: const {},
       );
-      expect(_hasNiacin(out), isFalse, reason: 'below-floor row must not be promoted back');
+      expect(
+        _hasNiacin(out),
+        isFalse,
+        reason: 'below-floor row must not be promoted back',
+      );
     });
 
     test('at_or_above niacin still shown for a diabetes profile', () {
@@ -151,24 +189,27 @@ void main() {
       expect(_hasNiacin(out), isTrue);
     });
 
-    test('suppressed untagged warning with unknown severity fires fail safe', () {
-      const warning = InteractionWarning(
-        severity: Severity.caution,
-        severityRaw: 'severe',
-        evidenceLevel: EvidenceLevel.established,
-        title: 'Unknown severity token',
-        mechanism: 'x',
-        management: 'y',
-        displayModeDefault: 'suppress',
-      );
-      final out = filterProductDetailWarningsForProfile(
-        detailBlob: const <String, dynamic>{},
-        warnings: const [warning],
-        userConditions: const {},
-        userDrugClasses: const {},
-      );
-      expect(out, const [warning]);
-    });
+    test(
+      'suppressed untagged warning with unknown severity fires fail safe',
+      () {
+        const warning = InteractionWarning(
+          severity: Severity.caution,
+          severityRaw: 'severe',
+          evidenceLevel: EvidenceLevel.established,
+          title: 'Unknown severity token',
+          mechanism: 'x',
+          management: 'y',
+          displayModeDefault: 'suppress',
+        );
+        final out = filterProductDetailWarningsForProfile(
+          detailBlob: const <String, dynamic>{},
+          warnings: const [warning],
+          userConditions: const {},
+          userDrugClasses: const {},
+        );
+        expect(out, const [warning]);
+      },
+    );
 
     test('known lower severity still respects suppress display mode', () {
       const warning = InteractionWarning(
@@ -199,7 +240,11 @@ void main() {
         _niacin(doseFloorStatus: 'below'),
         _niacin(doseFloorStatus: null),
       ]);
-      expect(deduped.length, 2, reason: 'floor fields must be in the dedupe key');
+      expect(
+        deduped.length,
+        2,
+        reason: 'floor fields must be in the dedupe key',
+      );
     });
 
     test('true identical duplicates still collapse', () {

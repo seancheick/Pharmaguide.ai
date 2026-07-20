@@ -127,14 +127,8 @@ void main() {
         );
         expect(sql, contains('SECURITY DEFINER'));
         expect(sql, contains('SET search_path = public, pg_catalog'));
-        expect(
-          sql,
-          contains('IF p_user_id IS DISTINCT FROM auth.uid() THEN'),
-        );
-        expect(
-          sql,
-          contains("IF p_type NOT IN ('scan', 'ai_message') THEN"),
-        );
+        expect(sql, contains('IF p_user_id IS DISTINCT FROM auth.uid() THEN'));
+        expect(sql, contains("IF p_type NOT IN ('scan', 'ai_message') THEN"));
         expect(
           sql,
           contains(

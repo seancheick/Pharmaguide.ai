@@ -107,7 +107,11 @@ void main() {
           'value_display': '660 mg/day',
           'detail': 'From the label-directed daily serving.',
         },
-        {'id': 'omega_form', 'label': 'Molecular form', 'value_display': 'Ethyl ester'},
+        {
+          'id': 'omega_form',
+          'label': 'Molecular form',
+          'value_display': 'Ethyl ester',
+        },
       ],
     };
     final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
@@ -158,7 +162,10 @@ void main() {
   test('statusForPillar: >=85% Strong, >=60% Mixed, below 60% Limited', () {
     expect(statusForPillar(17.0, 20), V4PillarStatus.strong); // 85%
     expect(statusForPillar(20.0, 20), V4PillarStatus.strong); // 100%
-    expect(statusForPillar(13.9, 20), V4PillarStatus.mixed); // 69.5% (Formulation)
+    expect(
+      statusForPillar(13.9, 20),
+      V4PillarStatus.mixed,
+    ); // 69.5% (Formulation)
     expect(statusForPillar(12.0, 20), V4PillarStatus.mixed); // 60%
     expect(statusForPillar(11.9, 20), V4PillarStatus.limited); // 59.5%
     expect(statusForPillar(0.0, 20), V4PillarStatus.limited);

@@ -7,14 +7,17 @@ import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 // equivalence without sign-off.
 void main() {
   group('profileGateIdsForClasses — vocab crosswalk contract', () {
-    test('applies the seeded override (antiplatelet_agents -> antiplatelets)', () {
-      expect(
-        MedicationClassBridge.profileGateIdsForClasses([
-          'class:antiplatelet_agents',
-        ]),
-        ['antiplatelets'],
-      );
-    });
+    test(
+      'applies the seeded override (antiplatelet_agents -> antiplatelets)',
+      () {
+        expect(
+          MedicationClassBridge.profileGateIdsForClasses([
+            'class:antiplatelet_agents',
+          ]),
+          ['antiplatelets'],
+        );
+      },
+    );
 
     test('fails open: an unmapped class: id passes through class-stripped', () {
       // Not dropped — passes through as its bare id so it still matches a
@@ -31,7 +34,11 @@ void main() {
 
     test('ignores non-class: ids', () {
       expect(
-        MedicationClassBridge.profileGateIdsForClasses(['nsaids', '', 'statins']),
+        MedicationClassBridge.profileGateIdsForClasses([
+          'nsaids',
+          '',
+          'statins',
+        ]),
         isEmpty,
       );
     });

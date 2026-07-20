@@ -19,10 +19,13 @@ void main() {
       expect(ownerAllowsPush(storedOwner: 'V', currentUid: 'U'), isFalse);
     });
 
-    test('no recorded owner yet (adoption pending) → blocked until stamped', () {
-      expect(ownerAllowsPush(storedOwner: null, currentUid: 'U'), isFalse);
-      expect(ownerAllowsPush(storedOwner: '', currentUid: 'U'), isFalse);
-    });
+    test(
+      'no recorded owner yet (adoption pending) → blocked until stamped',
+      () {
+        expect(ownerAllowsPush(storedOwner: null, currentUid: 'U'), isFalse);
+        expect(ownerAllowsPush(storedOwner: '', currentUid: 'U'), isFalse);
+      },
+    );
   });
 
   test('SyncResult exposes the owner-mismatch skip state', () {

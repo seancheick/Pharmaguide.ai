@@ -38,15 +38,18 @@ void main() {
       expect(active.formLabel, 'as Ethyl Esters');
     });
 
-    test('display_form_label fallback also preserves casing (no lowercasing)', () {
-      final active = activeFromMap(const {
-        'display_label': 'Ashwagandha Root Extract',
-        'form_status': 'known',
-        'display_form_label': 'Root Extract',
-      });
+    test(
+      'display_form_label fallback also preserves casing (no lowercasing)',
+      () {
+        final active = activeFromMap(const {
+          'display_label': 'Ashwagandha Root Extract',
+          'form_status': 'known',
+          'display_form_label': 'Root Extract',
+        });
 
-      expect(active.formLabel, 'Root Extract');
-    });
+        expect(active.formLabel, 'Root Extract');
+      },
+    );
 
     test('legacy blob without label fields keeps the existing display_label '
         'name behavior', () {

@@ -398,8 +398,7 @@ void main() {
   });
 
   group('PGComparePillarRow status parity', () {
-    Widget wrap(Widget child) =>
-        MaterialApp(home: Scaffold(body: child));
+    Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
     testWidgets('shows Strong/Mixed from the shared statusForPillar thresholds '
         '(13.9/20 is Mixed, matching the score card)', (tester) async {

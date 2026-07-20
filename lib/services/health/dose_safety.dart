@@ -93,7 +93,8 @@ bool _quantityExceedsResolvedUl(
   Map<String, dynamic>? ingredient,
 }) {
   final quantity =
-      asFiniteDouble(entry['quantity']) ?? asFiniteDouble(ingredient?['quantity']);
+      asFiniteDouble(entry['quantity']) ??
+      asFiniteDouble(ingredient?['quantity']);
   if (quantity == null || quantity <= 0) return false;
 
   // UL resolution order honoring the pipeline contract:
@@ -116,8 +117,8 @@ bool _quantityExceedsResolvedUl(
   // when the units differ and cannot be reconciled (e.g. IU ↔ mg, which is
   // form-dependent) NEVER guess — decline to flag.
   final quantityUnit = (entry['unit'] ?? ingredient?['unit'] ?? '').toString();
-  final ulUnit =
-      (entry['nutrient_unit'] ?? entry['converted_unit'] ?? '').toString();
+  final ulUnit = (entry['nutrient_unit'] ?? entry['converted_unit'] ?? '')
+      .toString();
   final comparableQuantity = _quantityInUlUnit(
     quantity,
     quantityUnit: quantityUnit,

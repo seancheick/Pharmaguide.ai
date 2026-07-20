@@ -343,8 +343,8 @@
 
 - [ ] Run pipeline `scripts/test.sh fast` and `scripts/release_full.sh`.
   - Deferred by explicit user request; the five changed pipeline modules passed a pinned 373-test slice without rebuilding the catalog.
-- [ ] Run Flutter `dart format --output=none --set-exit-if-changed lib test`, `flutter analyze`, and `flutter test`.
-  - Full tests passed 2,347/2,347; changed Dart files are format-clean; the repository-wide formatter still reports 40 pre-existing files outside this change.
+- [x] Run Flutter formatting, fatal analysis, and tests.
+  - Full tests passed 2,347/2,347; the exact CI coverage suite passed 2,326/2,326; `flutter analyze --fatal-infos` and the non-generated Dart format gate are clean.
 - [x] Run Flutter `flutter build apk --release`.
 - [x] Inspect both repository diffs for unintended score changes, safety-copy regressions, health-data persistence, generated artifacts, and files outside this plan.
 - [x] Update the sprint tracker with exact test counts/commands, remaining deployment steps, and any external migration that is coded but not yet applied.

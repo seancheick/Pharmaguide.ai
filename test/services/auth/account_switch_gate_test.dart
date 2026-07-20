@@ -30,11 +30,8 @@ void main() {
       String? owner,
       String? uid,
       required AuthChangeEvent event,
-    }) => decideAccountAction(
-      storedOwner: owner,
-      incomingUid: uid,
-      event: event,
-    );
+    }) =>
+        decideAccountAction(storedOwner: owner, incomingUid: uid, event: event);
 
     group('signedIn', () {
       test('owner=null + signin U → adopt (genuine guest data kept)', () {
@@ -80,21 +77,24 @@ void main() {
     group('initialSession', () {
       test('no persisted session (uid null) → keep (fresh guest launch)', () {
         expect(
-          decide(
-            owner: null,
-            uid: null,
-            event: AuthChangeEvent.initialSession,
-          ),
+          decide(owner: null, uid: null, event: AuthChangeEvent.initialSession),
           AccountSwitchAction.keep,
         );
       });
 
-      test('owner=null + persisted session U → adopt (app-update migration)', () {
-        expect(
-          decide(owner: null, uid: 'U', event: AuthChangeEvent.initialSession),
-          AccountSwitchAction.adopt,
-        );
-      });
+      test(
+        'owner=null + persisted session U → adopt (app-update migration)',
+        () {
+          expect(
+            decide(
+              owner: null,
+              uid: 'U',
+              event: AuthChangeEvent.initialSession,
+            ),
+            AccountSwitchAction.adopt,
+          );
+        },
+      );
 
       test('owner=U + initialSession U (same uid) → keep, MUST NOT clear', () {
         expect(
@@ -108,11 +108,7 @@ void main() {
         'recovery — the only way a different uid session appears at launch)',
         () {
           expect(
-            decide(
-              owner: 'V',
-              uid: 'U',
-              event: AuthChangeEvent.initialSession,
-            ),
+            decide(owner: 'V', uid: 'U', event: AuthChangeEvent.initialSession),
             AccountSwitchAction.clearAndAdopt,
           );
         },
@@ -138,16 +134,13 @@ void main() {
           );
         });
 
-        test(
-          '$event: owner=null + uid U → adopt (non-destructive ownership '
-          'stamp; an active session means the current human IS U)',
-          () {
-            expect(
-              decide(owner: null, uid: 'U', event: event),
-              AccountSwitchAction.adopt,
-            );
-          },
-        );
+        test('$event: owner=null + uid U → adopt (non-destructive ownership '
+            'stamp; an active session means the current human IS U)', () {
+          expect(
+            decide(owner: null, uid: 'U', event: event),
+            AccountSwitchAction.adopt,
+          );
+        });
       }
     });
 
@@ -260,30 +253,31 @@ void main() {
       clearPerUserPrefs: clearPerUserPrefs,
     );
 
-    test('ADOPT: owner=null + signin U keeps guest data, stamps owner', () async {
-      await seedUserData(db);
+    test(
+      'ADOPT: owner=null + signin U keeps guest data, stamps owner',
+      () async {
+        await seedUserData(db);
 
-      final action = await guardFor(db).onAuthEvent(
-        event: AuthChangeEvent.signedIn,
-        uid: 'U',
-      );
+        final action = await guardFor(
+          db,
+        ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
 
-      expect(action, AccountSwitchAction.adopt);
-      expect(await AccountOwnerStore().read(), 'U');
-      // NOTHING cleared — guest data now belongs to U and may sync.
-      expect(await db.getProfile(), isNotNull);
-      expect((await db.select(db.userStacksLocal).get()).length, 3);
-      expect((await db.getFavorites()).length, 1);
-    });
+        expect(action, AccountSwitchAction.adopt);
+        expect(await AccountOwnerStore().read(), 'U');
+        // NOTHING cleared — guest data now belongs to U and may sync.
+        expect(await db.getProfile(), isNotNull);
+        expect((await db.select(db.userStacksLocal).get()).length, 3);
+        expect((await db.getFavorites()).length, 1);
+      },
+    );
 
     test('KEEP: owner=U + signin U leaves everything untouched', () async {
       await seedUserData(db);
       await AccountOwnerStore().write('U');
 
-      final action = await guardFor(db).onAuthEvent(
-        event: AuthChangeEvent.signedIn,
-        uid: 'U',
-      );
+      final action = await guardFor(
+        db,
+      ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
 
       expect(action, AccountSwitchAction.keep);
       expect(await AccountOwnerStore().read(), 'U');
@@ -295,10 +289,9 @@ void main() {
       await seedUserData(db);
       await AccountOwnerStore().write('U');
 
-      final action = await guardFor(db).onAuthEvent(
-        event: AuthChangeEvent.tokenRefreshed,
-        uid: 'U',
-      );
+      final action = await guardFor(
+        db,
+      ).onAuthEvent(event: AuthChangeEvent.tokenRefreshed, uid: 'U');
 
       expect(action, AccountSwitchAction.keep);
       expect(await db.getProfile(), isNotNull);
@@ -309,10 +302,9 @@ void main() {
       await seedUserData(db);
       await AccountOwnerStore().write('U');
 
-      final action = await guardFor(db).onAuthEvent(
-        event: AuthChangeEvent.signedOut,
-        uid: null,
-      );
+      final action = await guardFor(
+        db,
+      ).onAuthEvent(event: AuthChangeEvent.signedOut, uid: null);
 
       expect(action, AccountSwitchAction.keep);
       expect(await AccountOwnerStore().read(), 'U');
@@ -320,47 +312,44 @@ void main() {
       expect((await db.select(db.userStacksLocal).get()).length, 3);
     });
 
-    test(
-      'ACCOUNT SWITCH (integration): owner=V + signin U clears every '
-      'previous-user row locally and leaves nothing for the sync queue '
-      'to push remotely',
-      () async {
-        await seedUserData(db);
-        await AccountOwnerStore().write('V');
-        final queue = StackSyncQueue(db);
+    test('ACCOUNT SWITCH (integration): owner=V + signin U clears every '
+        'previous-user row locally and leaves nothing for the sync queue '
+        'to push remotely', () async {
+      await seedUserData(db);
+      await AccountOwnerStore().write('V');
+      final queue = StackSyncQueue(db);
 
-        // Sanity: before the switch, V has dirty rows that WOULD push,
-        // and the sync owner gate would refuse to push them as U.
-        expect((await queue.dirtyRows()).isNotEmpty, isTrue);
-        expect(ownerAllowsPush(storedOwner: 'V', currentUid: 'U'), isFalse);
+      // Sanity: before the switch, V has dirty rows that WOULD push,
+      // and the sync owner gate would refuse to push them as U.
+      expect((await queue.dirtyRows()).isNotEmpty, isTrue);
+      expect(ownerAllowsPush(storedOwner: 'V', currentUid: 'U'), isFalse);
 
-        var prefsCleared = false;
-        final action = await guardFor(
-          db,
-          clearPerUserPrefs: () async => prefsCleared = true,
-        ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
+      var prefsCleared = false;
+      final action = await guardFor(
+        db,
+        clearPerUserPrefs: () async => prefsCleared = true,
+      ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
 
-        expect(action, AccountSwitchAction.clearAndAdopt);
-        // Zero previous-user rows locally — stack (supplements AND
-        // medications AND tombstones), profile, favorites, history.
-        expect(await db.select(db.userStacksLocal).get(), isEmpty);
-        expect(await db.getProfile(), isNull);
-        expect(await db.getFavorites(), isEmpty);
-        expect(await db.getRecentScans(), isEmpty);
-        // Nothing to push remotely: the dirty/tombstone queue is empty.
-        expect(await queue.dirtyRows(), isEmpty);
-        expect(await queue.tombstoneRows(), isEmpty);
-        // Per-user prefs (recent searches) cleared too.
-        expect(prefsCleared, isTrue);
-        // Ownership handed to U; U's own writes may sync normally.
-        expect(await AccountOwnerStore().read(), 'U');
-        expect(ownerAllowsPush(storedOwner: 'U', currentUid: 'U'), isTrue);
-        // Product-keyed caches survive — they contain no user data.
-        expect(await db.getCachedDetail('dsld-9'), isNotNull);
-        expect(await db.getCachedImage('dsld-9'), isNotNull);
-        expect(await db.getFailedScans(), isNotEmpty);
-      },
-    );
+      expect(action, AccountSwitchAction.clearAndAdopt);
+      // Zero previous-user rows locally — stack (supplements AND
+      // medications AND tombstones), profile, favorites, history.
+      expect(await db.select(db.userStacksLocal).get(), isEmpty);
+      expect(await db.getProfile(), isNull);
+      expect(await db.getFavorites(), isEmpty);
+      expect(await db.getRecentScans(), isEmpty);
+      // Nothing to push remotely: the dirty/tombstone queue is empty.
+      expect(await queue.dirtyRows(), isEmpty);
+      expect(await queue.tombstoneRows(), isEmpty);
+      // Per-user prefs (recent searches) cleared too.
+      expect(prefsCleared, isTrue);
+      // Ownership handed to U; U's own writes may sync normally.
+      expect(await AccountOwnerStore().read(), 'U');
+      expect(ownerAllowsPush(storedOwner: 'U', currentUid: 'U'), isTrue);
+      // Product-keyed caches survive — they contain no user data.
+      expect(await db.getCachedDetail('dsld-9'), isNotNull);
+      expect(await db.getCachedImage('dsld-9'), isNotNull);
+      expect(await db.getFailedScans(), isNotEmpty);
+    });
 
     test(
       'clear failure leaves owner=V so the switch retries next sign-in '
@@ -382,10 +371,9 @@ void main() {
         expect(await AccountOwnerStore().read(), 'V');
 
         // Recovery: a second successful run completes the switch.
-        final retry = await guardFor(db).onAuthEvent(
-          event: AuthChangeEvent.signedIn,
-          uid: 'U',
-        );
+        final retry = await guardFor(
+          db,
+        ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
         expect(retry, AccountSwitchAction.clearAndAdopt);
         expect(await AccountOwnerStore().read(), 'U');
         expect(await db.select(db.userStacksLocal).get(), isEmpty);

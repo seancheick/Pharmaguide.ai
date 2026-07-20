@@ -96,8 +96,8 @@ class StackSyncBatch {
   const StackSyncBatch({
     required this.representativeRows,
     required this.invalidRows,
-    required Map<String, List<UserStacksLocalData>> rowsByRepresentativeId,
-  }) : _rowsByRepresentativeId = rowsByRepresentativeId;
+    required this._rowsByRepresentativeId,
+  });
 
   /// Every local history row superseded by [representativeId]. When the
   /// representative succeeds, each of these rows has been represented by the

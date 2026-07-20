@@ -189,7 +189,8 @@ class _PGPillarRow extends StatelessWidget {
   bool get _hasDetails =>
       (pillar.effectiveReason?.trim().isNotEmpty ?? false) ||
       pillar.facts.isNotEmpty ||
-      (pillar.actionLabel?.trim().isNotEmpty ?? false) && pillar.onAction != null;
+      (pillar.actionLabel?.trim().isNotEmpty ?? false) &&
+          pillar.onAction != null;
 
   @override
   Widget build(BuildContext context) {
@@ -226,7 +227,10 @@ class _PGPillarRow extends StatelessWidget {
                           AnimatedRotation(
                             turns: isExpanded ? 0.5 : 0,
                             duration: const Duration(milliseconds: 180),
-                            child: const Icon(Icons.expand_more_rounded, size: 16),
+                            child: const Icon(
+                              Icons.expand_more_rounded,
+                              size: 16,
+                            ),
                           ),
                         ],
                       ],
@@ -239,7 +243,10 @@ class _PGPillarRow extends StatelessWidget {
                       style: V2Typography.monoData(color: tone),
                     )
                   else
-                    Text('No data', style: V2Typography.caption(color: V2Colors.fgSubtle)),
+                    Text(
+                      'No data',
+                      style: V2Typography.caption(color: V2Colors.fgSubtle),
+                    ),
                 ],
               ),
               if (hasScore) ...[
@@ -256,8 +263,13 @@ class _PGPillarRow extends StatelessWidget {
                   height: 6,
                   child: Stack(
                     children: [
-                      Container(color: V2Colors.outline.withValues(alpha: 0.45)),
-                      FractionallySizedBox(widthFactor: fill, child: Container(color: tone)),
+                      Container(
+                        color: V2Colors.outline.withValues(alpha: 0.45),
+                      ),
+                      FractionallySizedBox(
+                        widthFactor: fill,
+                        child: Container(color: tone),
+                      ),
                     ],
                   ),
                 ),
@@ -271,16 +283,20 @@ class _PGPillarRow extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (pillar.effectiveReason?.trim().isNotEmpty ?? false)
+                            if (pillar.effectiveReason?.trim().isNotEmpty ??
+                                false)
                               Text(
                                 pillar.effectiveReason!,
-                                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                                style: V2Typography.bodySm(
+                                  color: V2Colors.fgMuted,
+                                ),
                               ),
                             for (final fact in pillar.facts) ...[
                               const SizedBox(height: V2Spacing.space8),
                               _PillarFact(fact: fact),
                             ],
-                            if ((pillar.actionLabel?.trim().isNotEmpty ?? false) &&
+                            if ((pillar.actionLabel?.trim().isNotEmpty ??
+                                    false) &&
                                 pillar.onAction != null) ...[
                               const SizedBox(height: V2Spacing.space8),
                               TextButton(
@@ -313,7 +329,10 @@ class _PillarFact extends StatelessWidget {
       Text(fact.valueDisplay, style: V2Typography.bodySm(color: V2Colors.fg)),
       if (fact.detail != null) ...[
         const SizedBox(height: 2),
-        Text(fact.detail!, style: V2Typography.caption(color: V2Colors.fgMuted)),
+        Text(
+          fact.detail!,
+          style: V2Typography.caption(color: V2Colors.fgMuted),
+        ),
       ],
     ],
   );
@@ -325,12 +344,21 @@ class _PGCoverageLine extends StatelessWidget {
 
   ({Color tone, String label}) _tierFor(double value) {
     if (value >= 0.7) {
-      return (tone: V2Colors.safe, label: 'Most ingredients in our database — high-confidence score');
+      return (
+        tone: V2Colors.safe,
+        label: 'Most ingredients in our database — high-confidence score',
+      );
     }
     if (value >= 0.3) {
-      return (tone: V2Colors.caution, label: 'Some ingredients aren\'t in our database — partial coverage');
+      return (
+        tone: V2Colors.caution,
+        label: 'Some ingredients aren\'t in our database — partial coverage',
+      );
     }
-    return (tone: V2Colors.fgSubtle, label: 'Limited data — only part of this product is in our database');
+    return (
+      tone: V2Colors.fgSubtle,
+      label: 'Limited data — only part of this product is in our database',
+    );
   }
 
   @override
@@ -339,9 +367,19 @@ class _PGCoverageLine extends StatelessWidget {
     final percent = (coverage.clamp(0.0, 1.0) * 100).round();
     return Row(
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: tier.tone, shape: BoxShape.circle)),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: tier.tone, shape: BoxShape.circle),
+        ),
         const SizedBox(width: V2Spacing.space8),
-        Expanded(child: Text(tier.label, style: V2Typography.caption(color: V2Colors.fgMuted), maxLines: 2)),
+        Expanded(
+          child: Text(
+            tier.label,
+            style: V2Typography.caption(color: V2Colors.fgMuted),
+            maxLines: 2,
+          ),
+        ),
         const SizedBox(width: V2Spacing.space8),
         Text('$percent%', style: V2Typography.monoData(color: tier.tone)),
       ],

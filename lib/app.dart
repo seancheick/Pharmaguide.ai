@@ -1256,11 +1256,7 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       // record still names the previous uid, and the sync-side owner
       // gate (ownerAllowsPush) blocks every cross-account upload until a
       // later sign-in completes the switch.
-      CrashReportingService().recordError(
-        e,
-        st,
-        hint: 'account_switch_guard',
-      );
+      CrashReportingService().recordError(e, st, hint: 'account_switch_guard');
     }
     if (flipToSignedIn && mounted) authState.onSignedIn();
   }

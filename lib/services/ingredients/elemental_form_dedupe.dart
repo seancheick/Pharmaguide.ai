@@ -56,9 +56,13 @@ bool isElementalIngredientName(String displayName, String canonicalId) {
   // 'niacin', so a generic "Vitamin B3" row would read as the bare elemental
   // total and drop every other niacin form from the sum (an under-count). The
   // hyphen/punctuation fold that fixes 'Vitamin-D3'/'5-HTP' is unaffected.
-  final canonical = canonicalizeIngredientName(canonicalId, applyAliases: false);
+  final canonical = canonicalizeIngredientName(
+    canonicalId,
+    applyAliases: false,
+  );
   if (canonical.isEmpty) return false;
-  if (canonicalizeIngredientName(displayName, applyAliases: false) == canonical) {
+  if (canonicalizeIngredientName(displayName, applyAliases: false) ==
+      canonical) {
     return true;
   }
   final stripped = displayName.replaceAll(RegExp(r'\([^)]*\)'), ' ');

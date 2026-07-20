@@ -12,16 +12,19 @@ import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
 void main() {
   group('StackSafetyReport effective severity', () {
-    test('serious food advisory raises overallSeverity to its real severity', () {
-      final advisory = InteractionResult.fromRow(
-        _row(severity: 'avoid', alertStyle: 'food_advisory_note'),
-      );
-      // Display value is still informational (backward-compat)...
-      expect(advisory.severity, Severity.informational);
-      final report = StackSafetyReport(medicationInteractions: [advisory]);
-      // ...but the report must weight it as avoid.
-      expect(report.overallSeverity, Severity.avoid);
-    });
+    test(
+      'serious food advisory raises overallSeverity to its real severity',
+      () {
+        final advisory = InteractionResult.fromRow(
+          _row(severity: 'avoid', alertStyle: 'food_advisory_note'),
+        );
+        // Display value is still informational (backward-compat)...
+        expect(advisory.severity, Severity.informational);
+        final report = StackSafetyReport(medicationInteractions: [advisory]);
+        // ...but the report must weight it as avoid.
+        expect(report.overallSeverity, Severity.avoid);
+      },
+    );
 
     test('food advisory counts under its real severity bucket', () {
       final advisory = InteractionResult.fromRow(

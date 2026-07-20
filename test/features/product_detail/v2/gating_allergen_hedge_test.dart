@@ -38,29 +38,35 @@ void main() {
       );
     });
 
-    test('hidden when structured allergens exist (the matcher handles them)', () {
-      expect(
-        shouldShowAllergenDataUnavailableHedge(
-          isBlocked: false,
-          userHasAllergens: true,
-          noStructuredAllergens: false,
-          allergenSummary: null,
-        ),
-        isFalse,
-      );
-    });
+    test(
+      'hidden when structured allergens exist (the matcher handles them)',
+      () {
+        expect(
+          shouldShowAllergenDataUnavailableHedge(
+            isBlocked: false,
+            userHasAllergens: true,
+            noStructuredAllergens: false,
+            allergenSummary: null,
+          ),
+          isFalse,
+        );
+      },
+    );
 
-    test('hidden when a free-text summary exists (summary banner covers it)', () {
-      expect(
-        shouldShowAllergenDataUnavailableHedge(
-          isBlocked: false,
-          userHasAllergens: true,
-          noStructuredAllergens: true,
-          allergenSummary: 'Contains milk.',
-        ),
-        isFalse,
-      );
-    });
+    test(
+      'hidden when a free-text summary exists (summary banner covers it)',
+      () {
+        expect(
+          shouldShowAllergenDataUnavailableHedge(
+            isBlocked: false,
+            userHasAllergens: true,
+            noStructuredAllergens: true,
+            allergenSummary: 'Contains milk.',
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test('hidden on blocked products (consistent with the summary banner)', () {
       expect(

@@ -17,26 +17,29 @@ import 'package:pharmaguide/data/supabase/sync_service.dart';
 
 void main() {
   group('inactivityWatchdogStream', () {
-    test('chunks flowing faster than the window pass through untouched', () async {
-      final controller = StreamController<List<int>>();
-      final out = inactivityWatchdogStream(
-        controller.stream,
-        inactivity: const Duration(milliseconds: 400),
-      );
+    test(
+      'chunks flowing faster than the window pass through untouched',
+      () async {
+        final controller = StreamController<List<int>>();
+        final out = inactivityWatchdogStream(
+          controller.stream,
+          inactivity: const Duration(milliseconds: 400),
+        );
 
-      final collected = <int>[];
-      final done = out.forEach(collected.addAll);
+        final collected = <int>[];
+        final done = out.forEach(collected.addAll);
 
-      controller.add([1, 2]);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      controller.add([3]);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      controller.add([4]);
-      await controller.close();
-      await done;
+        controller.add([1, 2]);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        controller.add([3]);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        controller.add([4]);
+        await controller.close();
+        await done;
 
-      expect(collected, [1, 2, 3, 4]);
-    });
+        expect(collected, [1, 2, 3, 4]);
+      },
+    );
 
     test('a stream that never emits fails with TimeoutException', () async {
       final controller = StreamController<List<int>>();
@@ -93,35 +96,38 @@ void main() {
       );
     });
 
-    test('watchdog closes the stream after firing (addStream terminates)', () async {
-      // The consumer in _streamPublicDownload is IOSink.addStream, which
-      // only completes when the source stream is DONE or errors — the
-      // watchdog must close the stream after the error so that await
-      // cannot hang.
-      final controller = StreamController<List<int>>();
-      addTearDown(controller.close);
+    test(
+      'watchdog closes the stream after firing (addStream terminates)',
+      () async {
+        // The consumer in _streamPublicDownload is IOSink.addStream, which
+        // only completes when the source stream is DONE or errors — the
+        // watchdog must close the stream after the error so that await
+        // cannot hang.
+        final controller = StreamController<List<int>>();
+        addTearDown(controller.close);
 
-      final out = inactivityWatchdogStream(
-        controller.stream,
-        inactivity: const Duration(milliseconds: 60),
-      );
+        final out = inactivityWatchdogStream(
+          controller.stream,
+          inactivity: const Duration(milliseconds: 60),
+        );
 
-      var sawDone = false;
-      Object? streamError;
-      final done = Completer<void>();
-      out.listen(
-        (_) {},
-        onError: (Object e) => streamError = e,
-        onDone: () {
-          sawDone = true;
-          done.complete();
-        },
-        cancelOnError: false,
-      );
+        var sawDone = false;
+        Object? streamError;
+        final done = Completer<void>();
+        out.listen(
+          (_) {},
+          onError: (Object e) => streamError = e,
+          onDone: () {
+            sawDone = true;
+            done.complete();
+          },
+          cancelOnError: false,
+        );
 
-      await done.future.timeout(const Duration(seconds: 5));
-      expect(streamError, isA<TimeoutException>());
-      expect(sawDone, isTrue);
-    });
+        await done.future.timeout(const Duration(seconds: 5));
+        expect(streamError, isA<TimeoutException>());
+        expect(sawDone, isTrue);
+      },
+    );
   });
 }

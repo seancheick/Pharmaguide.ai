@@ -60,29 +60,26 @@ void main() {
       },
     );
 
-    test(
-      'direct constructor without curatedSeverity falls back to severity '
-      '(backward compatible with existing call sites)',
-      () {
-        const r = InteractionResult(
-          id: 'X',
-          type: InteractionType.drugSupplement,
-          severity: Severity.caution,
-          evidenceLevel: EvidenceLevel.established,
-          agent1Name: 'A',
-          agent2Name: 'B',
-          mechanism: 'm',
-          management: 'g',
-          doseDependant: false,
-          doseThreshold: null,
-          sourceUrls: <String>[],
-          source: InteractionSource.pipeline,
-        );
+    test('direct constructor without curatedSeverity falls back to severity '
+        '(backward compatible with existing call sites)', () {
+      const r = InteractionResult(
+        id: 'X',
+        type: InteractionType.drugSupplement,
+        severity: Severity.caution,
+        evidenceLevel: EvidenceLevel.established,
+        agent1Name: 'A',
+        agent2Name: 'B',
+        mechanism: 'm',
+        management: 'g',
+        doseDependant: false,
+        doseThreshold: null,
+        sourceUrls: <String>[],
+        source: InteractionSource.pipeline,
+      );
 
-        expect(r.curatedSeverity, isNull);
-        expect(r.effectiveSeverity, Severity.caution);
-      },
-    );
+      expect(r.curatedSeverity, isNull);
+      expect(r.effectiveSeverity, Severity.caution);
+    });
   });
 }
 

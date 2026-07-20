@@ -58,7 +58,11 @@ double? massGramsFactor(String unit) {
 /// `null` when either side is empty or not a simple mass unit. Callers decide
 /// whether a `null` means "decline the comparison" or "assume same unit" — this
 /// primitive never guesses a form-dependent (IU/RAE/DFE) conversion.
-double? amountInMass(double amount, {required String from, required String to}) {
+double? amountInMass(
+  double amount, {
+  required String from,
+  required String to,
+}) {
   final normalizedFrom = normalizeDoseUnit(from);
   final normalizedTo = normalizeDoseUnit(to);
   if (normalizedFrom.isEmpty || normalizedTo.isEmpty) return null;

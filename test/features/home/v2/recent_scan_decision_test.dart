@@ -68,8 +68,7 @@ void main() {
   });
 
   group('recentScanScoreDisplayFor — render decision', () {
-    test('scored product with trustworthy coverage renders the tier score',
-        () {
+    test('scored product with trustworthy coverage renders the tier score', () {
       expect(
         recentScanScoreDisplayFor(
           score: 82,
@@ -159,8 +158,7 @@ void main() {
       );
     });
 
-    test('coverage exactly at the 0.3 floor is trusted (floor is `< 0.3`)',
-        () {
+    test('coverage exactly at the 0.3 floor is trusted (floor is `< 0.3`)', () {
       expect(
         recentScanScoreDisplayFor(
           score: 85,
@@ -225,7 +223,9 @@ void main() {
       String? verdict,
       double? mappedCoverage,
     }) async {
-      await coreDb.into(coreDb.productsCore).insert(
+      await coreDb
+          .into(coreDb.productsCore)
+          .insert(
             ProductsCoreCompanion.insert(
               dsldId: 'recent-1',
               productName: 'Recent Scan Product',

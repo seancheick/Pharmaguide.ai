@@ -195,22 +195,25 @@ void main() {
       },
     );
 
-    test('matching fresh cache row is served without any network fetch', () async {
-      await seedProduct('p3', blobSha: 'same-sha');
-      await userDb.cacheDetail('p3', jsonEncode({'v': 'cached'}), 'same-sha');
+    test(
+      'matching fresh cache row is served without any network fetch',
+      () async {
+        await seedProduct('p3', blobSha: 'same-sha');
+        await userDb.cacheDetail('p3', jsonEncode({'v': 'cached'}), 'same-sha');
 
-      final service = _FakeBlobService({'v': 'network'});
-      final container = buildContainer(service);
+        final service = _FakeBlobService({'v': 'network'});
+        final container = buildContainer(service);
 
-      final blob = await container.read(detailBlobProvider('p3').future);
+        final blob = await container.read(detailBlobProvider('p3').future);
 
-      expect(blob, {'v': 'cached'});
-      expect(
-        service.requestedHashes,
-        isEmpty,
-        reason: 'a verified fresh cache row must not hit the CDN',
-      );
-    });
+        expect(blob, {'v': 'cached'});
+        expect(
+          service.requestedHashes,
+          isEmpty,
+          reason: 'a verified fresh cache row must not hit the CDN',
+        );
+      },
+    );
 
     test('fetch failure caches nothing and returns null', () async {
       await seedProduct('p4', blobSha: 'want');

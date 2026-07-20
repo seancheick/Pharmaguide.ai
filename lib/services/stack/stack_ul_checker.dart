@@ -497,7 +497,6 @@ class StackUlChecker {
     final escaped = RegExp.escape(needle);
     return RegExp('(^|[^a-z0-9])$escaped([^a-z0-9]|\$)').hasMatch(haystack);
   }
-
 }
 
 /// RDA lookup result paired with whether the value came from the

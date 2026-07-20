@@ -90,8 +90,7 @@ void main() {
       );
     });
 
-    test('scored but mapped_coverage < 0.3 renders the limited-data line',
-        () {
+    test('scored but mapped_coverage < 0.3 renders the limited-data line', () {
       expect(
         heroScoreDisplayFor(
           score: 85,
@@ -121,7 +120,9 @@ void main() {
   group('PGHeroSection widget', () {
     Future<void> pump(WidgetTester tester, Widget hero) async {
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: SingleChildScrollView(child: hero))),
+        MaterialApp(
+          home: Scaffold(body: SingleChildScrollView(child: hero)),
+        ),
       );
       await tester.pumpAndSettle();
     }

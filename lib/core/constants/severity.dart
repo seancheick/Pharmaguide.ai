@@ -81,8 +81,7 @@ enum Severity {
   /// warning partition, the review-before-use headline, the fit-display
   /// band, and the fit-score risk reasons — all of which had hand-copied
   /// `== caution || == monitor`.
-  bool get isActionable =>
-      this == Severity.caution || this == Severity.monitor;
+  bool get isActionable => this == Severity.caution || this == Severity.monitor;
 
   static Severity fromString(String value) {
     final normalized = value.toLowerCase().trim();

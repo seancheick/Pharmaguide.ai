@@ -70,7 +70,9 @@ void main() {
   group('PGHeroSection caution cue widget', () {
     Future<void> pump(WidgetTester tester, Widget hero) async {
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: SingleChildScrollView(child: hero))),
+        MaterialApp(
+          home: Scaffold(body: SingleChildScrollView(child: hero)),
+        ),
       );
       await tester.pumpAndSettle();
     }

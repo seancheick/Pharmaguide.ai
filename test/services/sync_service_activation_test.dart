@@ -33,7 +33,9 @@ void _buildValidCatalog(String path, {String dbVersion = _dbVersion}) {
     db.execute(
       "INSERT INTO export_manifest VALUES ('min_app_version', '1.0.0')",
     );
-    db.execute("INSERT INTO export_manifest VALUES ('schema_version', '2.0.0')");
+    db.execute(
+      "INSERT INTO export_manifest VALUES ('schema_version', '2.0.0')",
+    );
     db.execute('PRAGMA user_version = 3');
   } finally {
     db.dispose();
@@ -114,41 +116,38 @@ void main() {
       },
     );
 
-    test(
-      'marker refusal also applies on the non-revalidating path '
-      '(default parameters)',
-      () async {
-        File(dbPath).writeAsStringSync(_liveSentinel);
-        File(stagingPath).writeAsStringSync('truncated partial download');
-        File(markerPath).writeAsStringSync(_dbVersion);
+    test('marker refusal also applies on the non-revalidating path '
+        '(default parameters)', () async {
+      File(dbPath).writeAsStringSync(_liveSentinel);
+      File(stagingPath).writeAsStringSync('truncated partial download');
+      File(markerPath).writeAsStringSync(_dbVersion);
 
-        await svc.activateStagedCoreDbAtPathForTest(dbPath);
+      await svc.activateStagedCoreDbAtPathForTest(dbPath);
 
-        expect(File(dbPath).readAsStringSync(), _liveSentinel);
-        expect(File(stagingPath).existsSync(), isTrue);
-        expect(File(markerPath).existsSync(), isTrue);
-        expect(activatedCallbackRan, isFalse);
-      },
-    );
+      expect(File(dbPath).readAsStringSync(), _liveSentinel);
+      expect(File(stagingPath).existsSync(), isTrue);
+      expect(File(markerPath).existsSync(), isTrue);
+      expect(activatedCallbackRan, isFalse);
+    });
 
-    test(
-      'validated staging (marker cleared) IS activated at boot '
-      '(revalidate: true) — happy path survives the hardening',
-      () async {
-        File(dbPath).writeAsStringSync(_liveSentinel);
-        _buildValidCatalog(stagingPath);
-        // No marker: stage-time validation cleared it.
+    test('validated staging (marker cleared) IS activated at boot '
+        '(revalidate: true) — happy path survives the hardening', () async {
+      File(dbPath).writeAsStringSync(_liveSentinel);
+      _buildValidCatalog(stagingPath);
+      // No marker: stage-time validation cleared it.
 
-        await svc.activateStagedCoreDbAtPathForTest(dbPath, revalidate: true);
+      await svc.activateStagedCoreDbAtPathForTest(dbPath, revalidate: true);
 
-        expect(_readDbVersion(dbPath), _dbVersion,
-            reason: 'validated staging must be promoted to the live path');
-        expect(File(stagingPath).existsSync(), isFalse);
-        expect(File(markerPath).existsSync(), isFalse);
-        expect(File(backupPath).existsSync(), isFalse);
-        expect(activatedCallbackRan, isTrue);
-      },
-    );
+      expect(
+        _readDbVersion(dbPath),
+        _dbVersion,
+        reason: 'validated staging must be promoted to the live path',
+      );
+      expect(File(stagingPath).existsSync(), isFalse);
+      expect(File(markerPath).existsSync(), isFalse);
+      expect(File(backupPath).existsSync(), isFalse);
+      expect(activatedCallbackRan, isTrue);
+    });
 
     test(
       'validated staging activates on the in-session path too '
@@ -165,36 +164,34 @@ void main() {
       },
     );
 
-    test(
-      'torn staging WITHOUT a marker is refused by boot revalidation: live '
-      'catalog preserved, permanently-invalid staging deleted',
-      () async {
-        // Residual window: the marker bookkeeping is best-effort, so a
-        // mid-download kill can leave a torn .staging with no marker. Boot
-        // revalidation (integrity_check et al.) is the backstop.
-        File(dbPath).writeAsStringSync(_liveSentinel);
-        File(stagingPath).writeAsStringSync(
-          'this is not a sqlite database — torn mid-download',
-        );
+    test('torn staging WITHOUT a marker is refused by boot revalidation: live '
+        'catalog preserved, permanently-invalid staging deleted', () async {
+      // Residual window: the marker bookkeeping is best-effort, so a
+      // mid-download kill can leave a torn .staging with no marker. Boot
+      // revalidation (integrity_check et al.) is the backstop.
+      File(dbPath).writeAsStringSync(_liveSentinel);
+      File(
+        stagingPath,
+      ).writeAsStringSync('this is not a sqlite database — torn mid-download');
 
-        await svc.activateStagedCoreDbAtPathForTest(dbPath, revalidate: true);
+      await svc.activateStagedCoreDbAtPathForTest(dbPath, revalidate: true);
 
-        expect(
-          File(dbPath).readAsStringSync(),
-          _liveSentinel,
-          reason: 'a file that fails revalidation must never be promoted',
-        );
-        expect(
-          File(stagingPath).existsSync(),
-          isFalse,
-          reason: 'a marker-less file that failed validation can never '
-              'become valid — deleted, mirroring stageCoreDbDownload',
-        );
-        expect(File(markerPath).existsSync(), isFalse);
-        expect(File(backupPath).existsSync(), isFalse);
-        expect(activatedCallbackRan, isFalse);
-      },
-    );
+      expect(
+        File(dbPath).readAsStringSync(),
+        _liveSentinel,
+        reason: 'a file that fails revalidation must never be promoted',
+      );
+      expect(
+        File(stagingPath).existsSync(),
+        isFalse,
+        reason:
+            'a marker-less file that failed validation can never '
+            'become valid — deleted, mirroring stageCoreDbDownload',
+      );
+      expect(File(markerPath).existsSync(), isFalse);
+      expect(File(backupPath).existsSync(), isFalse);
+      expect(activatedCallbackRan, isFalse);
+    });
 
     test('no staging file present is a quiet no-op', () async {
       File(dbPath).writeAsStringSync(_liveSentinel);

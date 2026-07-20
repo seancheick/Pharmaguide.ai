@@ -164,7 +164,9 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
 /// are preserved verbatim.
 List<V4PillarFact> _parseFacts(Object? explanation) {
   if (explanation is! Map) return const [];
-  if (asFiniteDouble(explanation['schema_version'])?.toInt() != 1) return const [];
+  if (asFiniteDouble(explanation['schema_version'])?.toInt() != 1) {
+    return const [];
+  }
   final rawFacts = explanation['facts'];
   if (rawFacts is! List) return const [];
   final out = <V4PillarFact>[];

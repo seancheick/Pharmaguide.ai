@@ -101,8 +101,7 @@ void main() {
       );
     });
 
-    test('coverage exactly at the 0.3 floor is trusted (floor is `< 0.3`)',
-        () {
+    test('coverage exactly at the 0.3 floor is trusted (floor is `< 0.3`)', () {
       expect(
         searchScoreChipDisplayFor(
           score: 85,
@@ -157,10 +156,14 @@ void main() {
     });
 
     test('empty / null verdict renders no chip', () {
-      expect(searchShowsVerdictChip(verdict: null, mappedCoverage: 0.9),
-          isFalse);
-      expect(searchShowsVerdictChip(verdict: '  ', mappedCoverage: 0.9),
-          isFalse);
+      expect(
+        searchShowsVerdictChip(verdict: null, mappedCoverage: 0.9),
+        isFalse,
+      );
+      expect(
+        searchShowsVerdictChip(verdict: '  ', mappedCoverage: 0.9),
+        isFalse,
+      );
     });
   });
 }

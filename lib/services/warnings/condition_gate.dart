@@ -355,4 +355,3 @@ List<Map<String, dynamic>> _doseRows(Map<String, dynamic> detailBlob) {
 
   return rows;
 }
-

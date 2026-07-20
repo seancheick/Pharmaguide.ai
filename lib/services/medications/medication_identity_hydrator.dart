@@ -7,12 +7,10 @@ import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 
 class MedicationIdentityHydrator {
   MedicationIdentityHydrator({
-    required UserDatabase userDb,
-    required RxNormApiService rxNorm,
-    MedicationClassBridge? classBridge,
-  }) : _userDb = userDb,
-       _rxNorm = rxNorm,
-       _classBridge = classBridge;
+    required this._userDb,
+    required this._rxNorm,
+    this._classBridge,
+  });
 
   final UserDatabase _userDb;
   final RxNormApiService _rxNorm;

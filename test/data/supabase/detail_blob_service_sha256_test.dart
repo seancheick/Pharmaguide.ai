@@ -50,17 +50,20 @@ void main() {
       );
     });
 
-    test('realistic JSON blob with multi-byte UTF-8 verifies byte-for-byte', () {
-      // The gate must hash the RAW bytes (never a decode/re-encode round
-      // trip, which is not byte-stable for arbitrary input).
-      final bytes = utf8.encode('{"ingredients":[{"name":"Ashwagandhā"}]}');
-      // sha256 of exactly those bytes, computed with `shasum -a 256`.
-      const expected =
-          '561333f09727a97ce6417f4e16f2411365741fd13cd7d6c15301f14007faad56';
-      expect(detailBlobBytesMatchSha256(bytes, expected), isTrue);
-      // Tampering a single byte must flip the verdict.
-      final tampered = List<int>.from(bytes)..[0] = 0x20;
-      expect(detailBlobBytesMatchSha256(tampered, expected), isFalse);
-    });
+    test(
+      'realistic JSON blob with multi-byte UTF-8 verifies byte-for-byte',
+      () {
+        // The gate must hash the RAW bytes (never a decode/re-encode round
+        // trip, which is not byte-stable for arbitrary input).
+        final bytes = utf8.encode('{"ingredients":[{"name":"Ashwagandhā"}]}');
+        // sha256 of exactly those bytes, computed with `shasum -a 256`.
+        const expected =
+            '561333f09727a97ce6417f4e16f2411365741fd13cd7d6c15301f14007faad56';
+        expect(detailBlobBytesMatchSha256(bytes, expected), isTrue);
+        // Tampering a single byte must flip the verdict.
+        final tampered = List<int>.from(bytes)..[0] = 0x20;
+        expect(detailBlobBytesMatchSha256(tampered, expected), isFalse);
+      },
+    );
   });
 }

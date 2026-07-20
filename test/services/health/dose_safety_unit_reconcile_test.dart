@@ -14,30 +14,32 @@ import 'package:pharmaguide/services/health/dose_safety.dart';
 
 void main() {
   group('resolveDoseSafety — legacy quantity/UL unit reconciliation', () {
-    test('Boron 150 mcg vs 20 mg UL reconciles → withinLimits (no false over)',
-        () {
-      final ingredient = <String, dynamic>{
-        'standard_name': 'Boron',
-        'quantity': 150.0,
-        'unit': 'mcg',
-      };
-      final ulAnalysis = <Map<String, dynamic>>[
-        {
+    test(
+      'Boron 150 mcg vs 20 mg UL reconciles → withinLimits (no false over)',
+      () {
+        final ingredient = <String, dynamic>{
           'standard_name': 'Boron',
           'quantity': 150.0,
           'unit': 'mcg',
-          'nutrient_unit': 'mg',
-          'skip_ul_check': false,
-          'highest_ul': 20,
-          // No over_ul / pct_ul → legacy recompute path.
-        },
-      ];
-      expect(
-        resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
-        DoseSafety.withinLimits,
-        reason: '150 mcg = 0.15 mg is well under the 20 mg UL',
-      );
-    });
+        };
+        final ulAnalysis = <Map<String, dynamic>>[
+          {
+            'standard_name': 'Boron',
+            'quantity': 150.0,
+            'unit': 'mcg',
+            'nutrient_unit': 'mg',
+            'skip_ul_check': false,
+            'highest_ul': 20,
+            // No over_ul / pct_ul → legacy recompute path.
+          },
+        ];
+        expect(
+          resolveDoseSafety(ingredient: ingredient, ulAnalysis: ulAnalysis),
+          DoseSafety.withinLimits,
+          reason: '150 mcg = 0.15 mg is well under the 20 mg UL',
+        );
+      },
+    );
 
     test('genuine same-unit exceedance still fires (25 mg vs 20 mg UL)', () {
       final ulAnalysis = <Map<String, dynamic>>[
@@ -102,26 +104,28 @@ void main() {
       );
     });
 
-    test('absent UL unit preserves legacy same-unit compare (Niacin 50>35)',
-        () {
-      // Existing blobs omit nutrient_unit; behavior must be unchanged.
-      final ulAnalysis = <Map<String, dynamic>>[
-        {
-          'standard_name': 'Vitamin B3 (Niacin)',
-          'quantity': 50.0,
-          'unit': 'mg',
-          'skip_ul_check': false,
-          'ul_for_default_profile': 35,
-          'highest_ul': 35,
-        },
-      ];
-      expect(
-        resolveDoseSafety(
-          ingredient: const {'standard_name': 'Vitamin B3 (Niacin)'},
-          ulAnalysis: ulAnalysis,
-        ),
-        DoseSafety.exceedsUl,
-      );
-    });
+    test(
+      'absent UL unit preserves legacy same-unit compare (Niacin 50>35)',
+      () {
+        // Existing blobs omit nutrient_unit; behavior must be unchanged.
+        final ulAnalysis = <Map<String, dynamic>>[
+          {
+            'standard_name': 'Vitamin B3 (Niacin)',
+            'quantity': 50.0,
+            'unit': 'mg',
+            'skip_ul_check': false,
+            'ul_for_default_profile': 35,
+            'highest_ul': 35,
+          },
+        ];
+        expect(
+          resolveDoseSafety(
+            ingredient: const {'standard_name': 'Vitamin B3 (Niacin)'},
+            ulAnalysis: ulAnalysis,
+          ),
+          DoseSafety.exceedsUl,
+        );
+      },
+    );
   });
 }

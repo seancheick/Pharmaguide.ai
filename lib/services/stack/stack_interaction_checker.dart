@@ -759,5 +759,4 @@ class _PairwiseDoseThreshold {
       unit: unit,
     );
   }
-
 }

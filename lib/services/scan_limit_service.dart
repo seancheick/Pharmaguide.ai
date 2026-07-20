@@ -13,9 +13,7 @@ class ScanLimitService {
   final SharedPreferences _prefs;
   final bool _isSignedIn;
 
-  ScanLimitService({required SharedPreferences prefs, required bool isSignedIn})
-    : _prefs = prefs,
-      _isSignedIn = isSignedIn;
+  ScanLimitService({required this._prefs, required this._isSignedIn});
 
   /// How many scans the guest has used today.
   int get guestScansUsed {

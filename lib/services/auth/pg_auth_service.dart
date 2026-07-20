@@ -112,12 +112,10 @@ class AccountSwitchGuard {
   final Future<void> Function()? _clearPerUserPrefs;
 
   AccountSwitchGuard({
-    required AccountOwnerStore ownerStore,
-    required UserDatabase db,
-    Future<void> Function()? clearPerUserPrefs,
-  }) : _ownerStore = ownerStore,
-       _db = db,
-       _clearPerUserPrefs = clearPerUserPrefs;
+    required this._ownerStore,
+    required this._db,
+    this._clearPerUserPrefs,
+  });
 
   /// Handle one auth event. Completes only after all side effects are
   /// done — callers MUST await this before flipping the app's auth mode,

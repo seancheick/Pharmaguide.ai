@@ -44,7 +44,8 @@ Widget buildAllergenDataUnavailableHedge() {
   return _allergenBanner(
     accent: V2Colors.monitor,
     icon: Icons.info_outline_rounded,
-    text: "Allergen data isn't available for this product — check the "
+    text:
+        "Allergen data isn't available for this product — check the "
         'label for your allergens.',
   );
 }

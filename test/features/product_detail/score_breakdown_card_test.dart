@@ -96,20 +96,21 @@ void main() {
       expect(find.text('No data'), findsNWidgets(6));
     });
 
-    testWidgets('reveals the pipeline reason but not synthesized badges when tapped', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildTestWidget(verification: 13));
+    testWidgets(
+      'reveals the pipeline reason but not synthesized badges when tapped',
+      (tester) async {
+        await tester.pumpWidget(buildTestWidget(verification: 13));
 
-      await tester.tap(find.text('Testing & Brand'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Testing & Brand'));
+        await tester.pumpAndSettle();
 
-      expect(
-        find.text('Independent testing and brand signals'),
-        findsOneWidget,
-      );
-      expect(find.text('Third-party tested'), findsNothing);
-    });
+        expect(
+          find.text('Independent testing and brand signals'),
+          findsOneWidget,
+        );
+        expect(find.text('Third-party tested'), findsNothing);
+      },
+    );
 
     testWidgets('coverage 0.92 shows percentage and high-confidence copy', (
       tester,
@@ -154,56 +155,57 @@ void main() {
       expect(find.textContaining('%'), findsNothing);
     });
 
-    testWidgets('passes pipeline facts and only named eligible actions to the card', (
-      tester,
-    ) async {
-      var evidenceActions = 0;
-      final pillars = _v4Pillars(evidence: 12, formulation: 13.9);
-      (pillars['evidence'] as Map<String, dynamic>)['explanation'] = {
-        'schema_version': 1,
-        'facts': [
-          {
-            'id': 'human_trials',
-            'label': 'Human trials',
-            'value_display': 'Limited',
-          },
-        ],
-      };
+    testWidgets(
+      'passes pipeline facts and only named eligible actions to the card',
+      (tester) async {
+        var evidenceActions = 0;
+        final pillars = _v4Pillars(evidence: 12, formulation: 13.9);
+        (pillars['evidence'] as Map<String, dynamic>)['explanation'] = {
+          'schema_version': 1,
+          'facts': [
+            {
+              'id': 'human_trials',
+              'label': 'Human trials',
+              'value_display': 'Limited',
+            },
+          ],
+        };
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: buildScoreBreakdownSection(
-              ingredientQuality: null,
-              safetyPurity: null,
-              evidenceResearch: null,
-              brandTrust: null,
-              heroScore: 63.6,
-              mappedCoverage: null,
-              qualityPillarsV4: pillars,
-              onPillarTap: {
-                'formulation': () {},
-                'evidence': () => evidenceActions++,
-              },
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: buildScoreBreakdownSection(
+                ingredientQuality: null,
+                safetyPurity: null,
+                evidenceResearch: null,
+                brandTrust: null,
+                heroScore: 63.6,
+                mappedCoverage: null,
+                qualityPillarsV4: pillars,
+                onPillarTap: {
+                  'formulation': () {},
+                  'evidence': () => evidenceActions++,
+                },
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('How scoring works'), findsOneWidget);
-      await tester.tap(find.text('Evidence'));
-      await tester.pumpAndSettle();
-      expect(find.text('Human trials'), findsOneWidget);
-      expect(find.text('View clinical evidence'), findsOneWidget);
+        expect(find.text('How scoring works'), findsOneWidget);
+        await tester.tap(find.text('Evidence'));
+        await tester.pumpAndSettle();
+        expect(find.text('Human trials'), findsOneWidget);
+        expect(find.text('View clinical evidence'), findsOneWidget);
 
-      await tester.tap(find.text('View clinical evidence'));
-      expect(evidenceActions, 1);
+        await tester.tap(find.text('View clinical evidence'));
+        expect(evidenceActions, 1);
 
-      await tester.tap(find.text('Formulation'));
-      await tester.pumpAndSettle();
-      expect(find.text('View clinical evidence'), findsNothing);
-      expect(find.textContaining('See details'), findsNothing);
-    });
+        await tester.tap(find.text('Formulation'));
+        await tester.pumpAndSettle();
+        expect(find.text('View clinical evidence'), findsNothing);
+        expect(find.textContaining('See details'), findsNothing);
+      },
+    );
   });
 
   group('Score explanation card', () {
@@ -224,7 +226,9 @@ void main() {
       expect(find.text('Mixed'), findsNWidgets(2));
     });
 
-    testWidgets('opening a pillar closes the previously open pillar', (tester) async {
+    testWidgets('opening a pillar closes the previously open pillar', (
+      tester,
+    ) async {
       await tester.pumpWidget(_cardHarness());
 
       await tester.tap(find.text('Formulation'));
@@ -245,7 +249,9 @@ void main() {
       await tester.tap(find.text('Evidence'));
       await tester.pumpAndSettle();
 
-      final reason = tester.getTopLeft(find.text('Clinical support is limited.'));
+      final reason = tester.getTopLeft(
+        find.text('Clinical support is limited.'),
+      );
       final fact = tester.getTopLeft(find.text('Human trials'));
       final action = tester.getTopLeft(find.text('View clinical evidence'));
       expect(reason.dy, lessThan(fact.dy));
@@ -255,9 +261,13 @@ void main() {
       expect(actionCount, 1);
     });
 
-    testWidgets('has a header action and no generic score rationale', (tester) async {
+    testWidgets('has a header action and no generic score rationale', (
+      tester,
+    ) async {
       var helpCount = 0;
-      await tester.pumpWidget(_cardHarness(onHowScoringWorks: () => helpCount++));
+      await tester.pumpWidget(
+        _cardHarness(onHowScoringWorks: () => helpCount++),
+      );
 
       expect(find.text('How scoring works'), findsOneWidget);
       expect(find.textContaining('Biggest opportunity'), findsNothing);

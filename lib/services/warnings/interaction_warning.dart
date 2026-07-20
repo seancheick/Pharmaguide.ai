@@ -279,9 +279,7 @@ class InteractionWarning {
       // not benign. Default to caution (matching the DB-hydration path in
       // interaction_result.dart) so a missing field can never silently
       // drop a real warning to `safe` and out of the actionable bucket.
-      severity: Severity.fromString(
-        json['severity']?.toString() ?? 'caution',
-      ),
+      severity: Severity.fromString(json['severity']?.toString() ?? 'caution'),
       severityRaw: json['severity']?.toString(),
       severityContextual: sevContextual,
       displayModeDefault: json['display_mode_default']?.toString(),

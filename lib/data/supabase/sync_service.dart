@@ -30,14 +30,11 @@ class CatalogVersionGateException implements Exception {
 /// Handles OTA database updates from Supabase storage.
 class SyncService {
   SyncService({
-    Future<String?> Function()? currentDbVersionFetcher,
-    String appVersion = kAppVersion,
+    this._currentDbVersionFetcher,
+    this._appVersion = kAppVersion,
     http.Client Function()? httpClientFactory,
-    Future<void> Function()? onCatalogActivated,
-  }) : _currentDbVersionFetcher = currentDbVersionFetcher,
-       _appVersion = appVersion,
-       _httpClientFactory = httpClientFactory ?? http.Client.new,
-       _onCatalogActivated = onCatalogActivated;
+    this._onCatalogActivated,
+  }) : _httpClientFactory = httpClientFactory ?? http.Client.new;
 
   final Future<String?> Function()? _currentDbVersionFetcher;
   final String _appVersion;

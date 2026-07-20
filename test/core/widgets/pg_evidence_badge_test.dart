@@ -5,7 +5,9 @@ import 'package:pharmaguide/core/widgets/pg_evidence_badge.dart';
 
 Future<void> _pump(WidgetTester tester, EvidenceLevel level) async {
   await tester.pumpWidget(
-    MaterialApp(home: Scaffold(body: PGEvidenceBadge(level: level))),
+    MaterialApp(
+      home: Scaffold(body: PGEvidenceBadge(level: level)),
+    ),
   );
 }
 
@@ -32,11 +34,7 @@ void main() {
     };
     for (final entry in expected.entries) {
       await _pump(tester, entry.key);
-      expect(
-        find.text(entry.value),
-        findsOneWidget,
-        reason: entry.key.name,
-      );
+      expect(find.text(entry.value), findsOneWidget, reason: entry.key.name);
     }
   });
 }

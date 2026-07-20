@@ -29,7 +29,7 @@ class MedicationClassResolution {
 }
 
 class MedicationClassBridge {
-  const MedicationClassBridge({required InteractionDatabase db}) : _db = db;
+  const MedicationClassBridge({required this._db});
 
   final InteractionDatabase _db;
 

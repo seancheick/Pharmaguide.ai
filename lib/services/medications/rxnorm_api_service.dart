@@ -201,15 +201,11 @@ Future<Uint8List> _readResponseBytes(HttpClientResponse response) async {
 class RxNormApiService {
   RxNormApiService({
     RxNormHttpGet? httpGet,
-    InteractionDatabase? offlineDb,
-    int cacheSize = 50,
-    int requestsPerSecond = 20,
-    String baseUrl = 'https://rxnav.nlm.nih.gov',
-  }) : _httpGet = httpGet ?? defaultRxNormHttpGet,
-       _offlineDb = offlineDb,
-       _cacheSize = cacheSize,
-       _requestsPerSecond = requestsPerSecond,
-       _baseUrl = baseUrl;
+    this._offlineDb,
+    this._cacheSize = 50,
+    this._requestsPerSecond = 20,
+    this._baseUrl = 'https://rxnav.nlm.nih.gov',
+  }) : _httpGet = httpGet ?? defaultRxNormHttpGet;
 
   final RxNormHttpGet _httpGet;
   final InteractionDatabase? _offlineDb;

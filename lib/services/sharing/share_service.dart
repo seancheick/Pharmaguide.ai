@@ -21,11 +21,7 @@ class ShareService {
   final ShareInvocation? _shareOverride;
   final PdfShareInvocation? _pdfShareOverride;
 
-  ShareService({
-    ShareInvocation? shareOverride,
-    PdfShareInvocation? pdfShareOverride,
-  }) : _shareOverride = shareOverride,
-       _pdfShareOverride = pdfShareOverride;
+  ShareService({this._shareOverride, this._pdfShareOverride});
 
   Future<void> _share(String text, {String? subject}) {
     final override = _shareOverride;

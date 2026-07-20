@@ -68,7 +68,10 @@ void main() {
 
   group('EvidenceLevel', () {
     test('fromString parses all SP-6 tiers (incl. no_data via wireId)', () {
-      expect(EvidenceLevel.fromString('established'), EvidenceLevel.established);
+      expect(
+        EvidenceLevel.fromString('established'),
+        EvidenceLevel.established,
+      );
       expect(EvidenceLevel.fromString('probable'), EvidenceLevel.probable);
       expect(EvidenceLevel.fromString('moderate'), EvidenceLevel.moderate);
       expect(EvidenceLevel.fromString('limited'), EvidenceLevel.limited);
@@ -88,10 +91,16 @@ void main() {
       }
     });
 
-    test('fromString returns ungraded for unknown/empty (never a higher tier)', () {
-      expect(EvidenceLevel.fromString('unknown'), EvidenceLevel.ungraded);
-      expect(EvidenceLevel.fromString(''), EvidenceLevel.ungraded);
-      expect(EvidenceLevel.fromString('  marketing_blurb '), EvidenceLevel.ungraded);
-    });
+    test(
+      'fromString returns ungraded for unknown/empty (never a higher tier)',
+      () {
+        expect(EvidenceLevel.fromString('unknown'), EvidenceLevel.ungraded);
+        expect(EvidenceLevel.fromString(''), EvidenceLevel.ungraded);
+        expect(
+          EvidenceLevel.fromString('  marketing_blurb '),
+          EvidenceLevel.ungraded,
+        );
+      },
+    );
   });
 }

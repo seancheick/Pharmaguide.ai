@@ -30,12 +30,10 @@ import 'package:pharmaguide/core/models/timing_optimization.dart';
 /// For a 50-item stack with 37 rules, this is <1ms on modern devices.
 class TimingEvaluationService {
   TimingEvaluationService._({
-    required List<_ParsedTimingRule> rules,
-    required Map<String, List<_IndexedRule>> ingredientIndex,
-    required Map<String, List<_IndexedRule>> medicationIndex,
-  }) : _rules = rules,
-       _ingredientIndex = ingredientIndex,
-       _medicationIndex = medicationIndex;
+    required this._rules,
+    required this._ingredientIndex,
+    required this._medicationIndex,
+  });
 
   /// Number of timing rules loaded.
   int get ruleCount => _rules.length;

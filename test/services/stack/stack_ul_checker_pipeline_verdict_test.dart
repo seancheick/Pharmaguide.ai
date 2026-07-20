@@ -35,9 +35,7 @@ void main() {
         {'magnesium': _total('magnesium', 100, 'mg')},
         ageBracket: '19-30',
         sex: 'Male',
-        pipelineVerdicts: const {
-          'magnesium': PipelineUlVerdict(pctUl: 150),
-        },
+        pipelineVerdicts: const {'magnesium': PipelineUlVerdict(pctUl: 150)},
       );
       expect(statuses.single.tier, NutrientTier.exceedsUl);
     });
@@ -47,9 +45,7 @@ void main() {
         {'magnesium': _total('magnesium', 2000, 'mg')},
         ageBracket: '19-30',
         sex: 'Male',
-        pipelineVerdicts: const {
-          'magnesium': PipelineUlVerdict(overUl: false),
-        },
+        pipelineVerdicts: const {'magnesium': PipelineUlVerdict(overUl: false)},
       );
       expect(statuses.single.tier, isNot(NutrientTier.exceedsUl));
       expect(statuses.single.tier, isNot(NutrientTier.approachingUl));
