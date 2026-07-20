@@ -329,8 +329,18 @@ List<Widget> _buildLabelLedgerTiles({
             children: const [],
             childCount: childNames is List ? childNames.length : 0,
           ),
+          exactAmountLabel: ingredient['exact_dose_text']?.toString(),
         ),
       );
+      final rawVariants = ingredient['serving_variants'];
+      if (rawVariants is List && rawVariants.length > 1) {
+        final variants = rawVariants.whereType<Map<String, dynamic>>().toList(
+          growable: false,
+        );
+        if (variants.length > 1) {
+          tiles.add(_ServingVariantList(variants: variants));
+        }
+      }
       continue;
     }
     final tile = _tileFor(
@@ -492,8 +502,9 @@ Widget _tileFor({
 /// total dose ("Amount not disclosed" when missing).
 class _BlendHeaderRow extends StatelessWidget {
   final BlendGroup blend;
+  final String? exactAmountLabel;
 
-  const _BlendHeaderRow({required this.blend});
+  const _BlendHeaderRow({required this.blend, this.exactAmountLabel});
 
   @override
   Widget build(BuildContext context) {
@@ -502,7 +513,12 @@ class _BlendHeaderRow extends StatelessWidget {
     final countLabel = childCount > 0
         ? '$childCount ${childCount == 1 ? 'ingredient' : 'ingredients'}'
         : null;
-    final amountLabel = hasTotal ? '${blend.totalAmount} ${blend.unit}' : null;
+    final exactAmount = exactAmountLabel?.trim() ?? '';
+    final amountLabel = exactAmount.isNotEmpty
+        ? exactAmount
+        : hasTotal
+        ? '${blend.totalAmount} ${blend.unit}'
+        : null;
     final totalLabel = amountLabel ?? 'Amount not disclosed';
     final hasUndisclosedChildren = blend.children.any((child) {
       final quantity = child['quantity'];
@@ -570,6 +586,96 @@ class _BlendHeaderRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ServingVariantList extends StatelessWidget {
+  final List<Map<String, dynamic>> variants;
+
+  const _ServingVariantList({required this.variants});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: 'Serving amounts on label',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space16,
+          0,
+          V2Spacing.space16,
+          V2Spacing.space12,
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: V2Colors.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Serving amounts on label',
+                  style: V2Typography.caption(
+                    color: V2Colors.fgMuted,
+                  ).copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                for (var index = 0; index < variants.length; index++) ...[
+                  _ServingVariantRow(variant: variants[index]),
+                  if (index != variants.length - 1)
+                    const SizedBox(height: V2Spacing.space8),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServingVariantRow extends StatelessWidget {
+  final Map<String, dynamic> variant;
+
+  const _ServingVariantRow({required this.variant});
+
+  @override
+  Widget build(BuildContext context) {
+    final note = variant['serving_note']?.toString().trim() ?? '';
+    final dose = variant['exact_dose_text']?.toString().trim() ?? '';
+    final isCanonical = variant['is_canonical'] == true;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (note.isNotEmpty)
+                Text(note, style: V2Typography.bodySm(color: V2Colors.fg)),
+              if (isCanonical)
+                Text(
+                  'Selected serving',
+                  style: V2Typography.caption(color: V2Colors.accent),
+                ),
+            ],
+          ),
+        ),
+        if (dose.isNotEmpty) ...[
+          const SizedBox(width: V2Spacing.space12),
+          Flexible(
+            child: Text(
+              dose,
+              textAlign: TextAlign.end,
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

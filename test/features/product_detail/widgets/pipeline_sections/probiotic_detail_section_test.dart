@@ -145,5 +145,53 @@ void main() {
       // Per-strain row renders the CFU label.
       expect(find.text('5 billion'), findsOneWidget);
     });
+
+    testWidgets(
+      'legacy multi-serving blend header is not rendered or counted as a strain',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            buildProbioticSection(
+              probioticDetail: {
+                'total_cfu_label': '3.37 billion CFU',
+                'total_billion_count': 3.37,
+                'probiotic_blends': [
+                  {
+                    'name': 'Probiotic Blend',
+                    'strains': ['Probiotic Blend'],
+                    'cfu_data': {'billion_count': 1.12},
+                  },
+                  {
+                    'name': 'Probiotic Blend',
+                    'strains': <String>[],
+                    'is_blend_header_total': true,
+                    'cfu_data': {'billion_count': 2.25},
+                  },
+                  {
+                    'name': 'Bifidobacterium bifidum (Bb-06)',
+                    'strains': ['Bifidobacterium bifidum (Bb-06)'],
+                  },
+                  {
+                    'name': 'Bifidobacterium lactis (Bl-04)',
+                    'strains': ['Bifidobacterium lactis (Bl-04)'],
+                  },
+                  {
+                    'name': 'Lactobacillus acidophilus (La-14)',
+                    'strains': ['Lactobacillus acidophilus (La-14)'],
+                  },
+                ],
+              },
+            ),
+          ),
+        );
+
+        expect(find.text('2.25 billion CFU'), findsOneWidget);
+        expect(find.text('3 strains'), findsOneWidget);
+        expect(find.text('Probiotic Blend'), findsNothing);
+        expect(find.text('Bifidobacterium bifidum (Bb-06)'), findsOneWidget);
+        expect(find.text('Bifidobacterium lactis (Bl-04)'), findsOneWidget);
+        expect(find.text('Lactobacillus acidophilus (La-14)'), findsOneWidget);
+      },
+    );
   });
 }

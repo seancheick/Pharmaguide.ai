@@ -21,11 +21,20 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
   if (probioticDetail == null) return const SizedBox.shrink();
 
+  final probioticBlends = probioticDetail.safeMapList('probiotic_blends');
+
   // CFU label resolution — pre-formatted label preferred, fall back
   // to numeric (matches production lines 69-76).
   final preFormatted = probioticDetail.safeString('total_cfu_label');
   final billionCount = probioticDetail['total_billion_count'];
   String totalCfuLabel = preFormatted;
+  final legacyCanonicalBillion = _legacyCanonicalServingBillion(
+    probioticBlends,
+    reportedTotal: billionCount,
+  );
+  if (legacyCanonicalBillion != null) {
+    totalCfuLabel = '${_compactNumber(legacyCanonicalBillion)} billion CFU';
+  }
   if (totalCfuLabel.isEmpty && billionCount is num && billionCount > 0) {
     totalCfuLabel = billionCount == billionCount.truncate()
         ? '${billionCount.toInt()} billion CFU'
@@ -45,11 +54,15 @@ Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
     }
   }
   // Flatten blends → strain names (matches _flattenStrainNames).
-  for (final blend in probioticDetail.safeMapList('probiotic_blends')) {
+  for (final blend in probioticBlends) {
+    final blendName = blend['name']?.toString().trim() ?? '';
     final raw = blend['strains'];
     if (raw is List) {
       for (final s in raw) {
         final name = s?.toString().trim() ?? '';
+        if (_isGenericContainerEcho(blendName: blendName, strainName: name)) {
+          continue;
+        }
         if (name.isNotEmpty && !strainNames.contains(name)) {
           strainNames.add(name);
         }
@@ -107,6 +120,76 @@ Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
     hasPostbioticStrains: hasPostbioticStrains,
     strains: strains,
   );
+}
+
+bool _isGenericContainerEcho({
+  required String blendName,
+  required String strainName,
+}) {
+  final normalizedBlend = _normalizedIdentity(blendName);
+  if (normalizedBlend.isEmpty ||
+      normalizedBlend != _normalizedIdentity(strainName)) {
+    return false;
+  }
+  return RegExp(r'\b(blend|complex|formula)\b').hasMatch(normalizedBlend);
+}
+
+String _normalizedIdentity(String value) => value
+    .toLowerCase()
+    .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+    .trim()
+    .replaceAll(RegExp(r'\s+'), ' ');
+
+/// Repairs the one known legacy producer shape where alternative serving
+/// columns were summed and one generic blend header was emitted as a strain.
+/// Fresh blobs carry only the canonical serving and bypass this path.
+double? _legacyCanonicalServingBillion(
+  List<Map<String, dynamic>> blends, {
+  required Object? reportedTotal,
+}) {
+  final grouped = <String, List<Map<String, dynamic>>>{};
+  for (final blend in blends) {
+    final name = blend['name']?.toString().trim() ?? '';
+    final key = _normalizedIdentity(name);
+    if (!RegExp(r'\b(blend|complex|formula)\b').hasMatch(key)) continue;
+    grouped.putIfAbsent(key, () => []).add(blend);
+  }
+
+  for (final group in grouped.values) {
+    if (group.length < 2) continue;
+    var hasContainerEcho = false;
+    final disclosed = <double>[];
+    for (final blend in group) {
+      final blendName = blend['name']?.toString().trim() ?? '';
+      final strains = blend['strains'];
+      if (strains is List &&
+          strains.any(
+            (strain) => _isGenericContainerEcho(
+              blendName: blendName,
+              strainName: strain?.toString().trim() ?? '',
+            ),
+          )) {
+        hasContainerEcho = true;
+      }
+      final rawCfu = blend['cfu_data'];
+      if (rawCfu is Map) {
+        final value = rawCfu['billion_count'];
+        if (value is num && value > 0) disclosed.add(value.toDouble());
+      }
+    }
+    if (!hasContainerEcho || disclosed.length < 2) continue;
+    if (reportedTotal is num) {
+      final sum = disclosed.fold<double>(0, (total, value) => total + value);
+      if ((sum - reportedTotal.toDouble()).abs() > 0.001) continue;
+    }
+    return disclosed.reduce((a, b) => a > b ? a : b);
+  }
+  return null;
+}
+
+String _compactNumber(double value) {
+  final fixed = value.toStringAsFixed(2);
+  return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
 }
 
 /// Verbatim port of production's `_formatStrainCfu` (line 49).

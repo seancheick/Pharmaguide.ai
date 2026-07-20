@@ -249,4 +249,63 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('canonical probiotic blend explains alternative serving totals', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => SingleChildScrollView(
+              child: buildIngredientsSection(
+                context: ctx,
+                ingredients: const [],
+                displayIngredients: const [
+                  {
+                    'label_display_name': 'Probiotic Blend',
+                    'display_type': 'structural_container',
+                    'exact_dose_text': '2.25 billion CFU',
+                    'nested_depth': 0,
+                    'children': ['Bifidobacterium bifidum (Bb-06)'],
+                    'score_included': true,
+                    'serving_variants': [
+                      {
+                        'serving_note': 'Ages 1-3 (1/2 scoop)',
+                        'exact_dose_text': '1.12 billion CFU',
+                        'is_canonical': false,
+                      },
+                      {
+                        'serving_note': 'Ages 4 and up (1 scoop)',
+                        'exact_dose_text': '2.25 billion CFU',
+                        'is_canonical': true,
+                      },
+                    ],
+                  },
+                  {
+                    'label_display_name': 'Bifidobacterium bifidum (Bb-06)',
+                    'nested_depth': 1,
+                    'parent_label': 'Probiotic Blend',
+                    'score_included': false,
+                  },
+                ],
+                inactiveIngredients: const [],
+                ulAnalysis: const [],
+                blends: const [],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2.25 billion CFU'), findsNWidgets(2));
+    expect(find.text('Serving amounts on label'), findsOneWidget);
+    expect(find.text('Ages 1-3 (1/2 scoop)'), findsOneWidget);
+    expect(find.text('1.12 billion CFU'), findsOneWidget);
+    expect(find.text('Ages 4 and up (1 scoop)'), findsOneWidget);
+    expect(find.text('Selected serving'), findsOneWidget);
+    expect(find.text('Bifidobacterium bifidum (Bb-06)'), findsOneWidget);
+  });
 }
