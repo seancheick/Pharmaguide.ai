@@ -447,6 +447,55 @@ void main() {
       },
     );
 
+    testWidgets(
+      'probiotic label research follows Ingredients and renders only once',
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 1800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await _pumpConnectedScreen(
+          tester,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': const [
+              {
+                'label_display_name': 'Lactobacillus acidophilus NCFM',
+                'label_order': 0,
+                'nested_depth': 0,
+                'score_included': true,
+                'display_disposition': 'scored',
+                'form_display_state': 'not_disclosed',
+              },
+            ],
+            'quality_pillars_v4': _connectedV4Pillars(),
+            'probiotic_detail': const {
+              'total_cfu_label': '5 billion CFU',
+              'probiotic_blends': [
+                {
+                  'strains': ['Lactobacillus acidophilus NCFM'],
+                },
+              ],
+            },
+          },
+        );
+
+        final ingredientsTitle = find.text('Active ingredients');
+        final probioticTitle = find.text('Probiotic label & research');
+        expect(ingredientsTitle, findsOneWidget);
+        expect(probioticTitle, findsOneWidget);
+        final sectionGap =
+            tester.getTopLeft(probioticTitle).dy -
+            tester.getTopLeft(ingredientsTitle).dy;
+        expect(sectionGap, greaterThan(0));
+        // The card belongs directly after the ingredient ledger, before the
+        // remaining deep-dive sections. This guards against it drifting back
+        // to the bottom of the page.
+        expect(sectionGap, lessThan(210));
+      },
+    );
+
     testWidgets('connected screen surfaces unsupported label audit safely', (
       tester,
     ) async {

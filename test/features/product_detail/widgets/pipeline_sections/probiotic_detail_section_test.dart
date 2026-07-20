@@ -56,12 +56,12 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      // CFU chip uses the pre-formatted label.
-      expect(find.text('25 billion CFU'), findsOneWidget);
-      // Strain count is flattened across blends (2 unique).
-      expect(find.text('2 strains'), findsOneWidget);
-      // Clinical chip reads list length.
-      expect(find.text('1 clinically studied'), findsOneWidget);
+      expect(find.text('25 billion CFU total per serving'), findsOneWidget);
+      expect(find.text('2 named microorganisms'), findsOneWidget);
+      expect(
+        find.text('No verified strain-specific research matches'),
+        findsOneWidget,
+      );
       // Survivability chip uses humanized reason.
       expect(find.text('Spore'), findsOneWidget);
     });
@@ -86,7 +86,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       // Numeric fallback formats to "5 billion CFU".
-      expect(find.text('5 billion CFU'), findsOneWidget);
+      expect(find.text('5 billion CFU total per serving'), findsOneWidget);
     });
 
     testWidgets('renders nothing for empty probiotic_detail', (tester) async {
@@ -143,7 +143,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       // Per-strain row renders the CFU label.
-      expect(find.text('5 billion'), findsOneWidget);
+      expect(find.text('5 billion per serving'), findsOneWidget);
     });
 
     testWidgets(
@@ -185,13 +185,155 @@ void main() {
           ),
         );
 
-        expect(find.text('2.25 billion CFU'), findsOneWidget);
-        expect(find.text('3 strains'), findsOneWidget);
+        expect(find.text('2.25 billion CFU total per serving'), findsOneWidget);
+        expect(find.text('3 named microorganisms'), findsOneWidget);
         expect(find.text('Probiotic Blend'), findsNothing);
         expect(find.text('Bifidobacterium bifidum (Bb-06)'), findsOneWidget);
         expect(find.text('Bifidobacterium lactis (Bl-04)'), findsOneWidget);
         expect(find.text('Lactobacillus acidophilus (La-14)'), findsOneWidget);
       },
     );
+
+    testWidgets('verified exact-strain evidence uses explicit research copy', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'total_cfu_label': '5 billion CFU',
+              'probiotic_blends': [
+                {
+                  'strains': [
+                    'Lactobacillus acidophilus NCFM',
+                    'Bifidobacterium bifidum Bb-06',
+                  ],
+                },
+              ],
+              'clinical_strains': [
+                {
+                  'strain': 'Lactobacillus acidophilus NCFM',
+                  'cfu_per_day': 5e9,
+                  'research_match_status': 'exact_strain',
+                  'evidence_scope': 'strain_specific',
+                  'review_status': 'clinician_verified',
+                  'human_evidence': true,
+                  'clinical_support_level': 'moderate',
+                  'indication_primary': 'digestive support',
+                  'source_urls': ['https://pubmed.ncbi.nlm.nih.gov/12345678/'],
+                  'source_count': 1,
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Probiotic label & research'), findsOneWidget);
+      expect(find.text('1 of 2 matched to verified research'), findsOneWidget);
+      expect(find.text('Research match found'), findsOneWidget);
+      expect(find.text('Moderate support · Digestive support'), findsOneWidget);
+      expect(
+        find.text('No strain-specific research match in our database'),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.circle_outlined), findsNothing);
+    });
+
+    testWidgets('pending formula and rejected states never get positive copy', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'probiotic_blends': [
+                {
+                  'strains': ['Pending P-1', 'Formula F-1', 'Rejected R-1'],
+                },
+              ],
+              'clinical_strains': [
+                {
+                  'strain': 'Pending P-1',
+                  'research_match_status': 'pending_review',
+                },
+                {
+                  'strain': 'Formula F-1',
+                  'research_match_status': 'formula_only',
+                },
+                {
+                  'strain': 'Rejected R-1',
+                  'research_match_status': 'rejected',
+                  'is_blocked': true,
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Research match found'), findsNothing);
+      expect(find.text('Research match under review'), findsOneWidget);
+      expect(find.text('Studied only as part of a formula'), findsOneWidget);
+      expect(find.text('Research match not eligible'), findsOneWidget);
+    });
+
+    testWidgets('explains the card and exposes accessible research sources', (
+      tester,
+    ) async {
+      List<String>? openedSources;
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'total_cfu_label': '5 billion CFU',
+              'probiotic_blends': [
+                {
+                  'strains': ['Lactobacillus acidophilus NCFM'],
+                },
+              ],
+              'clinical_strains': [
+                {
+                  'strain': 'Lactobacillus acidophilus NCFM',
+                  'research_match_status': 'exact_strain',
+                  'review_status': 'clinician_verified',
+                  'human_evidence': true,
+                  'clinical_support_level': 'high',
+                  'indication_primary': 'digestive support',
+                  'source_urls': ['https://pubmed.ncbi.nlm.nih.gov/12345678/'],
+                },
+              ],
+            },
+            onTapSources: (sources) => openedSources = sources,
+          ),
+        ),
+      );
+
+      expect(
+        find.bySemanticsLabel('About probiotic label and research'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(
+          RegExp('Lactobacillus acidophilus NCFM.*Research match found'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.bySemanticsLabel('About probiotic label and research'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('What this card means'), findsOneWidget);
+      expect(
+        find.textContaining('does not mean this exact product'),
+        findsOneWidget,
+      );
+      Navigator.of(tester.element(find.text('What this card means'))).pop();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('View 1 source'));
+      expect(openedSources, ['https://pubmed.ncbi.nlm.nih.gov/12345678/']);
+    });
   });
 }

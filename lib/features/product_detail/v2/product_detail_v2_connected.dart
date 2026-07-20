@@ -787,6 +787,19 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
+                  // ---- 6.1 Probiotic label + research ------------
+                  // Keep label-specific context beside the ingredient
+                  // ledger it explains. Research matching is informational
+                  // and remains independent from the scoring core.
+                  if (showDeepDive) ...[
+                    buildProbioticSection(
+                      probioticDetail: _blobMap(detailBlob, 'probiotic_detail'),
+                      onTapSources: (urls) =>
+                          showProfileRelevanceCitationsSheet(context, urls),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // ---- 7. Tradeoffs (WIRED, 11.7d.3) ---------------
                   if (showDeepDive) ...[
                     buildTradeoffsSection(
@@ -885,14 +898,6 @@ class _ProductDetailV2ConnectedState
                         detailBlob,
                         'ingredient_quality_data',
                       ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 14. Probiotic (WIRED, 11.7e) ----------------
-                  if (showDeepDive) ...[
-                    buildProbioticSection(
-                      probioticDetail: _blobMap(detailBlob, 'probiotic_detail'),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

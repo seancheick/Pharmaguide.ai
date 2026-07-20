@@ -18,7 +18,10 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 
 /// Build the Probiotic section. Returns `SizedBox.shrink()` when the
 /// blob is null or contains no probiotic signals.
-Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
+Widget buildProbioticSection({
+  required Map<String, dynamic>? probioticDetail,
+  void Function(List<String> sourceUrls)? onTapSources,
+}) {
   if (probioticDetail == null) return const SizedBox.shrink();
 
   final probioticBlends = probioticDetail.safeMapList('probiotic_blends');
@@ -85,11 +88,11 @@ Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
         return PGStrain(
           name: name,
           cfuLabel: cs == null ? '' : _formatStrainCfu(cs['cfu_per_day']),
-          evidence: cs == null
-              ? ''
-              : (cs['evidence_level']?.toString().toUpperCase() ?? ''),
+          supportLevel: cs?.safeString('clinical_support_level') ?? '',
+          indication: cs?.safeString('indication_primary') ?? '',
+          researchStatus: _researchStatus(cs),
+          sourceUrls: cs?.safeStringList('source_urls') ?? const [],
           isInactivated: cs?['is_inactivated'] == true,
-          isClinical: cs != null,
         );
       })
       .toList(growable: false);
@@ -119,7 +122,21 @@ Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
     prebioticPresent: prebioticPresent,
     hasPostbioticStrains: hasPostbioticStrains,
     strains: strains,
+    onTapSources: onTapSources,
   );
+}
+
+PGProbioticResearchStatus _researchStatus(Map<String, dynamic>? row) {
+  if (row == null) return PGProbioticResearchStatus.none;
+  if (row.safeBool('is_blocked')) return PGProbioticResearchStatus.rejected;
+  return switch (row.safeString('research_match_status').trim().toLowerCase()) {
+    'exact_strain' => PGProbioticResearchStatus.exactStrain,
+    'formula_only' => PGProbioticResearchStatus.formulaOnly,
+    'species_level' => PGProbioticResearchStatus.speciesLevel,
+    'pending_review' => PGProbioticResearchStatus.pendingReview,
+    'rejected' => PGProbioticResearchStatus.rejected,
+    _ => PGProbioticResearchStatus.none,
+  };
 }
 
 bool _isGenericContainerEcho({
