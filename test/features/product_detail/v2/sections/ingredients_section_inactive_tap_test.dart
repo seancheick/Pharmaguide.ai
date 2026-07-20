@@ -125,24 +125,29 @@ void main() {
             builder: (ctx) => SingleChildScrollView(
               child: buildIngredientsSection(
                 context: ctx,
-                ingredients: const [
+                ingredients: const [],
+                displayIngredients: const [
                   {
-                    'display_label': 'Vitamin A',
-                    'display_dose_label': '1.05 mg',
-                    'quantity': 1.05,
-                    'unit': 'mg',
-                    'label_components': [
-                      {
-                        'label': 'Beta-Carotene',
-                        'form': 'beta-carotene',
-                        'display_dose_label': '450 mcg',
-                      },
-                      {
-                        'label': 'Vitamin A Palmitate',
-                        'form': 'retinyl palmitate',
-                        'display_dose_label': '600 mcg',
-                      },
-                    ],
+                    'label_display_name': 'Vitamin A',
+                    'exact_dose_text': '1.05 mg',
+                    'nested_depth': 0,
+                    'score_included': true,
+                  },
+                  {
+                    'label_display_name': 'Beta-Carotene',
+                    'exact_dose_text': '450 mcg',
+                    'nested_depth': 1,
+                    'parent_label': 'Vitamin A',
+                    'score_included': true,
+                  },
+                  {
+                    'label_display_name': 'Vitamin A Palmitate',
+                    'label_display_form': 'retinyl palmitate',
+                    'exact_dose_text': '600 mcg',
+                    'nested_depth': 1,
+                    'parent_label': 'Vitamin A',
+                    'form_display_state': 'assessed',
+                    'score_included': true,
                   },
                 ],
                 inactiveIngredients: const [],
@@ -157,7 +162,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Vitamin A'), findsOneWidget);
-    expect(find.text('Forms on label'), findsOneWidget);
+    expect(find.text('Components of Vitamin A'), findsOneWidget);
     expect(find.text('Beta-Carotene'), findsOneWidget);
     expect(find.text('Vitamin A Palmitate'), findsOneWidget);
     expect(find.text('retinyl palmitate'), findsOneWidget);
@@ -165,7 +170,7 @@ void main() {
     expect(find.text('600 mcg'), findsOneWidget);
   });
 
-  testWidgets('blend metadata alone renders header and every label child', (
+  testWidgets('canonical blend ledger renders header and every label child', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -176,6 +181,33 @@ void main() {
               child: buildIngredientsSection(
                 context: ctx,
                 ingredients: const [],
+                displayIngredients: const [
+                  {
+                    'label_display_name': 'Botanical Blend',
+                    'display_type': 'structural_container',
+                    'quantity': 100,
+                    'unit': 'mg',
+                    'nested_depth': 0,
+                    'children': ['Ashwagandha', 'Rhodiola'],
+                    'score_included': true,
+                  },
+                  {
+                    'label_display_name': 'Ashwagandha',
+                    'exact_dose_text': 'Amount not disclosed',
+                    'nested_depth': 1,
+                    'parent_label': 'Botanical Blend',
+                    'form_display_state': 'not_applicable',
+                    'score_included': false,
+                  },
+                  {
+                    'label_display_name': 'Rhodiola',
+                    'exact_dose_text': 'Amount not disclosed',
+                    'nested_depth': 1,
+                    'parent_label': 'Botanical Blend',
+                    'form_display_state': 'not_applicable',
+                    'score_included': false,
+                  },
+                ],
                 inactiveIngredients: const [],
                 ulAnalysis: const [],
                 blends: const [
@@ -199,9 +231,22 @@ void main() {
 
     expect(find.text('Proprietary blend'), findsOneWidget);
     expect(find.text('Botanical Blend'), findsOneWidget);
+    expect(find.text('Components of Botanical Blend'), findsOneWidget);
     expect(find.text('100 mg'), findsOneWidget);
     expect(find.text('Ashwagandha'), findsOneWidget);
     expect(find.text('Rhodiola'), findsOneWidget);
     expect(find.text('Amount not disclosed'), findsNWidgets(2));
+
+    await tester.tap(find.byKey(const ValueKey('ingredient-view-analysis')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Proprietary blend'), findsNothing);
+    expect(find.text('Botanical Blend'), findsOneWidget);
+    await tester.tap(find.text('Botanical Blend'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Educational use only — not medical advice.'),
+      findsOneWidget,
+    );
   });
 }

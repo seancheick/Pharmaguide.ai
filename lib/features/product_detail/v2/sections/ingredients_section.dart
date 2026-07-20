@@ -203,6 +203,7 @@ class _CanonicalLedgerIngredientsState
                 context: context,
                 ingredients: visibleRows,
                 ulAnalysis: widget.ulAnalysis,
+                analysisView: _selectedView == IngredientLedgerView.analysis,
               ),
             ),
         ],
@@ -291,16 +292,56 @@ List<Widget> _buildLabelLedgerTiles({
   required BuildContext context,
   required List<Map<String, dynamic>> ingredients,
   required List<Map<String, dynamic>>? ulAnalysis,
+  required bool analysisView,
 }) {
-  return [
-    for (var index = 0; index < ingredients.length; index++)
-      _tileFor(
-        context: context,
-        ingredient: ingredients[index],
-        ulAnalysis: ulAnalysis,
-        showBottomDivider: index != ingredients.length - 1,
-      ),
-  ];
+  final tiles = <Widget>[];
+  String? openParent;
+  for (var index = 0; index < ingredients.length; index++) {
+    final ingredient = ingredients[index];
+    final rawDepth = ingredient['nested_depth'];
+    final depth = rawDepth is num
+        ? rawDepth.toInt()
+        : int.tryParse(rawDepth?.toString() ?? '') ?? 0;
+    final parent = ingredient['parent_label']?.toString().trim();
+    final hasParent = depth > 0 && parent != null && parent.isNotEmpty;
+    if (hasParent && parent != openParent) {
+      tiles.add(_NestedGroupLabel(parent: parent));
+      openParent = parent;
+    } else if (!hasParent) {
+      openParent = null;
+    }
+    if (!analysisView &&
+        !hasParent &&
+        ingredient['display_type']?.toString() == 'structural_container') {
+      final total = ingredient['quantity'];
+      final childNames = ingredient['children'];
+      tiles.add(
+        _BlendHeaderRow(
+          blend: BlendGroup(
+            name:
+                (ingredient['label_display_name'] ??
+                        ingredient['display_name'] ??
+                        ingredient['raw_source_text'])
+                    ?.toString() ??
+                'Proprietary Blend',
+            totalAmount: total is num ? total : null,
+            unit: ingredient['unit']?.toString() ?? '',
+            children: const [],
+            childCount: childNames is List ? childNames.length : 0,
+          ),
+        ),
+      );
+      continue;
+    }
+    final tile = _tileFor(
+      context: context,
+      ingredient: ingredient,
+      ulAnalysis: ulAnalysis,
+      showBottomDivider: index != ingredients.length - 1,
+    );
+    tiles.add(hasParent ? _HierarchyChild(child: tile) : tile);
+  }
+  return tiles;
 }
 
 /// Build the active tile widget list. T16.2f flow:
@@ -385,10 +426,8 @@ Widget _ingredientEntry({
   final rawComponents = ingredient['label_components'];
   final components = rawComponents is List
       ? rawComponents
-            .whereType<Map>()
-            .map((value) {
-              return Map<String, dynamic>.from(value);
-            })
+            .whereType<Map<String, dynamic>>()
+            .map(Map<String, dynamic>.from)
             .toList(growable: false)
       : const <Map<String, dynamic>>[];
   if (components.isEmpty) {
@@ -549,6 +588,33 @@ class _HierarchyChild extends StatelessWidget {
         border: Border(left: BorderSide(color: V2Colors.outline, width: 1)),
       ),
       child: child,
+    );
+  }
+}
+
+class _NestedGroupLabel extends StatelessWidget {
+  final String parent;
+
+  const _NestedGroupLabel({required this.parent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      header: true,
+      label: 'Components of $parent',
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: V2Spacing.space8,
+          top: V2Spacing.space4,
+        ),
+        child: Text(
+          'Components of $parent',
+          style: V2Typography.caption(
+            color: V2Colors.fgSubtle,
+          ).copyWith(fontWeight: FontWeight.w500, letterSpacing: 0.3),
+        ),
+      ),
     );
   }
 }
