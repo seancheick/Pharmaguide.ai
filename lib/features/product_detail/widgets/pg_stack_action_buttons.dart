@@ -13,6 +13,7 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.dart';
 import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -56,16 +57,24 @@ class PGStackActionButtons extends ConsumerWidget {
     final entryAsync = ref.watch(stackEntryForDsldIdProvider(dsldId));
     return Container(
       padding: EdgeInsets.fromLTRB(
-        V2Spacing.space24,
+        V2Spacing.space16,
         V2Spacing.space12,
-        V2Spacing.space24,
+        V2Spacing.space16,
         MediaQuery.of(context).padding.bottom + V2Spacing.space12,
       ),
       decoration: const BoxDecoration(
         color: V2Colors.surface,
         border: Border(top: BorderSide(color: V2Colors.outline)),
       ),
-      child: _primary(context, ref, entryAsync),
+      // S3 — primary stack action stays dominant; heart is a secondary
+      // save-for-later control (same wishlist path as the app-bar heart).
+      child: Row(
+        children: [
+          PGFavoriteButton(dsldId: dsldId),
+          const SizedBox(width: V2Spacing.space4),
+          Expanded(child: _primary(context, ref, entryAsync)),
+        ],
+      ),
     );
   }
 

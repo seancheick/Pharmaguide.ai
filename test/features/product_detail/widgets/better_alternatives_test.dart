@@ -155,7 +155,9 @@ void main() {
       );
     });
 
-    test('review relevance + incomplete profile → hidden', () {
+    test('high score + incomplete profile → hidden (no fit claims)', () {
+      // S4: incomplete profiles only get *generic* mid-tier alternatives
+      // (score < 75). High scores stay quiet until the profile is complete.
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
@@ -165,6 +167,19 @@ void main() {
           profileIncomplete: true,
         ),
         isFalse,
+      );
+    });
+
+    test('mid score + incomplete profile → visible (generic S4)', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 70,
+          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
+          profileIncomplete: true,
+        ),
+        isTrue,
       );
     });
 

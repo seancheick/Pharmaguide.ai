@@ -1079,52 +1079,125 @@ class _ProductDetailV2ConnectedState
   }
 }
 
+/// Hero-shaped skeleton — matches the product-detail first screenful so
+/// load feels like structure arriving, not a spinner interstitial.
 class _ProductDetailLoadingState extends StatelessWidget {
   const _ProductDetailLoadingState();
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(V2Spacing.space24),
-          child: DecoratedBox(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space16,
+          V2Spacing.space8,
+          V2Spacing.space16,
+          V2Spacing.space24,
+        ),
+        children: [
+          // Hero card skeleton (image 80 + title/brand/score).
+          Container(
+            padding: const EdgeInsets.all(V2Spacing.space12),
             decoration: BoxDecoration(
               color: V2Colors.surface,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               border: Border.all(color: V2Colors.outline),
               boxShadow: V2Shadows.sm,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(V2Spacing.space24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: V2Colors.accent,
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SkeletonBlock(width: 80, height: 80, radius: 12),
+                    SizedBox(width: V2Spacing.space12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SkeletonBlock(width: double.infinity, height: 16),
+                          SizedBox(height: V2Spacing.space8),
+                          _SkeletonBlock(width: 140, height: 12),
+                          SizedBox(height: V2Spacing.space8),
+                          _SkeletonBlock(width: 96, height: 12),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: V2Spacing.space16),
-                  Text(
-                    'Opening product',
-                    style: V2Typography.titleSm(color: V2Colors.fg),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: V2Spacing.space8),
-                  Text(
-                    'Loading the verified catalog record on this device.',
-                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                SizedBox(height: V2Spacing.space12),
+                _SkeletonBlock(width: 88, height: 10),
+                SizedBox(height: V2Spacing.space8),
+                _SkeletonBlock(width: 160, height: 18),
+              ],
             ),
           ),
-        ),
+          const SizedBox(height: V2Spacing.space12),
+          // Profile-relevance / score card placeholders.
+          const _SkeletonCard(height: 88),
+          const SizedBox(height: V2Spacing.space12),
+          const _SkeletonCard(height: 120),
+          const SizedBox(height: V2Spacing.space12),
+          const _SkeletonCard(height: 160),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonCard extends StatelessWidget {
+  final double height;
+  const _SkeletonCard({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SkeletonBlock(width: 120, height: 12),
+          SizedBox(height: V2Spacing.space12),
+          _SkeletonBlock(width: double.infinity, height: 12),
+          SizedBox(height: V2Spacing.space8),
+          _SkeletonBlock(width: 200, height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  final double width;
+  final double height;
+  final double radius;
+
+  const _SkeletonBlock({
+    required this.width,
+    required this.height,
+    this.radius = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width == double.infinity ? null : width,
+      height: height,
+      constraints: width == double.infinity
+          ? const BoxConstraints(minWidth: double.infinity)
+          : null,
+      decoration: BoxDecoration(
+        color: V2Colors.outline.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

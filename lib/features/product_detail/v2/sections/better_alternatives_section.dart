@@ -33,6 +33,10 @@ import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.
 
 const double _lowQualityThreshold = 60.0;
 
+/// Mid-tier ceiling for *generic* alternatives when the profile is still
+/// incomplete (S4). Above this, wait for personalization before nudging.
+const double _incompleteProfileGenericCeiling = 75.0;
+
 /// Pure helper — should the Better Alternatives section render for this
 /// product + user state?
 bool shouldShowBetterAlternatives({
@@ -45,7 +49,12 @@ bool shouldShowBetterAlternatives({
   if (isBlocked) return true;
   if (isNotScored || score100 == null) return false;
   if (score100 < _lowQualityThreshold) return true;
-  if (profileIncomplete) return false;
+  // S4 — incomplete profile: still surface *generic* higher-quality
+  // options for mid-tier products. Do not use fit status (that would
+  // claim personalization we cannot deliver yet).
+  if (profileIncomplete) {
+    return score100 < _incompleteProfileGenericCeiling;
+  }
   if (profileRelevanceStatus == ProfileRelevanceStatus.review ||
       profileRelevanceStatus == ProfileRelevanceStatus.notRecommended) {
     return true;
@@ -145,6 +154,10 @@ class BetterAlternativesSection extends ConsumerWidget {
           // strict-quality with intent/family matching, so this
           // copy describes what we actually return.
           title: 'Similar higher-quality options',
+          body: profileIncomplete
+              ? 'Personalize for better matches — complete your profile '
+                    'to rank options for your goals and health context.'
+              : null,
         );
       },
     );

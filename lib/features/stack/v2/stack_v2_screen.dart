@@ -21,6 +21,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -1005,14 +1006,30 @@ class _StackItemRow extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                PGProductThumbnail(
-                  imageUrl: entry.isMedication
-                      ? null
-                      : _preferredProductImageUrl(product),
-                  type: itemType,
-                  size: 48,
-                  showTypeBadge: false,
-                ),
+                // Supplements: resolve via ProductImage (catalog path +
+                // OFF fallback + branded placeholder) — raw imageUrl
+                // alone is often empty in core rows. Medications keep
+                // the bottle silhouette (no catalog photo).
+                if (entry.isMedication || entry.dsldId == null)
+                  PGProductThumbnail(
+                    imageUrl: null,
+                    type: itemType,
+                    size: 48,
+                    showTypeBadge: false,
+                  )
+                else
+                  ProductImage(
+                    dsldId: entry.dsldId!,
+                    upc: product?.upcSku,
+                    dsldImagePath:
+                        product?.imageThumbnailUrl ?? product?.imageUrl,
+                    productName: displayName,
+                    brandName: displayBrand ?? '',
+                    formFactor: product?.formFactor,
+                    score: score?.toDouble(),
+                    size: 48,
+                    compact: true,
+                  ),
                 const SizedBox(width: V2Spacing.space12),
                 Expanded(
                   child: Column(
@@ -1064,15 +1081,6 @@ class _StackItemRow extends ConsumerWidget {
       ),
     );
   }
-}
-
-String? _preferredProductImageUrl(ProductsCoreData? product) {
-  if (product == null) return null;
-  final thumbnail = product.imageThumbnailUrl?.trim();
-  if (thumbnail != null && thumbnail.isNotEmpty) return thumbnail;
-  if (product.imageIsPdf == 1) return null;
-  final image = product.imageUrl?.trim();
-  return image == null || image.isEmpty ? null : image;
 }
 
 class _V2StackEmptyPanel extends StatelessWidget {
@@ -1647,13 +1655,17 @@ class _WishlistItemRow extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                PGProductThumbnail(
-                  imageUrl: product == null
-                      ? null
-                      : _preferredProductImageUrl(product),
-                  type: PGItemType.bookmark,
+                ProductImage(
+                  dsldId: dsldId,
+                  upc: product?.upcSku,
+                  dsldImagePath:
+                      product?.imageThumbnailUrl ?? product?.imageUrl,
+                  productName: displayName,
+                  brandName: displayBrand ?? '',
+                  formFactor: product?.formFactor,
+                  score: showScore ? score.toDouble() : null,
                   size: 48,
-                  showTypeBadge: false,
+                  compact: true,
                 ),
                 const SizedBox(width: V2Spacing.space12),
                 Expanded(

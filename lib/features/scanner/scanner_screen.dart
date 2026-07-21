@@ -6,9 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
+import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
-import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -62,9 +63,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   bool _hasScanned = false;
   bool _isLookingUp = false;
 
-  // Verdict flash overlay state
-  Color? _flashColor;
-  bool _showFlash = false;
+  // S1 — v2 verdict reveal (2-tone) instead of a flat color wash.
+  PGVerdictKind? _revealKind;
+  String? _revealCaption;
+  ProductsCoreData? _pendingRevealProduct;
+
+  // S1 — full-screen not-found overlay (replaces bottom sheet only
+  // for presentation; failed-scan sensor + actions unchanged).
+  bool _showNotFound = false;
+  String? _notFoundUpc;
 
   @override
   void dispose() {
@@ -144,36 +151,43 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  /// Flash the verdict color briefly, trigger haptic feedback, then navigate.
+  /// S1/S2 — two-tone [PGVerdictReveal] with product name caption, then
+  /// navigate to detail. Keeps production haptics + perf trace + reset.
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
-    // Verdict-result haptic — severity-gated via PGHaptics.forVerdict so
-    // the user feels the outcome before reading the screen:
-    //   RECOMMENDED / GOOD  → di-DUP (Apple Pay success pattern)
-    //   MODERATE / REVIEW   → medium (warning)
-    //   UNSAFE              → heavy (danger)
-    //   BLOCKED             → di-da-DUP (error pattern)
-    // Safety-critical tiers always fire even under reduce-motion;
-    // success patterns suppress under reduce-motion (passes context).
+    // Severity-gated haptics stay on the production path; reveal plays
+    // no second haptic (playHaptic: false).
     unawaited(PGHaptics.forVerdict(product.verdict, context));
 
-    final color = verdictFlashColor(product.verdict);
     setState(() {
-      _flashColor = color;
-      _showFlash = true;
+      _revealKind = verdictRevealKind(product.verdict);
+      _revealCaption = product.productName.trim().isEmpty
+          ? null
+          : product.productName.trim();
+      _pendingRevealProduct = product;
     });
+  }
 
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-
+  Future<void> _completeRevealAndNavigate() async {
+    final product = _pendingRevealProduct;
     if (!mounted) return;
+    setState(() {
+      _revealKind = null;
+      _revealCaption = null;
+      _pendingRevealProduct = null;
+    });
+    if (product == null) {
+      setState(() => _hasScanned = false);
+      return;
+    }
 
-    setState(() => _showFlash = false);
     // Scan→verdict latency trace begins at the navigation handoff;
     // product detail finishes it when the hero verdict first renders.
-    // Duration + coarse tags only — never the barcode or product id.
     PerfTraceService().startScanToVerdict();
-    await context.push('/product/${product.dsldId}');
+    // S2 — land on detail; sticky CTA is "Add to my stack" (or safer
+    // alternatives). from=scan keeps a quiet breadcrumb for analytics
+    // without a second decision page.
+    await context.push('${Routes.productDetail(product.dsldId)}?from=scan');
 
-    // Reset after returning from product detail so scanner can detect again.
     if (mounted) {
       setState(() => _hasScanned = false);
     }
@@ -184,32 +198,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // only; no user identifier per the privacy contract in
     // failed_scans_table.dart) and breadcrumb to Sentry so it appears
     // near any crash that follows. Fire-and-forget — a transient DB
-    // error must not block the user-facing not-found sheet.
+    // error must not block the user-facing not-found surface.
     unawaited(ref.read(userDatabaseProvider).recordFailedScan(upc));
-    // Event name ONLY — never the barcode. Breadcrumb MESSAGES are not
-    // scrubbed (_scrubBreadcrumb only scrubs the data map), and the
-    // service's contract is that the UPC never leaves the device; the
-    // failed-scan sensor above already persists it locally.
+    // Event name ONLY — never the barcode.
     CrashReportingService().log('scan_failed_missing_upc');
 
-    PGModal.bottomSheet<void>(
-      context: context,
-      builder: (ctx) => ScannerNotFoundSheet(
-        upc: upc,
-        onTryAgain: () {
-          Navigator.pop(ctx);
-          setState(() => _hasScanned = false);
-        },
-        onSearchByName: () {
-          Navigator.pop(ctx);
-          context.push('/search');
-        },
-      ),
-    ).whenComplete(() {
-      // If bottom sheet is dismissed (e.g. swipe down), allow re-scan
-      if (mounted) {
-        setState(() => _hasScanned = false);
-      }
+    setState(() {
+      _showNotFound = true;
+      _notFoundUpc = upc;
+    });
+  }
+
+  void _dismissNotFound() {
+    if (!mounted) return;
+    setState(() {
+      _showNotFound = false;
+      _notFoundUpc = null;
+      _hasScanned = false;
     });
   }
 
@@ -389,12 +394,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           ),
           // Loading overlay
           if (_isLookingUp) const ScannerLookupOverlay(),
-          // Verdict flash
-          if (_showFlash && _flashColor != null)
-            AnimatedOpacity(
-              opacity: _showFlash ? 0.35 : 0.0,
-              duration: V2Motion.fast,
-              child: Container(color: _flashColor),
+          // S1 — v2 verdict reveal (success / attention).
+          if (_revealKind != null)
+            PGVerdictReveal(
+              kind: _revealKind!,
+              caption: _revealCaption,
+              playHaptic: false,
+              onDismiss: () => unawaited(_completeRevealAndNavigate()),
+            ),
+          // S1 — v2 not-found overlay.
+          if (_showNotFound)
+            PGScanNotFound(
+              scannedCode: _notFoundUpc,
+              onRetry: _dismissNotFound,
+              onSearchByName: () {
+                _dismissNotFound();
+                context.push(Routes.search);
+              },
+              onManualEntry: () {
+                _dismissNotFound();
+                unawaited(_openManualBarcodeSheet());
+              },
+              onClose: _dismissNotFound,
             ),
         ],
       ),

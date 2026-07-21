@@ -32,11 +32,21 @@ class PGVerdictReveal extends StatefulWidget {
   final Duration? autoDismissAfter;
   final VoidCallback? onDismiss;
 
+  /// When false, skip the built-in haptic so the caller can fire a
+  /// richer severity-gated pattern (e.g. [PGHaptics.forVerdict]).
+  final bool playHaptic;
+
+  /// Optional one-line caption under the icon (e.g. product name on
+  /// scan confirm). Null hides the line.
+  final String? caption;
+
   const PGVerdictReveal({
     super.key,
     required this.kind,
     this.autoDismissAfter = const Duration(milliseconds: 900),
     this.onDismiss,
+    this.playHaptic = true,
+    this.caption,
   });
 
   @override
@@ -63,6 +73,7 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
   }
 
   void _fireHaptic() {
+    if (!widget.playHaptic) return;
     switch (widget.kind) {
       case PGVerdictKind.success:
         HapticFeedback.lightImpact();
@@ -145,7 +156,33 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
                     offset: Offset(0, lift),
                     child: Transform.scale(
                       scale: scale,
-                      child: Icon(_icon, color: Colors.white, size: 120),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_icon, color: Colors.white, size: 120),
+                          if (widget.caption != null &&
+                              widget.caption!.trim().isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                              ),
+                              child: Text(
+                                widget.caption!.trim(),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
