@@ -457,8 +457,23 @@ GoRouter _buildRouter({
             // Phase 11.2 — production Stack tab renders the v2 screen
             // inside the production shell. showNavBar:false because
             // the shell already paints the frosted nav bar.
-            builder: (_, __) =>
-                catalogRoute(const StackV2Screen(showNavBar: false)),
+            // Optional `?tab=wishlist|nutrients` deep-links the segment
+            // (e.g. toast after saving a product to Wishlist).
+            builder: (_, state) {
+              final tab = state.uri.queryParameters['tab'];
+              final segment = switch (tab) {
+                'wishlist' => 2,
+                'nutrients' => 1,
+                _ => 0,
+              };
+              return catalogRoute(
+                StackV2Screen(
+                  key: ValueKey('stack-tab-$segment'),
+                  showNavBar: false,
+                  initialSegment: segment,
+                ),
+              );
+            },
           ),
           GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
           GoRoute(

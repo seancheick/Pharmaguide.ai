@@ -24,6 +24,8 @@ import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/core/scoring/coverage.dart';
+import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
@@ -34,6 +36,8 @@ import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.d
 import 'package:pharmaguide/features/stack/widgets/stack_coverage_card.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Resolves stack rows back to catalog products so v2 rows render the
 /// canonical product name, brand, thumbnail, and score.
@@ -60,12 +64,17 @@ class StackV2Screen extends StatefulWidget {
   final bool showNavBar;
   final bool showPreviewFixtures;
 
+  /// Initial segment: 0 = Stack, 1 = Nutrients, 2 = Wishlist.
+  /// Used by deep links (`/stack?tab=wishlist`) after a save toast.
+  final int initialSegment;
+
   const StackV2Screen({
     super.key,
     this.selectedIndex = 1, // Stack tab is index 1 in v2 nav order
     this.onDestinationSelected,
     this.showNavBar = true,
     this.showPreviewFixtures = false,
+    this.initialSegment = 0,
   });
 
   @override
@@ -73,7 +82,21 @@ class StackV2Screen extends StatefulWidget {
 }
 
 class _StackV2ScreenState extends State<StackV2Screen> {
-  int _segment = 0;
+  late int _segment;
+
+  @override
+  void initState() {
+    super.initState();
+    _segment = widget.initialSegment.clamp(0, 2);
+  }
+
+  @override
+  void didUpdateWidget(covariant StackV2Screen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSegment != widget.initialSegment) {
+      _segment = widget.initialSegment.clamp(0, 2);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1400,54 +1423,308 @@ class _NutrientRow extends StatelessWidget {
 }
 
 // =============================================================================
-// Wishlist tab — calm empty state.
+// Wishlist tab — signed-in favorites list; guests prompted to sign in.
 // =============================================================================
 
-class _WishlistTab extends StatelessWidget {
+class _WishlistTab extends ConsumerWidget {
   const _WishlistTab();
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(V2Spacing.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: V2Colors.accentTint,
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              ),
-              child: const Icon(
-                Icons.bookmark_outline_rounded,
-                size: 40,
-                color: V2Colors.accent,
-              ),
-            ),
-            const SizedBox(height: V2Spacing.space24),
-            const PGEyebrow('Wishlist'),
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              'Save products to revisit them later',
-              textAlign: TextAlign.center,
-              style: V2Typography.titleSm(color: V2Colors.fg),
-            ),
-            const SizedBox(height: V2Spacing.space8),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: V2Spacing.space24,
-              ),
-              child: Text(
-                "Anything you bookmark from a product page will land here so "
-                "you can compare or add later.",
-                textAlign: TextAlign.center,
-                style: V2Typography.body(color: V2Colors.fgMuted),
-              ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isGuest = ref.watch(authStateProvider) == AuthMode.guest;
+    final favoritesAsync = ref.watch(favoritesProvider);
+
+    if (isGuest) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: EdgeInsets.only(
+          top: V2Spacing.space24,
+          bottom:
+              MediaQuery.of(context).padding.bottom +
+              kPGNavBarHeight +
+              V2Spacing.space24,
+        ),
+        children: [
+          _V2StackEmptyPanel(
+            icon: Icons.favorite_border_rounded,
+            eyebrow: 'Wishlist',
+            headline: 'Sign in to save products',
+            body:
+                'Wishlist is available on a free early-access account so your '
+                'saved products stay on this device when you come back.',
+            actionLabel: 'Sign in',
+            onAction: () => context.push(Routes.authInvitation),
+          ),
+        ],
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(favoritesProvider);
+        await ref.read(favoritesProvider.future);
+      },
+      child: favoritesAsync.when(
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.only(
+            top: V2Spacing.space24,
+            bottom:
+                MediaQuery.of(context).padding.bottom +
+                kPGNavBarHeight +
+                V2Spacing.space24,
+          ),
+          children: const [
+            _V2StackEmptyPanel(
+              icon: Icons.hourglass_empty_rounded,
+              eyebrow: 'Loading',
+              headline: 'Loading your wishlist',
+              body: 'Pulling saved products from this device.',
             ),
           ],
+        ),
+        error: (_, __) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.only(
+            top: V2Spacing.space24,
+            bottom:
+                MediaQuery.of(context).padding.bottom +
+                kPGNavBarHeight +
+                V2Spacing.space24,
+          ),
+          children: [
+            _V2StackEmptyPanel(
+              icon: Icons.cloud_off_rounded,
+              eyebrow: 'Wishlist',
+              headline: 'Couldn’t load wishlist',
+              body: 'Try again in a moment.',
+              actionLabel: 'Retry',
+              onAction: () => ref.invalidate(favoritesProvider),
+            ),
+          ],
+        ),
+        data: (favorites) {
+          if (favorites.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: EdgeInsets.only(
+                top: V2Spacing.space24,
+                bottom:
+                    MediaQuery.of(context).padding.bottom +
+                    kPGNavBarHeight +
+                    V2Spacing.space24,
+              ),
+              children: [
+                _V2StackEmptyPanel(
+                  icon: Icons.favorite_border_rounded,
+                  eyebrow: 'Wishlist',
+                  headline: 'No saved products yet',
+                  body:
+                      'Tap the heart on any product page to save it here for '
+                      'later — compare or add to your stack when you’re ready.',
+                  actionLabel: 'Scan a product',
+                  onAction: () => GoRouter.of(context).go(Routes.scan),
+                ),
+              ],
+            );
+          }
+
+          return ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              V2Spacing.space24,
+              V2Spacing.space8,
+              V2Spacing.space24,
+              MediaQuery.of(context).padding.bottom +
+                  kPGNavBarHeight +
+                  V2Spacing.space24,
+            ),
+            itemCount: favorites.length + 1,
+            separatorBuilder: (_, __) =>
+                const SizedBox(height: V2Spacing.space12),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+                  child: Text(
+                    '${favorites.length} saved',
+                    style: V2Typography.eyebrow(color: V2Colors.fgMuted),
+                  ),
+                );
+              }
+              final fav = favorites[index - 1];
+              return _WishlistItemRow(
+                key: ValueKey('wishlist_${fav.dsldId}'),
+                dsldId: fav.dsldId,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WishlistItemRow extends ConsumerWidget {
+  final String dsldId;
+
+  const _WishlistItemRow({super.key, required this.dsldId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final product = ref.watch(_stackProductProvider(dsldId)).asData?.value;
+    final displayName = (product?.productName.trim().isNotEmpty ?? false)
+        ? product!.productName.trim()
+        : 'Saved product';
+    final displayBrand = product?.brandName?.trim();
+    final score = product?.qualityScoreV4100?.round();
+    final showScore =
+        score != null && !isLowCoverage(product?.mappedCoverage);
+
+    return Dismissible(
+      key: ValueKey('wishlist_dismiss_$dsldId'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: V2Spacing.space24),
+        decoration: BoxDecoration(
+          color: V2Colors.caution.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        ),
+        child: const Icon(
+          Icons.favorite_border_rounded,
+          color: V2Colors.caution,
+          size: 22,
+        ),
+      ),
+      confirmDismiss: (_) async {
+        try {
+          await ref.read(favoritesActionsProvider).remove(dsldId);
+          return true;
+        } on StackRequiresSignInException {
+          if (context.mounted) {
+            await context.push(Routes.authInvitation);
+          }
+          return false;
+        } on Exception catch (e, st) {
+          CrashReportingService().recordError(
+            e,
+            st,
+            hint: 'wishlist:swipe_remove',
+          );
+          if (context.mounted) {
+            PGToast.show(
+              context,
+              'Could not remove from Wishlist.',
+              variant: PGToastVariant.error,
+            );
+          }
+          return false;
+        }
+      },
+      child: Material(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: InkWell(
+          onTap: () => context.push(Routes.productDetail(dsldId)),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Container(
+            padding: const EdgeInsets.all(V2Spacing.space12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              border: Border.all(color: V2Colors.outline),
+              boxShadow: V2Shadows.sm,
+            ),
+            child: Row(
+              children: [
+                PGProductThumbnail(
+                  imageUrl: product == null
+                      ? null
+                      : _preferredProductImageUrl(product),
+                  type: PGItemType.bookmark,
+                  size: 48,
+                  showTypeBadge: false,
+                ),
+                const SizedBox(width: V2Spacing.space12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: V2Typography.label(color: V2Colors.fg),
+                      ),
+                      if (displayBrand != null && displayBrand.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          displayBrand,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                        ),
+                      ],
+                      if (showScore) ...[
+                        const SizedBox(height: V2Spacing.space4),
+                        PGScoreLine(score: score, compact: true),
+                      ],
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Remove from Wishlist',
+                  icon: const Icon(
+                    Icons.favorite_rounded,
+                    color: V2Colors.contraindicated,
+                    size: 22,
+                  ),
+                  onPressed: () async {
+                    unawaited(PGHaptics.press());
+                    try {
+                      await ref.read(favoritesActionsProvider).remove(dsldId);
+                      if (context.mounted) {
+                        PGToast.show(
+                          context,
+                          'Removed from Wishlist',
+                          variant: PGToastVariant.info,
+                          duration: const Duration(seconds: 2),
+                        );
+                      }
+                    } on StackRequiresSignInException {
+                      if (context.mounted) {
+                        await context.push(Routes.authInvitation);
+                      }
+                    } on Exception catch (e, st) {
+                      CrashReportingService().recordError(
+                        e,
+                        st,
+                        hint: 'wishlist:heart_remove',
+                      );
+                      if (context.mounted) {
+                        PGToast.show(
+                          context,
+                          'Could not remove from Wishlist.',
+                          variant: PGToastVariant.error,
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

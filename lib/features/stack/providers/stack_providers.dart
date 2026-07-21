@@ -11,6 +11,9 @@
 //   - active_stack_provider.dart      → activeStackProvider,
 //                                       stackEntryForDsldIdProvider,
 //                                       StackActions, stackActionsProvider
+//   - favorites_providers.dart        → favoritesProvider,
+//                                       isFavoriteProvider,
+//                                       FavoritesActions, favoritesActionsProvider
 //   - stack_safety_providers.dart     → safetyCheckForAddProvider,
 //                                       stackSafetyReportProvider,
 //                                       recalledIngredientsReportProvider,
@@ -22,6 +25,7 @@
 //                                       (NOT re-exported)
 
 export 'active_stack_provider.dart';
+export 'favorites_providers.dart';
 export 'stack_nutrient_providers.dart';
 export 'stack_safety_providers.dart';
 export 'synergy_report_provider.dart';

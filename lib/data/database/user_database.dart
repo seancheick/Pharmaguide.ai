@@ -110,6 +110,16 @@ class UserDatabase extends _$UserDatabase {
         'CREATE INDEX IF NOT EXISTS idx_user_fav_added '
         'ON user_favorites (added_at DESC)',
       );
+      // One row per product. Collapse any pre-existing duplicates first so
+      // the unique index can install cleanly on upgrades.
+      await customStatement(
+        'DELETE FROM user_favorites WHERE id NOT IN '
+        '(SELECT MAX(id) FROM user_favorites GROUP BY dsld_id)',
+      );
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_fav_dsld '
+        'ON user_favorites (dsld_id)',
+      );
     },
   );
 
@@ -205,9 +215,20 @@ class UserDatabase extends _$UserDatabase {
         .get();
   }
 
-  /// Bookmark a product by DSLD ID.
-  Future<void> addFavorite(String dsldId) {
-    return into(
+  /// True when [dsldId] is already on the wishlist.
+  Future<bool> isFavorite(String dsldId) async {
+    final row =
+        await (select(userFavorites)
+              ..where((t) => t.dsldId.equals(dsldId))
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
+
+  /// Bookmark a product by DSLD ID. Idempotent — a second save is a no-op.
+  Future<void> addFavorite(String dsldId) async {
+    if (await isFavorite(dsldId)) return;
+    await into(
       userFavorites,
     ).insert(UserFavoritesCompanion(dsldId: Value(dsldId)));
   }
