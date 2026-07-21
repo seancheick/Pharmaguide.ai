@@ -529,8 +529,9 @@ void main() {
 
         final target = find.text('Named Disclosure Blend');
         expect(target, findsOneWidget);
-        final targetTop = tester.getTopLeft(target).dy;
-        expect(targetTop, inInclusiveRange(0, tester.view.physicalSize.height));
+        final targetRect = tester.getRect(target);
+        final viewportRect = tester.getRect(find.byType(CustomScrollView));
+        expect(targetRect.overlaps(viewportRect), isTrue);
       },
     );
 
