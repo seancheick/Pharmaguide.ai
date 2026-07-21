@@ -168,18 +168,41 @@ void main() {
     ); // 69.5% (Formulation)
     expect(statusForPillar(12.0, 20), V4PillarStatus.mixed); // 60%
     expect(statusForPillar(11.9, 20), V4PillarStatus.limited); // 59.5%
-    expect(statusForPillar(0.0, 20), V4PillarStatus.limited);
+    expect(statusForPillar(double.minPositive, 20), V4PillarStatus.limited);
   });
 
-  test('statusForPillar guards null score and non-positive max → Limited', () {
+  test('statusForPillar: exact zero with positive max is No points', () {
+    expect(statusForPillar(0.0, 20), V4PillarStatus.noPoints);
+    expect(statusForPillar(-0.0, 20), V4PillarStatus.noPoints);
+  });
+
+  test('zero score with non-positive or non-finite max stays Limited', () {
+    for (final max in <num>[
+      0,
+      -1,
+      double.nan,
+      double.infinity,
+      double.negativeInfinity,
+    ]) {
+      expect(statusForPillar(0.0, max), V4PillarStatus.limited);
+    }
+  });
+
+  test('null and non-finite scores stay Limited', () {
     expect(statusForPillar(null, 20), V4PillarStatus.limited);
-    expect(statusForPillar(18.0, 0), V4PillarStatus.limited);
+    expect(statusForPillar(double.nan, 20), V4PillarStatus.limited);
+    expect(statusForPillar(double.infinity, 20), V4PillarStatus.limited);
+    expect(
+      statusForPillar(double.negativeInfinity, 20),
+      V4PillarStatus.limited,
+    );
   });
 
   test('status labels are consumer copy', () {
     expect(v4PillarStatusLabel(V4PillarStatus.strong), 'Strong');
     expect(v4PillarStatusLabel(V4PillarStatus.mixed), 'Mixed');
     expect(v4PillarStatusLabel(V4PillarStatus.limited), 'Limited');
+    expect(v4PillarStatusLabel(V4PillarStatus.noPoints), 'No points');
   });
 
   test('action-label map keys only the three navigable pillars', () {

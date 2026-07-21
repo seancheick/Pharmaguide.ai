@@ -29,13 +29,17 @@ const Map<String, String> kV4PillarActionLabels = {
 };
 
 /// Consumer presentation status for one pillar, derived from its fraction of max.
-enum V4PillarStatus { strong, mixed, limited }
+enum V4PillarStatus { strong, mixed, limited, noPoints }
 
 /// Map a pillar's score/max to a presentation status. `>= 85%` Strong,
-/// `>= 60%` Mixed, else Limited. A null score or non-positive max degrades to
-/// Limited so we never overstate a pillar we could not read (fail-safe).
-V4PillarStatus statusForPillar(double? score, int max) {
-  if (score == null || max <= 0) return V4PillarStatus.limited;
+/// `>= 60%` Mixed, exact zero No points, else Limited. An unavailable score or
+/// invalid max degrades to Limited so we never overstate a pillar we could not
+/// read (fail-safe).
+V4PillarStatus statusForPillar(double? score, num max) {
+  if (score == null || !score.isFinite || !max.isFinite || max <= 0) {
+    return V4PillarStatus.limited;
+  }
+  if (score == 0) return V4PillarStatus.noPoints;
   final pct = score / max;
   if (pct >= 0.85) return V4PillarStatus.strong;
   if (pct >= 0.60) return V4PillarStatus.mixed;
@@ -47,6 +51,7 @@ String v4PillarStatusLabel(V4PillarStatus status) => switch (status) {
   V4PillarStatus.strong => 'Strong',
   V4PillarStatus.mixed => 'Mixed',
   V4PillarStatus.limited => 'Limited',
+  V4PillarStatus.noPoints => 'No points',
 };
 
 /// One pipeline-authored explanation fact for a pillar. Pure display data —
