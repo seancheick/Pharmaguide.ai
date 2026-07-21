@@ -444,7 +444,7 @@ class _ScoreLineDemo extends StatelessWidget {
         const SizedBox(width: V2Spacing.space8),
         Text('$score/100', style: V2Typography.bodyMedium(color: V2Colors.fg)),
         const SizedBox(width: V2Spacing.space8),
-        Text(tier.label, style: V2Typography.bodyMedium(color: tier.color)),
+        Text(tier.label, style: V2Typography.bodyMedium(color: tier.textColor)),
       ],
     );
   }

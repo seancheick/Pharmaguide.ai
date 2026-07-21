@@ -300,7 +300,8 @@ void main() {
       }
 
       visit(richText.text);
-      expect(numberColor, tierForScore(64).color);
+      // Accessible tier text token (>=4.5:1), matching the hero score line.
+      expect(numberColor, tierForScore(64).textColor);
     });
   });
 }

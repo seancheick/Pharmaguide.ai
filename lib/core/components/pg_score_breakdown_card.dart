@@ -126,7 +126,8 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
               Expanded(
                 child: widget.heroScore != null
                     // Tint the number by the same tier contract as the hero
-                    // score (never color-alone — the tier word lives in the
+                    // score — the accessible `textColor` token (>=4.5:1 on
+                    // cream), never color-alone (the tier word lives in the
                     // hero). Keep the label neutral.
                     ? Text.rich(
                         TextSpan(
@@ -140,7 +141,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                               style: V2Typography.titleSm(
                                 color: tierForScore(
                                   widget.heroScore!.round(),
-                                ).color,
+                                ).textColor,
                               ).copyWith(fontWeight: FontWeight.w700),
                             ),
                           ],

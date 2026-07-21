@@ -1916,12 +1916,16 @@ class _ScoreChip extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
+        // Background keeps the brighter chart token (tinted at 0.12).
         color: _scoreTone(score).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         '${score.round()}',
-        style: V2Typography.monoData(color: _scoreTone(score)),
+        // Text uses the accessible tier token (>=4.5:1 on the tinted chip).
+        style: V2Typography.monoData(
+          color: tierForScore(score.round()).textColor,
+        ),
       ),
     );
   }
