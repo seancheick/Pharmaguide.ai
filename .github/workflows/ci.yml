@@ -18,11 +18,11 @@ jobs:
 
     steps:
       # The catalog DBs (assets/db/*.db, *.sqlite) ship via Git LFS —
-      # actions/checkout@v6 fetches LFS pointer files by default, which
+      # actions/checkout@v7 fetches LFS pointer files by default, which
       # causes downstream sqlite3 calls to fail with
       # "file is not a database". 26 of the data-layer tests depend on
       # the real bundle. Set lfs: true to materialize the actual files.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
