@@ -32,6 +32,28 @@ void main() {
       );
     });
 
+    test('blank optional provenance is dropped, not fatal', () {
+      // Empty-string catalog_version / fingerprint / source_record_id / upc is
+      // a common pipeline data-hygiene quirk. With a valid dsldId it must
+      // normalize to null (omitted) and still render the action — not throw
+      // invalidMetadataValue and silently kill "Doesn't match your bottle?".
+      final meta = labelMismatchMetadataFrom(
+        const {
+          'source_record_id': '',
+          'catalog_version': '',
+          'formula_fingerprint': '   ',
+        },
+        dsldId: '12345',
+        upc: '',
+      );
+      expect(meta, isNotNull);
+      expect(meta!.dsldId, '12345');
+      expect(meta.upc, isNull);
+      expect(meta.sourceRecordId, isNull);
+      expect(meta.catalogSourceVersion, isNull);
+      expect(meta.formulaFingerprint, isNull);
+    });
+
     test('falls back to source_record_id when dsldId is absent', () {
       final meta = labelMismatchMetadataFrom(
         const {'source_record_id': 'SRC-9'},

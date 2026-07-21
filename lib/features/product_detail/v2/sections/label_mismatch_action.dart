@@ -14,22 +14,34 @@ LabelMismatchProductMetadata? labelMismatchMetadataFrom(
   String? upc,
 }) {
   final record = labelRecord is Map ? labelRecord : const <dynamic, dynamic>{};
-  final sourceRecordId = record['source_record_id']?.toString();
-  final reportId = dsldId ?? sourceRecordId;
-  if (reportId == null || reportId.trim().isEmpty) return null;
+  final sourceRecordId = _blankToNull(record['source_record_id']);
+  final reportId = _blankToNull(dsldId) ?? sourceRecordId;
+  if (reportId == null) return null;
   try {
+    // Blank optional provenance is normalized to null (omitted from the
+    // report) rather than passed through — an empty-string catalog_version or
+    // fingerprint is a common pipeline data-hygiene quirk and must not
+    // suppress the whole action when the dsldId alone is enough to report.
     return LabelMismatchProductMetadata(
       dsldId: reportId,
-      upc: upc,
+      upc: _blankToNull(upc),
       sourceRecordId: sourceRecordId,
-      catalogSourceVersion: record['catalog_version']?.toString(),
-      formulaFingerprint: record['formula_fingerprint']?.toString(),
+      catalogSourceVersion: _blankToNull(record['catalog_version']),
+      formulaFingerprint: _blankToNull(record['formula_fingerprint']),
     );
   } on LabelMismatchValidationException {
-    // Malformed provenance (e.g. a non-sha256 fingerprint) must never crash the
-    // product page during build — the mismatch action simply does not render.
+    // Genuinely malformed provenance (e.g. a non-blank, non-sha256
+    // fingerprint) must never crash the product page during build — the
+    // mismatch action simply does not render.
     return null;
   }
+}
+
+/// Trim a raw blob value; treat null/blank as absent so optional provenance
+/// never trips the report metadata's non-blank validation.
+String? _blankToNull(Object? value) {
+  final normalized = value?.toString().trim() ?? '';
+  return normalized.isEmpty ? null : normalized;
 }
 
 /// Standalone "Doesn't match your bottle?" affordance. Rendered next to the
