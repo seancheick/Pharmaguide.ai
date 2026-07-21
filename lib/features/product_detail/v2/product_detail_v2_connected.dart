@@ -192,6 +192,8 @@ class _ProductDetailV2ConnectedState
   final GlobalKey _evidenceSectionKey = GlobalKey();
   final GlobalKey _certificationsSectionKey = GlobalKey();
   final GlobalKey _labelConfidenceSectionKey = GlobalKey();
+  final GlobalKey _ingredientDisclosureTargetKey = GlobalKey();
+  final ValueNotifier<bool> _ingredientDisclosureReveal = ValueNotifier(false);
 
   /// One-shot guard: finish the scan→verdict perf trace exactly once per
   /// screen, on the first frame where the hero verdict is visible.
@@ -219,6 +221,7 @@ class _ProductDetailV2ConnectedState
       // New product on the same screen instance — re-arm the one-shot
       // perf-trace finish for the fresh hero render.
       _verdictTraceFinished = false;
+      _ingredientDisclosureReveal.value = false;
       setState(() {
         _product = null;
         _productLoading = true;
@@ -261,6 +264,14 @@ class _ProductDetailV2ConnectedState
     );
   }
 
+  void _showIngredientDisclosure() {
+    // A reveal can be requested before the lazy Ingredients sliver mounts.
+    // Pulse so a second action re-opens it after a manual collapse.
+    _ingredientDisclosureReveal.value = false;
+    _ingredientDisclosureReveal.value = true;
+    _scrollToSection(_ingredientDisclosureTargetKey, primeFraction: 0.55);
+  }
+
   @override
   void dispose() {
     // Backing out before the hero verdict ever rendered would leave the
@@ -269,6 +280,7 @@ class _ProductDetailV2ConnectedState
     if (!_verdictTraceFinished) {
       PerfTraceService().abandonScanToVerdict();
     }
+    _ingredientDisclosureReveal.dispose();
     _anchors.dispose();
     super.dispose();
   }
@@ -476,6 +488,13 @@ class _ProductDetailV2ConnectedState
       blobLoading: blobLoading,
       blobError: blobError,
     );
+    final hasDisclosureTarget =
+        showDeepDive &&
+        hasIngredientDisclosureTarget(
+          ingredients: ingredientSources.ingredients,
+          displayIngredients: ingredientSources.displayIngredients,
+          blends: ingredientSources.blends,
+        );
     final evidenceData = _blobMap(detailBlob, 'evidence_data');
     final showClinicalEvidence =
         showDeepDive && hasRenderableClinicalEvidence(evidenceData);
@@ -500,7 +519,7 @@ class _ProductDetailV2ConnectedState
     // get a destination callback — others render no action (no dead links).
     //   evidence            → clinical Evidence section
     //   verification        → Certifications (third-party) section
-    //   transparency        → Label Confidence section (when gated on)
+    //   transparency        → Ingredients label-disclosure row
     // Formulation, Dose, and Safety Hygiene are explained in place — they
     // have no destination section and are intentionally never wired.
     // -------------------------------------------------------------
@@ -515,9 +534,7 @@ class _ProductDetailV2ConnectedState
         'verification': () =>
             _scrollToSection(_certificationsSectionKey, primeFraction: 0.60),
       },
-      if (showLabelConfidence)
-        'transparency': () =>
-            _scrollToSection(_labelConfidenceSectionKey, primeFraction: 0.25),
+      if (hasDisclosureTarget) 'transparency': _showIngredientDisclosure,
     };
 
     // -------------------------------------------------------------
@@ -802,6 +819,8 @@ class _ProductDetailV2ConnectedState
                             ?.whereType<Map<String, dynamic>>()
                             .toList(growable: false),
                         blends: ingredientSources.blends,
+                        disclosureTargetKey: _ingredientDisclosureTargetKey,
+                        disclosureRevealSignal: _ingredientDisclosureReveal,
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
