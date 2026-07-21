@@ -365,16 +365,25 @@ void main() {
           },
         );
 
-        final action = find.byKey(const Key('formula-history-action'));
         final scrollView = find.byType(CustomScrollView);
+        // Catalog details now live in the collapsed "Product data & sources"
+        // section at the page bottom — scroll down to it and expand it.
+        final disclosure = find.text('Product data & sources');
         for (
           var attempt = 0;
-          attempt < 12 && action.evaluate().isEmpty;
+          attempt < 12 && disclosure.evaluate().isEmpty;
           attempt++
         ) {
-          await tester.drag(scrollView, const Offset(0, 250));
+          await tester.drag(scrollView, const Offset(0, -250));
           await tester.pumpAndSettle();
         }
+        expect(disclosure, findsOneWidget);
+        await tester.ensureVisible(disclosure);
+        await tester.pumpAndSettle();
+        await tester.tap(disclosure);
+        await tester.pumpAndSettle();
+
+        final action = find.byKey(const Key('formula-history-action'));
         expect(action, findsOneWidget);
         await tester.ensureVisible(action);
         await tester.pumpAndSettle();

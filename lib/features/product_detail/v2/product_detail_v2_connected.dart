@@ -65,6 +65,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dar
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/manufacturer_violations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
@@ -419,6 +420,14 @@ class _ProductDetailV2ConnectedState
     final labelLedgerAuditPresent =
         detailBlob?.containsKey('label_ledger_audit') == true;
     final labelRecordPresent = detailBlob?.containsKey('label_record') == true;
+    // Report metadata for the standalone "Doesn't match your bottle?" action
+    // rendered next to the ingredient list (the catalog record itself is
+    // collapsed to the page bottom).
+    final labelMismatchMeta = labelMismatchMetadataFrom(
+      detailBlob?['label_record'],
+      dsldId: widget.dsldId,
+      upc: _product?.upcSku,
+    );
 
     // -------------------------------------------------------------
     // LabelConfidence signal probe — checked here so we can gate the
@@ -746,25 +755,10 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 5.5 Catalog label record (Label Truth P1) ---
-                  // Presence is authoritative: absent means a legacy blob and
-                  // stays hidden; present-but-malformed renders the section's
-                  // fail-closed unavailable state. This metadata is
-                  // informational and never participates in scoring.
-                  if (showDeepDive && labelRecordPresent) ...[
-                    buildLabelMatchSection(
-                      labelRecord: detailBlob?['label_record'],
-                      upc: _product?.upcSku,
-                      currentLabelRows: ingredientSources.displayIngredients,
-                      onOpenSourceLabel: (uri) async {
-                        await launchUrl(
-                          uri,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                  // Catalog label record moved to the collapsed
+                  // "Product data & sources" section at the page bottom; the
+                  // "Doesn't match your bottle?" action stays next to the
+                  // ingredient list below.
 
                   // ---- 6. Ingredients (WIRED, 11.7d.2) -------------
                   if (showDeepDive) ...[
@@ -784,6 +778,17 @@ class _ProductDetailV2ConnectedState
                         blends: ingredientSources.blends,
                       ),
                     ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // "Doesn't match your bottle?" — kept next to the ingredient
+                  // list where a user comparing the app to the bottle looks.
+                  // Shown only when a catalog record exists (same visibility as
+                  // the old inline action), now decoupled from its position.
+                  if (showDeepDive &&
+                      labelRecordPresent &&
+                      labelMismatchMeta != null) ...[
+                    LabelMismatchAction(product: labelMismatchMeta),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
@@ -947,6 +952,42 @@ class _ProductDetailV2ConnectedState
                       child: Text(
                         'No additional details available.',
                         style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- Product data & sources (collapsed) ---------
+                  // Catalog provenance (record IDs, versions, fingerprint,
+                  // source dates) is debugging/provenance detail — collapsed
+                  // by default at the page bottom, out of the primary scroll.
+                  if (showDeepDive && labelRecordPresent) ...[
+                    Theme(
+                      data: Theme.of(
+                        context,
+                      ).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Product data & sources',
+                          style: V2Typography.titleSm(color: V2Colors.fg),
+                        ),
+                        children: [
+                          buildLabelMatchSection(
+                            labelRecord: detailBlob?['label_record'],
+                            upc: _product?.upcSku,
+                            currentLabelRows:
+                                ingredientSources.displayIngredients,
+                            onOpenSourceLabel: (uri) async {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            showMismatchAction: false,
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
