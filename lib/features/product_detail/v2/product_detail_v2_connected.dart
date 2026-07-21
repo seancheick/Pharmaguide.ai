@@ -78,6 +78,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/synergy_section.
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/transparency_footer_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
+import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
@@ -853,25 +854,24 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 11. Evidence (WIRED, 11.7e) -----------------
-                  // Anchor attached by WRAPPING the call site — the
-                  // section file itself is owned by a change in flight.
-                  if (showClinicalEvidence) ...[
+                  // ---- 11. Research support (evidence + literature) ----
+                  // ONE surface (T10): the compact clinical-evidence card
+                  // whose studies sheet also carries related ingredient
+                  // research, or — when there is no clinical evidence — a
+                  // research-only card. Both scroll anchors resolve here.
+                  // Render when either half would have shown; the widget
+                  // itself picks the state (and hides if research resolves
+                  // empty), matching the old per-block gating.
+                  if (showClinicalEvidence ||
+                      (showDeepDive && researchCanonicalIds.isNotEmpty)) ...[
                     KeyedSubtree(
                       key: _evidenceSectionKey,
-                      child: buildEvidenceSection(evidenceData: evidenceData),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 11.1 Tier 2 research evidence (Sprint 28) ---
-                  // Neutral literature co-occurrence surface. These rows
-                  // never become warnings or score penalties.
-                  if (showDeepDive && researchCanonicalIds.isNotEmpty) ...[
-                    KeyedSubtree(
-                      key: _anchors.researchKey,
-                      child: ResearchEvidenceSection(
-                        canonicalIds: researchCanonicalIds,
+                      child: KeyedSubtree(
+                        key: _anchors.researchKey,
+                        child: ResearchSupportSection(
+                          evidenceData: evidenceData,
+                          canonicalIds: researchCanonicalIds,
+                        ),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -1048,6 +1048,10 @@ class _ProductDetailV2ConnectedState
         },
       ),
       actions: [
+        // Wishlist heart — signed-in only; guests are sent to auth.
+        // Sits left of Compare/Share so save-for-later is one tap away
+        // without competing with the sticky "Add to stack" CTA.
+        if (_product != null) PGFavoriteButton(dsldId: widget.dsldId),
         // Quiet Compare entry — opens the second-product picker sheet
         // (stack + recent scans; the current product is excluded).
         // Scanning-to-compare is out of scope: TODO(compare).
