@@ -213,9 +213,14 @@ partitionProfileWarnings({
     // Critical-mode caution rows with no profile gate (for example product
     // quality additives such as P80) remain visible, but in the general surface
     // instead of inflating "Review for your profile".
-    // `no_data` is uncertainty, not evidence of harm. The wire contract maps
-    // it to monitor severity so it cannot disappear, but it belongs in the
-    // calm information lane rather than inflating the amber review count.
+    // `no_data` is uncertainty, not evidence of harm. POLICY — "if we don't
+    // know, we don't flag": an unresolved-evidence advisory is INTENTIONALLY
+    // suppressed. It is excluded from BOTH this amber review lane AND the calm
+    // "Good to know" lane (isCalmProfileNote also excludes noData), rather than
+    // surfaced as a generic "limited safety data" note that would recreate the
+    // meaningless-warning noise across many pregnancy/lactation products. This
+    // drop is deliberate and test-locked (review_before_use_card_test —
+    // "intentionally suppressed"); do NOT "restore" it to Good to know.
     // Hard warnings remain hard regardless of evidence availability.
     final isActionable =
         w.severity.isActionable &&

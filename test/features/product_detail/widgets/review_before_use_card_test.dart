@@ -507,23 +507,30 @@ void main() {
       expect(find.text('PRODUCT SAFETY'), findsNothing);
     });
 
-    testWidgets('profile-scoped no-data advisory does not create a card', (
-      tester,
-    ) async {
-      final section = buildGeneralNotesSection(
-        warnings: [
-          _warning(
-            severity: Severity.monitor,
-            evidenceLevel: EvidenceLevel.noData,
-            title: 'Limited safety data',
-            alertBody: 'Specific safety evidence is limited.',
-            conditionIds: const ['lactation'],
-          ),
-        ],
-      );
+    testWidgets(
+      'profile-scoped no-data advisory is intentionally suppressed (no card)',
+      (tester) async {
+        // Policy "if we don't know, we don't flag": a no_data-evidence advisory
+        // is deliberately shown in NEITHER lane — not the amber review card and
+        // not the calm "Good to know" card — so generic "limited safety data"
+        // notes don't recreate meaningless-warning noise. This null is the
+        // intended behavior; do NOT "fix" it by routing no_data into Good to
+        // know (see warnings_pipeline.dart no_data policy note).
+        final section = buildGeneralNotesSection(
+          warnings: [
+            _warning(
+              severity: Severity.monitor,
+              evidenceLevel: EvidenceLevel.noData,
+              title: 'Limited safety data',
+              alertBody: 'Specific safety evidence is limited.',
+              conditionIds: const ['lactation'],
+            ),
+          ],
+        );
 
-      expect(section, isNull);
-    });
+        expect(section, isNull);
+      },
+    );
 
     testWidgets('normal-dose breastfeeding advisory renders in Good to know', (
       tester,

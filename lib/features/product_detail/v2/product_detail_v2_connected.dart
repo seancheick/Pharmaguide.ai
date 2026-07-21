@@ -565,7 +565,10 @@ class _ProductDetailV2ConnectedState
       // ingredient) sits in the calm general bucket; it must still stop the
       // verdict from rendering a green "safe" all-clear.
       hasCriticalGlobalNote: partitionedWarnings.general.any(
-        (w) => w.displayModeDefault == 'critical',
+        // Normalize to match the renderer's `.trim().toLowerCase()` gate — a
+        // differently-cased 'Critical' blob must never show the hazard while
+        // the verdict stays a green "safe" all-clear.
+        (w) => w.displayModeDefault?.trim().toLowerCase() == 'critical',
       ),
       onTapCitations: (urls) =>
           showProfileRelevanceCitationsSheet(context, urls),
