@@ -53,6 +53,13 @@ void main() {
       for (final entry in maxCounts.entries) {
         expect(find.text('/${entry.key}'), findsNWidgets(entry.value));
       }
+      expect(
+        find.text(
+          'Ingredient forms we can identify and how well the body absorbs '
+          'them. Undisclosed forms receive no form-quality rating.',
+        ),
+        findsOneWidget,
+      );
 
       // Source rows.
       expect(
