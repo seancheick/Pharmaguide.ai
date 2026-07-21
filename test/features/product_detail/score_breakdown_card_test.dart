@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 
@@ -191,7 +192,7 @@ void main() {
           ),
         );
 
-        expect(find.text('How scoring works'), findsOneWidget);
+        expect(find.text("How it's scored"), findsOneWidget);
         await tester.tap(find.text('Evidence'));
         await tester.pumpAndSettle();
         expect(find.text('Human trials'), findsOneWidget);
@@ -269,12 +270,37 @@ void main() {
         _cardHarness(onHowScoringWorks: () => helpCount++),
       );
 
-      expect(find.text('How scoring works'), findsOneWidget);
+      expect(find.text("How it's scored"), findsOneWidget);
       expect(find.textContaining('Biggest opportunity'), findsNothing);
       expect(find.textContaining('See details'), findsNothing);
 
-      await tester.tap(find.text('How scoring works'));
+      await tester.tap(find.text("How it's scored"));
       expect(helpCount, 1);
+    });
+
+    testWidgets('score number is tinted with its scoring-tier color', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_cardHarness()); // heroScore: 63.6 → fair tier
+      final richText = tester.widget<RichText>(
+        find
+            .byWidgetPredicate(
+              (w) =>
+                  w is RichText &&
+                  w.text.toPlainText().startsWith('Why this scored'),
+            )
+            .first,
+      );
+      Color? numberColor;
+      void visit(InlineSpan span) {
+        if (span is TextSpan) {
+          if (span.text == '63.6') numberColor = span.style?.color;
+          span.children?.forEach(visit);
+        }
+      }
+
+      visit(richText.text);
+      expect(numberColor, tierForScore(64).color);
     });
   });
 }

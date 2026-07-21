@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -123,18 +124,35 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  widget.heroScore != null
-                      ? 'Why this scored ${PGScoreBreakdownCard.fmtScore(widget.heroScore!)}'
-                      : 'Why this scored',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
-                ),
+                child: widget.heroScore != null
+                    // Tint the number by the same tier contract as the hero
+                    // score (never color-alone — the tier word lives in the
+                    // hero). Keep the label neutral.
+                    ? Text.rich(
+                        TextSpan(
+                          style: V2Typography.titleSm(color: V2Colors.fg),
+                          children: [
+                            const TextSpan(text: 'Why this scored '),
+                            TextSpan(
+                              text: PGScoreBreakdownCard.fmtScore(
+                                widget.heroScore!,
+                              ),
+                              style: V2Typography.titleSm(
+                                color: tierForScore(
+                                  widget.heroScore!.round(),
+                                ).color,
+                              ).copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Text(
+                        'Why this scored',
+                        style: V2Typography.titleSm(color: V2Colors.fg),
+                      ),
               ),
               if (widget.onHowScoringWorks != null)
-                TextButton(
-                  onPressed: widget.onHowScoringWorks,
-                  child: const Text('How scoring works'),
-                ),
+                _HowItsScoredButton(onTap: widget.onHowScoringWorks!),
             ],
           ),
           const SizedBox(height: V2Spacing.space4),
@@ -170,6 +188,64 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
             _PGCoverageLine(coverage: widget.mappedCoverage!),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Explicit "How it's scored" affordance — a tinted pill with an info icon and
+/// chevron, ≥44pt tap target and button semantics, so it no longer reads as
+/// plain text. Opens the shared Trust Receipts sheet via [onTap].
+class _HowItsScoredButton extends StatelessWidget {
+  const _HowItsScoredButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'How the score works',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+              horizontal: V2Spacing.space12,
+              vertical: V2Spacing.space8,
+            ),
+            decoration: BoxDecoration(
+              color: V2Colors.accentTint,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+              border: Border.all(
+                color: V2Colors.accent.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: V2Colors.accent,
+                ),
+                const SizedBox(width: V2Spacing.space4),
+                Text(
+                  "How it's scored",
+                  style: V2Typography.caption(color: V2Colors.accent),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: V2Colors.accent,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
