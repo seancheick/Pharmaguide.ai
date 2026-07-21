@@ -5,6 +5,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -480,6 +481,29 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('PRODUCT SAFETY'), findsOneWidget);
       expect(find.text('Review this product'), findsOneWidget);
+    });
+  });
+
+  group('rowForWarning concern-level caption', () {
+    test('leads the caption with the plain-language severity label', () {
+      final row = rowForWarning(
+        _warning(
+          severity: Severity.caution,
+          alertHeadline: 'Chromium may affect your diabetes meds',
+          alertBody: 'Watch your blood sugar.',
+        ),
+      );
+      expect(row.caption, startsWith('Use caution ·'));
+    });
+
+    test('does not lead with a label for a non-actionable warning', () {
+      final row = rowForWarning(
+        _warning(
+          severity: Severity.informational,
+          alertBody: 'Just so you know.',
+        ),
+      );
+      expect(row.caption, isNot(startsWith('Informational ·')));
     });
   });
 }

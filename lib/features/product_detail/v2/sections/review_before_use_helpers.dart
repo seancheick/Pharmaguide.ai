@@ -286,11 +286,19 @@ PGReviewRow rowForFreeFromClaim(FreeFromClaim claim) {
 /// consumer-facing copy (`displayHeadline`/`displayBody`) and keeps raw
 /// clinical mechanism/management out of the collapsed card surface. Those
 /// technical fields belong in detail/learn-more surfaces.
+///
+/// The caption leads with the plain-language concern level (`Severity.label`,
+/// e.g. "Use caution" / "Not recommended") so the user never has to infer how
+/// worried to be from color alone — reusing the existing severity vocabulary,
+/// not inventing action tags or exposing clinical `management`.
 PGReviewRow rowForWarning(
   InteractionWarning warning, {
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final captionParts = <String>[];
+  if (warning.severity.isActionable || warning.severity.isHard) {
+    captionParts.add(warning.severity.label);
+  }
   final body = warning.displayBody.trim();
   if (body.isNotEmpty) captionParts.add(body);
   captionParts.add(warning.evidenceLevel.label);
