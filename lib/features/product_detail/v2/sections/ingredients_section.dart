@@ -34,6 +34,7 @@
 // Sean approved slight overruns when structure is clean
 // (helpers = pure mapping, section = widget composition).
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/components/pg_ingredients_card.dart';
@@ -163,7 +164,7 @@ Widget buildIngredientsSection({
   required List<Map<String, dynamic>>? ulAnalysis,
   required List<Map<String, dynamic>>? blends,
   GlobalKey? disclosureTargetKey,
-  Listenable? disclosureRevealSignal,
+  ValueListenable<bool>? disclosureRevealSignal,
 }) {
   // Null means the canonical ledger contract is absent (a stale blob), so the
   // legacy score-oriented lists remain the explicit compatibility fallback.
@@ -249,7 +250,7 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
   final List<Map<String, dynamic>>? ulAnalysis;
   final List<Map<String, dynamic>>? blends;
   final GlobalKey? disclosureTargetKey;
-  final Listenable? disclosureRevealSignal;
+  final ValueListenable<bool>? disclosureRevealSignal;
 
   const _CanonicalLedgerIngredients({
     super.key,

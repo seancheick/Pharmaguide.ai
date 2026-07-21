@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_inactive_row.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
@@ -210,7 +211,7 @@ class PGActiveIngredientsSection extends StatefulWidget {
 
   /// Optional navigation signal that expands and mounts every tile before a
   /// caller scrolls to a disclosure target inside this section.
-  final Listenable? revealSignal;
+  final ValueListenable<bool>? revealSignal;
 
   const PGActiveIngredientsSection({
     super.key,
@@ -239,29 +240,41 @@ class _PGActiveIngredientsSectionState
   @override
   void initState() {
     super.initState();
-    _expanded = _logicalIngredientCount <= 5;
-    _visibleTileCount = _initialVisibleCount(widget.tiles.length);
-    widget.revealSignal?.addListener(_revealAll);
+    final revealRequested = widget.revealSignal?.value == true;
+    _expanded = revealRequested || _logicalIngredientCount <= 5;
+    _visibleTileCount = revealRequested
+        ? widget.tiles.length
+        : _initialVisibleCount(widget.tiles.length);
+    widget.revealSignal?.addListener(_handleRevealSignal);
   }
 
   @override
   void didUpdateWidget(covariant PGActiveIngredientsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.revealSignal, widget.revealSignal)) {
-      oldWidget.revealSignal?.removeListener(_revealAll);
-      widget.revealSignal?.addListener(_revealAll);
+      oldWidget.revealSignal?.removeListener(_handleRevealSignal);
+      widget.revealSignal?.addListener(_handleRevealSignal);
     }
-    if (oldWidget.tiles.length == widget.tiles.length) return;
-
-    final wasFullyRevealed = _visibleTileCount >= oldWidget.tiles.length;
-    if (wasFullyRevealed) {
-      _visibleTileCount = _initialVisibleCount(widget.tiles.length);
-    } else if (_visibleTileCount > widget.tiles.length) {
+    if (oldWidget.tiles.length != widget.tiles.length) {
+      final wasFullyRevealed = _visibleTileCount >= oldWidget.tiles.length;
+      if (wasFullyRevealed) {
+        _visibleTileCount = _initialVisibleCount(widget.tiles.length);
+      } else if (_visibleTileCount > widget.tiles.length) {
+        _visibleTileCount = widget.tiles.length;
+      }
+    }
+    if (widget.revealSignal?.value == true) {
+      _expanded = true;
       _visibleTileCount = widget.tiles.length;
     }
   }
 
   void _toggleExpanded() => setState(() => _expanded = !_expanded);
+
+  void _handleRevealSignal() {
+    if (widget.revealSignal?.value != true) return;
+    _revealAll();
+  }
 
   void _revealAll() {
     if (_expanded && _visibleTileCount >= widget.tiles.length) return;
@@ -282,7 +295,7 @@ class _PGActiveIngredientsSectionState
 
   @override
   void dispose() {
-    widget.revealSignal?.removeListener(_revealAll);
+    widget.revealSignal?.removeListener(_handleRevealSignal);
     super.dispose();
   }
 

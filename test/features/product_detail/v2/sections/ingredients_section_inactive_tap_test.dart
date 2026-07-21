@@ -7,6 +7,7 @@
 // `showFunctionalRolesSheet` was extracted to its own file, and the
 // v2 section wires the tap to it.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
@@ -259,6 +260,41 @@ void main() {
   });
 
   testWidgets(
+    'pre-requested reveal mounts the target when the section first builds',
+    (tester) async {
+      final targetKey = GlobalKey();
+      final revealSignal = ValueNotifier<bool>(true);
+      addTearDown(revealSignal.dispose);
+
+      await _pumpIngredients(
+        tester,
+        displayIngredients: [
+          for (var index = 0; index < 6; index++)
+            {'label_display_name': 'Ordinary active $index'},
+          {
+            'display_type': 'structural_container',
+            'label_display_name': 'Pre-requested blend target',
+            'children': const ['Blend child'],
+          },
+        ],
+        blends: const [],
+        disclosureTargetKey: targetKey,
+        disclosureRevealSignal: revealSignal,
+      );
+
+      expect(targetKey.currentContext, isNotNull);
+      expect(find.byKey(targetKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(targetKey),
+          matching: find.text('Pre-requested blend target'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'canonical reveal mounts the preferred structural row from a collapsed section',
     (tester) async {
       final targetKey = GlobalKey();
@@ -352,10 +388,12 @@ void main() {
     final targetKey = GlobalKey();
     final firstSignal = _RevealSignal();
     final secondSignal = _RevealSignal();
+    secondSignal.reveal();
     addTearDown(firstSignal.dispose);
     addTearDown(secondSignal.dispose);
     late StateSetter rebuild;
     var signal = firstSignal;
+    var ingredientCount = 6;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -366,7 +404,7 @@ void main() {
               return buildIngredientsSection(
                 context: context,
                 ingredients: [
-                  for (var index = 0; index < 6; index++)
+                  for (var index = 0; index < ingredientCount; index++)
                     {'name': 'Ingredient $index'},
                 ],
                 inactiveIngredients: const [],
@@ -384,8 +422,18 @@ void main() {
     expect(targetKey.currentContext, isNull);
 
     rebuild(() => signal = secondSignal);
-    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(targetKey.currentContext, isNotNull);
+
+    await tester.tap(find.text('What the label lists'));
+    await tester.pumpAndSettle();
+    expect(targetKey.currentContext, isNull);
+
     firstSignal.reveal();
+    await tester.pumpAndSettle();
+    expect(targetKey.currentContext, isNull);
+
+    secondSignal.value = false;
     await tester.pumpAndSettle();
     expect(targetKey.currentContext, isNull);
 
@@ -393,7 +441,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(targetKey.currentContext, isNotNull);
 
+    rebuild(() => ingredientCount = 7);
+    await tester.pumpAndSettle();
+    expect(targetKey.currentContext, isNotNull);
+
     await tester.pumpWidget(const SizedBox.shrink());
+    secondSignal.value = false;
     secondSignal.reveal();
     await tester.pump();
     expect(tester.takeException(), isNull);
@@ -878,7 +931,7 @@ Future<void> _pumpIngredients(
   List<Map<String, dynamic>>? displayIngredients,
   List<Map<String, dynamic>> blends = const [],
   GlobalKey? disclosureTargetKey,
-  Listenable? disclosureRevealSignal,
+  ValueListenable<bool>? disclosureRevealSignal,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -903,6 +956,8 @@ Future<void> _pumpIngredients(
   await tester.pumpAndSettle();
 }
 
-class _RevealSignal extends ChangeNotifier {
-  void reveal() => notifyListeners();
+class _RevealSignal extends ValueNotifier<bool> {
+  _RevealSignal() : super(false);
+
+  void reveal() => value = true;
 }
