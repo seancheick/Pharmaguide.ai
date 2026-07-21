@@ -382,6 +382,51 @@ void main() {
     );
   });
 
+  testWidgets(
+    'same true reveal signal does not reopen after a manual collapse',
+    (tester) async {
+      final targetKey = GlobalKey();
+      final revealSignal = ValueNotifier<bool>(true);
+      addTearDown(revealSignal.dispose);
+      late StateSetter rebuildParent;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                rebuildParent = setState;
+                return buildIngredientsSection(
+                  context: context,
+                  ingredients: [
+                    for (var index = 0; index < 6; index++)
+                      {'name': 'Ingredient $index'},
+                  ],
+                  inactiveIngredients: const [],
+                  ulAnalysis: const [],
+                  blends: const [],
+                  disclosureTargetKey: targetKey,
+                  disclosureRevealSignal: revealSignal,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(targetKey.currentContext, isNotNull);
+
+      await tester.tap(find.text('What the label lists'));
+      await tester.pumpAndSettle();
+      expect(targetKey.currentContext, isNull);
+
+      rebuildParent(() {});
+      await tester.pumpAndSettle();
+
+      expect(targetKey.currentContext, isNull);
+    },
+  );
+
   testWidgets('reveal listener swaps and unregisters on dispose', (
     tester,
   ) async {

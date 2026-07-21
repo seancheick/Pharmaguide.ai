@@ -251,7 +251,11 @@ class _PGActiveIngredientsSectionState
   @override
   void didUpdateWidget(covariant PGActiveIngredientsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.revealSignal, widget.revealSignal)) {
+    final revealSignalChanged = !identical(
+      oldWidget.revealSignal,
+      widget.revealSignal,
+    );
+    if (revealSignalChanged) {
       oldWidget.revealSignal?.removeListener(_handleRevealSignal);
       widget.revealSignal?.addListener(_handleRevealSignal);
     }
@@ -263,7 +267,7 @@ class _PGActiveIngredientsSectionState
         _visibleTileCount = widget.tiles.length;
       }
     }
-    if (widget.revealSignal?.value == true) {
+    if (revealSignalChanged && widget.revealSignal?.value == true) {
       _expanded = true;
       _visibleTileCount = widget.tiles.length;
     }
