@@ -43,18 +43,23 @@ void main() {
       );
     });
 
-    test('nsf_gmp / fda_registered also qualify', () {
+    test('nsf_gmp qualifies for the GMP badge', () {
       expect(
         build(<String, dynamic>{
           'gmp': {'nsf_gmp': true},
         }),
         isA<PGCertificationSection>(),
       );
+    });
+
+    test('fda_registered alone never earns "GMP Certified"', () {
+      // FDA *facility registration* is not approval or certification (per FDA),
+      // so it must not surface as a GMP cert badge on a safety product.
       expect(
         build(<String, dynamic>{
           'gmp': {'fda_registered': 1},
         }),
-        isA<PGCertificationSection>(),
+        isA<SizedBox>(),
       );
     });
   });

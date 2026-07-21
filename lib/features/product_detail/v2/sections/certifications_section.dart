@@ -78,12 +78,14 @@ Widget buildCertificationsSection({
   return PGCertificationSection(certifications: certs);
 }
 
-/// True when the nested `gmp` object carries a real certification /
-/// compliance / program signal. Bare `claimed` (manufacturer self-assertion)
-/// is deliberately excluded so the "GMP Certified" badge is not overstated.
+/// True when the nested `gmp` object carries a real GMP certification /
+/// compliance / program signal. Deliberately EXCLUDED so the "GMP Certified"
+/// badge is never overstated on a safety product:
+///   • `claimed` — a bare manufacturer self-assertion.
+///   • `fda_registered` — FDA *facility registration*, which the FDA
+///     explicitly states is NOT approval or certification. It may be shown as
+///     neutral transparency elsewhere, but never as a GMP certification badge.
 bool _gmpCertified(Map<String, dynamic> certificationDetail) {
   final gmp = certificationDetail.safeMap('gmp');
-  return gmp.safeBool('gmp_certified_or_compliant') ||
-      gmp.safeBool('nsf_gmp') ||
-      gmp.safeBool('fda_registered');
+  return gmp.safeBool('gmp_certified_or_compliant') || gmp.safeBool('nsf_gmp');
 }
