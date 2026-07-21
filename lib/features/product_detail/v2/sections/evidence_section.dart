@@ -427,7 +427,14 @@ List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
 
 /// Build the Evidence section. Returns `SizedBox.shrink()` when the
 /// blob is null or contains no clinical evidence signals.
-Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
+///
+/// [relatedResearch], when provided, is appended inside the studies sheet
+/// beneath the citations — the seam that folds literature co-occurrence
+/// into the one evidence surface (T10).
+Widget buildEvidenceSection({
+  required Map<String, dynamic>? evidenceData,
+  Widget? relatedResearch,
+}) {
   if (evidenceData == null) return const SizedBox.shrink();
 
   // Match-level dedupe BEFORE any tier/count/citation computation —
@@ -488,6 +495,7 @@ Widget buildEvidenceSection({required Map<String, dynamic>? evidenceData}) {
     },
     citations: citations.take(_maxCitations).toList(growable: false),
     footnote: footnoteLines.join('\n'),
+    sheetExtra: relatedResearch,
   );
 }
 

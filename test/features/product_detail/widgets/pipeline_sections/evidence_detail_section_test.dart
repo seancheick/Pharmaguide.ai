@@ -347,6 +347,10 @@ void main() {
         },
       );
 
+      // Citations now live behind the studies sheet, not inline on the card.
+      await tester.tap(find.text('View studies (2)'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Effects of ashwagandha on stress'), findsOneWidget);
       expect(find.text('PMID 222 · Ashwagandha'), findsOneWidget);
     });
@@ -371,11 +375,15 @@ void main() {
         },
       );
 
-      expect(find.text('Shared study'), findsOneWidget);
       expect(
         find.text('Ingredient evidence: MODERATE · 1 study'),
         findsOneWidget,
       );
+
+      await tester.tap(find.text('View studies (1)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Shared study'), findsOneWidget);
     });
 
     testWidgets('preclinical only renders limited tier with no study count', (
@@ -678,13 +686,18 @@ void main() {
         },
       );
 
-      expect(find.text('Study 5'), findsOneWidget);
-      expect(find.text('Study 6'), findsNothing);
-      // Count still reflects all deduped studies.
+      // Count still reflects all deduped studies (card summary).
       expect(
         find.text('Ingredient evidence: MODERATE · 8 studies'),
         findsOneWidget,
       );
+
+      // The sheet still caps the visible citation rows at five.
+      await tester.tap(find.text('View studies (8)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Study 5'), findsOneWidget);
+      expect(find.text('Study 6'), findsNothing);
     });
   });
 }
