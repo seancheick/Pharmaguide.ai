@@ -208,10 +208,15 @@ class PGActiveIngredientsSection extends StatefulWidget {
   /// Legacy callers keep the historical umbrella heading.
   final String title;
 
+  /// Optional navigation signal that expands and mounts every tile before a
+  /// caller scrolls to a disclosure target inside this section.
+  final Listenable? revealSignal;
+
   const PGActiveIngredientsSection({
     super.key,
     required this.tiles,
     this.title = 'What the label lists',
+    this.revealSignal,
   });
 
   @override
@@ -236,11 +241,16 @@ class _PGActiveIngredientsSectionState
     super.initState();
     _expanded = _logicalIngredientCount <= 5;
     _visibleTileCount = _initialVisibleCount(widget.tiles.length);
+    widget.revealSignal?.addListener(_revealAll);
   }
 
   @override
   void didUpdateWidget(covariant PGActiveIngredientsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.revealSignal, widget.revealSignal)) {
+      oldWidget.revealSignal?.removeListener(_revealAll);
+      widget.revealSignal?.addListener(_revealAll);
+    }
     if (oldWidget.tiles.length == widget.tiles.length) return;
 
     final wasFullyRevealed = _visibleTileCount >= oldWidget.tiles.length;
@@ -253,6 +263,14 @@ class _PGActiveIngredientsSectionState
 
   void _toggleExpanded() => setState(() => _expanded = !_expanded);
 
+  void _revealAll() {
+    if (_expanded && _visibleTileCount >= widget.tiles.length) return;
+    setState(() {
+      _expanded = true;
+      _visibleTileCount = widget.tiles.length;
+    });
+  }
+
   void _showMore() {
     setState(() {
       final next = _visibleTileCount + _revealChunkSize;
@@ -260,6 +278,12 @@ class _PGActiveIngredientsSectionState
           ? next
           : widget.tiles.length;
     });
+  }
+
+  @override
+  void dispose() {
+    widget.revealSignal?.removeListener(_revealAll);
+    super.dispose();
   }
 
   @override

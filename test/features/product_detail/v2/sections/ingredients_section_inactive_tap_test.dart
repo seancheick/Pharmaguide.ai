@@ -30,6 +30,340 @@ void main() {
     debugSetFunctionalRolesVocabForTesting(null);
   });
 
+  group('ingredient disclosure target availability', () {
+    test('canonical ledger is authoritative when present but empty', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [
+            {'name': 'Legacy active'},
+          ],
+          displayIngredients: const [],
+          blends: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('canonical nutrition and other-only ledgers have no target', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [],
+          displayIngredients: const [
+            {
+              'display_type': 'nutrition_fact',
+              'label_display_name': 'Calories',
+            },
+            {
+              'display_type': 'inactive_ingredient',
+              'label_display_name': 'Rice flour',
+            },
+            {
+              'display_disposition': 'other_ingredient',
+              'label_display_name': 'Silica',
+            },
+          ],
+          blends: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('canonical nested rows use their root ledger section', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [
+            {'name': 'Legacy active'},
+          ],
+          displayIngredients: const [
+            {
+              'display_type': 'nutrition_fact',
+              'label_display_name': 'Total Fat',
+              'raw_source_path': 'ingredientRows[0]',
+            },
+            {
+              'display_type': 'mapped_ingredient',
+              'label_display_name': 'Omega-3',
+              'raw_source_path': 'ingredientRows[0].nestedRows[0]',
+              'parent_source_path': 'ingredientRows[0]',
+            },
+          ],
+          blends: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('canonical active ledger row has a target', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [],
+          displayIngredients: const [
+            {
+              'display_type': 'mapped_ingredient',
+              'label_display_name': 'Vitamin D',
+            },
+          ],
+          blends: const [],
+        ),
+        isTrue,
+      );
+    });
+
+    test('legacy inactive-only data has no target', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [],
+          displayIngredients: null,
+          blends: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('unmatched legacy blend metadata has no target', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [],
+          displayIngredients: null,
+          blends: const [
+            {
+              'name': 'Raw Blend',
+              'child_ingredients': [
+                {'name': 'Metadata-only child', 'amount': null},
+              ],
+            },
+          ],
+        ),
+        isFalse,
+      );
+    });
+
+    test('deduped legacy active row has a target', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [
+            {'name': 'Magnesium', 'canonical_id': 'magnesium', 'quantity': 60},
+            {
+              'name': 'Magnesium Glycinate',
+              'canonical_id': 'magnesium',
+              'quantity': 400,
+            },
+          ],
+          displayIngredients: null,
+          blends: const [],
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  testWidgets(
+    'canonical target prefers a named blend label with normalized whitespace',
+    (tester) async {
+      final targetKey = GlobalKey();
+      await _pumpIngredients(
+        tester,
+        displayIngredients: const [
+          {'label_display_name': 'Vitamin C'},
+          {'label_display_name': '  Daily   Botanical Blend  '},
+          {'label_display_name': 'Zinc'},
+        ],
+        blends: const [
+          {'name': 'daily botanical blend'},
+        ],
+        disclosureTargetKey: targetKey,
+      );
+
+      expect(find.byKey(targetKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(targetKey),
+          matching: find.text('Daily   Botanical Blend'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(targetKey),
+          matching: find.text('Vitamin C'),
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('canonical target falls back to the first active row', (
+    tester,
+  ) async {
+    final targetKey = GlobalKey();
+    await _pumpIngredients(
+      tester,
+      displayIngredients: const [
+        {'label_display_name': 'First active'},
+        {'label_display_name': 'Second active'},
+      ],
+      blends: const [],
+      disclosureTargetKey: targetKey,
+    );
+
+    expect(find.byKey(targetKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(targetKey),
+        matching: find.text('First active'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(targetKey),
+        matching: find.text('Second active'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'canonical reveal mounts the preferred structural row from a collapsed section',
+    (tester) async {
+      final targetKey = GlobalKey();
+      final revealSignal = _RevealSignal();
+      addTearDown(revealSignal.dispose);
+      await _pumpIngredients(
+        tester,
+        displayIngredients: [
+          for (var index = 0; index < 6; index++)
+            {'label_display_name': 'Ordinary active $index'},
+          {
+            'display_type': 'structural_container',
+            'label_display_name': 'Preferred structural blend',
+            'children': const ['Blend child'],
+          },
+        ],
+        blends: const [],
+        disclosureTargetKey: targetKey,
+        disclosureRevealSignal: revealSignal,
+      );
+
+      expect(find.text('Active ingredients'), findsOneWidget);
+      expect(targetKey.currentContext, isNull);
+      expect(find.byKey(targetKey), findsNothing);
+
+      revealSignal.reveal();
+      await tester.pumpAndSettle();
+
+      expect(targetKey.currentContext, isNotNull);
+      expect(find.byKey(targetKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(targetKey),
+          matching: find.text('Preferred structural blend'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('legacy target prefers the first actual grouped blend header', (
+    tester,
+  ) async {
+    final targetKey = GlobalKey();
+    await _pumpIngredients(
+      tester,
+      ingredients: const [
+        {'name': 'Loose active', 'quantity': 10, 'unit': 'mg'},
+        {'name': 'Blend child', 'quantity': null, 'unit': ''},
+      ],
+      blends: const [
+        {
+          'name': 'Actual Blend',
+          'total_weight': 100,
+          'unit': 'mg',
+          'child_ingredients': [
+            {'name': 'Blend child', 'amount': null, 'unit': ''},
+          ],
+        },
+      ],
+      disclosureTargetKey: targetKey,
+    );
+
+    expect(find.byKey(targetKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(targetKey),
+        matching: find.text('Actual Blend'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(targetKey),
+        matching: find.text('Proprietary blend'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(targetKey),
+        matching: find.text('Loose active'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('reveal listener swaps and unregisters on dispose', (
+    tester,
+  ) async {
+    final targetKey = GlobalKey();
+    final firstSignal = _RevealSignal();
+    final secondSignal = _RevealSignal();
+    addTearDown(firstSignal.dispose);
+    addTearDown(secondSignal.dispose);
+    late StateSetter rebuild;
+    var signal = firstSignal;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              rebuild = setState;
+              return buildIngredientsSection(
+                context: context,
+                ingredients: [
+                  for (var index = 0; index < 6; index++)
+                    {'name': 'Ingredient $index'},
+                ],
+                inactiveIngredients: const [],
+                ulAnalysis: const [],
+                blends: const [],
+                disclosureTargetKey: targetKey,
+                disclosureRevealSignal: signal,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(targetKey.currentContext, isNull);
+
+    rebuild(() => signal = secondSignal);
+    await tester.pump();
+    firstSignal.reveal();
+    await tester.pumpAndSettle();
+    expect(targetKey.currentContext, isNull);
+
+    secondSignal.reveal();
+    await tester.pumpAndSettle();
+    expect(targetKey.currentContext, isNotNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    secondSignal.reveal();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'v2 inactive tile tap opens functional-roles sheet (Bug 9 regression)',
     (tester) async {
@@ -501,4 +835,39 @@ void main() {
     final childX = tester.getTopLeft(find.text('EPA')).dx;
     expect(childX - parentX, lessThanOrEqualTo(12));
   });
+}
+
+Future<void> _pumpIngredients(
+  WidgetTester tester, {
+  List<Map<String, dynamic>> ingredients = const [],
+  List<Map<String, dynamic>>? displayIngredients,
+  List<Map<String, dynamic>> blends = const [],
+  GlobalKey? disclosureTargetKey,
+  Listenable? disclosureRevealSignal,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => SingleChildScrollView(
+            child: buildIngredientsSection(
+              context: context,
+              ingredients: ingredients,
+              displayIngredients: displayIngredients,
+              inactiveIngredients: const [],
+              ulAnalysis: const [],
+              blends: blends,
+              disclosureTargetKey: disclosureTargetKey,
+              disclosureRevealSignal: disclosureRevealSignal,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+class _RevealSignal extends ChangeNotifier {
+  void reveal() => notifyListeners();
 }

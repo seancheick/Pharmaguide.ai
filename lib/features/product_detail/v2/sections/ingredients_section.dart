@@ -48,6 +48,94 @@ import 'package:pharmaguide/features/product_detail/widgets/functional_roles_she
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
 import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 
+/// Whether [buildIngredientsSection] can mount a meaningful active-label row
+/// for disclosure navigation from the same builder inputs.
+///
+/// A present canonical ledger is authoritative, including when it is empty.
+/// Legacy blend metadata alone is not a target: at least one deduped active
+/// ingredient must render as an active tile.
+bool hasIngredientDisclosureTarget({
+  required List<Map<String, dynamic>> ingredients,
+  required List<Map<String, dynamic>>? displayIngredients,
+  required List<Map<String, dynamic>>? blends,
+}) {
+  if (displayIngredients != null) {
+    final rowsBySourcePath = _rowsBySourcePath(displayIngredients);
+    return _ledgerRowsForSection(
+      displayIngredients,
+      _LedgerSection.active,
+      rowsBySourcePath,
+    ).isNotEmpty;
+  }
+
+  final dedupedActives = dedupeElementalCompoundRows(ingredients);
+  if (dedupedActives.isEmpty) return false;
+  final grouped = groupActivesByBlend(
+    ingredients: dedupedActives,
+    blendsRaw: blends,
+  );
+  if (!grouped.hasBlends) return true;
+  return grouped.looseDisclosed.isNotEmpty ||
+      grouped.looseUndisclosed.isNotEmpty ||
+      grouped.blends.any(_blendHasRenderedActiveTile);
+}
+
+Map<String, Map<String, dynamic>> _rowsBySourcePath(
+  List<Map<String, dynamic>> rows,
+) => <String, Map<String, dynamic>>{
+  for (final row in rows)
+    if (row['raw_source_path']?.toString().trim().isNotEmpty == true)
+      row['raw_source_path'].toString(): row,
+};
+
+List<Map<String, dynamic>> _ledgerRowsForSection(
+  List<Map<String, dynamic>> rows,
+  _LedgerSection section,
+  Map<String, Map<String, dynamic>> rowsBySourcePath,
+) => rows
+    .where((row) => _ledgerSectionForRow(row, rowsBySourcePath) == section)
+    .toList(growable: false);
+
+bool _blendHasRenderedActiveTile(BlendGroup blend) =>
+    blend.children.any((child) => child['is_label_context'] != true);
+
+int? _canonicalDisclosureTargetIndex(
+  List<Map<String, dynamic>> activeRows,
+  List<Map<String, dynamic>>? blends,
+) {
+  if (activeRows.isEmpty) return null;
+  final blendNames = <String>{
+    for (final blend in blends ?? const <Map<String, dynamic>>[])
+      if (_normalizedDisclosureLabel(blend['name']).isNotEmpty)
+        _normalizedDisclosureLabel(blend['name']),
+  };
+  final preferredIndex = activeRows.indexWhere((row) {
+    if (row['display_type']?.toString() == 'structural_container') {
+      return true;
+    }
+    final label = _canonicalRowDisplayLabel(row);
+    return label.isNotEmpty && blendNames.contains(label);
+  });
+  return preferredIndex >= 0 ? preferredIndex : 0;
+}
+
+String _canonicalRowDisplayLabel(Map<String, dynamic> row) {
+  for (final field in const [
+    'label_display_name',
+    'display_label',
+    'display_name',
+    'raw_source_text',
+  ]) {
+    final normalized = _normalizedDisclosureLabel(row[field]);
+    if (normalized.isNotEmpty) return normalized;
+  }
+  return '';
+}
+
+String _normalizedDisclosureLabel(Object? value) =>
+    value?.toString().trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase() ??
+    '';
+
 /// Build the Ingredients section. Composes:
 ///   - Canonical label path: tiles built from `blob.display_ingredients` in
 ///     ledger order, without sorting, deduping, or analysis regrouping
@@ -69,6 +157,8 @@ Widget buildIngredientsSection({
   required List<Map<String, dynamic>> inactiveIngredients,
   required List<Map<String, dynamic>>? ulAnalysis,
   required List<Map<String, dynamic>>? blends,
+  GlobalKey? disclosureTargetKey,
+  Listenable? disclosureRevealSignal,
 }) {
   // Null means the canonical ledger contract is absent (a stale blob), so the
   // legacy score-oriented lists remain the explicit compatibility fallback.
@@ -79,6 +169,9 @@ Widget buildIngredientsSection({
       key: key,
       ingredients: displayIngredients,
       ulAnalysis: ulAnalysis,
+      blends: blends,
+      disclosureTargetKey: disclosureTargetKey,
+      disclosureRevealSignal: disclosureRevealSignal,
     );
   }
 
@@ -111,9 +204,13 @@ Widget buildIngredientsSection({
       ingredients: dedupedActives,
       ulAnalysis: ulAnalysis,
       blends: blends,
+      disclosureTargetKey: disclosureTargetKey,
     );
     if (tiles.isNotEmpty) {
-      activeContent = PGActiveIngredientsSection(tiles: tiles);
+      activeContent = PGActiveIngredientsSection(
+        tiles: tiles,
+        revealSignal: disclosureRevealSignal,
+      );
     }
   }
 
@@ -145,11 +242,17 @@ Widget buildIngredientsSection({
 class _CanonicalLedgerIngredients extends StatelessWidget {
   final List<Map<String, dynamic>> ingredients;
   final List<Map<String, dynamic>>? ulAnalysis;
+  final List<Map<String, dynamic>>? blends;
+  final GlobalKey? disclosureTargetKey;
+  final Listenable? disclosureRevealSignal;
 
   const _CanonicalLedgerIngredients({
     super.key,
     required this.ingredients,
     required this.ulAnalysis,
+    required this.blends,
+    required this.disclosureTargetKey,
+    required this.disclosureRevealSignal,
   });
 
   @override
@@ -160,31 +263,34 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
     // One bottle-faithful label view: Nutrition facts / Active / Other. The
     // scoring engine keeps its own score_included representation internally;
     // there is no consumer-facing "Analysis" projection.
-    final rowsBySourcePath = <String, Map<String, dynamic>>{
-      for (final row in labelRows)
-        if (row['raw_source_path']?.toString().trim().isNotEmpty == true)
-          row['raw_source_path'].toString(): row,
-    };
-    _LedgerSection sectionFor(Map<String, dynamic> row) =>
-        _ledgerSectionForRow(row, rowsBySourcePath);
-    final nutritionRows = labelRows
-        .where((row) => sectionFor(row) == _LedgerSection.nutrition)
-        .toList(growable: false);
-    final otherRows = labelRows
-        .where((row) => sectionFor(row) == _LedgerSection.other)
-        .toList(growable: false);
-    final activeRows = labelRows
-        .where((row) => sectionFor(row) == _LedgerSection.active)
-        .toList(growable: false);
+    final rowsBySourcePath = _rowsBySourcePath(labelRows);
+    List<Map<String, dynamic>> rowsFor(_LedgerSection section) =>
+        _ledgerRowsForSection(labelRows, section, rowsBySourcePath);
+    final nutritionRows = rowsFor(_LedgerSection.nutrition);
+    final otherRows = rowsFor(_LedgerSection.other);
+    final activeRows = rowsFor(_LedgerSection.active);
+    final disclosureTargetIndex = _canonicalDisclosureTargetIndex(
+      activeRows,
+      blends,
+    );
 
-    Widget ledgerSection(String title, List<Map<String, dynamic>> rows) {
+    Widget ledgerSection(
+      String title,
+      List<Map<String, dynamic>> rows, {
+      bool navigableDisclosure = false,
+    }) {
       return PGActiveIngredientsSection(
         title: title,
         tiles: _buildLabelLedgerTiles(
           context: context,
           ingredients: rows,
           ulAnalysis: ulAnalysis,
+          disclosureTargetKey: navigableDisclosure ? disclosureTargetKey : null,
+          disclosureTargetIndex: navigableDisclosure
+              ? disclosureTargetIndex
+              : null,
         ),
+        revealSignal: navigableDisclosure ? disclosureRevealSignal : null,
       );
     }
 
@@ -192,7 +298,11 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
       if (nutritionRows.isNotEmpty)
         ledgerSection('Nutrition facts', nutritionRows),
       if (activeRows.isNotEmpty)
-        ledgerSection('Active ingredients', activeRows),
+        ledgerSection(
+          'Active ingredients',
+          activeRows,
+          navigableDisclosure: true,
+        ),
       if (otherRows.isNotEmpty) ledgerSection('Other ingredients', otherRows),
     ];
 
@@ -255,6 +365,8 @@ List<Widget> _buildLabelLedgerTiles({
   required BuildContext context,
   required List<Map<String, dynamic>> ingredients,
   required List<Map<String, dynamic>>? ulAnalysis,
+  GlobalKey? disclosureTargetKey,
+  int? disclosureTargetIndex,
 }) {
   final tiles = <Widget>[];
   String? openParent;
@@ -266,6 +378,7 @@ List<Widget> _buildLabelLedgerTiles({
         : int.tryParse(rawDepth?.toString() ?? '') ?? 0;
     final parent = ingredient['parent_label']?.toString().trim();
     final hasParent = depth > 0 && parent != null && parent.isNotEmpty;
+    final rowKey = index == disclosureTargetIndex ? disclosureTargetKey : null;
     if (hasParent && parent != openParent) {
       tiles.add(_NestedGroupLabel(parent: parent));
       openParent = parent;
@@ -278,6 +391,7 @@ List<Widget> _buildLabelLedgerTiles({
       final childNames = ingredient['children'];
       tiles.add(
         _BlendHeaderRow(
+          key: rowKey,
           blend: BlendGroup(
             name:
                 (ingredient['label_display_name'] ??
@@ -305,6 +419,7 @@ List<Widget> _buildLabelLedgerTiles({
       continue;
     }
     final tile = _tileFor(
+      key: rowKey,
       context: context,
       ingredient: ingredient,
       ulAnalysis: ulAnalysis,
@@ -326,6 +441,7 @@ List<Widget> _buildActiveTiles({
   required List<Map<String, dynamic>> ingredients,
   required List<Map<String, dynamic>>? ulAnalysis,
   required List<Map<String, dynamic>>? blends,
+  GlobalKey? disclosureTargetKey,
 }) {
   final grouped = groupActivesByBlend(
     ingredients: ingredients,
@@ -342,16 +458,32 @@ List<Widget> _buildActiveTiles({
           ingredient: sorted[i],
           ulAnalysis: ulAnalysis,
           showBottomDivider: i != sorted.length - 1,
+          key: i == 0 ? disclosureTargetKey : null,
         ),
     ];
   }
 
   // T16.2f — 3-section render order with blend buckets.
   final tiles = <Widget>[];
+  final targetBlendIndex = disclosureTargetKey == null
+      ? -1
+      : grouped.blends.indexWhere(_blendHasRenderedActiveTile);
+  var attachedFallbackTarget = false;
+
+  Key? fallbackActiveTileKey() {
+    if (disclosureTargetKey == null ||
+        targetBlendIndex >= 0 ||
+        attachedFallbackTarget) {
+      return null;
+    }
+    attachedFallbackTarget = true;
+    return disclosureTargetKey;
+  }
 
   for (final ing in grouped.looseDisclosed) {
     tiles.add(
       _ingredientEntry(
+        key: fallbackActiveTileKey(),
         context: context,
         ingredient: ing,
         ulAnalysis: ulAnalysis,
@@ -359,14 +491,21 @@ List<Widget> _buildActiveTiles({
     );
   }
 
-  for (final blend in grouped.blends) {
-    tiles.add(_BlendHeaderRow(blend: blend));
+  for (var blendIndex = 0; blendIndex < grouped.blends.length; blendIndex++) {
+    final blend = grouped.blends[blendIndex];
+    tiles.add(
+      _BlendHeaderRow(
+        key: blendIndex == targetBlendIndex ? disclosureTargetKey : null,
+        blend: blend,
+      ),
+    );
     for (final child in blend.children) {
       tiles.add(
         _HierarchyChild(
           child: child['is_label_context'] == true
               ? _LabelChildRow(component: child)
               : _tileFor(
+                  key: fallbackActiveTileKey(),
                   context: context,
                   ingredient: child,
                   ulAnalysis: ulAnalysis,
@@ -380,6 +519,7 @@ List<Widget> _buildActiveTiles({
   for (final ing in grouped.looseUndisclosed) {
     tiles.add(
       _ingredientEntry(
+        key: fallbackActiveTileKey(),
         context: context,
         ingredient: ing,
         ulAnalysis: ulAnalysis,
@@ -391,6 +531,7 @@ List<Widget> _buildActiveTiles({
 }
 
 Widget _ingredientEntry({
+  Key? key,
   required BuildContext context,
   required Map<String, dynamic> ingredient,
   required List<Map<String, dynamic>>? ulAnalysis,
@@ -405,6 +546,7 @@ Widget _ingredientEntry({
       : const <Map<String, dynamic>>[];
   if (components.isEmpty) {
     return _tileFor(
+      key: key,
       context: context,
       ingredient: ingredient,
       ulAnalysis: ulAnalysis,
@@ -416,6 +558,7 @@ Widget _ingredientEntry({
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _tileFor(
+        key: key,
         context: context,
         ingredient: ingredient,
         ulAnalysis: ulAnalysis,
@@ -442,6 +585,7 @@ Widget _ingredientEntry({
 /// `showIngredientExplainSheet` (verbatim port — same modal copy
 /// production uses, opened via showModalBottomSheet).
 Widget _tileFor({
+  Key? key,
   required BuildContext context,
   required Map<String, dynamic> ingredient,
   required List<Map<String, dynamic>>? ulAnalysis,
@@ -451,6 +595,7 @@ Widget _tileFor({
   final ulEntry = matchUlEntry(ingredient, ulAnalysis);
   final typed = activeFromMap(ingredient, ulEntry: ulEntry);
   return PGActiveIngredientTile(
+    key: key,
     ingredient: typed,
     showBottomDivider: showBottomDivider,
     showNestedIndent: showNestedIndent,
@@ -469,7 +614,11 @@ class _BlendHeaderRow extends StatelessWidget {
   final BlendGroup blend;
   final String? exactAmountLabel;
 
-  const _BlendHeaderRow({required this.blend, this.exactAmountLabel});
+  const _BlendHeaderRow({
+    super.key,
+    required this.blend,
+    this.exactAmountLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
