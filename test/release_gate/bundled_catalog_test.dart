@@ -38,6 +38,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('release gate: bundled catalog asset', () {
+    test('catalog importer accepts structured-warning schema 2.1.0', () {
+      final importer = File(
+        'scripts/import_catalog_artifact.sh',
+      ).readAsStringSync();
+      final supportedSchemas = RegExp(
+        r'APP_SUPPORTED_SCHEMAS=\(([^)]*)\)',
+      ).firstMatch(importer)?.group(1);
+
+      expect(
+        supportedSchemas,
+        contains('"2.1.0"'),
+        reason:
+            'Pipeline schema 2.1.0 emits structured top_warnings, which '
+            'this app already parses. Keep the local import gate aligned '
+            'with the catalog runtime compatibility contract.',
+      );
+    });
+
     test(
       'assets/db/pharmaguide_core.db is declared, loadable, and non-trivial',
       () async {

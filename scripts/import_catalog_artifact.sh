@@ -101,7 +101,7 @@ DIST_DIR=""
 # Dropped 1.3.1 + 1.3.2 (never in production; v6.1.0 cleanup).
 # Keep 1.4.0 + 1.5.0 until pipeline ships v1.6.0+ to prod and caches roll.
 # TODO(v6.1-final): drop 1.4.0 + 1.5.0 ~30 days after prod runs on 1.6.0+.
-APP_SUPPORTED_SCHEMAS=("1.4.0" "1.5.0" "1.6.0" "2.0.0")
+APP_SUPPORTED_SCHEMAS=("1.4.0" "1.5.0" "1.6.0" "2.0.0" "2.1.0")
 
 # Interaction DB schema versions the Flutter Drift wrapper supports. The
 # pipeline pins schema_version="1.0.0" / PRAGMA user_version=1 — both must

@@ -15,7 +15,7 @@ const String kAppVersion = '1.0.0';
 
 /// Highest catalog export-manifest `schema_version` MAJOR this app build
 /// can read. Mirrors APP_SUPPORTED_SCHEMAS in
-/// scripts/import_catalog_artifact.sh (currently up to 2.0.0).
+/// scripts/import_catalog_artifact.sh (currently up to 2.1.0).
 const int kMaxSupportedCatalogSchemaMajor = 2;
 
 /// Compares two semver-ish strings (`major.minor.patch`, tolerant of
