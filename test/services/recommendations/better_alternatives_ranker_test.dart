@@ -51,6 +51,7 @@ ProductsCoreData _product({
   int hasRecalledIngredient = 0,
   double? mappedCoverage,
   double? scoreBrandTrust,
+  String? ingredientFingerprint,
 }) {
   return ProductsCoreData(
     dsldId: dsldId,
@@ -81,6 +82,7 @@ ProductsCoreData _product({
     hasRecalledIngredient: hasRecalledIngredient,
     mappedCoverage: mappedCoverage,
     scoreBrandTrust: scoreBrandTrust,
+    ingredientFingerprint: ingredientFingerprint,
     exportVersion: 'test',
     exportedAt: '2026-05-16T00:00:00Z',
   );
@@ -837,7 +839,162 @@ void main() {
         limit: 3,
       );
 
+      // Brand diversity: only the best Thorne variant + distinct brand.
       expect(result.map((p) => p.dsldId), equals(['dup-best', 'distinct']));
+    });
+
+    test('drops pack-size / SKU variants of the product on screen', () {
+      // User views "Thorne D3 30 capsules" — must not recommend
+      // "Thorne D3 60 capsules" as a "higher quality" alternative.
+      final cur = _product(
+        dsldId: 'cur-30ct',
+        name: 'Vitamin D3 1000 IU 30 capsules',
+        brand: 'Thorne',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 60,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+      final sameProductLargerPack = _product(
+        dsldId: 'cur-60ct',
+        name: 'Vitamin D3 1000 IU 60 capsules',
+        brand: 'Thorne',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 68,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+      final realAlt = _product(
+        dsldId: 'real-alt',
+        name: 'Vitamin D3 Liquid',
+        brand: 'Pure Encapsulations',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 72,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [sameProductLargerPack, realAlt],
+      );
+
+      expect(result.map((p) => p.dsldId), equals(['real-alt']));
+    });
+
+    test('drops same ingredient fingerprint as current', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Omega-3 Softgels',
+        brand: 'Brand A',
+        supplementType: 'omega3',
+        primaryCategory: 'fish_oil',
+        qualityScoreV4100: 50,
+        ingredientFingerprint: 'fp-omega-shared',
+      );
+      final sameFormula = _product(
+        dsldId: 'repack',
+        name: 'Omega-3 Value Pack',
+        brand: 'Brand A Private Label',
+        supplementType: 'omega3',
+        primaryCategory: 'fish_oil',
+        qualityScoreV4100: 70,
+        ingredientFingerprint: 'fp-omega-shared',
+      );
+      final differentFormula = _product(
+        dsldId: 'diff',
+        name: 'Ultra Omega-3',
+        brand: 'Brand B',
+        supplementType: 'omega3',
+        primaryCategory: 'fish_oil',
+        qualityScoreV4100: 68,
+        ingredientFingerprint: 'fp-omega-other',
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [sameFormula, differentFormula],
+      );
+
+      expect(result.map((p) => p.dsldId), equals(['diff']));
+    });
+
+    test('requires meaningful score lift when current is scored', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Multi',
+        brand: 'A',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 70,
+      );
+      final tinyLift = _product(
+        dsldId: 'tiny',
+        name: 'Multi Plus',
+        brand: 'B',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 72, // +2 < kMinScoreLiftWhenScored (3)
+      );
+      final realLift = _product(
+        dsldId: 'real',
+        name: 'Multi Elite',
+        brand: 'C',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 74, // +4
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [tinyLift, realLift],
+      );
+
+      expect(result.map((p) => p.dsldId), equals(['real']));
+    });
+
+    test('limits results to one product per brand', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Basic Multi',
+        brand: 'Generic Co',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 40,
+      );
+      final thorneA = _product(
+        dsldId: 't1',
+        name: 'Multi Basic',
+        brand: 'Thorne',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 80,
+      );
+      final thorneB = _product(
+        dsldId: 't2',
+        name: 'Multi Advanced',
+        brand: 'Thorne',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 85,
+      );
+      final pure = _product(
+        dsldId: 'p1',
+        name: 'Daily Multi',
+        brand: 'Pure Encapsulations',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 82,
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [thorneA, thorneB, pure],
+        limit: 3,
+      );
+
+      // Highest Thorne only + Pure — not two Thornes.
+      expect(result.map((p) => p.dsldId), equals(['t2', 'p1']));
     });
   });
 

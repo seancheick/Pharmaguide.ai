@@ -29,6 +29,7 @@ import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
 
 const double _lowQualityThreshold = 60.0;
@@ -92,7 +93,10 @@ class BetterAlternativesSection extends ConsumerWidget {
   /// (on-market + strictly higher score + matching category OR
   /// supplement_type), then hands it to `BetterAlternativesRanker`
   /// for tier + tiebreaker sorting.
-  Future<List<ProductsCoreData>> _loadRanked(CoreDatabase coreDb) async {
+  Future<List<ProductsCoreData>> _loadRanked(
+    CoreDatabase coreDb, {
+    Set<String>? userGoals,
+  }) async {
     final current = await coreDb.findById(currentDsldId);
     if (current == null) return const [];
     final pool = await coreDb.fetchBetterAlternativesPool(current);
@@ -100,6 +104,7 @@ class BetterAlternativesSection extends ConsumerWidget {
     return rankAlternatives(
       current: current,
       candidates: pool,
+      userGoals: userGoals,
       limit: maxAlternatives,
     );
   }
@@ -122,9 +127,14 @@ class BetterAlternativesSection extends ConsumerWidget {
     // products have empty category but a usable supplement_type.
 
     final coreDb = ref.watch(coreDatabaseProvider);
+    // Personalize tiebreakers when the profile has goals (sentinel-stripped).
+    final userGoals = ref.watch(profileProvider).goalsForEvaluator.toSet();
 
     return FutureBuilder<List<ProductsCoreData>>(
-      future: _loadRanked(coreDb),
+      future: _loadRanked(
+        coreDb,
+        userGoals: userGoals.isEmpty ? null : userGoals,
+      ),
       builder: (context, snapshot) {
         // Loading skeleton — keeps the sticky-CTA scroll anchor
         // landing on a real surface, not an empty slot mid-fetch.

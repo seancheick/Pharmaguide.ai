@@ -39,6 +39,17 @@ import 'package:pharmaguide/services/recommendations/audience_classifier.dart';
 /// returns empty.
 const int kDefaultBetterAlternativesLimit = 3;
 
+/// Minimum quality-score lift when the current product is scored.
+///
+/// Blocks "same shelf, 71 vs 72" noise and pack-size SKUs that score a
+/// hair higher after catalog re-scoring. Unscored / blocked currents
+/// keep the existing policy: any scored candidate may pass.
+const double kMinScoreLiftWhenScored = 3.0;
+
+/// Max results allowed from the same brand in one top-N list.
+/// Yuka/SuppCo-style: show competitors, not three Thorne variants.
+const int kMaxAlternativesPerBrand = 1;
+
 /// Pure ranker entrypoint. Given the current product and a candidate
 /// pool, return the best alternatives ordered by tier + tiebreaker.
 ///
@@ -64,11 +75,21 @@ List<ProductsCoreData> rankAlternatives({
   final currentAudience = inferAudience(current);
   final currentFamily = _ingredientFamily(current);
   final currentGoals = _goalMatches(current);
+  final currentIdentity = _nearDuplicateKey(current);
+  final currentBrand = _dedupeToken(current.brandName);
+  final currentFingerprint = _normalizedFingerprint(current);
 
   final ranked = <_RankedCandidate>[];
 
   for (final cand in candidates) {
-    if (!_passesHardFilters(current, cand)) continue;
+    if (!_passesHardFilters(
+      current,
+      cand,
+      currentIdentityKey: currentIdentity,
+      currentFingerprint: currentFingerprint,
+    )) {
+      continue;
+    }
 
     final candAudience = inferAudience(cand);
     // Kids ↔ prenatal walls and same-specific cross-blocks.
@@ -115,6 +136,10 @@ List<ProductsCoreData> rankAlternatives({
         ? 1
         : 0;
 
+    final candBrand = _dedupeToken(cand.brandName);
+    final sameBrandAsCurrent =
+        currentBrand.isNotEmpty && candBrand == currentBrand;
+
     ranked.add(
       _RankedCandidate(
         product: cand,
@@ -123,6 +148,7 @@ List<ProductsCoreData> rankAlternatives({
         familyJaccard: familyJaccard,
         goalsJaccard: goalsJaccard,
         allergenCompat: _allergenCompatibility(current, cand),
+        sameBrandAsCurrent: sameBrandAsCurrent,
       ),
     );
   }
@@ -130,12 +156,14 @@ List<ProductsCoreData> rankAlternatives({
   if (ranked.isEmpty) return const [];
 
   // Sort by effective tier (tier + audiencePenalty), then by the
-  // tiebreaker chain Sean approved:
+  // tiebreaker chain:
   //   1. family Jaccard DESC
   //   2. goals Jaccard DESC
   //   3. v4 quality score DESC
   //   4. mapped_coverage DESC
   //   5. allergen compatibility DESC
+  //   6. prefer a *different* brand than the product on screen
+  //      (competitor discovery — Yuka/SuppCo pattern)
   ranked.sort((a, b) {
     final aEff = a.tier + a.audiencePenalty;
     final bEff = b.tier + b.audiencePenalty;
@@ -152,7 +180,15 @@ List<ProductsCoreData> rankAlternatives({
       a.product.mappedCoverage ?? 0,
     );
     if (coverage != 0) return coverage;
-    return b.allergenCompat.compareTo(a.allergenCompat);
+    final allergen = b.allergenCompat.compareTo(a.allergenCompat);
+    if (allergen != 0) return allergen;
+    // 0 (different brand) before 1 (same brand).
+    final brand = (a.sameBrandAsCurrent ? 1 : 0).compareTo(
+      b.sameBrandAsCurrent ? 1 : 0,
+    );
+    if (brand != 0) return brand;
+    // Stable last resort — deterministic dsld order.
+    return a.product.dsldId.compareTo(b.product.dsldId);
   });
 
   return _takeDistinctProducts(ranked, limit);
@@ -165,11 +201,22 @@ List<ProductsCoreData> _takeDistinctProducts(
   if (limit <= 0) return const [];
 
   final out = <ProductsCoreData>[];
-  final seen = <String>{};
+  final seenIdentity = <String>{};
+  final brandCounts = <String, int>{};
 
   for (final candidate in ranked) {
     final key = _nearDuplicateKey(candidate.product);
-    if (key != null && !seen.add(key)) continue;
+    if (key != null && !seenIdentity.add(key)) continue;
+
+    // Brand diversity — prefer competitors over three variants of one
+    // line when the list is short (top 3).
+    final brand = _dedupeToken(candidate.product.brandName);
+    if (brand.isNotEmpty) {
+      final n = brandCounts[brand] ?? 0;
+      if (n >= kMaxAlternativesPerBrand) continue;
+      brandCounts[brand] = n + 1;
+    }
+
     out.add(candidate.product);
     if (out.length >= limit) break;
   }
@@ -177,15 +224,29 @@ List<ProductsCoreData> _takeDistinctProducts(
   return List.unmodifiable(out);
 }
 
+/// Identity key for pack-size / SKU variants of the same product line.
+///
+/// Used both to:
+///   * drop candidates that are the *same product the user is viewing*
+///     under a different DSLD / pack size, and
+///   * collapse near-duplicates within the result list.
+///
+/// Returns null only when there is no usable name signal.
 String? _nearDuplicateKey(ProductsCoreData product) {
-  final brand = _dedupeToken(product.brandName);
   final name = _normalizedProductNameForDedupe(product.productName);
-  if (brand.isEmpty || name.isEmpty) return null;
+  if (name.isEmpty) return null;
 
+  final brand = _dedupeToken(product.brandName);
   final type = _dedupeToken(product.supplementType ?? product.primaryCategory);
   final family = _ingredientFamily(product).toList()..sort();
   final familyKey = family.join(',');
 
+  // Brand-optional: still key when brand is missing, but require type
+  // or family so we don't collapse every "Vitamin D" across the catalog.
+  if (brand.isEmpty) {
+    if (type.isEmpty && familyKey.isEmpty) return null;
+    return ['nobrand', name, type, familyKey].join('|');
+  }
   return [brand, name, type, familyKey].join('|');
 }
 
@@ -203,16 +264,33 @@ String _normalizedProductNameForDedupe(String value) {
   return value
       .trim()
       .toLowerCase()
+      // Dose / form / pack-size noise (60 capsules, 1000 IU, 30 count…).
       .replaceAll(
         RegExp(
           r'\b\d+(?:\.\d+)?\s*(?:billion\s*cfu|million\s*cfu|capsules?|'
-          r'tablets?|softgels?|gummies?|servings?|mg|mcg|ug|iu|g|grams?|cfu)\b',
+          r'tablets?|softgels?|gummies?|servings?|veggie\s*caps?|v?caps?|'
+          r'ct|count|pack|mg|mcg|ug|iu|g|grams?|cfu|ml|oz)\b',
+        ),
+        ' ',
+      )
+      // "120ct", "90-count", bare trailing pack integers.
+      .replaceAll(RegExp(r'\b\d+\s*(?:-?\s*)?(?:ct|count|pk|pack)\b'), ' ')
+      .replaceAll(
+        RegExp(
+          r'\b(?:value\s*size|bonus\s*size|family\s*size|bulk|'
+          r'twin\s*pack|2\s*pack|3\s*pack|refill)\b',
         ),
         ' ',
       )
       .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
+}
+
+String? _normalizedFingerprint(ProductsCoreData product) {
+  final fp = product.ingredientFingerprint?.trim();
+  if (fp == null || fp.isEmpty) return null;
+  return fp;
 }
 
 // =============================================================================
@@ -235,9 +313,33 @@ bool isSafetySuppressed(ProductsCoreData p) {
 /// checks. These mirror the SQL-side filters in
 /// `fetchBetterAlternativesPool` so the ranker is safe to call on
 /// any list (including a fixture set).
-bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
-  // No self-recommend.
+bool _passesHardFilters(
+  ProductsCoreData current,
+  ProductsCoreData candidate, {
+  String? currentIdentityKey,
+  String? currentFingerprint,
+}) {
+  // No self-recommend (exact catalog row).
   if (candidate.dsldId == current.dsldId) return false;
+
+  // Near-duplicate of the product on screen (pack size / count SKU /
+  // re-list under a new DSLD). This is the "why is it recommending
+  // the same bottle?" failure mode.
+  final candIdentity = _nearDuplicateKey(candidate);
+  if (currentIdentityKey != null &&
+      candIdentity != null &&
+      candIdentity == currentIdentityKey) {
+    return false;
+  }
+
+  // Same formula fingerprint → same actives composition; not a swap.
+  final candFp = _normalizedFingerprint(candidate);
+  if (currentFingerprint != null &&
+      candFp != null &&
+      candFp == currentFingerprint) {
+    return false;
+  }
+
   // On-market only.
   final disc = candidate.discontinuedDate;
   if (disc != null && disc.trim().isNotEmpty) return false;
@@ -263,7 +365,10 @@ bool _passesHardFilters(ProductsCoreData current, ProductsCoreData candidate) {
   // quality score; any scored, on-market, non-blocked candidate is
   // considered preferable if it passes relevance ranking.
   final curScore = effectiveQualityScore(current);
-  if (curScore != null && candScore <= curScore) return false;
+  if (curScore != null) {
+    // Strictly higher AND a meaningful lift — not 71.0 vs 71.2.
+    if (candScore < curScore + kMinScoreLiftWhenScored) return false;
+  }
   // Safety flags — never surface a banned/recalled candidate.
   if ((candidate.hasBannedSubstance ?? 0) == 1) return false;
   if ((candidate.hasRecalledIngredient ?? 0) == 1) return false;
@@ -430,6 +535,7 @@ class _RankedCandidate {
   final double familyJaccard;
   final double goalsJaccard;
   final double allergenCompat;
+  final bool sameBrandAsCurrent;
 
   const _RankedCandidate({
     required this.product,
@@ -438,5 +544,6 @@ class _RankedCandidate {
     required this.familyJaccard,
     required this.goalsJaccard,
     required this.allergenCompat,
+    required this.sameBrandAsCurrent,
   });
 }
