@@ -181,7 +181,9 @@ List<PGLabelConfidenceItem> buildLabelConfidenceItems({
     labelLedgerAudit,
     auditPresent: labelLedgerAuditPresent,
   );
-  if (completeness != null) {
+  // Only surface completeness when it materially limits the analysis; a clean
+  // 100% audit is a silent success (no consumer row).
+  if (completeness != null && completeness.isException) {
     items.add(
       PGLabelConfidenceItem(
         icon: completeness.icon,
@@ -274,11 +276,18 @@ class LabelCompletenessPresentation {
   final String body;
   final String semanticsLabel;
 
+  /// True when the audit materially LIMITS the analysis (incomplete /
+  /// unavailable / unsupported). A clean 100%-complete audit is NOT an
+  /// exception — success stays invisible to the consumer; only exceptions
+  /// surface. Consumers gate the completeness row + the signal on this.
+  final bool isException;
+
   const LabelCompletenessPresentation({
     required this.icon,
     required this.title,
     required this.body,
     required this.semanticsLabel,
+    this.isException = true,
   });
 }
 
@@ -371,6 +380,8 @@ LabelCompletenessPresentation? labelCompletenessPresentation(
     title: 'Label completeness: $displayPercentage%',
     body: body,
     semanticsLabel: 'Label completeness, $displayPercentage percent. $body',
+    // A fully-represented label is a silent success, not a consumer signal.
+    isException: !isComplete,
   );
 }
 

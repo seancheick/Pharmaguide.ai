@@ -438,7 +438,8 @@ void main() {
         expect(find.text('Scoring-only EPA identity'), findsNothing);
 
         await _scrollConnectedTowardTop(tester);
-        expect(find.text('Label completeness: 100%'), findsOneWidget);
+        // A 100%-complete label is now a silent success — no completeness row.
+        expect(find.text('Label completeness: 100%'), findsNothing);
         expect(find.textContaining('Analysis coverage'), findsNothing);
         final scoreHeadline = find.text('Why this scored 88');
         await _scrollConnectedTowardBottomUntil(tester, scoreHeadline);
