@@ -89,13 +89,36 @@ void main() {
       );
 
       expect(find.text('Marine Lipid Concentrate'), findsOneWidget);
-      expect(find.text('Data needs review'), findsOneWidget);
+      // "Data needs review" is an internal identity-resolution state — users
+      // never see backend bookkeeping. The row still suppresses every claim,
+      // it just shows the bare label instead of a scary badge.
+      expect(find.text('Data needs review'), findsNothing);
       expect(find.text('Identity needs review'), findsNothing);
       expect(find.text('Excellent form'), findsNothing);
       expect(find.text('High dose'), findsNothing);
       expect(find.text('Safety concern'), findsNothing);
       expect(find.text('as Ethyl Esters'), findsNothing);
       expect(find.text('660 mg'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'CFU-dosed probiotic surfaces "Strain not disclosed" when form is undisclosed',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const PGActiveIngredient(
+            name: 'Lactobacillus acidophilus',
+            dose: '5 billion CFU',
+            formDisplayState: PGIngredientFormDisplayState.notDisclosed,
+          ),
+        ),
+      );
+
+      // For probiotics the strain IS the signal, so an undisclosed strain is
+      // worth flagging (unlike a generic vitamin form).
+      expect(find.text('Strain not disclosed'), findsOneWidget);
+      expect(find.text('Form not disclosed'), findsNothing);
     },
   );
 
@@ -125,6 +148,8 @@ void main() {
       expect(find.text('Form not disclosed'), findsNothing);
       expect(find.text('Form listed · not yet assessed'), findsNothing);
       expect(find.text('Excellent form'), findsNothing);
+      // Non-probiotic (no CFU) undisclosed form stays quiet — no strain badge.
+      expect(find.text('Strain not disclosed'), findsNothing);
     }
   });
 

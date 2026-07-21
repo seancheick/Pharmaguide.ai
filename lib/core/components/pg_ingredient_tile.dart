@@ -66,7 +66,7 @@ class PGActiveIngredientTile extends StatelessWidget {
         formState == PGIngredientFormDisplayState.needsReview;
     final suppressClaims = needsReview || dataNeedsReview;
     final isAssessed = formState == PGIngredientFormDisplayState.assessed;
-    final rowFormStatusLabel = _rowFormStatusLabel(formState);
+    final rowFormStatusLabel = _rowFormStatusLabel(formState, i);
     // Unresolved identity: the row shows only its literal label and the shared
     // Data-needs-review state — every quality/dose/safety claim is hidden even
     // if a stale typed model still carries one (defense-in-depth).
@@ -260,7 +260,7 @@ String _semanticsLabel({
     parts.add(_parenthesize(ingredient.parentheticalDoseText!));
   }
   if (hasForm) parts.add(ingredient.formLabel!);
-  final rowFormStatusLabel = _rowFormStatusLabel(formState);
+  final rowFormStatusLabel = _rowFormStatusLabel(formState, ingredient);
   if (rowFormStatusLabel != null) {
     parts.add(rowFormStatusLabel);
   } else if (!suppressClaims &&
@@ -281,13 +281,30 @@ String _semanticsLabel({
   return '${parts.join('. ')}.';
 }
 
-/// Consumer rows reserve status space for an actual data conflict. Disclosure
-/// details remain available in the ingredient explanation without repeating a
-/// low-value badge on every unassessed or undisclosed label row.
-String? _rowFormStatusLabel(PGIngredientFormDisplayState state) =>
-    state == PGIngredientFormDisplayState.needsReview
-    ? state.statusLabel
-    : null;
+/// The consumer row shows a disclosure chip ONLY where an undisclosed
+/// form/strain actually changes what the user gets — today that is probiotics
+/// (CFU-dosed → the strain IS the signal; "Strain not disclosed" is real, not
+/// noise). Everything else stays quiet:
+///   • `needsReview` — an internal identity-resolution state; users never see
+///     backend bookkeeping (the row still hides quality/dose claims elsewhere).
+///   • ordinary `notDisclosed` / `listedNotAssessed` — low-value noise on a
+///     Vitamin-C-is-"Ascorbic-Acid" row; the detail lives in the explain sheet.
+/// Omega and other form-material categories are surfaced via the pipeline's
+/// `form_disclosure_material` flag once the catalog emits it (tracked
+/// separately) — kept out of the app so "what counts as form-material" has one
+/// home.
+String? _rowFormStatusLabel(
+  PGIngredientFormDisplayState state,
+  PGActiveIngredient ingredient,
+) {
+  if (state != PGIngredientFormDisplayState.notDisclosed) return null;
+  // CFU units are unique to probiotics — a reliable, drift-free signal.
+  final dose =
+      '${ingredient.dose ?? ''} ${ingredient.parentheticalDoseText ?? ''}'
+          .toLowerCase();
+  if (dose.contains('cfu')) return 'Strain not disclosed';
+  return null;
+}
 
 // =============================================================================
 // Form chip — mirrors _FormChip color logic from
