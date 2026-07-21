@@ -4,7 +4,7 @@
 //   - both sections render (How scoring works + Our sources)
 //   - live counts render when provided
 //   - counts are OMITTED (not faked) when null
-//   - the score-breakdown "How scoring works" link opens the sheet
+//   - the score-breakdown "How it's scored" control opens the sheet
 //
 // Run: flutter test test/core/components/pg_trust_receipts_sheet_test.dart
 
@@ -113,7 +113,7 @@ void main() {
   });
 
   group('score breakdown entry point', () {
-    testWidgets('"How scoring works" link opens the Trust Receipts sheet', (
+    testWidgets('"How it\'s scored" control opens the Trust Receipts sheet', (
       tester,
     ) async {
       _useTallSurface(tester);
@@ -173,8 +173,8 @@ void main() {
         ),
       );
 
-      expect(find.text('How scoring works'), findsOneWidget);
-      await tester.tap(find.text('How scoring works'));
+      expect(find.text("How it's scored"), findsOneWidget);
+      await tester.tap(find.text("How it's scored"));
       await tester.pumpAndSettle();
 
       // Sheet is open with the live count from the (overridden) provider.
