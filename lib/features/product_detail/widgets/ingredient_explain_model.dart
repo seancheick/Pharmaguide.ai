@@ -204,7 +204,12 @@ String formBlockHeading(FormQuality q) {
     case FormQuality.poor:
       return 'Poor form';
     case FormQuality.unknown:
-      return 'Form unknown';
+      // Unreachable in the consumer path — buildIngredientExplain intercepts
+      // unknown quality and substitutes 'Form assessment not applicable'
+      // before this is ever called. Kept only for switch exhaustiveness, and
+      // aligned with that copy so the old confusing "Form unknown" string
+      // cannot exist anywhere.
+      return 'Form assessment not applicable';
   }
 }
 
