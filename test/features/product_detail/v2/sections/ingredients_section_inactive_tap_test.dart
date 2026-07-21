@@ -238,17 +238,9 @@ void main() {
     expect(find.text('Rhodiola'), findsOneWidget);
     expect(find.text('Amount not disclosed'), findsNWidgets(2));
 
-    await tester.tap(find.byKey(const ValueKey('ingredient-view-analysis')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Proprietary blend'), findsNothing);
+    // Blend header and every label child render directly in the single label
+    // view — there is no Analysis toggle to switch between.
     expect(find.text('Botanical Blend'), findsOneWidget);
-    await tester.tap(find.text('Botanical Blend'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('Educational use only — not medical advice.'),
-      findsOneWidget,
-    );
   });
 
   testWidgets('canonical probiotic blend explains alternative serving totals', (
