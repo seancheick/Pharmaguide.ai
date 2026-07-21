@@ -110,6 +110,30 @@ void main() {
       );
     });
 
+    test('empty canonical active row has no target', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [],
+          displayIngredients: const [{}],
+          blends: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('unknown canonical row with a blank label has no target', () {
+      expect(
+        hasIngredientDisclosureTarget(
+          ingredients: const [],
+          displayIngredients: const [
+            {'display_type': 'unknown', 'label_display_name': '   '},
+          ],
+          blends: const [],
+        ),
+        isFalse,
+      );
+    });
+
     test('legacy inactive-only data has no target', () {
       expect(
         hasIngredientDisclosureTarget(
@@ -256,6 +280,33 @@ void main() {
         matching: find.text('Second active'),
       ),
       findsNothing,
+    );
+  });
+
+  testWidgets('canonical target skips an earlier blank active row', (
+    tester,
+  ) async {
+    final targetKey = GlobalKey();
+    await _pumpIngredients(
+      tester,
+      displayIngredients: const [
+        {},
+        {
+          'display_type': 'mapped_ingredient',
+          'label_display_name': 'First renderable active',
+        },
+      ],
+      blends: const [],
+      disclosureTargetKey: targetKey,
+    );
+
+    expect(find.byKey(targetKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(targetKey),
+        matching: find.text('First renderable active'),
+      ),
+      findsOneWidget,
     );
   });
 

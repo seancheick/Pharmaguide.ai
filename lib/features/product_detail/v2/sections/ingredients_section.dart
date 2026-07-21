@@ -67,7 +67,7 @@ bool hasIngredientDisclosureTarget({
       displayIngredients,
       _LedgerSection.active,
       rowsBySourcePath,
-    ).isNotEmpty;
+    ).any(_isCanonicalDisclosureTargetRenderable);
   }
 
   final dedupedActives = dedupeElementalCompoundRows(ingredients);
@@ -112,14 +112,22 @@ int? _canonicalDisclosureTargetIndex(
         _normalizedDisclosureLabel(blend['name']),
   };
   final preferredIndex = activeRows.indexWhere((row) {
+    if (!_isCanonicalDisclosureTargetRenderable(row)) return false;
     if (row['display_type']?.toString() == 'structural_container') {
       return true;
     }
     final label = _canonicalRowDisplayLabel(row);
-    return label.isNotEmpty && blendNames.contains(label);
+    return blendNames.contains(label);
   });
-  return preferredIndex >= 0 ? preferredIndex : 0;
+  if (preferredIndex >= 0) return preferredIndex;
+  final fallbackIndex = activeRows.indexWhere(
+    _isCanonicalDisclosureTargetRenderable,
+  );
+  return fallbackIndex >= 0 ? fallbackIndex : null;
 }
+
+bool _isCanonicalDisclosureTargetRenderable(Map<String, dynamic> row) =>
+    _canonicalRowDisplayLabel(row).isNotEmpty;
 
 String _canonicalRowDisplayLabel(Map<String, dynamic> row) {
   for (final field in const [
