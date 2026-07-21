@@ -781,6 +781,17 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
+                  // ---- Nutrition (conditional) — bottle data beside the
+                  // ingredient list; buildNutritionSection hides itself unless
+                  // there is real calorie/macro data to show.
+                  if (showDeepDive) ...[
+                    buildNutritionSection(
+                      caloriesPerServing: _product?.caloriesPerServing,
+                      nutritionDetail: _blobMap(detailBlob, 'nutrition_detail'),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // "Doesn't match your bottle?" — kept next to the ingredient
                   // list where a user comparing the app to the bottle looks.
                   // Shown only when a catalog record exists (same visibility as
@@ -825,14 +836,8 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 9. Nutrition (WIRED, 11.7d.5) ---------------
-                  if (showDeepDive) ...[
-                    buildNutritionSection(
-                      caloriesPerServing: _product?.caloriesPerServing,
-                      nutritionDetail: _blobMap(detailBlob, 'nutrition_detail'),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                  // Nutrition moved up beside the ingredient list (bottle data
+                  // belongs together); still conditional via buildNutritionSection.
 
                   // ---- 10. Certifications (WIRED, 11.7e) -----------
                   if (showDeepDive) ...[
