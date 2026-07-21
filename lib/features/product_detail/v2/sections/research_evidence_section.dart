@@ -15,6 +15,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/core/utils/pubmed_launcher.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
 import 'package:pharmaguide/services/stack/research_pair_lookup.dart';
 
 @visibleForTesting
@@ -87,6 +88,60 @@ class ResearchEvidenceSection extends ConsumerWidget {
       },
       orElse: () => const SizedBox.shrink(),
     );
+  }
+}
+
+/// One research surface for the primary scroll (T10). Collapses the
+/// clinical-evidence card and the literature co-occurrence card into a
+/// single entry so the two never compete:
+///
+/// - Clinical evidence present → the compact evidence card; its studies
+///   sheet also carries the related ingredient research.
+/// - Only research present → the research card with its own sheet.
+/// - Neither → nothing.
+///
+/// The three-way decision lives here (one brain) and reuses
+/// [buildEvidenceSection], [_ResearchEvidenceCard], and
+/// [buildResearchEvidenceSheetSection] rather than re-rendering evidence.
+class ResearchSupportSection extends ConsumerWidget {
+  final Map<String, dynamic>? evidenceData;
+  final List<String> canonicalIds;
+
+  const ResearchSupportSection({
+    super.key,
+    required this.evidenceData,
+    required this.canonicalIds,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final research = canonicalIds.isEmpty
+        ? const <ResearchPairEvidence>[]
+        : ref
+              .watch(
+                researchEvidenceForProductProvider(
+                  ResearchEvidenceRequest(canonicalIds: canonicalIds),
+                ),
+              )
+              .maybeWhen(
+                data: (evidence) => evidence,
+                orElse: () => const <ResearchPairEvidence>[],
+              );
+
+    if (hasRenderableClinicalEvidence(evidenceData)) {
+      return buildEvidenceSection(
+        evidenceData: evidenceData,
+        relatedResearch: research.isEmpty
+            ? null
+            : buildResearchEvidenceSheetSection(research),
+      );
+    }
+
+    if (research.isNotEmpty) {
+      return _ResearchEvidenceCard(evidence: research);
+    }
+
+    return const SizedBox.shrink();
   }
 }
 
@@ -231,6 +286,32 @@ void showResearchEvidenceDrawer(
   PGModal.bottomSheet<void>(
     context: context,
     builder: (_) => _ResearchEvidenceDrawer(evidence: evidence),
+  );
+}
+
+/// The related-research block embedded inside the clinical-evidence
+/// studies sheet (T10). Non-scrolling — the host sheet owns the scroll —
+/// and reuses [_ResearchEvidenceRow] so the rows never drift from the
+/// standalone drawer.
+Widget buildResearchEvidenceSheetSection(List<ResearchPairEvidence> evidence) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const PGEyebrow('Related ingredient research', color: V2Colors.fgMuted),
+      const SizedBox(height: V2Spacing.space8),
+      Text(
+        "Where this product's ingredients appear alongside other substances "
+        'in published literature — context for your reading, not warnings, '
+        'scores, or clinical instructions.',
+        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+      ),
+      const SizedBox(height: V2Spacing.space16),
+      for (var i = 0; i < evidence.length; i++) ...[
+        if (i > 0) const SizedBox(height: V2Spacing.space16),
+        _ResearchEvidenceRow(evidence: evidence[i]),
+      ],
+    ],
   );
 }
 

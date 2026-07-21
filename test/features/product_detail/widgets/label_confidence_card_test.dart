@@ -124,13 +124,29 @@ void main() {
       );
     });
 
-    test('ledger audit is an independent signal', () {
+    test('clean 100% ledger audit is a silent success, not a signal', () {
       expect(
         labelConfidenceHasAnySignal(
           mappedCoverage: 1.0,
           hasProprietaryBlends: false,
           isNotScored: false,
           labelLedgerAudit: _audit(),
+        ),
+        isFalse,
+      );
+    });
+
+    test('ledger audit EXCEPTION is an independent signal', () {
+      expect(
+        labelConfidenceHasAnySignal(
+          mappedCoverage: 1.0,
+          hasProprietaryBlends: false,
+          isNotScored: false,
+          labelLedgerAudit: _audit(
+            displayedRows: 3,
+            percentage: 75.0,
+            completenessStatus: 'incomplete',
+          ),
         ),
         isTrue,
       );
@@ -246,19 +262,17 @@ void main() {
       expect(find.text('Reformulated'), findsOneWidget);
     });
 
-    testWidgets('label completeness and analysis coverage stay independent', (
-      tester,
-    ) async {
-      await _pump(tester, mappedCoverage: 0.2, labelLedgerAudit: _audit());
+    testWidgets(
+      'clean completeness stays silent while analysis coverage still surfaces',
+      (tester) async {
+        await _pump(tester, mappedCoverage: 0.2, labelLedgerAudit: _audit());
 
-      expect(find.text('Label & analysis data'), findsOneWidget);
-      expect(find.text('Label completeness: 100%'), findsOneWidget);
-      expect(find.text('Limited analysis coverage'), findsOneWidget);
-      expect(
-        find.textContaining('does not mean every row is clinically analyzed'),
-        findsOneWidget,
-      );
-    });
+        // A 100%-complete label is a silent success — no completeness row.
+        expect(find.text('Label completeness: 100%'), findsNothing);
+        // The independent analysis-coverage limitation still surfaces.
+        expect(find.text('Limited analysis coverage'), findsOneWidget);
+      },
+    );
 
     testWidgets('supported incomplete audit displays its exact percentage', (
       tester,

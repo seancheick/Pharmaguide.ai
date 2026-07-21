@@ -142,11 +142,7 @@ Widget buildIngredientsSection({
   );
 }
 
-/// The two truthful projections available only when the canonical label ledger
-/// contract is present.
-enum IngredientLedgerView { label, analysis }
-
-class _CanonicalLedgerIngredients extends StatefulWidget {
+class _CanonicalLedgerIngredients extends StatelessWidget {
   final List<Map<String, dynamic>> ingredients;
   final List<Map<String, dynamic>>? ulAnalysis;
 
@@ -157,37 +153,28 @@ class _CanonicalLedgerIngredients extends StatefulWidget {
   });
 
   @override
-  State<_CanonicalLedgerIngredients> createState() =>
-      _CanonicalLedgerIngredientsState();
-}
-
-class _CanonicalLedgerIngredientsState
-    extends State<_CanonicalLedgerIngredients> {
-  IngredientLedgerView _selectedView = IngredientLedgerView.label;
-
-  @override
   Widget build(BuildContext context) {
-    final labelRows = widget.ingredients;
+    final labelRows = ingredients;
     if (labelRows.isEmpty) return const SizedBox.shrink();
 
-    final analysisRows = labelRows
-        .where((row) => row['score_included'] == true)
-        .toList(growable: false);
+    // One bottle-faithful label view: Nutrition facts / Active / Other. The
+    // scoring engine keeps its own score_included representation internally;
+    // there is no consumer-facing "Analysis" projection.
+    final rowsBySourcePath = <String, Map<String, dynamic>>{
+      for (final row in labelRows)
+        if (row['raw_source_path']?.toString().trim().isNotEmpty == true)
+          row['raw_source_path'].toString(): row,
+    };
+    _LedgerSection sectionFor(Map<String, dynamic> row) =>
+        _ledgerSectionForRow(row, rowsBySourcePath);
     final nutritionRows = labelRows
-        .where((row) => row['display_type']?.toString() == 'nutrition_fact')
+        .where((row) => sectionFor(row) == _LedgerSection.nutrition)
         .toList(growable: false);
     final otherRows = labelRows
-        .where((row) {
-          return row['display_type']?.toString() == 'inactive_ingredient' ||
-              row['display_disposition']?.toString() == 'other_ingredient';
-        })
+        .where((row) => sectionFor(row) == _LedgerSection.other)
         .toList(growable: false);
     final activeRows = labelRows
-        .where((row) {
-          return row['display_type']?.toString() != 'nutrition_fact' &&
-              row['display_type']?.toString() != 'inactive_ingredient' &&
-              row['display_disposition']?.toString() != 'other_ingredient';
-        })
+        .where((row) => sectionFor(row) == _LedgerSection.active)
         .toList(growable: false);
 
     Widget ledgerSection(String title, List<Map<String, dynamic>> rows) {
@@ -196,68 +183,35 @@ class _CanonicalLedgerIngredientsState
         tiles: _buildLabelLedgerTiles(
           context: context,
           ingredients: rows,
-          ulAnalysis: widget.ulAnalysis,
-          analysisView: _selectedView == IngredientLedgerView.analysis,
+          ulAnalysis: ulAnalysis,
         ),
       );
     }
 
-    final sections = _selectedView == IngredientLedgerView.analysis
-        ? [
-            if (analysisRows.isNotEmpty)
-              ledgerSection('Analyzed ingredients', analysisRows),
-          ]
-        : [
-            if (nutritionRows.isNotEmpty)
-              ledgerSection('Nutrition facts', nutritionRows),
-            if (activeRows.isNotEmpty)
-              ledgerSection('Active ingredients', activeRows),
-            if (otherRows.isNotEmpty)
-              ledgerSection('Other ingredients', otherRows),
-          ];
+    final sections = [
+      if (nutritionRows.isNotEmpty)
+        ledgerSection('Nutrition facts', nutritionRows),
+      if (activeRows.isNotEmpty)
+        ledgerSection('Active ingredients', activeRows),
+      if (otherRows.isNotEmpty) ledgerSection('Other ingredients', otherRows),
+    ];
 
     return PGIngredientsCard(
       activeContent: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _IngredientLedgerViewControl(
-            selectedView: _selectedView,
-            labelCount: labelRows.length,
-            analysisCount: analysisRows.length,
-            onChanged: (view) => setState(() => _selectedView = view),
-          ),
-          const SizedBox(height: V2Spacing.space12),
-          if (sections.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
-              child: Text(
-                'No label rows are included in the product analysis.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          for (var index = 0; index < sections.length; index++) ...[
+            sections[index],
+            if (index != sections.length - 1)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: V2Spacing.space12),
+                child: Divider(
+                  height: 0.5,
+                  thickness: 0.5,
+                  color: V2Colors.outline,
+                ),
               ),
-            )
-          else
-            KeyedSubtree(
-              key: ValueKey(_selectedView),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var index = 0; index < sections.length; index++) ...[
-                    sections[index],
-                    if (index != sections.length - 1)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: V2Spacing.space12,
-                        ),
-                        child: Divider(
-                          height: 0.5,
-                          thickness: 0.5,
-                          color: V2Colors.outline,
-                        ),
-                      ),
-                  ],
-                ],
-              ),
-            ),
+          ],
         ],
       ),
       // Other Ingredients are already represented in the canonical ledger.
@@ -267,73 +221,30 @@ class _CanonicalLedgerIngredientsState
   }
 }
 
-class _IngredientLedgerViewControl extends StatelessWidget {
-  final IngredientLedgerView selectedView;
-  final int labelCount;
-  final int analysisCount;
-  final ValueChanged<IngredientLedgerView> onChanged;
+enum _LedgerSection { nutrition, active, other }
 
-  const _IngredientLedgerViewControl({
-    required this.selectedView,
-    required this.labelCount,
-    required this.analysisCount,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      label: 'Ingredient view',
-      child: SegmentedButton<IngredientLedgerView>(
-        segments: [
-          ButtonSegment(
-            value: IngredientLedgerView.label,
-            label: Semantics(
-              key: const ValueKey('ingredient-view-label'),
-              label:
-                  'Label view, $labelCount '
-                  '${labelCount == 1 ? 'ingredient' : 'ingredients'}',
-              excludeSemantics: true,
-              child: Text('Label $labelCount'),
-            ),
-          ),
-          ButtonSegment(
-            value: IngredientLedgerView.analysis,
-            label: Semantics(
-              key: const ValueKey('ingredient-view-analysis'),
-              label:
-                  'Analysis view, $analysisCount '
-                  '${analysisCount == 1 ? 'ingredient' : 'ingredients'}',
-              excludeSemantics: true,
-              child: Text('Analysis $analysisCount'),
-            ),
-          ),
-        ],
-        selected: {selectedView},
-        onSelectionChanged: (selection) {
-          if (selection.isNotEmpty) onChanged(selection.single);
-        },
-        showSelectedIcon: false,
-        style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
-          textStyle: WidgetStatePropertyAll(
-            V2Typography.label(color: V2Colors.fg),
-          ),
-          foregroundColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.selected)
-                ? V2Colors.accent
-                : V2Colors.fg,
-          ),
-          backgroundColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.selected)
-                ? V2Colors.accentTint
-                : Colors.transparent,
-          ),
-        ),
-      ),
-    );
+_LedgerSection _ledgerSectionForRow(
+  Map<String, dynamic> row,
+  Map<String, Map<String, dynamic>> rowsBySourcePath,
+) {
+  final visitedPaths = <String>{};
+  var root = row;
+  while (true) {
+    final parentPath = root['parent_source_path']?.toString().trim() ?? '';
+    if (parentPath.isEmpty || !visitedPaths.add(parentPath)) break;
+    final parent = rowsBySourcePath[parentPath];
+    if (parent == null) break;
+    root = parent;
   }
+
+  final displayType = root['display_type']?.toString();
+  final disposition = root['display_disposition']?.toString();
+  if (displayType == 'inactive_ingredient' ||
+      disposition == 'other_ingredient') {
+    return _LedgerSection.other;
+  }
+  if (displayType == 'nutrition_fact') return _LedgerSection.nutrition;
+  return _LedgerSection.active;
 }
 
 /// Build canonical label-ledger tiles exactly in the order emitted by the
@@ -344,7 +255,6 @@ List<Widget> _buildLabelLedgerTiles({
   required BuildContext context,
   required List<Map<String, dynamic>> ingredients,
   required List<Map<String, dynamic>>? ulAnalysis,
-  required bool analysisView,
 }) {
   final tiles = <Widget>[];
   String? openParent;
@@ -362,8 +272,7 @@ List<Widget> _buildLabelLedgerTiles({
     } else if (!hasParent) {
       openParent = null;
     }
-    if (!analysisView &&
-        !hasParent &&
+    if (!hasParent &&
         ingredient['display_type']?.toString() == 'structural_container') {
       final total = ingredient['quantity'];
       final childNames = ingredient['children'];
@@ -400,6 +309,7 @@ List<Widget> _buildLabelLedgerTiles({
       ingredient: ingredient,
       ulAnalysis: ulAnalysis,
       showBottomDivider: index != ingredients.length - 1,
+      showNestedIndent: !hasParent,
     );
     tiles.add(hasParent ? _HierarchyChild(child: tile) : tile);
   }
@@ -460,6 +370,7 @@ List<Widget> _buildActiveTiles({
                   context: context,
                   ingredient: child,
                   ulAnalysis: ulAnalysis,
+                  showNestedIndent: false,
                 ),
         ),
       );
@@ -535,12 +446,14 @@ Widget _tileFor({
   required Map<String, dynamic> ingredient,
   required List<Map<String, dynamic>>? ulAnalysis,
   bool showBottomDivider = true,
+  bool showNestedIndent = true,
 }) {
   final ulEntry = matchUlEntry(ingredient, ulAnalysis);
   final typed = activeFromMap(ingredient, ulEntry: ulEntry);
   return PGActiveIngredientTile(
     ingredient: typed,
     showBottomDivider: showBottomDivider,
+    showNestedIndent: showNestedIndent,
     onTap: () => showIngredientExplainSheet(
       context,
       ingredient: ingredient,
@@ -741,7 +654,6 @@ class _HierarchyChild extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(left: V2Spacing.space8),
-      padding: const EdgeInsets.only(left: V2Spacing.space12),
       decoration: const BoxDecoration(
         border: Border(left: BorderSide(color: V2Colors.outline, width: 1)),
       ),

@@ -63,11 +63,15 @@ Widget buildLabelConfidenceSection({
   );
 
   // Compact note-tier path — only product_status fires, nothing else. A
-  // ledger audit always uses the full card so its result cannot be conflated
-  // with a product-status note.
-  final hasLabelLedgerAudit =
-      labelLedgerAuditPresent || labelLedgerAudit != null;
-  if (tier == LabelConfidenceTier.note && !hasLabelLedgerAudit) {
+  // ledger audit EXCEPTION uses the full card so its result cannot be
+  // conflated with a product-status note; a clean 100% audit is silent.
+  final hasLabelLedgerException =
+      labelCompletenessPresentation(
+        labelLedgerAudit,
+        auditPresent: labelLedgerAuditPresent,
+      )?.isException ??
+      false;
+  if (tier == LabelConfidenceTier.note && !hasLabelLedgerException) {
     final label = productStatusLabel(productStatus);
     if (label == null) return const SizedBox.shrink();
     return _CompactNoteRow(
@@ -97,7 +101,7 @@ Widget buildLabelConfidenceSection({
       mappedCoverage < 0.5 ||
       hasProprietaryBlends ||
       unmappedTotal(unmappedActives) > 0;
-  final header = !hasLabelLedgerAudit
+  final header = !hasLabelLedgerException
       ? composeHeader(tier)
       : hasAnalysisSignal
       ? 'Label & analysis data'
@@ -145,7 +149,13 @@ bool labelConfidenceHasAnySignal({
   if (hasProprietaryBlends) return true;
   if (unmappedTotal(unmappedActives) > 0) return true;
   if (productStatusLabel(productStatus) != null) return true;
-  if (labelLedgerAuditPresent || labelLedgerAudit != null) return true;
+  // A ledger audit is only a signal when it reports an EXCEPTION; a clean
+  // 100%-complete label stays invisible.
+  final completeness = labelCompletenessPresentation(
+    labelLedgerAudit,
+    auditPresent: labelLedgerAuditPresent,
+  );
+  if (completeness != null && completeness.isException) return true;
   return false;
 }
 

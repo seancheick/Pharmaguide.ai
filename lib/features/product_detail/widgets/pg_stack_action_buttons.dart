@@ -25,7 +25,7 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 /// lives on the snackbar; the bar itself does not auto-collapse.
 ///
 /// Conditional primary button per state:
-///   - **Unsafe verdict (BLOCKED / UNSAFE):** "See safer alternatives" —
+///   - **Unsafe verdict (BLOCKED / UNSAFE):** "See higher-quality options" —
 ///     onTap scrolls the screen to the Better Alternatives section
 ///     (the screen wires the actual scroll via [onSeeAlternatives]).
 ///   - **Already in stack:** [_InStackPanel] with Remove inline.
@@ -36,7 +36,7 @@ class PGStackActionButtons extends ConsumerWidget {
 
   /// True when the product carries a BLOCKED or UNSAFE verdict —
   /// caller passes `isUnsafeVerdict(_product?.verdict)`. Drives the
-  /// "See safer alternatives" primary swap.
+  /// "See higher-quality options" primary swap.
   final bool isUnsafe;
 
   /// Tap target when the unsafe-state primary fires. Screen wires
@@ -76,10 +76,11 @@ class PGStackActionButtons extends ConsumerWidget {
   ) {
     // Unsafe always wins over in-stack — even if the user already has
     // the product in their stack, the right primary action is to
-    // direct them to safer alternatives, not let them re-open the
-    // remove flow as the loudest button.
+    // direct them to the comparison options, not let them re-open the
+    // remove flow as the loudest button. The candidates are proven higher
+    // quality, not personalized as universally safer.
     if (isUnsafe) {
-      return _SeeSaferButton(
+      return _SeeHigherQualityButton(
         onTap: () {
           PGHaptics.press();
           onSeeAlternatives?.call();
@@ -284,9 +285,9 @@ class _AddButton extends StatelessWidget {
 /// Unsafe-verdict primary — replaces "Add to my stack" when the
 /// product is BLOCKED or UNSAFE. Tap scrolls the screen to the
 /// Better Alternatives section.
-class _SeeSaferButton extends StatelessWidget {
+class _SeeHigherQualityButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _SeeSaferButton({required this.onTap});
+  const _SeeHigherQualityButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +299,7 @@ class _SeeSaferButton extends StatelessWidget {
         minimumSize: const Size.fromHeight(52),
       ),
       icon: const Icon(Icons.shield_outlined, size: 20),
-      label: const Text('See safer alternatives'),
+      label: const Text('See higher-quality options'),
     );
   }
 }

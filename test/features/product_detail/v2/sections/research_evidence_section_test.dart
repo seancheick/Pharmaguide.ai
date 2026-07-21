@@ -50,6 +50,30 @@ Widget _harness({
   );
 }
 
+Widget _supportHarness({
+  required Map<String, dynamic>? evidenceData,
+  required List<ResearchPairEvidence> evidence,
+  List<String> canonicalIds = const ['vitamin_k'],
+}) {
+  return ProviderScope(
+    overrides: [
+      researchEvidenceForProductProvider(
+        ResearchEvidenceRequest(canonicalIds: canonicalIds),
+      ).overrideWith((ref) async => evidence),
+    ],
+    child: MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: ResearchSupportSection(
+            evidenceData: evidenceData,
+            canonicalIds: canonicalIds,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 void main() {
   testWidgets('renders a neutral studied-combinations chip', (tester) async {
     await tester.pumpWidget(_harness(evidence: [_evidence()]));
@@ -167,5 +191,76 @@ void main() {
     expect(find.text('Vitamin K + Aspirin - 8'), findsOneWidget);
     expect(find.textContaining('Avoid'), findsNothing);
     expect(find.textContaining('Caution'), findsNothing);
+  });
+
+  group('ResearchSupportSection (T10 — one research surface)', () {
+    const clinicalEvidence = {
+      'match_count': 1,
+      'clinical_matches': [
+        {
+          'ingredient': 'Vitamin K',
+          'evidence_level': 'ingredient-human',
+          'references_structured': [
+            {'type': 'pubmed', 'pmid': '111', 'title': 'Vitamin K human study'},
+          ],
+        },
+      ],
+    };
+
+    testWidgets(
+      'clinical evidence + research collapse into one card and one sheet',
+      (tester) async {
+        await tester.pumpWidget(
+          _supportHarness(
+            evidenceData: clinicalEvidence,
+            evidence: [_evidence()],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // One compact clinical card — no separate studied-combinations card
+        // competing beside it, and the research header stays in the sheet.
+        expect(find.text('Clinical evidence'), findsOneWidget);
+        expect(find.text('STUDIED COMBINATIONS'), findsNothing);
+        expect(find.text('RELATED INGREDIENT RESEARCH'), findsNothing);
+
+        // Citation AND related research both live behind the one sheet.
+        await tester.tap(find.text('View studies (1)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Vitamin K human study'), findsOneWidget);
+        expect(find.text('RELATED INGREDIENT RESEARCH'), findsOneWidget);
+        expect(
+          find.text('Vitamin K and warfarin appeared together in patients.'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'research without clinical evidence falls back to the research card',
+      (tester) async {
+        await tester.pumpWidget(
+          _supportHarness(evidenceData: null, evidence: [_evidence()]),
+        );
+        await tester.pumpAndSettle();
+
+        // Literature co-occurrence is never lost when clinical data is absent.
+        expect(find.text('Clinical evidence'), findsNothing);
+        expect(find.text('STUDIED COMBINATIONS'), findsOneWidget);
+      },
+    );
+
+    testWidgets('renders nothing when there is neither evidence nor research', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _supportHarness(evidenceData: null, evidence: const []),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Clinical evidence'), findsNothing);
+      expect(find.text('STUDIED COMBINATIONS'), findsNothing);
+    });
   });
 }

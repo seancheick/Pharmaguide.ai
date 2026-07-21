@@ -60,6 +60,12 @@ class ProfileRelevanceSummary {
     this.profileIncomplete = false,
     this.startExpanded = false,
   });
+
+  /// Empty neutral and coverage-uncertain states do not earn a consumer card.
+  /// The latter remains available to the dedicated label-confidence surface.
+  bool get shouldRender =>
+      status != ProfileRelevanceStatus.neutral &&
+      status != ProfileRelevanceStatus.coverageLimited;
 }
 
 ProfileRelevanceSummary buildProfileRelevanceSummary({
@@ -71,7 +77,6 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   required List<InteractionWarning> warnings,
   required String interactionHint,
   required List<MatchedAllergen> matchedAllergens,
-  required List<FreeFromClaim> freeFromClaims,
   required List<String> freeFromConflicts,
   required bool hasInteractionProfile,
   // True when a substance-level `display_mode_default == 'critical'` note
@@ -87,17 +92,11 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final allergenRows = rowsForAllergens(matchedAllergens);
-  final renderableClaims = freeFromClaims
-      .where((c) => c.status != FreeFromStatus.notClaimed)
-      .toList(growable: false);
 
   final rows = <PGReviewRow>[];
   rows.addAll(allergenRows);
   for (final warning in sortWarningsBySeverity(warnings)) {
     rows.add(rowForWarning(warning, onTapCitations: onTapCitations));
-  }
-  for (final claim in renderableClaims) {
-    rows.add(rowForFreeFromClaim(claim));
   }
 
   final conflictBody = buildConflictFooterBody(freeFromConflicts);
@@ -187,10 +186,11 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
       tone: PGReviewTone.info,
       headline: isLowCoverage(fitResult?.mappedCoverage)
           ? 'More label detail needed'
-          : 'Neutral for your profile',
+          : 'No profile-specific concerns found',
       body: isLowCoverage(fitResult?.mappedCoverage)
           ? coverageHedge('profile relevance may be incomplete')
-          : 'General-use product, not targeted to your profile.',
+          : 'Based on the information available, this product does not '
+                'strongly match your selected goals.',
       rows: rows,
       startExpanded: _shouldExpandInformationalRows(rows),
     ),
@@ -269,6 +269,10 @@ class ProfileRelevanceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!summary.shouldRender) {
+      return const SizedBox.shrink();
+    }
+
     final actionLabel = summary.profileIncomplete
         ? 'Complete profile'
         : 'Edit profile';
@@ -292,8 +296,9 @@ class ProfileRelevanceSection extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: PGPillButton(
               label: actionLabel,
+              icon: Icons.edit_outlined,
               onPressed: onCompleteProfile,
-              variant: PGPillVariant.secondary,
+              variant: PGPillVariant.ghost,
             ),
           ),
         ],
@@ -307,28 +312,89 @@ class ProfileRelevanceSection extends StatelessWidget {
 /// warning cards; only actionable rows explicitly marked critical remain.
 Widget? buildGeneralNotesSection({
   required List<InteractionWarning> warnings,
+  List<FreeFromClaim> freeFromClaims = const [],
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final materialWarnings = warnings
       .where((warning) {
         return warning.severity.isActionable &&
-            warning.displayModeDefault?.trim().toLowerCase() == 'critical';
+            isCriticalDisplayMode(warning.displayModeDefault);
       })
       .toList(growable: false);
-  if (materialWarnings.isEmpty) return null;
-  final rows = [
+  final profileNotes = warnings
+      .where(
+        (warning) =>
+            !materialWarnings.contains(warning) && isCalmProfileNote(warning),
+      )
+      .toList(growable: false);
+  final reassuringClaims = freeFromClaims
+      .where((claim) => claim.status == FreeFromStatus.certified)
+      .toList(growable: false);
+  if (materialWarnings.isEmpty &&
+      profileNotes.isEmpty &&
+      reassuringClaims.isEmpty) {
+    return null;
+  }
+
+  final sections = <Widget>[];
+  if (profileNotes.isNotEmpty || reassuringClaims.isNotEmpty) {
+    sections.add(
+      PGReviewBeforeUseCard(
+        eyebrow: 'Good to know',
+        tone: PGReviewTone.info,
+        title: 'Information for your profile',
+        rows: [
+          for (final warning in sortWarningsBySeverity(profileNotes))
+            _rowForProfileNote(warning, onTapCitations: onTapCitations),
+          for (final claim in reassuringClaims) rowForFreeFromClaim(claim),
+        ],
+      ),
+    );
+  }
+
+  final materialRows = [
     for (final w in sortWarningsBySeverity(materialWarnings))
       rowForWarning(w, onTapCitations: onTapCitations),
   ];
-  final count = rows.length;
-  return PGReviewBeforeUseCard(
-    eyebrow: 'Product safety',
-    tone: PGReviewTone.caution,
-    title: 'Review this product',
-    body: count == 1
-        ? '1 material safety note'
-        : '$count material safety notes',
-    rows: rows,
+  if (materialRows.isNotEmpty) {
+    final count = materialRows.length;
+    if (sections.isNotEmpty) {
+      sections.add(const SizedBox(height: V2Spacing.space12));
+    }
+    sections.add(
+      PGReviewBeforeUseCard(
+        eyebrow: 'Product safety',
+        tone: PGReviewTone.caution,
+        title: 'Review this product',
+        body: count == 1
+            ? '1 material safety note'
+            : '$count material safety notes',
+        rows: materialRows,
+      ),
+    );
+  }
+  return sections.length == 1 ? sections.single : Column(children: sections);
+}
+
+PGReviewRow _rowForProfileNote(
+  InteractionWarning warning, {
+  void Function(List<String> sourceUrls)? onTapCitations,
+}) {
+  final captionParts = <String>[];
+  final body = warning.displayBody.trim();
+  if (body.isNotEmpty) captionParts.add(body);
+  captionParts.add(warning.evidenceLevel.label);
+  final citationCount = warning.sourceUrls.length;
+  if (citationCount > 0) {
+    captionParts.add('$citationCount citation${citationCount == 1 ? '' : 's'}');
+  }
+  return PGReviewRow(
+    headline: warning.displayHeadline,
+    caption: captionParts.join(' · '),
+    rowTone: PGReviewTone.info,
+    onTap: citationCount > 0 && onTapCitations != null
+        ? () => onTapCitations(warning.sourceUrls)
+        : null,
   );
 }
 

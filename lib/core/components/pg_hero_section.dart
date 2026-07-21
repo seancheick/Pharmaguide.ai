@@ -205,7 +205,7 @@ class PGHeroSection extends StatelessWidget {
     //   - Card padding 16 → 12 (saves ~8px top + bottom)
     //   - Image 96 → 80 (saves 16px row height)
     //   - Identity-row → score gap 16 → 12
-    //   - PGScoreLine compact=true (hides verbose description line)
+    //   - PGScoreLine prominent=true (concise, decision-level score treatment)
     //   - bottomBanner gap 16 → 12
     final body = Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
@@ -266,17 +266,25 @@ class PGHeroSection extends StatelessWidget {
             // formulation score, so a caution pill rides alongside the
             // tier line (see [heroShowsCautionCue]) — otherwise an over-UL
             // product reads as a plain "Excellent".
+            // Frame the score as PRODUCT QUALITY — a distinct axis from the
+            // personalized "for you" guidance in Profile Relevance below. The
+            // dose-driven caution pill (product-level) rides alongside.
+            Text(
+              'Product quality',
+              style: V2Typography.eyebrow(color: V2Colors.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space4),
             if (showCautionCue)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Flexible(child: PGScoreLine(score: score!, compact: true)),
+                  Flexible(child: PGScoreLine(score: score!, prominent: true)),
                   const SizedBox(width: V2Spacing.space8),
                   const _HeroCautionPill(),
                 ],
               )
             else
-              PGScoreLine(score: score!, compact: true),
+              PGScoreLine(score: score!, prominent: true),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(

@@ -347,6 +347,10 @@ void main() {
         },
       );
 
+      // Citations now live behind the studies sheet, not inline on the card.
+      await tester.tap(find.text('View studies (2)'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Effects of ashwagandha on stress'), findsOneWidget);
       expect(find.text('PMID 222 · Ashwagandha'), findsOneWidget);
     });
@@ -371,11 +375,15 @@ void main() {
         },
       );
 
-      expect(find.text('Shared study'), findsOneWidget);
       expect(
         find.text('Ingredient evidence: MODERATE · 1 study'),
         findsOneWidget,
       );
+
+      await tester.tap(find.text('View studies (1)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Shared study'), findsOneWidget);
     });
 
     testWidgets('preclinical only renders limited tier with no study count', (
@@ -662,7 +670,9 @@ void main() {
       );
     });
 
-    testWidgets('caps displayed citations at five', (tester) async {
+    testWidgets('studies sheet shows every study the button promises', (
+      tester,
+    ) async {
       await _pump(
         tester,
         evidenceData: {
@@ -678,13 +688,19 @@ void main() {
         },
       );
 
-      expect(find.text('Study 5'), findsOneWidget);
-      expect(find.text('Study 6'), findsNothing);
-      // Count still reflects all deduped studies.
+      // Card summary reflects all deduped studies.
       expect(
         find.text('Ingredient evidence: MODERATE · 8 studies'),
         findsOneWidget,
       );
+
+      // The scrollable sheet shows ALL 8 — the "View studies (8)" button must
+      // never promise more rows than the sheet holds (was capped at 5).
+      await tester.tap(find.text('View studies (8)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Study 5'), findsOneWidget);
+      expect(find.text('Study 8'), findsOneWidget);
     });
   });
 }

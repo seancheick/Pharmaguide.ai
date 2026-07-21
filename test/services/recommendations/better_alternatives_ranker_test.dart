@@ -19,6 +19,7 @@
 // a deliberate trip-wire against silent regressions in the
 // recommendation surface.
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
@@ -51,6 +52,7 @@ ProductsCoreData _product({
   int hasRecalledIngredient = 0,
   double? mappedCoverage,
   double? scoreBrandTrust,
+  String? ingredientFingerprint,
 }) {
   return ProductsCoreData(
     dsldId: dsldId,
@@ -81,9 +83,38 @@ ProductsCoreData _product({
     hasRecalledIngredient: hasRecalledIngredient,
     mappedCoverage: mappedCoverage,
     scoreBrandTrust: scoreBrandTrust,
+    ingredientFingerprint: ingredientFingerprint,
     exportVersion: 'test',
     exportedAt: '2026-05-16T00:00:00Z',
   );
+}
+
+Future<void> _insertPoolProduct(
+  CoreDatabase db, {
+  required String dsldId,
+  required String name,
+  required String supplementType,
+  required double score,
+  required String keyIngredientTags,
+  String brand = 'Test Brand',
+}) {
+  return db
+      .into(db.productsCore)
+      .insert(
+        ProductsCoreCompanion.insert(
+          dsldId: dsldId,
+          productName: name,
+          exportVersion: 'test',
+          exportedAt: '2026-07-21T00:00:00Z',
+          brandName: Value(brand),
+          supplementType: Value(supplementType),
+          primaryCategory: Value(supplementType),
+          qualityScoreV4100: Value(score),
+          score100Equivalent: Value(score),
+          qualityScoreStatus: const Value('scored'),
+          keyIngredientTags: Value(keyIngredientTags),
+        ),
+      );
 }
 
 void main() {
@@ -130,29 +161,28 @@ void main() {
       expect(result.map((p) => p.dsldId), equals(['on']));
     });
 
-    test('unscored current (blocked product like Vinpocetine) still returns '
-        'scored candidates', () {
+    test('unscored current still returns a scored same-intent candidate', () {
       // Sean's Phase 11.7L.F follow-up: blocked products like
       // dsld 16012 Vinpocetine ship with `quality_score_v4_100 = NULL`.
       // The user MUST still see safer alternatives — treat the
       // missing score as "lower than any scored candidate."
-      final vinpocetine = _product(
+      final blockedNootropic = _product(
         dsldId: '16012',
-        name: 'Vinpocetine',
+        name: 'Blocked Nootropic Support',
         brand: 'Thorne Research',
-        supplementType: 'single_nutrient',
+        supplementType: 'nootropic_support',
         // primaryCategory + qualityScoreV4100 intentionally NULL —
         // mirrors the live catalog row.
       );
       final saferAlt = _product(
         dsldId: 'safer-alt',
-        name: 'Bacopa Monnieri',
+        name: 'Scored Nootropic Support',
         brand: 'Pure Encapsulations',
-        supplementType: 'single_nutrient',
+        supplementType: 'nootropic_support',
         qualityScoreV4100: 65,
       );
       final result = rankAlternatives(
-        current: vinpocetine,
+        current: blockedNootropic,
         candidates: [saferAlt],
       );
       expect(
@@ -310,6 +340,7 @@ void main() {
         supplementType: 'targeted',
         primaryCategory: 'omega-3', // legacy mis-categorisation
         qualityScoreV4100: 37.0,
+        keyIngredientTags: '["vitamin_a"]',
       );
       final kidsMulti = _product(
         dsldId: '281264',
@@ -335,6 +366,7 @@ void main() {
         supplementType: 'targeted',
         primaryCategory: 'omega-3',
         qualityScoreV4100: 58,
+        keyIngredientTags: '["vitamin_a"]',
       );
 
       final result = rankAlternatives(
@@ -764,6 +796,7 @@ void main() {
         supplementType: 'targeted',
         primaryCategory: 'b-complex',
         qualityScoreV4100: 30,
+        keyIngredientTags: '["b_complex"]',
       );
       final candidate = _product(
         dsldId: 'cand',
@@ -771,6 +804,7 @@ void main() {
         supplementType: 'targeted',
         primaryCategory: 'b-complex',
         qualityScoreV4100: 60,
+        keyIngredientTags: '["b_complex"]',
       );
       final result = rankAlternatives(
         current: cur,
@@ -793,7 +827,7 @@ void main() {
   // ===========================================================================
 
   group('Near-duplicate suppression', () {
-    test('keeps best same-brand same-product variant before taking top N', () {
+    test('does not collapse a potency-bearing product into a bare name', () {
       final cur = _product(
         dsldId: '336897',
         name: 'Vitamin D3 + K2',
@@ -837,8 +871,325 @@ void main() {
         limit: 3,
       );
 
-      expect(result.map((p) => p.dsldId), equals(['dup-best', 'distinct']));
+      expect(
+        result.map((p) => p.dsldId),
+        equals(['dup-best', 'distinct', 'dup-lower']),
+      );
     });
+
+    test('drops pack-size / SKU variants of the product on screen', () {
+      // User views "Thorne D3 30 capsules" — must not recommend
+      // "Thorne D3 60 capsules" as a "higher quality" alternative.
+      final cur = _product(
+        dsldId: 'cur-30ct',
+        name: 'Vitamin D3 1000 IU 30 capsules',
+        brand: 'Thorne',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 60,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+      final sameProductLargerPack = _product(
+        dsldId: 'cur-60ct',
+        name: 'Vitamin D3 1000 IU 60 capsules',
+        brand: 'Thorne',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 68,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+      final realAlt = _product(
+        dsldId: 'real-alt',
+        name: 'Vitamin D3 Liquid',
+        brand: 'Pure Encapsulations',
+        supplementType: 'targeted',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 72,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [sameProductLargerPack, realAlt],
+      );
+
+      expect(result.map((p) => p.dsldId), equals(['real-alt']));
+    });
+
+    test('normalizes thousands separators before pack-size comparison', () {
+      final cur = _product(
+        dsldId: 'cur-comma',
+        name: 'Vitamin D3 1,000 IU 30 capsules',
+        brand: 'Thorne',
+        supplementType: 'single_vitamin',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 50,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+      final sameProductLargerPack = _product(
+        dsldId: 'cur-no-comma',
+        name: 'Vitamin D3 1000 IU 60 capsules',
+        brand: 'Thorne',
+        supplementType: 'single_vitamin',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 70,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [sameProductLargerPack],
+      );
+
+      expect(result, isEmpty);
+    });
+
+    test('does not treat a stack-safety fingerprint as product identity', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Vitamin D3 Tablets',
+        brand: 'Brand A',
+        supplementType: 'single_vitamin',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 50,
+        keyIngredientTags: '["vitamin_d"]',
+        ingredientFingerprint:
+            '{"nutrients":{"vitamin_d":{"amount":25,"unit":"mcg"}},'
+            '"herbs":[],"categories":["vitamins"]}',
+      );
+      final independentlyScoredAlternative = _product(
+        dsldId: 'drops',
+        name: 'Vitamin D3 Drops',
+        brand: 'Brand B',
+        supplementType: 'single_vitamin',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 70,
+        keyIngredientTags: '["vitamin_d"]',
+        ingredientFingerprint:
+            '{"nutrients":{"vitamin_d":{"amount":25,"unit":"mcg"}},'
+            '"herbs":[],"categories":["vitamins"]}',
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [independentlyScoredAlternative],
+      );
+
+      expect(
+        result.map((p) => p.dsldId),
+        equals(['drops']),
+        reason:
+            'ingredient_fingerprint is a stack-safety dose map, not a '
+            'catalog product identity or private-label provenance key',
+      );
+    });
+
+    test('retains potency in identity while removing package count', () {
+      final cur = _product(
+        dsldId: 'cur-1000',
+        name: 'Vitamin D3 1000 IU 30 capsules',
+        brand: 'Thorne',
+        supplementType: 'single_vitamin',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 50,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+      final differentPotency = _product(
+        dsldId: 'cur-5000',
+        name: 'Vitamin D3 5000 IU 60 capsules',
+        brand: 'Thorne',
+        supplementType: 'single_vitamin',
+        primaryCategory: 'single_vitamin',
+        qualityScoreV4100: 70,
+        keyIngredientTags: '["vitamin_d"]',
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [differentPotency],
+      );
+
+      expect(
+        result.map((p) => p.dsldId),
+        equals(['cur-5000']),
+        reason:
+            '1000 IU and 5000 IU are different labeled products; only the '
+            '30/60 capsule package count is identity noise',
+      );
+    });
+
+    test('uses the shared score tier as the meaningful-quality boundary', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Multi',
+        brand: 'A',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 59,
+      );
+      final nextTier = _product(
+        dsldId: 'next-tier',
+        name: 'Multi Fair',
+        brand: 'B',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 60,
+      );
+
+      final result = rankAlternatives(current: cur, candidates: [nextTier]);
+
+      expect(result.map((p) => p.dsldId), equals(['next-tier']));
+    });
+
+    test('does not label a same-tier score increase as higher quality', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Multi Good',
+        brand: 'A',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 70,
+      );
+      final sameTier = _product(
+        dsldId: 'same-tier',
+        name: 'Multi Good Plus',
+        brand: 'C',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 79,
+      );
+
+      final result = rankAlternatives(current: cur, candidates: [sameTier]);
+
+      expect(result, isEmpty);
+    });
+
+    test('diversifies brands first, then backfills valid choices', () {
+      final cur = _product(
+        dsldId: 'cur',
+        name: 'Basic Multi',
+        brand: 'Generic Co',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 40,
+      );
+      final thorneA = _product(
+        dsldId: 't1',
+        name: 'Multi Basic',
+        brand: 'Thorne',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 80,
+      );
+      final thorneB = _product(
+        dsldId: 't2',
+        name: 'Multi Advanced',
+        brand: 'Thorne',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 85,
+      );
+      final pure = _product(
+        dsldId: 'p1',
+        name: 'Daily Multi',
+        brand: 'Pure Encapsulations',
+        supplementType: 'multivitamin',
+        primaryCategory: 'multivitamin',
+        qualityScoreV4100: 82,
+      );
+
+      final result = rankAlternatives(
+        current: cur,
+        candidates: [thorneA, thorneB, pure],
+        limit: 3,
+      );
+
+      expect(
+        result.map((p) => p.dsldId),
+        equals(['t2', 'p1', 't1']),
+        reason:
+            'brand diversity is a presentation preference, not a reason to '
+            'return fewer useful alternatives than the requested limit',
+      );
+    });
+
+    test('rejects unrelated products inside a broad taxonomy bucket', () {
+      final cur = _product(
+        dsldId: 'coconut',
+        name: 'Coconut Oil',
+        brand: 'Brand A',
+        supplementType: 'general_supplement',
+        primaryCategory: 'general_supplement',
+        qualityScoreV4100: 30,
+        keyIngredientTags: '["coconut_oil"]',
+      );
+      final unrelated = _product(
+        dsldId: 'licorice',
+        name: 'Licorice Root',
+        brand: 'Brand B',
+        supplementType: 'general_supplement',
+        primaryCategory: 'general_supplement',
+        qualityScoreV4100: 70,
+        keyIngredientTags: '["licorice_root"]',
+      );
+
+      final result = rankAlternatives(current: cur, candidates: [unrelated]);
+
+      expect(result, isEmpty);
+    });
+  });
+
+  group('Database candidate pool', () {
+    test(
+      'includes cross-type ingredient-family matches before broad noise',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+
+        await _insertPoolProduct(
+          db,
+          dsldId: 'current',
+          name: 'Coconut Oil',
+          supplementType: 'general_supplement',
+          score: 30,
+          keyIngredientTags: '["coconut_oil"]',
+        );
+        for (var i = 0; i < 55; i++) {
+          await _insertPoolProduct(
+            db,
+            dsldId: 'noise-$i',
+            name: 'Unrelated General $i',
+            supplementType: 'general_supplement',
+            score: 99 - (i / 10),
+            keyIngredientTags: '["unrelated_$i"]',
+            brand: 'Noise $i',
+          );
+        }
+        await _insertPoolProduct(
+          db,
+          dsldId: 'family-match',
+          name: 'Coconut Extract',
+          supplementType: 'herbal_botanical',
+          score: 60,
+          keyIngredientTags: '["coconut_oil"]',
+          brand: 'Relevant Brand',
+        );
+
+        final current = await db.findById('current');
+        final pool = await db.fetchBetterAlternativesPool(
+          current!,
+          poolSize: 50,
+        );
+
+        expect(
+          pool.map((p) => p.dsldId),
+          contains('family-match'),
+          reason:
+              'the SQL pool must not truncate a relevant cross-type family '
+              'match behind high-scoring products from a broad category',
+        );
+      },
+    );
   });
 
   // ===========================================================================
@@ -861,7 +1212,7 @@ void main() {
             name: 'Alt $i',
             supplementType: 'multivitamin',
             primaryCategory: 'multivitamin',
-            qualityScoreV4100: 30 + i.toDouble(),
+            qualityScoreV4100: 60 + i.toDouble(),
           ),
       ];
       final result = rankAlternatives(

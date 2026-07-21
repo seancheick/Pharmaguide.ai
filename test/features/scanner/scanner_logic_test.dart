@@ -1,10 +1,30 @@
 // Tests for the scanner screen's pure verdict→color policy.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 
 void main() {
+  group('verdictRevealKind', () {
+    test('safe-tier verdicts → success', () {
+      expect(verdictRevealKind('SAFE'), PGVerdictKind.success);
+      expect(verdictRevealKind('GOOD'), PGVerdictKind.success);
+      expect(verdictRevealKind('RECOMMENDED'), PGVerdictKind.success);
+    });
+
+    test(
+      'attention-tier, invalid contract values, and unknown → attention',
+      () {
+        expect(verdictRevealKind('CAUTION'), PGVerdictKind.attention);
+        expect(verdictRevealKind('BLOCKED'), PGVerdictKind.attention);
+        expect(verdictRevealKind('NOT_SCORED'), PGVerdictKind.attention);
+        expect(verdictRevealKind('MONITOR'), PGVerdictKind.attention);
+        expect(verdictRevealKind(null), PGVerdictKind.attention);
+      },
+    );
+  });
+
   group('verdictFlashColor', () {
     test('SAFE → v2 safe', () {
       expect(verdictFlashColor('SAFE'), V2Colors.safe);

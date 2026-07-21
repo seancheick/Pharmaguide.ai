@@ -99,18 +99,15 @@ void main() {
     },
   );
 
-  testWidgets('renders each explicit non-quality form state without inventing '
-      'a quality badge', (tester) async {
-    const cases = <(PGIngredientFormDisplayState, String)>[
-      (PGIngredientFormDisplayState.notDisclosed, 'Form not disclosed'),
-      (
-        PGIngredientFormDisplayState.listedNotAssessed,
-        'Form listed · not yet assessed',
-      ),
-      (PGIngredientFormDisplayState.needsReview, 'Data needs review'),
+  testWidgets('keeps non-quality form states quiet without inventing a badge', (
+    tester,
+  ) async {
+    const states = <PGIngredientFormDisplayState>[
+      PGIngredientFormDisplayState.notDisclosed,
+      PGIngredientFormDisplayState.listedNotAssessed,
     ];
 
-    for (final (state, label) in cases) {
+    for (final state in states) {
       await tester.pumpWidget(
         _wrap(
           PGActiveIngredient(
@@ -125,7 +122,8 @@ void main() {
         ),
       );
 
-      expect(find.text(label), findsOneWidget);
+      expect(find.text('Form not disclosed'), findsNothing);
+      expect(find.text('Form listed · not yet assessed'), findsNothing);
       expect(find.text('Excellent form'), findsNothing);
     }
   });
@@ -148,31 +146,32 @@ void main() {
     },
   );
 
-  testWidgets(
-    'form status uses visible text and a supplementary color surface',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const PGActiveIngredient(
-            name: 'Fish Oil',
-            formDisplayState: PGIngredientFormDisplayState.notDisclosed,
-          ),
+  testWidgets('keeps form quality and high dose directly below the form name', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        const PGActiveIngredient(
+          name: 'Vitamin A',
+          formLabel: 'Retinyl Palmitate',
+          formQuality: FormQuality.excellent,
+          formDisplayState: PGIngredientFormDisplayState.assessed,
+          doseCallOut: DoseCallOut.high,
         ),
-      );
+      ),
+    );
 
-      final statusText = find.text('Form not disclosed');
-      expect(statusText, findsOneWidget);
-
-      final statusContainer = find
-          .ancestor(of: statusText, matching: find.byType(Container))
-          .first;
-      final decoration =
-          tester.widget<Container>(statusContainer).decoration!
-              as BoxDecoration;
-      expect(decoration.color, isNotNull);
-      expect(decoration.color, isNot(Colors.transparent));
-    },
-  );
+    expect(find.text('Excellent form'), findsOneWidget);
+    expect(find.text('High dose'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Excellent form')).dy,
+      greaterThan(tester.getTopLeft(find.text('Retinyl Palmitate')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('High dose')).dy,
+      greaterThan(tester.getTopLeft(find.text('Retinyl Palmitate')).dy),
+    );
+  });
 
   testWidgets('shows exact dose plus one parenthetical component on one row', (
     tester,
@@ -225,7 +224,8 @@ void main() {
   });
 
   testWidgets(
-    'semantics announce hierarchy, form state, and score participation',
+    'semantics keep undisclosed form quiet while announcing hierarchy and '
+    'score participation',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(
@@ -244,7 +244,7 @@ void main() {
       expect(
         find.bySemanticsLabel(
           'EPA. Nested level 2 under Total Omega-3 Fatty Acids. 360 mg. '
-          'Form not disclosed. Included in analysis.',
+          'Included in analysis.',
         ),
         findsOneWidget,
       );

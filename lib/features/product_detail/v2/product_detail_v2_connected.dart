@@ -65,6 +65,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dar
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/manufacturer_violations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
@@ -77,6 +78,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/synergy_section.
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/transparency_footer_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
+import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
@@ -393,6 +395,15 @@ class _ProductDetailV2ConnectedState
       ...personalizedWarnings,
       ...parseBlobWarnings(detailBlob),
     ]).where((w) => w.direction == 'beneficial').toList(growable: false);
+    final profileBenefitNotes = profileBenefitWarnings
+        .where(
+          (warning) => warning.matchesProfile(
+            userConditions: userConditionsSet,
+            userDrugClasses: userDrugClassesSet,
+            userProfileFlags: userProfileFlagsSet,
+          ),
+        )
+        .toList(growable: false);
     // Split profile-matched/safety warnings (the card) from global
     // educational notes (a separate collapsed "Good to know" section) so the
     // profile card's count reflects only what's relevant to this user.
@@ -414,11 +425,23 @@ class _ProductDetailV2ConnectedState
         ? const <String>[]
         : researchCanonicalIdsForProduct(_product!, detailBlob: detailBlob);
     final blendDetail = _blobMap(detailBlob, 'proprietary_blend_detail');
-    final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
+    // Pipeline ships has_proprietary_blends as an int 0/1 (not JSON bool), so
+    // `== true` silently read false for all 2,284 blend products. safeBool
+    // coerces bool / 0-1 / "1" identically.
+    final hasProprietaryBlends =
+        blendDetail?.safeBool('has_proprietary_blends') ?? false;
     final labelLedgerAudit = _blobMap(detailBlob, 'label_ledger_audit');
     final labelLedgerAuditPresent =
         detailBlob?.containsKey('label_ledger_audit') == true;
     final labelRecordPresent = detailBlob?.containsKey('label_record') == true;
+    // Report metadata for the standalone "Doesn't match your bottle?" action
+    // rendered next to the ingredient list (the catalog record itself is
+    // collapsed to the page bottom).
+    final labelMismatchMeta = labelMismatchMetadataFrom(
+      detailBlob?['label_record'],
+      dsldId: widget.dsldId,
+      upc: _product?.upcSku,
+    );
 
     // -------------------------------------------------------------
     // LabelConfidence signal probe — checked here so we can gate the
@@ -528,11 +551,12 @@ class _ProductDetailV2ConnectedState
       topGoalLabel: topGoalLabelFromFit(fitResult),
       ingredientNames: ingredientNamesFromBlob(detailBlob),
       userConditions: profile.conditionsForEvaluator,
-      profileBenefitWarnings: profileBenefitWarnings,
+      // Supporting/beneficial notes belong in the calm Good to know surface,
+      // not inside the product-fit verdict or its warning count.
+      profileBenefitWarnings: const [],
       warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,
-      freeFromClaims: freeFromClaims,
       freeFromConflicts: freeFromConflicts,
       hasInteractionProfile:
           profile.conditionsForEvaluator.isNotEmpty ||
@@ -541,7 +565,7 @@ class _ProductDetailV2ConnectedState
       // ingredient) sits in the calm general bucket; it must still stop the
       // verdict from rendering a green "safe" all-clear.
       hasCriticalGlobalNote: partitionedWarnings.general.any(
-        (w) => w.displayModeDefault == 'critical',
+        (warning) => isCriticalDisplayMode(warning.displayModeDefault),
       ),
       onTapCitations: (urls) =>
           showProfileRelevanceCitationsSheet(context, urls),
@@ -642,17 +666,28 @@ class _ProductDetailV2ConnectedState
                   ],
 
                   if (showProfileRelevance) ...[
-                    KeyedSubtree(
-                      key: _anchors.interactionsKey,
-                      child: ProfileRelevanceSection(
-                        summary: profileRelevanceSummary,
-                        onCompleteProfile: () =>
-                            context.push(Routes.profileSetup),
+                    if (profileRelevanceSummary.shouldRender) ...[
+                      KeyedSubtree(
+                        key: _anchors.interactionsKey,
+                        child: ProfileRelevanceSection(
+                          summary: profileRelevanceSummary,
+                          onCompleteProfile: () =>
+                              context.push(Routes.profileSetup),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
+                      const SizedBox(height: V2Spacing.space12),
+                    ],
                     if (buildGeneralNotesSection(
-                          warnings: partitionedWarnings.general,
+                          warnings: [
+                            ...partitionedWarnings.general,
+                            ...profileBenefitNotes,
+                          ],
+                          freeFromClaims: freeFromClaims
+                              .where(
+                                (claim) =>
+                                    !freeFromConflicts.contains(claim.concern),
+                              )
+                              .toList(growable: false),
                           onTapCitations: (urls) =>
                               showProfileRelevanceCitationsSheet(context, urls),
                         )
@@ -746,25 +781,10 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 5.5 Catalog label record (Label Truth P1) ---
-                  // Presence is authoritative: absent means a legacy blob and
-                  // stays hidden; present-but-malformed renders the section's
-                  // fail-closed unavailable state. This metadata is
-                  // informational and never participates in scoring.
-                  if (showDeepDive && labelRecordPresent) ...[
-                    buildLabelMatchSection(
-                      labelRecord: detailBlob?['label_record'],
-                      upc: _product?.upcSku,
-                      currentLabelRows: ingredientSources.displayIngredients,
-                      onOpenSourceLabel: (uri) async {
-                        await launchUrl(
-                          uri,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                  // Catalog label record moved to the collapsed
+                  // "Product data & sources" section at the page bottom; the
+                  // "Doesn't match your bottle?" action stays next to the
+                  // ingredient list below.
 
                   // ---- 6. Ingredients (WIRED, 11.7d.2) -------------
                   if (showDeepDive) ...[
@@ -784,6 +804,28 @@ class _ProductDetailV2ConnectedState
                         blends: ingredientSources.blends,
                       ),
                     ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- Nutrition (conditional) — bottle data beside the
+                  // ingredient list; buildNutritionSection hides itself unless
+                  // there is real calorie/macro data to show.
+                  if (showDeepDive) ...[
+                    buildNutritionSection(
+                      caloriesPerServing: _product?.caloriesPerServing,
+                      nutritionDetail: _blobMap(detailBlob, 'nutrition_detail'),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // "Doesn't match your bottle?" — kept next to the ingredient
+                  // list where a user comparing the app to the bottle looks.
+                  // Shown only when a catalog record exists (same visibility as
+                  // the old inline action), now decoupled from its position.
+                  if (showDeepDive &&
+                      labelRecordPresent &&
+                      labelMismatchMeta != null) ...[
+                    LabelMismatchAction(product: labelMismatchMeta),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
@@ -820,14 +862,8 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 9. Nutrition (WIRED, 11.7d.5) ---------------
-                  if (showDeepDive) ...[
-                    buildNutritionSection(
-                      caloriesPerServing: _product?.caloriesPerServing,
-                      nutritionDetail: _blobMap(detailBlob, 'nutrition_detail'),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                  // Nutrition moved up beside the ingredient list (bottle data
+                  // belongs together); still conditional via buildNutritionSection.
 
                   // ---- 10. Certifications (WIRED, 11.7e) -----------
                   if (showDeepDive) ...[
@@ -843,25 +879,24 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 11. Evidence (WIRED, 11.7e) -----------------
-                  // Anchor attached by WRAPPING the call site — the
-                  // section file itself is owned by a change in flight.
-                  if (showClinicalEvidence) ...[
+                  // ---- 11. Research support (evidence + literature) ----
+                  // ONE surface (T10): the compact clinical-evidence card
+                  // whose studies sheet also carries related ingredient
+                  // research, or — when there is no clinical evidence — a
+                  // research-only card. Both scroll anchors resolve here.
+                  // Render when either half would have shown; the widget
+                  // itself picks the state (and hides if research resolves
+                  // empty), matching the old per-block gating.
+                  if (showClinicalEvidence ||
+                      (showDeepDive && researchCanonicalIds.isNotEmpty)) ...[
                     KeyedSubtree(
                       key: _evidenceSectionKey,
-                      child: buildEvidenceSection(evidenceData: evidenceData),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 11.1 Tier 2 research evidence (Sprint 28) ---
-                  // Neutral literature co-occurrence surface. These rows
-                  // never become warnings or score penalties.
-                  if (showDeepDive && researchCanonicalIds.isNotEmpty) ...[
-                    KeyedSubtree(
-                      key: _anchors.researchKey,
-                      child: ResearchEvidenceSection(
-                        canonicalIds: researchCanonicalIds,
+                      child: KeyedSubtree(
+                        key: _anchors.researchKey,
+                        child: ResearchSupportSection(
+                          evidenceData: evidenceData,
+                          canonicalIds: researchCanonicalIds,
+                        ),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -925,8 +960,6 @@ class _ProductDetailV2ConnectedState
                       isBlocked: isBlocked,
                       isNotScored: isNotScored,
                       score100: score100,
-                      category: _product?.primaryCategory,
-                      profileRelevanceStatus: profileRelevanceSummary.status,
                       profileIncomplete:
                           profileRelevanceSummary.profileIncomplete,
                     ),
@@ -952,6 +985,42 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
+                  // ---- Product data & sources (collapsed) ---------
+                  // Catalog provenance (record IDs, versions, fingerprint,
+                  // source dates) is debugging/provenance detail — collapsed
+                  // by default at the page bottom, out of the primary scroll.
+                  if (showDeepDive && labelRecordPresent) ...[
+                    Theme(
+                      data: Theme.of(
+                        context,
+                      ).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Product data & sources',
+                          style: V2Typography.titleSm(color: V2Colors.fg),
+                        ),
+                        children: [
+                          buildLabelMatchSection(
+                            labelRecord: detailBlob?['label_record'],
+                            upc: _product?.upcSku,
+                            currentLabelRows:
+                                ingredientSources.displayIngredients,
+                            onOpenSourceLabel: (uri) async {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            showMismatchAction: false,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
                   // ---- 17. TransparencyFooter (WIRED, 11.7f) -------
                   // Reads catalogInfoProvider for the real freshness
                   // label — "Updated <Mon DD, YYYY>" — same source the
@@ -964,7 +1033,7 @@ class _ProductDetailV2ConnectedState
         ),
         // Sticky action bar — production widget reused as-is. Already
         // provider-aware (reads stackEntryForDsldIdProvider), so the
-        // "Add to my stack" / "See safer alternatives" flow works
+        // "Add to my stack" / "See higher-quality options" flow works
         // from day 1.
         bottomNavigationBar: PGStackActionButtons(
           dsldId: widget.dsldId,
@@ -1002,6 +1071,10 @@ class _ProductDetailV2ConnectedState
         },
       ),
       actions: [
+        // Wishlist heart — signed-in only; guests are sent to auth.
+        // Sits left of Compare/Share so save-for-later is one tap away
+        // without competing with the sticky "Add to stack" CTA.
+        if (_product != null) PGFavoriteButton(dsldId: widget.dsldId),
         // Quiet Compare entry — opens the second-product picker sheet
         // (stack + recent scans; the current product is excluded).
         // Scanning-to-compare is out of scope: TODO(compare).
@@ -1029,52 +1102,126 @@ class _ProductDetailV2ConnectedState
   }
 }
 
+/// Hero-shaped skeleton — matches the product-detail first screenful so
+/// load feels like structure arriving, not a spinner interstitial.
 class _ProductDetailLoadingState extends StatelessWidget {
   const _ProductDetailLoadingState();
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(V2Spacing.space24),
-          child: DecoratedBox(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space16,
+          V2Spacing.space8,
+          V2Spacing.space16,
+          V2Spacing.space24,
+        ),
+        children: [
+          // Hero card skeleton (image 80 + title/brand/score).
+          Container(
+            padding: const EdgeInsets.all(V2Spacing.space12),
             decoration: BoxDecoration(
               color: V2Colors.surface,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               border: Border.all(color: V2Colors.outline),
               boxShadow: V2Shadows.sm,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(V2Spacing.space24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: V2Colors.accent,
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SkeletonBlock(width: 80, height: 80, radius: 12),
+                    SizedBox(width: V2Spacing.space12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SkeletonBlock(width: double.infinity, height: 16),
+                          SizedBox(height: V2Spacing.space8),
+                          _SkeletonBlock(width: 140, height: 12),
+                          SizedBox(height: V2Spacing.space8),
+                          _SkeletonBlock(width: 96, height: 12),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: V2Spacing.space16),
-                  Text(
-                    'Opening product',
-                    style: V2Typography.titleSm(color: V2Colors.fg),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: V2Spacing.space8),
-                  Text(
-                    'Loading the verified catalog record on this device.',
-                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                SizedBox(height: V2Spacing.space12),
+                _SkeletonBlock(width: 88, height: 10),
+                SizedBox(height: V2Spacing.space8),
+                _SkeletonBlock(width: 160, height: 18),
+              ],
             ),
           ),
-        ),
+          const SizedBox(height: V2Spacing.space12),
+          // Profile-relevance / score card placeholders.
+          const _SkeletonCard(height: 88),
+          const SizedBox(height: V2Spacing.space12),
+          const _SkeletonCard(height: 120),
+          const SizedBox(height: V2Spacing.space12),
+          const _SkeletonCard(height: 160),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonCard extends StatelessWidget {
+  final double height;
+  const _SkeletonCard({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: height),
+      decoration: BoxDecoration(
+        color: V2Colors.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: V2Colors.outline),
+      ),
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SkeletonBlock(width: 120, height: 12),
+          SizedBox(height: V2Spacing.space12),
+          _SkeletonBlock(width: double.infinity, height: 12),
+          SizedBox(height: V2Spacing.space8),
+          _SkeletonBlock(width: 200, height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  final double width;
+  final double height;
+  final double radius;
+
+  const _SkeletonBlock({
+    required this.width,
+    required this.height,
+    this.radius = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width == double.infinity ? null : width,
+      height: height,
+      constraints: width == double.infinity
+          ? const BoxConstraints(minWidth: double.infinity)
+          : null,
+      decoration: BoxDecoration(
+        color: V2Colors.outline.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

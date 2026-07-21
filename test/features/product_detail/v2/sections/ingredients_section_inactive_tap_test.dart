@@ -238,17 +238,9 @@ void main() {
     expect(find.text('Rhodiola'), findsOneWidget);
     expect(find.text('Amount not disclosed'), findsNWidgets(2));
 
-    await tester.tap(find.byKey(const ValueKey('ingredient-view-analysis')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Proprietary blend'), findsNothing);
+    // Blend header and every label child render directly in the single label
+    // view — there is no Analysis toggle to switch between.
     expect(find.text('Botanical Blend'), findsOneWidget);
-    await tester.tap(find.text('Botanical Blend'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('Educational use only — not medical advice.'),
-      findsOneWidget,
-    );
   });
 
   testWidgets('canonical probiotic blend explains alternative serving totals', (
@@ -380,4 +372,133 @@ void main() {
       expect(find.text('Rice Flour'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'omega totals and unscored children stay with their active parent',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => SingleChildScrollView(
+                child: buildIngredientsSection(
+                  context: ctx,
+                  ingredients: const [],
+                  displayIngredients: const [
+                    {
+                      'label_display_name': 'Fish Oil',
+                      'display_type': 'mapped_ingredient',
+                      'raw_source_path': 'ingredientRows[0]',
+                      'nested_depth': 0,
+                      'score_included': true,
+                    },
+                    {
+                      'label_display_name': 'Total Omega-3 Fatty Acids',
+                      'display_type': 'nutrition_fact',
+                      'raw_source_path': 'ingredientRows[0].nestedRows[0]',
+                      'parent_source_path': 'ingredientRows[0]',
+                      'parent_label': 'Fish Oil',
+                      'nested_depth': 1,
+                      'score_included': false,
+                    },
+                    {
+                      'label_display_name': 'EPA',
+                      'display_type': 'mapped_ingredient',
+                      'raw_source_path':
+                          'ingredientRows[0].nestedRows[0].nestedRows[0]',
+                      'parent_source_path': 'ingredientRows[0].nestedRows[0]',
+                      'parent_label': 'Total Omega-3 Fatty Acids',
+                      'nested_depth': 2,
+                      'score_included': true,
+                    },
+                    {
+                      'label_display_name': 'DHA',
+                      'display_type': 'mapped_ingredient',
+                      'raw_source_path':
+                          'ingredientRows[0].nestedRows[0].nestedRows[1]',
+                      'parent_source_path': 'ingredientRows[0].nestedRows[0]',
+                      'parent_label': 'Total Omega-3 Fatty Acids',
+                      'nested_depth': 2,
+                      'score_included': true,
+                    },
+                    {
+                      'label_display_name': 'Other Omega-3',
+                      'display_type': 'nutrition_fact',
+                      'raw_source_path':
+                          'ingredientRows[0].nestedRows[0].nestedRows[2]',
+                      'parent_source_path': 'ingredientRows[0].nestedRows[0]',
+                      'parent_label': 'Total Omega-3 Fatty Acids',
+                      'nested_depth': 2,
+                      'score_included': false,
+                    },
+                  ],
+                  inactiveIngredients: const [],
+                  ulAnalysis: const [],
+                  blends: const [],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nutrition facts'), findsNothing);
+      final activeTop = tester.getTopLeft(find.text('Active ingredients')).dy;
+      expect(
+        tester.getTopLeft(find.text('Total Omega-3 Fatty Acids')).dy,
+        greaterThan(activeTop),
+      );
+      expect(
+        tester.getTopLeft(find.text('Other Omega-3')).dy,
+        greaterThan(activeTop),
+      );
+    },
+  );
+
+  testWidgets('hierarchy guide does not double-indent nested label rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => SingleChildScrollView(
+              child: buildIngredientsSection(
+                context: ctx,
+                ingredients: const [],
+                displayIngredients: const [
+                  {
+                    'label_display_name': 'Fish Oil',
+                    'display_type': 'mapped_ingredient',
+                    'raw_source_path': 'ingredientRows[0]',
+                    'nested_depth': 0,
+                    'score_included': true,
+                  },
+                  {
+                    'label_display_name': 'EPA',
+                    'display_type': 'mapped_ingredient',
+                    'raw_source_path':
+                        'ingredientRows[0].nestedRows[0].nestedRows[0]',
+                    'parent_source_path': 'ingredientRows[0]',
+                    'parent_label': 'Fish Oil',
+                    'nested_depth': 2,
+                    'score_included': true,
+                  },
+                ],
+                inactiveIngredients: const [],
+                ulAnalysis: const [],
+                blends: const [],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final parentX = tester.getTopLeft(find.text('Fish Oil')).dx;
+    final childX = tester.getTopLeft(find.text('EPA')).dx;
+    expect(childX - parentX, lessThanOrEqualTo(12));
+  });
 }

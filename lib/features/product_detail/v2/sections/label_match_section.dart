@@ -46,6 +46,10 @@ Widget buildLabelMatchSection({
   List<Map<String, dynamic>>? currentLabelRows,
   OpenSourceLabel? onOpenSourceLabel,
   OpenLabelMismatchReport? onReportMismatch,
+  // When false, the card omits its inline "Doesn't match your bottle?" action —
+  // used at the collapsed page-bottom placement where that action is instead
+  // rendered contextually next to the ingredient list (LabelMismatchAction).
+  bool showMismatchAction = true,
 }) {
   final record = _LabelRecord.tryParse(labelRecord);
   if (record == null) return const _UnavailableLabelRecordCard();
@@ -64,6 +68,7 @@ Widget buildLabelMatchSection({
     upc: _nonEmpty(upc),
     onOpenSourceLabel: onOpenSourceLabel,
     onReportMismatch: onReportMismatch,
+    showMismatchAction: showMismatchAction,
   );
 }
 
@@ -180,6 +185,7 @@ class _LabelRecordCard extends StatelessWidget {
   final String? upc;
   final OpenSourceLabel? onOpenSourceLabel;
   final OpenLabelMismatchReport? onReportMismatch;
+  final bool showMismatchAction;
 
   const _LabelRecordCard({
     required this.record,
@@ -190,6 +196,7 @@ class _LabelRecordCard extends StatelessWidget {
     required this.upc,
     required this.onOpenSourceLabel,
     required this.onReportMismatch,
+    this.showMismatchAction = true,
   });
 
   @override
@@ -369,7 +376,7 @@ class _LabelRecordCard extends StatelessWidget {
                 style: V2Typography.caption(color: V2Colors.fgMuted),
               ),
             ],
-            if (reportProduct != null) ...[
+            if (showMismatchAction && reportProduct != null) ...[
               const SizedBox(height: V2Spacing.space8),
               const Divider(height: V2Spacing.space16),
               Semantics(

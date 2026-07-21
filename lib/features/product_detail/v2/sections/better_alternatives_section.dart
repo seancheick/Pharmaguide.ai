@@ -6,12 +6,11 @@
 //   • product is blocked → ALWAYS render
 //   • product unscored → hide
 //   • score < 60 → render
-//   • Profile Relevance is review / notRecommended → render
+//   • incomplete profile + Fair product → generic quality options
 //
 // Data flow:
-//   1. Consume the centralized ProfileRelevanceStatus from product detail
-//   2. Check gate → SizedBox.shrink if not applicable
-//   3. FutureBuilder loads CoreDatabase.findAlternatives by category
+//   1. Check the product-quality gate → SizedBox.shrink if not applicable
+//   3. Load the relevance-first SQL pool, then apply the pure ranker
 //   4. Map ProductsCoreData → PGAlternative
 //   5. Each tap → context.push('/product/<dsldId>')
 //
@@ -26,9 +25,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
 
 const double _lowQualityThreshold = 60.0;
@@ -39,29 +44,27 @@ bool shouldShowBetterAlternatives({
   required bool isBlocked,
   required bool isNotScored,
   required double? score100,
-  required ProfileRelevanceStatus? profileRelevanceStatus,
   required bool profileIncomplete,
 }) {
   if (isBlocked) return true;
   if (isNotScored || score100 == null) return false;
   if (score100 < _lowQualityThreshold) return true;
-  if (profileIncomplete) return false;
-  if (profileRelevanceStatus == ProfileRelevanceStatus.review ||
-      profileRelevanceStatus == ProfileRelevanceStatus.notRecommended) {
-    return true;
+  // S4 — incomplete profile: still surface *generic* higher-quality
+  // options for the shared Fair quality tier. Do not invent a local score
+  // cutoff or use fit status (either would drift from the score contract).
+  if (profileIncomplete) {
+    return tierForScore(score100.round()) == ScoreTier.fair;
   }
   return false;
 }
 
-/// BetterAlternatives section. It consumes the already-resolved Profile
-/// Relevance status so this section does not recompute personalization.
+/// Quality-only alternatives section. Profile goals can break ties, but this
+/// surface never claims candidate-level safety or personal fit.
 class BetterAlternativesSection extends ConsumerWidget {
   final String currentDsldId;
   final bool isBlocked;
   final bool isNotScored;
   final double? score100;
-  final String? category;
-  final ProfileRelevanceStatus? profileRelevanceStatus;
   final bool profileIncomplete;
 
   /// Max alternatives to display (matches PGBetterAlternatives convention).
@@ -73,17 +76,18 @@ class BetterAlternativesSection extends ConsumerWidget {
     required this.isBlocked,
     required this.isNotScored,
     required this.score100,
-    required this.category,
-    required this.profileRelevanceStatus,
     required this.profileIncomplete,
     this.maxAlternatives = 3,
   });
 
   /// Fetches the current product, builds a wider candidate pool
-  /// (on-market + strictly higher score + matching category OR
-  /// supplement_type), then hands it to `BetterAlternativesRanker`
-  /// for tier + tiebreaker sorting.
-  Future<List<ProductsCoreData>> _loadRanked(CoreDatabase coreDb) async {
+  /// (on-market + strictly higher score + intent/family channels), then
+  /// hands it to `BetterAlternativesRanker` for the final relevance and
+  /// tiebreaker pass.
+  Future<List<ProductsCoreData>> _loadRanked(
+    CoreDatabase coreDb, {
+    Set<String>? userGoals,
+  }) async {
     final current = await coreDb.findById(currentDsldId);
     if (current == null) return const [];
     final pool = await coreDb.fetchBetterAlternativesPool(current);
@@ -91,6 +95,7 @@ class BetterAlternativesSection extends ConsumerWidget {
     return rankAlternatives(
       current: current,
       candidates: pool,
+      userGoals: userGoals,
       limit: maxAlternatives,
     );
   }
@@ -101,7 +106,6 @@ class BetterAlternativesSection extends ConsumerWidget {
       isBlocked: isBlocked,
       isNotScored: isNotScored,
       score100: score100,
-      profileRelevanceStatus: profileRelevanceStatus,
       profileIncomplete: profileIncomplete,
     )) {
       return const SizedBox.shrink();
@@ -113,9 +117,14 @@ class BetterAlternativesSection extends ConsumerWidget {
     // products have empty category but a usable supplement_type.
 
     final coreDb = ref.watch(coreDatabaseProvider);
+    // Personalize tiebreakers when the profile has goals (sentinel-stripped).
+    final userGoals = ref.watch(profileProvider).goalsForEvaluator.toSet();
 
     return FutureBuilder<List<ProductsCoreData>>(
-      future: _loadRanked(coreDb),
+      future: _loadRanked(
+        coreDb,
+        userGoals: userGoals.isEmpty ? null : userGoals,
+      ),
       builder: (context, snapshot) {
         // Loading skeleton — keeps the sticky-CTA scroll anchor
         // landing on a real surface, not an empty slot mid-fetch.
@@ -123,7 +132,9 @@ class BetterAlternativesSection extends ConsumerWidget {
           return const PGBetterAlternativesSkeleton();
         }
         if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SizedBox.shrink();
+          return isBlocked
+              ? const _BlockedAlternativesEmpty()
+              : const SizedBox.shrink();
         }
         final alternatives = snapshot.data!;
         final mapped = alternatives
@@ -134,6 +145,17 @@ class BetterAlternativesSection extends ConsumerWidget {
                 name: p.productName,
                 brand: p.brandName ?? '',
                 score: score,
+                imageWidget: ProductImage(
+                  dsldId: p.dsldId,
+                  upc: p.upcSku,
+                  dsldImagePath: p.imageThumbnailUrl ?? p.imageUrl,
+                  productName: p.productName,
+                  brandName: p.brandName ?? '',
+                  formFactor: p.formFactor,
+                  score: score.toDouble(),
+                  size: 48,
+                  compact: true,
+                ),
                 onTap: () => context.push('/product/${p.dsldId}'),
               );
             })
@@ -145,8 +167,50 @@ class BetterAlternativesSection extends ConsumerWidget {
           // strict-quality with intent/family matching, so this
           // copy describes what we actually return.
           title: 'Similar higher-quality options',
+          body: profileIncomplete
+              ? 'Personalize for better matches — complete your profile '
+                    'to rank options for your goals and health context.'
+              : null,
         );
       },
+    );
+  }
+}
+
+class _BlockedAlternativesEmpty extends StatelessWidget {
+  const _BlockedAlternativesEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label:
+          'No comparable alternatives found. We could not find a similar, '
+          'higher-quality option in this catalog.',
+      child: Container(
+        padding: const EdgeInsets.all(V2Spacing.space16),
+        decoration: BoxDecoration(
+          color: V2Colors.surface,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          border: Border.all(color: V2Colors.outline),
+          boxShadow: V2Shadows.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No comparable alternatives found',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              'We couldn\'t find a similar, higher-quality option in this '
+              'catalog.',
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

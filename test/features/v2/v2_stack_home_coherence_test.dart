@@ -7,12 +7,14 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
@@ -49,10 +51,13 @@ void main() {
     Widget child, {
     List<UserStacksLocalData> stack = const [],
     Future<void> Function(CoreDatabase coreDb)? seedCore,
+    Future<void> Function(UserDatabase userDb)? seedUser,
+    bool signedIn = false,
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
     await seedCore?.call(coreDb);
+    await seedUser?.call(userDb);
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
@@ -64,6 +69,11 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
+          authStateProvider.overrideWith((ref) {
+            final service = AuthStateService();
+            if (signedIn) service.onSignedIn();
+            return service;
+          }),
           activeStackProvider.overrideWith((ref) async => stack),
           stackSafetyReportProvider.overrideWith(
             (ref) async => const StackSafetyReport(),
@@ -275,6 +285,53 @@ void main() {
       );
       expect(find.text('Clean Lab', skipOffstage: false), findsOneWidget);
       expect(find.text('87/100', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('Wishlist asks guests to sign in without reading saved rows', (
+      tester,
+    ) async {
+      await pumpWithStack(
+        tester,
+        const StackV2Screen(showNavBar: false, initialSegment: 2),
+        seedUser: (userDb) => userDb.addFavorite('stale-product'),
+      );
+
+      expect(find.text('Sign in to save products'), findsOneWidget);
+      expect(find.text('1 saved'), findsNothing);
+    });
+
+    testWidgets('Wishlist renders a saved product with a neutral brand heart', (
+      tester,
+    ) async {
+      await pumpWithStack(
+        tester,
+        const StackV2Screen(showNavBar: false, initialSegment: 2),
+        signedIn: true,
+        seedUser: (userDb) => userDb.addFavorite('saved-1'),
+        seedCore: (coreDb) async {
+          await coreDb
+              .into(coreDb.productsCore)
+              .insert(
+                ProductsCoreCompanion.insert(
+                  dsldId: 'saved-1',
+                  productName: 'Saved Magnesium',
+                  brandName: const drift.Value('Clean Lab'),
+                  qualityScoreV4100: const drift.Value(87),
+                  score100Equivalent: const drift.Value(87),
+                  qualityScoreStatus: const drift.Value('scored'),
+                  exportVersion: 'test',
+                  exportedAt: '2026-05-18T00:00:00Z',
+                ),
+              );
+        },
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 saved'), findsOneWidget);
+      expect(find.text('Saved Magnesium'), findsOneWidget);
+      expect(find.text('Clean Lab'), findsOneWidget);
+      final heart = tester.widget<Icon>(find.byIcon(Icons.favorite_rounded));
+      expect(heart.color, V2Colors.accent);
     });
 
     testWidgets(

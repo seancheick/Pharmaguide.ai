@@ -23,6 +23,42 @@ import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
     show filterProductDetailWarningsForProfile;
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
+const _lifeStageConditionIds = {'pregnancy', 'lactation', 'ttc'};
+
+/// True only for profile-matched context that is useful to retain but should
+/// not read like a danger signal.
+///
+/// Hard warnings, critical presentation, medication interactions, and
+/// medical-condition risks never enter this lane. `no_data` is also excluded:
+/// uncertainty alone is neither a warning nor useful reassurance.
+bool isCalmProfileNote(InteractionWarning warning) {
+  final hasProfileScope =
+      warning.conditionIds.isNotEmpty ||
+      warning.drugClassIds.isNotEmpty ||
+      warning.profileGate != null;
+  if (!hasProfileScope ||
+      warning.severity.isHard ||
+      warning.evidenceLevel == EvidenceLevel.noData ||
+      isCriticalDisplayMode(warning.displayModeDefault)) {
+    return false;
+  }
+  final direction = _normalizeConsumerText(warning.direction);
+  if (direction == 'beneficial') return true;
+  if (!warning.severity.isActionable) return true;
+  if (direction != 'neutral' || warning.drugClassIds.isNotEmpty) return false;
+
+  // A neutral pregnancy/lactation/TTC rule is contextual guidance, not a
+  // harm signal (for example, an RDA-range nutrient compatibility note).
+  // Do not generalize this to other conditions: neutral lab-test and
+  // medication context can still require action and must remain a warning.
+  final conditions = warning.conditionIds
+      .map(_normalizeConsumerText)
+      .where((condition) => condition.isNotEmpty)
+      .toSet();
+  return conditions.isNotEmpty &&
+      conditions.every(_lifeStageConditionIds.contains);
+}
+
 /// Compose the warning list every Product Detail surface renders.
 ///
 /// Returns the same `guardedWarnings` list production passes to
@@ -158,7 +194,8 @@ partitionProfileWarnings({
 }) {
   final representatives = <InteractionWarning>[];
   final representativeIsProfile = <bool>[];
-  final identityIndexes = <String, int>{};
+  final representativeMatchesProfile = <bool>[];
+  final representativeIdentities = <Set<String>>[];
   for (final w in warnings) {
     final matched = w.matchesProfile(
       userConditions: userConditions,
@@ -176,30 +213,56 @@ partitionProfileWarnings({
     // Critical-mode caution rows with no profile gate (for example product
     // quality additives such as P80) remain visible, but in the general surface
     // instead of inflating "Review for your profile".
-    final isActionable = w.severity.isActionable;
+    // `no_data` is uncertainty, not evidence of harm. POLICY — "if we don't
+    // know, we don't flag": an unresolved-evidence advisory is INTENTIONALLY
+    // suppressed. It is excluded from BOTH this amber review lane AND the calm
+    // "Good to know" lane (isCalmProfileNote also excludes noData), rather than
+    // surfaced as a generic "limited safety data" note that would recreate the
+    // meaningless-warning noise across many pregnancy/lactation products. This
+    // drop is deliberate and test-locked (review_before_use_card_test —
+    // "intentionally suppressed"); do NOT "restore" it to Good to know.
+    // Hard warnings remain hard regardless of evidence availability.
+    final isActionable =
+        w.severity.isActionable &&
+        w.evidenceLevel != EvidenceLevel.noData &&
+        !isCalmProfileNote(w);
     final belongsInProfile = isHard || (matched && isActionable);
-    final identity = _consumerWarningIdentity(w);
-    final existingIndex = identityIndexes[identity];
-    if (existingIndex == null) {
-      identityIndexes[identity] = representatives.length;
+    final identities = _consumerWarningIdentities(w);
+    final existingIndex = representativeIdentities.indexWhere(
+      (existing) => existing.intersection(identities).isNotEmpty,
+    );
+    if (existingIndex == -1) {
       representatives.add(w);
       representativeIsProfile.add(belongsInProfile);
+      representativeMatchesProfile.add(matched);
+      representativeIdentities.add(identities);
     } else {
       final existing = representatives[existingIndex];
       final existingBelongsInProfile = representativeIsProfile[existingIndex];
+      final existingMatchesProfile =
+          representativeMatchesProfile[existingIndex];
+      final doseSpecificityDiffers =
+          _hasSameDoseSubject(existing, w) &&
+          _doseSpecificity(existing) != _doseSpecificity(w);
       final preferred = _preferredWarning(
         existing,
         w,
-        existingMatchesProfile: existingBelongsInProfile,
-        incomingMatchesProfile: belongsInProfile,
+        existingMatchesProfile: existingMatchesProfile,
+        incomingMatchesProfile: matched,
       );
       final mergedSources = <String>{
         ...existing.sourceUrls.map((url) => url.trim()),
         ...w.sourceUrls.map((url) => url.trim()),
       }.where((url) => url.isNotEmpty).toList(growable: false)..sort();
       representatives[existingIndex] = preferred.withSourceUrls(mergedSources);
-      representativeIsProfile[existingIndex] =
-          existingBelongsInProfile || belongsInProfile;
+      representativeIsProfile[existingIndex] = doseSpecificityDiffers
+          ? (identical(preferred, w)
+                ? belongsInProfile
+                : existingBelongsInProfile)
+          : existingBelongsInProfile || belongsInProfile;
+      representativeMatchesProfile[existingIndex] =
+          existingMatchesProfile || matched;
+      representativeIdentities[existingIndex].addAll(identities);
     }
   }
 
@@ -215,41 +278,70 @@ partitionProfileWarnings({
   return (profile: profile, general: general);
 }
 
-String _consumerWarningIdentity(InteractionWarning warning) {
+Set<String> _consumerWarningIdentities(InteractionWarning warning) {
+  final identities = <String>{_visibleWarningIdentity(warning)};
   final subject = _canonicalWarningSubject(warning);
   final isCriticalIncident =
       warning.severity.isHard ||
-      _normalizedDisplayMode(warning.displayModeDefault) == 'critical';
+      isCriticalDisplayMode(warning.displayModeDefault);
   if (subject.isNotEmpty && isCriticalIncident) {
     final conditions = [...warning.conditionIds.map(_normalizeConsumerText)]
       ..sort();
     final drugClasses = [...warning.drugClassIds.map(_normalizeConsumerText)]
       ..sort();
-    return [
-      'hazard',
-      subject,
-      conditions.join(','),
-      drugClasses.join(','),
-      _normalizeConsumerText(warning.banContext),
-      _normalizeConsumerText(warning.additiveCategory),
-    ].join('\u001f');
+    identities.add(
+      [
+        'hazard',
+        subject,
+        conditions.join(','),
+        drugClasses.join(','),
+        _normalizeConsumerText(warning.banContext),
+        _normalizeConsumerText(warning.additiveCategory),
+      ].join('\u001f'),
+    );
   }
-  final sourceTargets =
-      warning.sourceUrls
-          .map((url) => url.trim())
-          .where((url) => url.isNotEmpty)
-          .toList(growable: false)
-        ..sort();
+  if (subject.isNotEmpty &&
+      (warning.conditionIds.isNotEmpty ||
+          warning.drugClassIds.isNotEmpty ||
+          warning.profileGate != null)) {
+    final rawConditions = warning.conditionIds
+        .map(_normalizeConsumerText)
+        .where((condition) => condition.isNotEmpty)
+        .toSet();
+    final conditions =
+        rawConditions.isNotEmpty &&
+            rawConditions.every(_lifeStageConditionIds.contains)
+        ? const ['life-stage']
+        : (rawConditions.toList()..sort());
+    final drugClasses = [...warning.drugClassIds.map(_normalizeConsumerText)]
+      ..sort();
+    identities.add(
+      [
+        'profile-hazard',
+        subject,
+        _normalizeConsumerText(warning.displayHeadline),
+        conditions.join(','),
+        drugClasses.join(','),
+        _normalizedDisplayMode(warning.displayModeDefault),
+      ].join('\u001f'),
+    );
+  }
+  return identities;
+}
+
+String _visibleWarningIdentity(InteractionWarning warning) {
+  // The collapsed warning row renders severity, evidence, headline, and body,
+  // but repeating the same message solely because two producers disagree on
+  // metadata is worse than selecting one authoritative representative.
+  // Severity/evidence differences from duplicate producers do not justify
+  // repeating the same consumer message. The representative selector below
+  // retains the safest, most product-specific version, and citation URLs are
+  // unioned when representatives merge.
   return [
-    warning.severity.name,
+    'visible',
     _normalizedDisplayMode(warning.displayModeDefault),
-    warning.evidenceLevel.name,
     _normalizeConsumerText(warning.displayHeadline),
     _normalizeConsumerText(warning.displayBody),
-    _normalizeConsumerText(warning.mechanism),
-    _normalizeConsumerText(warning.management),
-    _normalizeConsumerText(warning.ingredientName),
-    sourceTargets.join('\u001e'),
   ].join('\u001f');
 }
 
@@ -270,6 +362,23 @@ InteractionWarning _preferredWarning(
   required bool existingMatchesProfile,
   required bool incomingMatchesProfile,
 }) {
+  // A hard warning can never be displaced by a lower tier, even when the
+  // latter has richer product metadata.
+  if (incoming.severity.isHard != existing.severity.isHard) {
+    return incoming.severity.isHard ? incoming : existing;
+  }
+  // Prefer the row that was actually evaluated against this product's dose.
+  // Older catalog producers can emit a generic pregnancy/lactation row beside
+  // a dose-aware condition row for the same hazard; choosing by severity first
+  // would turn a normal-dose informational result back into a false caution.
+  final existingDoseSpecificity = _doseSpecificity(existing);
+  final incomingDoseSpecificity = _doseSpecificity(incoming);
+  if (_hasSameDoseSubject(existing, incoming) &&
+      incomingDoseSpecificity != existingDoseSpecificity) {
+    return incomingDoseSpecificity > existingDoseSpecificity
+        ? incoming
+        : existing;
+  }
   if (incoming.severity.weight != existing.severity.weight) {
     return incoming.severity.weight > existing.severity.weight
         ? incoming
@@ -285,6 +394,22 @@ InteractionWarning _preferredWarning(
   return copyScore(incoming) > copyScore(existing) ? incoming : existing;
 }
 
+int _doseSpecificity(InteractionWarning warning) {
+  if (warning.doseThresholdEvaluation?['evaluated'] == true) return 3;
+  if (_normalizeConsumerText(warning.doseFloorStatus).isNotEmpty) return 2;
+  if (warning.profileGate?['dose'] is Map) return 1;
+  return 0;
+}
+
+bool _hasSameDoseSubject(
+  InteractionWarning existing,
+  InteractionWarning incoming,
+) {
+  final existingSubject = _canonicalWarningSubject(existing);
+  return existingSubject.isNotEmpty &&
+      existingSubject == _canonicalWarningSubject(incoming);
+}
+
 String _normalizeConsumerText(String? value) =>
     (value ?? '').trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 
@@ -293,6 +418,13 @@ String _normalizedDisplayMode(String? value) {
   // Legacy blobs treat an absent display mode as informational.
   return normalized.isEmpty ? 'informational' : normalized;
 }
+
+/// Whether a pipeline display mode represents a critical consumer warning.
+///
+/// Pipeline values are normalized here so every Product Detail consumer uses
+/// the same case- and whitespace-insensitive decision.
+bool isCriticalDisplayMode(String? value) =>
+    _normalizedDisplayMode(value) == 'critical';
 
 /// Worst-case severity across a warning list. Empty list returns
 /// `Severity.safe` (the no-issues baseline). Used by For-You section

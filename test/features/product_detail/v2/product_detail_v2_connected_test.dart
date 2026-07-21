@@ -365,16 +365,25 @@ void main() {
           },
         );
 
-        final action = find.byKey(const Key('formula-history-action'));
         final scrollView = find.byType(CustomScrollView);
+        // Catalog details now live in the collapsed "Product data & sources"
+        // section at the page bottom — scroll down to it and expand it.
+        final disclosure = find.text('Product data & sources');
         for (
           var attempt = 0;
-          attempt < 12 && action.evaluate().isEmpty;
+          attempt < 12 && disclosure.evaluate().isEmpty;
           attempt++
         ) {
-          await tester.drag(scrollView, const Offset(0, 250));
+          await tester.drag(scrollView, const Offset(0, -250));
           await tester.pumpAndSettle();
         }
+        expect(disclosure, findsOneWidget);
+        await tester.ensureVisible(disclosure);
+        await tester.pumpAndSettle();
+        await tester.tap(disclosure);
+        await tester.pumpAndSettle();
+
+        final action = find.byKey(const Key('formula-history-action'));
         expect(action, findsOneWidget);
         await tester.ensureVisible(action);
         await tester.pumpAndSettle();
@@ -438,7 +447,8 @@ void main() {
         expect(find.text('Scoring-only EPA identity'), findsNothing);
 
         await _scrollConnectedTowardTop(tester);
-        expect(find.text('Label completeness: 100%'), findsOneWidget);
+        // A 100%-complete label is now a silent success — no completeness row.
+        expect(find.text('Label completeness: 100%'), findsNothing);
         expect(find.textContaining('Analysis coverage'), findsNothing);
         final scoreHeadline = find.text('Why this scored 88');
         await _scrollConnectedTowardBottomUntil(tester, scoreHeadline);
@@ -713,182 +723,59 @@ void main() {
       },
     );
 
-    testWidgets('Label is the accessible default with both logical counts', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
-      await tester.pumpWidget(
-        _ingredientsHarness(
-          ingredients: const [],
-          displayIngredients: _analysisLedger(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byType(SegmentedButton<IngredientLedgerView>),
-        findsOneWidget,
-      );
-      expect(find.text('Label 5'), findsOneWidget);
-      expect(find.text('Analysis 3'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel('Label view, 5 ingredients'),
-        findsOneWidget,
-      );
-      expect(
-        find.bySemanticsLabel('Analysis view, 3 ingredients'),
-        findsOneWidget,
-      );
-      expect(
-        tester
-            .widgetList<PGActiveIngredientTile>(
-              find.byType(PGActiveIngredientTile),
-            )
-            .map((tile) => tile.ingredient.name),
-        [
-          'Fish Oil',
-          'Total Omega-3 Fatty Acids',
-          'EPA',
-          'DHA',
-          'Other Omega-3 Fatty Acids',
-        ],
-      );
-      semantics.dispose();
-    });
-
     testWidgets(
-      'ingredient view control remains usable at narrow width and 200% text',
+      'canonical ledger renders one bottle-faithful label view (no toggle)',
       (tester) async {
-        await tester.binding.setSurfaceSize(const Size(320, 700));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
         await tester.pumpWidget(
           _ingredientsHarness(
             ingredients: const [],
             displayIngredients: _analysisLedger(),
-            textScaler: const TextScaler.linear(2),
-            scrollable: true,
           ),
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Label 5'), findsOneWidget);
-        expect(find.text('Analysis 3'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
-
-    testWidgets(
-      'Analysis keeps only score rows in relative source order without mutation',
-      (tester) async {
-        final ledger = _analysisLedger();
-        final originalLedger = ledger
-            .map((row) => Map<String, dynamic>.from(row))
-            .toList(growable: false);
-        final scoreRows = <Map<String, dynamic>>[
-          {'display_label': 'Scoring EPA', 'quantity': 360, 'unit': 'mg'},
-        ];
-        final originalScoreRows = scoreRows
-            .map((row) => Map<String, dynamic>.from(row))
-            .toList(growable: false);
-        await tester.pumpWidget(
-          _ingredientsHarness(
-            ingredients: scoreRows,
-            displayIngredients: ledger,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.tap(
+        // The consumer Analysis toggle is removed — one faithful label view.
+        expect(
           find.byKey(const ValueKey('ingredient-view-analysis')),
+          findsNothing,
         );
-        await tester.pumpAndSettle();
-
-        final rows = tester
-            .widgetList<PGActiveIngredientTile>(
-              find.byType(PGActiveIngredientTile),
-            )
-            .map((tile) => tile.ingredient)
-            .toList(growable: false);
-        expect(rows.map((row) => row.name), ['Fish Oil', 'EPA', 'DHA']);
-        expect(rows.map((row) => row.labelOrder), [0, 2, 3]);
-        expect(rows[1].nestedDepth, 2);
-        expect(rows[1].parentLabel, 'Total Omega-3 Fatty Acids');
-        expect(ledger, originalLedger);
-        expect(scoreRows, originalScoreRows);
+        expect(find.textContaining('Analysis '), findsNothing);
+        // Every label row renders in source order (no score-only projection).
+        expect(
+          tester
+              .widgetList<PGActiveIngredientTile>(
+                find.byType(PGActiveIngredientTile),
+              )
+              .map((tile) => tile.ingredient.name),
+          [
+            'Fish Oil',
+            'Total Omega-3 Fatty Acids',
+            'EPA',
+            'DHA',
+            'Other Omega-3 Fatty Acids',
+          ],
+        );
       },
     );
 
-    testWidgets('selected ingredient view survives an ordinary rebuild', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _ingredientsHarness(
-          ingredients: const [],
-          displayIngredients: _analysisLedger(),
-        ),
-      );
-      await tester.tap(find.byKey(const ValueKey('ingredient-view-analysis')));
-      await tester.pumpAndSettle();
-      expect(find.text('Total Omega-3 Fatty Acids'), findsNothing);
-
-      await tester.pumpWidget(
-        _ingredientsHarness(
-          ingredients: const [],
-          displayIngredients: _analysisLedger(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Total Omega-3 Fatty Acids'), findsNothing);
-      expect(find.text('EPA'), findsOneWidget);
-    });
-
-    testWidgets('legacy blobs do not offer a false Label and Analysis split', (
+    testWidgets('legacy blobs render a single ingredient list, no toggle', (
       tester,
     ) async {
       await tester.pumpWidget(
         _ingredientsHarness(
           ingredients: const [
-            {
-              'display_label': 'Legacy scored row',
-              'quantity': 10,
-              'unit': 'mg',
-            },
+            {'display_label': 'Legacy scored row', 'quantity': 10, 'unit': 'mg'},
           ],
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(SegmentedButton<IngredientLedgerView>), findsNothing);
-      expect(find.textContaining('Label '), findsNothing);
+      expect(
+        find.byKey(const ValueKey('ingredient-view-analysis')),
+        findsNothing,
+      );
       expect(find.textContaining('Analysis '), findsNothing);
       expect(find.text('Legacy scored row'), findsOneWidget);
-    });
-
-    testWidgets('connected screen switches its canonical ledger to Analysis', (
-      tester,
-    ) async {
-      await _pumpConnectedScreen(
-        tester,
-        detailBlob: {
-          'ingredients': const [
-            {'display_label': 'Legacy score input must stay hidden'},
-          ],
-          'display_ingredients': _analysisLedger(),
-          'quality_pillars_v4': _connectedV4Pillars(),
-        },
-      );
-
-      expect(find.text('Label 5'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('ingredient-view-analysis')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Fish Oil'), findsOneWidget);
-      expect(find.text('EPA'), findsOneWidget);
-      expect(find.text('DHA'), findsOneWidget);
-      expect(find.text('Total Omega-3 Fatty Acids'), findsNothing);
-      expect(find.text('Other Omega-3 Fatty Acids'), findsNothing);
-      expect(find.text('Legacy score input must stay hidden'), findsNothing);
     });
 
     testWidgets('logical Folate stays one row with its parenthetical amount', (

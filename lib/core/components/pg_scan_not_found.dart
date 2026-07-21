@@ -33,100 +33,120 @@ class PGScanNotFound extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      // Solid amber wash. cautionTint is already 10% opacity over
-      // the system bg, so we layer it on a fuller surface so the
-      // overlay reads as a single calm material.
-      color: V2Colors.caution.withValues(alpha: 0.08),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            V2Spacing.space24,
-            V2Spacing.space16,
-            V2Spacing.space24,
-            V2Spacing.space24,
-          ),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: _CloseChip(onTap: onClose),
-              ),
-              const Spacer(),
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: V2Colors.caution.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                  border: Border.all(
-                    color: V2Colors.caution.withValues(alpha: 0.22),
-                    width: 0.8,
-                  ),
-                  boxShadow: V2Shadows.sm,
-                ),
-                child: const Icon(
-                  Icons.search_off_rounded,
-                  color: V2Colors.caution,
-                  size: 40,
-                ),
-              ),
-              const SizedBox(height: V2Spacing.space24),
-              Text(
-                "We couldn't find this product",
-                textAlign: TextAlign.center,
-                style: V2Typography.titleSm(color: V2Colors.fg),
-              ),
-              const SizedBox(height: V2Spacing.space8),
-              Text(
-                "The barcode didn't match your on-device catalog. Search "
-                'by name for nearby matches, try again, or enter the code '
-                'by hand.',
-                textAlign: TextAlign.center,
-                style: V2Typography.body(color: V2Colors.fgMuted),
-              ),
-              if (scannedCode != null) ...[
-                const SizedBox(height: V2Spacing.space16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: V2Spacing.space12,
-                    vertical: V2Spacing.space4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: V2Colors.surface,
-                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                    border: Border.all(color: V2Colors.outline),
-                  ),
-                  child: Text(
-                    scannedCode!,
-                    style: V2Typography.overline(color: V2Colors.fgMuted),
+    return BlockSemantics(
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        label: 'Product not found',
+        child: ColoredBox(
+          // Solid amber wash. cautionTint is already 10% opacity over
+          // the system bg, so we layer it on a fuller surface so the
+          // overlay reads as a single calm material.
+          color: V2Colors.caution.withValues(alpha: 0.08),
+          child: SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      V2Spacing.space24,
+                      V2Spacing.space16,
+                      V2Spacing.space24,
+                      V2Spacing.space24,
+                    ),
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: _CloseChip(onTap: onClose),
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: V2Colors.caution.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(
+                              V2Spacing.radiusCard,
+                            ),
+                            border: Border.all(
+                              color: V2Colors.caution.withValues(alpha: 0.22),
+                              width: 0.8,
+                            ),
+                            boxShadow: V2Shadows.sm,
+                          ),
+                          child: const Icon(
+                            Icons.search_off_rounded,
+                            color: V2Colors.caution,
+                            size: 40,
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space24),
+                        Text(
+                          "We couldn't find this product",
+                          textAlign: TextAlign.center,
+                          style: V2Typography.titleSm(color: V2Colors.fg),
+                        ),
+                        const SizedBox(height: V2Spacing.space8),
+                        Text(
+                          "The barcode didn't match your on-device catalog. Search "
+                          'by name for nearby matches, try again, or enter the code '
+                          'by hand.',
+                          textAlign: TextAlign.center,
+                          style: V2Typography.body(color: V2Colors.fgMuted),
+                        ),
+                        if (scannedCode != null) ...[
+                          const SizedBox(height: V2Spacing.space16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: V2Spacing.space12,
+                              vertical: V2Spacing.space4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: V2Colors.surface,
+                              borderRadius: BorderRadius.circular(
+                                V2Spacing.radiusPill,
+                              ),
+                              border: Border.all(color: V2Colors.outline),
+                            ),
+                            child: Text(
+                              scannedCode!,
+                              style: V2Typography.overline(
+                                color: V2Colors.fgMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const Spacer(flex: 2),
+                        PGPillButton(
+                          label: 'Search by name',
+                          icon: Icons.search_rounded,
+                          expand: true,
+                          onPressed: onSearchByName,
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                        PGPillButton(
+                          label: 'Try again',
+                          icon: Icons.qr_code_scanner_rounded,
+                          variant: PGPillVariant.secondary,
+                          expand: true,
+                          onPressed: onRetry,
+                        ),
+                        const SizedBox(height: V2Spacing.space8),
+                        PGPillButton(
+                          label: 'Enter code manually',
+                          icon: Icons.keyboard_rounded,
+                          variant: PGPillVariant.ghost,
+                          expand: true,
+                          onPressed: onManualEntry,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
-              const Spacer(flex: 2),
-              PGPillButton(
-                label: 'Search by name',
-                icon: Icons.search_rounded,
-                expand: true,
-                onPressed: onSearchByName,
-              ),
-              const SizedBox(height: V2Spacing.space12),
-              PGPillButton(
-                label: 'Try again',
-                icon: Icons.qr_code_scanner_rounded,
-                variant: PGPillVariant.secondary,
-                expand: true,
-                onPressed: onRetry,
-              ),
-              const SizedBox(height: V2Spacing.space8),
-              PGPillButton(
-                label: 'Enter code manually',
-                icon: Icons.keyboard_rounded,
-                variant: PGPillVariant.ghost,
-                expand: true,
-                onPressed: onManualEntry,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -142,21 +162,14 @@ class _CloseChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: V2Colors.surface,
-      shape: const CircleBorder(),
+      shape: const CircleBorder(side: BorderSide(color: V2Colors.outline)),
       elevation: 0,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: V2Colors.outline),
-          ),
-          child: const Icon(Icons.close_rounded, color: V2Colors.fg, size: 18),
-        ),
+      child: IconButton(
+        tooltip: 'Close product not found',
+        onPressed: onTap,
+        constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+        padding: EdgeInsets.zero,
+        icon: const Icon(Icons.close_rounded, color: V2Colors.fg, size: 20),
       ),
     );
   }

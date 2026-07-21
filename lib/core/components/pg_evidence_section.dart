@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -65,6 +66,11 @@ class PGEvidenceSection extends StatelessWidget {
   /// the evidence to the score pillar above.
   final String? footnote;
 
+  /// Optional extra content appended INSIDE the studies sheet, below the
+  /// citations — e.g. related ingredient research (T10). Kept an opaque
+  /// [Widget] so this core component never depends on feature models.
+  final Widget? sheetExtra;
+
   const PGEvidenceSection({
     super.key,
     required this.tier,
@@ -76,7 +82,51 @@ class PGEvidenceSection extends StatelessWidget {
     this.helperLine,
     this.subtitle,
     this.footnote,
+    this.sheetExtra,
   });
+
+  /// CTA label for the studies sheet. Prefers the human-study count the
+  /// summary already advertises; falls back to the citation-row count
+  /// (e.g. preclinical-only refs, which never count as "studies"), then
+  /// to a research-only label when the sheet carries only [sheetExtra].
+  String _sheetButtonLabel() {
+    if (totalStudies > 0) return 'View studies ($totalStudies)';
+    if (citations.isNotEmpty) return 'View sources (${citations.length})';
+    return 'View related research';
+  }
+
+  void _openStudiesSheet(BuildContext context) {
+    PGModal.bottomSheet<void>(
+      context: context,
+      builder: (_) => ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 640),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space16,
+            0,
+            V2Spacing.space16,
+            V2Spacing.space24,
+          ),
+          shrinkWrap: true,
+          children: [
+            if (citations.isNotEmpty) ...[
+              const PGEyebrow('Sources', color: V2Colors.fgMuted),
+              const SizedBox(height: V2Spacing.space8),
+              for (var i = 0; i < citations.length; i++)
+                _CitationRow(
+                  citation: citations[i],
+                  isLast: i == citations.length - 1,
+                ),
+            ],
+            if (sheetExtra != null) ...[
+              if (citations.isNotEmpty) const SizedBox(height: V2Spacing.space24),
+              sheetExtra!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   String _summaryLine() {
     final parts = <String>[];
@@ -115,7 +165,9 @@ class PGEvidenceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tier == PGEvidenceTier.none && citations.isEmpty) {
+    if (tier == PGEvidenceTier.none &&
+        citations.isEmpty &&
+        sheetExtra == null) {
       return const SizedBox.shrink();
     }
     return Container(
@@ -173,17 +225,12 @@ class PGEvidenceSection extends StatelessWidget {
               ),
             ),
           ],
-          if (citations.isNotEmpty) ...[
-            const SizedBox(height: V2Spacing.space16),
-            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+          if (citations.isNotEmpty || sheetExtra != null) ...[
             const SizedBox(height: V2Spacing.space12),
-            const PGEyebrow('Sources', color: V2Colors.fgMuted),
-            const SizedBox(height: V2Spacing.space8),
-            for (var i = 0; i < citations.length; i++)
-              _CitationRow(
-                citation: citations[i],
-                isLast: i == citations.length - 1,
-              ),
+            _ViewStudiesButton(
+              label: _sheetButtonLabel(),
+              onTap: () => _openStudiesSheet(context),
+            ),
           ],
           if (footnote != null && footnote!.trim().isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space12),
@@ -193,6 +240,60 @@ class PGEvidenceSection extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Tinted pill CTA that opens the studies/sources sheet. Mirrors the
+/// score card's "How it's scored" control (≥44pt, a11y button role).
+class _ViewStudiesButton extends StatelessWidget {
+  const _ViewStudiesButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: V2Spacing.space12,
+              vertical: V2Spacing.space8,
+            ),
+            decoration: BoxDecoration(
+              color: V2Colors.accentTint,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+              border: Border.all(
+                color: V2Colors.accent.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.menu_book_outlined,
+                  size: 14,
+                  color: V2Colors.accent,
+                ),
+                const SizedBox(width: V2Spacing.space4),
+                Text(label, style: V2Typography.caption(color: V2Colors.accent)),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: V2Colors.accent,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

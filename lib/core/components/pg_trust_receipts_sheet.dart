@@ -31,7 +31,9 @@ import 'package:pharmaguide/data/providers/trust_receipts_provider.dart';
 /// (lib/core/scoring/v4_pillars.dart), the app's single source of truth
 /// for the six-pillar shape, so the sheet can never drift from the spec.
 const Map<String, String> _pillarDefinitions = {
-  'formulation': 'Ingredient forms and how well the body absorbs them.',
+  'formulation':
+      'Ingredient forms we can identify and how well the body absorbs them. '
+      'Undisclosed forms receive no form-quality rating.',
   'dose': 'Whether amounts match what studies actually used.',
   'evidence': 'Clinical research behind the ingredients.',
   'transparency': 'Label clarity — full amounts, no hidden blends.',

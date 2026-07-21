@@ -373,7 +373,12 @@ void main() {
     test('formBlockHeading appends "form"', () {
       expect(formBlockHeading(FormQuality.excellent), 'Excellent form');
       expect(formBlockHeading(FormQuality.poor), 'Poor form');
-      expect(formBlockHeading(FormQuality.unknown), 'Form unknown');
+      // Unknown is intercepted upstream; the exhaustiveness fallback no longer
+      // emits the confusing "Form unknown" string.
+      expect(
+        formBlockHeading(FormQuality.unknown),
+        'Form assessment not applicable',
+      );
     });
 
     test('doseChipLabel and doseBlockHeading match', () {

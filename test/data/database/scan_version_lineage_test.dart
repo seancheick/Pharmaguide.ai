@@ -77,7 +77,13 @@ void main() {
           added_at INTEGER
         );
       ''');
-      legacy.execute('CREATE TABLE user_favorites (added_at INTEGER);');
+      legacy.execute('''
+        CREATE TABLE user_favorites (
+          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          dsld_id TEXT NOT NULL,
+          added_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        );
+      ''');
       legacy.execute('PRAGMA user_version = 7;');
     } finally {
       legacy.dispose();
@@ -91,7 +97,7 @@ void main() {
     expect(existing.formulaFingerprint, isNull);
     expect(existing.catalogSourceVersion, isNull);
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.read<int>('user_version'), 8);
+    expect(version.read<int>('user_version'), 9);
   });
 
   test(
