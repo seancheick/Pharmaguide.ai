@@ -60,12 +60,24 @@ Map<String, dynamic> _connectedLabelRecord() {
 }
 
 Future<void> _seedConnectedProduct(CoreDatabase coreDb) async {
+  await _seedProduct(
+    coreDb,
+    dsldId: _connectedDsldId,
+    productName: 'Connected Label Trust Product',
+  );
+}
+
+Future<void> _seedProduct(
+  CoreDatabase coreDb, {
+  required String dsldId,
+  required String productName,
+}) async {
   await coreDb
       .into(coreDb.productsCore)
       .insert(
         ProductsCoreCompanion.insert(
-          dsldId: _connectedDsldId,
-          productName: 'Connected Label Trust Product',
+          dsldId: dsldId,
+          productName: productName,
           exportVersion: 'test',
           exportedAt: '2026-07-19T00:00:00Z',
           qualityScoreV4100: const Value(88),
@@ -102,9 +114,29 @@ Map<String, dynamic> _connectedV4Pillars() => {
   },
 };
 
+Map<String, dynamic> _zeroTransparencyPillars() {
+  final pillars = _connectedV4Pillars();
+  pillars['transparency'] = {
+    'score': 0.0,
+    'max': 15,
+    'reason': 'Pipeline transparency reason.',
+  };
+  return pillars;
+}
+
+Map<String, dynamic> _activeLedgerRow(String name, int order) => {
+  'label_display_name': name,
+  'label_order': order,
+  'nested_depth': 0,
+  'score_included': true,
+  'display_disposition': 'scored',
+  'form_display_state': 'not_disclosed',
+};
+
 Future<void> _pumpConnectedScreen(
   WidgetTester tester, {
   required Map<String, dynamic> detailBlob,
+  String? initialSection = 'ingredients',
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
@@ -133,10 +165,10 @@ Future<void> _pumpConnectedScreen(
         ),
         rdaOptimalUlsProvider.overrideWith((ref) async => const {}),
       ],
-      child: const MaterialApp(
+      child: MaterialApp(
         home: ProductDetailV2ConnectedScreen(
           dsldId: _connectedDsldId,
-          initialSection: 'ingredients',
+          initialSection: initialSection,
         ),
       ),
     ),
@@ -338,6 +370,283 @@ void main() {
       });
       expect(scoreRow.containsKey('score_included'), isFalse);
       expect(displayRow['score_included'], isFalse);
+    });
+  });
+
+  group('connected transparency disclosure action', () {
+    final trueBlendFlags = <({String name, Object value})>[
+      (name: 'numeric one', value: 1),
+      (name: 'boolean true', value: true),
+      (name: 'string one', value: '1'),
+      (name: 'string true', value: 'true'),
+    ];
+    for (final flag in trueBlendFlags) {
+      testWidgets('tolerates ${flag.name} proprietary-blend flag', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': [_activeLedgerRow('Active row', 0)],
+            'quality_pillars_v4': _connectedV4Pillars(),
+            'proprietary_blend_detail': {'has_proprietary_blends': flag.value},
+          },
+        );
+
+        final disclosure = find.text('Blend amounts not disclosed');
+        await _scrollConnectedTowardBottomUntil(tester, disclosure);
+        expect(disclosure, findsOneWidget);
+      });
+    }
+
+    final falseBlendFlags = <({String name, Object value})>[
+      (name: 'numeric zero', value: 0),
+      (name: 'false-like string', value: 'false'),
+    ];
+    for (final flag in falseBlendFlags) {
+      testWidgets('rejects ${flag.name} proprietary-blend flag', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': [_activeLedgerRow('Active row', 0)],
+            'quality_pillars_v4': _connectedV4Pillars(),
+            'proprietary_blend_detail': {'has_proprietary_blends': flag.value},
+          },
+        );
+
+        final disclosure = find.text('Blend amounts not disclosed');
+        await _scrollConnectedTowardBottomUntil(tester, disclosure);
+        expect(disclosure, findsNothing);
+      });
+    }
+
+    testWidgets(
+      'active canonical disclosure wires action without label-confidence signal',
+      (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': [_activeLedgerRow('Active row', 0)],
+            'quality_pillars_v4': _zeroTransparencyPillars(),
+          },
+        );
+
+        final action = find.text('View label details');
+        await _scrollConnectedTowardBottomUntil(tester, action);
+
+        expect(find.text('Blend amounts not disclosed'), findsNothing);
+        expect(action, findsOneWidget);
+      },
+    );
+
+    final noTargetCases = <({String name, List<Map<String, dynamic>> rows})>[
+      (name: 'present-empty', rows: const []),
+      (
+        name: 'nutrition-only',
+        rows: [
+          {
+            ..._activeLedgerRow('Calories', 0),
+            'display_type': 'nutrition_fact',
+          },
+        ],
+      ),
+      (
+        name: 'inactive-only',
+        rows: [
+          {
+            ..._activeLedgerRow('Gelatin', 0),
+            'display_type': 'inactive_ingredient',
+            'display_disposition': 'other_ingredient',
+          },
+        ],
+      ),
+    ];
+    for (final targetCase in noTargetCases) {
+      testWidgets('${targetCase.name} canonical ledger has no action', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': targetCase.rows,
+            'quality_pillars_v4': _zeroTransparencyPillars(),
+          },
+        );
+
+        final transparency = find.text('Transparency');
+        await _scrollConnectedTowardBottomUntil(tester, transparency);
+        expect(transparency, findsOneWidget);
+        expect(find.text('View label details'), findsNothing);
+      });
+    }
+
+    testWidgets(
+      'offscreen action reveals and lands on the preferred named blend row',
+      (tester) async {
+        final activeRows = [
+          for (var index = 0; index < 6; index++)
+            _activeLedgerRow('Active ${index + 1}', index),
+          {
+            ..._activeLedgerRow('Named Disclosure Blend', 6),
+            'display_type': 'structural_container',
+            'exact_dose_text': '500 mg',
+          },
+        ];
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': activeRows,
+            'quality_pillars_v4': _zeroTransparencyPillars(),
+            'proprietary_blend_detail': const {
+              'blends': [
+                {'name': 'Named Disclosure Blend'},
+              ],
+            },
+          },
+        );
+
+        final action = find.text('View label details');
+        await _scrollConnectedTowardBottomUntil(tester, action);
+        expect(action, findsOneWidget);
+        await tester.ensureVisible(action);
+        await tester.pumpAndSettle();
+        expect(find.text('Named Disclosure Blend'), findsNothing);
+
+        await tester.tap(action);
+        await tester.pumpAndSettle();
+
+        final target = find.text('Named Disclosure Blend');
+        expect(target, findsOneWidget);
+        final targetTop = tester.getTopLeft(target).dy;
+        expect(targetTop, inInclusiveRange(0, tester.view.physicalSize.height));
+      },
+    );
+
+    testWidgets('repeated action re-reveals after manual ingredient collapse', (
+      tester,
+    ) async {
+      final activeRows = [
+        for (var index = 0; index < 6; index++)
+          _activeLedgerRow('Active ${index + 1}', index),
+      ];
+      await _pumpConnectedScreen(
+        tester,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': activeRows,
+          'quality_pillars_v4': _zeroTransparencyPillars(),
+        },
+      );
+
+      final action = find.text('View label details');
+      await _scrollConnectedTowardBottomUntil(tester, action);
+      await tester.ensureVisible(action);
+      await tester.pumpAndSettle();
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(find.text('Active 6'), findsOneWidget);
+
+      await tester.tap(find.text('Active ingredients'));
+      await tester.pumpAndSettle();
+      expect(find.text('Active 6'), findsNothing);
+
+      await tester.ensureVisible(action);
+      await tester.pumpAndSettle();
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Active 6'), findsOneWidget);
+    });
+
+    testWidgets('switching products clears a latched disclosure reveal', (
+      tester,
+    ) async {
+      const firstId = 'disclosure-first';
+      const secondId = 'disclosure-second';
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb, dsldId: firstId, productName: 'First Product');
+      await _seedProduct(
+        coreDb,
+        dsldId: secondId,
+        productName: 'Second Product',
+      );
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+      });
+
+      Map<String, dynamic> blob(String prefix) => {
+        'ingredients': const <Map<String, dynamic>>[],
+        'display_ingredients': [
+          for (var index = 0; index < 6; index++)
+            _activeLedgerRow('$prefix ${index + 1}', index),
+        ],
+        'quality_pillars_v4': _zeroTransparencyPillars(),
+      };
+      final blobs = {firstId: blob('First'), secondId: blob('Second')};
+      final selectedId = ValueNotifier(firstId);
+      addTearDown(selectedId.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            detailBlobProvider.overrideWith(
+              (ref, dsldId) async => blobs[dsldId],
+            ),
+            personalizedInteractionWarningsProvider.overrideWith(
+              (ref, dsldId) async => const [],
+            ),
+            fitScoreForProductProvider.overrideWith(
+              (ref, dsldId) async => null,
+            ),
+            currentStackMedicationClassIdsProvider.overrideWith(
+              (ref) async => const <String>{},
+            ),
+            rdaOptimalUlsProvider.overrideWith((ref) async => const {}),
+          ],
+          child: MaterialApp(
+            home: ValueListenableBuilder<String>(
+              valueListenable: selectedId,
+              builder: (context, dsldId, _) => ProductDetailV2ConnectedScreen(
+                dsldId: dsldId,
+                initialSection: dsldId == firstId ? null : 'ingredients',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final action = find.text('View label details');
+      await _scrollConnectedTowardBottomUntil(tester, action);
+      await tester.ensureVisible(action);
+      await tester.pumpAndSettle();
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(find.text('First 6'), findsOneWidget);
+
+      selectedId.value = secondId;
+      await tester.pumpAndSettle();
+
+      expect(find.text('Active ingredients'), findsOneWidget);
+      expect(find.text('Second 6'), findsNothing);
     });
   });
 
