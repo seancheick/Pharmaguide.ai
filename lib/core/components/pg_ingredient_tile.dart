@@ -13,8 +13,8 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_m
 ///   (Geist Mono for tabular figures)
 /// - Optional parenthetical component amount and exact form text
 /// - Chips Wrap (spacing 6, runSpacing 4):
-///   - explicit non-quality form states (`Form not disclosed`,
-///     `Form listed · not yet assessed`, or `Data needs review`)
+///   - `Data needs review` only when source identity is unresolved; ordinary
+///     missing/unassessed form disclosure stays quiet on the consumer row
 ///   - `_FormChip` only for an explicitly assessed form
 ///   - `_DoseChip` when `doseCallOut != withinLimits` — High dose /
 ///     Low dose / Dose not disclosed (High is the only red — real safety)
@@ -66,12 +66,12 @@ class PGActiveIngredientTile extends StatelessWidget {
         formState == PGIngredientFormDisplayState.needsReview;
     final suppressClaims = needsReview || dataNeedsReview;
     final isAssessed = formState == PGIngredientFormDisplayState.assessed;
-    final formStatusLabel = formState.statusLabel;
+    final rowFormStatusLabel = _rowFormStatusLabel(formState);
     // Unresolved identity: the row shows only its literal label and the shared
     // Data-needs-review state — every quality/dose/safety claim is hidden even
     // if a stale typed model still carries one (defense-in-depth).
     final showChips =
-        formStatusLabel != null ||
+        rowFormStatusLabel != null ||
         (!suppressClaims &&
             ((isAssessed && i.formQuality != FormQuality.unknown) ||
                 i.doseCallOut != DoseCallOut.withinLimits ||
@@ -180,10 +180,10 @@ class PGActiveIngredientTile extends StatelessWidget {
                             runSpacing: 4,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              if (formStatusLabel != null)
+                              if (rowFormStatusLabel != null)
                                 _FormStatusChipV2(
                                   state: formState,
-                                  label: formStatusLabel,
+                                  label: rowFormStatusLabel,
                                   onTap: onTap,
                                 ),
                               if (!suppressClaims &&
@@ -260,9 +260,9 @@ String _semanticsLabel({
     parts.add(_parenthesize(ingredient.parentheticalDoseText!));
   }
   if (hasForm) parts.add(ingredient.formLabel!);
-  final formStatusLabel = formState.statusLabel;
-  if (formStatusLabel != null) {
-    parts.add(formStatusLabel);
+  final rowFormStatusLabel = _rowFormStatusLabel(formState);
+  if (rowFormStatusLabel != null) {
+    parts.add(rowFormStatusLabel);
   } else if (!suppressClaims &&
       formState == PGIngredientFormDisplayState.assessed &&
       ingredient.formQuality != FormQuality.unknown) {
@@ -280,6 +280,14 @@ String _semanticsLabel({
   parts.add(ingredient.scoreParticipationLabel);
   return '${parts.join('. ')}.';
 }
+
+/// Consumer rows reserve status space for an actual data conflict. Disclosure
+/// details remain available in the ingredient explanation without repeating a
+/// low-value badge on every unassessed or undisclosed label row.
+String? _rowFormStatusLabel(PGIngredientFormDisplayState state) =>
+    state == PGIngredientFormDisplayState.needsReview
+    ? state.statusLabel
+    : null;
 
 // =============================================================================
 // Form chip — mirrors _FormChip color logic from
