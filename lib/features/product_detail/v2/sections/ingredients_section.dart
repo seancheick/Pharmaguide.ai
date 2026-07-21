@@ -160,21 +160,21 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
     // One bottle-faithful label view: Nutrition facts / Active / Other. The
     // scoring engine keeps its own score_included representation internally;
     // there is no consumer-facing "Analysis" projection.
+    final rowsBySourcePath = <String, Map<String, dynamic>>{
+      for (final row in labelRows)
+        if (row['raw_source_path']?.toString().trim().isNotEmpty == true)
+          row['raw_source_path'].toString(): row,
+    };
+    _LedgerSection sectionFor(Map<String, dynamic> row) =>
+        _ledgerSectionForRow(row, rowsBySourcePath);
     final nutritionRows = labelRows
-        .where((row) => row['display_type']?.toString() == 'nutrition_fact')
+        .where((row) => sectionFor(row) == _LedgerSection.nutrition)
         .toList(growable: false);
     final otherRows = labelRows
-        .where((row) {
-          return row['display_type']?.toString() == 'inactive_ingredient' ||
-              row['display_disposition']?.toString() == 'other_ingredient';
-        })
+        .where((row) => sectionFor(row) == _LedgerSection.other)
         .toList(growable: false);
     final activeRows = labelRows
-        .where((row) {
-          return row['display_type']?.toString() != 'nutrition_fact' &&
-              row['display_type']?.toString() != 'inactive_ingredient' &&
-              row['display_disposition']?.toString() != 'other_ingredient';
-        })
+        .where((row) => sectionFor(row) == _LedgerSection.active)
         .toList(growable: false);
 
     Widget ledgerSection(String title, List<Map<String, dynamic>> rows) {
@@ -193,8 +193,7 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
         ledgerSection('Nutrition facts', nutritionRows),
       if (activeRows.isNotEmpty)
         ledgerSection('Active ingredients', activeRows),
-      if (otherRows.isNotEmpty)
-        ledgerSection('Other ingredients', otherRows),
+      if (otherRows.isNotEmpty) ledgerSection('Other ingredients', otherRows),
     ];
 
     return PGIngredientsCard(
@@ -220,6 +219,32 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
       inactiveIngredients: const [],
     );
   }
+}
+
+enum _LedgerSection { nutrition, active, other }
+
+_LedgerSection _ledgerSectionForRow(
+  Map<String, dynamic> row,
+  Map<String, Map<String, dynamic>> rowsBySourcePath,
+) {
+  final visitedPaths = <String>{};
+  var root = row;
+  while (true) {
+    final parentPath = root['parent_source_path']?.toString().trim() ?? '';
+    if (parentPath.isEmpty || !visitedPaths.add(parentPath)) break;
+    final parent = rowsBySourcePath[parentPath];
+    if (parent == null) break;
+    root = parent;
+  }
+
+  final displayType = root['display_type']?.toString();
+  final disposition = root['display_disposition']?.toString();
+  if (displayType == 'inactive_ingredient' ||
+      disposition == 'other_ingredient') {
+    return _LedgerSection.other;
+  }
+  if (displayType == 'nutrition_fact') return _LedgerSection.nutrition;
+  return _LedgerSection.active;
 }
 
 /// Build canonical label-ledger tiles exactly in the order emitted by the
@@ -284,6 +309,7 @@ List<Widget> _buildLabelLedgerTiles({
       ingredient: ingredient,
       ulAnalysis: ulAnalysis,
       showBottomDivider: index != ingredients.length - 1,
+      showNestedIndent: !hasParent,
     );
     tiles.add(hasParent ? _HierarchyChild(child: tile) : tile);
   }
@@ -344,6 +370,7 @@ List<Widget> _buildActiveTiles({
                   context: context,
                   ingredient: child,
                   ulAnalysis: ulAnalysis,
+                  showNestedIndent: false,
                 ),
         ),
       );
@@ -419,12 +446,14 @@ Widget _tileFor({
   required Map<String, dynamic> ingredient,
   required List<Map<String, dynamic>>? ulAnalysis,
   bool showBottomDivider = true,
+  bool showNestedIndent = true,
 }) {
   final ulEntry = matchUlEntry(ingredient, ulAnalysis);
   final typed = activeFromMap(ingredient, ulEntry: ulEntry);
   return PGActiveIngredientTile(
     ingredient: typed,
     showBottomDivider: showBottomDivider,
+    showNestedIndent: showNestedIndent,
     onTap: () => showIngredientExplainSheet(
       context,
       ingredient: ingredient,
@@ -625,7 +654,6 @@ class _HierarchyChild extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(left: V2Spacing.space8),
-      padding: const EdgeInsets.only(left: V2Spacing.space12),
       decoration: const BoxDecoration(
         border: Border(left: BorderSide(color: V2Colors.outline, width: 1)),
       ),

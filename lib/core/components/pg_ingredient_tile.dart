@@ -43,11 +43,16 @@ class PGActiveIngredientTile extends StatelessWidget {
   /// Tap handler — production opens `showIngredientExplainSheet`.
   final VoidCallback? onTap;
 
+  /// Whether this tile should express source depth with left padding. Set to
+  /// false when the parent already renders a hierarchy connector.
+  final bool showNestedIndent;
+
   const PGActiveIngredientTile({
     super.key,
     required this.ingredient,
     this.showBottomDivider = true,
     this.onTap,
+    this.showNestedIndent = true,
   });
 
   @override
@@ -96,7 +101,9 @@ class PGActiveIngredientTile extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: EdgeInsets.only(left: nestedDepth * V2Spacing.space16),
+          padding: EdgeInsets.only(
+            left: showNestedIndent ? nestedDepth * V2Spacing.space16 : 0,
+          ),
           child: Semantics(
             container: true,
             label: semanticsLabel,
